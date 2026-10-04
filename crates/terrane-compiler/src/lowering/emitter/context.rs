@@ -802,23 +802,14 @@ impl Emitter<'_> {
         ) {
             return true;
         }
-        let ValueType::Object(identity) = value_type else {
-            return false;
-        };
-        self.package
-            .units
-            .iter()
-            .flat_map(|unit| &unit.descriptors)
-            .any(|object| object.identity == *identity && object.resource_owning)
+        crate::semantics::application_is_resource_owning(self.package, value_type)
     }
 
     pub(super) fn object_owns_resource(&self, identity: &ObjectIdentity) -> bool {
-        self.package
-            .units
-            .iter()
-            .flat_map(|unit| &unit.descriptors)
-            .find(|object| object.identity == *identity)
-            .is_some_and(|object| object.resource_owning)
+        crate::semantics::application_is_resource_owning(
+            self.package,
+            &ValueType::Object(identity.clone()),
+        )
     }
 
     pub(super) fn object_requires_separation(&self, identity: &ObjectIdentity) -> bool {

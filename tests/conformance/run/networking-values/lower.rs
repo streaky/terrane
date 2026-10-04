@@ -881,16 +881,21 @@ impl IoResult {
     }
 }
 pub struct TcpStream {
-    pub handle: TerranePlatformCapability,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
 }
 impl TcpStream {
     pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
-        let mut value = Self { handle: Default::default() };
+        let mut value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
         value.construct(resource);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = resource;
+        self.handle = Some(resource);
     }
     pub async fn read(
         &self,
@@ -899,7 +904,7 @@ impl TcpStream {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_read_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     limit,
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
@@ -924,7 +929,7 @@ impl TcpStream {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_write_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     data,
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
@@ -944,7 +949,7 @@ impl TcpStream {
     }
     pub fn configure(&self, options: TcpOptions) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_configure(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             options.no_delay,
             options.ttl,
         );
@@ -956,7 +961,7 @@ impl TcpStream {
     }
     pub fn shutdown(&self, direction: String) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_shutdown(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             direction,
         );
         return NetworkOperationResult::terrane_construct(
@@ -966,7 +971,9 @@ impl TcpStream {
         );
     }
     pub fn close(self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -974,11 +981,16 @@ impl TcpStream {
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_capability_close(&self.handle);
+        terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for TcpStream {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
@@ -1071,25 +1083,28 @@ pub async fn connect_host(
     );
 }
 pub struct TcpListener {
-    pub handle: TerranePlatformCapability,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
     pub local_address: String,
 }
 impl TcpListener {
     pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
         let mut value = Self {
-            handle: Default::default(),
+            __terrane_constructed: false,
+            handle: None,
             local_address: String::from(""),
         };
         value.construct(resource);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = resource;
+        self.handle = Some(resource);
     }
     pub async fn accept(&self, options: NetworkOperationOptions) -> StreamResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_accept_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
@@ -1107,7 +1122,9 @@ impl TcpListener {
         );
     }
     pub fn close(self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1115,11 +1132,16 @@ impl TcpListener {
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_capability_close(&self.handle);
+        terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for TcpListener {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
@@ -1174,20 +1196,23 @@ pub fn bind_tcp(address: SocketAddress) -> ListenerResult {
     );
 }
 pub struct UdpSocket {
-    pub handle: TerranePlatformCapability,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
     pub local_address: String,
 }
 impl UdpSocket {
     pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
         let mut value = Self {
-            handle: Default::default(),
+            __terrane_constructed: false,
+            handle: None,
             local_address: String::from(""),
         };
         value.construct(resource);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = resource;
+        self.handle = Some(resource);
     }
     pub async fn send_to(
         &self,
@@ -1197,7 +1222,7 @@ impl UdpSocket {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_udp_send_to_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     data,
                     address.value,
                     operation_deadline(options.clone()),
@@ -1223,7 +1248,7 @@ impl UdpSocket {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_udp_receive_from_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     limit,
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
@@ -1243,7 +1268,7 @@ impl UdpSocket {
     }
     pub fn configure(&self, options: UdpOptions) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_udp_configure(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             options.broadcast,
             options.ttl,
         );
@@ -1254,7 +1279,9 @@ impl UdpSocket {
         );
     }
     pub fn close(self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1262,11 +1289,16 @@ impl UdpSocket {
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_capability_close(&self.handle);
+        terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for UdpSocket {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }

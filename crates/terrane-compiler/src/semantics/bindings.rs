@@ -887,6 +887,10 @@ pub(super) enum AutoTraitObligation {
     Sync,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive auto-trait proof cases stay aligned with the complete semantic value shape"
+)]
 pub(super) fn value_type_satisfies_auto_trait(
     package: &SemanticPackage,
     value_type: &ValueType,
@@ -918,14 +922,60 @@ pub(super) fn value_type_satisfies_auto_trait(
                     .units
                     .iter()
                     .flat_map(|unit| &unit.descriptors)
-                    .find(|object| object.identity == *identity)
+                    .find(|object| object.identity.base() == identity.base())
                     .is_some_and(|object| match object.kind {
                         ObjectKind::Interface => true,
-                        ObjectKind::Class => effective_object_fields(package, object)
-                            .into_iter()
-                            .all(|field| {
-                                field.is_static
-                                    || satisfies(package, &field.value_type, obligation, visiting)
+                        ObjectKind::Class => {
+                            let substitutions = object
+                                .generic_parameters
+                                .iter()
+                                .zip(&identity.type_arguments)
+                                .map(|(parameter, argument)| {
+                                    (parameter.name.clone(), argument.clone())
+                                })
+                                .collect();
+                            effective_object_fields(package, object)
+                                .into_iter()
+                                .all(|field| {
+                                    field.is_static
+                                        || satisfies(
+                                            package,
+                                            &substitute_value_type(
+                                                &field.value_type,
+                                                &substitutions,
+                                            ),
+                                            obligation,
+                                            visiting,
+                                        )
+                                })
+                        }
+                        ObjectKind::Enum => package
+                            .units
+                            .iter()
+                            .flat_map(|unit| &unit.source_enums)
+                            .find(|enumeration| enumeration.identity.base() == identity.base())
+                            .is_some_and(|enumeration| {
+                                let substitutions = object
+                                    .generic_parameters
+                                    .iter()
+                                    .zip(&identity.type_arguments)
+                                    .map(|(parameter, argument)| {
+                                        (parameter.name.clone(), argument.clone())
+                                    })
+                                    .collect();
+                                enumeration.variants.iter().all(|variant| {
+                                    variant.payload.iter().all(|field| {
+                                        satisfies(
+                                            package,
+                                            &substitute_value_type(
+                                                &field.value_type,
+                                                &substitutions,
+                                            ),
+                                            obligation,
+                                            visiting,
+                                        )
+                                    })
+                                })
                             }),
                         ObjectKind::Trait | ObjectKind::Type => false,
                     });

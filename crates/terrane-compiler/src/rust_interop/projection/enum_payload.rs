@@ -1,14 +1,75 @@
 use super::{
     BTreeMap, HashMap, Id, Item, ItemEnum, ItemSummary, ProjectedBoundaryCapabilities,
     ProjectedEnumPayload, ProjectedEnumPayloadConversion, ProjectedEnumPayloadOperation,
-    ProjectedEnumPayloadStyle, ProjectedField, ProjectedFieldConversion, ProjectedItem,
-    ProjectedKind, ProjectedType, Type, is_rust_byte_vector_type, is_rust_string_type,
-    project_type, render_rust_type, type_implements_deref_target, type_implements_generic_trait,
+    ProjectedEnumPayloadStyle, ProjectedEnumVariant, ProjectedEnumVariantStyle, ProjectedField,
+    ProjectedFieldConversion, ProjectedGenericParameter, ProjectedItem, ProjectedKind,
+    ProjectedType, Type, is_rust_byte_vector_type, is_rust_string_type, project_type,
+    render_rust_type, type_implements_deref_target, type_implements_generic_trait,
 };
+
+pub(super) fn project_variant(
+    name: &str,
+    variant: &rustdoc_types::Variant,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> ProjectedEnumVariant {
+    use rustdoc_types::VariantKind;
+    let (style, projected) = match &variant.kind {
+        VariantKind::Plain => (ProjectedEnumVariantStyle::Unit, Ok(Vec::new())),
+        VariantKind::Tuple(fields) => (
+            ProjectedEnumVariantStyle::Tuple,
+            project_enum_payload_fields(
+                fields.iter().enumerate().map(|(slot, field)| {
+                    let name = slot.to_string();
+                    (name.clone(), name, *field)
+                }),
+                index,
+                paths,
+                generics,
+            ),
+        ),
+        VariantKind::Struct {
+            fields,
+            has_stripped_fields,
+        } => (
+            ProjectedEnumVariantStyle::Struct,
+            if *has_stripped_fields {
+                Err("payload enum variant fields are stripped".to_owned())
+            } else {
+                project_enum_payload_fields(
+                    fields.iter().map(|id| {
+                        let name = index
+                            .get(id)
+                            .and_then(|item| item.name.clone())
+                            .unwrap_or_default();
+                        (name.clone(), name, Some(*id))
+                    }),
+                    index,
+                    paths,
+                    generics,
+                )
+            },
+        ),
+    };
+    let (fields, unavailable_reason) = match projected {
+        Ok(fields) => (fields, None),
+        Err(reason) => (Vec::new(), Some(reason)),
+    };
+    ProjectedEnumVariant {
+        name: name.to_owned(),
+        style,
+        fields,
+        constructible: unavailable_reason.is_none(),
+        unavailable_reason,
+    }
+}
+
 pub(super) fn project_enum_payload(
     ty: &Type,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<
     (
         ProjectedType,
@@ -19,8 +80,8 @@ pub(super) fn project_enum_payload(
     ),
     String,
 > {
-    let projected = project_type(ty, index, paths, &BTreeMap::new())?;
-    let rust_type = render_rust_type(ty, index, paths, &BTreeMap::new())?;
+    let projected = project_type(ty, index, paths, generics)?;
+    let rust_type = render_rust_type(ty, index, paths, generics)?;
     let mut constructor_type = projected.clone();
     let mut constructor_conversion = ProjectedEnumPayloadConversion::Identity;
     let mut extraction_type = projected.clone();
@@ -99,6 +160,7 @@ fn project_enum_payload_fields(
     fields: impl Iterator<Item = (String, String, Option<Id>)>,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<Vec<ProjectedField>, String> {
     fields
         .map(|(name, rust_name, field)| {
@@ -111,7 +173,7 @@ fn project_enum_payload_fields(
             let ItemEnum::StructField(rustdoc_type) = &field.inner else {
                 return Err("payload enum variant field metadata is unavailable".to_owned());
             };
-            let ty = project_type(rustdoc_type, index, paths, &BTreeMap::new())?;
+            let ty = project_type(rustdoc_type, index, paths, generics)?;
             let conversion = enum_payload_field_conversion(&ty).ok_or_else(|| {
                 format!("payload enum variant field `{rust_name}` has no owned field conversion")
             })?;
@@ -123,7 +185,7 @@ fn project_enum_payload_fields(
                 },
                 rust_name,
                 ty,
-                rust_type: render_rust_type(rustdoc_type, index, paths, &BTreeMap::new())?,
+                rust_type: render_rust_type(rustdoc_type, index, paths, generics)?,
                 conversion,
             })
         })
@@ -165,15 +227,31 @@ pub(super) fn project_multi_enum_payload(
     fields: impl Iterator<Item = (String, String, Option<Id>)>,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedEnumPayloadItem, String> {
-    let fields = project_enum_payload_fields(fields, index, paths)?;
+    let fields = project_enum_payload_fields(fields, index, paths, generics)?;
+    let generic_parameters = generics
+        .iter()
+        .filter(|(name, ty)| {
+            matches!(ty, ProjectedType::Generic(_))
+                && fields.iter().any(|field| field.ty.contains_generic(name))
+        })
+        .map(|(name, _)| ProjectedGenericParameter {
+            name: name.clone(),
+            input_selected: true,
+            rust_bounds: Vec::new(),
+        })
+        .collect::<Vec<_>>();
     let payload_name = format!("{enum_name}-{variant}");
     let payload_rust_path = format!("{owner_rust_path}::{variant}#payload");
     let payload_type = ProjectedType::Foreign {
         rust_path: payload_rust_path.clone(),
         name: payload_name.clone(),
         base_rust_path: payload_rust_path.clone(),
-        arguments: Vec::new(),
+        arguments: generic_parameters
+            .iter()
+            .map(|parameter| ProjectedType::Generic(parameter.name.clone()))
+            .collect(),
     };
     let operation = ProjectedEnumPayloadOperation {
         style,
@@ -198,6 +276,7 @@ pub(super) fn project_multi_enum_payload(
                 variant: variant.to_owned(),
                 style,
             }),
+            generic_parameters,
             displayable: false,
             cloneable: false,
             send: false,

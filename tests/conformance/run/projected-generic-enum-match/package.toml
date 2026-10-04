@@ -1,0 +1,6 @@
+package = "projected-generic-enum-match"
+[namespaces]
+app = "src"
+[rust-dependencies.witness]
+package = "terrane-generic-enum-witness"
+version = "0.1.0"

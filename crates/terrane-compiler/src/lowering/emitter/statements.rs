@@ -48,6 +48,7 @@ impl Emitter<'_> {
         }
         let referenced_fresh_lists = self.statement_fresh_list_references(node);
         match node.kind {
+            SyntaxKind::MatchStatement => self.enum_match_statement(node),
             SyntaxKind::Binding => {
                 if !self.global_assignment(node) {
                     self.binding(node);
@@ -349,6 +350,22 @@ impl Emitter<'_> {
         } else {
             value
         };
+        if let [receiver, member] = left.children.as_slice()
+            && left.kind == SyntaxKind::MemberExpression
+            && let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver)
+            && source_field_is_required(self.package, &identity, self.text(member))
+        {
+            let receiver_expression = self.receiver_expression(receiver);
+            let field = rust_name(self.text(member));
+            if self.wrapped_object_field(receiver, self.text(member)) {
+                self.line(&format!(
+                    "*({receiver_expression}).terrane_field_{field}_slot_mut() = Some({value});"
+                ));
+            } else {
+                self.line(&format!("({receiver_expression}).{field} = Some({value});"));
+            }
+            return;
+        }
         if left.kind == SyntaxKind::Name && self.async_mutable_captures.contains(self.text(left)) {
             let target = rust_name(self.text(left));
             self.line(&format!(

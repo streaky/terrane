@@ -343,6 +343,8 @@ pub(super) fn parse_unit(
         scopes: Vec::new(),
         typed_bindings: Vec::new(),
         functions: Vec::new(),
+        source_enums: Vec::new(),
+        required_init_proofs: BTreeMap::new(),
         reference_provenance: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
@@ -356,7 +358,7 @@ pub(super) fn parse_unit(
         projected_removals: Vec::new(),
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
-        projected_call_result_types: BTreeMap::new(),
+        selected_expression_types: BTreeMap::new(),
         invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
@@ -1164,6 +1166,7 @@ fn analyze_parsed_with_projection(
     validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    super::enums::validate_enum_matches(&mut semantic)?;
     if semantic.execution_strategy == crate::execution::ExecutionStrategy::Local {
         for unit in &semantic.units {
             if let Some(destructor) = unit
@@ -1187,6 +1190,7 @@ fn analyze_parsed_with_projection(
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
+    populate_function_aliases(&mut semantic);
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
@@ -1196,6 +1200,7 @@ fn analyze_parsed_with_projection(
     validate_calls(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
     validate_definite_assignment(&semantic)?;
+    super::initialization::validate(&mut semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
     validate_projected_callback_arguments(&semantic)?;
@@ -1426,7 +1431,10 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
                 let span = symbol.declaration_span?;
                 matches!(
                     symbol.kind,
-                    SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                    SymbolKind::Class
+                        | SymbolKind::Interface
+                        | SymbolKind::Trait
+                        | SymbolKind::Enum
                 )
                 .then(|| contracts.get(&(span.file, span.start, span.end)))
                 .flatten()

@@ -1,0 +1,5 @@
+namespace rejected-generic
+class envelope of (T)
+    value T|none = none
+    function convert of (T) T; value T
+        return value

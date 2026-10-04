@@ -17,8 +17,30 @@ pub(super) fn descriptor_contract<'a>(
     unit.descriptors.iter().find(|object| {
         object.identity.namespace == identity.namespace
             && object.identity.name == identity.name
-            && object.identity.application_key == identity.application_key
+            && if object.generic_parameters.is_empty() {
+                object.identity.application_key == identity.application_key
+            } else {
+                true
+            }
     })
+}
+
+fn object_type_substitutions(
+    object: &DescriptorContract,
+    identity: &ObjectIdentity,
+) -> BTreeMap<String, ValueType> {
+    object
+        .generic_parameters
+        .iter()
+        .zip(&identity.type_arguments)
+        .map(|(parameter, value_type)| (parameter.name.clone(), value_type.clone()))
+        .chain(
+            identity
+                .native_arguments
+                .iter()
+                .map(|(name, value_type)| (name.clone(), value_type.clone())),
+        )
+        .collect()
 }
 /// Resolves one structural protocol member through the canonical descriptor contract.
 pub(super) fn descriptor_protocol_method<'a>(
@@ -112,8 +134,10 @@ pub(super) fn object_field_type(
         .iter()
         .find(|field| field.name == member && field.is_static == is_static)
     {
+        let substitutions = object_type_substitutions(object, object_identity);
+        let value_type = super::generics::substitute_value_type(&field.value_type, &substitutions);
         return Some(super::calls::substitute_projected_value_generics(
-            &field.value_type,
+            &value_type,
             &object_identity.native_arguments,
         ));
     }
@@ -175,7 +199,9 @@ pub(crate) fn object_member_type(
         return Some(field_type);
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
+        let substitutions = object_type_substitutions(object, object_identity);
         return method_value_type(method).map(|value_type| {
+            let value_type = super::generics::substitute_value_type(&value_type, &substitutions);
             super::calls::substitute_projected_value_generics(
                 &value_type,
                 &object_identity.native_arguments,
@@ -526,6 +552,28 @@ fn infer_member_type(
             }
             member_type => member_type,
         }));
+    }
+    if let (Some(ValueType::TypeParameter(parameter)), Some(receiver)) =
+        (&receiver_type, node.children.first())
+    {
+        let bound = super::generics::type_parameter_bound_at(unit, receiver.span.start, parameter);
+        let Some(bound) = bound else {
+            return Err(failure(
+                &unit.source,
+                "T0055",
+                format!("unbounded type parameter `{parameter}` has no member `{member_name}`"),
+                node.span,
+            ));
+        };
+        if let Some(member_type) = object_member_type(unit, bound, member_name, false) {
+            return Ok(Some(member_type));
+        }
+        return Err(failure(
+            &unit.source,
+            "T0055",
+            format!("interface bound `{bound}` has no member `{member_name}`"),
+            node.span,
+        ));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type
         && (crate::syntax::call_is_unsafe(node)

@@ -36,18 +36,28 @@
     }
   ],
   "removed": [],
-  "cache_identity": "7be5c7d92aeee166815da307ac9414ddba417258cbb2010d85701d2fa4eee498",
+  "cache_identity": "b1e7352d51f2c61c1c7da43d66e6bde80f6aae51d9567cda23e155d98057310e",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "240",
-  "content_hash": "4d9f7df20efd1415baef97298d563f2e941c6584100887e4a34bfb2eda221d7a",
+  "projection_schema": "243",
+  "content_hash": "841d4786d1d278fe38beaeb51cdceef6b47feb98c6355c030a3f537ed486505e",
   "resolution": {
-    "outcome": "ExactCache",
+    "outcome": "LocalRustdoc",
     "events": [
       {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `7be5c7d92aeee166815da307ac9414ddba417258cbb2010d85701d2fa4eee498`"
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
       }
     ]
   }

@@ -175,6 +175,92 @@ pub(super) fn infer_value_type(
     if node.kind == SyntaxKind::TypeMembershipExpression {
         return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
     }
+    if node.kind == SyntaxKind::AppliedType
+        && let Some(name_node) = node.children.first()
+        && name_node.kind == SyntaxKind::Name
+    {
+        let name = node_text(&unit.source, name_node);
+        if let Some(contract) = resolved_function_contract(unit, name, name_node.span.start)
+            && !contract.generic_parameters.is_empty()
+        {
+            let type_nodes = &node.children[1..];
+            if type_nodes.len() != contract.generic_parameters.len() {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    format!(
+                        "function `{name}` requires {} type arguments, found {}",
+                        contract.generic_parameters.len(),
+                        type_nodes.len()
+                    ),
+                    node.span,
+                ));
+            }
+            let aliases = visible_descriptor_aliases(
+                &unit.descriptor_aliases,
+                node.span.file,
+                node.span.start,
+            );
+            let substitutions = contract
+                .generic_parameters
+                .iter()
+                .zip(type_nodes)
+                .map(|(parameter, type_node)| {
+                    super::types::declared_value_type(unit, type_node, &aliases)
+                        .map(|value_type| (parameter.name.clone(), value_type))
+                })
+                .collect::<Result<BTreeMap<_, _>, _>>()?;
+            if !super::generics::generic_bounds_satisfied(
+                unit,
+                &contract.generic_parameters,
+                &substitutions,
+            ) {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    format!(
+                        "explicit application of `{name}` does not satisfy its type parameter bounds"
+                    ),
+                    node.span,
+                ));
+            }
+            let parameters = contract
+                .parameters
+                .iter()
+                .map(ParameterContract::callable_type)
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| {
+                    failure(
+                        &unit.source,
+                        "T0052",
+                        "stored function parameters require explicit types",
+                        node.span,
+                    )
+                })?
+                .into_iter()
+                .map(|parameter| {
+                    let value_type = super::generics::substitute_value_type(
+                        parameter.value_type_ref(),
+                        &substitutions,
+                    );
+                    parameter.with_element_type(ElementType::new(value_type))
+                })
+                .collect();
+            let result = ElementType::new(super::generics::substitute_value_type(
+                contract
+                    .return_type
+                    .as_ref()
+                    .unwrap_or(&ValueType::Scalar(ScalarType::None)),
+                &substitutions,
+            ));
+            let effects = CallableEffects::from_contract(contract);
+            return Ok(Some(if contract.is_async {
+                ValueType::AsyncFunction(parameters, result, contract.task_transferability, effects)
+            } else {
+                ValueType::Function(parameters, result, effects)
+            }));
+        }
+    }
     if node.kind == SyntaxKind::Name {
         let name = node_text(&unit.source, node);
         if name == "none" {
@@ -198,19 +284,19 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(object) = unit
-            .descriptors
-            .iter()
-            .find(|object| object.builtin.is_none() && object.name == name)
-        {
-            return Ok(Some(ValueType::Descriptor(object.identity.qualified())));
-        }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
             binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
         }) {
             return Ok(Some(
                 narrowed_value_type(unit, node, bindings).unwrap_or(binding.value_type.clone()),
             ));
+        }
+        if let Some(object) = unit
+            .descriptors
+            .iter()
+            .find(|object| object.builtin.is_none() && object.name == name)
+        {
+            return Ok(Some(ValueType::Descriptor(object.identity.qualified())));
         }
         if let Some(contract) = unit.functions.iter().find(|contract| {
             contract.owner.is_none() && contract.name == name && !contract.is_unsafe
@@ -370,6 +456,19 @@ pub(super) fn infer_value_type(
         let [receiver, member] = node.children.as_slice() else {
             return Ok(None);
         };
+        let aliases = visible_descriptor_aliases(
+            &unit.descriptor_aliases,
+            receiver.span.file,
+            receiver.span.start,
+        );
+        let declared = declared_value_type(unit, receiver, &aliases).ok();
+        if let Some(ValueType::Object(identity)) = declared
+            && unit.descriptors.iter().any(|descriptor| {
+                descriptor.identity.base() == identity.base() && descriptor.kind == ObjectKind::Enum
+            })
+        {
+            return Ok(Some(ValueType::Object(identity)));
+        }
         let identity = class_designator_identity(unit, receiver).ok_or_else(|| {
             failure(
                 &unit.source,
@@ -391,7 +490,7 @@ pub(super) fn infer_value_type(
             return Ok(Some(specialization.value_type.clone()));
         }
         if let Some(value_type) =
-            unit.projected_call_result_types
+            unit.selected_expression_types
                 .get(&(node.span.file, node.span.start, node.span.end))
         {
             return Ok(Some(value_type.clone()));
@@ -438,6 +537,123 @@ pub(super) fn infer_value_type(
                         callee.span,
                     )
                 })?;
+                if class.kind == SyntaxKind::StaticMemberExpression {
+                    let [owner, variant_name] = class.children.as_slice() else {
+                        return Ok(None);
+                    };
+                    let aliases = visible_descriptor_aliases(
+                        &unit.descriptor_aliases,
+                        owner.span.file,
+                        owner.span.start,
+                    );
+                    let ValueType::Object(mut identity) =
+                        declared_value_type(unit, owner, &aliases)?
+                    else {
+                        return Ok(None);
+                    };
+                    if let Some(enumeration) = unit
+                        .source_enums
+                        .iter()
+                        .find(|item| item.identity.base() == identity.base())
+                    {
+                        let Some(variant) = enumeration
+                            .variants
+                            .iter()
+                            .find(|item| item.name == node_text(&unit.source, variant_name))
+                        else {
+                            return Ok(None);
+                        };
+                        let Some(descriptor) = unit
+                            .descriptors
+                            .iter()
+                            .find(|item| item.identity.base() == identity.base())
+                        else {
+                            return Ok(None);
+                        };
+                        let mut substitutions = descriptor
+                            .generic_parameters
+                            .iter()
+                            .zip(&identity.type_arguments)
+                            .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
+                            .collect::<BTreeMap<_, _>>();
+                        if let Some(ValueType::Object(expected)) =
+                            super::generics::expected_destination_in_unit(
+                                unit,
+                                &unit.tree.root,
+                                node.span,
+                            )
+                            && expected.base() == identity.base()
+                        {
+                            for (parameter, argument) in descriptor
+                                .generic_parameters
+                                .iter()
+                                .zip(&expected.type_arguments)
+                            {
+                                if let Some(previous) =
+                                    substitutions.insert(parameter.name.clone(), argument.clone())
+                                    && previous != *argument
+                                {
+                                    return Err(failure(
+                                        &unit.source,
+                                        "T0218",
+                                        "enum application disagrees with its destination",
+                                        node.span,
+                                    ));
+                                }
+                            }
+                        }
+                        for argument in &arguments.children {
+                            let Some(name) = argument
+                                .children
+                                .first()
+                                .filter(|_| argument.children.len() > 1)
+                            else {
+                                continue;
+                            };
+                            let Some(field) = variant
+                                .payload
+                                .iter()
+                                .find(|field| field.name == node_text(&unit.source, name))
+                            else {
+                                continue;
+                            };
+                            let Some(value) = argument.children.last() else {
+                                continue;
+                            };
+                            if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                                bind_generic_type(&field.value_type, &actual, &mut substitutions)
+                                    .map_err(|message| {
+                                    failure(&unit.source, "T0218", message, argument.span)
+                                })?;
+                            }
+                        }
+                        if descriptor
+                            .generic_parameters
+                            .iter()
+                            .all(|parameter| substitutions.contains_key(&parameter.name))
+                        {
+                            identity = identity.with_type_arguments(
+                                descriptor
+                                    .generic_parameters
+                                    .iter()
+                                    .map(|parameter| substitutions[&parameter.name].clone())
+                                    .collect(),
+                            );
+                        }
+                    }
+                    if identity.type_arguments.is_empty()
+                        && let Some(ValueType::Object(expected)) =
+                            super::generics::expected_destination_in_unit(
+                                unit,
+                                &unit.tree.root,
+                                node.span,
+                            )
+                        && expected.base() == identity.base()
+                    {
+                        identity = expected;
+                    }
+                    return Ok(Some(ValueType::Object(identity)));
+                }
                 let identity = class_designator_identity(unit, class).ok_or_else(|| {
                     failure(
                         &unit.source,
@@ -449,7 +665,73 @@ pub(super) fn infer_value_type(
                         class.span,
                     )
                 })?;
-                return Ok(Some(ValueType::Object(identity)));
+                let Some(descriptor) = unit
+                    .descriptors
+                    .iter()
+                    .find(|item| item.identity.base() == identity.base())
+                else {
+                    return Ok(Some(ValueType::Object(identity)));
+                };
+                if descriptor.generic_parameters.is_empty() || !identity.type_arguments.is_empty() {
+                    return Ok(Some(ValueType::Object(identity)));
+                }
+                let mut substitutions = BTreeMap::new();
+                if let Some(ValueType::Object(expected)) =
+                    super::generics::expected_destination_in_unit(unit, &unit.tree.root, node.span)
+                    && expected.base() == identity.base()
+                {
+                    substitutions.extend(
+                        descriptor
+                            .generic_parameters
+                            .iter()
+                            .zip(&expected.type_arguments)
+                            .map(|(parameter, argument)| {
+                                (parameter.name.clone(), argument.clone())
+                            }),
+                    );
+                }
+                let constructor = unit.functions.iter().find(|function| {
+                    function
+                        .owner_identity
+                        .as_ref()
+                        .is_some_and(|owner| owner.base() == identity.base())
+                        && function.name == "construct"
+                });
+                if let (Some(constructor), Some(arguments)) = (constructor, node.children.get(1)) {
+                    for (index, argument) in arguments.children.iter().enumerate() {
+                        let parameter = if argument.children.len() > 1 {
+                            constructor.parameters.iter().find(|parameter| {
+                                parameter.name == node_text(&unit.source, &argument.children[0])
+                            })
+                        } else {
+                            constructor.parameters.get(index)
+                        };
+                        let Some(parameter) = parameter else { continue };
+                        let Some(expected) = parameter.element_value_type() else {
+                            continue;
+                        };
+                        let value = argument.children.last().unwrap_or(argument);
+                        let Some(actual) = infer_value_type(unit, value, bindings)? else {
+                            continue;
+                        };
+                        bind_generic_type(&expected, &actual, &mut substitutions).map_err(
+                            |message| failure(&unit.source, "T0218", message, argument.span),
+                        )?;
+                    }
+                }
+                let arguments = descriptor
+                    .generic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        substitutions
+                            .get(&parameter.name)
+                            .cloned()
+                            .unwrap_or_else(|| ValueType::TypeParameter(parameter.name.clone()))
+                    })
+                    .collect();
+                return Ok(Some(ValueType::Object(
+                    identity.with_type_arguments(arguments),
+                )));
             }
             if callee.kind == SyntaxKind::StaticMemberExpression {
                 let [receiver, member] = callee.children.as_slice() else {
@@ -1209,6 +1491,25 @@ pub(super) fn infer_value_type(
             if let Some(contract) =
                 resolved_function_contract(unit, &lookup_name, callee.span.start)
             {
+                if !contract.generic_parameters.is_empty()
+                    && let Some((selected, _)) = super::generics::select_unit_callable_contract(
+                        None, unit, node, contract, bindings,
+                    )
+                {
+                    let result_type = selected
+                        .return_type
+                        .clone()
+                        .unwrap_or(ValueType::Scalar(ScalarType::None));
+                    let result = ElementType::new(result_type);
+                    return Ok(Some(if selected.is_async {
+                        ValueType::Task(result, selected.task_transferability)
+                    } else {
+                        result.value_type()
+                    }));
+                }
+                if !contract.generic_parameters.is_empty() {
+                    return Ok(None);
+                }
                 let mut result_type = unit
                     .invocation_scoped_function_results
                     .get(&(contract.span.file, contract.span.start, contract.span.end))

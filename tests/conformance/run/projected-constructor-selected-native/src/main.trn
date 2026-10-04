@@ -37,3 +37,7 @@ function main;
     catch integer-conversion-overflow
         print; 'native range rejected'
     print; numeric.payload
+    explicit Envelope of Address = instance Envelope; payload = address
+    print; (address_port; explicit)
+    selected = instance (Frame of Address); address
+    print; selected.n0.port

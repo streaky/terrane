@@ -45,7 +45,7 @@ use callable::{
     is_builtin_marker_trait,
 };
 use data::{
-    SourceConstantCache, default_generic_instantiation, extern_rust_path, has_type_parameters,
+    SourceConstantCache, default_generic_instantiation, extern_rust_path,
     normalize_projected_items, project_rust_constant_expression, project_struct_fields,
     projected_constant_name, source_constant_expression,
 };
@@ -73,7 +73,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "240";
+const PROJECTION_SCHEMA: &str = "243";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -289,6 +289,10 @@ pub struct ProjectedItem {
     pub kind: ProjectedKind,
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "Inline projection metadata avoids allocating every foreign owner or callable solely to equalize enum variant sizes"
+)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedKind {
     Function(ProjectedFunction),
@@ -319,6 +323,8 @@ pub enum ProjectedKind {
         send: bool,
         #[serde(default)]
         sync: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        generic_parameters: Vec<ProjectedGenericParameter>,
     },
     Interface(ProjectedInterface),
     Enum {
@@ -336,6 +342,12 @@ pub enum ProjectedKind {
         sync: bool,
         data_carrying: bool,
         comparable: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        variants: Vec<ProjectedEnumVariant>,
+        #[serde(default)]
+        exhaustive: bool,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        generic_parameters: Vec<ProjectedGenericParameter>,
     },
 }
 
@@ -435,6 +447,22 @@ pub struct ProjectedEnumPayload {
 pub enum ProjectedEnumPayloadStyle {
     Tuple,
     Struct,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ProjectedEnumVariantStyle {
+    Unit,
+    Tuple,
+    Struct,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedEnumVariant {
+    pub name: String,
+    pub style: ProjectedEnumVariantStyle,
+    pub fields: Vec<ProjectedField>,
+    pub constructible: bool,
+    pub unavailable_reason: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -818,7 +846,7 @@ impl ProjectedType {
             _ => false,
         }
     }
-    fn contains_open_generic(&self) -> bool {
+    pub(crate) fn contains_open_generic(&self) -> bool {
         match self {
             Self::Generic(_) | Self::Associated(_) => true,
             Self::Sequence { item, .. }
@@ -6484,6 +6512,67 @@ fn render_partial_type(
         _ => render_rust_type(ty, index, paths, generics),
     }
 }
+fn projected_nominal_generic_parameters(
+    generics: &Generics,
+    substitutions: &BTreeMap<String, ProjectedType>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<Vec<ProjectedGenericParameter>, String> {
+    generics
+        .params
+        .iter()
+        .filter(|parameter| {
+            matches!(parameter.kind, GenericParamDefKind::Type { .. })
+                && matches!(
+                    substitutions.get(&parameter.name),
+                    Some(ProjectedType::Generic(_))
+                )
+        })
+        .map(|parameter| {
+            let rust_bounds = callable::generic_bounds_from_generics(parameter, generics)
+                .iter()
+                .map(|bound| render_generic_bound(bound, &[], index, paths, substitutions))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(ProjectedGenericParameter {
+                name: parameter.name.clone(),
+                input_selected: false,
+                rust_bounds,
+            })
+        })
+        .collect()
+}
+fn nominal_generic_instantiation(
+    generics: &Generics,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<BTreeMap<String, ProjectedType>, String> {
+    let mut substitutions = BTreeMap::new();
+    for parameter in &generics.params {
+        let projected = match &parameter.kind {
+            GenericParamDefKind::Type {
+                default: Some(default),
+                ..
+            } => project_type(default, index, paths, &substitutions)?,
+            GenericParamDefKind::Type { default: None, .. } => {
+                ProjectedType::Generic(parameter.name.clone())
+            }
+            GenericParamDefKind::Lifetime { .. } => {
+                return Err(format!(
+                    "lifetime parameter `{}` requires non-escaping projection",
+                    parameter.name
+                ));
+            }
+            GenericParamDefKind::Const { .. } => {
+                return Err(format!(
+                    "const parameter `{}` has no projected value identity",
+                    parameter.name
+                ));
+            }
+        };
+        substitutions.insert(parameter.name.clone(), projected);
+    }
+    Ok(substitutions)
+}
 #[expect(
     clippy::too_many_lines,
     reason = "one rustdoc item pass records admitted and declined public items together"
@@ -6780,6 +6869,7 @@ fn project_rustdoc(
                     borrowed_view: false,
                     native_view_type: None,
                     enum_payload: None,
+                    generic_parameters: Vec::new(),
                     displayable: false,
                     cloneable: false,
                     send: false,
@@ -6898,6 +6988,21 @@ fn project_rustdoc(
                 } else {
                     None
                 };
+                let generic_parameters = match projected_nominal_generic_parameters(
+                    &structure.generics,
+                    &owner_generics,
+                    index,
+                    paths,
+                ) {
+                    Ok(parameters) => parameters,
+                    Err(reason) => {
+                        declined.push(DeclinedItem {
+                            rust_path: rust_path.clone(),
+                            reason,
+                        });
+                        continue;
+                    }
+                };
                 {
                     let projected_impls = if borrowed_view {
                         &[][..]
@@ -6986,20 +7091,76 @@ fn project_rustdoc(
                         ),
                         send: false,
                         sync: false,
+                        generic_parameters,
                     })
                 }
             }
             ItemEnum::Enum(enumeration) => {
-                if has_type_parameters(&enumeration.generics.params) {
-                    Err("type has generic or lifetime parameters".to_owned())
+                let unsupported_parameter =
+                    enumeration.generics.params.iter().find(|parameter| {
+                        !matches!(parameter.kind, GenericParamDefKind::Type { .. })
+                    });
+                if let Some(parameter) = unsupported_parameter {
+                    Err(format!(
+                        "enum generic parameter `{}` is not a type parameter",
+                        parameter.name
+                    ))
                 } else {
-                    let enum_type = ProjectedType::Foreign {
-                        rust_path: rust_path.clone(),
-                        name: name.clone(),
-                        base_rust_path: rust_path.clone(),
-                        arguments: Vec::new(),
+                    let nominal_generic_types =
+                        match nominal_generic_instantiation(&enumeration.generics, index, paths) {
+                            Ok(substitutions) => substitutions,
+                            Err(reason) => {
+                                declined.push(DeclinedItem {
+                                    rust_path: rust_path.clone(),
+                                    reason,
+                                });
+                                continue;
+                            }
+                        };
+                    let generic_parameters = match projected_nominal_generic_parameters(
+                        &enumeration.generics,
+                        &nominal_generic_types,
+                        index,
+                        paths,
+                    ) {
+                        Ok(parameters) => parameters,
+                        Err(reason) => {
+                            declined.push(DeclinedItem {
+                                rust_path: rust_path.clone(),
+                                reason,
+                            });
+                            continue;
+                        }
                     };
-                    let owner_generics = BTreeMap::from([("Self".to_owned(), enum_type.clone())]);
+                    let generic_arguments = enumeration
+                        .generics
+                        .params
+                        .iter()
+                        .filter_map(|parameter| nominal_generic_types.get(&parameter.name).cloned())
+                        .collect::<Vec<_>>();
+                    let generic_rust_path = if generic_arguments.is_empty() {
+                        rust_path.clone()
+                    } else {
+                        format!(
+                            "{rust_path}<{}>",
+                            generic_arguments
+                                .iter()
+                                .map(ProjectedType::rust_type)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    };
+                    let mut owner_generics = BTreeMap::from([(
+                        "Self".to_owned(),
+                        ProjectedType::Foreign {
+                            rust_path: generic_rust_path,
+                            name: name.clone(),
+                            base_rust_path: rust_path.clone(),
+                            arguments: generic_arguments,
+                        },
+                    )]);
+                    owner_generics.extend(nominal_generic_types);
+                    let enum_type = owner_generics["Self"].clone();
                     let (projected_methods, trait_methods, projected_constants, method_declines) =
                         project_methods(
                             &enumeration.impls,
@@ -7051,6 +7212,7 @@ fn project_rustdoc(
                         }
                     }));
                     let mut variant_names = Vec::new();
+                    let mut variants = Vec::new();
                     let mut data_carrying = false;
                     for variant_id in &enumeration.variants {
                         let Some(variant_item) = index.get(variant_id) else {
@@ -7063,6 +7225,13 @@ fn project_rustdoc(
                             continue;
                         };
                         variant_names.push(variant_name.to_owned());
+                        variants.push(enum_payload::project_variant(
+                            variant_name,
+                            variant,
+                            index,
+                            paths,
+                            &owner_generics,
+                        ));
                         let projected_payload = match &variant.kind {
                             VariantKind::Plain => None,
                             VariantKind::Tuple(fields) if fields.len() == 1 => {
@@ -7087,7 +7256,12 @@ fn project_rustdoc(
                                     });
                                     continue;
                                 };
-                                match project_enum_payload(field_type, index, paths) {
+                                match project_enum_payload(
+                                    field_type,
+                                    index,
+                                    paths,
+                                    &owner_generics,
+                                ) {
                                     Ok((
                                         constructor,
                                         constructor_conversion,
@@ -7125,6 +7299,7 @@ fn project_rustdoc(
                                     }),
                                     index,
                                     paths,
+                                    &owner_generics,
                                 ) {
                                     Ok((item, payload)) => {
                                         enum_payload_items.push(item);
@@ -7168,6 +7343,7 @@ fn project_rustdoc(
                                     }),
                                     index,
                                     paths,
+                                    &owner_generics,
                                 ) {
                                     Ok((item, payload)) => {
                                         enum_payload_items.push(item);
@@ -7294,6 +7470,12 @@ fn project_rustdoc(
                         });
                     }
                     Ok(ProjectedKind::Enum {
+                        variants,
+                        exhaustive: !enumeration.has_stripped_variants
+                            && !item
+                                .attrs
+                                .iter()
+                                .any(|attribute| matches!(attribute, Attribute::NonExhaustive)),
                         methods,
                         static_methods,
                         constants: projected_constants,
@@ -7312,6 +7494,7 @@ fn project_rustdoc(
                             paths,
                             "core::cmp::PartialEq",
                         ),
+                        generic_parameters,
                     })
                 }
             }
@@ -7964,6 +8147,7 @@ fn project_chain_owner(
             borrowed_view: false,
             native_view_type: None,
             enum_payload: None,
+            generic_parameters: Vec::new(),
             displayable: false,
             cloneable: false,
             send: false,

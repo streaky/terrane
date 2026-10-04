@@ -88,6 +88,7 @@ pub(super) fn union_arm_identity(
                 SymbolKind::Class
                     | SymbolKind::Interface
                     | SymbolKind::Trait
+                    | SymbolKind::Enum
                     | SymbolKind::ErrorObject
             )
         })
@@ -336,7 +337,11 @@ pub(super) fn object_method_mutates(
         candidate
             .descriptors
             .iter()
-            .find(|object| object.identity == *object_identity)
+            .find(|object| {
+                object.identity == *object_identity
+                    || (!object_identity.type_arguments.is_empty()
+                        && object.identity.base() == object_identity.base())
+            })
             .is_some_and(|object| contract_mutates(candidate, &object.identity, method_name))
     }) {
         return true;

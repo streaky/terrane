@@ -441,17 +441,34 @@ fn write_enum_payload(
     path: &str,
     fields: &[crate::rust_interop::projection::ProjectedField],
 ) {
-    writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
+    let parameters = fields
+        .iter()
+        .flat_map(|field| projected_generic_names(&field.ty))
+        .collect::<BTreeSet<_>>();
+    let generic_declaration = if parameters.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<{}>",
+            parameters.into_iter().collect::<Vec<_>>().join(", ")
+        )
+    };
+    writeln!(output, "pub struct {rust_name_}{generic_declaration} {{")
+        .expect("writing cannot fail");
     for field in fields {
         writeln!(
             output,
-            "    {}: {},",
+            "    pub {}: {},",
             rust_name(&field.name),
             projected_owned_field_type(&field.ty)
         )
         .expect("writing cannot fail");
     }
-    writeln!(output, "}}\nimpl {rust_name_} {{").expect("writing cannot fail");
+    writeln!(
+        output,
+        "}}\nimpl{generic_declaration} {rust_name_}{generic_declaration} {{"
+    )
+    .expect("writing cannot fail");
     write!(output, "    pub fn terrane_construct(").expect("writing cannot fail");
     for (index, field) in fields.iter().enumerate() {
         if index != 0 {
@@ -477,7 +494,7 @@ fn write_enum_payload(
         write!(output, "{name}: {value}, ").expect("writing cannot fail");
     }
     writeln!(output, "}} }}").expect("writing cannot fail");
-    write!(output, "    fn terrane_into_fields(self) -> (").expect("writing cannot fail");
+    write!(output, "    pub fn terrane_into_fields(self) -> (").expect("writing cannot fail");
     for field in fields {
         write!(output, "{},", projected_owned_field_type(&field.ty)).expect("writing cannot fail");
     }
@@ -487,7 +504,7 @@ fn write_enum_payload(
     }
     writeln!(output, ") }}\n}}\n").expect("writing cannot fail");
     let constructor = enum_payload_constructor_name(path);
-    write!(output, "fn {constructor}(").expect("writing cannot fail");
+    write!(output, "fn {constructor}{generic_declaration}(").expect("writing cannot fail");
     for (index, field) in fields.iter().enumerate() {
         if index != 0 {
             output.push_str(", ");
@@ -501,7 +518,7 @@ fn write_enum_payload(
     }
     write!(
         output,
-        ") -> {rust_name_} {{ {rust_name_}::terrane_construct("
+        ") -> {rust_name_}{generic_declaration} {{ {rust_name_}::terrane_construct("
     )
     .expect("writing cannot fail");
     for index in 0..fields.len() {

@@ -217,6 +217,7 @@ pub(super) fn analyze_descriptor_contracts(
                 node.span,
             )
         })?;
+        let generic_parameters = super::generics::generic_parameters(unit, node, &visible)?;
         let clause_identities = |clause_kind| -> Result<Vec<ObjectIdentity>, SemanticFailure> {
             let Some(clause) = node.children.iter().find(|child| child.kind == clause_kind) else {
                 return Ok(Vec::new());
@@ -233,53 +234,49 @@ pub(super) fn analyze_descriptor_contracts(
                 .iter()
                 .filter(|type_node| type_node.kind != SyntaxKind::DeclarationQualifier)
                 .map(|type_node| {
-                        if type_node.kind == SyntaxKind::AppliedType {
-                            let [base, argument] = type_node.children.as_slice() else {
-                                return Err(failure(
-                                    &unit.source,
-                                    "T0127",
-                                    "a projected interface application requires exactly one closed type",
-                                    type_node.span,
-                                ));
-                            };
-                            let base_name = node_text(&unit.source, base);
-                            let lookup_name = if is_unsafe {
-                                format!("unsafe::{base_name}")
+                    let mut type_node = type_node;
+                    while matches!(
+                        type_node.kind,
+                        SyntaxKind::TypeExpression | SyntaxKind::GroupExpression
+                    ) && type_node.children.len() == 1
+                    {
+                        type_node = &type_node.children[0];
+                    }
+                    if type_node.kind == SyntaxKind::AppliedType {
+                        let ValueType::Object(identity) = declared_value_type_with_visible_objects(
+                            unit,
+                            type_node,
+                            &visible,
+                            visible_objects,
+                        )?
+                        else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0054",
+                                "relationship requires a nominal object type",
+                                type_node.span,
+                            ));
+                        };
+                        return Ok(identity.with_safety(is_unsafe));
+                    }
+                    let name = node_text(&unit.source, type_node);
+                    let lookup_name = if is_unsafe {
+                        format!("unsafe::{name}")
+                    } else {
+                        name.to_owned()
+                    };
+                    Ok(visible_objects
+                        .get(&lookup_name)
+                        .cloned()
+                        .unwrap_or_else(|| {
+                            if name == "throwable" {
+                                ObjectIdentity::new("/core/errors", name)
                             } else {
-                                base_name.to_owned()
-                            };
-                            let identity = visible_objects
-                                .get(&lookup_name)
-                                .cloned()
-                                .unwrap_or_else(|| {
-                                    ObjectIdentity::new(&unit.namespace, base_name)
-                                        .with_safety(is_unsafe)
-                                });
-                            let application = declared_value_type_with_visible_objects(
-                                unit,
-                                argument,
-                                &visible,
-                                visible_objects,
-                            )?;
-                            Ok(identity.with_application(application))
-                        } else {
-                            let name = node_text(&unit.source, type_node);
-                            let lookup_name = if is_unsafe {
-                                format!("unsafe::{name}")
-                            } else {
-                                name.to_owned()
-                            };
-                            Ok(visible_objects.get(&lookup_name).cloned().unwrap_or_else(|| {
-                                if name == "throwable" {
-                                    ObjectIdentity::new("/core/errors", name)
-                                } else {
-                                    ObjectIdentity::new(&unit.namespace, name)
-                                        .with_safety(is_unsafe)
-                                }
-                            }))
-                        }
-                    })
-                    .collect()
+                                ObjectIdentity::new(&unit.namespace, name).with_safety(is_unsafe)
+                            }
+                        }))
+                })
+                .collect()
         };
         let base = clause_identities(SyntaxKind::ExtendsClause)?
             .into_iter()
@@ -364,6 +361,7 @@ pub(super) fn analyze_descriptor_contracts(
                     value_type,
                     initializer_span: initializer.map(|initializer| initializer.span),
                     is_static,
+                    required: !is_static && initializer.is_none() && !uses_canonical_default,
                     metadata,
                 });
             }
@@ -427,6 +425,7 @@ pub(super) fn analyze_descriptor_contracts(
             identity: ObjectIdentity::new(&unit.namespace, &name).with_safety(is_unsafe),
             name,
             span: node.span,
+            generic_parameters,
             kind,
             is_unsafe,
             resource_owning,
@@ -658,6 +657,160 @@ fn resource_identities(package: &SemanticPackage) -> BTreeSet<String> {
                 })
         })
         .collect()
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive resource classification mirrors semantic value shapes and preserves generic-parameter ownership profiles"
+)]
+pub(crate) fn application_is_resource_owning(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+) -> bool {
+    fn owns(
+        package: &SemanticPackage,
+        value_type: &ValueType,
+        resources: &BTreeSet<String>,
+        parameters: &BTreeMap<String, bool>,
+        visiting: &mut BTreeSet<(ObjectIdentity, Vec<bool>)>,
+    ) -> bool {
+        match value_type {
+            ValueType::Reference(_) | ValueType::SharedReference(_) => return false,
+            ValueType::TypeParameter(name) => return parameters.get(name).copied().unwrap_or(true),
+            _ => {}
+        }
+        if value_type_owns_resource(value_type, resources)
+            || value_type_contains_nonclone_foreign(&package.projection, value_type)
+        {
+            return true;
+        }
+        match value_type {
+            ValueType::Object(identity) => {
+                let Some(descriptor) = package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .find(|descriptor| descriptor.identity.base() == identity.base())
+                else {
+                    return false;
+                };
+                let arguments = identity
+                    .type_arguments
+                    .iter()
+                    .map(|argument| owns(package, argument, resources, parameters, visiting))
+                    .collect::<Vec<_>>();
+                let key = (identity.base(), arguments.clone());
+                if !visiting.insert(key.clone()) {
+                    return false;
+                }
+                let parameters = descriptor
+                    .generic_parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        (
+                            parameter.name.clone(),
+                            arguments.get(index).copied().unwrap_or(true),
+                        )
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                let result = if descriptor.kind == ObjectKind::Enum {
+                    if let Some(enumeration) = package
+                        .units
+                        .iter()
+                        .flat_map(|unit| &unit.source_enums)
+                        .find(|enumeration| enumeration.identity.base() == identity.base())
+                    {
+                        enumeration
+                            .variants
+                            .iter()
+                            .flat_map(|variant| &variant.payload)
+                            .any(|field| {
+                                owns(package, &field.value_type, resources, &parameters, visiting)
+                            })
+                    } else {
+                        package
+                            .projection
+                            .item(&identity.namespace, &identity.name)
+                            .and_then(|item| {
+                                let crate::rust_interop::projection::ProjectedKind::Enum {
+                                    variants,
+                                    ..
+                                } = &item.kind
+                                else {
+                                    return None;
+                                };
+                                Some(variants.iter().flat_map(|variant| &variant.fields).any(
+                                    |field| {
+                                        let Some(field_type) =
+                                            super::enums::projected_enum_payload_type(
+                                                package, &field.ty,
+                                            )
+                                        else {
+                                            return true;
+                                        };
+                                        let field_type = super::generics::substitute_value_type(
+                                            &field_type,
+                                            &identity.native_arguments,
+                                        );
+                                        owns(package, &field_type, resources, &parameters, visiting)
+                                    },
+                                ))
+                            })
+                            .unwrap_or(false)
+                    }
+                } else {
+                    effective_object_fields(package, descriptor)
+                        .iter()
+                        .filter(|field| !field.is_static)
+                        .any(|field| {
+                            owns(package, &field.value_type, resources, &parameters, visiting)
+                        })
+                };
+                visiting.remove(&key);
+                result
+            }
+            ValueType::Optional(inner) => owns(package, inner, resources, parameters, visiting),
+            ValueType::List(inner)
+            | ValueType::Set(inner)
+            | ValueType::Tuple(inner, _)
+            | ValueType::Iterator(inner)
+            | ValueType::IterationStep(inner)
+            | ValueType::UnorderedSet(inner)
+            | ValueType::TaskOutcome(inner) => owns(
+                package,
+                inner.value_type_ref(),
+                resources,
+                parameters,
+                visiting,
+            ),
+            ValueType::Map(key, value)
+            | ValueType::Entry(key, value)
+            | ValueType::UnorderedMap(key, value) => {
+                owns(
+                    package,
+                    key.value_type_ref(),
+                    resources,
+                    parameters,
+                    visiting,
+                ) || owns(
+                    package,
+                    value.value_type_ref(),
+                    resources,
+                    parameters,
+                    visiting,
+                )
+            }
+            _ => false,
+        }
+    }
+    owns(
+        package,
+        value_type,
+        &resource_identities(package),
+        &BTreeMap::new(),
+        &mut BTreeSet::new(),
+    )
 }
 
 pub(super) fn propagate_resource_ownership(
@@ -1281,6 +1434,7 @@ pub(super) fn validate_object_conformance(
                     };
                     let required_render = FunctionContract {
                         name: "render".to_owned(),
+                        generic_parameters: Vec::new(),
                         span: object.span,
                         owner: Some("/core/errors::throwable".to_owned()),
                         owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
@@ -1320,7 +1474,7 @@ pub(super) fn validate_object_conformance(
                     .find(|candidate| {
                         candidate.namespace == resolved_interface.namespace
                             && candidate.descriptors.iter().any(|candidate| {
-                                candidate.identity == *interface_identity
+                                candidate.identity.base() == interface_identity.base()
                                     && candidate.kind == ObjectKind::Interface
                             })
                     })
@@ -1328,17 +1482,34 @@ pub(super) fn validate_object_conformance(
                 let interface = interface_unit
                     .descriptors
                     .iter()
-                    .find(|candidate| candidate.identity == *interface_identity)
+                    .find(|candidate| candidate.identity.base() == interface_identity.base())
                     .expect("resolved interface must have an object contract");
+                let substitutions = interface
+                    .generic_parameters
+                    .iter()
+                    .zip(&interface_identity.type_arguments)
+                    .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                    .collect();
                 let requirements = interface_unit
                     .functions
                     .iter()
                     .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
                     .map(|method| {
-                        bind_projected_requirement(
+                        let mut requirement = bind_projected_requirement(
                             method,
                             interface_identity.application.as_deref(),
-                        )
+                        );
+                        for parameter in &mut requirement.parameters {
+                            parameter.value_type =
+                                parameter.value_type.as_ref().map(|value_type| {
+                                    substitute_value_type(value_type, &substitutions)
+                                });
+                        }
+                        requirement.return_type = requirement
+                            .return_type
+                            .as_ref()
+                            .map(|value_type| substitute_value_type(value_type, &substitutions));
+                        requirement
                     })
                     .collect::<Vec<_>>();
                 for required in &requirements {
@@ -1578,6 +1749,9 @@ pub(super) fn validate_class_field_initializers(
                         | ValueType::FilesystemAuthority
                 )
             {
+                continue;
+            }
+            if field.required {
                 continue;
             }
             return Err(failure(
@@ -2153,6 +2327,8 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                             &item.kind,
                             crate::rust_interop::projection::ProjectedKind::Interface(interface) if interface.is_unsafe
                         ),
+                        type_arguments: interface_identity.type_arguments.clone(),
+                        type_arguments_key: interface_identity.type_arguments_key.clone(),
                         application: interface_identity.application.clone(),
                         application_key: interface_identity.application_key.clone(),
                         native_projection: interface_identity.native_projection.clone(),
@@ -2207,6 +2383,8 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                 native_projection: identity.native_projection.clone(),
                 native_arguments: identity.native_arguments.clone(),
                 native_arguments_key: identity.native_arguments_key.clone(),
+                type_arguments: Vec::new(),
+                type_arguments_key: None,
             })
             .collect::<Vec<_>>();
         let projectable = package
@@ -2266,6 +2444,125 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Enum declarations publish their variants and nominal descriptor atomically"
+)]
+fn analyze_source_enums(
+    unit: &SemanticUnit,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Result<(Vec<SourceEnumContract>, Vec<DescriptorContract>), SemanticFailure> {
+    let mut result = Vec::new();
+    let mut descriptors = Vec::new();
+    for node in unit
+        .tree
+        .root
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::EnumDeclaration)
+    {
+        let name_node = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0053",
+                    "enum declaration requires a name",
+                    node.span,
+                )
+            })?;
+        let name = node_text(&unit.source, name_node).to_owned();
+        let generic_parameters = super::generics::generic_parameters(unit, node, aliases)?;
+        let mut variants = Vec::new();
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            for variant in &block.children {
+                let Some(variant_name) = variant
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                else {
+                    continue;
+                };
+                let mut payload = Vec::new();
+                if let Some(list) = variant
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::ParameterList)
+                {
+                    for field in &list.children {
+                        let Some(field_name) = field
+                            .children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::Name)
+                        else {
+                            continue;
+                        };
+                        let field_type = field
+                            .children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::TypeExpression)
+                            .ok_or_else(|| {
+                                failure(
+                                    &unit.source,
+                                    "T0001",
+                                    "enum payload fields require a type",
+                                    field.span,
+                                )
+                            })?;
+                        payload.push(SourceEnumField {
+                            name: node_text(&unit.source, field_name).to_owned(),
+                            span: field.span,
+                            value_type: declared_value_type(unit, field_type, aliases)?,
+                        });
+                    }
+                }
+                variants.push(SourceEnumVariant {
+                    name: node_text(&unit.source, variant_name).to_owned(),
+                    span: variant.span,
+                    payload,
+                });
+            }
+        }
+        descriptors.push(DescriptorContract {
+            name: name.clone(),
+            identity: ObjectIdentity::new(&unit.namespace, &name),
+            span: node.span,
+            kind: ObjectKind::Enum,
+            generic_parameters,
+            is_unsafe: false,
+            resource_owning: false,
+            builtin: None,
+            categories: vec![TypeCategory::Value, TypeCategory::Object],
+            operations: BTreeMap::new(),
+            members: BTreeSet::new(),
+            methods: BTreeSet::new(),
+            invocation_only_methods: BTreeSet::new(),
+            static_members: BTreeSet::new(),
+            static_methods: BTreeSet::new(),
+            base: None,
+            interfaces: Vec::new(),
+            traits: Vec::new(),
+            fields: Vec::new(),
+        });
+        result.push(SourceEnumContract {
+            identity: ObjectIdentity::new(&unit.namespace, &name),
+            span: node.span,
+            variants,
+        });
+    }
+    Ok((result, descriptors))
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Type-analysis phase ordering is explicit because constructor, binding, and projection selections depend on prior phases"
+)]
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let descriptors = {
@@ -2283,10 +2580,10 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                     )
                 })
                 .map(|(visible_name, symbol)| {
-                    let is_unsafe = visible_name.starts_with("unsafe::");
                     (
                         visible_name.clone(),
-                        ObjectIdentity::new(&symbol.namespace, &symbol.name).with_safety(is_unsafe),
+                        ObjectIdentity::new(&symbol.namespace, &symbol.name)
+                            .with_safety(visible_name.starts_with("unsafe::")),
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
@@ -2294,9 +2591,31 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         };
         package.units[index].descriptors = descriptors;
     }
+    for index in 0..package.units.len() {
+        let (source_enums, enum_descriptors) = {
+            let unit = &package.units[index];
+            let alias_history = descriptor_construct_alias_history(package, unit);
+            let aliases = visible_descriptor_aliases(&alias_history, unit.source.id(), 0);
+            analyze_source_enums(unit, &aliases)?
+        };
+        package.units[index].descriptors.extend(enum_descriptors);
+        package.units[index].source_enums = source_enums;
+    }
     populate_object_aliases(package);
     for unit in &mut package.units {
         for object in &mut unit.descriptors {
+            if package
+                .projection
+                .item(&object.identity.namespace, &object.identity.name)
+                .is_some_and(|item| {
+                    matches!(
+                        item.kind,
+                        crate::rust_interop::projection::ProjectedKind::Enum { .. },
+                    )
+                })
+            {
+                object.kind = ObjectKind::Enum;
+            }
             if package
                 .projection
                 .foreign_owns_resource(&object.identity.namespace, &object.identity.name)
@@ -2345,6 +2664,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     validate_descriptor_value_uses(package)?;
 
     collect_initial_typed_bindings(package)?;
+    super::enums::validate_enum_constructions(package)?;
     populate_projected_call_result_types(package)?;
     collect_initial_typed_bindings(package)?;
     specialize_projected_results(package)?;
@@ -2371,10 +2691,35 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 }
 
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    fn payload_spans(node: &SyntaxNode, spans: &mut BTreeSet<(usize, usize)>) {
+        if node.kind == SyntaxKind::MatchCase
+            && let Some(parameters) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::ParameterList)
+        {
+            spans.extend(
+                parameters
+                    .children
+                    .iter()
+                    .map(|parameter| (parameter.span.start, parameter.span.end)),
+            );
+        }
+        for child in &node.children {
+            payload_spans(child, spans);
+        }
+    }
     for index in 0..package.units.len() {
         let unit = &package.units[index];
-        let mut visible_bindings = Vec::new();
-        let mut bindings = Vec::new();
+        let mut spans = BTreeSet::new();
+        payload_spans(&unit.tree.root, &mut spans);
+        let mut bindings = unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| spans.contains(&(binding.span.start, binding.span.end)))
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut visible_bindings = bindings.clone();
         collect_typed_bindings(
             unit,
             &unit.tree.root,
@@ -2403,7 +2748,7 @@ fn populate_projected_call_result_types(
         let mut changed = false;
         for (unit_index, key, value_type) in additions {
             changed |= package.units[unit_index]
-                .projected_call_result_types
+                .selected_expression_types
                 .insert(key, value_type)
                 .is_none();
         }
@@ -2501,7 +2846,7 @@ fn collect_projected_call_result_types(
         collect_projected_call_result_types(package, unit, child, unit_index, additions)?;
     }
     if node.kind != SyntaxKind::CallExpression
-        || unit.projected_call_result_types.contains_key(&(
+        || unit.selected_expression_types.contains_key(&(
             node.span.file,
             node.span.start,
             node.span.end,
@@ -2512,6 +2857,28 @@ fn collect_projected_call_result_types(
     let Some(callee) = node.children.first() else {
         return Ok(());
     };
+    let designator = if callee.kind == SyntaxKind::AppliedType {
+        callee.children.first().unwrap_or(callee)
+    } else {
+        callee
+    };
+    if super::namespaces::function_contract_for_call(package, unit, designator)
+        .is_some_and(|contract| !contract.generic_parameters.is_empty())
+        && let Some(contract) = super::calls::selected_callable_contract(
+            package,
+            unit,
+            node,
+            crate::syntax::call_is_unsafe(node),
+        )
+        && let Some(value_type) = contract.return_type
+    {
+        additions.push((
+            unit_index,
+            (node.span.file, node.span.start, node.span.end),
+            value_type,
+        ));
+        return Ok(());
+    }
     let Some(function) = projected_function_for_call(package, unit, callee) else {
         return Ok(());
     };
@@ -3364,7 +3731,7 @@ fn projected_call_result(
         node = node.children.first()?;
     }
     if let Some(value_type @ ValueType::InvocationScopedNative { .. }) = unit
-        .projected_call_result_types
+        .selected_expression_types
         .get(&(node.span.file, node.span.start, node.span.end))
         && let Ok(mut projected) = destination_projected_type(package, value_type)
     {
@@ -3423,7 +3790,7 @@ fn callback_expression_result(
         return None;
     }
     let value_type = unit
-        .projected_call_result_types
+        .selected_expression_types
         .get(&(node.span.file, node.span.start, node.span.end))
         .cloned()
         .or_else(|| {
@@ -5149,6 +5516,35 @@ pub(super) fn closed_projected_value_type(
                     })
                     .collect::<Option<BTreeMap<_, _>>>()?;
                 identity = identity.with_native_arguments(selections);
+            }
+            if let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+                && let crate::rust_interop::projection::ProjectedKind::Enum {
+                    generic_parameters,
+                    ..
+                }
+                | crate::rust_interop::projection::ProjectedKind::ForeignType {
+                    generic_parameters,
+                    ..
+                } = &item.kind
+                && !arguments.is_empty()
+            {
+                let selections = generic_parameters
+                    .iter()
+                    .zip(arguments)
+                    .map(|(parameter, argument)| {
+                        Some((
+                            parameter.name.clone(),
+                            closed_projected_value_type(package, argument)?,
+                        ))
+                    })
+                    .collect::<Option<BTreeMap<_, _>>>()?;
+                let language_arguments = generic_parameters
+                    .iter()
+                    .map(|parameter| selections[&parameter.name].clone())
+                    .collect();
+                identity = identity
+                    .with_type_arguments(language_arguments)
+                    .with_native_arguments(selections);
             }
             if !arguments.is_empty() {
                 identity = identity.with_native_projection(

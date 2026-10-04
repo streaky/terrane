@@ -51,6 +51,11 @@
       "version": "=0.6.2"
     },
     {
+      "name": "__terrane_recursive_smol_str",
+      "package": "smol_str",
+      "version": "=0.2.2"
+    },
+    {
       "name": "__terrane_recursive_wgpu_core",
       "package": "wgpu-core",
       "version": "=27.0.3"
@@ -337,6 +342,8 @@
         ],
         "/deps/iced/advanced": [
           "Clipboard",
+          "InputMethod",
+          "InputMethod-Enabled",
           "Text",
           "Text.as_ref",
           "Text.clone",
@@ -406,7 +413,10 @@
           "Group.is_singleton",
           "Group.partial_cmp",
           "Group.try_into",
-          "Group::unique"
+          "Group::unique",
+          "State",
+          "State-Empty",
+          "State-Filled"
         ],
         "/deps/iced/advanced/graphics/color": [
           "Packed",
@@ -815,6 +825,7 @@
         ],
         "/deps/iced/advanced/widget/operation": [
           "Focusable",
+          "Outcome",
           "Scrollable"
         ],
         "/deps/iced/advanced/widget/operation/focusable": [
@@ -1029,6 +1040,7 @@
           "Event",
           "Event-KeyPressed",
           "Event-KeyReleased",
+          "Key",
           "Location",
           "Modifiers",
           "Modifiers.alt",
@@ -2219,6 +2231,7 @@
         ],
         "/deps/iced/widget/pane-grid": [
           "Axis",
+          "Configuration",
           "Direction",
           "DragEvent",
           "DragEvent-Canceled",
@@ -2276,6 +2289,9 @@
           "Internal.try_into"
         ],
         "/deps/iced/widget/pick-list": [
+          "Handle",
+          "Handle-Arrow",
+          "Handle-Dynamic",
           "Icon",
           "Icon.clone",
           "Icon.eq",
@@ -2447,6 +2463,7 @@
           "Rich-hash-h59eb8c3f1265fcba5699efd3aaa1841118c19ee5a41e8d21e739236158f8df7d.wrapping"
         ],
         "/deps/iced/widget/text-editor": [
+          "Binding",
           "Content",
           "Content.clone",
           "Content.cursor",

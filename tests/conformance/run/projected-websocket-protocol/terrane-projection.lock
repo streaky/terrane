@@ -2349,6 +2349,8 @@
           "spawn"
         ],
         "/deps/tokio/future/maybe-done": [
+          "MaybeDone",
+          "MaybeDone-Future",
           "maybe_done"
         ],
         "/deps/tokio/io": [
@@ -2848,6 +2850,7 @@
           "Semaphore.try_into",
           "Semaphore::const_new",
           "Semaphore::new",
+          "SetError",
           "SetOnceError",
           "SetOnceError.eq",
           "SetOnceError.into",
@@ -2877,7 +2880,9 @@
           "SendError.into",
           "SendError.try_into",
           "SendError::from",
-          "TryRecvError"
+          "SendTimeoutError",
+          "TryRecvError",
+          "TrySendError"
         ],
         "/deps/tokio/sync/oneshot/error": [
           "RecvError",

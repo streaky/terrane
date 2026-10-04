@@ -1,0 +1,29 @@
+namespace authored-generic-partial-construction
+from /core/streams import byte-reader, stdin
+from /core/errors import coercion-error
+from /core/output import print
+
+class connection
+    input byte-reader = stdin;
+    tag string = ''
+    function construct; tag string
+        this.tag = tag
+    consuming function destruct;
+        print; this.tag
+
+class pair of (T)
+    first T
+    second T
+    function construct throws coercion-error; first T, second T, fail bool
+        this.first = first
+        if fail
+            throw coercion-error
+        this.second = second
+
+function main;
+    first = instance connection; 'initialized closed'
+    second = instance connection; 'unassigned closed'
+    try
+        value = instance pair; move first, move second, true
+    catch coercion-error
+        print; 'construction failed'

@@ -1,0 +1,3 @@
+initialized closed
+unassigned closed
+construction failed

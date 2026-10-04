@@ -1,0 +1,9 @@
+namespace rejected-required
+function inspect of (T); value ref (envelope of T)
+    return
+
+class envelope of (T)
+    payload T
+    function construct; payload T
+        inspect; ref this
+        this.payload = payload

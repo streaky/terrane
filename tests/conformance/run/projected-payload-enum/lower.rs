@@ -908,13 +908,13 @@ fn main() {
 // Namespace: deps/terrane-payload-enum-witness
 pub use terrane_payload_enum_witness::Event;
 pub struct EventNamed {
-    value: i64,
+    pub value: i64,
 }
 impl EventNamed {
     pub fn terrane_construct(value: i64) -> Self {
         Self { value: value }
     }
-    fn terrane_into_fields(self) -> (i64,) {
+    pub fn terrane_into_fields(self) -> (i64,) {
         (self.value,)
     }
 }
@@ -924,8 +924,8 @@ fn __terrane_enum_payload_74657272616e655f7061796c6f61645f656e756d5f7769746e6573
     EventNamed::terrane_construct(field_0)
 }
 pub struct EventOptional {
-    value: Option<u32>,
-    label_value: Option<String>,
+    pub value: Option<u32>,
+    pub label_value: Option<String>,
 }
 impl EventOptional {
     pub fn terrane_construct(
@@ -937,7 +937,7 @@ impl EventOptional {
             label_value: label_value.into(),
         }
     }
-    fn terrane_into_fields(self) -> (Option<u32>, Option<String>) {
+    pub fn terrane_into_fields(self) -> (Option<u32>, Option<String>) {
         (self.value, self.label_value)
     }
 }
@@ -948,8 +948,8 @@ fn __terrane_enum_payload_74657272616e655f7061796c6f61645f656e756d5f7769746e6573
     EventOptional::terrane_construct(field_0, field_1)
 }
 pub struct EventPair {
-    item_n0: i64,
-    item_n1: i64,
+    pub item_n0: i64,
+    pub item_n1: i64,
 }
 impl EventPair {
     pub fn terrane_construct(item_n0: i64, item_n1: i64) -> Self {
@@ -958,7 +958,7 @@ impl EventPair {
             item_n1: item_n1,
         }
     }
-    fn terrane_into_fields(self) -> (i64, i64) {
+    pub fn terrane_into_fields(self) -> (i64, i64) {
         (self.item_n0, self.item_n1)
     }
 }

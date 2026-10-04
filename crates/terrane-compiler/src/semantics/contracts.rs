@@ -187,12 +187,34 @@ pub(super) fn collect_typed_bindings(
                 mutable: false,
             });
             if !contract.is_static {
+                let identity = contract
+                    .owner_identity
+                    .clone()
+                    .unwrap_or_else(|| ObjectIdentity::new(&unit.namespace, owner));
+                let identity = unit
+                    .descriptors
+                    .iter()
+                    .find(|descriptor| descriptor.identity.base() == identity.base())
+                    .map_or_else(
+                        || identity.clone(),
+                        |descriptor| {
+                            identity.clone().with_type_arguments(
+                                descriptor
+                                    .generic_parameters
+                                    .iter()
+                                    .map(|parameter| {
+                                        ValueType::TypeParameter(parameter.name.clone())
+                                    })
+                                    .collect(),
+                            )
+                        },
+                    );
                 parameter_bindings.push(TypedBinding {
                     name: "this".to_owned(),
                     span: implicit_receiver_span(node, "this"),
                     visible_from: node.span.start,
                     scope: Some(node.span),
-                    value_type: ValueType::Object(ObjectIdentity::new(&unit.namespace, owner)),
+                    value_type: ValueType::Object(identity),
                     destination_arms: Vec::new(),
                     storage_type: None,
                     mutable: true,
@@ -369,6 +391,7 @@ pub(super) fn analyze_function_contract(
             node.span,
         ));
     }
+    let generic_parameters = super::generics::generic_parameters(unit, node, aliases)?;
     let return_type = node
         .children
         .iter()
@@ -573,6 +596,7 @@ pub(super) fn analyze_function_contract(
         owner_identity,
         is_anonymous: name_node.is_none(),
         projected_provided: false,
+        generic_parameters,
         parameters,
         captures: Vec::new(),
         return_type,

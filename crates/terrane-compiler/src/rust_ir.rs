@@ -789,7 +789,7 @@ impl RenderedProgram {
             .standalone
             .contents
             .parse::<TokenStream>()
-            .expect("rendered Rust must contain valid tokens");
+            .expect("compiler must produce syntactically valid Rust tokens");
         let mut vendored_support = VENDORED_SUPPORT_CRATES
             .iter()
             .filter_map(|(rust_name, package_name)| {

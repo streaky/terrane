@@ -267,6 +267,12 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        if callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(designator) = callee.children.first()
+            && let Some(value) = self.source_enum_construction(designator, arguments, node)
+        {
+            return value;
+        }
         if callee.kind == SyntaxKind::Name
             && let Some(identity) = self
                 .package
@@ -1667,7 +1673,13 @@ impl Emitter<'_> {
         let contract = if native_macro_path.is_some() {
             None
         } else {
-            self.contract_for_call(callee).cloned()
+            crate::semantics::selected_callable_contract(
+                self.package,
+                self.unit,
+                node,
+                crate::syntax::call_is_unsafe(node),
+            )
+            .or_else(|| self.contract_for_call(callee).cloned())
         };
         let native_struct_construction = callee.kind == SyntaxKind::ConstructionExpression
             && callee
@@ -1982,15 +1994,28 @@ impl Emitter<'_> {
         let mut native_member_receiver = None;
         let name = if let Some(path) = &native_macro_path {
             path.clone()
+        } else if let Some(function) = self.source_applied_function(callee) {
+            function
         } else if callee.kind == SyntaxKind::ConstructionExpression {
             callee
                 .children
                 .first()
                 .and_then(|designator| self.class_designator(designator))
                 .map_or_else(String::new, |object| {
+                    let identity = match self.value_type(node) {
+                        Some(ValueType::Object(identity))
+                            if identity.namespace == object.identity.namespace
+                                && identity.name == object.identity.name
+                                && identity.is_unsafe == object.identity.is_unsafe =>
+                        {
+                            identity
+                        }
+                        _ => object.identity.clone(),
+                    };
                     format!(
                         "{}::terrane_construct",
-                        rust_object_type_name(self.package, &object.identity)
+                        rust_source_type_application(self.package, &identity)
+                            .replacen('<', "::<", 1)
                     )
                 })
         } else if let [receiver, member] = callee.children.as_slice()
@@ -2528,14 +2553,17 @@ impl Emitter<'_> {
                         };
                         Some(identity)
                     })?;
-                let owner = self
-                    .package
-                    .projection
-                    .foreign_rust_path(&identity.namespace, &identity.name)?;
+                let owner = identity.native_projection.clone().or_else(|| {
+                    self.package
+                        .projection
+                        .foreign_rust_path(&identity.namespace, &identity.name)
+                        .map(str::to_owned)
+                })?;
+                let owner = owner.replacen('<', "::<", 1);
                 let receiver = (!contract.as_ref().is_some_and(|contract| contract.is_static))
                     .then_some(projected_enum_receiver.as_deref())
                     .flatten();
-                Some(projected_enum_call(operation, owner, receiver, &values))
+                Some(projected_enum_call(operation, &owner, receiver, &values))
             })
             .unwrap_or(call);
         let chain_role = foreign_method

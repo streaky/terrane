@@ -919,16 +919,21 @@ impl IoResult {
     }
 }
 pub struct TcpStream {
-    pub handle: TerranePlatformCapability,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
 }
 impl TcpStream {
     pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
-        let mut value = Self { handle: Default::default() };
+        let mut value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
         value.construct(resource);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = resource;
+        self.handle = Some(resource);
     }
     pub async fn read(
         &self,
@@ -937,7 +942,7 @@ impl TcpStream {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_read_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     limit,
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
@@ -962,7 +967,7 @@ impl TcpStream {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_write_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     data,
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
@@ -982,7 +987,7 @@ impl TcpStream {
     }
     pub fn configure(&self, options: TcpOptions) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_configure(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             options.no_delay,
             options.ttl,
         );
@@ -994,7 +999,7 @@ impl TcpStream {
     }
     pub fn shutdown(&self, direction: String) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_shutdown(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             direction,
         );
         return NetworkOperationResult::terrane_construct(
@@ -1004,7 +1009,9 @@ impl TcpStream {
         );
     }
     pub fn close(self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1012,11 +1019,16 @@ impl TcpStream {
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_capability_close(&self.handle);
+        terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for TcpStream {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
@@ -1109,25 +1121,28 @@ pub async fn connect_host(
     );
 }
 pub struct TcpListener {
-    pub handle: TerranePlatformCapability,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
     pub local_address: String,
 }
 impl TcpListener {
     pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
         let mut value = Self {
-            handle: Default::default(),
+            __terrane_constructed: false,
+            handle: None,
             local_address: String::from(""),
         };
         value.construct(resource);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = resource;
+        self.handle = Some(resource);
     }
     pub async fn accept(&self, options: NetworkOperationOptions) -> StreamResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_tcp_accept_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
                 ),
@@ -1145,7 +1160,9 @@ impl TcpListener {
         );
     }
     pub fn close(self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1153,11 +1170,16 @@ impl TcpListener {
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_capability_close(&self.handle);
+        terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for TcpListener {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
@@ -1212,20 +1234,23 @@ pub fn bind_tcp(address: SocketAddress) -> ListenerResult {
     );
 }
 pub struct UdpSocket {
-    pub handle: TerranePlatformCapability,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformCapability>,
     pub local_address: String,
 }
 impl UdpSocket {
     pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
         let mut value = Self {
-            handle: Default::default(),
+            __terrane_constructed: false,
+            handle: None,
             local_address: String::from(""),
         };
         value.construct(resource);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
-        self.handle = resource;
+        self.handle = Some(resource);
     }
     pub async fn send_to(
         &self,
@@ -1235,7 +1260,7 @@ impl UdpSocket {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_udp_send_to_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     data,
                     address.value,
                     operation_deadline(options.clone()),
@@ -1261,7 +1286,7 @@ impl UdpSocket {
     ) -> IoResult {
         let raw: TerranePlatformResult = __terrane_await(
                 terrane_platform_udp_receive_from_async(
-                    &self.handle,
+                    &self.handle.as_ref().expect("required field initialized"),
                     limit,
                     operation_deadline(options.clone()),
                     &options.cancellation.handle,
@@ -1281,7 +1306,7 @@ impl UdpSocket {
     }
     pub fn configure(&self, options: UdpOptions) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_udp_configure(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             options.broadcast,
             options.ttl,
         );
@@ -1292,7 +1317,9 @@ impl UdpSocket {
         );
     }
     pub fn close(self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1300,11 +1327,16 @@ impl UdpSocket {
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_capability_close(&self.handle);
+        terrane_platform_capability_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for UdpSocket {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
@@ -1655,19 +1687,27 @@ impl WriteResult {
     }
 }
 pub struct ByteReader {
-    pub handle: TerranePlatformStreamHandle,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
 }
 impl ByteReader {
     pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
-        let mut value = Self { handle: Default::default() };
+        let mut value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
         value.construct(handle);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = handle;
+        self.handle = Some(handle);
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
-        let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
+        let raw: TerranePlatformReadResult = terrane_platform_read(
+            &self.handle.as_ref().expect("required field initialized"),
+            count,
+        );
         return ReadResult::terrane_construct(
             raw.data.clone().clone(),
             raw.completed.clone(),
@@ -1686,7 +1726,7 @@ impl ByteReader {
         let mut message: String = String::from("");
         while completed.clone() < count.clone() && !end && !failed {
             let part: TerranePlatformReadResult = terrane_platform_read(
-                &self.handle,
+                &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
             );
             data = {
@@ -1738,7 +1778,7 @@ impl ByteReader {
         let mut message: String = String::from("");
         while completed.clone() < limit.clone() && !end && !failed {
             let part: TerranePlatformReadResult = terrane_platform_read(
-                &self.handle,
+                &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
             );
             data = {
@@ -1778,7 +1818,10 @@ impl ByteReader {
     }
     pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
         let raw: TerranePlatformReadResult = __terrane_await(
-                terrane_platform_read_async(&self.handle, count),
+                terrane_platform_read_async(
+                    &self.handle.as_ref().expect("required field initialized"),
+                    count,
+                ),
             )
             .await;
         return ReadResult::terrane_construct(
@@ -1790,40 +1833,55 @@ impl ByteReader {
         );
     }
     pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
-        return TextReader::terrane_construct(self.handle.clone(), codec);
+        return TextReader::terrane_construct(
+            self.handle.as_ref().expect("required field initialized").clone(),
+            codec,
+        );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_release(&self.handle);
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for ByteReader {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
 pub struct ByteWriter {
-    pub handle: TerranePlatformStreamHandle,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
 }
 impl ByteWriter {
     pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
-        let mut value = Self { handle: Default::default() };
+        let mut value = Self {
+            __terrane_constructed: false,
+            handle: None,
+        };
         value.construct(handle);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = handle;
+        self.handle = Some(handle);
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
         let offset: i64 = 0;
         let raw: TerranePlatformWriteResult = terrane_platform_write(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             &data,
             terrane_int_support::Int::from(offset.clone()),
         );
@@ -1844,7 +1902,7 @@ impl ByteWriter {
             && !failed
         {
             let part: TerranePlatformWriteResult = terrane_platform_write(
-                &self.handle,
+                &self.handle.as_ref().expect("required field initialized"),
                 &data,
                 terrane_int_support::Int::from(completed.clone()),
             );
@@ -1867,7 +1925,7 @@ impl ByteWriter {
             return prior.clone();
         }
         let raw: TerranePlatformWriteResult = terrane_platform_write(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             &prior.data,
             terrane_int_support::Int::from(prior.completed.clone()),
         );
@@ -1882,47 +1940,64 @@ impl ByteWriter {
         return self.write(data);
     }
     pub fn text(&self, codec: terrane_string_support::Encoding) -> TextWriter {
-        return TextWriter::terrane_construct(self.handle.clone(), codec);
+        return TextWriter::terrane_construct(
+            self.handle.as_ref().expect("required field initialized").clone(),
+            codec,
+        );
     }
     pub fn flush(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_flush(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn sync_data(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn sync_all(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_release(&self.handle);
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for ByteWriter {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
 pub struct TextReader {
-    pub handle: TerranePlatformStreamHandle,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
     pub codec: terrane_string_support::Encoding,
 }
 impl TextReader {
@@ -1931,10 +2006,12 @@ impl TextReader {
         codec: terrane_string_support::Encoding,
     ) -> Self {
         let mut value = Self {
-            handle: Default::default(),
+            __terrane_constructed: false,
+            handle: None,
             codec: terrane_string_support::Encoding::Utf8,
         };
         value.construct(handle, codec);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(
@@ -1942,14 +2019,17 @@ impl TextReader {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = handle;
+        self.handle = Some(handle);
         self.codec = codec;
     }
     pub fn read(
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
+        let raw: TerranePlatformReadResult = terrane_platform_read(
+            &self.handle.as_ref().expect("required field initialized"),
+            count,
+        );
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
             3 /* terrane-site: core/streams.trn:188:23-188:50 */,
@@ -1977,7 +2057,7 @@ impl TextReader {
         let mut message: String = String::from("");
         while completed.clone() < count.clone() && !end && !failed {
             let part: TerranePlatformReadResult = terrane_platform_read(
-                &self.handle,
+                &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
             );
             data = {
@@ -2038,7 +2118,7 @@ impl TextReader {
         let mut message: String = String::from("");
         while completed.clone() < limit.clone() && !end && !failed {
             let part: TerranePlatformReadResult = terrane_platform_read(
-                &self.handle,
+                &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
             );
             data = {
@@ -2087,7 +2167,10 @@ impl TextReader {
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
         let raw: TerranePlatformReadResult = __terrane_await(
-                terrane_platform_read_async(&self.handle, count),
+                terrane_platform_read_async(
+                    &self.handle.as_ref().expect("required field initialized"),
+                    count,
+                ),
             )
             .await;
         let text: String = __terrane_raised_err(
@@ -2105,23 +2188,31 @@ impl TextReader {
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_release(&self.handle);
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for TextReader {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
 pub struct TextWriter {
-    pub handle: TerranePlatformStreamHandle,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
     pub codec: terrane_string_support::Encoding,
 }
 impl TextWriter {
@@ -2130,10 +2221,12 @@ impl TextWriter {
         codec: terrane_string_support::Encoding,
     ) -> Self {
         let mut value = Self {
-            handle: Default::default(),
+            __terrane_constructed: false,
+            handle: None,
             codec: terrane_string_support::Encoding::Utf8,
         };
         value.construct(handle, codec);
+        value.__terrane_constructed = true;
         value
     }
     pub fn construct(
@@ -2141,14 +2234,14 @@ impl TextWriter {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = handle;
+        self.handle = Some(handle);
         self.codec = codec;
     }
     pub fn write(&self, text: String) -> WriteResult {
         let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
         let offset: i64 = 0;
         let raw: TerranePlatformWriteResult = terrane_platform_write(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             &data,
             terrane_int_support::Int::from(offset.clone()),
         );
@@ -2170,7 +2263,7 @@ impl TextWriter {
             && !failed
         {
             let part: TerranePlatformWriteResult = terrane_platform_write(
-                &self.handle,
+                &self.handle.as_ref().expect("required field initialized"),
                 &data,
                 terrane_int_support::Int::from(completed.clone()),
             );
@@ -2193,7 +2286,7 @@ impl TextWriter {
             return prior.clone();
         }
         let raw: TerranePlatformWriteResult = terrane_platform_write(
-            &self.handle,
+            &self.handle.as_ref().expect("required field initialized"),
             &prior.data,
             terrane_int_support::Int::from(prior.completed.clone()),
         );
@@ -2217,39 +2310,52 @@ impl TextWriter {
         return self.write(text);
     }
     pub fn flush(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_flush(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn sync_data(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn sync_all(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformUnitResult = terrane_platform_close(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
         return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
-        terrane_platform_release(&self.handle);
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for TextWriter {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }

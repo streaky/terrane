@@ -1,0 +1,22 @@
+namespace authored-generic-resource-choice
+from /core/streams import byte-reader, stdin
+from /core/output import print
+
+class connection
+    input byte-reader = stdin;
+    tag string = ''
+    function construct; tag string
+        this.tag = tag
+    consuming function destruct;
+        print; this.tag
+
+function choose of (T) T; first T, second T, use-first bool
+    if use-first
+        return first
+    return second
+
+function main;
+    first = instance connection; 'first closed'
+    second = instance connection; 'second closed'
+    selected connection = choose; move first, move second, true
+    print; selected.tag

@@ -601,7 +601,6 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     );
     rejected("value mutable int\n", "S1005");
     rejected("value consuming string\n", "S1005");
-    rejected("function map of T; value T\n", "S1090");
 
     rejected("catch problem\n", "S1090");
     rejected("finally\n", "S1090");
@@ -652,7 +651,7 @@ fn rejects_an_unclosed_multiline_parameter_group() {
 #[test]
 fn rejects_every_reserved_statement_keyword() {
     for keyword in [
-        "yield", "match", "unsafe", "rust", "label", "goto", "when", "use", "case",
+        "yield", "unsafe", "rust", "label", "goto", "when", "use", "case",
     ] {
         rejected(&format!("{keyword}\n"), "S1090");
     }

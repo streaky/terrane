@@ -2,9 +2,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 
 use rustdoc_types::{
-    Crate as RustdocCrate, ExternalCrate, GenericArg, GenericArgs, GenericBound, GenericParamDef,
-    GenericParamDefKind, Generics, Id, ItemKind, ItemSummary, Path as RustdocPath, Target, Trait,
-    TraitBoundModifier, Type,
+    Crate as RustdocCrate, ExternalCrate, GenericArg, GenericArgs, GenericBound, Generics, Id,
+    ItemKind, ItemSummary, Path as RustdocPath, Target, Trait, TraitBoundModifier, Type,
 };
 use serde_json::json;
 
@@ -19,11 +18,11 @@ use super::{
     collect_source_foreign, decline_functions_with_missing_generic_interfaces,
     decline_unproven_projected_interfaces, enforce_transitive_reachability,
     external_reexport_rustdocs, foreign_aliases, generated_projection_units,
-    has_supported_callable_trait_shape, has_type_parameters, instantiated_nominal_name,
-    instantiated_type_name, is_builtin_clone, is_builtin_marker_trait,
-    is_internal_rust_protocol_method, mark_cache_record_used, namespace_overlays_from_metadata,
-    parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
-    projection_content_hash, provider_fragment_public_paths, prune_projection_cache, receiver_kind,
+    has_supported_callable_trait_shape, instantiated_nominal_name, instantiated_type_name,
+    is_builtin_clone, is_builtin_marker_trait, is_internal_rust_protocol_method,
+    mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
+    persist_dependency_lock, project_type, projectable_interface_bound, projection_content_hash,
+    provider_fragment_public_paths, prune_projection_cache, receiver_kind,
     recursive_owner_dependencies, resolve, resolved_library_package, rewrite_projected_owner_root,
     rewrite_rust_bound_root, seed_dependency_lock, selected_target, validate_projection_artifact,
 };
@@ -214,6 +213,7 @@ fn projected_foreign_type_item(
             borrowed_view: false,
             native_view_type: None,
             enum_payload: None,
+            generic_parameters: Vec::new(),
             displayable: false,
             cloneable: false,
             send: false,
@@ -939,6 +939,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
                 borrowed_view: false,
                 native_view_type: None,
                 enum_payload: None,
+                generic_parameters: Vec::new(),
                 displayable: false,
                 cloneable: false,
                 send: false,
@@ -1008,20 +1009,6 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
         .projected_type("/deps/shared", "Message")
         .is_none()
     );
-}
-
-#[test]
-fn type_parameter_guard_rejects_declared_generics() {
-    let parameters = vec![GenericParamDef {
-        name: "T".to_owned(),
-        kind: GenericParamDefKind::Type {
-            bounds: Vec::new(),
-            default: None,
-            is_synthetic: false,
-        },
-    }];
-    assert!(has_type_parameters(&parameters));
-    assert!(!has_type_parameters(&[]));
 }
 
 #[test]
@@ -2014,6 +2001,7 @@ fn projection_history_retains_removed_members_across_checks() {
             borrowed_view: false,
             native_view_type: None,
             enum_payload: None,
+            generic_parameters: Vec::new(),
             displayable: false,
             methods: vec![ProjectedFunction {
                 native_owner: None,

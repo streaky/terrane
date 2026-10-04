@@ -299,13 +299,39 @@ pub(super) fn validate_call_nodes<'a>(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
     {
-        let contract = function_contract_for_call(package, unit, callee);
-        let specialized_contract = contract.and_then(|contract| {
-            unit.projected_call_specializations
+        let designator = if callee.kind == SyntaxKind::AppliedType {
+            callee.children.first().unwrap_or(callee)
+        } else {
+            callee
+        };
+        let contract = function_contract_for_call_with_safety(
+            package,
+            unit,
+            designator,
+            crate::syntax::call_is_unsafe(node),
+        );
+        let selected_contract = super::calls::selected_callable_contract(
+            package,
+            unit,
+            node,
+            crate::syntax::call_is_unsafe(node),
+        );
+        let base_contract = selected_contract.as_ref().or(contract);
+        if let Some(contract) = base_contract {
+            if !contract.generic_parameters.is_empty() && selected_contract.is_none() {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "generic callable type arguments could not be selected consistently; provide explicit type arguments or a written destination",
+                    callee.span,
+                ));
+            }
+            let specialized = unit
+                .projected_call_specializations
                 .get(&(node.span.file, node.span.start, node.span.end))
                 .map(|specialization| {
-                    let mut contract = contract.clone();
-                    for (parameter, value_type) in contract
+                    let mut selected = contract.clone();
+                    for (parameter, value_type) in selected
                         .parameters
                         .iter_mut()
                         .zip(&specialization.value_parameters)
@@ -314,11 +340,14 @@ pub(super) fn validate_call_nodes<'a>(
                             parameter.value_type = Some(value_type.clone());
                         }
                     }
-                    contract
-                })
-        });
-        if let Some(contract) = specialized_contract.as_ref().or(contract) {
-            validate_call_arguments(unit, arguments, contract, scoped_bindings)?;
+                    selected
+                });
+            validate_call_arguments(
+                unit,
+                arguments,
+                specialized.as_ref().unwrap_or(contract),
+                scoped_bindings,
+            )?;
         }
     }
     if let [target, collection, block] = node.children.as_slice()
@@ -671,7 +700,8 @@ pub(super) fn validate_resolved_assignment(
     }) else {
         return Ok(());
     };
-    let actual = if let Some(actual) = resolved_call_type(package, unit, initializer, contracts) {
+    let mut actual = if let Some(actual) = resolved_call_type(package, unit, initializer, contracts)
+    {
         actual
     } else if let Some(actual) =
         infer_collection_call_type(unit, initializer, &unit.typed_bindings)?
@@ -702,6 +732,14 @@ pub(super) fn validate_resolved_assignment(
     else {
         return Ok(());
     };
+    if initializer.kind == SyntaxKind::Name
+        && let Some(contract) = function_contract_for_call(package, unit, initializer)
+        && !contract.generic_parameters.is_empty()
+        && let Some(closed) =
+            super::generics::close_generic_callable_value(unit, contract, &actual, &expected)
+    {
+        actual = closed;
+    }
     validate_value_destination(
         &unit.source,
         &unit.descriptors,
@@ -949,6 +987,20 @@ pub(super) fn resolved_call_type(
         package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
     let declaration = symbol.declaration_span?;
     let contract = contracts.get(&(declaration.file, declaration.start, declaration.end))?;
+    if !contract.generic_parameters.is_empty() {
+        let selected =
+            selected_callable_contract(package, unit, node, crate::syntax::call_is_unsafe(node))?;
+        let result = ElementType::new(
+            selected
+                .return_type
+                .unwrap_or(ValueType::Scalar(ScalarType::None)),
+        );
+        return Some(if selected.is_async {
+            ValueType::Task(result, selected.task_transferability)
+        } else {
+            result.value_type()
+        });
+    }
     let mut generic_bindings = BTreeMap::new();
     for (argument, parameter) in arguments.children.iter().zip(&contract.parameters) {
         let value = argument.children.last().unwrap_or(argument);
@@ -979,7 +1031,7 @@ pub(super) fn resolved_call_type(
     })
 }
 
-fn resolve_call_parameter<'a>(
+pub(super) fn resolve_call_parameter<'a>(
     unit: &SemanticUnit,
     argument: &SyntaxNode,
     name: Option<&SyntaxNode>,
@@ -1253,6 +1305,110 @@ pub(super) fn descriptor_construct_alias_history(
             )
         })
         .collect()
+}
+
+pub(crate) fn selected_callable_contract(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    is_unsafe: bool,
+) -> Option<FunctionContract> {
+    if let Some(contract) =
+        super::enums::selected_enum_constructor_contract(package, unit, call, is_unsafe)
+    {
+        return Some(contract);
+    }
+    let mut callee = call.children.first()?;
+    while matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+    ) {
+        callee = callee.children.first()?;
+    }
+    let designator = if callee.kind == SyntaxKind::AppliedType {
+        callee.children.first()?
+    } else {
+        callee
+    };
+    let contract = function_contract_for_call_with_safety(package, unit, designator, is_unsafe)?;
+    if contract.generic_parameters.is_empty() {
+        if callee.kind == SyntaxKind::AppliedType {
+            return None;
+        }
+        let mut selected = contract.clone();
+        if callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(ValueType::Object(identity)) =
+                infer_value_type(unit, call, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+            && let Some(descriptor) = unit
+                .descriptors
+                .iter()
+                .find(|item| item.identity.base() == identity.base())
+        {
+            let substitutions = descriptor
+                .generic_parameters
+                .iter()
+                .zip(&identity.type_arguments)
+                .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
+                .collect();
+            for parameter in &mut selected.parameters {
+                parameter.value_type = parameter
+                    .value_type
+                    .as_ref()
+                    .map(|value_type| substitute_value_type(value_type, &substitutions));
+            }
+            selected.return_type = Some(ValueType::Object(identity));
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let Some(
+                ValueType::Function(parameters, result, _)
+                | ValueType::AsyncFunction(parameters, result, _, _),
+            ) = infer_member_value_type(unit, callee, &unit.typed_bindings)
+                .ok()
+                .flatten()
+        {
+            for (parameter, callable) in selected.parameters.iter_mut().zip(parameters) {
+                parameter.value_type = Some(callable.value_type());
+            }
+            selected.return_type = Some(result.value_type());
+        }
+        return Some(selected);
+    }
+    let (selected, substitutions) = super::generics::select_unit_callable_contract(
+        Some(package),
+        unit,
+        call,
+        contract,
+        &unit.typed_bindings,
+    )?;
+    for parameter in &contract.generic_parameters {
+        let Some(bound) = &parameter.bound else {
+            continue;
+        };
+        let Some(ValueType::Object(actual)) = substitutions.get(&parameter.name) else {
+            return None;
+        };
+        let implementor = package
+            .units
+            .iter()
+            .flat_map(|owner| &owner.descriptors)
+            .find(|descriptor| descriptor.identity.base() == actual.base())?;
+        let implements_bound = |interface: &ObjectIdentity| {
+            interface.base() == bound.base()
+                && interface.type_arguments == bound.type_arguments
+                && interface.application == bound.application
+                && interface.native_arguments == bound.native_arguments
+        };
+        if !implements_bound(actual)
+            && !effective_object_interfaces(package, implementor)
+                .iter()
+                .any(|interface| implements_bound(interface))
+        {
+            return None;
+        }
+    }
+    Some(selected)
 }
 
 #[cfg(test)]

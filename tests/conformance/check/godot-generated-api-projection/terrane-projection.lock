@@ -31026,6 +31026,7 @@
           "CallError.message",
           "CallError.method_name",
           "CallErrorType",
+          "CallOutcome",
           "ConvertError",
           "ConvertError.into",
           "ConvertError.value",

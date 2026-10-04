@@ -795,6 +795,7 @@ fn lower_with_tests(
                     SyntaxKind::ClassDeclaration
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::TraitDeclaration => emitter.object(node),
+                    SyntaxKind::EnumDeclaration => emitter.enum_declaration(node),
                     _ => {}
                 }
                 if !emitter.output.is_empty() {

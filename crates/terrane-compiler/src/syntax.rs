@@ -97,10 +97,13 @@ pub enum SyntaxKind {
     FieldMetadata,
     FieldMetadataEntry,
     FunctionDeclaration,
-    AnonymousFunction,
     ClassDeclaration,
     InterfaceDeclaration,
     TraitDeclaration,
+    EnumDeclaration,
+    EnumVariant,
+    TypeParameterList,
+    TypeParameter,
     ExtendsClause,
     ImplementsClause,
     UsesClause,
@@ -108,19 +111,22 @@ pub enum SyntaxKind {
     Parameter,
     VariadicMarker,
     Block,
-    IfStatement,
-    ElseClause,
-    WhileStatement,
-    ForStatement,
-    SelectStatement,
-    SelectCase,
-    ForTarget,
+    AnonymousFunction,
     ReturnStatement,
     ThrowStatement,
     TryStatement,
     CatchClause,
     CatchBinding,
     FinallyClause,
+    IfStatement,
+    ElseClause,
+    WhileStatement,
+    ForStatement,
+    ForTarget,
+    SelectStatement,
+    SelectCase,
+    MatchStatement,
+    MatchCase,
     BreakStatement,
     ContinueStatement,
     Assignment,
@@ -162,16 +168,39 @@ impl SyntaxKind {
                     | Self::ClassDeclaration
                     | Self::InterfaceDeclaration
                     | Self::TraitDeclaration
+                    | Self::EnumDeclaration
+                    | Self::EnumVariant
+                    | Self::TypeParameter
             )
         {
-            return "name";
+            return match self {
+                Self::TypeParameter => "parameter-name",
+                Self::EnumVariant => "variant-name",
+                _ => "name",
+            };
         }
         match (self, child, index) {
+            (Self::TypeParameterList, Self::TypeParameter, _) => "parameter",
+            (Self::TypeParameter, Self::TypeExpression, _) => "bound",
+            (Self::EnumDeclaration, Self::Block, _) => "variants",
+            (Self::EnumVariant, Self::ParameterList, _) => "payload",
+            (Self::MatchStatement, _, 0) => "scrutinee",
+            (Self::MatchStatement, Self::MatchCase, _) => "case",
+            (Self::MatchCase, Self::StaticMemberExpression | Self::Name, 0) => "variant",
+            (Self::MatchCase, Self::ParameterList, _) => "bindings",
             (Self::Binding, Self::TypeExpression, _) => "type",
             (Self::Binding, _, _)
             | (Self::Assignment, _, 1)
             | (Self::ReturnStatement | Self::ThrowStatement, _, 0) => "value",
             (Self::FunctionDeclaration, Self::TypeExpression, _) => "return-type",
+            (
+                Self::FunctionDeclaration
+                | Self::ClassDeclaration
+                | Self::InterfaceDeclaration
+                | Self::EnumDeclaration,
+                Self::TypeParameterList,
+                _,
+            ) => "type-parameters",
             (Self::FunctionDeclaration, Self::EffectClause, _) => "effects",
             (Self::FunctionDeclaration, Self::DeclarationQualifier, _) => "qualifier",
             (Self::Assignment, _, 0) => "target",
@@ -181,7 +210,10 @@ impl SyntaxKind {
             (Self::MemberExpression | Self::StaticMemberExpression, _, 1) => "member",
             (Self::IfStatement | Self::WhileStatement, _, 0) => "condition",
             (
-                Self::FunctionDeclaration | Self::IfStatement | Self::WhileStatement,
+                Self::FunctionDeclaration
+                | Self::IfStatement
+                | Self::WhileStatement
+                | Self::MatchCase,
                 Self::Block,
                 _,
             ) => "body",

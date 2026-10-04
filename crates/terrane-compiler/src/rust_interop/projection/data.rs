@@ -430,10 +430,6 @@ pub(super) fn default_generic_instantiation(
     Ok(substitutions)
 }
 
-pub(super) fn has_type_parameters(parameters: &[rustdoc_types::GenericParamDef]) -> bool {
-    !parameters.is_empty()
-}
-
 pub(super) fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
     let mut segments = path.split("::");
     let _package_root = segments.next();

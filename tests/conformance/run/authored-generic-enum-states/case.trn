@@ -1,0 +1,59 @@
+namespace authored-generic-enum-states
+from /core/output import print
+
+enum operation-state of (T)
+    pending
+    running; progress int
+    completed; result T
+    failed; error string
+
+function report string; state operation-state of string
+    match ref state
+        case operation-state::pending
+            return 'pending'
+        case operation-state::running; progress
+            print; progress
+            return 'running'
+        case operation-state::completed; result
+            return result
+        case operation-state::failed; error
+            return error
+
+function optional-report string; state (operation-state of string)|none
+    match ref state
+        case operation-state::pending
+            return 'pending'
+        case operation-state::running; _
+            return 'running'
+        case operation-state::completed; result
+            return result
+        case operation-state::failed; error
+            return error
+        case none
+            return 'absent'
+
+enum decision
+    accepted; explanation string
+    rejected; explanation string
+
+function explain string; choice decision
+    match choice
+        case decision::accepted; explanation
+            return explanation
+        case decision::rejected; explanation
+            return explanation
+
+function main;
+    pending operation-state of string = instance operation-state::pending;
+    running operation-state of string = instance operation-state::running; progress = 7
+    completed = instance operation-state::completed; result = 'done'
+    failed operation-state of string = instance operation-state::failed; error = 'failed'
+    print; (report; pending)
+    print; (report; running)
+    print; (report; completed)
+    print; (report; failed)
+    print; (optional-report; none)
+    accepted = instance decision::accepted; explanation = 'accepted'
+    rejected = instance decision::rejected; explanation = 'rejected'
+    print; (explain; accepted)
+    print; (explain; rejected)
