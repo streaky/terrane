@@ -31,6 +31,11 @@
       "version": "=1.0.151"
     },
     {
+      "name": "__terrane_recursive_tokio",
+      "package": "tokio",
+      "version": "=1.53.1"
+    },
+    {
       "name": "__terrane_recursive_url",
       "package": "url",
       "version": "=2.5.8"
@@ -39,11 +44,6 @@
       "name": "serde_core",
       "package": "serde_core",
       "version": "=1.0.229"
-    },
-    {
-      "name": "tokio",
-      "package": "tokio",
-      "version": "=1.53.1"
     }
   ],
   "dependencies": [
@@ -81,6 +81,7 @@
           "AnyConnection.try_into",
           "AnyConnection.unlock",
           "AnyPool",
+          "Either",
           "Error",
           "Error-ColumnIndexOutOfBounds",
           "Error-TypeNotFound",
@@ -175,6 +176,36 @@
         ],
         "/deps/sqlx/anyconnection/trait/sqlx/connection": [
           "begin"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asmut-core/ffi/c-str/cstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asmut-std/ffi/os-str/osstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asmut-std/path/path": [
+          "as_mut"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asmut-str": [
+          "as_mut"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asref-core/ffi/c-str/cstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asref-std/ffi/os-str/osstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asref-std/path/path": [
+          "as_ref"
+        ],
+        "/deps/sqlx/either/trait/core/convert/asref-str": [
+          "as_ref"
+        ],
+        "/deps/sqlx/either/trait/core/convert/from-core/result/result-r-l": [
+          "from"
+        ],
+        "/deps/sqlx/either/trait/core/convert/from-sqlx/either-l-r": [
+          "from"
         ],
         "/deps/sqlx/encode": [
           "IsNull"
@@ -464,6 +495,7 @@
     {
       "members": {
         "/deps/sqlx-core": [
+          "Either",
           "Error",
           "Error-ColumnIndexOutOfBounds",
           "Error-TypeNotFound",
@@ -794,9 +826,6 @@
         "/deps/sqlx-core/bytes/bytes/trait/core/convert/from-sqlx-core/bytes/bytesmut": [
           "from"
         ],
-        "/deps/sqlx-core/bytes/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/sqlx-core/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -866,6 +895,36 @@
           "LogSettings.try_into",
           "LogSettings::default"
         ],
+        "/deps/sqlx-core/either/trait/core/convert/asmut-core/ffi/c-str/cstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asmut-std/ffi/os-str/osstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asmut-std/path/path": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asmut-str": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asref-core/ffi/c-str/cstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asref-std/ffi/os-str/osstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asref-std/path/path": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/asref-str": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/from-core/result/result-r-l": [
+          "from"
+        ],
+        "/deps/sqlx-core/either/trait/core/convert/from-sqlx-core/either-l-r": [
+          "from"
+        ],
         "/deps/sqlx-core/encode": [
           "IsNull"
         ],
@@ -888,9 +947,6 @@
           "UStr"
         ],
         "/deps/sqlx-core/ext/ustr/ustr/trait/core/convert/from-a-sqlx-core/ext/ustr/ustr": [
-          "from"
-        ],
-        "/deps/sqlx-core/ext/ustr/ustr/trait/core/convert/from-static-str": [
           "from"
         ],
         "/deps/sqlx-core/ext/ustr/ustr/trait/core/convert/from-std/string/string": [
@@ -996,9 +1052,7 @@
           "PercentDecode",
           "PercentDecode.decode_utf8",
           "PercentDecode.decode_utf8_lossy",
-          "PercentEncode",
-          "percent_decode_str",
-          "utf8_percent_encode"
+          "percent_decode_str"
         ],
         "/deps/sqlx-core/percent-encoding/asciiset": [
           "add"
@@ -1082,6 +1136,7 @@
           "raw_sql"
         ],
         "/deps/sqlx-core/rt": [
+          "JoinHandle",
           "TimeoutError",
           "TimeoutError.into",
           "TimeoutError.try_into",
@@ -1108,9 +1163,7 @@
         "/deps/sqlx-core/testing": [
           "TestArgs",
           "TestArgs.into",
-          "TestArgs.migrator",
           "TestArgs.try_into",
-          "TestArgs::new",
           "TestFixture",
           "TestFixture.into",
           "TestFixture.try_into",
@@ -1226,6 +1279,7 @@
           "from"
         ],
         "/deps/sqlx-core/url": [
+          "Host",
           "OpaqueOrigin",
           "OpaqueOrigin.assert_fields_are_eq",
           "OpaqueOrigin.clone",

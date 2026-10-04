@@ -846,9 +846,22 @@ fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: b
         write_reviewed_golden(&reviewed_path, &existing, &reviewed);
         return;
     }
+    let reviewed = projection_history(&reviewed_path);
+    assert!(
+        [
+            "cache_identity",
+            "content_hash",
+            "projection_schema",
+            "resolution"
+        ]
+        .iter()
+        .all(|field| reviewed.get(field).is_none()),
+        "{} contains machine-local projection metadata; regenerate this lock through the conformance harness",
+        reviewed_path.display()
+    );
     assert_eq!(
         staged,
-        stable_projection_history(&reviewed_path),
+        reviewed,
         "{} changed its reviewed projection semantics",
         case.display()
     );
@@ -862,15 +875,19 @@ fn write_reviewed_golden(path: &Path, existing: &str, replacement: &str) {
     eprintln!("updated golden {}", path.display());
 }
 
-fn stable_projection_history(path: &Path) -> serde_json::Value {
+fn projection_history(path: &Path) -> serde_json::Value {
     let bytes = fs::read(path).unwrap_or_else(|error| {
         panic!(
             "cannot read reviewed projection {}: {error}",
             path.display()
         )
     });
-    let mut history = serde_json::from_slice::<serde_json::Value>(&bytes)
-        .unwrap_or_else(|error| panic!("cannot decode projection {}: {error}", path.display()));
+    serde_json::from_slice::<serde_json::Value>(&bytes)
+        .unwrap_or_else(|error| panic!("cannot decode projection {}: {error}", path.display()))
+}
+
+fn stable_projection_history(path: &Path) -> serde_json::Value {
+    let mut history = projection_history(path);
     let object = history
         .as_object_mut()
         .unwrap_or_else(|| panic!("projection {} must contain a JSON object", path.display()));
@@ -1169,6 +1186,7 @@ fn golden_updates_requested(
 }
 
 fn selected_manifests() -> Vec<PathBuf> {
+    assert_fixture_manifests(&corpus());
     let filter = std::env::var("TERRANE_CONFORMANCE_FILTER").ok();
     let manifests = filtered_manifests(manifests_below(&corpus()), filter.as_deref());
     assert!(
@@ -1209,6 +1227,80 @@ fn manifests_below(root: &Path) -> Vec<PathBuf> {
     }
     manifests.sort();
     manifests
+}
+
+fn missing_fixture_manifests(files: &[PathBuf]) -> BTreeSet<PathBuf> {
+    let mut fixtures = BTreeSet::new();
+    let mut registered = BTreeSet::new();
+    for file in files {
+        let mut parts = file.components();
+        let Some(phase) = parts.next() else { continue };
+        if !matches!(
+            phase.as_os_str().to_str(),
+            Some("run" | "check" | "reject" | "compile")
+        ) {
+            continue;
+        }
+        let Some(name) = parts.next() else { continue };
+        let fixture = Path::new(phase.as_os_str()).join(name.as_os_str());
+        if file == &fixture.join("case.toml") {
+            registered.insert(fixture.clone());
+        }
+        fixtures.insert(fixture);
+    }
+    fixtures.difference(&registered).cloned().collect()
+}
+
+fn assert_fixture_manifests(root: &Path) {
+    if !root
+        .ancestors()
+        .any(|ancestor| ancestor.join(".git").exists())
+    {
+        eprintln!(
+            "notice: skipping Git fixture-inventory hygiene for source archive {}; manifest discovery remains enabled",
+            root.display()
+        );
+        return;
+    }
+    // Git's inventory excludes ignored generated-only scratch directories, but includes
+    // newly authored fixtures before staging. Validate before applying a corpus filter.
+    let output = Command::new("git")
+        .current_dir(root)
+        .args([
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            ".",
+        ])
+        .output();
+    let output = match output {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("notice: skipping fixture-inventory hygiene because Git is unavailable");
+            return;
+        }
+        Err(error) => panic!("cannot inventory conformance fixture sources: {error}"),
+    };
+    assert!(
+        output.status.success(),
+        "cannot inventory conformance fixtures: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let inventory = String::from_utf8(output.stdout).expect("fixture paths must be UTF-8");
+    let files = inventory
+        .split('\0')
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .filter(|path| root.join(path).is_file())
+        .collect::<Vec<_>>();
+    let missing = missing_fixture_manifests(&files);
+    assert!(
+        missing.is_empty(),
+        "conformance fixture directories lack case.toml: {missing:?}"
+    );
 }
 
 fn field<'manifest>(manifest: &'manifest str, name: &str) -> Option<&'manifest str> {
@@ -1270,6 +1362,49 @@ fn broad_golden_updates_require_an_explicit_all_value() {
         Ok(true)
     );
     assert!(golden_updates_requested(Some(OsStr::new("1")), None).is_err());
+}
+
+#[test]
+fn fixture_inventory_requires_a_root_manifest_even_for_nested_sources_or_locks() {
+    let files = [
+        "reject/unregistered/src/main.trn",
+        "reject/orphan/terrane-projection.lock",
+        "run/registered/case.toml",
+        "run/registered/fixture-registry/witness/case.toml",
+        "check/nested-only/fixture-registry/witness/case.toml",
+        "README.md",
+    ]
+    .map(PathBuf::from);
+    assert_eq!(
+        missing_fixture_manifests(&files),
+        ["check/nested-only", "reject/orphan", "reject/unregistered",]
+            .map(PathBuf::from)
+            .into_iter()
+            .collect()
+    );
+}
+
+#[test]
+fn source_archive_discovers_and_checks_cases_without_git_inventory() {
+    let build = ConformanceBuild::new();
+    let archive = build.root.join("archive");
+    let case = archive.join("reject/type-error");
+    fs::create_dir_all(&case).unwrap();
+    fs::write(
+        case.join("case.toml"),
+        "phase = \"check\"\nstatus = \"reject\"\ncode = \"T0002\"\n",
+    )
+    .unwrap();
+    fs::write(
+        case.join("case.trn"),
+        "namespace archived\nfunction main;\n    value int = 'not-an-int'\n",
+    )
+    .unwrap();
+    assert_fixture_manifests(&archive);
+    let manifests = manifests_below(&archive);
+    assert_eq!(manifests, vec![case.join("case.toml")]);
+    // Execute the discovered case: absence of Git must not bypass compiler checking.
+    assert!(prepare_conformance_case(0, &manifests[0], &build, false).is_none());
 }
 
 #[test]

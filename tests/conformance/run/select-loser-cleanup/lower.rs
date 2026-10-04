@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -825,13 +825,13 @@ impl ConcurrencyOperationResult {
         exceeded_deadline: bool,
         detail: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             deadline_exceeded: false,
             message: String::from(""),
         };
-        value.construct(did_fail, exceeded_deadline, detail);
-        value
+        __terrane_constructed_value.construct(did_fail, exceeded_deadline, detail);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -860,15 +860,16 @@ impl ConcurrencyIntResult {
         detail: String,
         result_value: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             deadline_exceeded: false,
             available: false,
             message: String::from(""),
             value: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(did_fail, exceeded_deadline, has_value, detail, result_value);
-        value
+        __terrane_constructed_value
+            .construct(did_fail, exceeded_deadline, has_value, detail, result_value);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -893,13 +894,13 @@ pub struct IntMutex {
 }
 impl IntMutex {
     pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             handle: terrane_platform_no_resource(),
         };
-        value.construct(initial);
-        value
+        __terrane_constructed_value.construct(initial);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
@@ -953,13 +954,13 @@ pub struct IntReadWriteLock {
 }
 impl IntReadWriteLock {
     pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             handle: terrane_platform_no_resource(),
         };
-        value.construct(initial);
-        value
+        __terrane_constructed_value.construct(initial);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
@@ -995,11 +996,11 @@ pub struct MemoryOrder {
 }
 impl MemoryOrder {
     pub fn terrane_construct(ordering_name: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             name: String::from("sequentially-consistent"),
         };
-        value.construct(ordering_name);
-        value
+        __terrane_constructed_value.construct(ordering_name);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, ordering_name: String) {
         self.name = ordering_name;
@@ -1028,13 +1029,13 @@ pub struct AtomicInt64 {
 }
 impl AtomicInt64 {
     pub fn terrane_construct(initial: i64) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             handle: terrane_platform_no_resource(),
         };
-        value.construct(initial);
-        value
+        __terrane_constructed_value.construct(initial);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
         let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
@@ -1098,13 +1099,13 @@ pub struct ThreadLocalInt {
 }
 impl ThreadLocalInt {
     pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             handle: terrane_platform_no_resource(),
         };
-        value.construct(initial);
-        value
+        __terrane_constructed_value.construct(initial);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);

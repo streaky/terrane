@@ -678,7 +678,8 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => collect_foreign_type(inner, foreign),
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => collect_foreign_type(inner, foreign),
         ProjectedType::Mapping { key, value, .. } => {
             collect_foreign_type(key, foreign);
             collect_foreign_type(value, foreign);
@@ -699,6 +700,30 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
         _ => {}
     }
 }
+fn render_projected_type_parameters(
+    output: &mut String,
+    parameters: &[ProjectedGenericParameter],
+    aliases: &BTreeMap<String, String>,
+) {
+    if parameters.is_empty() {
+        return;
+    }
+    output.push_str(" of (");
+    for (index, parameter) in parameters.iter().enumerate() {
+        if index != 0 {
+            output.push_str(", ");
+        }
+        output.push_str(&parameter.name);
+        if let [bound] = parameter.rust_bounds.as_slice()
+            && let Some(projected_bound) = aliases.get(bound)
+        {
+            write!(output, " implements {projected_bound}")
+                .expect("writing to a string cannot fail");
+        }
+    }
+    output.push(')');
+}
+
 pub(super) fn render_foreign_declaration(
     output: &mut String,
     namespace: &str,
@@ -732,7 +757,21 @@ pub(super) fn render_foreign_declaration(
             }
         }
         projected_kind => {
-            writeln!(output, "class {name}").expect("writing to a string cannot fail");
+            output.push_str("class ");
+            output.push_str(name);
+            let generic_parameters: &[ProjectedGenericParameter] = match projected_kind {
+                Some(
+                    ProjectedKind::ForeignType {
+                        generic_parameters, ..
+                    }
+                    | ProjectedKind::Enum {
+                        generic_parameters, ..
+                    },
+                ) => generic_parameters,
+                _ => &[],
+            };
+            render_projected_type_parameters(output, generic_parameters, aliases);
+            output.push('\n');
             if let Some(
                 ProjectedKind::ForeignType {
                     methods,
@@ -977,7 +1016,8 @@ fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
         ProjectedType::Optional(inner)
         | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
-        | ProjectedType::Set { item: inner, .. } => foreign_type_name(inner),
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::Reference { inner, .. } => foreign_type_name(inner),
         ProjectedType::Mapping { key, value, .. } => {
             foreign_type_name(key).or_else(|| foreign_type_name(value))
         }
@@ -1091,6 +1131,7 @@ fn projected_parameter_type_name(ty: &ProjectedType, aliases: &BTreeMap<String, 
 )]
 fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
     match ty {
+        ProjectedType::Reference { inner, .. } => projected_type_name(inner, foreign_aliases),
         ProjectedType::Foreign {
             rust_path, name, ..
         } => foreign_aliases

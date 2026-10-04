@@ -309,7 +309,7 @@ pub(super) fn emit_error_support(
         #[derive(Clone, Debug, Eq, PartialEq)]
         struct TerraneErrorDetail {
             message: Option<String>,
-            cause: Option<Box<TerraneError>>,
+            cause: Option<std::boxed::Box<TerraneError>>,
             frames: Vec<TerraneSite>,
             structured: Vec<String>,
         }
@@ -317,7 +317,7 @@ pub(super) fn emit_error_support(
         pub struct TerraneError {
             kind: TerraneErrorKind,
             origin: TerraneSite,
-            detail: Option<Box<TerraneErrorDetail>>,
+            detail: Option<std::boxed::Box<TerraneErrorDetail>>,
         }
         #[cfg(target_pointer_width = "64")]
         const _: () = assert!(std::mem::size_of::<TerraneError>() == 16);
@@ -347,7 +347,7 @@ pub(super) fn emit_error_support(
                 Self {
                     kind,
                     origin,
-                    detail: Some(Box::new(TerraneErrorDetail {
+                    detail: Some(std::boxed::Box::new(TerraneErrorDetail {
                         message: Some(message.into()),
                         cause: None,
                         frames: Vec::new(),
@@ -375,14 +375,14 @@ pub(super) fn emit_error_support(
             fn with_cause(mut self, cause: TerraneError) -> Self {
                 self.detail
                     .get_or_insert_with(|| {
-                        Box::new(TerraneErrorDetail {
+                        std::boxed::Box::new(TerraneErrorDetail {
                             message: None,
                             cause: None,
                             frames: Vec::new(),
                             structured: Vec::new(),
                         })
                     })
-                    .cause = Some(Box::new(cause));
+                    .cause = Some(std::boxed::Box::new(cause));
                 self
             }
             #[cold]
@@ -397,7 +397,7 @@ pub(super) fn emit_error_support(
             fn at(mut self, frame: TerraneSite) -> Self {
                 self.detail
                     .get_or_insert_with(|| {
-                        Box::new(TerraneErrorDetail {
+                        std::boxed::Box::new(TerraneErrorDetail {
                             message: None,
                             cause: None,
                             frames: Vec::new(),
@@ -435,7 +435,7 @@ pub(super) fn emit_error_support(
             fn with_structured_details(mut self, structured: Vec<String>) -> Self {
                 self.detail
                     .get_or_insert_with(|| {
-                        Box::new(TerraneErrorDetail {
+                        std::boxed::Box::new(TerraneErrorDetail {
                             message: None,
                             cause: None,
                             frames: Vec::new(),
@@ -713,7 +713,7 @@ pub(super) fn emit_error_support(
                 reason = "projected type methods may be imported without being crossed"
             )]
             fn __terrane_dependency_panic(
-                payload: Box<dyn std::any::Any + Send>,
+                payload: std::boxed::Box<dyn std::any::Any + Send>,
                 crate_name: &'static str,
                 member: &'static str,
             ) -> TerraneForeignError {

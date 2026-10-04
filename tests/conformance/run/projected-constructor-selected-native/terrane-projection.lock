@@ -36,19 +36,6 @@
     }
   ],
   "removed": [],
-  "cache_identity": "7be5c7d92aeee166815da307ac9414ddba417258cbb2010d85701d2fa4eee498",
   "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "240",
-  "content_hash": "4d9f7df20efd1415baef97298d563f2e941c6584100887e4a34bfb2eda221d7a",
-  "resolution": {
-    "outcome": "ExactCache",
-    "events": [
-      {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `7be5c7d92aeee166815da307ac9414ddba417258cbb2010d85701d2fa4eee498`"
-      }
-    ]
-  }
+  "rustdoc_format": 57
 }

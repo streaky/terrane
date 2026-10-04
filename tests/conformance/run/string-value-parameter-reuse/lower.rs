@@ -15,9 +15,9 @@ pub struct MessageBox {
 }
 impl MessageBox {
     pub fn terrane_construct(message: String) -> Self {
-        let mut value = Self { message: String::from("") };
-        value.construct(message);
-        value
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(message);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
         self.message = message.clone();

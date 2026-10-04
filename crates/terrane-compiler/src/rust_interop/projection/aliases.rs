@@ -233,7 +233,8 @@ fn retarget_type(ty: &mut ProjectedType, target: &str, alias: &ProjectedType) {
         ProjectedType::Optional(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. }
-        | ProjectedType::AsyncIterationStep(inner) => retarget_type(inner, target, alias),
+        | ProjectedType::AsyncIterationStep(inner)
+        | ProjectedType::Reference { inner, .. } => retarget_type(inner, target, alias),
         ProjectedType::Mapping { key, value, .. } => {
             retarget_type(key, target, alias);
             retarget_type(value, target, alias);

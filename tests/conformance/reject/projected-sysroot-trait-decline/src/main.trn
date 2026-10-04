@@ -1,0 +1,4 @@
+namespace app
+from /deps/witness import Debug
+
+function inspect; value Debug

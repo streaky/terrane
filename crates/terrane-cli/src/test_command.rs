@@ -452,14 +452,13 @@ fn build_native_compilation(
         .map_err(CliFailure::rust_artifact)?;
     let uses_platform_support = compilation.requires_platform_support;
     let uses_async_runtime = includes_test_runtime || compilation.requires_async_runtime;
-    let uses_tokio_sync = rust_files
-        .iter()
-        .any(|file| file.contents.contains("tokio::sync::"));
+    let uses_tokio_blocking = compilation.requires_blocking_runtime;
+    let uses_tokio_sync = compilation.requires_runtime_sync;
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
         uses_platform_support,
-        uses_async_runtime,
+        uses_async_runtime || uses_tokio_blocking || uses_tokio_sync,
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
@@ -471,7 +470,8 @@ fn build_native_compilation(
         GeneratedCrateOptions {
             panic: package.profile.panic,
             uses_platform_support,
-            uses_async_runtime,
+            uses_async_runtime: includes_test_runtime || compilation.requires_async_runtime,
+            uses_tokio_blocking,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
             unsafe_code: if compilation.requires_unsafe_code

@@ -1,0 +1,16 @@
+namespace app
+from /deps/witness import Choice, score
+from /core/output import print
+
+function main;
+    chosen Choice of int = instance Choice::Value; 41
+    print; (score; chosen)
+    match ref chosen
+        case Choice::Empty
+            print; 0
+        case Choice::Value; value
+            print; (value + 1)
+        case Choice::Named; value, enabled
+            print; 0
+    named Choice of int = instance Choice::Named; enabled = true, value = 23
+    print; (score; named)

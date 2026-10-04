@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-09-15'
+  as_of: '2026-10-04'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -738,17 +738,18 @@ features:
   - docs/language-spec-and-compiler-architecture-draft.md#Inference, optional contracts, and lowering
   - docs/compiler-plan.md#Milestone 26.2
 - id: match-expression
-  name: Pattern matching
+  name: Closed enum statement matching
   category: callables
-  status: potential
-  completion: 0
+  status: done
+  completion: 100
   milestone: null
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/language/control-flow/pattern-matching.yaml
-  notes: A match shape is reserved in the design but is outside the minimum compiler roadmap and has no settled
-    milestone.
+    - manual/reference/records/language/types/unions.yaml
+  notes: Statement matches check closed enum coverage, named payload bindings, borrowed inspection,
+    consuming extraction, and catch-all ordering. Finite-union matching and value-producing match
+    expressions are not implemented.
   sources:
   - docs/language-spec-concise.md#CONTROL
 - id: scalar-display
@@ -945,6 +946,38 @@ features:
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
   - docs/compiler-plan.md#Completed portion of Milestone 16
+- id: authored-enums
+  name: Authored closed enums
+  category: types
+  status: done
+  completion: 100
+  milestone: null
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/language/types/unions.yaml
+    - manual/reference/records/language/types/generics.yaml
+  notes: Nominal variants retain generic payload contracts and normal ownership; construction,
+    exhaustive matching, borrowed inspection, and consuming resource transfer have executable witnesses.
+  sources:
+  - tests/conformance/run/authored-generic-enum-states/case.trn
+  - tests/conformance/run/authored-enum-resource-transfer/case.trn
+- id: required-field-construction
+  name: Required-field initialization and partial construction cleanup
+  category: objects
+  status: done
+  completion: 100
+  milestone: null
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/language/classes/fields.yaml
+  notes: Required fields initialize exactly once on every successful path before observation or
+    escape. Failed construction drops initialized fields without the incomplete user destructor.
+  sources:
+  - tests/conformance/run/authored-generic-partial-construction/case.trn
+  - tests/conformance/reject/authored-required-missing-branch/case.trn
+  - tests/conformance/reject/authored-required-double-write/case.trn
 - id: inheritance
   name: Single inheritance and late-bound self
   category: objects
@@ -2035,19 +2068,21 @@ features:
   - docs/language-spec-concise.md#DEFERRED
 - id: source-generics
   name: Source-declared generics
-  category: future
-  status: deferred
-  completion: 0
+  category: types
+  status: done
+  completion: 100
   milestone: null
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/generics.yaml
-  notes: Version one rejects source generic declarations; concrete types, unions, interfaces, and generated declarations
-    are used instead.
+  notes: Classes, functions, interfaces, and enums support lexical type binders, invariant concrete
+    applications, nominal bounds, inferred and explicit selection, and ownership-preserving generic bodies.
   sources:
   - docs/language-spec-concise.md#DECL
-  - docs/language-spec-concise.md#DEFERRED
+  - tests/conformance/run/authored-generic-contracts/case.trn
+  - tests/conformance/run/authored-generic-interfaces/case.trn
+  - tests/conformance/run/authored-generic-resource-choice/case.trn
 - id: hot-code-replacement
   name: Stateful hot-code replacement
   category: future

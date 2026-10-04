@@ -1,0 +1,8 @@
+namespace rejected-generic
+class address
+class message
+function identity of (T) T; value T
+    return value
+function main;
+    item message = instance message;
+    result = (identity of address); item

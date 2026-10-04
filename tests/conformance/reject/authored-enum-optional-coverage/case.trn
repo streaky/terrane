@@ -1,0 +1,8 @@
+namespace rejected-enum
+enum state
+    pending
+
+function inspect; value state|none
+    match ref value
+        case state::pending
+            return

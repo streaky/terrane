@@ -1,0 +1,58 @@
+namespace authored-generic-interfaces
+from /core/output import print
+
+interface describable
+    function describe string;
+
+class message implements describable
+    text string = ''
+    function construct; text string
+        this.text = text
+    function describe string;
+        return this.text
+
+class address implements describable
+    port int = 80
+    function describe string;
+        return 'peer'
+
+function choose of (T) T; first T, second T, use-first bool
+    if use-first
+        return first
+    return second
+
+function preserve of (T implements describable) T; value T
+    return value
+
+function describe-value of (T implements describable) string; value T
+    return value.describe;
+
+interface source of (T)
+    mutable function next T|none;
+
+class message-source implements (source of string)
+    value string|none = 'first'
+    mutable function next string|none;
+        result = this.value
+        this.value = none
+        return result
+
+function next-string string|none; input source of string
+    return input.next;
+
+function main;
+    message = instance message; 'preserved'
+    kept message = preserve; message
+    print; (kept.describe;)
+    print; (describe-value; kept)
+    input source of string = instance message-source;
+    first = next-string; input
+    if first != none
+        print; first
+    input.next;
+    second = input.next;
+    if second == none
+        print; 'none'
+    peer = instance address;
+    erased describable = (choose of describable); message, peer, false
+    print; (erased.describe;)

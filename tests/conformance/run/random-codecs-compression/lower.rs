@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -715,13 +715,13 @@ pub struct DecodeResult {
 }
 impl DecodeResult {
     pub fn terrane_construct(failed: bool, message: String, data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: Vec::from([]),
         };
-        value.construct(failed, message, data);
-        value
+        __terrane_constructed_value.construct(failed, message, data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
         self.failed = failed;
@@ -753,9 +753,9 @@ pub struct Base64Codec {
 }
 impl Base64Codec {
     pub fn terrane_construct(url_safe: bool) -> Self {
-        let mut value = Self { url_safe: false };
-        value.construct(url_safe);
-        value
+        let mut __terrane_constructed_value = Self { url_safe: false };
+        __terrane_constructed_value.construct(url_safe);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, url_safe: bool) {
         self.url_safe = url_safe;
@@ -826,12 +826,12 @@ impl CompressionOptions {
         level: terrane_int_support::Int,
         deterministic: bool,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             level: terrane_int_support::Int::from(6_i128),
             deterministic: true,
         };
-        value.construct(level, deterministic);
-        value
+        __terrane_constructed_value.construct(level, deterministic);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, level: terrane_int_support::Int, deterministic: bool) {
         self.level = level.clone();
@@ -850,13 +850,13 @@ impl DecompressionLimits {
         max_ratio: terrane_int_support::Int,
         max_work: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             max_output: terrane_int_support::Int::from(16777216_i128),
             max_ratio: terrane_int_support::Int::from(100_i128),
             max_work: terrane_int_support::Int::from(67108864_i128),
         };
-        value.construct(max_output, max_ratio, max_work);
-        value
+        __terrane_constructed_value.construct(max_output, max_ratio, max_work);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -883,14 +883,14 @@ impl CompressionResult {
         message: String,
         data: Vec<u8>,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             resource_limit: false,
             message: String::from(""),
             value: Vec::from([]),
         };
-        value.construct(failed, resource_limit, message, data);
-        value
+        __terrane_constructed_value.construct(failed, resource_limit, message, data);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -911,9 +911,9 @@ pub struct CompressionCodec {
 }
 impl CompressionCodec {
     pub fn terrane_construct(format: String) -> Self {
-        let mut value = Self { format: String::from("") };
-        value.construct(format);
-        value
+        let mut __terrane_constructed_value = Self { format: String::from("") };
+        __terrane_constructed_value.construct(format);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, format: String) {
         self.format = format;
@@ -980,13 +980,13 @@ pub struct ByteResult {
 }
 impl ByteResult {
     pub fn terrane_construct(failed: bool, message: String, data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: Vec::from([]),
         };
-        value.construct(failed, message, data);
-        value
+        __terrane_constructed_value.construct(failed, message, data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
         self.failed = failed;
@@ -1006,13 +1006,13 @@ impl RandomIntResult {
         message: String,
         number: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(failed, message, number);
-        value
+        __terrane_constructed_value.construct(failed, message, number);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1032,12 +1032,12 @@ pub struct SecretOperationResult {
 }
 impl SecretOperationResult {
     pub fn terrane_construct(failed: bool, message: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
         };
-        value.construct(failed, message);
-        value
+        __terrane_constructed_value.construct(failed, message);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String) {
         self.failed = failed;
@@ -1050,11 +1050,11 @@ pub struct SecretBuffer {
 }
 impl SecretBuffer {
     pub fn terrane_construct(data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             handle: terrane_platform_secret_buffer(Vec::from([])),
         };
-        value.construct(data);
-        value
+        __terrane_constructed_value.construct(data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, data: Vec<u8>) {
         self.handle = terrane_platform_secret_buffer(data);
@@ -1074,12 +1074,12 @@ pub struct DigestValue {
 }
 impl DigestValue {
     pub fn terrane_construct(algorithm: String, data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             algorithm: String::from(""),
             value: Vec::from([]),
         };
-        value.construct(algorithm, data);
-        value
+        __terrane_constructed_value.construct(algorithm, data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, algorithm: String, data: Vec<u8>) {
         self.algorithm = algorithm;
@@ -1105,13 +1105,13 @@ impl DigestResult {
         message: String,
         digest: DigestValue,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: DigestValue::terrane_construct(String::from(""), Vec::from([])),
         };
-        value.construct(failed, message, digest);
-        value
+        __terrane_constructed_value.construct(failed, message, digest);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, digest: DigestValue) {
         self.failed = failed;
@@ -1126,12 +1126,12 @@ pub struct SignatureValue {
 }
 impl SignatureValue {
     pub fn terrane_construct(algorithm: String, data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             algorithm: String::from(""),
             value: Vec::from([]),
         };
-        value.construct(algorithm, data);
-        value
+        __terrane_constructed_value.construct(algorithm, data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, algorithm: String, data: Vec<u8>) {
         self.algorithm = algorithm;
@@ -1157,13 +1157,13 @@ impl SignatureResult {
         message: String,
         signature: SignatureValue,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: SignatureValue::terrane_construct(String::from(""), Vec::from([])),
         };
-        value.construct(failed, message, signature);
-        value
+        __terrane_constructed_value.construct(failed, message, signature);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -1182,11 +1182,11 @@ pub struct SecureRandom {
 }
 impl SecureRandom {
     pub fn terrane_construct() -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             handle: terrane_platform_secure_random(),
         };
-        value.construct();
-        value
+        __terrane_constructed_value.construct();
+        __terrane_constructed_value
     }
     pub fn construct(&mut self) {
         self.handle = terrane_platform_secure_random();
@@ -1223,9 +1223,9 @@ pub struct PseudoRandomAlgorithm {
 }
 impl PseudoRandomAlgorithm {
     pub fn terrane_construct(name: String) -> Self {
-        let mut value = Self { name: String::from("") };
-        value.construct(name);
-        value
+        let mut __terrane_constructed_value = Self { name: String::from("") };
+        __terrane_constructed_value.construct(name);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, name: String) {
         self.name = name;
@@ -1240,14 +1240,14 @@ pub struct PseudoRandom {
 }
 impl PseudoRandom {
     pub fn terrane_construct(algorithm: PseudoRandomAlgorithm, seed: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             handle: terrane_platform_pseudo_random(
                 String::from("chacha20"),
                 Vec::from([]),
             ),
         };
-        value.construct(algorithm, seed);
-        value
+        __terrane_constructed_value.construct(algorithm, seed);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, algorithm: PseudoRandomAlgorithm, seed: Vec<u8>) {
         self.handle = terrane_platform_pseudo_random(algorithm.name, seed);
@@ -1358,9 +1358,9 @@ pub struct HashAlgorithm {
 }
 impl HashAlgorithm {
     pub fn terrane_construct(name: String) -> Self {
-        let mut value = Self { name: String::from("") };
-        value.construct(name);
-        value
+        let mut __terrane_constructed_value = Self { name: String::from("") };
+        __terrane_constructed_value.construct(name);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, name: String) {
         self.name = name;
@@ -1419,12 +1419,12 @@ pub struct Uuid {
 }
 impl Uuid {
     pub fn terrane_construct(text: String, data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             string: String::from(""),
             bytes: Vec::from([]),
         };
-        value.construct(text, data);
-        value
+        __terrane_constructed_value.construct(text, data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String, data: Vec<u8>) {
         self.string = text;
@@ -1439,13 +1439,13 @@ pub struct UuidResult {
 }
 impl UuidResult {
     pub fn terrane_construct(failed: bool, message: String, identifier: Uuid) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: Uuid::terrane_construct(String::from(""), Vec::from([])),
         };
-        value.construct(failed, message, identifier);
-        value
+        __terrane_constructed_value.construct(failed, message, identifier);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, identifier: Uuid) {
         self.failed = failed;

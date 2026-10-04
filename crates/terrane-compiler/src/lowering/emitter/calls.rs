@@ -267,6 +267,12 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        if callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(designator) = callee.children.first()
+            && let Some(value) = self.source_enum_construction(designator, arguments, node)
+        {
+            return value;
+        }
         if callee.kind == SyntaxKind::Name
             && let Some(identity) = self
                 .package
@@ -1667,8 +1673,30 @@ impl Emitter<'_> {
         let contract = if native_macro_path.is_some() {
             None
         } else {
-            self.contract_for_call(callee).cloned()
-        };
+            crate::semantics::selected_callable_contract(
+                self.package,
+                self.unit,
+                node,
+                crate::syntax::call_is_unsafe(node),
+            )
+            .or_else(|| self.contract_for_call(callee).cloned())
+        }
+        .map(|mut contract| {
+            if let Some(canonical) = self
+                .package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.functions)
+                .find(|function| function.span == contract.span)
+            {
+                for (parameter, current) in
+                    contract.parameters.iter_mut().zip(&canonical.parameters)
+                {
+                    parameter.mutable = current.mutable;
+                }
+            }
+            contract
+        });
         let native_struct_construction = callee.kind == SyntaxKind::ConstructionExpression
             && callee
                 .children
@@ -1801,6 +1829,27 @@ impl Emitter<'_> {
                         )
                 }) {
                     self.expression(value)
+                } else if parameter.mutable
+                    && matches!(
+                        parameter.binding_value_type(),
+                        Some(ValueType::Reference(item))
+                            if matches!(
+                                item.value_type(),
+                                ValueType::Object(identity)
+                                    if identity.native_projection.is_some()
+                                        || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                            )
+                    )
+                {
+                    if let Some(operand) = explicit_reference {
+                        if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
+                            format!("&mut *{}", self.expression(operand))
+                        } else {
+                            format!("&mut {}", self.raw_storage_name(operand))
+                        }
+                    } else {
+                        format!("&mut *{}", self.expression(value))
+                    }
                 } else if let Some(ty) = semantic_parameter.as_ref() {
                     self.expression_as(value, ty.clone())
                 } else {
@@ -1982,15 +2031,28 @@ impl Emitter<'_> {
         let mut native_member_receiver = None;
         let name = if let Some(path) = &native_macro_path {
             path.clone()
+        } else if let Some(function) = self.source_applied_function(callee) {
+            function
         } else if callee.kind == SyntaxKind::ConstructionExpression {
             callee
                 .children
                 .first()
                 .and_then(|designator| self.class_designator(designator))
                 .map_or_else(String::new, |object| {
+                    let identity = match self.value_type(node) {
+                        Some(ValueType::Object(identity))
+                            if identity.namespace == object.identity.namespace
+                                && identity.name == object.identity.name
+                                && identity.is_unsafe == object.identity.is_unsafe =>
+                        {
+                            identity
+                        }
+                        _ => object.identity.clone(),
+                    };
                     format!(
                         "{}::terrane_construct",
-                        rust_object_type_name(self.package, &object.identity)
+                        rust_source_type_application(self.package, &identity)
+                            .replacen('<', "::<", 1)
                     )
                 })
         } else if let [receiver, member] = callee.children.as_slice()
@@ -2152,24 +2214,15 @@ impl Emitter<'_> {
                 projected
                     .native_path
                     .as_ref()
-                    .or_else(|| {
-                        projected
-                            .native_owner
-                            .as_ref()
-                            .filter(|owner| owner.contains('<'))
-                    })
+                    .or(projected.native_owner.as_ref())
                     .map(|path| (projected, path))
             })
             .map_or_else(Vec::new, |(projected, path)| {
+                let names = crate::rust_ir::rust_type_parameter_names(path);
                 projected
                     .generic_parameters
                     .iter()
-                    .filter(|parameter| {
-                        path.split(|character: char| {
-                            !(character.is_alphanumeric() || character == '_')
-                        })
-                        .any(|segment| segment == parameter.name)
-                    })
+                    .filter(|parameter| names.contains(&parameter.name))
                     .map(|parameter| parameter.name.clone())
                     .collect()
             });
@@ -2528,14 +2581,17 @@ impl Emitter<'_> {
                         };
                         Some(identity)
                     })?;
-                let owner = self
-                    .package
-                    .projection
-                    .foreign_rust_path(&identity.namespace, &identity.name)?;
+                let owner = identity.native_projection.clone().or_else(|| {
+                    self.package
+                        .projection
+                        .foreign_rust_path(&identity.namespace, &identity.name)
+                        .map(str::to_owned)
+                })?;
+                let owner = owner.replacen('<', "::<", 1);
                 let receiver = (!contract.as_ref().is_some_and(|contract| contract.is_static))
                     .then_some(projected_enum_receiver.as_deref())
                     .flatten();
-                Some(projected_enum_call(operation, owner, receiver, &values))
+                Some(projected_enum_call(operation, &owner, receiver, &values))
             })
             .unwrap_or(call);
         let chain_role = foreign_method
@@ -2632,10 +2688,11 @@ impl Emitter<'_> {
             } else {
                 call.clone()
             };
-            let unwind_call = if !method.is_async
+            let discarded_unit = !method.is_async
+                && !method.into_future
                 && method.error.is_none()
-                && self.discarded_call == Some(node.span)
-            {
+                && self.discarded_call == Some(node.span);
+            let unwind_call = if discarded_unit {
                 format!("{{ let _ = {call}; }}")
             } else {
                 call.clone()
@@ -2650,7 +2707,11 @@ impl Emitter<'_> {
             let projected_result = specialization.map_or(&method.result, |specialization| {
                 &specialization.projected_result
             });
-            let converted = projected_result_expression("value", projected_result);
+            let converted = if discarded_unit {
+                "()".to_owned()
+            } else {
+                projected_result_expression("value", projected_result)
+            };
             let nested_converted = match projected_result {
                 crate::rust_interop::projection::ProjectedType::Optional(inner)
                     if method.error_optional_depth == 1 =>
@@ -2708,8 +2769,9 @@ impl Emitter<'_> {
                     "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
+                let value_pattern = if discarded_unit { "()" } else { "value" };
                 format!(
-                    "match {caught} {{ Ok(value) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok({value_pattern}) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             };
             if method.is_async {

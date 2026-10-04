@@ -547,7 +547,7 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
 }
 
 #[test]
-fn projected_constructor_selection_serves_signatures_and_semantic_hover() {
+fn projected_constructor_selection_serves_semantic_hover() {
     let source_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/conformance/run/projected-constructor-selected-native/src/main.trn")
         .canonicalize()
@@ -596,13 +596,15 @@ fn projected_constructor_selection_serves_signatures_and_semantic_hover() {
         &mut stdin,
         &json!({
             "jsonrpc":"2.0","id":2,"method":"textDocument/signatureHelp",
-            "params":{"textDocument":{"uri":uri},"position":{"line":line,"character":constructor.find(';').unwrap()+2}}
+            "params":{"textDocument":{"uri":uri},"position":{"line":line,"character":constructor.find("payload =").unwrap()+10}}
         }),
     );
     let signature = receive_response(&mut stdout, 2);
+    assert_eq!(signature["result"]["activeParameter"], 0);
     assert_eq!(
-        signature["result"]["signatures"][0]["label"],
-        "Packet; payload inferred"
+        signature["result"]["signatures"][0]["parameters"],
+        json!([{"label":"payload: Address"}]),
+        "{signature}"
     );
     let (line, usage) = text
         .lines()

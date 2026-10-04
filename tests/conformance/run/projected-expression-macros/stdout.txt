@@ -16,3 +16,4 @@ false
 2
 42
 10
+empty collection selected

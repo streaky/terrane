@@ -1,0 +1,6 @@
+namespace rejected-required
+class envelope of (T)
+    payload T
+    consuming function construct; payload T
+        this.payload = payload
+        removed = move this.payload

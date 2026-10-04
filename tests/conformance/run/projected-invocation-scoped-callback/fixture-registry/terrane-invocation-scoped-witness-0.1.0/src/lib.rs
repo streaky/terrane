@@ -291,3 +291,22 @@ where
     update(&mut state, 1);
     view(&state).value.len() as i64 + title(&state).len() as i64
 }
+
+pub struct MutableState {
+    value: String,
+}
+
+impl MutableState {
+    pub fn new(value: String) -> Self {
+        Self { value }
+    }
+
+    pub fn mark(&mut self) {
+        self.value.push('!');
+    }
+
+}
+
+pub fn mutable_state_label<'view>(state: &'view MutableState) -> BorrowedLabel<'view> {
+    BorrowedLabel { value: &state.value }
+}

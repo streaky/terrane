@@ -236,7 +236,7 @@ pub(super) fn populate_node(
                 add_lexical_scope(unit, context, scopes, block, Some(loop_index), false)?;
             }
         }
-        SyntaxKind::SelectCase => {
+        SyntaxKind::SelectCase | SyntaxKind::MatchCase => {
             let case_index = scopes.len();
             scopes.push(LexicalScope {
                 span: node.span,
@@ -244,16 +244,32 @@ pub(super) fn populate_node(
                 symbols: BTreeMap::new(),
                 import_warnings: Vec::new(),
             });
-            if let Some(binding) = node
-                .children
-                .first()
-                .filter(|header| header.kind == SyntaxKind::Binding)
+            if node.kind == SyntaxKind::SelectCase
+                && let Some(binding) = node
+                    .children
+                    .first()
+                    .filter(|header| header.kind == SyntaxKind::Binding)
                 && let Some(name) = declaration_name(binding, &unit.source)
             {
                 insert_local(unit, scopes, case_index, name, binding.span)?;
             }
-            if let Some(block) = node.children.last()
-                && block.kind == SyntaxKind::Block
+            if node.kind == SyntaxKind::MatchCase
+                && let Some(parameters) = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::ParameterList)
+            {
+                for name in &parameters.children {
+                    let name_text = node_text(&unit.source, name);
+                    if name_text != "_" {
+                        insert_local(unit, scopes, case_index, name_text.to_owned(), name.span)?;
+                    }
+                }
+            }
+            if let Some(block) = node
+                .children
+                .last()
+                .filter(|child| child.kind == SyntaxKind::Block)
             {
                 add_lexical_scope(unit, context, scopes, block, Some(case_index), false)?;
             }
@@ -299,7 +315,8 @@ pub(super) fn populate_node(
                     add_lexical_scope(unit, context, scopes, child, Some(index), false)?;
                 } else if matches!(
                     child.kind,
-                    SyntaxKind::AnonymousFunction
+                    SyntaxKind::MatchCase
+                        | SyntaxKind::AnonymousFunction
                         | SyntaxKind::ElseClause
                         | SyntaxKind::CatchClause
                         | SyntaxKind::FinallyClause
@@ -680,10 +697,16 @@ pub(super) fn block_may_fall_through(block: &SyntaxNode) -> bool {
                 .any(|branch| branch.kind == SyntaxKind::ElseClause);
             !has_else || branches.iter().any(|branch| block_may_fall_through(branch))
         }
+        SyntaxKind::MatchCase => statement.children.last().is_none_or(block_may_fall_through),
         SyntaxKind::Block | SyntaxKind::ElseClause | SyntaxKind::SelectCase => {
             block_may_fall_through(statement)
         }
         SyntaxKind::SelectStatement => statement.children.iter().any(block_may_fall_through),
+        SyntaxKind::MatchStatement => statement
+            .children
+            .iter()
+            .filter(|child| matches!(child.kind, SyntaxKind::MatchCase | SyntaxKind::ElseClause))
+            .any(block_may_fall_through),
         _ => true,
     }
 }
@@ -740,6 +763,24 @@ pub(super) fn validate_flow_statement(
         }
         SyntaxKind::IfStatement => {
             validate_if_flow(unit, statement, contract, bindings, loop_depth, unreachable)
+        }
+        SyntaxKind::MatchStatement => {
+            let mut any_falls_through = false;
+            for case in statement.children.iter().filter(|child| {
+                matches!(child.kind, SyntaxKind::MatchCase | SyntaxKind::ElseClause)
+            }) {
+                if let Some(block) = case.children.last() {
+                    any_falls_through |= validate_flow_block(
+                        unit,
+                        block,
+                        contract,
+                        bindings,
+                        loop_depth,
+                        unreachable,
+                    )?;
+                }
+            }
+            Ok(any_falls_through)
         }
         SyntaxKind::SelectStatement => {
             let mut any_falls_through = false;

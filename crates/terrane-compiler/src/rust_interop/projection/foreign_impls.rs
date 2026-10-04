@@ -54,19 +54,20 @@ pub(super) fn project_foreign_owner_impls(
         }
     }
     let canonical_owner = |path: &str| {
-        let (base, arguments) = path
-            .find('<')
-            .map_or((path, ""), |start| (&path[..start], &path[start..]));
-        let base = owner_aliases.get(base).map_or(base, String::as_str);
-        let mut path = canonicalize_rust_path(&format!("{base}{arguments}"));
+        let constructor =
+            crate::rust_ir::rust_type_constructor(path).unwrap_or_else(|| path.to_owned());
+        let base = owner_aliases
+            .get(&constructor)
+            .map_or(constructor.as_str(), String::as_str);
+        let mut normalized = canonicalize_rust_path(base);
         for (dependency, _, _) in rustdocs {
-            path = rewrite_rust_bound_root(
-                &path,
+            normalized = rewrite_rust_bound_root(
+                &normalized,
                 &dependency.name.replace('-', "_"),
                 &dependency.package.replace('-', "_"),
             );
         }
-        path
+        normalized
     };
     let mut owners: BTreeMap<String, Vec<(usize, usize)>> = BTreeMap::new();
     for (dependency_index, dependency) in projected.iter().enumerate() {
@@ -120,20 +121,40 @@ pub(super) fn project_foreign_owner_impls(
             {
                 continue;
             }
-            let Ok(owner) = project_type(
+            let Some(summary) = paths.get(&owner_path.id) else {
+                continue;
+            };
+            let identity = canonical_owner(&summary.path.join("::"));
+            let Some(matches) = owners.get(&identity) else {
+                // An owner outside the projected nominal inventory is not a candidate.
+                continue;
+            };
+            let owner = project_type(
                 &implementation.for_,
                 &document.index,
                 &paths,
                 &BTreeMap::new(),
-            ) else {
-                continue;
-            };
-            let ProjectedType::Foreign { rust_path, .. } = &owner else {
-                continue;
-            };
-            let identity = canonical_owner(rust_path);
-            let Some(matches) = owners.get(&identity) else {
-                continue;
+            )
+            .and_then(|owner| {
+                if matches!(owner, ProjectedType::Foreign { .. }) {
+                    Ok(owner)
+                } else {
+                    Err("owner has no nominal native representation".to_owned())
+                }
+            });
+            let owner = match owner {
+                Ok(owner) => owner,
+                Err(reason) => {
+                    decline_owner_implementation(
+                        &mut declined,
+                        projected,
+                        matches,
+                        implementation,
+                        document,
+                        &reason,
+                    );
+                    continue;
+                }
             };
             for &(owner_index, item_index) in matches {
                 let owner_item = &projected[owner_index].items[item_index];
@@ -147,12 +168,8 @@ pub(super) fn project_foreign_owner_impls(
                 {
                     name.clone_from(&owner_item.name);
                     rust_path.clone_from(&owner_item.rust_path);
-                    owner_item
-                        .rust_path
-                        .split('<')
-                        .next()
-                        .unwrap_or_default()
-                        .clone_into(base_rust_path);
+                    *base_rust_path = crate::rust_ir::rust_type_constructor(&owner_item.rust_path)
+                        .unwrap_or_else(|| owner_item.rust_path.clone());
                 }
                 let generics = BTreeMap::from([("Self".to_owned(), owner)]);
                 let (_, methods, _, failures) = project_methods(
@@ -216,4 +233,31 @@ pub(super) fn project_foreign_owner_impls(
         }
     }
     owner_aliases
+}
+
+fn decline_owner_implementation(
+    declined: &mut [Vec<DeclinedItem>],
+    projected: &[ProjectedDependency],
+    owners: &[(usize, usize)],
+    implementation: &rustdoc_types::Impl,
+    document: &RustdocCrate,
+    reason: &str,
+) {
+    for &(dependency_index, item_index) in owners {
+        let owner = &projected[dependency_index].items[item_index];
+        for method in implementation
+            .items
+            .iter()
+            .filter_map(|id| document.index.get(id))
+        {
+            if matches!(method.inner, ItemEnum::Function(_))
+                && let Some(name) = &method.name
+            {
+                declined[dependency_index].push(DeclinedItem {
+                    rust_path: format!("{}::{name}", owner.rust_path),
+                    reason: format!("foreign trait implementation owner: {reason}"),
+                });
+            }
+        }
+    }
 }

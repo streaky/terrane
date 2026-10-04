@@ -1,0 +1,19 @@
+namespace authored-enum-catch-all
+from /core/output import print
+
+class resource
+    consuming function destruct;
+        print; 'cleaned'
+
+enum state
+    ready
+    held; value resource
+
+function main;
+    payload = instance resource;
+    value state = instance state::held; value = move payload
+    match move value
+        case state::ready
+            print; 'ready'
+        case else
+            print; 'other'

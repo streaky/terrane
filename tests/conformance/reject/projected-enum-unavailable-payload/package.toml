@@ -1,0 +1,7 @@
+package = "projected-enum-unavailable-payload"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-unavailable-enum-witness]
+version = "=0.1.0"

@@ -109,6 +109,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
             borrowed_view: false,
             native_view_type: None,
             enum_payload: None,
+            generic_parameters: Vec::new(),
             boundary: ProjectedBoundaryCapabilities::default(),
         },
     }

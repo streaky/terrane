@@ -45,9 +45,25 @@ fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) ->
     }
 }
 
+fn is_source_type_parameter(
+    value_type: &ValueType,
+    parameters: &[GenericParameterContract],
+) -> bool {
+    match value_type {
+        ValueType::TypeParameter(name) => {
+            parameters.iter().any(|parameter| parameter.name == *name)
+        }
+        ValueType::Optional(inner) => is_source_type_parameter(inner, parameters),
+        _ => false,
+    }
+}
+
 impl<'a> Emitter<'a> {
     fn field_initial_value(&mut self, effective: EffectiveObjectField<'a>) -> String {
         let field = effective.field;
+        if field.required {
+            return "None".to_owned();
+        }
         if let Some(initializer_span) = field.initializer_span {
             let initializer = find_node_by_span(&effective.unit.tree.root, initializer_span)
                 .expect("semantic field initializer span must resolve in its declaration unit");
@@ -431,14 +447,34 @@ impl<'a> Emitter<'a> {
                             format!("'static + {bounds}")
                         }
                     });
-                let generic_declaration = associated_bounds
+                let (source_declaration, source_use) =
+                    rust_generic_parameters(self.package, &object.generic_parameters);
+                let associated_declaration = associated_bounds
                     .as_ref()
-                    .map_or_else(String::new, |bounds| {
-                        format!("<TerraneAssociated: {bounds}>")
-                    });
-                let generic_use = associated_bounds
-                    .as_ref()
-                    .map_or("", |_| "<TerraneAssociated>");
+                    .map_or_else(String::new, |bounds| format!("TerraneAssociated: {bounds}"));
+                let source_declaration = source_declaration
+                    .trim_start_matches('<')
+                    .trim_end_matches('>')
+                    .to_owned();
+                let source_use = source_use
+                    .trim_start_matches('<')
+                    .trim_end_matches('>')
+                    .to_owned();
+                let generic_declaration = match (
+                    associated_declaration.is_empty(),
+                    source_declaration.is_empty(),
+                ) {
+                    (true, true) => String::new(),
+                    (true, false) => format!("<{source_declaration}>"),
+                    (false, true) => format!("<{associated_declaration}>"),
+                    (false, false) => format!("<{associated_declaration}, {source_declaration}>"),
+                };
+                let generic_use = match (associated_bounds.is_none(), source_use.is_empty()) {
+                    (true, true) => String::new(),
+                    (true, false) => format!("<{source_use}>"),
+                    (false, true) => "<TerraneAssociated>".to_owned(),
+                    (false, false) => format!("<TerraneAssociated, {source_use}>"),
+                };
                 let protocol_use = format!("{protocol}{generic_use}");
                 let transfer_bounds = if projected_requirements
                     .is_none_or(|item| item.send && item.sync)
@@ -473,9 +509,11 @@ impl<'a> Emitter<'a> {
                         InvocationMode::Mutable => "&mut self",
                         InvocationMode::Shared => "&self",
                     };
+                    let (method_generics, _) =
+                        rust_generic_parameters(self.package, &method.generic_parameters);
                     write!(
                         self.output,
-                        "{}fn {}({receiver}",
+                        "{}fn {}{method_generics}({receiver}",
                         if method.is_unsafe { "unsafe " } else { "" },
                         function_name(self.package, method)
                     )
@@ -611,6 +649,7 @@ impl<'a> Emitter<'a> {
                     }
                 }
             }
+            ObjectKind::Enum => self.enum_declaration(node),
             ObjectKind::Trait => {}
             ObjectKind::Type => {
                 unreachable!("compiler-owned descriptor templates have no source declaration")
@@ -627,13 +666,40 @@ impl<'a> Emitter<'a> {
                     .copied()
                     .filter(|field| field.field.is_static)
                     .collect::<Vec<_>>();
+                let phantom_parameters = object
+                    .generic_parameters
+                    .iter()
+                    .filter(|parameter| {
+                        !instance_fields.iter().any(|field| {
+                            super::enums::value_type_uses_parameter(
+                                &field.field.value_type,
+                                &parameter.name,
+                            )
+                        })
+                    })
+                    .collect::<Vec<_>>();
+                let phantom_type = (!phantom_parameters.is_empty()).then(|| {
+                    format!(
+                        "std::marker::PhantomData<fn({})>",
+                        phantom_parameters
+                            .iter()
+                            .map(|parameter| rust_name(&parameter.name))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                });
                 let descendants = object_descendants(self.unit, object);
-                let class_type = rust_object_type_name(self.package, &object.identity);
-                let storage_type = if descendants.is_empty() {
-                    class_type.clone()
+                let generic_identity = object.identity.base();
+                let class_name = rust_object_type_name(self.package, &generic_identity);
+                let (generic_declaration, generic_use) =
+                    rust_generic_parameters(self.package, &object.generic_parameters);
+                let class_type = format!("{class_name}{generic_use}");
+                let storage_name = if descendants.is_empty() {
+                    class_name.clone()
                 } else {
-                    format!("{class_type}Storage")
+                    format!("{class_name}Storage")
                 };
+                let storage_type = format!("{storage_name}{generic_use}");
                 let all_methods = effective_object_methods(self.unit, object);
                 let methods = all_methods
                     .iter()
@@ -646,6 +712,20 @@ impl<'a> Emitter<'a> {
                     .filter(|method| method.is_static)
                     .collect::<Vec<_>>();
                 let has_destructor = methods.iter().any(|method| method.name == "destruct");
+                let has_required_fields = instance_fields.iter().any(|field| field.field.required);
+                let tracks_construction = has_destructor && has_required_fields;
+                let conditional_generic_clone = !has_destructor
+                    && !object.generic_parameters.is_empty()
+                    && instance_fields.iter().all(|field| {
+                        !crate::semantics::application_is_resource_owning(
+                            self.package,
+                            &field.field.value_type,
+                        ) || is_source_type_parameter(
+                            &field.field.value_type,
+                            &object.generic_parameters,
+                        )
+                    });
+                let can_clone = !object.resource_owning || conditional_generic_clone;
 
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for field in &static_fields {
@@ -661,18 +741,19 @@ impl<'a> Emitter<'a> {
                     self.output.push('\n');
                 }
 
-                if !object.resource_owning {
-                    if object.identity.namespace == "/core/time"
-                        && matches!(
-                            object.identity.name.as_str(),
-                            "duration"
-                                | "duration-subtraction"
-                                | "instant"
-                                | "monotonic-instant"
-                                | "deadline"
-                        )
-                        || object.identity.namespace == "/core/process-signals"
-                            && object.identity.name == "process-signal"
+                if can_clone {
+                    if !object.resource_owning
+                        && (object.identity.namespace == "/core/time"
+                            && matches!(
+                                object.identity.name.as_str(),
+                                "duration"
+                                    | "duration-subtraction"
+                                    | "instant"
+                                    | "monotonic-instant"
+                                    | "deadline"
+                            )
+                            || object.identity.namespace == "/core/process-signals"
+                                && object.identity.name == "process-signal")
                     {
                         if object.identity.namespace == "/core/process-signals" {
                             self.line("#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]");
@@ -683,25 +764,47 @@ impl<'a> Emitter<'a> {
                         self.line("#[derive(Clone)]");
                     }
                 }
-                self.line(&format!("pub struct {storage_type} {{"));
+                self.line(&format!(
+                    "pub struct {storage_name}{generic_declaration} {{"
+                ));
                 self.indent += 1;
+                if tracks_construction {
+                    self.line("__terrane_constructed: bool,");
+                }
                 if has_destructor && !object.resource_owning {
                     self.line("__terrane_lifetime: std::sync::Arc<()>,");
                 }
+                if let Some(phantom_type) = &phantom_type {
+                    self.line(&format!("__terrane_phantom: {phantom_type},"));
+                }
                 for field in &instance_fields {
+                    let field_type = rust_value_type(self.package, field.field.value_type.clone());
+                    let field_type = if field.field.required {
+                        format!("Option<{field_type}>")
+                    } else {
+                        field_type
+                    };
                     self.line(&format!(
-                        "pub {}: {},",
-                        rust_name(&field.field.name),
-                        rust_value_type(self.package, field.field.value_type.clone())
+                        "pub {}: {field_type},",
+                        rust_name(&field.field.name)
                     ));
                 }
                 self.indent -= 1;
                 self.line("}");
-                self.line(&format!("impl {storage_type} {{"));
+                self.line(&format!("impl{generic_declaration} {storage_type} {{"));
                 self.indent += 1;
                 if let Some(construct) = methods.iter().find(|method| method.name == "construct") {
-                    self.line_start();
-                    write!(self.output, "pub fn terrane_construct(").unwrap();
+                    let required_fields = instance_fields
+                        .iter()
+                        .filter(|field| field.field.required)
+                        .map(|field| field.field.name.as_str())
+                        .collect::<BTreeSet<_>>();
+                    if !required_fields.is_empty()
+                        && !constructor_proves_fields(self.unit, construct, &required_fields)
+                    {
+                        unreachable!("semantic analysis must prove required field initialization");
+                    }
+                    self.output.push_str("pub fn terrane_construct(");
                     for (index, parameter) in construct.parameters.iter().enumerate() {
                         if index != 0 {
                             self.output.push_str(", ");
@@ -718,8 +821,23 @@ impl<'a> Emitter<'a> {
                         self.output.push_str(") -> Self {\n");
                     }
                     self.indent += 1;
-                    self.line("let mut value = Self {");
+                    let parameter_names = construct
+                        .parameters
+                        .iter()
+                        .map(|parameter| rust_name(&parameter.name))
+                        .collect::<BTreeSet<_>>();
+                    let mut value_name = "__terrane_constructed_value".to_owned();
+                    while parameter_names.contains(&value_name) {
+                        value_name.push('_');
+                    }
+                    self.line(&format!("let mut {value_name} = Self {{"));
                     self.indent += 1;
+                    if tracks_construction {
+                        self.line("__terrane_constructed: false,");
+                    }
+                    if phantom_type.is_some() {
+                        self.line("__terrane_phantom: std::marker::PhantomData,");
+                    }
                     for field in &instance_fields {
                         let value = self.field_initial_value(*field);
                         self.line(&format!("{}: {value},", rust_name(&field.field.name)));
@@ -736,13 +854,16 @@ impl<'a> Emitter<'a> {
                         .collect::<Vec<_>>()
                         .join(", ");
                     self.line(&format!(
-                        "value.construct({arguments}){};",
+                        "{value_name}.construct({arguments}){};",
                         if construct.throws { "?" } else { "" }
                     ));
-                    self.line(if construct.throws {
-                        "Ok(value)"
+                    if tracks_construction {
+                        self.line(&format!("{value_name}.__terrane_constructed = true;"));
+                    }
+                    self.line(&if construct.throws {
+                        format!("Ok({value_name})")
                     } else {
-                        "value"
+                        value_name
                     });
                     self.indent -= 1;
                     self.line("}");
@@ -751,6 +872,12 @@ impl<'a> Emitter<'a> {
                     self.indent += 1;
                     self.line("Self {");
                     self.indent += 1;
+                    if tracks_construction {
+                        self.line("__terrane_constructed: true,");
+                    }
+                    if phantom_type.is_some() {
+                        self.line("__terrane_phantom: std::marker::PhantomData,");
+                    }
                     for field in &instance_fields {
                         let value = self.field_initial_value(*field);
                         self.line(&format!("{}: {value},", rust_name(&field.field.name)));
@@ -823,7 +950,7 @@ impl<'a> Emitter<'a> {
                     self.object_document_decoder(object, &class_type, &instance_fields);
                 }
                 if !descendants.is_empty() {
-                    if !object.resource_owning {
+                    if can_clone {
                         self.line("#[derive(Clone)]");
                     }
                     self.line(&format!("pub enum {class_type} {{"));
@@ -1013,7 +1140,14 @@ impl<'a> Emitter<'a> {
                         self.indent += 1;
                         self.line("match self {");
                         self.indent += 1;
-                        self.line(&format!("Self::Own(value) => &value.{field_name},"));
+                        let own_access = if field.field.required {
+                            format!(
+                                "value.{field_name}.as_ref().expect(\"required field initialized\")"
+                            )
+                        } else {
+                            format!("&value.{field_name}")
+                        };
+                        self.line(&format!("Self::Own(value) => {own_access},"));
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
@@ -1022,6 +1156,10 @@ impl<'a> Emitter<'a> {
                             }) {
                                 self.line(&format!(
                                     "Self::{descendant_type}(value) => value.terrane_field_{field_name}(),"
+                                ));
+                            } else if field.field.required {
+                                self.line(&format!(
+                                    "Self::{descendant_type}(value) => value.{field_name}.as_ref().expect(\"required field initialized\"),"
                                 ));
                             } else {
                                 self.line(&format!(
@@ -1039,7 +1177,14 @@ impl<'a> Emitter<'a> {
                         self.indent += 1;
                         self.line("match self {");
                         self.indent += 1;
-                        self.line(&format!("Self::Own(value) => &mut value.{field_name},"));
+                        let own_mut_access = if field.field.required {
+                            format!(
+                                "value.{field_name}.as_mut().expect(\"required field initialized\")"
+                            )
+                        } else {
+                            format!("&mut value.{field_name}")
+                        };
+                        self.line(&format!("Self::Own(value) => {own_mut_access},"));
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
@@ -1048,6 +1193,10 @@ impl<'a> Emitter<'a> {
                             }) {
                                 self.line(&format!(
                                     "Self::{descendant_type}(value) => value.terrane_field_{field_name}_mut(),"
+                                ));
+                            } else if field.field.required {
+                                self.line(&format!(
+                                    "Self::{descendant_type}(value) => value.{field_name}.as_mut().expect(\"required field initialized\"),"
                                 ));
                             } else {
                                 self.line(&format!(
@@ -1059,6 +1208,34 @@ impl<'a> Emitter<'a> {
                         self.line("}");
                         self.indent -= 1;
                         self.line("}");
+                        if field.field.required {
+                            self.line(&format!(
+                                "pub fn terrane_field_{field_name}_slot_mut(&mut self) -> &mut Option<{field_type}> {{"
+                            ));
+                            self.indent += 1;
+                            self.line("match self {");
+                            self.indent += 1;
+                            self.line(&format!("Self::Own(value) => &mut value.{field_name},"));
+                            for descendant in &descendants {
+                                let descendant_type =
+                                    rust_object_type_name(self.package, &descendant.identity);
+                                if self.unit.descriptors.iter().any(|candidate| {
+                                    candidate.base.as_ref() == Some(&descendant.identity)
+                                }) {
+                                    self.line(&format!(
+                                        "Self::{descendant_type}(value) => value.terrane_field_{field_name}_slot_mut(),"
+                                    ));
+                                } else {
+                                    self.line(&format!(
+                                        "Self::{descendant_type}(value) => &mut value.{field_name},"
+                                    ));
+                                }
+                            }
+                            self.indent -= 1;
+                            self.line("}");
+                            self.indent -= 1;
+                            self.line("}");
+                        }
                     }
                     self.indent -= 1;
                     self.line("}");
@@ -1094,20 +1271,35 @@ impl<'a> Emitter<'a> {
                     let interface = interface_unit
                         .descriptors
                         .iter()
-                        .find(|candidate| candidate.identity == *interface_identity)
+                        .find(|candidate| candidate.identity.base() == interface_identity.base())
                         .expect("validated interface contract");
-                    let interface_type = rust_object_type_name(self.package, &interface.identity);
+                    let interface_type =
+                        rust_source_type_application(self.package, interface_identity);
                     let interface_base =
                         rust_object_type_name(self.package, &interface.identity.base());
                     let protocol = format!(
                         "{interface_base}Protocol{}",
-                        interface_identity.application.as_deref().map_or_else(
-                            String::new,
-                            |application| format!(
-                                "<{}>",
-                                rust_value_type(self.package, application.clone())
+                        if interface_identity.type_arguments.is_empty() {
+                            interface_identity.application.as_deref().map_or_else(
+                                String::new,
+                                |application| {
+                                    format!(
+                                        "<{}>",
+                                        rust_value_type(self.package, application.clone())
+                                    )
+                                },
                             )
-                        )
+                        } else {
+                            format!(
+                                "<{}>",
+                                interface_identity
+                                    .type_arguments
+                                    .iter()
+                                    .map(|argument| rust_value_type(self.package, argument.clone()))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        }
                     );
                     let class_type = rust_object_type_name(self.package, &object.identity);
                     if interface.is_unsafe
@@ -1134,13 +1326,32 @@ impl<'a> Emitter<'a> {
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                         ));
                     }
+                    let substitutions = interface
+                        .generic_parameters
+                        .iter()
+                        .zip(&interface_identity.type_arguments)
+                        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                        .collect();
                     let interface_methods = effective_object_methods(interface_unit, interface)
                         .into_iter()
                         .map(|method| {
-                            crate::semantics::bind_projected_requirement(
+                            let mut method = crate::semantics::bind_projected_requirement(
                                 method,
                                 interface_identity.application.as_deref(),
-                            )
+                            );
+                            for parameter in &mut method.parameters {
+                                parameter.value_type =
+                                    parameter.value_type.as_ref().map(|value_type| {
+                                        crate::semantics::substitute_value_type(
+                                            value_type,
+                                            &substitutions,
+                                        )
+                                    });
+                            }
+                            method.return_type = method.return_type.as_ref().map(|value_type| {
+                                crate::semantics::substitute_value_type(value_type, &substitutions)
+                            });
+                            method
                         })
                         .collect::<Vec<_>>();
                     for method in &interface_methods {
@@ -1372,6 +1583,9 @@ impl<'a> Emitter<'a> {
                     self.indent += 1;
                     self.line("fn drop(&mut self) {");
                     self.indent += 1;
+                    if tracks_construction {
+                        self.line("if !self.__terrane_constructed { return; }");
+                    }
                     if !object.resource_owning {
                         self.line(
                             "if std::sync::Arc::strong_count(&self.__terrane_lifetime) != 1 { return; }",
@@ -1763,7 +1977,7 @@ impl<'a> Emitter<'a> {
     ) -> Vec<String> {
         let mut declarations = Vec::new();
         if node.kind == SyntaxKind::CallExpression
-            && self.unit.projected_call_result_types.contains_key(&(
+            && self.unit.selected_expression_types.contains_key(&(
                 node.span.file,
                 node.span.start,
                 node.span.end,
@@ -1939,6 +2153,10 @@ impl<'a> Emitter<'a> {
                 generics.push("'view".to_owned());
             }
             generics.extend(scoped_type_generics);
+            generics.extend(rust_generic_parameter_declarations(
+                self.package,
+                &contract.generic_parameters,
+            ));
             if generics.is_empty() {
                 String::new()
             } else {
@@ -1996,7 +2214,18 @@ impl<'a> Emitter<'a> {
                 .contains(&(
                     (contract.span.file, contract.span.start, contract.span.end),
                     index,
-                ));
+                ))
+                || parameter.mutable
+                    && matches!(
+                        &binding_type,
+                        Some(ValueType::Reference(item))
+                            if matches!(
+                                item.value_type(),
+                                ValueType::Object(identity)
+                                    if identity.native_projection.is_some()
+                                        || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                            )
+                    );
             let ty = match (&binding_type, reference_lender == Some(index)) {
                 (Some(ValueType::Reference(item)), _) if native_mutable_reference => {
                     format!(

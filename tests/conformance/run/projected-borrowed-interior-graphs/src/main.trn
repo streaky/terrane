@@ -3,7 +3,7 @@ namespace app
 from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
 from /core/output import print
 from /deps/http import HeaderMap, HeaderName, HeaderValue
-from /callbacks import mark-sensitive, clear-sensitive, read-sensitive
+from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
 
 function entry-value int; entry ref Entry
     return entry.value;
@@ -41,7 +41,7 @@ function main;
     name = HeaderName::from_str; 'forwarded'
     value = HeaderValue::from_str; 'initial'
     headers.insert; name, value
-    before bool|none = (headers.get_mut; 'forwarded').map; read-sensitive
+    before bool|none = (headers.get; 'forwarded').map; read-sensitive
     if before != none
         print; before
     marked bool|none = (headers.get_mut; 'forwarded').map; mark-sensitive
@@ -51,8 +51,14 @@ function main;
     cleared bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
     if cleared != none
         print; cleared
-    after bool|none = (headers.get_mut; 'forwarded').map; read-sensitive
+    after bool|none = (headers.get; 'forwarded').map; read-sensitive
     if after != none
         print; after
     if snapshot != none
         print; (snapshot.is_sensitive;)
+    (headers.get_mut; 'forwarded').map; mark-sensitive
+    empty bool|none = (headers.get_mut; 'forwarded').and_then; clear-sensitive-optional
+    print; empty == none
+    final bool|none = (headers.get; 'forwarded').map; read-sensitive
+    if final != none
+        print; final

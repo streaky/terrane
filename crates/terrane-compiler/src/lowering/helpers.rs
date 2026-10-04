@@ -393,6 +393,7 @@ fn rust_callable_arguments(
 )]
 pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
+        ValueType::TypeParameter(name) => rust_type_parameter_name(&name),
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
         ValueType::Optional(inner) => {
             format!("Option<{}>", rust_value_type(package, *inner))
@@ -874,11 +875,95 @@ pub(crate) fn rust_object_type_name(
     {
         return format!("{base}<{arguments}");
     }
-    identity
-        .application
-        .as_deref()
-        .map_or(base.clone(), |application| {
-            format!("{base}<{}>", rust_value_type(package, application.clone()))
+    let mut arguments = identity
+        .type_arguments
+        .iter()
+        .map(|argument| rust_value_type(package, argument.clone()))
+        .collect::<Vec<_>>();
+    if let Some(application) = identity.application.as_deref() {
+        arguments.push(rust_value_type(package, application.clone()));
+    }
+    if arguments.is_empty() {
+        base
+    } else {
+        format!("{base}<{}>", arguments.join(", "))
+    }
+}
+
+pub(super) fn rust_source_type_application(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+) -> String {
+    rust_object_type_name(package, identity)
+}
+
+pub(super) fn rust_type_parameter_name(name: &str) -> String {
+    use std::fmt::Write as _;
+    let mut rendered = String::with_capacity(11 + name.len() * 2);
+    rendered.push_str("TerraneType");
+    for byte in name.bytes() {
+        write!(rendered, "{byte:02X}").expect("writing cannot fail");
+    }
+    rendered
+}
+
+pub(super) fn rust_generic_parameter_declarations(
+    package: &SemanticPackage,
+    parameters: &[GenericParameterContract],
+) -> Vec<String> {
+    parameters
+        .iter()
+        .map(|parameter| {
+            let name = rust_type_parameter_name(&parameter.name);
+            parameter.bound.as_ref().map_or(name.clone(), |bound| {
+                format!(
+                    "{name}: {}Protocol",
+                    rust_object_type_name(package, &bound.base())
+                )
+            })
+        })
+        .collect()
+}
+
+pub(super) fn rust_generic_parameters(
+    package: &SemanticPackage,
+    parameters: &[GenericParameterContract],
+) -> (String, String) {
+    if parameters.is_empty() {
+        return (String::new(), String::new());
+    }
+    let declarations = rust_generic_parameter_declarations(package, parameters);
+    let use_arguments = parameters
+        .iter()
+        .map(|parameter| rust_type_parameter_name(&parameter.name))
+        .collect::<Vec<_>>();
+    (
+        format!("<{}>", declarations.join(", ")),
+        format!("<{}>", use_arguments.join(", ")),
+    )
+}
+
+pub(super) fn source_field_is_required(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    name: &str,
+) -> bool {
+    if package
+        .projection
+        .item(&identity.namespace, &identity.name)
+        .is_some()
+    {
+        return false;
+    }
+    package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|object| object.identity.base() == identity.base())
+        .is_some_and(|object| {
+            effective_object_fields(package, object)
+                .iter()
+                .any(|field| field.name == name && field.field.required)
         })
 }
 

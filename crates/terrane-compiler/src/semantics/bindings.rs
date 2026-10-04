@@ -392,6 +392,32 @@ pub(super) fn first_write_to<'a>(
 }
 
 pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
+    let mut pending = Vec::new();
+    loop {
+        for (unit_index, unit) in package.units.iter().enumerate() {
+            for (function_index, function) in unit.functions.iter().enumerate() {
+                for (parameter_index, parameter) in function.parameters.iter().enumerate() {
+                    if !parameter.mutable
+                        && binding_span_is_mutated(
+                            package,
+                            unit,
+                            parameter.span,
+                            true,
+                            ClosureWrites::Include,
+                        )
+                    {
+                        pending.push((unit_index, function_index, parameter_index));
+                    }
+                }
+            }
+        }
+        if pending.is_empty() {
+            break;
+        }
+        for (unit, function, parameter) in pending.drain(..) {
+            package.units[unit].functions[function].parameters[parameter].mutable = true;
+        }
+    }
     let mutable_bindings = package
         .units
         .iter()
@@ -412,44 +438,10 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let mutable_parameters = package
-        .units
-        .iter()
-        .map(|unit| {
-            unit.functions
-                .iter()
-                .map(|function| {
-                    function
-                        .parameters
-                        .iter()
-                        .map(|parameter| {
-                            binding_span_is_mutated(
-                                package,
-                                unit,
-                                parameter.span,
-                                true,
-                                ClosureWrites::Include,
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
 
-    for ((unit, binding_mutability), parameter_mutability) in package
-        .units
-        .iter_mut()
-        .zip(mutable_bindings)
-        .zip(mutable_parameters)
-    {
+    for (unit, binding_mutability) in package.units.iter_mut().zip(mutable_bindings) {
         for (binding, mutable) in unit.typed_bindings.iter_mut().zip(binding_mutability) {
             binding.mutable = mutable;
-        }
-        for (function, mutability) in unit.functions.iter_mut().zip(parameter_mutability) {
-            for (parameter, mutable) in function.parameters.iter_mut().zip(mutability) {
-                parameter.mutable = mutable;
-            }
         }
     }
 }
@@ -887,6 +879,10 @@ pub(super) enum AutoTraitObligation {
     Sync,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive auto-trait proof cases stay aligned with the complete semantic value shape"
+)]
 pub(super) fn value_type_satisfies_auto_trait(
     package: &SemanticPackage,
     value_type: &ValueType,
@@ -918,14 +914,60 @@ pub(super) fn value_type_satisfies_auto_trait(
                     .units
                     .iter()
                     .flat_map(|unit| &unit.descriptors)
-                    .find(|object| object.identity == *identity)
+                    .find(|object| object.identity.base() == identity.base())
                     .is_some_and(|object| match object.kind {
                         ObjectKind::Interface => true,
-                        ObjectKind::Class => effective_object_fields(package, object)
-                            .into_iter()
-                            .all(|field| {
-                                field.is_static
-                                    || satisfies(package, &field.value_type, obligation, visiting)
+                        ObjectKind::Class => {
+                            let substitutions = object
+                                .generic_parameters
+                                .iter()
+                                .zip(&identity.type_arguments)
+                                .map(|(parameter, argument)| {
+                                    (parameter.name.clone(), argument.clone())
+                                })
+                                .collect();
+                            effective_object_fields(package, object)
+                                .into_iter()
+                                .all(|field| {
+                                    field.is_static
+                                        || satisfies(
+                                            package,
+                                            &substitute_value_type(
+                                                &field.value_type,
+                                                &substitutions,
+                                            ),
+                                            obligation,
+                                            visiting,
+                                        )
+                                })
+                        }
+                        ObjectKind::Enum => package
+                            .units
+                            .iter()
+                            .flat_map(|unit| &unit.source_enums)
+                            .find(|enumeration| enumeration.identity.base() == identity.base())
+                            .is_some_and(|enumeration| {
+                                let substitutions = object
+                                    .generic_parameters
+                                    .iter()
+                                    .zip(&identity.type_arguments)
+                                    .map(|(parameter, argument)| {
+                                        (parameter.name.clone(), argument.clone())
+                                    })
+                                    .collect();
+                                enumeration.variants.iter().all(|variant| {
+                                    variant.payload.iter().all(|field| {
+                                        satisfies(
+                                            package,
+                                            &substitute_value_type(
+                                                &field.value_type,
+                                                &substitutions,
+                                            ),
+                                            obligation,
+                                            visiting,
+                                        )
+                                    })
+                                })
                             }),
                         ObjectKind::Trait | ObjectKind::Type => false,
                     });
@@ -1586,7 +1628,7 @@ fn declaration_node_with_name_span(node: &SyntaxNode, span: Span) -> Option<&Syn
         .find_map(|child| declaration_node_with_name_span(child, span))
 }
 
-fn callback_contract<'a>(
+pub(crate) fn callback_contract<'a>(
     package: &SemanticPackage,
     unit: &'a SemanticUnit,
     value: &SyntaxNode,
@@ -1602,10 +1644,11 @@ fn callback_contract<'a>(
             .declaration_span?;
         let declaration_node = declaration_node_with_name_span(&unit.tree.root, declaration)
             .or_else(|| node_with_span(&unit.tree.root, declaration))?;
-        return declaration_node
-            .children
-            .iter()
-            .find_map(|child| callback_contract(package, unit, child));
+        let initializer = super::ownership::binding_initializer(declaration_node)?;
+        if initializer.span.start >= value.span.start {
+            return None;
+        }
+        return callback_contract(package, unit, initializer);
     }
     if value.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = value.children.as_slice()
@@ -1647,12 +1690,51 @@ fn validate_projected_callback_contract(
         invocation_mode,
         retained,
         send,
+        parameter_borrows,
+        parameter_rust_types,
         ..
     } = callback
     else {
         unreachable!("callback validation requires callback metadata");
     };
     let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
+    for (index, parameter) in contract.parameters.iter().enumerate() {
+        if parameter_borrows.get(index) == Some(&true)
+            && parameter_rust_types.get(index).is_some_and(|rust_type| {
+                matches!(
+                    syn::parse_str::<syn::Type>(rust_type),
+                    Ok(syn::Type::Reference(reference)) if reference.mutability.is_none()
+                )
+            })
+            && package
+                .units
+                .iter()
+                .find(|source| source.source.id() == contract.span.file)
+                .and_then(|source| {
+                    source
+                        .functions
+                        .iter()
+                        .find(|actual| actual.span == contract.span)
+                })
+                .and_then(|source| {
+                    source
+                        .parameters
+                        .iter()
+                        .find(|actual| actual.span == parameter.span)
+                })
+                .is_some_and(|source| source.mutable)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0139",
+                format!(
+                    "mutating callback parameter `{}` requires a mutable native reference; the selected callback supplies a shared reference",
+                    parameter.name
+                ),
+                value.span,
+            ));
+        }
+    }
     if *send && contract.task_transferability == TaskTransferability::Local {
         return reject(
             "T0081",
@@ -2441,12 +2523,17 @@ fn validate_projected_callback_node(
             let Some(contract) = callback_contract(package, unit, value) else {
                 continue;
             };
+            let callback_parameter = unit
+                .projected_call_specializations
+                .get(&span_key(node.span))
+                .and_then(|selection| selection.projected_parameters.get(index))
+                .unwrap_or(parameter);
             validate_projected_callback_contract(
                 package,
                 unit,
                 value,
                 contract,
-                &parameter.ty,
+                &callback_parameter.ty,
                 consumed_once,
             )?;
         }

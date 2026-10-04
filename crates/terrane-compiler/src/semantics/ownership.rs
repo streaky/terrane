@@ -16,36 +16,14 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             .map(|(index, _)| index)
     }
 
-    fn resource_binding(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        binding: usize,
-        resource_objects: &BTreeSet<(u32, usize, usize)>,
-    ) -> bool {
-        match &unit.typed_bindings[binding].value_type {
-            ValueType::PlatformStreamHandle
-            | ValueType::PlatformResourceHandle
-            | ValueType::ChannelPair(_)
-            | ValueType::ChannelSender(_)
-            | ValueType::ChannelReceiver(_) => true,
-            ValueType::Object(name) => resolved_object_span(package, name)
-                .is_some_and(|span| resource_objects.contains(&span_key(span))),
-            _ => false,
-        }
+    fn resource_binding(package: &SemanticPackage, unit: &SemanticUnit, binding: usize) -> bool {
+        super::objects::application_is_resource_owning(
+            package,
+            &unit.typed_bindings[binding].value_type,
+        )
     }
 
-    fn source_iterator_object(unit: &SemanticUnit, identity: &ObjectIdentity) -> bool {
-        object_method_contract(unit, identity, "next", false).is_some_and(|function| {
-            matches!(function.return_type, Some(ValueType::IterationStep(_)))
-        })
-    }
-
-    fn noncopyable_binding(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        binding: usize,
-        resource_objects: &BTreeSet<(u32, usize, usize)>,
-    ) -> bool {
+    fn noncopyable_binding(package: &SemanticPackage, unit: &SemanticUnit, binding: usize) -> bool {
         matches!(
             &unit.typed_bindings[binding].value_type,
             ValueType::Task(_, _)
@@ -57,11 +35,17 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             ValueType::Function(_, _, effects)
                 | ValueType::AsyncFunction(_, _, _, effects)
                 if effects.modes.written == InvocationMode::Consuming
-        ) || resource_binding(package, unit, binding, resource_objects)
+        ) || resource_binding(package, unit, binding)
             || matches!(
                 &unit.typed_bindings[binding].value_type,
                 ValueType::Object(identity) if source_iterator_object(unit, identity)
             )
+    }
+
+    fn source_iterator_object(unit: &SemanticUnit, identity: &ObjectIdentity) -> bool {
+        object_method_contract(unit, identity, "next", false).is_some_and(|function| {
+            matches!(function.return_type, Some(ValueType::IterationStep(_)))
+        })
     }
 
     fn method_consumes_receiver(
@@ -114,7 +98,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                             && binding.is_visible_at(unit.source.id(), node.span.start)
                             && identifiers
                                 .contains(&crate::lowering::debug_rust_name(&binding.name))
-                            && noncopyable_binding(package, unit, *binding_index, resource_objects)
+                            && noncopyable_binding(package, unit, *binding_index)
                     })
             {
                 return Err(failure(
@@ -304,7 +288,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             )
             && let Some(binding) =
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
-            && resource_binding(package, unit, binding, resource_objects)
+            && resource_binding(package, unit, binding)
         {
             for child in &node.children {
                 visit(package, unit, child, moved, false, resource_objects)?;
@@ -400,9 +384,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         .and_then(|value| {
                             binding_at(unit, node_text(&unit.source, value), value.span.start)
                         })
-                        .filter(|binding| {
-                            noncopyable_binding(package, unit, *binding, resource_objects)
-                        })
+                        .filter(|binding| noncopyable_binding(package, unit, *binding))
                 })
                 .collect::<Vec<_>>();
             for child in &node.children {
@@ -437,7 +419,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         initializer.span.start,
                     )
                 })
-                .filter(|binding| noncopyable_binding(package, unit, *binding, resource_objects));
+                .filter(|binding| noncopyable_binding(package, unit, *binding));
             let mut skipped_name = false;
             for child in &node.children {
                 if !skipped_name && child.kind == SyntaxKind::Name {
@@ -465,6 +447,62 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             {
                 moved.remove(&binding);
             }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::MatchStatement {
+            let Some(scrutinee) = node.children.first() else {
+                return Ok(());
+            };
+            let mut entry = moved.clone();
+            visit(
+                package,
+                unit,
+                scrutinee,
+                &mut entry,
+                false,
+                resource_objects,
+            )?;
+            let explicit_move = scrutinee.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, scrutinee).as_deref() == Some("move");
+            let explicit_borrow = scrutinee.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, scrutinee).as_deref() == Some("ref");
+            let operand = if explicit_move || explicit_borrow {
+                scrutinee.children.last().unwrap_or(scrutinee)
+            } else {
+                scrutinee
+            };
+            let typed_borrow =
+                infer_value_type(unit, operand, &unit.typed_bindings)?.is_some_and(|value_type| {
+                    matches!(
+                        value_type,
+                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                    )
+                });
+            if !explicit_borrow
+                && !typed_borrow
+                && operand.kind == SyntaxKind::Name
+                && let Some(binding) =
+                    binding_at(unit, node_text(&unit.source, operand), operand.span.start)
+                && (explicit_move || noncopyable_binding(package, unit, binding))
+            {
+                entry.insert(binding);
+            }
+            let mut branches = Vec::new();
+            for case in node.children.iter().skip(1) {
+                let mut branch = entry.clone();
+                if let Some(body) = case
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Block)
+                {
+                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    if super::scopes::block_may_fall_through(body) {
+                        branches.push(branch);
+                    }
+                }
+            }
+            moved.clear();
+            moved.extend(branches.into_iter().flatten());
             return Ok(());
         }
         if node.kind == SyntaxKind::SelectStatement {
@@ -542,7 +580,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     node_text(&unit.source, collection),
                     collection.span.start,
                 )
-                && noncopyable_binding(package, unit, binding, resource_objects)
+                && noncopyable_binding(package, unit, binding)
             {
                 entry.insert(binding);
             }
@@ -1008,6 +1046,15 @@ fn validate_reference_return(
             contract.span.start <= value.span.start && contract.span.end >= value.span.end
         })
         .min_by_key(|contract| contract.span.end - contract.span.start);
+    if let Some(expected @ ValueType::Scalar(_)) =
+        contract.and_then(|contract| contract.return_type.as_ref())
+        && let Some(ValueType::Reference(inner) | ValueType::SharedReference(inner)) =
+            infer_value_type(unit, value, &unit.typed_bindings)?
+        && matches!(inner.value_type_ref(), ValueType::Scalar(_))
+        && value_types_compatible(&unit.descriptors, expected, inner.value_type_ref())
+    {
+        return Ok(());
+    }
     let expected_lender = contract
         .and_then(|contract| {
             return_lenders
@@ -1193,7 +1240,10 @@ pub(super) fn validate_referenced_replacements(
         for (&observer_key, provenance) in &unit.reference_provenance {
             let Some(observer) = unit.typed_bindings.iter().find(|binding| {
                 (binding.span.start, binding.span.end) == observer_key
-                    && matches!(binding.value_type, ValueType::Reference(_))
+                    && matches!(
+                        binding.value_type,
+                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                    )
             }) else {
                 continue;
             };
@@ -1410,6 +1460,8 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             | SyntaxKind::ImportDeclaration
             | SyntaxKind::ParameterList
             | SyntaxKind::Parameter
+            | SyntaxKind::TypeParameterList
+            | SyntaxKind::TypeParameter
             | SyntaxKind::ForTarget
             | SyntaxKind::TypeExpression
             | SyntaxKind::UnionType
@@ -1422,7 +1474,9 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             | SyntaxKind::AnonymousFunction
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::TraitDeclaration => {
+            | SyntaxKind::TraitDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumVariant => {
                 let mut declaration_name_skipped = false;
                 for child in &node.children {
                     if !declaration_name_skipped && child.kind == SyntaxKind::Name {
@@ -1560,6 +1614,12 @@ pub(super) fn validate_initializer_dependencies(
         reads: &mut Vec<(Key, Span)>,
         functions: &mut BTreeSet<Key>,
     ) {
+        if node.kind == SyntaxKind::Argument && node.children.len() > 1 {
+            if let Some(value) = node.children.last() {
+                collect_reads(package, unit, value, reads, functions);
+            }
+            return;
+        }
         if node.kind == SyntaxKind::Name {
             if let Some(symbol) =
                 package.resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
@@ -1592,6 +1652,15 @@ pub(super) fn validate_initializer_dependencies(
         ) {
             return;
         }
+        if matches!(
+            node.kind,
+            SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+        ) {
+            if let Some(receiver) = node.children.first() {
+                collect_reads(package, unit, receiver, reads, functions);
+            }
+            return;
+        }
         for child in &node.children {
             collect_reads(package, unit, child, reads, functions);
         }
@@ -1602,6 +1671,21 @@ pub(super) fn validate_initializer_dependencies(
         node: &SyntaxNode,
         name: &str,
     ) -> Option<Span> {
+        if node.kind == SyntaxKind::Argument && node.children.len() > 1 {
+            return node
+                .children
+                .last()
+                .and_then(|value| unresolved_name_span(package, unit, value, name));
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+        ) {
+            return node
+                .children
+                .first()
+                .and_then(|receiver| unresolved_name_span(package, unit, receiver, name));
+        }
         if node.kind == SyntaxKind::Name
             && node_text(&unit.source, node) == name
             && package

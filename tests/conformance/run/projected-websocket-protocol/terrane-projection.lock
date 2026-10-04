@@ -138,9 +138,6 @@
         "/deps/axum/body/body/trait/core/convert/from-bytes/bytes": [
           "from"
         ],
-        "/deps/axum/body/body/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/axum/body/body/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -175,9 +172,6 @@
           "partial_cmp"
         ],
         "/deps/axum/body/bytes/trait/core/convert/from-bytes/bytesmut": [
-          "from"
-        ],
-        "/deps/axum/body/bytes/trait/core/convert/from-static-str": [
           "from"
         ],
         "/deps/axum/body/bytes/trait/core/convert/from-std/string/string": [
@@ -514,7 +508,6 @@
           "Utf8Bytes.try_into",
           "Utf8Bytes.vzip",
           "Utf8Bytes::default",
-          "Utf8Bytes::from_static",
           "WebSocket",
           "WebSocket.into",
           "WebSocket.is_terminated",
@@ -695,6 +688,8 @@
           "HeaderMap.get_mut",
           "HeaderMap.insert",
           "HeaderMap.into",
+          "HeaderMap.into_response",
+          "HeaderMap.into_response_parts",
           "HeaderMap.is_empty",
           "HeaderMap.iter",
           "HeaderMap.iter_mut",
@@ -723,7 +718,6 @@
           "HeaderName.clone",
           "HeaderName.into",
           "HeaderName.try_into",
-          "HeaderName::from_static",
           "HeaderName::from_str",
           "HeaderValue",
           "HeaderValue.clone",
@@ -738,7 +732,6 @@
           "HeaderValue::from_maybe_shared",
           "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
-          "HeaderValue::from_static",
           "HeaderValue::from_str",
           "Method",
           "Method.as_ref",
@@ -790,7 +783,6 @@
           "Uri::default",
           "Uri::from_maybe_shared",
           "Uri::from_parts",
-          "Uri::from_static",
           "Uri::from_str",
           "Version",
           "Version.assert_fields_are_eq",
@@ -1056,7 +1048,6 @@
           "Authority.try_into",
           "Authority::from",
           "Authority::from_maybe_shared",
-          "Authority::from_static",
           "Authority::from_str",
           "Builder",
           "Builder.authority",
@@ -1091,7 +1082,6 @@
           "PathAndQuery.try_into",
           "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
-          "PathAndQuery::from_static",
           "PathAndQuery::from_str",
           "Scheme",
           "Scheme.as_ref",
@@ -1460,9 +1450,6 @@
         "/deps/axum-core/body/body/trait/core/convert/from-bytes/bytes": [
           "from"
         ],
-        "/deps/axum-core/body/body/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/axum-core/body/body/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -1720,9 +1707,6 @@
         "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut": [
           "from"
         ],
-        "/deps/bytes/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -1821,6 +1805,8 @@
           "HeaderMap.get_mut",
           "HeaderMap.insert",
           "HeaderMap.into",
+          "HeaderMap.into_response",
+          "HeaderMap.into_response_parts",
           "HeaderMap.is_empty",
           "HeaderMap.iter",
           "HeaderMap.iter_mut",
@@ -1848,7 +1834,6 @@
           "HeaderName.clone",
           "HeaderName.into",
           "HeaderName.try_into",
-          "HeaderName::from_static",
           "HeaderName::from_str",
           "HeaderValue",
           "HeaderValue.clone",
@@ -1863,7 +1848,6 @@
           "HeaderValue::from_maybe_shared",
           "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
-          "HeaderValue::from_static",
           "HeaderValue::from_str",
           "Method",
           "Method.as_ref",
@@ -1913,7 +1897,6 @@
           "Uri::default",
           "Uri::from_maybe_shared",
           "Uri::from_parts",
-          "Uri::from_static",
           "Uri::from_str",
           "Version",
           "Version.clone",
@@ -2178,7 +2161,6 @@
           "Authority.try_into",
           "Authority::from",
           "Authority::from_maybe_shared",
-          "Authority::from_static",
           "Authority::from_str",
           "Builder",
           "Builder.authority",
@@ -2213,7 +2195,6 @@
           "PathAndQuery.try_into",
           "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
-          "PathAndQuery::from_static",
           "PathAndQuery::from_str",
           "Scheme",
           "Scheme.as_ref",
@@ -2349,6 +2330,8 @@
           "spawn"
         ],
         "/deps/tokio/future/maybe-done": [
+          "MaybeDone",
+          "MaybeDone-Future",
           "maybe_done"
         ],
         "/deps/tokio/io": [
@@ -2848,6 +2831,7 @@
           "Semaphore.try_into",
           "Semaphore::const_new",
           "Semaphore::new",
+          "SetError",
           "SetOnceError",
           "SetOnceError.eq",
           "SetOnceError.into",
@@ -2877,7 +2861,9 @@
           "SendError.into",
           "SendError.try_into",
           "SendError::from",
-          "TryRecvError"
+          "SendTimeoutError",
+          "TryRecvError",
+          "TrySendError"
         ],
         "/deps/tokio/sync/oneshot/error": [
           "RecvError",

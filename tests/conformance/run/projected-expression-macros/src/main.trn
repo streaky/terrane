@@ -36,3 +36,7 @@ function main;
     print; (contextual;)
     combined int = combine; 4, 6
     print; combined
+    empty-values list of int = values;
+    for value in empty-values
+        print; value
+    print; 'empty collection selected'

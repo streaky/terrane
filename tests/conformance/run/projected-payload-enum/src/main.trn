@@ -39,4 +39,8 @@ function main;
     if payload != none
       print; (consume_payload; move payload)
   future OpenEvent = future_event;
-  print; (future.variant-name;)
+  match future
+    case OpenEvent::Known; text
+      print; text
+    case else
+      print; 'future'

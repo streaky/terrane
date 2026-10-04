@@ -315,16 +315,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
     let uses_async_runtime = compilation.requires_async_runtime;
-    // Mutable async callable receiver transactions use `tokio::sync::Mutex` to
-    // serialize overlapping invocations without coupling separated copies.
-    let uses_tokio_sync = rust_files
-        .iter()
-        .any(|file| file.contents.contains("tokio::sync::"));
+    let uses_tokio_blocking = compilation.requires_blocking_runtime;
+    let uses_tokio_sync = compilation.requires_runtime_sync;
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
         uses_platform_support,
-        uses_async_runtime,
+        uses_async_runtime || uses_tokio_blocking || uses_tokio_sync,
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
@@ -348,6 +345,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             panic: package.profile.panic,
             uses_platform_support,
             uses_async_runtime,
+            uses_tokio_blocking,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
             unsafe_code: if compilation.requires_unsafe_code
@@ -1082,10 +1080,15 @@ impl UnsafeCodePolicy {
 }
 
 #[derive(Clone, Copy)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Generated Cargo features are independent additive requirements, not mutually exclusive runtime states"
+)]
 struct GeneratedCrateOptions {
     panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
     uses_async_runtime: bool,
+    uses_tokio_blocking: bool,
     uses_tokio_sync: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
     unsafe_code: UnsafeCodePolicy,
@@ -1249,15 +1252,19 @@ fn write_runtime_dependencies(
     rust_dependencies: &[terrane_compiler::RustDependency],
     options: &GeneratedCrateOptions,
 ) {
-    let dependencies = if options.uses_async_runtime {
-        let mut required_features = vec!["macros", "rt", "rt-multi-thread", "time"];
-        if options.uses_tokio_sync {
-            required_features.push("sync");
-        }
-        terrane_compiler::with_tokio_runtime(rust_dependencies, &required_features)
-    } else {
-        rust_dependencies.to_vec()
-    };
+    let dependencies =
+        if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
+            let mut required_features = vec!["rt"];
+            if options.uses_async_runtime {
+                required_features.extend(["macros", "rt-multi-thread", "time"]);
+            }
+            if options.uses_tokio_sync {
+                required_features.push("sync");
+            }
+            terrane_compiler::with_tokio_runtime(rust_dependencies, &required_features)
+        } else {
+            rust_dependencies.to_vec()
+        };
     for dependency in dependencies
         .iter()
         .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
@@ -2237,6 +2244,7 @@ mod tests {
                     panic: terrane_compiler::PanicProfile::Abort,
                     uses_platform_support: false,
                     uses_async_runtime: true,
+                    uses_tokio_blocking: false,
                     uses_tokio_sync: true,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
                     artifact: terrane_compiler::ArtifactKind::Executable,
@@ -2287,6 +2295,7 @@ mod tests {
                     panic: terrane_compiler::PanicProfile::Abort,
                     uses_platform_support: false,
                     uses_async_runtime: false,
+                    uses_tokio_blocking: false,
                     uses_tokio_sync: false,
                     build_toolchain: terrane_compiler::BuildToolchain::Pinned,
                     artifact: terrane_compiler::ArtifactKind::DynamicLibrary,

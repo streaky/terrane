@@ -1,9 +1,6 @@
 {
-  "format": 4,
   "dependencies": [
     {
-      "name": "terrane-borrowed-struct-witness",
-      "version": "0.1.6",
       "members": {
         "/deps/terrane-borrowed-struct-witness": [
           "Descriptor",
@@ -14,23 +11,13 @@
           "summarize",
           "summarize_owned"
         ]
-      }
+      },
+      "name": "terrane-borrowed-struct-witness",
+      "version": "0.1.6"
     }
   ],
+  "format": 4,
   "removed": [],
-  "cache_identity": "ddd4efdbfb79033178d38acb2e52a1e61d218e47eebc97a1da7cbf2d045943fe",
-  "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "232",
-  "content_hash": "d3beebcdc9a48f2dad1bb13e44bb8aa5fe36c2943d8267a892ef25c7ab3f9ae8",
-  "resolution": {
-    "outcome": "ExactCache",
-    "events": [
-      {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `ddd4efdbfb79033178d38acb2e52a1e61d218e47eebc97a1da7cbf2d045943fe`"
-      }
-    ]
-  }
+  "source": "Local"
 }

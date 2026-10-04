@@ -1,6 +1,11 @@
 pub use crate::invocation::InvocationMode;
 // Compiler-owned semantic data and the ordered package analysis pipeline.
 mod analysis;
+mod enums;
+mod generic_recursion;
+mod generics;
+mod initialization;
+mod matching;
 mod model;
 
 // Namespace, import, bootstrap-surface, and lexical name resolution.
@@ -38,6 +43,7 @@ mod tests;
 // This prelude preserves the monolith's shared private namespace during the mechanical split.
 // New cross-module dependencies should use explicit imports; narrow these globs as modules change.
 mod prelude {
+    pub(super) use super::generics::{bind_generic_type, substitute_value_type};
     pub(super) use std::collections::{BTreeMap, BTreeSet};
 
     pub(super) use num_bigint::BigInt;
@@ -74,29 +80,33 @@ mod prelude {
 pub use analysis::{analyze, dependency_projection_demands};
 pub(crate) use bindings::{
     binding_read_value_is_reused, binding_requires_mutable_storage, binding_store_value_is_read,
-    descriptor_binding_is_materialized,
+    callback_contract, descriptor_binding_is_materialized,
 };
+pub(crate) use calls::selected_callable_contract;
 pub(crate) use collections::collection_member_call;
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};
 pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
 };
 pub(crate) use diagnostics::{ClosureWrites, binding_span_is_mutated, warnings};
+pub(crate) use enums::projected_enum_payload_type;
+pub(crate) use generics::{bind_generic_type, substitute_value_type};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,
     CallableParameterType, DescriptorContract, ElementType, EvaluationKind, EvaluationStep,
-    FunctionContract, MemberFamily, Namespace, ObjectField, ObjectFieldMetadata, ObjectIdentity,
-    ObjectKind, ParameterContract, SelectionOperationKind, SemanticFailure, SemanticPackage,
-    SemanticSelection, SemanticSelectionCase, SemanticUnit, Symbol, SymbolKind,
-    TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    FunctionContract, GenericParameterContract, MemberFamily, Namespace, ObjectField,
+    ObjectFieldMetadata, ObjectIdentity, ObjectKind, ParameterContract, SelectionOperationKind,
+    SemanticFailure, SemanticPackage, SemanticSelection, SemanticSelectionCase, SemanticUnit,
+    Symbol, SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,
-    FloatMemberOperation, StringFamily, canonical_default, float_member_contract,
-    value_type_contains_nonclone_foreign,
+    FloatMemberOperation, SourceEnumContract, StringFamily, canonical_default,
+    float_member_contract, value_type_contains_nonclone_foreign,
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
+pub(crate) use objects::application_is_resource_owning;
 pub(crate) use objects::{
     EffectiveObjectField, bind_projected_requirement, destination_projected_type,
     effective_object_fields, effective_object_interfaces, projected_owned_field_type,

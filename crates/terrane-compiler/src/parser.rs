@@ -69,7 +69,7 @@ impl Parser<'_> {
             "namespace" => self.parse_namespace(),
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
-            "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
+            "enum" => self.parse_enum_declaration(),
             "public" | "private" | "protected" if self.peek_text(1) == Some("class") => {
                 self.parse_object_declaration(SyntaxKind::ClassDeclaration)
             }
@@ -81,6 +81,7 @@ impl Parser<'_> {
             "public" | "private" | "protected" if self.peek_text(1) == Some("trait") => {
                 self.parse_object_declaration(SyntaxKind::TraitDeclaration)
             }
+            "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
             "global" | "constant" | "pure" | "io" | "blocks" | "mutating" | "mutates"
             | "awaits" | "foreign"
                 if self.peek_text(1) == Some("function") =>
@@ -101,6 +102,7 @@ impl Parser<'_> {
             "while" => self.parse_while(),
             "for" => self.parse_for(),
             "select" => self.parse_select(),
+            "match" => self.parse_match(),
             "return" => self.parse_simple_value_statement(SyntaxKind::ReturnStatement),
             "throw" => self.parse_simple_value_statement(SyntaxKind::ThrowStatement),
             "try" => self.parse_try(),
@@ -128,9 +130,9 @@ impl Parser<'_> {
                 self.parse_unsupported()
             }
             "rust" => self.parse_rust_block(false),
-            "unsafe" if self.peek_text(1) == Some("rust") => self.parse_rust_block(true),
-            "yield" | "match" | "label" | "goto" | "when" | "use" | "catch" | "finally"
-            | "case" => self.parse_unsupported(),
+            "yield" | "label" | "goto" | "when" | "use" | "catch" | "finally" | "case" => {
+                self.parse_unsupported()
+            }
             _ if self.looks_like_binding() => self.parse_binding(),
             _ => self.parse_expression_statement(),
         }
@@ -203,6 +205,9 @@ impl Parser<'_> {
         } else {
             self.error_here("S1034", "object declaration requires a name");
         }
+        if self.at_text("of") {
+            children.push(self.parse_type_parameter_list());
+        }
         while !self.at_line_end() {
             let clause_start = self.position;
             let clause_kind = match self.text() {
@@ -228,7 +233,9 @@ impl Parser<'_> {
                 names.push(self.leaf(SyntaxKind::DeclarationQualifier));
             }
             loop {
-                if self.at(TokenKind::Identifier) {
+                if self.at(TokenKind::Identifier)
+                    || clause_kind == SyntaxKind::ImplementsClause && self.at(TokenKind::OpenParen)
+                {
                     names.push(if clause_kind == SyntaxKind::ImplementsClause {
                         self.parse_prefix_type()
                     } else {
@@ -255,6 +262,213 @@ impl Parser<'_> {
         children.push(self.parse_block());
         self.class_body_depth = previous_class_body_depth;
         self.node(kind, start, self.position, children)
+    }
+
+    fn parse_type_parameter_list(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.expect_text("of", "S1090", "expected `of` before type parameters");
+        self.expect(
+            TokenKind::OpenParen,
+            "S1090",
+            "expected `(` after type-parameter `of`",
+        );
+        let mut parameters = Vec::new();
+        loop {
+            let parameter_start = self.position;
+            if !self.at(TokenKind::Identifier) {
+                self.error_here("S1090", "expected a type-parameter name");
+                break;
+            }
+            let mut parts = vec![self.leaf(SyntaxKind::Name)];
+            if self.eat_text("implements") {
+                parts.push(self.parse_type_expression());
+            }
+            parameters.push(self.node(
+                SyntaxKind::TypeParameter,
+                parameter_start,
+                self.position,
+                parts,
+            ));
+            if !self.eat(TokenKind::Comma) {
+                break;
+            }
+        }
+        self.expect(
+            TokenKind::CloseParen,
+            "S1090",
+            "expected `)` after type parameters",
+        );
+        self.node(
+            SyntaxKind::TypeParameterList,
+            start,
+            self.position,
+            parameters,
+        )
+    }
+
+    fn parse_enum_declaration(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let mut children = Vec::new();
+        if self.at(TokenKind::Identifier) {
+            self.reject_keyword_declaration_name();
+            children.push(self.leaf(SyntaxKind::Name));
+        } else {
+            self.error_here("S1034", "enum declaration requires a name");
+        }
+        if self.at_text("of") {
+            children.push(self.parse_type_parameter_list());
+        }
+        let block_start = self.position;
+        self.expect(
+            TokenKind::Newline,
+            "S1023",
+            "expected newline before enum variants",
+        );
+        self.skip_newlines();
+        let mut variants = Vec::new();
+        if self.eat(TokenKind::Indent) {
+            self.block_depth += 1;
+            self.skip_newlines();
+            while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
+                if self.at(TokenKind::Identifier) {
+                    variants.push(self.parse_enum_variant());
+                } else {
+                    self.error_here("S1090", "expected an enum variant");
+                    self.recover_line();
+                }
+                self.finish_statement();
+                self.skip_newlines();
+            }
+            self.block_depth -= 1;
+            self.expect(TokenKind::Dedent, "S1024", "expected end of enum variants");
+        }
+        children.push(self.node(SyntaxKind::Block, block_start, self.position, variants));
+        self.node(SyntaxKind::EnumDeclaration, start, self.position, children)
+    }
+
+    fn parse_enum_variant(&mut self) -> SyntaxNode {
+        let start = self.position;
+        let mut children = vec![self.leaf(SyntaxKind::Name)];
+        if self.eat(TokenKind::Semicolon) {
+            let fields_start = self.position;
+            let mut fields = Vec::new();
+            loop {
+                let field_position = self.position;
+                if !self.at(TokenKind::Identifier) {
+                    self.error_here("S1090", "expected an enum payload field name");
+                    break;
+                }
+                let mut parts = vec![self.leaf(SyntaxKind::Name)];
+                if !self.at_line_end() && !self.at(TokenKind::Comma) {
+                    parts.push(self.parse_type_expression());
+                } else {
+                    self.error_here("S1090", "enum payload fields require a type");
+                }
+                fields.push(self.node(SyntaxKind::Parameter, field_position, self.position, parts));
+                if !self.eat(TokenKind::Comma) {
+                    break;
+                }
+            }
+            children.push(self.node(
+                SyntaxKind::ParameterList,
+                fields_start,
+                self.position,
+                fields,
+            ));
+        }
+        self.node(SyntaxKind::EnumVariant, start, self.position, children)
+    }
+
+    fn parse_match(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let scrutinee = self.require_expression("match scrutinee");
+        self.expect(
+            TokenKind::Newline,
+            "S1023",
+            "expected a newline before match cases",
+        );
+        self.skip_newlines();
+        let mut children = vec![scrutinee];
+        if self.eat(TokenKind::Indent) {
+            self.block_depth += 1;
+            self.skip_newlines();
+            while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
+                if self.at_text("case") {
+                    children.push(self.parse_match_case());
+                    self.finish_statement();
+                } else {
+                    self.error_here("S1090", "a match body may contain only `case` clauses");
+                    self.recover_line();
+                }
+                self.skip_newlines();
+            }
+            self.block_depth -= 1;
+            self.expect(
+                TokenKind::Dedent,
+                "S1024",
+                "expected the end of the indented match",
+            );
+        }
+        self.node(SyntaxKind::MatchStatement, start, self.position, children)
+    }
+
+    fn parse_match_case(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let catch_all = self.eat_text("else");
+        let selector = if catch_all {
+            self.node(SyntaxKind::MatchCatchAll, start, self.position, Vec::new())
+        } else if self.at_text("none") {
+            self.leaf(SyntaxKind::Name)
+        } else {
+            let enum_name = if self.at(TokenKind::Identifier) {
+                self.leaf(SyntaxKind::Name)
+            } else {
+                self.error_here("S1090", "expected a qualified enum variant");
+                self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+            };
+            if !self.eat(TokenKind::DoubleColon) {
+                self.error_here("S1090", "match cases require `Enum::variant`");
+            }
+            let variant = if self.at(TokenKind::Identifier) {
+                self.leaf(SyntaxKind::Name)
+            } else {
+                self.error_here("S1090", "expected a variant name");
+                self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+            };
+            self.node(
+                SyntaxKind::StaticMemberExpression,
+                start,
+                self.position,
+                vec![enum_name, variant],
+            )
+        };
+        let mut children = vec![selector];
+        if self.eat(TokenKind::Semicolon) {
+            let bindings_start = self.position;
+            let mut bindings = Vec::new();
+            loop {
+                if self.at(TokenKind::Identifier) || self.text() == "_" {
+                    bindings.push(self.leaf(SyntaxKind::Name));
+                } else {
+                    self.error_here("S1090", "expected a payload binding or `_`");
+                    break;
+                }
+                if !self.eat(TokenKind::Comma) {
+                    break;
+                }
+            }
+            children.push(self.node(
+                SyntaxKind::ParameterList,
+                bindings_start,
+                self.position,
+                bindings,
+            ));
+        }
+        children.push(self.parse_block());
+        self.node(SyntaxKind::MatchCase, start, self.position, children)
     }
 
     fn parse_namespace_import(&mut self) -> SyntaxNode {
@@ -578,7 +792,6 @@ impl Parser<'_> {
         }
         children
     }
-
     fn parse_function(&mut self) -> SyntaxNode {
         let start = self.position;
         let mut children = Vec::new();
@@ -592,11 +805,7 @@ impl Parser<'_> {
             self.reject_keyword_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
             if self.at_text("of") {
-                self.error_here(
-                    "S1090",
-                    "source-declared type parameters are not supported by this compiler milestone",
-                );
-                self.recover_line();
+                children.push(self.parse_type_parameter_list());
             }
             if !self.at(TokenKind::Semicolon) && !self.at_line_end() && !self.at_text("throws") {
                 children.push(self.parse_type_expression());
@@ -1279,11 +1488,60 @@ impl Parser<'_> {
 
     fn parse_postfix(&mut self, allow_call: bool) -> SyntaxNode {
         let start = self.position;
-        let mut value = self.parse_primary();
+        let value = self.parse_primary();
         if self.reject_construction_postfix(&value) {
             return value;
         }
+        let mut value = self.parse_postfix_operations(start, value);
+        if self.at(TokenKind::Semicolon) {
+            if allow_call {
+                self.bump();
+                let arguments = self.parse_argument_list();
+                value = self.node(
+                    SyntaxKind::CallExpression,
+                    start,
+                    self.position,
+                    vec![value, arguments],
+                );
+            } else if !self.semicolon_boundary {
+                self.error_here_with_help(
+                    "S1016",
+                    "nested calls must be parenthesized",
+                    "parenthesize the nested call, for example `outer; (inner; value)`",
+                );
+                self.recover_expression();
+            }
+        } else if value.kind == SyntaxKind::ConstructionExpression {
+            self.error_here_with_help(
+                "S1093",
+                "class construction requires `;`, including with zero arguments",
+                "write `instance class;`",
+            );
+        }
+        value
+    }
+
+    fn parse_postfix_operations(&mut self, start: usize, mut value: SyntaxNode) -> SyntaxNode {
         while value.kind != SyntaxKind::ConstructionExpression {
+            if self.eat_text("of") {
+                let mut arguments = vec![value];
+                let grouped = self.eat(TokenKind::OpenParen);
+                loop {
+                    arguments.push(self.parse_type_expression());
+                    if !grouped || !self.eat(TokenKind::Comma) {
+                        break;
+                    }
+                }
+                if grouped {
+                    self.expect(
+                        TokenKind::CloseParen,
+                        "S1021",
+                        "expected `)` after type arguments",
+                    );
+                }
+                value = self.node(SyntaxKind::AppliedType, start, self.position, arguments);
+                continue;
+            }
             if self.at(TokenKind::Dot) {
                 if self.current().attachment != Attachment::Both {
                     self.error_here(
@@ -1305,10 +1563,7 @@ impl Parser<'_> {
                 }
             } else if self.at(TokenKind::DoubleColon) {
                 if self.current().attachment != Attachment::Both {
-                    self.error_here(
-                        "S1091",
-                        "static member selection requires no whitespace around `::`; write `class::member`",
-                    );
+                    self.error_here("S1091", "static member selection requires no whitespace around `::`; write `class::member`");
                 }
                 self.bump();
                 if self.at(TokenKind::Identifier) {
@@ -1342,31 +1597,6 @@ impl Parser<'_> {
             } else {
                 break;
             }
-        }
-        if self.at(TokenKind::Semicolon) {
-            if allow_call {
-                self.bump();
-                let arguments = self.parse_argument_list();
-                value = self.node(
-                    SyntaxKind::CallExpression,
-                    start,
-                    self.position,
-                    vec![value, arguments],
-                );
-            } else if !self.semicolon_boundary {
-                self.error_here_with_help(
-                    "S1016",
-                    "nested calls must be parenthesized",
-                    "parenthesize the nested call, for example `outer; (inner; value)`",
-                );
-                self.recover_expression();
-            }
-        } else if value.kind == SyntaxKind::ConstructionExpression {
-            self.error_here_with_help(
-                "S1093",
-                "class construction requires `;`, including with zero arguments",
-                "write `instance class;`",
-            );
         }
         value
     }
@@ -1409,12 +1639,28 @@ impl Parser<'_> {
             TokenKind::Identifier if self.at_text("instance") => {
                 let start = self.position;
                 self.bump();
-                let class = if self.at(TokenKind::Identifier) {
-                    self.leaf(SyntaxKind::Name)
+                let mut class = if self.at(TokenKind::Identifier) || self.at(TokenKind::OpenParen) {
+                    self.parse_prefix_type()
                 } else {
-                    self.error_here("S1094", "expected a class name after `instance`");
+                    self.error_here(
+                        "S1094",
+                        "expected a class or enum designator after `instance`",
+                    );
                     self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
                 };
+                if self.eat(TokenKind::DoubleColon) {
+                    if self.at(TokenKind::Identifier) {
+                        let variant = self.leaf(SyntaxKind::Name);
+                        class = self.node(
+                            SyntaxKind::StaticMemberExpression,
+                            start + 1,
+                            self.position,
+                            vec![class, variant],
+                        );
+                    } else {
+                        self.error_here("S1092", "expected a variant name after `::`");
+                    }
+                }
                 self.node(
                     SyntaxKind::ConstructionExpression,
                     start,
@@ -1596,14 +1842,26 @@ impl Parser<'_> {
             self.error_here("S1022", "expected a type expression");
             self.node(SyntaxKind::Error, start, self.position, Vec::new())
         };
-        if self.at_text("of") {
-            self.bump();
+        if self.eat_text("of") {
+            let constructor = &self.source.text()[base.span.start..base.span.end];
+            let ungrouped_arity = match constructor {
+                "map" | "unordered-map" | "entry" => 2,
+                _ => 1,
+            };
+            let grouped = self.eat(TokenKind::OpenParen);
             let mut args = vec![base];
             loop {
                 args.push(self.parse_type_expression());
-                if !self.eat(TokenKind::Comma) {
+                if !(grouped || args.len() <= ungrouped_arity) || !self.eat(TokenKind::Comma) {
                     break;
                 }
+            }
+            if grouped {
+                self.expect(
+                    TokenKind::CloseParen,
+                    "S1021",
+                    "expected `)` after type arguments",
+                );
             }
             base = self.node(SyntaxKind::AppliedType, start, self.position, args);
         }

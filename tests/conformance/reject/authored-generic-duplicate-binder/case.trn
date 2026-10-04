@@ -1,0 +1,3 @@
+namespace rejected-generic
+class envelope of (T, T)
+    value T|none = none

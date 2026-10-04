@@ -1,0 +1,9 @@
+package = "blocking-runtime-tokio-alias"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.runtime]
+package = "tokio"
+version = "=1.53.2"
+effects = ["build"]

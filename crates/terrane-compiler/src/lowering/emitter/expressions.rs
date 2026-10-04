@@ -65,13 +65,15 @@ impl Emitter<'_> {
             ObjectKind::Class => "class",
             ObjectKind::Interface => "interface",
             ObjectKind::Trait => "trait",
+            ObjectKind::Enum => "enum",
             ObjectKind::Type => "type",
         };
-        let inherently_identity_bearing = contract.resource_owning
-            || matches!(
-                value_type,
-                ValueType::Reference(_) | ValueType::SharedReference(_)
-            );
+        let inherently_identity_bearing =
+            crate::semantics::application_is_resource_owning(self.package, value_type)
+                || matches!(
+                    value_type,
+                    ValueType::Reference(_) | ValueType::SharedReference(_)
+                );
         let fields = if contract.builtin.is_some() {
             String::new()
         } else {
@@ -279,10 +281,63 @@ impl Emitter<'_> {
         format!("{operator}{operand}")
     }
 
+    pub(super) fn source_applied_function(&self, node: &SyntaxNode) -> Option<String> {
+        if matches!(
+            node.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+        ) {
+            return self.source_applied_function(node.children.first()?);
+        }
+        if node.kind != SyntaxKind::AppliedType {
+            return None;
+        }
+        let contract = self.contract_for_call(node.children.first()?)?;
+        let (ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _)) = self.value_type(node)?
+        else {
+            return None;
+        };
+        let mut substitutions = BTreeMap::new();
+        for (parameter, actual) in contract.parameters.iter().zip(&parameters) {
+            crate::semantics::bind_generic_type(
+                &parameter.element_value_type()?,
+                actual.value_type_ref(),
+                &mut substitutions,
+            )
+            .ok()?;
+        }
+        if let Some(expected) = &contract.return_type {
+            crate::semantics::bind_generic_type(
+                expected,
+                result.value_type_ref(),
+                &mut substitutions,
+            )
+            .ok()?;
+        }
+        let arguments = contract
+            .generic_parameters
+            .iter()
+            .map(|parameter| {
+                substitutions
+                    .get(&parameter.name)
+                    .map(|value_type| rust_value_type(self.package, value_type.clone()))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(format!(
+            "{}::<{}>",
+            function_name(self.package, contract),
+            arguments.join(", ")
+        ))
+    }
+
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
+            SyntaxKind::AppliedType => self.source_applied_function(node).map_or_else(
+                || self.text(node).to_owned(),
+                |function| format!("std::sync::Arc::new({function})"),
+            ),
             SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock => {
                 self.inline_rust_expression(node)
             }
@@ -661,6 +716,13 @@ impl Emitter<'_> {
             && is_numeric(destination)
         {
             return self.numeric_destination(node, source, destination);
+        }
+        if let ValueType::Scalar(expected) = &value_type
+            && let Some(ValueType::Reference(inner) | ValueType::SharedReference(inner)) =
+                self.value_type(node)
+            && inner.value_type_ref() == &ValueType::Scalar(*expected)
+        {
+            return format!("({}).clone()", self.expression(node));
         }
         if let ValueType::Scalar(scalar) = value_type
             && scalar != ScalarType::Int

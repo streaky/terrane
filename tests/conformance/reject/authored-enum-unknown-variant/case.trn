@@ -1,0 +1,9 @@
+namespace rejected-enum
+
+enum state
+    ready
+
+function inspect; value state
+    match value
+        case state::missing
+            return

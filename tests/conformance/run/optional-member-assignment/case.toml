@@ -1,4 +1,5 @@
 phase = "run"
 status = "accept"
+canonical-rust = true
 entrypoint = "case.trn"
 stdout = "stdout.txt"
