@@ -2,9 +2,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 
 use rustdoc_types::{
-    Crate as RustdocCrate, ExternalCrate, GenericArg, GenericArgs, GenericBound, GenericParamDef,
-    GenericParamDefKind, Generics, Id, ItemKind, ItemSummary, Path as RustdocPath, Target, Trait,
-    TraitBoundModifier, Type,
+    Crate as RustdocCrate, ExternalCrate, GenericArg, GenericArgs, GenericBound, Generics, Id,
+    ItemKind, ItemSummary, Path as RustdocPath, Target, Trait, TraitBoundModifier, Type,
 };
 use serde_json::json;
 
@@ -19,11 +18,11 @@ use super::{
     collect_source_foreign, decline_functions_with_missing_generic_interfaces,
     decline_unproven_projected_interfaces, enforce_transitive_reachability,
     external_reexport_rustdocs, foreign_aliases, generated_projection_units,
-    has_supported_callable_trait_shape, has_type_parameters, instantiated_nominal_name,
-    instantiated_type_name, is_builtin_clone, is_builtin_marker_trait,
-    is_internal_rust_protocol_method, mark_cache_record_used, namespace_overlays_from_metadata,
-    parse_rustdoc, persist_dependency_lock, project_type, projectable_interface_bound,
-    projection_content_hash, provider_fragment_public_paths, prune_projection_cache, receiver_kind,
+    has_supported_callable_trait_shape, instantiated_nominal_name, instantiated_type_name,
+    is_builtin_clone, is_builtin_marker_trait, is_internal_rust_protocol_method,
+    mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
+    persist_dependency_lock, project_type, projectable_interface_bound, projection_content_hash,
+    provider_fragment_public_paths, prune_projection_cache, receiver_kind,
     recursive_owner_dependencies, resolve, resolved_library_package, rewrite_projected_owner_root,
     rewrite_rust_bound_root, seed_dependency_lock, selected_target, validate_projection_artifact,
 };
@@ -54,11 +53,13 @@ fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {
             "std::io::error::Error".to_owned(),
             "facade::Error".to_owned(),
         )]),
+        rust_path_aliases: BTreeMap::new(),
     };
     let unrelated = ReexportProvider {
         dependency_index: 1,
         public_paths: BTreeMap::new(),
         canonical_public_paths: BTreeMap::new(),
+        rust_path_aliases: BTreeMap::new(),
     };
 
     assert_eq!(
@@ -162,6 +163,7 @@ fn projected_function_item(namespace: &str, name: &str, rust_path: &str) -> Proj
         docs: None,
         kind: ProjectedKind::Function(ProjectedFunction {
             native_owner: None,
+            native_path: None,
             name: name.to_owned(),
             generic_parameters: Vec::new(),
             rust_generic_arguments: Vec::new(),
@@ -202,6 +204,7 @@ fn projected_foreign_type_item(
         rust_path: rust_path.to_owned(),
         docs: None,
         kind: ProjectedKind::ForeignType {
+            constructor: None,
             methods: vec![method],
             static_methods: Vec::new(),
             constants: Vec::new(),
@@ -210,6 +213,7 @@ fn projected_foreign_type_item(
             borrowed_view: false,
             native_view_type: None,
             enum_payload: None,
+            generic_parameters: Vec::new(),
             displayable: false,
             cloneable: false,
             send: false,
@@ -353,6 +357,7 @@ fn projected_type_lookup_is_scoped_to_canonical_namespace() {
         item
     };
     let projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "canonical-identities".to_owned(),
         content_hash: String::new(),
         dependencies: vec![
@@ -699,6 +704,7 @@ fn dependency_free_resolution_records_its_outcome() {
 )]
 fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
     let projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "inventory".to_owned(),
         content_hash: "content".to_owned(),
         dependencies: vec![ProjectedDependency {
@@ -839,6 +845,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
 #[test]
 fn documented_inventory_populates_admitted_members_and_comments_declines() {
     let projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "members".to_owned(),
         content_hash: "content".to_owned(),
         dependencies: vec![ProjectedDependency {
@@ -923,6 +930,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
             rust_path: rust_path.to_owned(),
             docs: None,
             kind: ProjectedKind::ForeignType {
+                constructor: None,
                 methods: Vec::new(),
                 static_methods: Vec::new(),
                 constants: Vec::new(),
@@ -931,6 +939,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
                 borrowed_view: false,
                 native_view_type: None,
                 enum_payload: None,
+                generic_parameters: Vec::new(),
                 displayable: false,
                 cloneable: false,
                 send: false,
@@ -956,6 +965,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
         dependency
     };
     let projection = |dependencies| Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "ambiguous-identities".to_owned(),
         content_hash: String::new(),
         dependencies,
@@ -1002,20 +1012,6 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
 }
 
 #[test]
-fn type_parameter_guard_rejects_declared_generics() {
-    let parameters = vec![GenericParamDef {
-        name: "T".to_owned(),
-        kind: GenericParamDefKind::Type {
-            bounds: Vec::new(),
-            default: None,
-            is_synthetic: false,
-        },
-    }];
-    assert!(has_type_parameters(&parameters));
-    assert!(!has_type_parameters(&[]));
-}
-
-#[test]
 fn receiver_kind_preserves_only_plain_self_receivers() {
     let borrowed = |is_mutable| Type::BorrowedRef {
         lifetime: None,
@@ -1032,6 +1028,81 @@ fn receiver_kind_preserves_only_plain_self_receivers() {
         Receiver::Move
     );
     assert!(receiver_kind(&Type::Primitive("str".to_owned())).is_err());
+}
+
+#[test]
+fn static_reference_aliases_cannot_bypass_parameter_admission() {
+    let generics = Generics {
+        params: Vec::new(),
+        where_predicates: Vec::new(),
+    };
+    let reference = |lifetime: &str| Type::BorrowedRef {
+        lifetime: Some(lifetime.to_owned()),
+        is_mutable: false,
+        type_: Box::new(Type::Primitive("str".to_owned())),
+    };
+    let alias_id = Id(42);
+    let alias = rustdoc_types::Item {
+        id: alias_id,
+        crate_id: 0,
+        name: Some("StaticText".to_owned()),
+        span: None,
+        visibility: rustdoc_types::Visibility::Public,
+        docs: None,
+        links: HashMap::new(),
+        attrs: Vec::new(),
+        deprecation: None,
+        inner: rustdoc_types::ItemEnum::TypeAlias(rustdoc_types::TypeAlias {
+            type_: reference("'static"),
+            generics: generics.clone(),
+        }),
+    };
+    let mut function = rustdoc_types::Function {
+        sig: rustdoc_types::FunctionSignature {
+            inputs: vec![(
+                "text".to_owned(),
+                Type::ResolvedPath(RustdocPath {
+                    path: "StaticText".to_owned(),
+                    id: alias_id,
+                    args: None,
+                }),
+            )],
+            output: None,
+            is_c_variadic: false,
+        },
+        generics,
+        header: rustdoc_types::FunctionHeader {
+            is_const: false,
+            is_unsafe: false,
+            is_async: false,
+            abi: rustdoc_types::Abi::Rust,
+        },
+        has_body: true,
+    };
+    let index = HashMap::from([(alias_id, alias)]);
+    let failure = super::project_function(
+        &function,
+        &index,
+        &HashMap::new(),
+        &BTreeMap::new(),
+        None,
+        false,
+    )
+    .unwrap_err();
+    assert!(failure.contains("requires a static reference"));
+
+    function.sig.inputs[0].1 = reference("'input");
+    let projected = super::project_function(
+        &function,
+        &index,
+        &HashMap::new(),
+        &BTreeMap::new(),
+        None,
+        false,
+    )
+    .unwrap();
+    assert_eq!(projected.parameters[0].ty, ProjectedType::String);
+    assert!(projected.parameters[0].borrowed);
 }
 
 #[test]
@@ -1080,6 +1151,7 @@ fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
                 docs: None,
                 kind: ProjectedKind::Function(ProjectedFunction {
                     native_owner: None,
+                    native_path: None,
                     name: "rejected_total".to_owned(),
                     generic_parameters: Vec::new(),
                     rust_generic_arguments: Vec::new(),
@@ -1549,6 +1621,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "status".to_owned(),
                 generic_parameters: Vec::new(),
                 rust_generic_arguments: Vec::new(),
@@ -1618,6 +1691,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
     .unwrap();
     assert_eq!(private[0].items.len(), 1);
     let facade_projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "recursive-owner".to_owned(),
         content_hash: String::new(),
         dependencies: private.clone(),
@@ -1877,6 +1951,7 @@ fn remote_artifact_requires_exact_projection_inputs() {
         effects: vec!["filesystem".to_owned()],
     };
     let mut payload = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "exact".to_owned(),
         content_hash: String::new(),
         dependencies: Vec::new(),
@@ -1995,14 +2070,17 @@ fn projection_history_retains_removed_members_across_checks() {
         rust_path: "fixture::removed".to_owned(),
         docs: None,
         kind: ProjectedKind::ForeignType {
+            constructor: None,
             boundary: ProjectedBoundaryCapabilities::default(),
             fields: Vec::new(),
             borrowed_view: false,
             native_view_type: None,
             enum_payload: None,
+            generic_parameters: Vec::new(),
             displayable: false,
             methods: vec![ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "read".to_owned(),
                 generic_parameters: Vec::new(),
                 rust_generic_arguments: Vec::new(),
@@ -2021,6 +2099,7 @@ fn projection_history_retains_removed_members_across_checks() {
             }],
             static_methods: vec![ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "create".to_owned(),
                 generic_parameters: Vec::new(),
                 rust_generic_arguments: Vec::new(),
@@ -2044,6 +2123,7 @@ fn projection_history_retains_removed_members_across_checks() {
         },
     };
     let mut old = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "old".to_owned(),
         content_hash: String::new(),
         dependencies: vec![dependency("1.0.0", vec![item])],
@@ -2057,7 +2137,21 @@ fn projection_history_retains_removed_members_across_checks() {
     };
     old.content_hash = projection_content_hash(&old).unwrap();
     apply_projection_history(&directory, &mut old).unwrap();
+    let lock_path = directory.join("terrane-projection.lock");
+    let mut reviewed: serde_json::Value =
+        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+    let object = reviewed.as_object_mut().unwrap();
+    for field in [
+        "cache_identity",
+        "projection_schema",
+        "content_hash",
+        "resolution",
+    ] {
+        object.remove(field);
+    }
+    fs::write(&lock_path, serde_json::to_vec_pretty(&reviewed).unwrap()).unwrap();
     let mut current = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "current".to_owned(),
         content_hash: String::new(),
         dependencies: vec![dependency("2.0.0", Vec::new())],
@@ -2082,6 +2176,32 @@ fn projection_history_retains_removed_members_across_checks() {
     current.removed.clear();
     apply_projection_history(&directory, &mut current).unwrap();
     assert_eq!(current.removed.len(), 3);
+    let persisted: serde_json::Value =
+        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+    assert_eq!(persisted["dependencies"][0]["version"], "2.0.0");
+    assert_eq!(persisted["removed"].as_array().unwrap().len(), 3);
+    for field in [
+        "cache_identity",
+        "projection_schema",
+        "content_hash",
+        "resolution",
+    ] {
+        assert!(persisted.get(field).is_none(), "unexpected `{field}`");
+    }
+    assert_eq!(persisted["source"], "Local");
+    assert_eq!(persisted["rustdoc_format"], rustdoc_types::FORMAT_VERSION);
+    let reviewed_bytes = serde_json::to_vec(&persisted).unwrap();
+    fs::write(&lock_path, &reviewed_bytes).unwrap();
+    apply_projection_history(&directory, &mut current).unwrap();
+    assert_eq!(fs::read(&lock_path).unwrap(), reviewed_bytes);
+    current.dependencies[0].version = "2.0.1".to_owned();
+    current.content_hash = projection_content_hash(&current).unwrap();
+    apply_projection_history(&directory, &mut current).unwrap();
+    let updated: serde_json::Value =
+        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+    assert_eq!(updated["dependencies"][0]["version"], "2.0.1");
+    assert_eq!(updated["removed"].as_array().unwrap().len(), 3);
+    assert!(updated.get("cache_identity").is_none());
     fs::remove_dir_all(directory).unwrap();
 }
 
@@ -2095,6 +2215,7 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
         events: Vec::new(),
     };
     let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "stable-identity".to_owned(),
         content_hash: String::new(),
         dependencies: Vec::new(),
@@ -2127,6 +2248,70 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
 }
 
 #[test]
+fn legacy_format_three_history_migrates_without_losing_removed_members() {
+    let legacy = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/projection-history/format-3.lock"
+    ));
+    let inventory: serde_json::Value = serde_json::from_str(legacy).unwrap();
+    let expected = inventory["dependencies"][0]["members"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|member| {
+            (
+                member[0].as_str().unwrap().to_owned(),
+                member[1].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let directory = std::env::temp_dir().join(format!(
+        "terrane-projection-format-three-{}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&directory).unwrap();
+    fs::write(directory.join("terrane-projection.lock"), legacy).unwrap();
+    let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
+        cache_identity: "format-three-migration".to_owned(),
+        content_hash: String::new(),
+        dependencies: vec![ProjectedDependency {
+            name: "bytes".to_owned(),
+            package: "bytes".to_owned(),
+            version: "1.10.2".to_owned(),
+            items: Vec::new(),
+            declined: Vec::new(),
+            partial_declines: Vec::new(),
+        }],
+        bound_dependencies: Vec::new(),
+        containment: Containment::Unavailable,
+        source: ProjectionSource::Local,
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution {
+            outcome: ResolutionOutcome::LocalRustdoc,
+            events: Vec::new(),
+        },
+        removed: Vec::new(),
+    };
+    projection.content_hash = projection_content_hash(&projection).unwrap();
+    apply_projection_history(&directory, &mut projection).unwrap();
+    assert_eq!(
+        projection
+            .removed
+            .iter()
+            .map(|member| (member.namespace.clone(), member.name.clone(),))
+            .collect::<BTreeSet<_>>(),
+        expected
+    );
+    let migrated: ProjectionHistory =
+        serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+            .unwrap();
+    assert_eq!(migrated.format, 4);
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
 fn projection_history_migrates_provenance_and_detects_replay_drift() {
     let directory = std::env::temp_dir().join(format!(
         "terrane-projection-provenance-{}",
@@ -2139,6 +2324,7 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
     )
     .unwrap();
     let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "stable-identity".to_owned(),
         content_hash: String::new(),
         dependencies: Vec::new(),

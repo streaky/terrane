@@ -16,6 +16,7 @@ pub enum SymbolKind {
     Interface,
     Class,
     Trait,
+    Enum,
     ErrorObject,
 }
 
@@ -95,6 +96,10 @@ impl ElementType {
         self.0.as_ref()
     }
 
+    pub(super) fn value_type_mut(&mut self) -> &mut ValueType {
+        self.0.as_mut()
+    }
+
     pub(super) fn scalar(&self) -> Option<ScalarType> {
         match self.0.as_ref() {
             ValueType::Scalar(scalar) => Some(*scalar),
@@ -125,12 +130,27 @@ pub struct ReferenceProvenance {
     pub lifetime_end: Option<Span>,
 }
 
-pub(super) fn value_type_contains_nonclone_foreign(
+pub(crate) fn value_type_contains_nonclone_foreign(
     unit: &SemanticUnit,
     value_type: &ValueType,
 ) -> bool {
     match value_type {
-        ValueType::Object(identity) => unit.nonclone_foreign_objects.contains(identity),
+        ValueType::Object(identity) => {
+            unit.nonclone_foreign_objects.contains(identity)
+                || unit
+                    .nonclone_foreign_objects
+                    .range::<ObjectIdentity, _>((
+                        std::ops::Bound::Unbounded,
+                        std::ops::Bound::Included(identity),
+                    ))
+                    .next_back()
+                    .is_some_and(|base| {
+                        base.namespace == identity.namespace
+                            && base.name == identity.name
+                            && base.application_key == identity.application_key
+                            && base.native_projection.is_none()
+                    })
+        }
         ValueType::Optional(inner) => value_type_contains_nonclone_foreign(unit, inner),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
@@ -322,7 +342,11 @@ pub struct ObjectIdentity {
     pub is_unsafe: bool,
     pub(crate) application: Option<Box<ValueType>>,
     pub(crate) application_key: Option<String>,
+    pub type_arguments: Vec<ValueType>,
+    pub(crate) type_arguments_key: Option<String>,
     pub(crate) native_projection: Option<String>,
+    pub(crate) native_arguments: BTreeMap<String, ValueType>,
+    pub(crate) native_arguments_key: Option<String>,
 }
 
 impl ObjectIdentity {
@@ -333,7 +357,11 @@ impl ObjectIdentity {
             is_unsafe: false,
             application: None,
             application_key: None,
+            type_arguments: Vec::new(),
+            type_arguments_key: None,
             native_projection: None,
+            native_arguments: BTreeMap::new(),
+            native_arguments_key: None,
         }
     }
 
@@ -355,9 +383,20 @@ impl ObjectIdentity {
         self.application = Some(Box::new(application));
         self
     }
+    pub(crate) fn with_type_arguments(mut self, arguments: Vec<ValueType>) -> Self {
+        self.type_arguments_key = (!arguments.is_empty()).then(|| format!("{arguments:?}"));
+        self.type_arguments = arguments;
+        self
+    }
 
     pub(crate) fn with_native_projection(mut self, rust_path: impl Into<String>) -> Self {
         self.native_projection = Some(rust_path.into());
+        self
+    }
+
+    pub(crate) fn with_native_arguments(mut self, arguments: BTreeMap<String, ValueType>) -> Self {
+        self.native_arguments_key = (!arguments.is_empty()).then(|| format!("{arguments:?}"));
+        self.native_arguments = arguments;
         self
     }
 }
@@ -368,8 +407,33 @@ impl std::fmt::Display for ObjectIdentity {
             formatter.write_str("unsafe ")?;
         }
         formatter.write_str(&self.name)?;
+        if !self.type_arguments.is_empty() {
+            formatter.write_str(" of ")?;
+            if self.type_arguments.len() > 1 {
+                formatter.write_str("(")?;
+            }
+            for (index, argument) in self.type_arguments.iter().enumerate() {
+                if index > 0 {
+                    formatter.write_str(", ")?;
+                }
+                argument.fmt(formatter)?;
+            }
+            if self.type_arguments.len() > 1 {
+                formatter.write_str(")")?;
+            }
+        }
         if let Some(application) = &self.application {
             write!(formatter, " of {application}")?;
+        }
+        if !self.native_arguments.is_empty() {
+            formatter.write_str(" (payload types: ")?;
+            for (index, value_type) in self.native_arguments.values().enumerate() {
+                if index > 0 {
+                    formatter.write_str(", ")?;
+                }
+                value_type.fmt(formatter)?;
+            }
+            formatter.write_str(")")?;
         }
         Ok(())
     }
@@ -381,15 +445,19 @@ impl Ord for ObjectIdentity {
             &self.namespace,
             &self.name,
             self.application_key.as_deref(),
+            self.type_arguments_key.as_deref(),
             self.is_unsafe,
             self.native_projection.as_deref(),
+            self.native_arguments_key.as_deref(),
         )
             .cmp(&(
                 &other.namespace,
                 &other.name,
                 other.application_key.as_deref(),
+                other.type_arguments_key.as_deref(),
                 other.is_unsafe,
                 other.native_projection.as_deref(),
+                other.native_arguments_key.as_deref(),
             ))
     }
 }
@@ -500,6 +568,10 @@ impl CallableParameterType {
         self.value_type.value_type_ref()
     }
 
+    pub(super) fn value_type_mut(&mut self) -> &mut ValueType {
+        self.value_type.value_type_mut()
+    }
+
     pub(crate) fn element_type(&self) -> ElementType {
         self.value_type.clone()
     }
@@ -534,12 +606,15 @@ pub enum ValueType {
     AsyncIterationStep(ElementType),
     AsyncSinkOutcome,
     ProjectedGeneric(String),
+    /// A lexically bound authored source type parameter; distinct from projected Rust generics.
+    TypeParameter(String),
     InlineRust,
     InvocationScopedNative {
         rust_type: String,
         concrete: bool,
         family: ObjectIdentity,
         lifetimes: Vec<String>,
+        expression_scoped: bool,
         region: Option<(u32, usize, usize)>,
     },
     ChannelPair(ElementType),
@@ -676,6 +751,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformUrlResult
         | ValueType::ProjectedAssociated
         | ValueType::ProjectedGeneric(_)
+        | ValueType::TypeParameter(_)
         | ValueType::InvocationScopedNative { .. }
         | ValueType::InlineRust
         | ValueType::PlatformCapability
@@ -765,6 +841,7 @@ impl std::fmt::Display for ValueType {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Scalar(ty) => ty.fmt(formatter),
+            Self::TypeParameter(name) => formatter.write_str(name),
             Self::Optional(inner) => write!(formatter, "{inner}|none"),
             Self::OverflowResult(ty) => write!(formatter, "overflow-result of {ty}"),
             Self::DivRemResult(ty) => write!(formatter, "div-rem-result of {ty}"),
@@ -1230,6 +1307,7 @@ pub enum ObjectKind {
     Interface,
     Trait,
     Type,
+    Enum,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1270,7 +1348,42 @@ pub struct ObjectField {
     pub value_type: ValueType,
     pub initializer_span: Option<Span>,
     pub is_static: bool,
+    pub required: bool,
     pub metadata: ObjectFieldMetadata,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RequiredInitProof {
+    pub constructor: Span,
+    pub initialized_fields: BTreeSet<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceEnumField {
+    pub name: String,
+    pub span: Span,
+    pub value_type: ValueType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceEnumVariant {
+    pub name: String,
+    pub span: Span,
+    pub payload: Vec<SourceEnumField>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceEnumContract {
+    pub identity: ObjectIdentity,
+    pub span: Span,
+    pub variants: Vec<SourceEnumVariant>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GenericParameterContract {
+    pub name: String,
+    pub span: Span,
+    pub bound: Option<ObjectIdentity>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1281,24 +1394,17 @@ pub struct DescriptorContract {
     pub identity: ObjectIdentity,
     pub span: Span,
     pub kind: ObjectKind,
+    pub generic_parameters: Vec<GenericParameterContract>,
     /// Implementing this interface asserts invariants outside Terrane's static model.
     pub is_unsafe: bool,
     pub resource_owning: bool,
-    /// Compiler-owned built-in template represented by this same canonical contract.
     pub(crate) builtin: Option<BuiltinDescriptor>,
-    /// Nominal category contracts implemented by values of this descriptor.
     pub(crate) categories: Vec<TypeCategory>,
-    /// Stable operation identifier selected for each canonical instance-member path.
     pub(crate) operations: BTreeMap<String, String>,
-    /// Canonical instance-member paths, including family children such as `trim.start`.
     pub(crate) members: BTreeSet<String>,
-    /// Canonical subset of `members` that denotes invocable instance members.
     pub(crate) methods: BTreeSet<String>,
-    /// Methods whose family selections cannot yet be stored as bound values.
     pub(crate) invocation_only_methods: BTreeSet<String>,
-    /// Canonical static-member names declared by this descriptor.
     pub(crate) static_members: BTreeSet<String>,
-    /// Canonical subset of `static_members` that denotes invocable members.
     pub(crate) static_methods: BTreeSet<String>,
     pub base: Option<ObjectIdentity>,
     pub interfaces: Vec<ObjectIdentity>,
@@ -1320,6 +1426,7 @@ pub struct FunctionContract {
     pub(crate) is_anonymous: bool,
     pub(crate) projected_provided: bool,
     pub captures: Vec<String>,
+    pub generic_parameters: Vec<GenericParameterContract>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
     pub exported: bool,
@@ -1455,6 +1562,8 @@ pub struct SemanticUnit {
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
+    pub source_enums: Vec<SourceEnumContract>,
+    pub(crate) required_init_proofs: BTreeMap<(u32, usize, usize), RequiredInitProof>,
     pub descriptors: Vec<DescriptorContract>,
     pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,
     pub(super) comparable_foreign_objects: BTreeSet<ObjectIdentity>,
@@ -1468,7 +1577,7 @@ pub struct SemanticUnit {
     pub(super) projected_destination_functions: BTreeSet<String>,
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
-    pub(crate) projected_call_result_types: BTreeMap<(u32, usize, usize), ValueType>,
+    pub(crate) selected_expression_types: BTreeMap<(u32, usize, usize), ValueType>,
     pub(crate) invocation_scoped_function_results: BTreeMap<(u32, usize, usize), ValueType>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
@@ -1478,6 +1587,32 @@ pub struct SemanticUnit {
 }
 
 impl SemanticUnit {
+    pub(crate) fn type_parameter_at(
+        &self,
+        position: usize,
+        name: &str,
+    ) -> Option<&GenericParameterContract> {
+        self.functions
+            .iter()
+            .map(|function| (function.span, &function.generic_parameters))
+            .chain(
+                self.descriptors
+                    .iter()
+                    .map(|descriptor| (descriptor.span, &descriptor.generic_parameters)),
+            )
+            .filter(|(span, _)| {
+                span.file == self.source.id() && span.start <= position && position < span.end
+            })
+            .filter_map(|(span, parameters)| {
+                parameters
+                    .iter()
+                    .find(|parameter| parameter.name == name)
+                    .map(|parameter| (span.end - span.start, parameter))
+            })
+            .min_by_key(|(length, _)| *length)
+            .map(|(_, parameter)| parameter)
+    }
+
     /// Returns the compiler-resolved value type for an expression when it is statically known.
     #[must_use]
     pub fn inferred_value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
@@ -1584,6 +1719,7 @@ pub(super) fn object_name_containing(unit: &SemanticUnit, span: Span) -> Option<
             SyntaxKind::ClassDeclaration
                 | SyntaxKind::InterfaceDeclaration
                 | SyntaxKind::TraitDeclaration
+                | SyntaxKind::EnumDeclaration
         )
         .then_some(object)
         .filter(|object| object.span.start <= span.start && span.end <= object.span.end)

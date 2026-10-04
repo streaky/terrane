@@ -9,9 +9,9 @@ pub struct WorkItem {
 }
 impl WorkItem {
     pub fn terrane_construct(estimate: Option<terrane_int_support::Int>) -> Self {
-        let mut value = Self { estimate: None };
-        value.construct(estimate);
-        value
+        let mut __terrane_constructed_value = Self { estimate: None };
+        __terrane_constructed_value.construct(estimate);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, estimate: Option<terrane_int_support::Int>) {
         self.estimate = estimate;

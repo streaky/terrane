@@ -501,18 +501,6 @@ impl LanguageServer for Backend {
             .lock()
             .expect("position encoding lock")
             .clone();
-        let position = params.text_document_position_params.position;
-        if let Some(name) = word_at(&document.text, position)
-            && let Some(namespace) = imported_dependency_namespace(&document.text, name)
-            && let Some(projection) = projection_for_uri(&uri, &document.text).await
-            && let Some(content) =
-                projected_hover_content(&projection, name, Some(namespace.as_str()))
-        {
-            return Ok(Some(Hover {
-                contents: HoverContents::Scalar(MarkedString::String(content)),
-                range: None,
-            }));
-        }
         if let Some(offset) = byte_offset(
             &document.text,
             params.text_document_position_params.position,
@@ -550,75 +538,49 @@ impl LanguageServer for Backend {
 
     async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
         let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
         let documents = self.documents.read().await;
         let Some(document) = documents.get(&uri) else {
             return Ok(None);
         };
-        let Some(name) = call_name_before(
-            &document.text,
-            params.text_document_position_params.position,
-        ) else {
-            return Ok(None);
-        };
-        let Some(projection) = projection_for_uri(&uri, &document.text).await else {
-            return Ok(None);
-        };
-        let namespace = imported_dependency_namespace(&document.text, name);
-        let function = projection
-            .dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .find_map(|item| {
-                if namespace
-                    .as_deref()
-                    .is_some_and(|value| item.namespace != value)
-                {
-                    return None;
-                }
-                match &item.kind {
-                    terrane_compiler::rust_interop::projection::ProjectedKind::Function(
-                        function,
-                    ) if function.name == name => Some(function),
-                    _ => None,
-                }
-            });
-        let Some(function) = function else {
-            return Ok(None);
-        };
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|parameter| ParameterInformation {
-                label: ParameterLabel::Simple(format!(
-                    "{} {}",
-                    parameter.name,
-                    parameter.ty.terrane_name()
-                )),
-                documentation: None,
-            })
-            .collect::<Vec<_>>();
-        let label = format!(
-            "{}; {}",
-            function.name,
-            parameters
-                .iter()
-                .filter_map(|parameter| match &parameter.label {
-                    ParameterLabel::Simple(label) => Some(label.as_str()),
-                    ParameterLabel::LabelOffsets(_) => None,
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        Ok(Some(SignatureHelp {
-            signatures: vec![SignatureInformation {
-                label,
-                documentation: None,
-                parameters: Some(parameters),
-                active_parameter: None,
-            }],
-            active_signature: Some(0),
-            active_parameter: Some(0),
-        }))
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        if let Some(offset) = byte_offset(&document.text, position, &encoding)
+            && let Some(signature) = self
+                .tooling
+                .lock()
+                .expect("tooling engine lock")
+                .signature_help(&document.snapshot_id, &uri.to_string(), offset)
+                .ok()
+                .flatten()
+        {
+            let active_parameter = signature
+                .active_parameter
+                .map(|active| u32::try_from(active).unwrap_or(u32::MAX));
+            return Ok(Some(SignatureHelp {
+                signatures: vec![SignatureInformation {
+                    label: signature.label,
+                    documentation: None,
+                    parameters: Some(
+                        signature
+                            .parameters
+                            .into_iter()
+                            .map(|label| ParameterInformation {
+                                label: ParameterLabel::Simple(label),
+                                documentation: None,
+                            })
+                            .collect(),
+                    ),
+                    active_parameter,
+                }],
+                active_signature: Some(0),
+                active_parameter,
+            }));
+        }
+        Ok(projected_signature_help(&uri, &document.text, position).await)
     }
 
     async fn goto_definition(
@@ -972,6 +934,16 @@ fn semantic_hover(
     let mut content = format!("`{name}`");
     if let terrane_compiler::tooling::Availability::Known(value_type) = object.value_type {
         let _ = write!(content, "\n\nType: `{value_type}`");
+    }
+    if let terrane_compiler::tooling::Availability::Known(parameters) = object.generic_parameters
+        && !parameters.is_empty()
+    {
+        let _ = write!(content, "\n\nType parameters: `{}`", parameters.join(", "));
+    }
+    if let terrane_compiler::tooling::Availability::Known(arguments) = object.type_arguments
+        && !arguments.is_empty()
+    {
+        let _ = write!(content, "\n\nSelected types: `{}`", arguments.join(", "));
     }
     if let terrane_compiler::tooling::Availability::Known(safety) = object.safety {
         let _ = write!(content, "\n\nSafety: {safety}");
@@ -1463,22 +1435,122 @@ fn dependency_import_namespace(text: &str, position: Position) -> Option<String>
 }
 
 fn imported_dependency_namespace(text: &str, name: &str) -> Option<String> {
+    imported_dependency_item(text, name).map(|(namespace, _)| namespace.to_owned())
+}
+
+fn imported_dependency_item<'a>(text: &'a str, name: &str) -> Option<(&'a str, &'a str)> {
     text.lines().find_map(|line| {
-        let (path, imported) = line.strip_prefix("from ")?.split_once(" import ")?;
+        let (path, imported) = line
+            .trim_start()
+            .strip_prefix("from ")?
+            .split_once(" import ")?;
         if !path.starts_with("/deps/") {
             return None;
         }
-        imported
-            .split(',')
-            .map(str::trim)
-            .any(|item| {
-                item == name
-                    || item
-                        .rsplit_once(" as ")
-                        .is_some_and(|(_, alias)| alias == name)
-            })
-            .then(|| path.to_owned())
+        imported.split(',').map(str::trim).find_map(|item| {
+            let (original, local) = item.split_once(" as ").unwrap_or((item, item));
+            (local == name).then_some((path, original))
+        })
     })
+}
+
+fn construction_call_before(text: &str, position: Position) -> bool {
+    line_prefix(text, position)
+        .and_then(|prefix| prefix.rsplit_once(';'))
+        .is_some_and(|(callee, _)| {
+            let mut words = callee
+                .rsplit(|character: char| {
+                    !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+                })
+                .filter(|word| !word.is_empty());
+            words.next().is_some() && words.next() == Some("instance")
+        })
+}
+
+async fn projected_signature_help(
+    uri: &Uri,
+    text: &str,
+    position: Position,
+) -> Option<SignatureHelp> {
+    use terrane_compiler::rust_interop::projection::{ProjectedKind, ProjectedType};
+    let name = call_name_before(text, position)?;
+    let projection = projection_for_uri(uri, text).await?;
+    let imported = imported_dependency_item(text, name);
+    let namespace = imported.map(|(namespace, _)| namespace);
+    let projected_name = imported.map_or(name, |(_, original)| original);
+    let item = projection
+        .dependencies
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .find(|item| {
+            item.name == projected_name && namespace.is_none_or(|value| item.namespace == value)
+        })?;
+    let parameter_information = |name: &str, ty: &ProjectedType| ParameterInformation {
+        label: ParameterLabel::Simple(format!("{name} {}", signature_parameter_type(ty))),
+        documentation: None,
+    };
+    let parameters = match &item.kind {
+        ProjectedKind::ForeignType {
+            fields,
+            constructor,
+            ..
+        } if construction_call_before(text, position) => constructor.as_ref().map_or_else(
+            || {
+                fields
+                    .iter()
+                    .map(|field| parameter_information(&field.name, &field.ty))
+                    .collect::<Vec<_>>()
+            },
+            |constructor| {
+                constructor
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter_information(&parameter.name, &parameter.ty))
+                    .collect()
+            },
+        ),
+        ProjectedKind::Function(function) => function
+            .parameters
+            .iter()
+            .map(|parameter| parameter_information(&parameter.name, &parameter.ty))
+            .collect(),
+        _ => return None,
+    };
+    let label = format!(
+        "{name}; {}",
+        parameters
+            .iter()
+            .filter_map(|parameter| match &parameter.label {
+                ParameterLabel::Simple(label) => Some(label.as_str()),
+                ParameterLabel::LabelOffsets(_) => None,
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    Some(SignatureHelp {
+        signatures: vec![SignatureInformation {
+            label,
+            documentation: None,
+            parameters: Some(parameters),
+            active_parameter: None,
+        }],
+        active_signature: Some(0),
+        active_parameter: Some(0),
+    })
+}
+
+fn signature_parameter_type(
+    ty: &terrane_compiler::rust_interop::projection::ProjectedType,
+) -> String {
+    use terrane_compiler::rust_interop::projection::ProjectedType;
+    match ty {
+        ProjectedType::Generic(_) => "inferred".to_owned(),
+        ProjectedType::Optional(inner) => format!("{}|none", signature_parameter_type(inner)),
+        ProjectedType::Sequence { item, .. } => {
+            format!("list of {}", signature_parameter_type(item))
+        }
+        _ => ty.terrane_name(),
+    }
 }
 
 fn word_at(text: &str, position: Position) -> Option<&str> {
@@ -1650,6 +1722,7 @@ mod tests {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "wait".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),
@@ -1691,6 +1764,7 @@ mod tests {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "unchecked".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),
@@ -1728,6 +1802,7 @@ mod tests {
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
                 native_owner: None,
+                native_path: None,
                 name: "builder".to_owned(),
                 parameters: Vec::new(),
                 generic_parameters: Vec::new(),

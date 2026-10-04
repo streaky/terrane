@@ -1,0 +1,6 @@
+namespace app
+from /deps/witness import Request
+
+function main;
+    request = Request::new; 41
+    borrowed = request.extensions;

@@ -1,0 +1,44 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Basket",
+          "Basket.clone",
+          "Basket.into",
+          "Basket.len",
+          "Basket.try_into",
+          "Basket::new",
+          "Element",
+          "Element.clone",
+          "Element.into",
+          "Element.try_into",
+          "Element.value",
+          "Element::from",
+          "IntoResponse",
+          "Response",
+          "Response.clone",
+          "Response.into",
+          "Response.try_into",
+          "Response.value",
+          "Selected",
+          "Selected.into",
+          "Selected.try_into",
+          "Selected.value",
+          "Selected::default",
+          "Token",
+          "destination"
+        ],
+        "/deps/witness/token": [
+          "contains"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

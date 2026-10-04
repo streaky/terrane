@@ -1,0 +1,42 @@
+namespace app
+
+from /deps/witness import Packet, next, evaluations, sum as ordinary-sum
+from /deps/witness/macros import sum, packet, message, values, twice, selected, disable
+from /deps/witness/layout/macros import combine
+from /core/output import print
+
+function contextual int;
+    return sum; 20, 22
+
+function main;
+    empty int = sum;
+    print; empty
+    total int = sum; 1, 2, 3
+    print; total
+    nested int = sum; (sum; 2, 3), 4
+    print; nested
+    print; (ordinary-sum;)
+    record Packet = packet; 7, true
+    print; record.value
+    print; record.enabled
+    observed int = disable; ref record
+    print; observed
+    print; record.enabled
+    text string = message; '{}:{}', 7, true
+    print; text
+    sequence list of int = values; 3, 5, 8
+    for value in sequence
+        print; value
+    repeated int = twice; (next;)
+    print; repeated
+    print; (evaluations;)
+    chosen int = selected; false, (next;), 17
+    print; chosen
+    print; (evaluations;)
+    print; (contextual;)
+    combined int = combine; 4, 6
+    print; combined
+    empty-values list of int = values;
+    for value in empty-values
+        print; value
+    print; 'empty collection selected'

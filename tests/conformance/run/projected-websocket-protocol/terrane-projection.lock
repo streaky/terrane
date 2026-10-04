@@ -11,6 +11,11 @@
       "version": "=0.3.34"
     },
     {
+      "name": "ppv_lite86",
+      "package": "ppv-lite86",
+      "version": "=0.2.21"
+    },
+    {
       "name": "serde_core",
       "package": "serde_core",
       "version": "=1.0.229"
@@ -26,12 +31,45 @@
       "members": {
         "/deps/axum": [
           "Error",
+          "Error.into",
+          "Error.try_into",
           "Error::new",
+          "Extension",
+          "Extension.clone",
+          "Extension.deref",
+          "Extension.into",
+          "Extension.into_make_service_with_connect_info",
+          "Extension.into_response",
+          "Extension.into_response_parts",
+          "Extension.try_into",
+          "Extension.vzip",
+          "Extension::default",
+          "Form",
+          "Form.clone",
+          "Form.deref",
+          "Form.into",
+          "Form.into_make_service_with_connect_info",
+          "Form.into_response",
+          "Form.try_into",
+          "Form.vzip",
+          "Form::default",
+          "Json",
+          "Json.clone",
+          "Json.deref",
+          "Json.into",
+          "Json.into_make_service_with_connect_info",
+          "Json.into_response",
+          "Json.try_into",
+          "Json.vzip",
+          "Json::default",
+          "Json::from",
           "Router",
           "Router.as_service",
+          "Router.clone",
           "Router.fallback",
           "Router.fallback_service",
           "Router.has_routes",
+          "Router.into",
           "Router.into_make_service",
           "Router.into_make_service_with_connect_info",
           "Router.into_service",
@@ -44,35 +82,55 @@
           "Router.route",
           "Router.route_layer",
           "Router.route_service",
+          "Router.try_into",
+          "Router.vzip",
           "Router.with_state",
           "Router.without_v07_checks",
+          "Router::default",
           "Router::new",
           "serve"
         ],
         "/deps/axum/body": [
           "Body",
+          "Body.into",
           "Body.into_data_stream",
+          "Body.into_response",
+          "Body.is_end_stream",
+          "Body.size_hint",
+          "Body.try_into",
+          "Body::default",
           "Body::empty",
           "Body::from_stream",
           "Body::new",
           "BodyDataStream",
+          "BodyDataStream.into",
+          "BodyDataStream.is_end_stream",
+          "BodyDataStream.size_hint",
+          "BodyDataStream.try_into",
           "Bytes",
+          "Bytes.advance",
           "Bytes.clear",
+          "Bytes.clone",
+          "Bytes.cmp",
+          "Bytes.copy_to_bytes",
+          "Bytes.drop",
+          "Bytes.extend",
+          "Bytes.into",
+          "Bytes.into_response",
           "Bytes.is_empty",
           "Bytes.is_unique",
           "Bytes.len",
+          "Bytes.remaining",
           "Bytes.slice",
           "Bytes.split_off",
           "Bytes.split_to",
           "Bytes.truncate",
+          "Bytes.try_into",
+          "Bytes::default",
+          "Bytes::from_iter",
           "Bytes::from_owner",
           "Bytes::new",
           "to_bytes"
-        ],
-        "/deps/axum/body/body": [
-          "default",
-          "is_end_stream",
-          "size_hint"
         ],
         "/deps/axum/body/body/trait/core/convert/from": [
           "from"
@@ -80,29 +138,11 @@
         "/deps/axum/body/body/trait/core/convert/from-bytes/bytes": [
           "from"
         ],
-        "/deps/axum/body/body/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/axum/body/body/trait/core/convert/from-std/string/string": [
           "from"
         ],
         "/deps/axum/body/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
-        ],
-        "/deps/axum/body/bodydatastream": [
-          "is_end_stream",
-          "size_hint"
-        ],
-        "/deps/axum/body/bytes": [
-          "advance",
-          "clone",
-          "cmp",
-          "copy_to_bytes",
-          "default",
-          "drop",
-          "extend",
-          "from_iter",
-          "remaining"
         ],
         "/deps/axum/body/bytes/trait/core/cmp/partialeq": [
           "eq"
@@ -134,9 +174,6 @@
         "/deps/axum/body/bytes/trait/core/convert/from-bytes/bytesmut": [
           "from"
         ],
-        "/deps/axum/body/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/axum/body/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -144,25 +181,81 @@
           "from"
         ],
         "/deps/axum/error-handling/future": [
-          "HandleErrorFuture"
+          "HandleErrorFuture",
+          "HandleErrorFuture.into",
+          "HandleErrorFuture.try_into",
+          "HandleErrorFuture.vzip"
         ],
         "/deps/axum/extract": [
+          "ConnectInfo",
+          "ConnectInfo.clone",
+          "ConnectInfo.deref",
+          "ConnectInfo.into",
+          "ConnectInfo.try_into",
+          "ConnectInfo.vzip",
           "DefaultBodyLimit",
           "DefaultBodyLimit.apply",
+          "DefaultBodyLimit.clone",
+          "DefaultBodyLimit.into",
+          "DefaultBodyLimit.try_into",
           "DefaultBodyLimit::disable",
           "DefaultBodyLimit::max",
           "MatchedPath",
           "MatchedPath.as_str",
+          "MatchedPath.clone",
+          "MatchedPath.into",
+          "MatchedPath.try_into",
+          "MatchedPath.vzip",
           "NestedPath",
           "NestedPath.as_str",
+          "NestedPath.clone",
+          "NestedPath.into",
+          "NestedPath.try_into",
+          "NestedPath.vzip",
           "OriginalUri",
+          "OriginalUri.clone",
+          "OriginalUri.deref",
+          "OriginalUri.into",
+          "OriginalUri.try_into",
+          "OriginalUri.vzip",
+          "Path",
+          "Path.deref",
+          "Path.into",
+          "Path.try_into",
+          "Path.vzip",
+          "Query",
+          "Query.clone",
+          "Query.deref",
+          "Query.into",
+          "Query.try_into",
+          "Query.vzip",
+          "Query::default",
+          "Query::try_from_uri",
           "RawForm",
+          "RawForm.into",
+          "RawForm.try_into",
+          "RawForm.vzip",
           "RawPathParams",
+          "RawPathParams.into",
+          "RawPathParams.into_iter",
           "RawPathParams.iter",
+          "RawPathParams.try_into",
+          "RawPathParams.vzip",
           "RawQuery",
+          "RawQuery.into",
+          "RawQuery.try_into",
+          "RawQuery.vzip",
           "Request",
+          "State",
+          "State.clone",
+          "State.deref",
+          "State.into",
+          "State.try_into",
+          "State.vzip",
+          "State::default",
           "WebSocketUpgrade",
           "WebSocketUpgrade.accept_unmasked_frames",
+          "WebSocketUpgrade.into",
           "WebSocketUpgrade.max_frame_size",
           "WebSocketUpgrade.max_message_size",
           "WebSocketUpgrade.max_write_buffer_size",
@@ -172,20 +265,20 @@
           "WebSocketUpgrade.read_buffer_size",
           "WebSocketUpgrade.selected_protocol",
           "WebSocketUpgrade.set_selected_protocol",
-          "WebSocketUpgrade.write_buffer_size"
+          "WebSocketUpgrade.try_into",
+          "WebSocketUpgrade.vzip",
+          "WebSocketUpgrade.write_buffer_size",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
-        "/deps/axum/extract/defaultbodylimit": [
-          "clone"
-        ],
-        "/deps/axum/extract/matchedpath": [
-          "clone"
-        ],
-        "/deps/axum/extract/nestedpath": [
-          "clone"
-        ],
-        "/deps/axum/extract/originaluri": [
-          "clone",
-          "deref"
+        "/deps/axum/extract/connect-info": [
+          "MockConnectInfo",
+          "MockConnectInfo.clone",
+          "MockConnectInfo.into",
+          "MockConnectInfo.try_into",
+          "MockConnectInfo.vzip"
         ],
         "/deps/axum/extract/path": [
           "ErrorKind",
@@ -198,23 +291,22 @@
           "ErrorKind-WrongNumberOfParameters",
           "FailedToDeserializePathParams",
           "FailedToDeserializePathParams.body_text",
+          "FailedToDeserializePathParams.into",
           "FailedToDeserializePathParams.into_kind",
+          "FailedToDeserializePathParams.into_response",
           "FailedToDeserializePathParams.kind",
           "FailedToDeserializePathParams.status",
+          "FailedToDeserializePathParams.try_into",
+          "FailedToDeserializePathParams.vzip",
+          "FailedToDeserializePathParams::from",
           "InvalidUtf8InPathParam",
           "InvalidUtf8InPathParam.body_text",
-          "InvalidUtf8InPathParam.status"
-        ],
-        "/deps/axum/extract/path/failedtodeserializepathparams": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/path/invalidutf8inpathparam": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/rawpathparams": [
-          "into_iter"
+          "InvalidUtf8InPathParam.into",
+          "InvalidUtf8InPathParam.into_response",
+          "InvalidUtf8InPathParam.status",
+          "InvalidUtf8InPathParam.try_into",
+          "InvalidUtf8InPathParam.vzip",
+          "InvalidUtf8InPathParam::from"
         ],
         "/deps/axum/extract/rejection": [
           "BytesRejection",
@@ -222,46 +314,111 @@
           "FailedToBufferBody",
           "FailedToDeserializeForm",
           "FailedToDeserializeForm.body_text",
+          "FailedToDeserializeForm.into",
+          "FailedToDeserializeForm.into_response",
           "FailedToDeserializeForm.status",
+          "FailedToDeserializeForm.try_into",
+          "FailedToDeserializeForm.vzip",
+          "FailedToDeserializeForm::from",
           "FailedToDeserializeFormBody",
           "FailedToDeserializeFormBody.body_text",
+          "FailedToDeserializeFormBody.into",
+          "FailedToDeserializeFormBody.into_response",
           "FailedToDeserializeFormBody.status",
+          "FailedToDeserializeFormBody.try_into",
+          "FailedToDeserializeFormBody.vzip",
+          "FailedToDeserializeFormBody::from",
           "FailedToDeserializeQueryString",
           "FailedToDeserializeQueryString.body_text",
+          "FailedToDeserializeQueryString.into",
+          "FailedToDeserializeQueryString.into_response",
           "FailedToDeserializeQueryString.status",
+          "FailedToDeserializeQueryString.try_into",
+          "FailedToDeserializeQueryString.vzip",
+          "FailedToDeserializeQueryString::from",
           "FormRejection",
           "InvalidFormContentType",
           "InvalidFormContentType.body_text",
+          "InvalidFormContentType.into",
+          "InvalidFormContentType.into_response",
           "InvalidFormContentType.status",
+          "InvalidFormContentType.try_into",
+          "InvalidFormContentType.vzip",
+          "InvalidFormContentType::default",
           "InvalidUtf8",
           "InvalidUtf8.body_text",
+          "InvalidUtf8.into",
+          "InvalidUtf8.into_response",
           "InvalidUtf8.status",
+          "InvalidUtf8.try_into",
+          "InvalidUtf8::from",
           "JsonDataError",
           "JsonDataError.body_text",
+          "JsonDataError.into",
+          "JsonDataError.into_response",
           "JsonDataError.status",
+          "JsonDataError.try_into",
+          "JsonDataError.vzip",
+          "JsonDataError::from",
           "JsonRejection",
           "JsonSyntaxError",
           "JsonSyntaxError.body_text",
+          "JsonSyntaxError.into",
+          "JsonSyntaxError.into_response",
           "JsonSyntaxError.status",
+          "JsonSyntaxError.try_into",
+          "JsonSyntaxError.vzip",
+          "JsonSyntaxError::from",
           "LengthLimitError",
           "LengthLimitError.body_text",
+          "LengthLimitError.into",
+          "LengthLimitError.into_response",
           "LengthLimitError.status",
+          "LengthLimitError.try_into",
+          "LengthLimitError::from",
           "MatchedPathMissing",
           "MatchedPathMissing.body_text",
+          "MatchedPathMissing.into",
+          "MatchedPathMissing.into_response",
           "MatchedPathMissing.status",
+          "MatchedPathMissing.try_into",
+          "MatchedPathMissing.vzip",
+          "MatchedPathMissing::default",
+          "MatchedPathMissing::from",
           "MatchedPathRejection",
           "MissingExtension",
           "MissingExtension.body_text",
+          "MissingExtension.into",
+          "MissingExtension.into_response",
           "MissingExtension.status",
+          "MissingExtension.try_into",
+          "MissingExtension.vzip",
+          "MissingExtension::from",
           "MissingJsonContentType",
           "MissingJsonContentType.body_text",
+          "MissingJsonContentType.into",
+          "MissingJsonContentType.into_response",
           "MissingJsonContentType.status",
+          "MissingJsonContentType.try_into",
+          "MissingJsonContentType.vzip",
+          "MissingJsonContentType::default",
+          "MissingJsonContentType::from",
           "MissingPathParams",
           "MissingPathParams.body_text",
+          "MissingPathParams.into",
+          "MissingPathParams.into_response",
           "MissingPathParams.status",
+          "MissingPathParams.try_into",
+          "MissingPathParams.vzip",
+          "MissingPathParams::default",
           "NestedPathRejection",
           "NestedPathRejection.body_text",
+          "NestedPathRejection.into",
+          "NestedPathRejection.into_response",
           "NestedPathRejection.status",
+          "NestedPathRejection.try_into",
+          "NestedPathRejection.vzip",
+          "NestedPathRejection::default",
           "PathRejection",
           "QueryRejection",
           "RawFormRejection",
@@ -269,154 +426,214 @@
           "StringRejection",
           "UnknownBodyError",
           "UnknownBodyError.body_text",
-          "UnknownBodyError.status"
+          "UnknownBodyError.into",
+          "UnknownBodyError.into_response",
+          "UnknownBodyError.status",
+          "UnknownBodyError.try_into",
+          "UnknownBodyError::from"
         ],
-        "/deps/axum/extract/rejection/failedtodeserializeform": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/rejection/failedtodeserializeformbody": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/rejection/failedtodeserializequerystring": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/rejection/invalidformcontenttype": [
-          "default",
-          "into_response"
-        ],
-        "/deps/axum/extract/rejection/invalidutf8": [
+        "/deps/axum/extract/rejection/failedtobufferbody/trait/core/convert/from-axum/extract/rejection/lengthlimiterror": [
           "from"
         ],
-        "/deps/axum/extract/rejection/jsondataerror": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/rejection/jsonsyntaxerror": [
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/rejection/lengthlimiterror": [
+        "/deps/axum/extract/rejection/failedtobufferbody/trait/core/convert/from-axum/extract/rejection/unknownbodyerror": [
           "from"
         ],
-        "/deps/axum/extract/rejection/matchedpathmissing": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/rejection/formrejection/trait/core/convert/from-axum-core/extract/rejection/bytesrejection": [
+          "from"
         ],
-        "/deps/axum/extract/rejection/missingextension": [
-          "from",
-          "into_response"
+        "/deps/axum/extract/rejection/formrejection/trait/core/convert/from-axum/extract/rejection/failedtodeserializeform": [
+          "from"
         ],
-        "/deps/axum/extract/rejection/missingjsoncontenttype": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/rejection/formrejection/trait/core/convert/from-axum/extract/rejection/failedtodeserializeformbody": [
+          "from"
         ],
-        "/deps/axum/extract/rejection/missingpathparams": [
-          "default",
-          "into_response"
+        "/deps/axum/extract/rejection/formrejection/trait/core/convert/from-axum/extract/rejection/invalidformcontenttype": [
+          "from"
         ],
-        "/deps/axum/extract/rejection/nestedpathrejection": [
-          "default",
-          "into_response"
+        "/deps/axum/extract/rejection/jsonrejection/trait/core/convert/from-axum-core/extract/rejection/bytesrejection": [
+          "from"
         ],
-        "/deps/axum/extract/rejection/unknownbodyerror": [
+        "/deps/axum/extract/rejection/jsonrejection/trait/core/convert/from-axum/extract/rejection/jsondataerror": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/jsonrejection/trait/core/convert/from-axum/extract/rejection/jsonsyntaxerror": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/jsonrejection/trait/core/convert/from-axum/extract/rejection/missingjsoncontenttype": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/pathrejection/trait/core/convert/from-axum/extract/path/failedtodeserializepathparams": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/pathrejection/trait/core/convert/from-axum/extract/rejection/missingpathparams": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/rawformrejection/trait/core/convert/from-axum-core/extract/rejection/bytesrejection": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/rawformrejection/trait/core/convert/from-axum/extract/rejection/invalidformcontenttype": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/rawpathparamsrejection/trait/core/convert/from-axum/extract/path/invalidutf8inpathparam": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/rawpathparamsrejection/trait/core/convert/from-axum/extract/rejection/missingpathparams": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/stringrejection/trait/core/convert/from-axum/extract/rejection/failedtobufferbody": [
+          "from"
+        ],
+        "/deps/axum/extract/rejection/stringrejection/trait/core/convert/from-axum/extract/rejection/invalidutf8": [
           "from"
         ],
         "/deps/axum/extract/ws": [
           "CloseFrame",
+          "CloseFrame.clone",
+          "CloseFrame.eq",
+          "CloseFrame.into",
+          "CloseFrame.try_into",
+          "CloseFrame.vzip",
           "DefaultOnFailedUpgrade",
+          "DefaultOnFailedUpgrade.call",
+          "DefaultOnFailedUpgrade.into",
+          "DefaultOnFailedUpgrade.try_into",
+          "DefaultOnFailedUpgrade.vzip",
           "Message",
           "Utf8Bytes",
           "Utf8Bytes.as_str",
-          "Utf8Bytes::from_static",
+          "Utf8Bytes.clone",
+          "Utf8Bytes.deref",
+          "Utf8Bytes.eq",
+          "Utf8Bytes.into",
+          "Utf8Bytes.try_into",
+          "Utf8Bytes.vzip",
+          "Utf8Bytes::default",
           "WebSocket",
+          "WebSocket.into",
+          "WebSocket.is_terminated",
           "WebSocket.protocol",
           "WebSocket.recv",
-          "WebSocket.send"
+          "WebSocket.send",
+          "WebSocket.try_into",
+          "WebSocket.vzip",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
-        "/deps/axum/extract/ws/closeframe": [
-          "clone",
-          "eq"
+        "/deps/axum/extract/ws/message/trait/core/convert/from-axum/extract/ws/message": [
+          "from"
         ],
-        "/deps/axum/extract/ws/defaultonfailedupgrade": [
-          "call"
+        "/deps/axum/extract/ws/message/trait/core/convert/from-bytes/bytes": [
+          "from"
+        ],
+        "/deps/axum/extract/ws/message/trait/core/convert/from-s-str": [
+          "from"
+        ],
+        "/deps/axum/extract/ws/message/trait/core/convert/from-std/string/string": [
+          "from"
+        ],
+        "/deps/axum/extract/ws/message/trait/core/convert/from-std/vec/vec-u8": [
+          "from"
         ],
         "/deps/axum/extract/ws/rejection": [
           "ConnectionNotUpgradable",
           "ConnectionNotUpgradable.body_text",
+          "ConnectionNotUpgradable.into",
+          "ConnectionNotUpgradable.into_response",
           "ConnectionNotUpgradable.status",
+          "ConnectionNotUpgradable.try_into",
+          "ConnectionNotUpgradable.vzip",
+          "ConnectionNotUpgradable::default",
+          "ConnectionNotUpgradable::from",
           "InvalidConnectionHeader",
           "InvalidConnectionHeader.body_text",
+          "InvalidConnectionHeader.into",
+          "InvalidConnectionHeader.into_response",
           "InvalidConnectionHeader.status",
+          "InvalidConnectionHeader.try_into",
+          "InvalidConnectionHeader.vzip",
+          "InvalidConnectionHeader::default",
+          "InvalidConnectionHeader::from",
           "InvalidProtocolPseudoheader",
           "InvalidProtocolPseudoheader.body_text",
+          "InvalidProtocolPseudoheader.into",
+          "InvalidProtocolPseudoheader.into_response",
           "InvalidProtocolPseudoheader.status",
+          "InvalidProtocolPseudoheader.try_into",
+          "InvalidProtocolPseudoheader.vzip",
+          "InvalidProtocolPseudoheader::default",
+          "InvalidProtocolPseudoheader::from",
           "InvalidUpgradeHeader",
           "InvalidUpgradeHeader.body_text",
+          "InvalidUpgradeHeader.into",
+          "InvalidUpgradeHeader.into_response",
           "InvalidUpgradeHeader.status",
+          "InvalidUpgradeHeader.try_into",
+          "InvalidUpgradeHeader.vzip",
+          "InvalidUpgradeHeader::default",
+          "InvalidUpgradeHeader::from",
           "InvalidWebSocketVersionHeader",
           "InvalidWebSocketVersionHeader.body_text",
+          "InvalidWebSocketVersionHeader.into",
+          "InvalidWebSocketVersionHeader.into_response",
           "InvalidWebSocketVersionHeader.status",
+          "InvalidWebSocketVersionHeader.try_into",
+          "InvalidWebSocketVersionHeader.vzip",
+          "InvalidWebSocketVersionHeader::default",
+          "InvalidWebSocketVersionHeader::from",
           "MethodNotConnect",
           "MethodNotConnect.body_text",
+          "MethodNotConnect.into",
+          "MethodNotConnect.into_response",
           "MethodNotConnect.status",
+          "MethodNotConnect.try_into",
+          "MethodNotConnect.vzip",
+          "MethodNotConnect::default",
+          "MethodNotConnect::from",
           "MethodNotGet",
           "MethodNotGet.body_text",
+          "MethodNotGet.into",
+          "MethodNotGet.into_response",
           "MethodNotGet.status",
+          "MethodNotGet.try_into",
+          "MethodNotGet.vzip",
+          "MethodNotGet::default",
+          "MethodNotGet::from",
           "WebSocketKeyHeaderMissing",
           "WebSocketKeyHeaderMissing.body_text",
+          "WebSocketKeyHeaderMissing.into",
+          "WebSocketKeyHeaderMissing.into_response",
           "WebSocketKeyHeaderMissing.status",
+          "WebSocketKeyHeaderMissing.try_into",
+          "WebSocketKeyHeaderMissing.vzip",
+          "WebSocketKeyHeaderMissing::default",
+          "WebSocketKeyHeaderMissing::from",
           "WebSocketUpgradeRejection"
         ],
-        "/deps/axum/extract/ws/rejection/connectionnotupgradable": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/connectionnotupgradable": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/invalidconnectionheader": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/invalidconnectionheader": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/invalidprotocolpseudoheader": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/invalidprotocolpseudoheader": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/invalidupgradeheader": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/invalidupgradeheader": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/invalidwebsocketversionheader": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/invalidwebsocketversionheader": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/methodnotconnect": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/methodnotconnect": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/methodnotget": [
-          "default",
-          "from",
-          "into_response"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/methodnotget": [
+          "from"
         ],
-        "/deps/axum/extract/ws/rejection/websocketkeyheadermissing": [
-          "default",
-          "from",
-          "into_response"
-        ],
-        "/deps/axum/extract/ws/utf8bytes": [
-          "clone",
-          "default",
-          "deref",
-          "eq"
+        "/deps/axum/extract/ws/rejection/websocketupgraderejection/trait/core/convert/from-axum/extract/ws/rejection/websocketkeyheadermissing": [
+          "from"
         ],
         "/deps/axum/extract/ws/utf8bytes/trait/core/convert/from-axum/extract/ws/utf8bytes": [
           "from"
@@ -430,35 +647,49 @@
         "/deps/axum/extract/ws/utf8bytes/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
-        "/deps/axum/extract/ws/websocket": [
-          "is_terminated"
-        ],
         "/deps/axum/handler/private": [
           "IntoResponseHandler"
         ],
         "/deps/axum/http": [
           "Error",
+          "Error.into",
           "Error.is",
+          "Error.try_into",
           "Extensions",
           "Extensions.clear",
+          "Extensions.clone",
           "Extensions.extend",
+          "Extensions.get",
+          "Extensions.get_mut",
           "Extensions.get_or_insert",
+          "Extensions.get_or_insert_default",
+          "Extensions.get_or_insert_with",
           "Extensions.insert",
+          "Extensions.into",
+          "Extensions.into_response",
+          "Extensions.into_response_parts",
           "Extensions.is_empty",
           "Extensions.len",
           "Extensions.remove",
+          "Extensions.try_into",
+          "Extensions::default",
           "Extensions::new",
           "HeaderMap",
           "HeaderMap.append",
           "HeaderMap.capacity",
           "HeaderMap.clear",
+          "HeaderMap.clone",
           "HeaderMap.contains_key",
           "HeaderMap.drain",
           "HeaderMap.entry",
+          "HeaderMap.eq",
           "HeaderMap.get",
           "HeaderMap.get_all",
           "HeaderMap.get_mut",
           "HeaderMap.insert",
+          "HeaderMap.into",
+          "HeaderMap.into_response",
+          "HeaderMap.into_response_parts",
           "HeaderMap.is_empty",
           "HeaderMap.iter",
           "HeaderMap.iter_mut",
@@ -470,43 +701,75 @@
           "HeaderMap.try_append",
           "HeaderMap.try_entry",
           "HeaderMap.try_insert",
+          "HeaderMap.try_into",
           "HeaderMap.try_reserve",
           "HeaderMap.values",
           "HeaderMap.values_mut",
+          "HeaderMap::default",
+          "HeaderMap::from_iter",
           "HeaderMap::new",
           "HeaderMap::try_with_capacity",
           "HeaderMap::with_capacity",
           "HeaderName",
+          "HeaderName.as_ref",
           "HeaderName.as_str",
-          "HeaderName::from_static",
+          "HeaderName.assert_fields_are_eq",
+          "HeaderName.borrow",
+          "HeaderName.clone",
+          "HeaderName.into",
+          "HeaderName.try_into",
+          "HeaderName::from_str",
           "HeaderValue",
+          "HeaderValue.clone",
+          "HeaderValue.cmp",
+          "HeaderValue.into",
           "HeaderValue.is_empty",
           "HeaderValue.is_sensitive",
           "HeaderValue.len",
           "HeaderValue.set_sensitive",
           "HeaderValue.to_str",
+          "HeaderValue.try_into",
           "HeaderValue::from_maybe_shared",
           "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
-          "HeaderValue::from_static",
           "HeaderValue::from_str",
           "Method",
+          "Method.as_ref",
           "Method.as_str",
+          "Method.assert_fields_are_eq",
+          "Method.clone",
+          "Method.into",
           "Method.is_idempotent",
           "Method.is_safe",
+          "Method.try_into",
+          "Method::default",
+          "Method::from",
+          "Method::from_str",
+          "Method::try_from",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
+          "StatusCode.assert_fields_are_eq",
           "StatusCode.canonical_reason",
+          "StatusCode.clone",
+          "StatusCode.cmp",
+          "StatusCode.into",
+          "StatusCode.into_response",
           "StatusCode.is_client_error",
           "StatusCode.is_informational",
           "StatusCode.is_redirection",
           "StatusCode.is_server_error",
           "StatusCode.is_success",
+          "StatusCode.partial_cmp",
+          "StatusCode.try_into",
+          "StatusCode::default",
+          "StatusCode::from_str",
           "StatusCode::from_u16",
           "Uri",
           "Uri.authority",
+          "Uri.clone",
           "Uri.host",
+          "Uri.into",
           "Uri.into_parts",
           "Uri.path",
           "Uri.path_and_query",
@@ -515,11 +778,25 @@
           "Uri.query",
           "Uri.scheme",
           "Uri.scheme_str",
+          "Uri.try_into",
           "Uri::builder",
+          "Uri::default",
           "Uri::from_maybe_shared",
           "Uri::from_parts",
-          "Uri::from_static",
-          "Version"
+          "Uri::from_str",
+          "Version",
+          "Version.assert_fields_are_eq",
+          "Version.clone",
+          "Version.cmp",
+          "Version.eq",
+          "Version.into",
+          "Version.partial_cmp",
+          "Version.try_into",
+          "Version::default",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/error/trait/core/convert/from-axum/http/header/invalidheadername": [
           "from"
@@ -545,46 +822,31 @@
         "/deps/axum/http/error/trait/core/convert/from-core/convert/infallible": [
           "from"
         ],
-        "/deps/axum/http/extensions": [
-          "clone",
-          "default"
-        ],
         "/deps/axum/http/header": [
           "InvalidHeaderName",
+          "InvalidHeaderName.into",
+          "InvalidHeaderName.try_into",
+          "InvalidHeaderName::from",
           "InvalidHeaderValue",
+          "InvalidHeaderValue.into",
+          "InvalidHeaderValue.try_into",
+          "InvalidHeaderValue::from",
           "MaxSizeReached",
-          "ToStrError"
-        ],
-        "/deps/axum/http/header/invalidheadername": [
-          "from"
-        ],
-        "/deps/axum/http/header/invalidheadervalue": [
-          "from"
+          "MaxSizeReached.into",
+          "MaxSizeReached.try_into",
+          "MaxSizeReached::from",
+          "ToStrError",
+          "ToStrError.into",
+          "ToStrError.try_into"
         ],
         "/deps/axum/http/header/map/as-header-name": [
           "TryEntryError"
-        ],
-        "/deps/axum/http/header/maxsizereached": [
-          "from"
-        ],
-        "/deps/axum/http/headermap": [
-          "clone",
-          "default",
-          "eq",
-          "from_iter"
         ],
         "/deps/axum/http/headermap/trait/core/iter/traits/collect/extend-axum/http/headername-axum/http/headervalue": [
           "extend"
         ],
         "/deps/axum/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-axum/http/headername-axum/http/headervalue": [
           "extend"
-        ],
-        "/deps/axum/http/headername": [
-          "as_ref",
-          "assert_fields_are_eq",
-          "borrow",
-          "clone",
-          "from_str"
         ],
         "/deps/axum/http/headername/trait/core/cmp/partialeq": [
           "eq"
@@ -617,8 +879,6 @@
           "try_from"
         ],
         "/deps/axum/http/headervalue": [
-          "clone",
-          "cmp",
           "from_str"
         ],
         "/deps/axum/http/headervalue/trait/core/cmp/partialeq": [
@@ -683,16 +943,9 @@
         ],
         "/deps/axum/http/method": [
           "InvalidMethod",
-          "as_ref",
-          "assert_fields_are_eq",
-          "clone",
-          "default",
-          "from",
-          "from_str",
-          "try_from"
-        ],
-        "/deps/axum/http/method/invalidmethod": [
-          "from"
+          "InvalidMethod.into",
+          "InvalidMethod.try_into",
+          "InvalidMethod::from"
         ],
         "/deps/axum/http/method/trait/core/cmp/partialeq": [
           "eq"
@@ -715,20 +968,24 @@
           "Builder.header",
           "Builder.headers_mut",
           "Builder.headers_ref",
+          "Builder.into",
           "Builder.method",
           "Builder.method_ref",
+          "Builder.try_into",
           "Builder.uri",
           "Builder.uri_ref",
           "Builder.version",
           "Builder.version_ref",
+          "Builder::default",
           "Builder::new",
-          "Parts"
-        ],
-        "/deps/axum/http/request/builder": [
-          "default"
-        ],
-        "/deps/axum/http/request/parts": [
-          "clone"
+          "Parts",
+          "Parts.clone",
+          "Parts.into",
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/response": [
           "Builder",
@@ -739,35 +996,29 @@
           "Builder.header",
           "Builder.headers_mut",
           "Builder.headers_ref",
+          "Builder.into",
           "Builder.status",
+          "Builder.try_into",
           "Builder.version",
+          "Builder::default",
           "Builder::new",
-          "Parts"
-        ],
-        "/deps/axum/http/response/builder": [
-          "default"
-        ],
-        "/deps/axum/http/response/parts": [
-          "clone"
+          "Parts",
+          "Parts.clone",
+          "Parts.into",
+          "Parts.into_response",
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/status": [
-          "InvalidStatusCode"
-        ],
-        "/deps/axum/http/status/invalidstatuscode": [
-          "from"
-        ],
-        "/deps/axum/http/statuscode": [
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "from_str",
-          "partial_cmp"
+          "InvalidStatusCode",
+          "InvalidStatusCode.into",
+          "InvalidStatusCode.try_into",
+          "InvalidStatusCode::from"
         ],
         "/deps/axum/http/statuscode/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/axum/http/statuscode/trait/core/cmp/partialeq-axum/http/statuscode": [
           "eq"
         ],
         "/deps/axum/http/statuscode/trait/core/cmp/partialeq-u16": [
@@ -787,38 +1038,63 @@
         ],
         "/deps/axum/http/uri": [
           "Authority",
+          "Authority.as_ref",
           "Authority.as_str",
+          "Authority.clone",
           "Authority.host",
+          "Authority.into",
           "Authority.port",
           "Authority.port_u16",
+          "Authority.try_into",
+          "Authority::from",
           "Authority::from_maybe_shared",
-          "Authority::from_static",
+          "Authority::from_str",
           "Builder",
           "Builder.authority",
           "Builder.build",
+          "Builder.into",
           "Builder.path_and_query",
           "Builder.scheme",
+          "Builder.try_into",
+          "Builder::default",
+          "Builder::from",
           "Builder::new",
           "InvalidUri",
+          "InvalidUri.into",
+          "InvalidUri.try_into",
+          "InvalidUri::from",
           "InvalidUriParts",
+          "InvalidUriParts.into",
+          "InvalidUriParts.try_into",
+          "InvalidUriParts::from",
           "Parts",
+          "Parts.into",
+          "Parts.try_into",
+          "Parts::default",
+          "Parts::from",
+          "Parts::try_from",
           "PathAndQuery",
           "PathAndQuery.as_str",
+          "PathAndQuery.clone",
+          "PathAndQuery.into",
           "PathAndQuery.path",
           "PathAndQuery.query",
+          "PathAndQuery.try_into",
+          "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
-          "PathAndQuery::from_static",
+          "PathAndQuery::from_str",
           "Scheme",
+          "Scheme.as_ref",
           "Scheme.as_str",
-          "clone",
-          "default",
-          "from_str"
-        ],
-        "/deps/axum/http/uri/authority": [
-          "as_ref",
-          "clone",
-          "from",
-          "from_str"
+          "Scheme.clone",
+          "Scheme.into",
+          "Scheme.try_into",
+          "Scheme::from_str",
+          "Scheme::try_from",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/axum/http/uri/authority/trait/core/cmp/partialeq": [
           "eq"
@@ -853,26 +1129,6 @@
         "/deps/axum/http/uri/authority/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
-        "/deps/axum/http/uri/builder": [
-          "default",
-          "from"
-        ],
-        "/deps/axum/http/uri/invaliduri": [
-          "from"
-        ],
-        "/deps/axum/http/uri/invaliduriparts": [
-          "from"
-        ],
-        "/deps/axum/http/uri/parts": [
-          "default",
-          "from",
-          "try_from"
-        ],
-        "/deps/axum/http/uri/pathandquery": [
-          "clone",
-          "from",
-          "from_str"
-        ],
         "/deps/axum/http/uri/pathandquery/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -903,16 +1159,7 @@
         "/deps/axum/http/uri/pathandquery/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
-        "/deps/axum/http/uri/scheme": [
-          "as_ref",
-          "clone",
-          "from_str",
-          "try_from"
-        ],
         "/deps/axum/http/uri/scheme/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/axum/http/uri/scheme/trait/core/cmp/partialeq-axum/http/uri/scheme": [
           "eq"
         ],
         "/deps/axum/http/uri/scheme/trait/core/cmp/partialeq-str": [
@@ -951,18 +1198,19 @@
         "/deps/axum/http/uri/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
-        "/deps/axum/http/version": [
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "eq",
-          "partial_cmp"
-        ],
         "/deps/axum/middleware": [
           "Next",
+          "Next.clone",
+          "Next.into",
+          "Next.into_make_service_with_connect_info",
           "Next.run",
+          "Next.try_into",
+          "Next.vzip",
           "ResponseAxumBodyLayer",
+          "ResponseAxumBodyLayer.clone",
+          "ResponseAxumBodyLayer.into",
+          "ResponseAxumBodyLayer.try_into",
+          "ResponseAxumBodyLayer.vzip",
           "from_extractor",
           "from_extractor_with_state",
           "from_fn",
@@ -974,21 +1222,57 @@
         ],
         "/deps/axum/middleware/future": [
           "FromFnResponseFuture",
+          "FromFnResponseFuture.into",
+          "FromFnResponseFuture.try_into",
+          "FromFnResponseFuture.vzip",
           "MapRequestResponseFuture",
-          "MapResponseResponseFuture"
-        ],
-        "/deps/axum/middleware/next": [
-          "clone"
-        ],
-        "/deps/axum/middleware/responseaxumbodylayer": [
-          "clone"
+          "MapRequestResponseFuture.into",
+          "MapRequestResponseFuture.try_into",
+          "MapRequestResponseFuture.vzip",
+          "MapResponseResponseFuture",
+          "MapResponseResponseFuture.into",
+          "MapResponseResponseFuture.try_into",
+          "MapResponseResponseFuture.vzip"
         ],
         "/deps/axum/response": [
+          "AppendHeaders",
+          "AppendHeaders.clone",
+          "AppendHeaders.into",
+          "AppendHeaders.into_response",
+          "AppendHeaders.into_response_parts",
+          "AppendHeaders.try_into",
           "ErrorResponse",
+          "ErrorResponse.into",
+          "ErrorResponse.try_into",
+          "Html",
+          "Html.clone",
+          "Html.into",
+          "Html.into_make_service_with_connect_info",
+          "Html.into_response",
+          "Html.try_into",
+          "Html.vzip",
+          "Html::from",
+          "IntoResponse",
           "NoContent",
+          "NoContent.clone",
+          "NoContent.into",
+          "NoContent.into_make_service",
+          "NoContent.into_make_service_with_connect_info",
+          "NoContent.into_response",
+          "NoContent.into_service",
+          "NoContent.try_into",
+          "NoContent.vzip",
           "Redirect",
+          "Redirect.clone",
+          "Redirect.into",
+          "Redirect.into_make_service",
+          "Redirect.into_make_service_with_connect_info",
+          "Redirect.into_response",
+          "Redirect.into_service",
           "Redirect.location",
           "Redirect.status_code",
+          "Redirect.try_into",
+          "Redirect.vzip",
           "Redirect::permanent",
           "Redirect::temporary",
           "Redirect::to",
@@ -997,49 +1281,54 @@
           "ResponseParts.extensions",
           "ResponseParts.extensions_mut",
           "ResponseParts.headers",
-          "ResponseParts.headers_mut"
-        ],
-        "/deps/axum/response/nocontent": [
-          "clone",
-          "into_response"
-        ],
-        "/deps/axum/response/redirect": [
-          "clone",
-          "into_response"
+          "ResponseParts.headers_mut",
+          "ResponseParts.into",
+          "ResponseParts.try_into"
         ],
         "/deps/axum/response/sse": [
           "Event",
+          "Event.clone",
           "Event.comment",
           "Event.data",
           "Event.event",
           "Event.id",
+          "Event.into",
           "Event.into_data_writer",
           "Event.json_data",
           "Event.retry",
+          "Event.try_into",
+          "Event.vzip",
+          "Event::default",
           "EventDataWriter",
+          "EventDataWriter.into",
           "EventDataWriter.into_event",
+          "EventDataWriter.try_into",
+          "EventDataWriter.vzip",
           "KeepAlive",
+          "KeepAlive.clone",
           "KeepAlive.event",
           "KeepAlive.interval",
+          "KeepAlive.into",
           "KeepAlive.text",
+          "KeepAlive.try_into",
+          "KeepAlive.vzip",
+          "KeepAlive::default",
           "KeepAlive::new"
         ],
-        "/deps/axum/response/sse/event": [
-          "clone",
-          "default"
-        ],
-        "/deps/axum/response/sse/keepalive": [
-          "clone",
-          "default"
-        ],
         "/deps/axum/router": [
-          "clone",
-          "default"
+          "into_make_service_with_connect_info"
         ],
         "/deps/axum/routing": [
           "MethodFilter",
+          "MethodFilter.clone",
+          "MethodFilter.eq",
+          "MethodFilter.into",
           "MethodFilter.or",
+          "MethodFilter.try_into",
+          "MethodFilter.vzip",
           "MethodRouter",
+          "MethodRouter.call",
+          "MethodRouter.clone",
           "MethodRouter.connect",
           "MethodRouter.connect_service",
           "MethodRouter.delete",
@@ -1051,8 +1340,10 @@
           "MethodRouter.handle_error",
           "MethodRouter.head",
           "MethodRouter.head_service",
+          "MethodRouter.into",
           "MethodRouter.into_make_service",
           "MethodRouter.into_make_service_with_connect_info",
+          "MethodRouter.into_service",
           "MethodRouter.layer",
           "MethodRouter.merge",
           "MethodRouter.on",
@@ -1068,9 +1359,17 @@
           "MethodRouter.route_layer",
           "MethodRouter.trace",
           "MethodRouter.trace_service",
+          "MethodRouter.try_into",
+          "MethodRouter.vzip",
           "MethodRouter.with_state",
+          "MethodRouter::default",
           "MethodRouter::new",
           "Route",
+          "Route.clone",
+          "Route.into",
+          "Route.into_make_service_with_connect_info",
+          "Route.try_into",
+          "Route.vzip",
           "any",
           "any_service",
           "connect",
@@ -1095,22 +1394,22 @@
           "trace_service"
         ],
         "/deps/axum/routing/future": [
-          "InfallibleRouteFuture"
+          "InfallibleRouteFuture",
+          "InfallibleRouteFuture.into",
+          "InfallibleRouteFuture.try_into",
+          "InfallibleRouteFuture.vzip"
         ],
         "/deps/axum/routing/method-filter": [
           "NoMatchingMethodFilter"
         ],
-        "/deps/axum/routing/methodfilter": [
-          "clone",
-          "eq"
-        ],
         "/deps/axum/routing/methodrouter": [
-          "call",
-          "clone",
-          "default"
+          "into_make_service"
         ],
-        "/deps/axum/routing/route": [
-          "clone"
+        "/deps/axum/routing/methodrouter/trait/axum/handler/handlerwithoutstateext-t": [
+          "into_make_service_with_connect_info"
+        ],
+        "/deps/axum/routing/methodrouter/trait/axum/serviceext-r": [
+          "into_make_service_with_connect_info"
         ],
         "/deps/axum/serve/private": [
           "ServeFuture"
@@ -1123,28 +1422,32 @@
       "members": {
         "/deps/axum-core": [
           "Error",
+          "Error.into",
+          "Error.try_into",
           "Error::new"
         ],
         "/deps/axum-core/body": [
           "Body",
+          "Body.into",
           "Body.into_data_stream",
+          "Body.into_response",
+          "Body.is_end_stream",
+          "Body.size_hint",
+          "Body.try_into",
+          "Body::default",
           "Body::empty",
           "Body::from_stream",
           "Body::new",
-          "BodyDataStream"
-        ],
-        "/deps/axum-core/body/body": [
-          "default",
-          "is_end_stream",
-          "size_hint"
+          "BodyDataStream",
+          "BodyDataStream.into",
+          "BodyDataStream.is_end_stream",
+          "BodyDataStream.size_hint",
+          "BodyDataStream.try_into"
         ],
         "/deps/axum-core/body/body/trait/core/convert/from": [
           "from"
         ],
         "/deps/axum-core/body/body/trait/core/convert/from-bytes/bytes": [
-          "from"
-        ],
-        "/deps/axum-core/body/body/trait/core/convert/from-static-str": [
           "from"
         ],
         "/deps/axum-core/body/body/trait/core/convert/from-std/string/string": [
@@ -1153,19 +1456,35 @@
         "/deps/axum-core/body/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
-        "/deps/axum-core/body/bodydatastream": [
-          "is_end_stream",
-          "size_hint"
-        ],
         "/deps/axum-core/extract": [
           "DefaultBodyLimit",
           "DefaultBodyLimit.apply",
+          "DefaultBodyLimit.clone",
+          "DefaultBodyLimit.into",
+          "DefaultBodyLimit.try_into",
           "DefaultBodyLimit::disable",
           "DefaultBodyLimit::max",
-          "Request"
-        ],
-        "/deps/axum-core/extract/defaultbodylimit": [
-          "clone"
+          "Request",
+          "Request.body",
+          "Request.body_mut",
+          "Request.clone",
+          "Request.extensions",
+          "Request.extensions_mut",
+          "Request.headers",
+          "Request.headers_mut",
+          "Request.into",
+          "Request.into_body",
+          "Request.map",
+          "Request.method",
+          "Request.method_mut",
+          "Request.try_into",
+          "Request.uri",
+          "Request.uri_mut",
+          "Request.version",
+          "Request.version_mut",
+          "Request::default",
+          "Request::from_parts",
+          "Request::new"
         ],
         "/deps/axum-core/extract/private": [
           "ViaParts",
@@ -1176,32 +1495,76 @@
           "FailedToBufferBody",
           "InvalidUtf8",
           "InvalidUtf8.body_text",
+          "InvalidUtf8.into",
+          "InvalidUtf8.into_response",
           "InvalidUtf8.status",
+          "InvalidUtf8.try_into",
+          "InvalidUtf8::from",
           "LengthLimitError",
           "LengthLimitError.body_text",
+          "LengthLimitError.into",
+          "LengthLimitError.into_response",
           "LengthLimitError.status",
+          "LengthLimitError.try_into",
+          "LengthLimitError::from",
           "StringRejection",
           "UnknownBodyError",
           "UnknownBodyError.body_text",
-          "UnknownBodyError.status"
+          "UnknownBodyError.into",
+          "UnknownBodyError.into_response",
+          "UnknownBodyError.status",
+          "UnknownBodyError.try_into",
+          "UnknownBodyError::from"
         ],
-        "/deps/axum-core/extract/rejection/invalidutf8": [
+        "/deps/axum-core/extract/rejection/failedtobufferbody/trait/core/convert/from-axum-core/extract/rejection/lengthlimiterror": [
           "from"
         ],
-        "/deps/axum-core/extract/rejection/lengthlimiterror": [
+        "/deps/axum-core/extract/rejection/failedtobufferbody/trait/core/convert/from-axum-core/extract/rejection/unknownbodyerror": [
           "from"
         ],
-        "/deps/axum-core/extract/rejection/unknownbodyerror": [
+        "/deps/axum-core/extract/rejection/stringrejection/trait/core/convert/from-axum-core/extract/rejection/failedtobufferbody": [
+          "from"
+        ],
+        "/deps/axum-core/extract/rejection/stringrejection/trait/core/convert/from-axum-core/extract/rejection/invalidutf8": [
           "from"
         ],
         "/deps/axum-core/response": [
+          "AppendHeaders",
+          "AppendHeaders.clone",
+          "AppendHeaders.into",
+          "AppendHeaders.into_response",
+          "AppendHeaders.into_response_parts",
+          "AppendHeaders.try_into",
           "ErrorResponse",
+          "ErrorResponse.into",
+          "ErrorResponse.try_into",
+          "IntoResponse",
           "Response",
+          "Response.body",
+          "Response.body_mut",
+          "Response.clone",
+          "Response.extensions",
+          "Response.extensions_mut",
+          "Response.headers",
+          "Response.headers_mut",
+          "Response.into",
+          "Response.into_body",
+          "Response.map",
+          "Response.status",
+          "Response.status_mut",
+          "Response.try_into",
+          "Response.version",
+          "Response.version_mut",
+          "Response::default",
+          "Response::from_parts",
+          "Response::new",
           "ResponseParts",
           "ResponseParts.extensions",
           "ResponseParts.extensions_mut",
           "ResponseParts.headers",
-          "ResponseParts.headers_mut"
+          "ResponseParts.headers_mut",
+          "ResponseParts.into",
+          "ResponseParts.try_into"
         ]
       },
       "name": "axum-core",
@@ -1211,23 +1574,48 @@
       "members": {
         "/deps/bytes": [
           "Bytes",
+          "Bytes.advance",
           "Bytes.clear",
+          "Bytes.clone",
+          "Bytes.cmp",
+          "Bytes.copy_to_bytes",
+          "Bytes.drop",
+          "Bytes.extend",
+          "Bytes.into",
+          "Bytes.into_response",
           "Bytes.is_empty",
           "Bytes.is_unique",
           "Bytes.len",
+          "Bytes.remaining",
           "Bytes.slice",
           "Bytes.split_off",
           "Bytes.split_to",
           "Bytes.truncate",
+          "Bytes.try_into",
+          "Bytes::default",
+          "Bytes::from_iter",
           "Bytes::from_owner",
           "Bytes::new",
           "BytesMut",
+          "BytesMut.advance",
+          "BytesMut.advance_mut",
           "BytesMut.capacity",
+          "BytesMut.chunk_mut",
           "BytesMut.clear",
+          "BytesMut.clone",
+          "BytesMut.cmp",
+          "BytesMut.copy_to_bytes",
+          "BytesMut.drop",
           "BytesMut.extend_from_within",
           "BytesMut.freeze",
+          "BytesMut.into",
+          "BytesMut.into_response",
           "BytesMut.is_empty",
           "BytesMut.len",
+          "BytesMut.put",
+          "BytesMut.put_bytes",
+          "BytesMut.remaining",
+          "BytesMut.remaining_mut",
           "BytesMut.reserve",
           "BytesMut.resize",
           "BytesMut.set_len",
@@ -1235,12 +1623,18 @@
           "BytesMut.split_off",
           "BytesMut.split_to",
           "BytesMut.truncate",
+          "BytesMut.try_into",
           "BytesMut.try_reclaim",
           "BytesMut.unsplit",
+          "BytesMut::default",
           "BytesMut::new",
           "BytesMut::with_capacity",
           "BytesMut::zeroed",
-          "TryGetError"
+          "TryGetError",
+          "TryGetError.eq",
+          "TryGetError.into",
+          "TryGetError.try_into",
+          "TryGetError::from"
         ],
         "/deps/bytes/buf": [
           "UninitSlice",
@@ -1283,17 +1677,6 @@
         "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
-        "/deps/bytes/bytes": [
-          "advance",
-          "clone",
-          "cmp",
-          "copy_to_bytes",
-          "default",
-          "drop",
-          "extend",
-          "from_iter",
-          "remaining"
-        ],
         "/deps/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -1324,28 +1707,11 @@
         "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut": [
           "from"
         ],
-        "/deps/bytes/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
         "/deps/bytes/bytes/trait/core/convert/from-std/vec/vec-u8": [
           "from"
-        ],
-        "/deps/bytes/bytesmut": [
-          "advance",
-          "advance_mut",
-          "chunk_mut",
-          "clone",
-          "cmp",
-          "copy_to_bytes",
-          "default",
-          "drop",
-          "put",
-          "put_bytes",
-          "remaining",
-          "remaining_mut"
         ],
         "/deps/bytes/bytesmut/trait/core/cmp/partialeq": [
           "eq"
@@ -1394,11 +1760,6 @@
         ],
         "/deps/bytes/bytesmut/trait/core/iter/traits/collect/fromiterator-u8": [
           "from_iter"
-        ],
-        "/deps/bytes/trygeterror": [
-          "assert_fields_are_eq",
-          "eq",
-          "from"
         ]
       },
       "name": "bytes",
@@ -1408,27 +1769,44 @@
       "members": {
         "/deps/http": [
           "Error",
+          "Error.into",
           "Error.is",
+          "Error.try_into",
           "Extensions",
           "Extensions.clear",
+          "Extensions.clone",
           "Extensions.extend",
+          "Extensions.get",
+          "Extensions.get_mut",
           "Extensions.get_or_insert",
+          "Extensions.get_or_insert_default",
+          "Extensions.get_or_insert_with",
           "Extensions.insert",
+          "Extensions.into",
+          "Extensions.into_response",
+          "Extensions.into_response_parts",
           "Extensions.is_empty",
           "Extensions.len",
           "Extensions.remove",
+          "Extensions.try_into",
+          "Extensions::default",
           "Extensions::new",
           "HeaderMap",
           "HeaderMap.append",
           "HeaderMap.capacity",
           "HeaderMap.clear",
+          "HeaderMap.clone",
           "HeaderMap.contains_key",
           "HeaderMap.drain",
           "HeaderMap.entry",
+          "HeaderMap.eq",
           "HeaderMap.get",
           "HeaderMap.get_all",
           "HeaderMap.get_mut",
           "HeaderMap.insert",
+          "HeaderMap.into",
+          "HeaderMap.into_response",
+          "HeaderMap.into_response_parts",
           "HeaderMap.is_empty",
           "HeaderMap.iter",
           "HeaderMap.iter_mut",
@@ -1440,43 +1818,72 @@
           "HeaderMap.try_append",
           "HeaderMap.try_entry",
           "HeaderMap.try_insert",
+          "HeaderMap.try_into",
           "HeaderMap.try_reserve",
           "HeaderMap.values",
           "HeaderMap.values_mut",
+          "HeaderMap::default",
+          "HeaderMap::from_iter",
           "HeaderMap::new",
           "HeaderMap::try_with_capacity",
           "HeaderMap::with_capacity",
           "HeaderName",
+          "HeaderName.as_ref",
           "HeaderName.as_str",
-          "HeaderName::from_static",
+          "HeaderName.borrow",
+          "HeaderName.clone",
+          "HeaderName.into",
+          "HeaderName.try_into",
+          "HeaderName::from_str",
           "HeaderValue",
+          "HeaderValue.clone",
+          "HeaderValue.cmp",
+          "HeaderValue.into",
           "HeaderValue.is_empty",
           "HeaderValue.is_sensitive",
           "HeaderValue.len",
           "HeaderValue.set_sensitive",
           "HeaderValue.to_str",
+          "HeaderValue.try_into",
           "HeaderValue::from_maybe_shared",
           "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
-          "HeaderValue::from_static",
           "HeaderValue::from_str",
           "Method",
+          "Method.as_ref",
           "Method.as_str",
+          "Method.clone",
+          "Method.into",
           "Method.is_idempotent",
           "Method.is_safe",
+          "Method.try_into",
+          "Method::default",
+          "Method::from",
+          "Method::from_str",
+          "Method::try_from",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
           "StatusCode.canonical_reason",
+          "StatusCode.clone",
+          "StatusCode.cmp",
+          "StatusCode.into",
+          "StatusCode.into_response",
           "StatusCode.is_client_error",
           "StatusCode.is_informational",
           "StatusCode.is_redirection",
           "StatusCode.is_server_error",
           "StatusCode.is_success",
+          "StatusCode.partial_cmp",
+          "StatusCode.try_into",
+          "StatusCode::default",
+          "StatusCode::from_str",
           "StatusCode::from_u16",
           "Uri",
           "Uri.authority",
+          "Uri.clone",
           "Uri.host",
+          "Uri.into",
           "Uri.into_parts",
           "Uri.path",
           "Uri.path_and_query",
@@ -1485,11 +1892,24 @@
           "Uri.query",
           "Uri.scheme",
           "Uri.scheme_str",
+          "Uri.try_into",
           "Uri::builder",
+          "Uri::default",
           "Uri::from_maybe_shared",
           "Uri::from_parts",
-          "Uri::from_static",
-          "Version"
+          "Uri::from_str",
+          "Version",
+          "Version.clone",
+          "Version.cmp",
+          "Version.eq",
+          "Version.into",
+          "Version.partial_cmp",
+          "Version.try_into",
+          "Version::default",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/error/trait/core/convert/from-core/convert/infallible": [
           "from"
@@ -1515,46 +1935,31 @@
         "/deps/http/error/trait/core/convert/from-http/uri/invaliduriparts": [
           "from"
         ],
-        "/deps/http/extensions": [
-          "clone",
-          "default"
-        ],
         "/deps/http/header": [
           "InvalidHeaderName",
+          "InvalidHeaderName.into",
+          "InvalidHeaderName.try_into",
+          "InvalidHeaderName::from",
           "InvalidHeaderValue",
+          "InvalidHeaderValue.into",
+          "InvalidHeaderValue.try_into",
+          "InvalidHeaderValue::from",
           "MaxSizeReached",
-          "ToStrError"
-        ],
-        "/deps/http/header/invalidheadername": [
-          "from"
-        ],
-        "/deps/http/header/invalidheadervalue": [
-          "from"
+          "MaxSizeReached.into",
+          "MaxSizeReached.try_into",
+          "MaxSizeReached::from",
+          "ToStrError",
+          "ToStrError.into",
+          "ToStrError.try_into"
         ],
         "/deps/http/header/map/as-header-name": [
           "TryEntryError"
-        ],
-        "/deps/http/header/maxsizereached": [
-          "from"
-        ],
-        "/deps/http/headermap": [
-          "clone",
-          "default",
-          "eq",
-          "from_iter"
         ],
         "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue": [
           "extend"
         ],
         "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue": [
           "extend"
-        ],
-        "/deps/http/headername": [
-          "as_ref",
-          "assert_fields_are_eq",
-          "borrow",
-          "clone",
-          "from_str"
         ],
         "/deps/http/headername/trait/core/cmp/partialeq": [
           "eq"
@@ -1587,8 +1992,6 @@
           "try_from"
         ],
         "/deps/http/headervalue": [
-          "clone",
-          "cmp",
           "from_str"
         ],
         "/deps/http/headervalue/trait/core/cmp/partialeq": [
@@ -1653,16 +2056,9 @@
         ],
         "/deps/http/method": [
           "InvalidMethod",
-          "as_ref",
-          "assert_fields_are_eq",
-          "clone",
-          "default",
-          "from",
-          "from_str",
-          "try_from"
-        ],
-        "/deps/http/method/invalidmethod": [
-          "from"
+          "InvalidMethod.into",
+          "InvalidMethod.try_into",
+          "InvalidMethod::from"
         ],
         "/deps/http/method/trait/core/cmp/partialeq": [
           "eq"
@@ -1685,20 +2081,24 @@
           "Builder.header",
           "Builder.headers_mut",
           "Builder.headers_ref",
+          "Builder.into",
           "Builder.method",
           "Builder.method_ref",
+          "Builder.try_into",
           "Builder.uri",
           "Builder.uri_ref",
           "Builder.version",
           "Builder.version_ref",
+          "Builder::default",
           "Builder::new",
-          "Parts"
-        ],
-        "/deps/http/request/builder": [
-          "default"
-        ],
-        "/deps/http/request/parts": [
-          "clone"
+          "Parts",
+          "Parts.clone",
+          "Parts.into",
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/response": [
           "Builder",
@@ -1709,35 +2109,29 @@
           "Builder.header",
           "Builder.headers_mut",
           "Builder.headers_ref",
+          "Builder.into",
           "Builder.status",
+          "Builder.try_into",
           "Builder.version",
+          "Builder::default",
           "Builder::new",
-          "Parts"
-        ],
-        "/deps/http/response/builder": [
-          "default"
-        ],
-        "/deps/http/response/parts": [
-          "clone"
+          "Parts",
+          "Parts.clone",
+          "Parts.into",
+          "Parts.into_response",
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/status": [
-          "InvalidStatusCode"
-        ],
-        "/deps/http/status/invalidstatuscode": [
-          "from"
-        ],
-        "/deps/http/statuscode": [
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "from_str",
-          "partial_cmp"
+          "InvalidStatusCode",
+          "InvalidStatusCode.into",
+          "InvalidStatusCode.try_into",
+          "InvalidStatusCode::from"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/http/statuscode/trait/core/cmp/partialeq-http/statuscode": [
           "eq"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq-u16": [
@@ -1757,38 +2151,63 @@
         ],
         "/deps/http/uri": [
           "Authority",
+          "Authority.as_ref",
           "Authority.as_str",
+          "Authority.clone",
           "Authority.host",
+          "Authority.into",
           "Authority.port",
           "Authority.port_u16",
+          "Authority.try_into",
+          "Authority::from",
           "Authority::from_maybe_shared",
-          "Authority::from_static",
+          "Authority::from_str",
           "Builder",
           "Builder.authority",
           "Builder.build",
+          "Builder.into",
           "Builder.path_and_query",
           "Builder.scheme",
+          "Builder.try_into",
+          "Builder::default",
+          "Builder::from",
           "Builder::new",
           "InvalidUri",
+          "InvalidUri.into",
+          "InvalidUri.try_into",
+          "InvalidUri::from",
           "InvalidUriParts",
+          "InvalidUriParts.into",
+          "InvalidUriParts.try_into",
+          "InvalidUriParts::from",
           "Parts",
+          "Parts.into",
+          "Parts.try_into",
+          "Parts::default",
+          "Parts::from",
+          "Parts::try_from",
           "PathAndQuery",
           "PathAndQuery.as_str",
+          "PathAndQuery.clone",
+          "PathAndQuery.into",
           "PathAndQuery.path",
           "PathAndQuery.query",
+          "PathAndQuery.try_into",
+          "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
-          "PathAndQuery::from_static",
+          "PathAndQuery::from_str",
           "Scheme",
+          "Scheme.as_ref",
           "Scheme.as_str",
-          "clone",
-          "default",
-          "from_str"
-        ],
-        "/deps/http/uri/authority": [
-          "as_ref",
-          "clone",
-          "from",
-          "from_str"
+          "Scheme.clone",
+          "Scheme.into",
+          "Scheme.try_into",
+          "Scheme::from_str",
+          "Scheme::try_from",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/uri/authority/trait/core/cmp/partialeq": [
           "eq"
@@ -1823,26 +2242,6 @@
         "/deps/http/uri/authority/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
-        "/deps/http/uri/builder": [
-          "default",
-          "from"
-        ],
-        "/deps/http/uri/invaliduri": [
-          "from"
-        ],
-        "/deps/http/uri/invaliduriparts": [
-          "from"
-        ],
-        "/deps/http/uri/parts": [
-          "default",
-          "from",
-          "try_from"
-        ],
-        "/deps/http/uri/pathandquery": [
-          "clone",
-          "from",
-          "from_str"
-        ],
         "/deps/http/uri/pathandquery/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -1873,16 +2272,7 @@
         "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
-        "/deps/http/uri/scheme": [
-          "as_ref",
-          "clone",
-          "from_str",
-          "try_from"
-        ],
         "/deps/http/uri/scheme/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/http/uri/scheme/trait/core/cmp/partialeq-http/uri/scheme": [
           "eq"
         ],
         "/deps/http/uri/scheme/trait/core/cmp/partialeq-str": [
@@ -1920,14 +2310,6 @@
         ],
         "/deps/http/uri/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
-        ],
-        "/deps/http/version": [
-          "assert_fields_are_eq",
-          "clone",
-          "cmp",
-          "default",
-          "eq",
-          "partial_cmp"
         ]
       },
       "name": "http",
@@ -1948,19 +2330,42 @@
           "spawn"
         ],
         "/deps/tokio/future/maybe-done": [
+          "MaybeDone",
+          "MaybeDone-Future",
           "maybe_done"
         ],
         "/deps/tokio/io": [
           "DuplexStream",
+          "DuplexStream.drop",
+          "DuplexStream.into",
+          "DuplexStream.is_write_vectored",
+          "DuplexStream.try_into",
           "Empty",
+          "Empty.into",
+          "Empty.is_write_vectored",
+          "Empty.try_into",
+          "ErrorKind",
           "Interest",
           "Interest.add",
+          "Interest.bitor",
+          "Interest.bitor_assign",
+          "Interest.clone",
+          "Interest.eq",
+          "Interest.into",
           "Interest.is_error",
           "Interest.is_priority",
           "Interest.is_readable",
           "Interest.is_writable",
           "Interest.remove",
+          "Interest.try_into",
           "Ready",
+          "Ready.bitand",
+          "Ready.bitor",
+          "Ready.bitor_assign",
+          "Ready.clone",
+          "Ready.cmp",
+          "Ready.eq",
+          "Ready.into",
           "Ready.is_empty",
           "Ready.is_error",
           "Ready.is_priority",
@@ -1968,57 +2373,59 @@
           "Ready.is_readable",
           "Ready.is_writable",
           "Ready.is_write_closed",
+          "Ready.partial_cmp",
+          "Ready.sub",
+          "Ready.try_into",
           "Repeat",
+          "Repeat.into",
+          "Repeat.try_into",
           "SimplexStream",
+          "SimplexStream.into",
+          "SimplexStream.is_write_vectored",
+          "SimplexStream.try_into",
           "SimplexStream::new_unsplit",
           "Sink",
+          "Sink.into",
+          "Sink.try_into",
           "duplex",
           "empty",
           "join",
           "repeat",
           "sink"
         ],
-        "/deps/tokio/io/duplexstream": [
-          "drop",
-          "is_write_vectored"
-        ],
-        "/deps/tokio/io/empty": [
-          "is_write_vectored"
-        ],
-        "/deps/tokio/io/interest": [
-          "bitor",
-          "bitor_assign",
-          "clone",
-          "eq"
-        ],
-        "/deps/tokio/io/ready": [
-          "bitand",
-          "bitor",
-          "bitor_assign",
-          "clone",
-          "cmp",
-          "eq",
-          "partial_cmp",
-          "sub"
-        ],
-        "/deps/tokio/io/simplexstream": [
-          "is_write_vectored"
-        ],
         "/deps/tokio/io/unix": [
-          "TryIoError"
+          "TryIoError",
+          "TryIoError.into",
+          "TryIoError.try_into"
+        ],
+        "/deps/tokio/macros": [
+          "join",
+          "pin",
+          "select",
+          "task_local",
+          "try_join"
         ],
         "/deps/tokio/net": [
           "TcpListener",
+          "TcpListener.as_fd",
+          "TcpListener.as_raw_fd",
+          "TcpListener.into",
           "TcpListener.into_std",
           "TcpListener.local_addr",
           "TcpListener.set_ttl",
+          "TcpListener.try_into",
           "TcpListener.ttl",
           "TcpListener::bind",
           "TcpListener::from_std",
+          "TcpListener::try_from",
           "TcpSocket",
+          "TcpSocket.as_fd",
+          "TcpSocket.as_raw_fd",
           "TcpSocket.bind",
           "TcpSocket.connect",
           "TcpSocket.device",
+          "TcpSocket.into",
+          "TcpSocket.into_raw_fd",
           "TcpSocket.keepalive",
           "TcpSocket.linger",
           "TcpSocket.listen",
@@ -2041,12 +2448,18 @@
           "TcpSocket.take_error",
           "TcpSocket.tclass_v6",
           "TcpSocket.tos_v4",
+          "TcpSocket.try_into",
+          "TcpSocket::from_raw_fd",
           "TcpSocket::from_std_stream",
           "TcpSocket::new_v4",
           "TcpSocket::new_v6",
           "TcpStream",
+          "TcpStream.as_fd",
+          "TcpStream.as_raw_fd",
           "TcpStream.async_io",
+          "TcpStream.into",
           "TcpStream.into_std",
+          "TcpStream.is_write_vectored",
           "TcpStream.linger",
           "TcpStream.local_addr",
           "TcpStream.nodelay",
@@ -2060,16 +2473,21 @@
           "TcpStream.set_ttl",
           "TcpStream.set_zero_linger",
           "TcpStream.take_error",
+          "TcpStream.try_into",
           "TcpStream.try_io",
           "TcpStream.ttl",
           "TcpStream.writable",
           "TcpStream::connect",
           "TcpStream::from_std",
+          "TcpStream::try_from",
           "UdpSocket",
+          "UdpSocket.as_fd",
+          "UdpSocket.as_raw_fd",
           "UdpSocket.async_io",
           "UdpSocket.broadcast",
           "UdpSocket.connect",
           "UdpSocket.device",
+          "UdpSocket.into",
           "UdpSocket.into_std",
           "UdpSocket.join_multicast_v4",
           "UdpSocket.join_multicast_v6",
@@ -2093,142 +2511,170 @@
           "UdpSocket.take_error",
           "UdpSocket.tclass_v6",
           "UdpSocket.tos_v4",
+          "UdpSocket.try_into",
           "UdpSocket.try_io",
           "UdpSocket.try_peek_sender",
           "UdpSocket.ttl",
           "UdpSocket.writable",
           "UdpSocket::bind",
           "UdpSocket::from_std",
+          "UdpSocket::try_from",
           "UnixListener",
+          "UnixListener.as_fd",
+          "UnixListener.as_raw_fd",
+          "UnixListener.into",
           "UnixListener.into_std",
           "UnixListener.local_addr",
           "UnixListener.take_error",
+          "UnixListener.try_into",
           "UnixListener::bind",
           "UnixListener::bind_addr",
           "UnixListener::from_std",
+          "UnixListener::try_from",
           "UnixSocket",
+          "UnixSocket.as_fd",
+          "UnixSocket.as_raw_fd",
           "UnixSocket.bind",
           "UnixSocket.connect",
+          "UnixSocket.into",
+          "UnixSocket.into_raw_fd",
           "UnixSocket.listen",
+          "UnixSocket.try_into",
+          "UnixSocket::from_raw_fd",
           "UnixSocket::new_datagram",
           "UnixSocket::new_stream",
           "UnixStream",
+          "UnixStream.as_fd",
+          "UnixStream.as_raw_fd",
           "UnixStream.async_io",
+          "UnixStream.into",
           "UnixStream.into_std",
+          "UnixStream.is_write_vectored",
           "UnixStream.local_addr",
           "UnixStream.peer_addr",
           "UnixStream.peer_cred",
           "UnixStream.readable",
           "UnixStream.ready",
           "UnixStream.take_error",
+          "UnixStream.try_into",
           "UnixStream.try_io",
           "UnixStream.writable",
           "UnixStream::connect",
           "UnixStream::connect_addr",
           "UnixStream::from_std",
-          "UnixStream::pair"
+          "UnixStream::pair",
+          "UnixStream::try_from"
         ],
         "/deps/tokio/net/addr/sealed": [
           "Internal"
         ],
         "/deps/tokio/net/tcp": [
           "OwnedReadHalf",
+          "OwnedReadHalf.as_ref",
+          "OwnedReadHalf.into",
           "OwnedReadHalf.local_addr",
           "OwnedReadHalf.peer_addr",
           "OwnedReadHalf.readable",
           "OwnedReadHalf.ready",
           "OwnedReadHalf.reunite",
+          "OwnedReadHalf.try_into",
           "OwnedWriteHalf",
+          "OwnedWriteHalf.as_ref",
+          "OwnedWriteHalf.drop",
           "OwnedWriteHalf.forget",
+          "OwnedWriteHalf.into",
+          "OwnedWriteHalf.is_write_vectored",
           "OwnedWriteHalf.local_addr",
           "OwnedWriteHalf.peer_addr",
           "OwnedWriteHalf.ready",
           "OwnedWriteHalf.reunite",
+          "OwnedWriteHalf.try_into",
           "OwnedWriteHalf.writable",
-          "ReuniteError"
-        ],
-        "/deps/tokio/net/tcp/ownedreadhalf": [
-          "as_ref"
-        ],
-        "/deps/tokio/net/tcp/ownedwritehalf": [
-          "as_ref",
-          "drop",
-          "is_write_vectored"
+          "ReuniteError",
+          "ReuniteError.into",
+          "ReuniteError.try_into"
         ],
         "/deps/tokio/net/tcplistener": [
-          "as_fd",
-          "as_raw_fd",
-          "try_from"
-        ],
-        "/deps/tokio/net/tcpsocket": [
-          "as_fd",
-          "as_raw_fd",
-          "from_raw_fd",
-          "into_raw_fd"
-        ],
-        "/deps/tokio/net/tcpstream": [
-          "as_fd",
-          "as_raw_fd",
-          "is_write_vectored",
-          "try_from"
-        ],
-        "/deps/tokio/net/udpsocket": [
-          "as_fd",
-          "as_raw_fd",
-          "try_from"
+          "local_addr"
         ],
         "/deps/tokio/net/unix": [
           "OwnedReadHalf",
+          "OwnedReadHalf.as_ref",
+          "OwnedReadHalf.into",
           "OwnedReadHalf.local_addr",
           "OwnedReadHalf.peer_addr",
           "OwnedReadHalf.readable",
           "OwnedReadHalf.ready",
           "OwnedReadHalf.reunite",
+          "OwnedReadHalf.try_into",
           "OwnedWriteHalf",
+          "OwnedWriteHalf.as_ref",
+          "OwnedWriteHalf.drop",
           "OwnedWriteHalf.forget",
+          "OwnedWriteHalf.into",
+          "OwnedWriteHalf.is_write_vectored",
           "OwnedWriteHalf.local_addr",
           "OwnedWriteHalf.peer_addr",
           "OwnedWriteHalf.ready",
           "OwnedWriteHalf.reunite",
+          "OwnedWriteHalf.try_into",
           "OwnedWriteHalf.writable",
           "ReuniteError",
+          "ReuniteError.into",
+          "ReuniteError.try_into",
           "SocketAddr",
           "SocketAddr.as_pathname",
+          "SocketAddr.clone",
+          "SocketAddr.into",
           "SocketAddr.is_unnamed",
+          "SocketAddr.try_into",
           "UCred",
+          "UCred.clone",
+          "UCred.eq",
           "UCred.gid",
+          "UCred.into",
           "UCred.pid",
-          "UCred.uid"
-        ],
-        "/deps/tokio/net/unix/ownedreadhalf": [
-          "as_ref"
-        ],
-        "/deps/tokio/net/unix/ownedwritehalf": [
-          "as_ref",
-          "drop",
-          "is_write_vectored"
+          "UCred.try_into",
+          "UCred.uid",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/tokio/net/unix/pipe": [
           "OpenOptions",
+          "OpenOptions.clone",
+          "OpenOptions.into",
           "OpenOptions.open_receiver",
           "OpenOptions.open_sender",
           "OpenOptions.read_write",
+          "OpenOptions.try_into",
           "OpenOptions.unchecked",
+          "OpenOptions::default",
           "OpenOptions::new",
           "Receiver",
+          "Receiver.as_fd",
+          "Receiver.as_raw_fd",
+          "Receiver.into",
           "Receiver.into_blocking_fd",
           "Receiver.into_nonblocking_fd",
           "Receiver.readable",
           "Receiver.ready",
+          "Receiver.try_into",
           "Receiver.try_io",
           "Receiver::from_file",
           "Receiver::from_file_unchecked",
           "Receiver::from_owned_fd",
           "Receiver::from_owned_fd_unchecked",
           "Sender",
+          "Sender.as_fd",
+          "Sender.as_raw_fd",
+          "Sender.into",
           "Sender.into_blocking_fd",
           "Sender.into_nonblocking_fd",
+          "Sender.is_write_vectored",
           "Sender.ready",
+          "Sender.try_into",
           "Sender.try_io",
           "Sender.writable",
           "Sender::from_file",
@@ -2236,48 +2682,14 @@
           "Sender::from_owned_fd",
           "Sender::from_owned_fd_unchecked"
         ],
-        "/deps/tokio/net/unix/pipe/openoptions": [
-          "clone",
-          "default"
-        ],
-        "/deps/tokio/net/unix/pipe/receiver": [
-          "as_fd",
-          "as_raw_fd"
-        ],
-        "/deps/tokio/net/unix/pipe/sender": [
-          "as_fd",
-          "as_raw_fd",
-          "is_write_vectored"
-        ],
-        "/deps/tokio/net/unix/socketaddr": [
-          "clone"
-        ],
         "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-std/os/unix/net/addr/socketaddr": [
           "from"
         ],
         "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-tokio/net/unix/socketaddr": [
           "from"
         ],
-        "/deps/tokio/net/unix/ucred": [
-          "clone",
-          "eq"
-        ],
         "/deps/tokio/net/unixlistener": [
-          "as_fd",
-          "as_raw_fd",
-          "try_from"
-        ],
-        "/deps/tokio/net/unixsocket": [
-          "as_fd",
-          "as_raw_fd",
-          "from_raw_fd",
-          "into_raw_fd"
-        ],
-        "/deps/tokio/net/unixstream": [
-          "as_fd",
-          "as_raw_fd",
-          "is_write_vectored",
-          "try_from"
+          "local_addr"
         ],
         "/deps/tokio/runtime": [
           "Builder",
@@ -2288,6 +2700,7 @@
           "Builder.enable_time",
           "Builder.event_interval",
           "Builder.global_queue_interval",
+          "Builder.into",
           "Builder.max_blocking_threads",
           "Builder.max_io_events_per_tick",
           "Builder.name",
@@ -2299,91 +2712,111 @@
           "Builder.thread_name",
           "Builder.thread_name_fn",
           "Builder.thread_stack_size",
+          "Builder.try_into",
           "Builder.worker_threads",
           "Builder::new_current_thread",
           "Handle",
           "Handle.block_on",
+          "Handle.clone",
           "Handle.enter",
           "Handle.id",
+          "Handle.into",
           "Handle.metrics",
           "Handle.name",
           "Handle.runtime_flavor",
           "Handle.spawn",
           "Handle.spawn_blocking",
+          "Handle.try_into",
           "Handle::current",
           "Handle::try_current",
           "Id",
+          "Id.clone",
+          "Id.eq",
+          "Id.into",
+          "Id.try_into",
           "LocalOptions",
+          "LocalOptions.into",
+          "LocalOptions.try_into",
+          "LocalOptions::default",
           "LocalRuntime",
           "LocalRuntime.block_on",
+          "LocalRuntime.drop",
           "LocalRuntime.enter",
           "LocalRuntime.handle",
+          "LocalRuntime.into",
           "LocalRuntime.metrics",
           "LocalRuntime.shutdown_background",
           "LocalRuntime.shutdown_timeout",
           "LocalRuntime.spawn_blocking",
           "LocalRuntime.spawn_local",
+          "LocalRuntime.try_into",
           "LocalRuntime::new",
           "Runtime",
           "Runtime.block_on",
+          "Runtime.drop",
           "Runtime.enter",
           "Runtime.handle",
+          "Runtime.into",
           "Runtime.metrics",
           "Runtime.shutdown_background",
           "Runtime.shutdown_timeout",
           "Runtime.spawn",
           "Runtime.spawn_blocking",
+          "Runtime.try_into",
           "RuntimeFlavor",
           "RuntimeMetrics",
+          "RuntimeMetrics.clone",
           "RuntimeMetrics.global_queue_depth",
+          "RuntimeMetrics.into",
           "RuntimeMetrics.num_alive_tasks",
           "RuntimeMetrics.num_workers",
+          "RuntimeMetrics.try_into",
           "RuntimeMetrics.worker_park_count",
           "RuntimeMetrics.worker_park_unpark_count",
           "RuntimeMetrics.worker_total_busy_duration",
           "TryCurrentError",
+          "TryCurrentError.into",
           "TryCurrentError.is_missing_context",
           "TryCurrentError.is_thread_local_destroyed",
+          "TryCurrentError.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map",
           "is_rt_shutdown_err"
-        ],
-        "/deps/tokio/runtime/handle": [
-          "clone"
-        ],
-        "/deps/tokio/runtime/id": [
-          "clone",
-          "eq"
-        ],
-        "/deps/tokio/runtime/localoptions": [
-          "default"
-        ],
-        "/deps/tokio/runtime/localruntime": [
-          "drop"
-        ],
-        "/deps/tokio/runtime/runtime": [
-          "drop"
-        ],
-        "/deps/tokio/runtime/runtimemetrics": [
-          "clone"
         ],
         "/deps/tokio/sync": [
           "AcquireError",
+          "AcquireError.into",
+          "AcquireError.try_into",
           "Barrier",
+          "Barrier.into",
+          "Barrier.try_into",
           "Barrier.wait",
           "Barrier::new",
           "BarrierWaitResult",
+          "BarrierWaitResult.clone",
+          "BarrierWaitResult.into",
           "BarrierWaitResult.is_leader",
+          "BarrierWaitResult.try_into",
           "Notify",
+          "Notify.into",
           "Notify.notify_last",
           "Notify.notify_one",
           "Notify.notify_waiters",
+          "Notify.try_into",
           "Notify::const_new",
+          "Notify::default",
           "Notify::new",
           "OwnedSemaphorePermit",
+          "OwnedSemaphorePermit.drop",
           "OwnedSemaphorePermit.forget",
+          "OwnedSemaphorePermit.into",
           "OwnedSemaphorePermit.merge",
           "OwnedSemaphorePermit.num_permits",
           "OwnedSemaphorePermit.semaphore",
           "OwnedSemaphorePermit.split",
+          "OwnedSemaphorePermit.try_into",
           "Semaphore",
           "Semaphore.acquire",
           "Semaphore.acquire_many",
@@ -2391,118 +2824,201 @@
           "Semaphore.available_permits",
           "Semaphore.close",
           "Semaphore.forget_permits",
+          "Semaphore.into",
           "Semaphore.is_closed",
           "Semaphore.try_acquire",
           "Semaphore.try_acquire_many",
+          "Semaphore.try_into",
           "Semaphore::const_new",
           "Semaphore::new",
+          "SetError",
+          "SetOnceError",
+          "SetOnceError.eq",
+          "SetOnceError.into",
+          "SetOnceError.try_into",
           "TryAcquireError",
-          "TryLockError"
-        ],
-        "/deps/tokio/sync/barrierwaitresult": [
-          "clone"
+          "TryLockError",
+          "TryLockError.into",
+          "TryLockError.try_into"
         ],
         "/deps/tokio/sync/broadcast/error": [
           "RecvError",
+          "SendError",
+          "SendError.into",
+          "SendError.try_into",
           "TryRecvError"
         ],
         "/deps/tokio/sync/futures": [
-          "OwnedNotified"
-        ],
-        "/deps/tokio/sync/futures/ownednotified": [
-          "drop"
+          "OwnedNotified",
+          "OwnedNotified.drop",
+          "OwnedNotified.into",
+          "OwnedNotified.try_into"
         ],
         "/deps/tokio/sync/mpsc/error": [
-          "TryRecvError"
-        ],
-        "/deps/tokio/sync/notify": [
-          "default"
+          "SendError",
+          "SendError.clone",
+          "SendError.eq",
+          "SendError.into",
+          "SendError.try_into",
+          "SendError::from",
+          "SendTimeoutError",
+          "TryRecvError",
+          "TrySendError"
         ],
         "/deps/tokio/sync/oneshot/error": [
           "RecvError",
+          "RecvError.clone",
+          "RecvError.eq",
+          "RecvError.into",
+          "RecvError.try_into",
           "TryRecvError"
         ],
-        "/deps/tokio/sync/oneshot/error/recverror": [
-          "clone",
-          "eq"
-        ],
-        "/deps/tokio/sync/ownedsemaphorepermit": [
-          "drop"
-        ],
         "/deps/tokio/sync/watch/error": [
-          "RecvError"
-        ],
-        "/deps/tokio/sync/watch/error/recverror": [
-          "clone"
+          "RecvError",
+          "RecvError.clone",
+          "RecvError.into",
+          "RecvError.try_into",
+          "SendError",
+          "SendError.clone",
+          "SendError.eq",
+          "SendError.into",
+          "SendError.try_into"
         ],
         "/deps/tokio/task": [
           "AbortHandle",
           "AbortHandle.abort",
+          "AbortHandle.clone",
+          "AbortHandle.drop",
           "AbortHandle.id",
+          "AbortHandle.into",
           "AbortHandle.is_finished",
+          "AbortHandle.try_into",
           "Id",
+          "Id.clone",
+          "Id.cmp",
+          "Id.eq",
+          "Id.into",
+          "Id.partial_cmp",
+          "Id.try_into",
           "JoinError",
           "JoinError.id",
+          "JoinError.into",
           "JoinError.is_cancelled",
           "JoinError.is_panic",
+          "JoinError.try_into",
+          "JoinError::from",
           "LocalEnterGuard",
+          "LocalEnterGuard.drop",
+          "LocalEnterGuard.into",
+          "LocalEnterGuard.try_into",
           "LocalSet",
           "LocalSet.block_on",
+          "LocalSet.drop",
           "LocalSet.enter",
           "LocalSet.id",
+          "LocalSet.into",
           "LocalSet.run_until",
           "LocalSet.spawn_local",
+          "LocalSet.try_into",
           "id",
           "spawn_blocking",
           "spawn_local",
           "try_id",
           "yield_now"
         ],
-        "/deps/tokio/task/aborthandle": [
-          "clone",
-          "drop"
-        ],
         "/deps/tokio/task/coop": [
           "RestoreOnPending",
+          "RestoreOnPending.drop",
+          "RestoreOnPending.into",
           "RestoreOnPending.made_progress",
+          "RestoreOnPending.try_into",
           "consume_budget",
           "cooperative",
           "has_budget_remaining",
           "unconstrained"
         ],
-        "/deps/tokio/task/coop/restoreonpending": [
-          "drop"
-        ],
-        "/deps/tokio/task/id": [
-          "clone",
-          "cmp",
-          "eq",
-          "partial_cmp"
-        ],
-        "/deps/tokio/task/joinerror": [
-          "from"
-        ],
-        "/deps/tokio/task/localenterguard": [
-          "drop"
-        ],
-        "/deps/tokio/task/localset": [
-          "drop"
-        ],
         "/deps/tokio/task/task-local": [
           "AccessError"
         ],
         "/deps/tokio/time": [
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.add",
+          "Duration.add_assign",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.clone",
+          "Duration.cmp",
+          "Duration.div",
+          "Duration.div_assign",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.eq",
+          "Duration.into",
+          "Duration.is_zero",
+          "Duration.mul_assign",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.partial_cmp",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.sub",
+          "Duration.sub_assign",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration.try_into",
+          "Duration::default",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
           "Instant",
+          "Instant.add",
+          "Instant.add_assign",
           "Instant.checked_add",
           "Instant.checked_duration_since",
           "Instant.checked_sub",
+          "Instant.clone",
+          "Instant.cmp",
           "Instant.duration_since",
           "Instant.elapsed",
+          "Instant.eq",
+          "Instant.into",
           "Instant.into_std",
+          "Instant.partial_cmp",
           "Instant.saturating_duration_since",
+          "Instant.sub_assign",
+          "Instant.try_into",
           "Instant::from_std",
           "Instant::now",
           "Interval",
+          "Interval.into",
           "Interval.missed_tick_behavior",
           "Interval.period",
           "Interval.reset",
@@ -2511,40 +3027,37 @@
           "Interval.reset_immediately",
           "Interval.set_missed_tick_behavior",
           "Interval.tick",
+          "Interval.try_into",
           "MissedTickBehavior",
           "Sleep",
           "Sleep.deadline",
+          "Sleep.into",
           "Sleep.is_elapsed",
+          "Sleep.try_into",
           "interval",
           "interval_at",
           "timeout",
           "timeout_at"
         ],
+        "/deps/tokio/time/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
+        ],
         "/deps/tokio/time/error": [
           "Elapsed",
+          "Elapsed.eq",
+          "Elapsed.into",
+          "Elapsed.try_into",
+          "Elapsed::from",
           "Error",
+          "Error.clone",
+          "Error.into",
           "Error.is_at_capacity",
           "Error.is_invalid",
           "Error.is_shutdown",
+          "Error.try_into",
           "Error::at_capacity",
           "Error::invalid",
           "Error::shutdown"
-        ],
-        "/deps/tokio/time/error/elapsed": [
-          "eq",
-          "from"
-        ],
-        "/deps/tokio/time/error/error": [
-          "clone"
-        ],
-        "/deps/tokio/time/instant": [
-          "add",
-          "add_assign",
-          "clone",
-          "cmp",
-          "eq",
-          "partial_cmp",
-          "sub_assign"
         ],
         "/deps/tokio/time/instant/trait/core/convert/from-std/time/instant": [
           "from"
@@ -2570,26 +3083,6 @@
   ],
   "format": 4,
   "removed": [],
-  "resolution": {
-    "events": [
-      {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
-      }
-    ],
-    "outcome": "LocalRustdoc"
-  },
   "rustdoc_format": 57,
   "source": "Local"
 }

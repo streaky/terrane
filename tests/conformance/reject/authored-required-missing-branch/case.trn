@@ -1,0 +1,6 @@
+namespace rejected-required
+class envelope of (T)
+    payload T
+    function construct; payload T, enabled bool
+        if enabled
+            this.payload = payload

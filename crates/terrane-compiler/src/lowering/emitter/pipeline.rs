@@ -204,6 +204,82 @@ fn lower_with_tests(
     let mut runtime = Vec::new();
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
+    for unit in &package.units {
+        let emitter = Emitter::new(&registry, package, unit, false);
+        let mut nodes = vec![&unit.tree.root];
+        while let Some(call) = nodes.pop() {
+            nodes.extend(&call.children);
+            if call.kind != SyntaxKind::CallExpression {
+                continue;
+            }
+            let Some(callee) = call.children.first() else {
+                continue;
+            };
+            let parameters = unit
+                .projected_call_specializations
+                .get(&(call.span.file, call.span.start, call.span.end))
+                .map(|specialization| specialization.projected_parameters.as_slice())
+                .or_else(|| {
+                    emitter
+                        .projected_function_for_call(callee)
+                        .map(|function| function.parameters.as_slice())
+                });
+            let Some(parameters) = parameters else {
+                continue;
+            };
+            for (argument, parameter) in call
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::ArgumentList)
+                .flat_map(|arguments| &arguments.children)
+                .map(|argument| argument.children.last().unwrap_or(argument))
+                .zip(parameters)
+            {
+                let crate::rust_interop::projection::ProjectedType::Callback {
+                    parameter_rust_types,
+                    ..
+                } = &parameter.ty
+                else {
+                    continue;
+                };
+                if argument.kind != SyntaxKind::Name {
+                    continue;
+                }
+                let Some(contract) = emitter.contract_for_call(argument) else {
+                    continue;
+                };
+                let contract = package
+                    .units
+                    .iter()
+                    .filter(|owner| owner.source.id() == contract.span.file)
+                    .flat_map(|owner| &owner.functions)
+                    .find(|function| function.span == contract.span)
+                    .unwrap_or(contract);
+                for (index, (parameter, rust_type)) in contract
+                    .parameters
+                    .iter()
+                    .zip(parameter_rust_types)
+                    .enumerate()
+                {
+                    if parameter.mutable
+                        && matches!(
+                            parameter.binding_value_type(),
+                            Some(ValueType::Reference(_))
+                        )
+                        && matches!(syn::parse_str::<syn::Type>(rust_type), Ok(syn::Type::Reference(reference)) if reference.mutability.is_some())
+                    {
+                        registry
+                            .mutable_native_callback_parameters
+                            .borrow_mut()
+                            .insert((
+                                (contract.span.file, contract.span.start, contract.span.end),
+                                index,
+                            ));
+                    }
+                }
+            }
+        }
+    }
     let uses_errors = tests.is_some()
         || package_uses_structured_errors(package)
         || package_uses_task_scope(package);
@@ -227,28 +303,34 @@ fn lower_with_tests(
             .iter()
             .flat_map(|unit| &unit.functions)
             .any(|function| function.name == "main" && function.is_async);
-    let package_has_callable = |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
-        package.units.iter().any(|unit| {
-            unit.typed_bindings
+    let package_has_callable =
+        |predicate: &dyn Fn(bool, &CallableEffects) -> bool| {
+            package
+                .units
                 .iter()
-                .any(|binding| value_type_contains_callable(&binding.value_type, &predicate))
-                || unit.descriptors.iter().any(|descriptor| {
-                    descriptor
-                        .fields
-                        .iter()
-                        .any(|field| value_type_contains_callable(&field.value_type, &predicate))
-                })
-                || unit.functions.iter().any(|function| {
-                    function.parameters.iter().any(|parameter| {
-                        parameter.value_type.as_ref().is_some_and(|value_type| {
-                            value_type_contains_callable(value_type, &predicate)
+                .filter(|unit| unit.namespace != "/deps" && !unit.namespace.starts_with("/deps/"))
+                .any(|unit| {
+                    unit.typed_bindings.iter().any(|binding| {
+                        value_type_contains_callable(&binding.value_type, &predicate)
+                    }) || unit.descriptors.iter().any(|descriptor| {
+                        descriptor.fields.iter().any(|field| {
+                            value_type_contains_callable(&field.value_type, &predicate)
                         })
-                    }) || function.return_type.as_ref().is_some_and(|value_type| {
-                        value_type_contains_callable(value_type, &predicate)
-                    })
+                    }) || unit
+                        .functions
+                        .iter()
+                        .filter(|function| function.span.file == unit.source.id())
+                        .any(|function| {
+                            function.parameters.iter().any(|parameter| {
+                                parameter.value_type.as_ref().is_some_and(|value_type| {
+                                    value_type_contains_callable(value_type, &predicate)
+                                })
+                            }) || function.return_type.as_ref().is_some_and(|value_type| {
+                                value_type_contains_callable(value_type, &predicate)
+                            })
+                        })
                 })
-        })
-    };
+        };
     let has_mutable_callables =
         package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Mutable);
     let has_consuming_callables =
@@ -308,15 +390,6 @@ fn lower_with_tests(
             source_files: vec!["async_mutable_state.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/async_mutable_state.rs"
-            ))],
-        });
-    }
-    if has_consuming_callables {
-        runtime.push(GeneratedModule {
-            name: "consuming-callable",
-            source_files: vec!["consuming_callable.rs"],
-            items: vec![Item::generated(include_str!(
-                "../../runtime/consuming_callable.rs"
             ))],
         });
     }
@@ -732,6 +805,7 @@ fn lower_with_tests(
                     SyntaxKind::ClassDeclaration
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::TraitDeclaration => emitter.object(node),
+                    SyntaxKind::EnumDeclaration => emitter.enum_declaration(node),
                     _ => {}
                 }
                 if !emitter.output.is_empty() {
@@ -750,6 +824,24 @@ fn lower_with_tests(
             })
         })
         .collect::<Result<Vec<_>, LoweringFailure>>()?;
+    if !has_mutable_callables && registry.uses_mutable_callable.get() {
+        runtime.push(GeneratedModule {
+            name: "mutable-callable",
+            source_files: vec!["mutable_callable.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/mutable_callable.rs"
+            ))],
+        });
+    }
+    if has_consuming_callables || registry.uses_consuming_callable.get() {
+        runtime.push(GeneratedModule {
+            name: "consuming-callable",
+            source_files: vec!["consuming_callable.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/consuming_callable.rs"
+            ))],
+        });
+    }
     if let Some(tests) = tests {
         modules.push(Module {
             source_path: "<compiler-generated test registry>".to_owned(),
@@ -780,6 +872,8 @@ fn lower_with_tests(
         version: crate::VERSION,
         requires_platform_support,
         requires_async_runtime: has_async_entry || projected_async_entry || has_async_finally,
+        requires_blocking_runtime: uses_streams || uses_filesystem || uses_networking,
+        requires_runtime_sync: has_async_mutable_callables || (has_async && native_cancellation),
         runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))

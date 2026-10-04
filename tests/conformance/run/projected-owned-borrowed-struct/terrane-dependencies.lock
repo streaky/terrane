@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "terrane-borrowed-struct-witness"
-version = "0.1.5"
+version = "0.1.6"
 
 [[package]]
 name = "terrane_dependency_projection"

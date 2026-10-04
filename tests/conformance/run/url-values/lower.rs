@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -491,7 +491,7 @@ pub struct UrlQuery {
 }
 impl UrlQuery {
     pub fn terrane_construct() -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             keys: terrane_collection_support::List::<
                 String,
             >::new(vec![String::from("")]),
@@ -500,8 +500,8 @@ impl UrlQuery {
             >::new(vec![String::from("")]),
             count: terrane_int_support::Int::from(0_i128),
         };
-        value.construct();
-        value
+        __terrane_constructed_value.construct();
+        __terrane_constructed_value
     }
     pub fn construct(&mut self) {
         let keys: terrane_collection_support::List<String> = terrane_collection_support::List::<
@@ -631,7 +631,7 @@ impl Url {
         fragment: String,
         origin: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             serialized: String::from(""),
             display: String::from(""),
             scheme: String::from(""),
@@ -644,7 +644,7 @@ impl Url {
             fragment: String::from(""),
             origin: String::from(""),
         };
-        value
+        __terrane_constructed_value
             .construct(
                 serialized,
                 display,
@@ -658,7 +658,7 @@ impl Url {
                 fragment,
                 origin,
             );
-        value
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -701,7 +701,7 @@ pub struct UrlResult {
 }
 impl UrlResult {
     pub fn terrane_construct(failed: bool, message: String, parsed_url: Url) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: Url::terrane_construct(
@@ -718,8 +718,8 @@ impl UrlResult {
                 String::from(""),
             ),
         };
-        value.construct(failed, message, parsed_url);
-        value
+        __terrane_constructed_value.construct(failed, message, parsed_url);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, parsed_url: Url) {
         self.failed = failed;

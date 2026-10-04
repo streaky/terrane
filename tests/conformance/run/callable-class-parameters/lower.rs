@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -445,11 +445,11 @@ impl DirectHolder {
             dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             stored: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(operation);
-        value
+        __terrane_constructed_value.construct(operation);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -489,11 +489,11 @@ impl BaseHolderStorage {
             dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             stored: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(operation);
-        value
+        __terrane_constructed_value.construct(operation);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -561,11 +561,11 @@ impl ChildHolder {
             dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             stored: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(operation);
-        value
+        __terrane_constructed_value.construct(operation);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,

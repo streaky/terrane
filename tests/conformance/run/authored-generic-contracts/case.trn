@@ -1,0 +1,46 @@
+namespace authored-generic-contracts
+from /core/output import print
+
+class envelope of (T)
+    payload T
+    function construct; payload T
+        this.payload = payload
+
+class slot of (T)
+    value T|none = none
+    mutable function set; value T
+        this.value = value
+
+function identity of (T) T; value T
+    return value
+
+function choose of (T) T; first T, second T, use-first bool
+    if use-first
+        return first
+    return second
+
+function apply of (T, U) U; value T, transform function from T to U
+    return transform; value
+
+function label string; value int
+    if value == 41
+        return 'forty-one'
+    return 'other'
+
+function main;
+    number-envelope = instance envelope; 41
+    text-envelope envelope of string = instance envelope; 'hello'
+    print; number-envelope.payload
+    print; text-envelope.payload
+    print; ((identity of int); 42)
+    selected int = choose; 11, 23, false
+    print; selected
+    transformed string = apply; 41, label
+    print; transformed
+    keep-int function from int to int = identity of int
+    print; (keep-int; 44)
+    pending = instance (slot of string);
+    pending.set; 'ready'
+    value = pending.value
+    if value != none
+        print; value

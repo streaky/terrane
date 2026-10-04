@@ -1,0 +1,25 @@
+namespace app
+
+from /deps/witness import Basket, Element, Response, Selected, Token, destination
+
+function main throws dependency-error;
+    token Token = Token::from_str; 'good'
+    other Token = Token::from_str; 'good'
+    print; (token.contains; ref other)
+
+    response Response = Token::create;
+    print; (response.value;)
+
+    token = Token::from_str; 'good'
+    response = token.into_response;
+    print; (response.value;)
+
+    token = Token::from_str; 'good'
+    element Element = token.into;
+    print; (element.value;)
+
+    basket Basket = Basket::new;
+    print; (basket.len;)
+
+    selected Selected = destination;
+    print; (selected.value;)

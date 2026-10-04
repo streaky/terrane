@@ -1,0 +1,13 @@
+namespace authored-generic-mutual-expanding-recursion
+class box of (T)
+    value T
+    function construct; input T
+        this.value = input
+
+function first of (T) int; value T, count int
+    if count == 0
+        return 0
+    return second; (instance box; value), count - 1
+
+function second of (U) int; value U, count int
+    return first; value, count

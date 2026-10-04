@@ -1,0 +1,41 @@
+namespace authored-generic-selection
+from /core/output import print
+
+class slot of (T)
+    value T|none = none
+
+function identity of (T) T; value T
+    return value
+
+function absent of (T) T|none;
+    return none
+
+function apply of (T, U) U; value T, transform function from T to U
+    return transform; value
+
+function render string; value int
+    return 'mapped'
+
+enum pair
+    values; first int, second int
+
+function first int;
+    print; 'first'
+    return 11
+
+function second int;
+    print; 'second'
+    return 23
+
+function main;
+    empty slot of string = instance slot;
+    print; (empty.value == none)
+    missing int|none = absent;
+    print; (missing == none)
+    keep function from int to int = identity
+    print; (keep; 44)
+    print; (apply; 4, render)
+    state = instance pair::values; second = (second;), first = (first;)
+    match state
+        case pair::values; left, right
+            print; (left + right)

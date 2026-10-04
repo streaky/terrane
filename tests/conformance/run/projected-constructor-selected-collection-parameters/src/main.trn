@@ -1,0 +1,12 @@
+namespace app
+
+from /deps/witness import Batch, total
+from /core/collections import list
+from /core/output import print
+
+function main;
+    numbers = list; 1, 2, 3
+    batch = instance Batch; values = numbers, enabled = true
+    snapshot = batch.values
+    print; snapshot.length
+    print; (total; move batch)

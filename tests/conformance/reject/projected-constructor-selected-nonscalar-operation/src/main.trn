@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/witness import Envelope
+
+function main;
+    flag = instance Envelope; payload = true
+    value = flag.payload + 1

@@ -1,2 +1,5 @@
-main:ready:42:owned:7:7:consumed:36
+main:ready:42:owned:7:none:none:7:consumed:36
 defaults:none:2
+indexed:8:none:42
+noted:9:retained:none
+zero:10:both:0

@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-payload-enum-witness = { path = "fixture-registry/terrane-payload-enum-witness-0.1.0" }

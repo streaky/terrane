@@ -1,0 +1,107 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/terrane-core-witness": [
+          "IpAddr",
+          "Ipv4Addr",
+          "Ipv4Addr.clone",
+          "Ipv4Addr.cmp",
+          "Ipv4Addr.into",
+          "Ipv4Addr.is_benchmarking",
+          "Ipv4Addr.is_broadcast",
+          "Ipv4Addr.is_documentation",
+          "Ipv4Addr.is_global",
+          "Ipv4Addr.is_link_local",
+          "Ipv4Addr.is_loopback",
+          "Ipv4Addr.is_multicast",
+          "Ipv4Addr.is_private",
+          "Ipv4Addr.is_reserved",
+          "Ipv4Addr.is_shared",
+          "Ipv4Addr.is_unspecified",
+          "Ipv4Addr.to_bits",
+          "Ipv4Addr.to_ipv6_compatible",
+          "Ipv4Addr.to_ipv6_mapped",
+          "Ipv4Addr.try_into",
+          "Ipv4Addr::backward_checked",
+          "Ipv4Addr::backward_unchecked",
+          "Ipv4Addr::forward_checked",
+          "Ipv4Addr::forward_unchecked",
+          "Ipv4Addr::from_bits",
+          "Ipv4Addr::from_str",
+          "Ipv4Addr::new",
+          "is_loopback"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq-std/net/ipv6addr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialeq-terrane-core-witness/ipv4addr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialord-std/net/ipv6addr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/cmp/partialord-terrane-core-witness/ipv4addr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/convert/from-std/net/ipv6addr": [
+          "from"
+        ],
+        "/deps/terrane-core-witness/ipaddr/trait/core/convert/from-terrane-core-witness/ipv4addr": [
+          "from"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq-terrane-core-witness/ipaddr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialeq-terrane-core-witness/ipv4addr": [
+          "eq"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialord-terrane-core-witness/ipaddr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/cmp/partialord-terrane-core-witness/ipv4addr": [
+          "partial_cmp"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitand": [
+          "bitand"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitandassign": [
+          "bitand_assign"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitandassign-terrane-core-witness/ipv4addr": [
+          "bitand_assign"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitor": [
+          "bitor"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitorassign": [
+          "bitor_assign"
+        ],
+        "/deps/terrane-core-witness/ipv4addr/trait/core/ops/bit/bitorassign-terrane-core-witness/ipv4addr": [
+          "bitor_assign"
+        ]
+      },
+      "name": "terrane-core-witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

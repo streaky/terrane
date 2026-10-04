@@ -1,0 +1,14 @@
+package = "projected-foreign-owner-trait-operation"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.provider]
+package = "terrane-foreign-owner-value"
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.contract]
+package = "terrane-foreign-owner-contract"
+version = "=0.1.0"
+effects = ["build"]

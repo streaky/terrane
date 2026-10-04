@@ -1,0 +1,81 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Ipv4Addr",
+          "Ipv4Addr.clone",
+          "Ipv4Addr.cmp",
+          "Ipv4Addr.into",
+          "Ipv4Addr.is_benchmarking",
+          "Ipv4Addr.is_broadcast",
+          "Ipv4Addr.is_documentation",
+          "Ipv4Addr.is_global",
+          "Ipv4Addr.is_link_local",
+          "Ipv4Addr.is_loopback",
+          "Ipv4Addr.is_multicast",
+          "Ipv4Addr.is_private",
+          "Ipv4Addr.is_reserved",
+          "Ipv4Addr.is_shared",
+          "Ipv4Addr.is_unspecified",
+          "Ipv4Addr.to_bits",
+          "Ipv4Addr.to_ipv6_compatible",
+          "Ipv4Addr.to_ipv6_mapped",
+          "Ipv4Addr.try_into",
+          "Ipv4Addr::backward_checked",
+          "Ipv4Addr::backward_unchecked",
+          "Ipv4Addr::forward_checked",
+          "Ipv4Addr::forward_unchecked",
+          "Ipv4Addr::from_bits",
+          "Ipv4Addr::from_str",
+          "Ipv4Addr::new"
+        ],
+        "/deps/witness/ipv4addr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/witness/ipv4addr/trait/core/cmp/partialeq-std/net/ipaddr": [
+          "eq"
+        ],
+        "/deps/witness/ipv4addr/trait/core/cmp/partialeq-terrane-macro-facade-witness/ipv4addr": [
+          "eq"
+        ],
+        "/deps/witness/ipv4addr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/witness/ipv4addr/trait/core/cmp/partialord-std/net/ipaddr": [
+          "partial_cmp"
+        ],
+        "/deps/witness/ipv4addr/trait/core/cmp/partialord-terrane-macro-facade-witness/ipv4addr": [
+          "partial_cmp"
+        ],
+        "/deps/witness/ipv4addr/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/witness/ipv4addr/trait/core/ops/bit/bitand": [
+          "bitand"
+        ],
+        "/deps/witness/ipv4addr/trait/core/ops/bit/bitandassign": [
+          "bitand_assign"
+        ],
+        "/deps/witness/ipv4addr/trait/core/ops/bit/bitandassign-terrane-macro-facade-witness/ipv4addr": [
+          "bitand_assign"
+        ],
+        "/deps/witness/ipv4addr/trait/core/ops/bit/bitor": [
+          "bitor"
+        ],
+        "/deps/witness/ipv4addr/trait/core/ops/bit/bitorassign": [
+          "bitor_assign"
+        ],
+        "/deps/witness/ipv4addr/trait/core/ops/bit/bitorassign-terrane-macro-facade-witness/ipv4addr": [
+          "bitor_assign"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

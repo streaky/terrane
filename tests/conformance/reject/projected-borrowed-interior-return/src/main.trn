@@ -1,0 +1,9 @@
+namespace app
+from /deps/witness import Request
+
+function escape host-invocation-scoped-native; request ref Request
+    return request.extensions;
+
+function main;
+    request = Request::new; 41
+    escape; ref request

@@ -303,7 +303,8 @@ function connect connection; host string, port int, timeout int = 10
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.
 - Default visibility public; strict visibility mode can require explicit qualifiers.
-- Source-declared type parameters/generics are unsupported and MUST be rejected. Use concrete types, unions, interfaces, or generated concrete declarations. This does not prevent the dependency projector from jointly selecting correlated Rust result-only generics from one explicit Terrane destination; Rust angle-bracket arguments never become source syntax.
+- Classes, functions, interfaces, and enums declare lexical type parameters with `of (T, U)`; a binder may require one nominal interface with `T implements describable`. Applications use `of int` or `of (int, string)` and remain invariant. Explicit arguments, ordinary inputs, callable contracts, and the immediate written destination/return select one consistent closed application; later statements, absence alone, or interface/union widening do not select it. Generic bodies are checked against declared bounds, without hidden copying or defaults. See `manual/reference/records/language/types/generics.yaml`.
+- An `enum` declares a closed nominal family of scoped variants, optionally with named payload parameters. Construct with `instance State::variant; field = value`; evaluate arguments once in written order. Exhaustive `match`/`case` handles each variant or a final `case else`; optional enums also require `case none`. `match ref` borrows payloads and `match move` transfers them, including cleanup. See `manual/reference/records/language/types/unions.yaml`.
 
 ## TYPE
 
@@ -821,14 +822,16 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
   Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
   makes source operation sequences atomic nor replaces explicit concurrency objects.
-- A typed class or trait field may omit its initializer only when its declared type has a canonical
+- A typed class or trait field may omit its initializer when its declared type has a canonical
   default: `bool` -> `false`; numeric -> typed zero; `string` -> `''`; `bytes` -> empty bytes;
   `T|none` -> `none`; `list`/`map`/`set`/`unordered-map`/`unordered-set` -> empty collection.
-  Plain `none`, tuples, source objects, references, callables, resources, and other runtime
-  contracts are nondefaultable. This never infers the type, invokes an arbitrary constructor, or
-  hides `none` in plain `T`; nondefaultable effective class fields require an explicit initializer.
-  A trait may supply it or the using class may override the field. Effective inherited fields are
-  validated before lowering, and explicit initializers use their declaring source/object context.
+  A nondefaultable field without an explicit initializer is required construction storage:
+  every successful constructor exit must have initialized it exactly once, before reads
+  or incomplete-receiver escape. Moving out cannot leave it empty at completion.
+  Partial failure drops initialized fields without running the incomplete user destructor.
+  A trait may supply an initializer or the using class may override its field; inherited
+  initializers retain their declaring source/object context. No hidden optional value or
+  fabricated type-parameter value is observable.
 - Field metadata has one trailing clause:
   `field T = value metadata (external-name = 'wireName', secret = true)`.
   It is valid only on instance fields. `external-name` is a string, `secret` is a boolean, names
@@ -1363,7 +1366,6 @@ Validation/prototype points, not permission to invent semantics:
 Not version-one; no private incompatible syntax:
 
 - core constructs supplied/replaced as scoped objects (including `function`); version one keeps core constructs structural;
-- source-declared generics;
 - compact map literals;
 - stateful hot-code replacement;
 - arbitrary C++ ABI integration;
@@ -1388,7 +1390,7 @@ Before writing Terrane:
 9. Let a single numeric destination perform its exact-or-throw conversion; write `coerce` or a rounding member when selecting a different policy. Never assume foreign conversion.
 10. Choose value assignment vs `ref` vs `move` deliberately.
 11. Use `constant`, not `const`; distinguish `void`/`opaque`.
-12. Do not use source generics, `===`, adjacency calls, or implicit object imports.
+12. Do not use Rust angle-bracket generic syntax, `===`, adjacency calls, or implicit object imports.
 
 ## MAINTENANCE CHECKLIST
 

@@ -1,3 +1,16 @@
+fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emitter<'_>) -> bool {
+    let move_here = node.kind == SyntaxKind::UnaryExpression
+        && emitter.unary_operator(node).as_deref() == Some("move")
+        && node
+            .children
+            .last()
+            .is_some_and(|operand| operand.span == target);
+    move_here
+        || node
+            .children
+            .iter()
+            .any(|child| contains_move_of(child, target, emitter))
+}
 use super::super::prelude::*;
 
 fn float_target_method(operation: FloatMemberOperation) -> Option<&'static str> {
@@ -220,6 +233,43 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn native_receiver_expression(
+        &mut self,
+        receiver: &SyntaxNode,
+        mutable: bool,
+    ) -> String {
+        if let [holder, member] = receiver.children.as_slice()
+            && receiver.kind == SyntaxKind::MemberExpression
+            && let Some(ValueType::Object(identity)) = self.receiver_value_type(holder)
+            && let Some(crate::rust_interop::projection::ProjectedItem {
+                kind: crate::rust_interop::projection::ProjectedKind::ForeignType { fields, .. },
+                ..
+            }) = self
+                .package
+                .projection
+                .item(&identity.namespace, &identity.name)
+            && let Some(field) = fields.iter().find(|field| field.name == self.text(member))
+        {
+            let field = field.rust_name.clone();
+            let holder = self.native_receiver_expression(holder, mutable);
+            return format!("({holder}).{field}");
+        }
+        if receiver.kind == SyntaxKind::Name
+            && matches!(self.value_type(receiver), Some(ValueType::Object(_)))
+            && self.reference_backed_name(receiver).is_none()
+        {
+            if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
+                let access = if mutable { "as_mut" } else { "as_ref" };
+                return format!(
+                    "{}.{access}().expect(\"semantic optional narrowing\")",
+                    self.raw_storage_name(receiver)
+                );
+            }
+            return self.raw_storage_name(receiver);
+        }
+        self.receiver_guard_expression(receiver)
+    }
+
     pub(super) fn mutable_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
             return format!(
@@ -290,34 +340,74 @@ impl Emitter<'_> {
     }
 
     pub(super) fn class_designator(&self, node: &SyntaxNode) -> Option<&DescriptorContract> {
+        match node.kind {
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType => {
+                return node
+                    .children
+                    .first()
+                    .and_then(|child| self.class_designator(child));
+            }
+            _ => {}
+        }
         let name = self.text(node);
         if name == "self" {
             let identity = self.current_object.as_ref()?;
-            return self
-                .unit
-                .descriptors
-                .iter()
-                .find(|object| object.identity == *identity && object.kind == ObjectKind::Class);
+            return self.unit.descriptors.iter().find(|object| {
+                object.identity == *identity
+                    && matches!(object.kind, ObjectKind::Class | ObjectKind::Enum)
+            });
         }
         if self.unit.typed_bindings.iter().rev().any(|binding| {
             binding.name == name && binding.is_visible_at(self.unit.source.id(), node.span.start)
         }) {
             return None;
         }
-        self.unit
-            .descriptors
-            .iter()
-            .find(|object| object.name == name && object.kind == ObjectKind::Class)
+        self.unit.descriptors.iter().find(|object| {
+            object.name == name && matches!(object.kind, ObjectKind::Class | ObjectKind::Enum)
+        })
     }
 
     pub(super) fn static_member(&mut self, node: &SyntaxNode) -> String {
         let [receiver, member] = node.children.as_slice() else {
             return String::new();
         };
-        let Some(object) = self.class_designator(receiver) else {
+        let Some(object) = self
+            .enum_designator(receiver)
+            .or_else(|| self.class_designator(receiver))
+        else {
             return String::new();
         };
         let member_name = self.text(member);
+        if self.unit.source_enums.iter().any(|contract| {
+            contract.identity.namespace == object.identity.namespace
+                && contract.identity.name == object.identity.name
+                && contract
+                    .variants
+                    .iter()
+                    .any(|variant| variant.name == member_name)
+        }) {
+            return format!(
+                "{}::{}",
+                rust_source_type_application(self.package, &object.identity),
+                rust_object_name(member_name)
+            );
+        }
+        if let Some(item) = self
+            .package
+            .projection
+            .item(&object.identity.namespace, &object.identity.name)
+            && let crate::rust_interop::projection::ProjectedKind::Enum { variants, .. } =
+                &item.kind
+            && let Some(variant) = variants.iter().find(|variant| variant.name == member_name)
+        {
+            let owner = object
+                .identity
+                .native_projection
+                .as_deref()
+                .unwrap_or(&item.rust_path)
+                .replacen('<', "::<", 1);
+            return format!("{owner}::{}", variant.name);
+        }
         if let Some(constant) = self.package.projection.constant_for_native(
             &object.identity.namespace,
             &object.identity.name,
@@ -558,6 +648,26 @@ impl Emitter<'_> {
         {
             return length;
         }
+        let required_field = receiver_type
+            .as_ref()
+            .and_then(|value_type| match value_type {
+                ValueType::Object(identity) => Some(identity),
+                _ => None,
+            })
+            .is_some_and(|identity| {
+                source_field_is_required(self.package, identity, self.text(member))
+            });
+        let required_field_type = receiver_type
+            .as_ref()
+            .and_then(|value_type| match value_type {
+                ValueType::Object(identity) => {
+                    object_member_type(self.unit, identity, self.text(member), false)
+                }
+                _ => None,
+            });
+        let required_field_copy = required_field_type.as_ref().is_some_and(rust_value_is_copy);
+        let explicit_field_move =
+            required_field && contains_move_of(&self.unit.tree.root, node.span, self);
         let wrapped_field = self.wrapped_object_field(receiver, self.text(member));
         if matches!(
             self.value_type(receiver),
@@ -565,15 +675,40 @@ impl Emitter<'_> {
         ) && matches!(receiver_type, Some(ValueType::Object(_)))
         {
             let guard = self.receiver_guard_expression(receiver);
-            let field = rust_name(self.text(member));
-            let access = if wrapped_field {
+            let field = self.native_field_name(receiver_type.as_ref(), self.text(member));
+            let access = if required_field {
+                if wrapped_field && required_field_copy {
+                    format!("*({guard}).terrane_field_{field}()")
+                } else if wrapped_field {
+                    format!("({guard}).terrane_field_{field}()")
+                } else if required_field_copy {
+                    format!("*({guard}).{field}.as_ref().expect(\"required field initialized\")")
+                } else if explicit_field_move {
+                    format!("({guard}).{field}.take().expect(\"required field initialized\")")
+                } else {
+                    format!("({guard}).{field}.as_ref().expect(\"required field initialized\")")
+                }
+            } else if wrapped_field {
                 format!("({guard}).terrane_field_{field}().clone()")
+            } else if self
+                .native_field_type(node)
+                .is_some_and(|ty| !ty.has_identity_representation())
+            {
+                format!("({guard}).{field}")
             } else {
                 format!("({guard}).{field}.clone()")
             };
+            let access = if let Some(projected) = self.native_field_type(node)
+                && !projected.has_identity_representation()
+            {
+                self.native_field_result(node, &access, &projected)
+            } else {
+                access
+            };
             return self.wrap_receiver_guard(receiver, access);
         }
-        let receiver = self.receiver_expression(receiver);
+        let receiver_node = receiver;
+        let receiver = self.receiver_expression(receiver_node);
         if self.text(member) == "length"
             && matches!(
                 self.value_type(node),
@@ -686,11 +821,138 @@ impl Emitter<'_> {
                     _ => unreachable!("callable floating member used as a property"),
                 }
             }
+            name if wrapped_field && required_field && required_field_copy => {
+                format!("*({receiver}).terrane_field_{}()", rust_name(name))
+            }
+            name if wrapped_field && required_field && explicit_field_move => {
+                let name = rust_name(name);
+                let receiver = self.mutable_receiver_expression(receiver_node);
+                format!(
+                    "({receiver}).terrane_field_{name}_slot_mut().take().expect(\"required field initialized\")"
+                )
+            }
+            name if wrapped_field && required_field => {
+                format!("({receiver}).terrane_field_{}()", rust_name(name))
+            }
             name if wrapped_field => {
                 format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
             }
-            name => format!("{receiver}.{}", rust_name(name)),
+            name => {
+                let field = self.native_field_name(receiver_type.as_ref(), name);
+                let access = if required_field && !self.assignment_target {
+                    let required_access = format!(
+                        "({receiver}).{field}.as_ref().expect(\"required field initialized\")"
+                    );
+                    if required_field_copy {
+                        format!("*{required_access}")
+                    } else if explicit_field_move {
+                        format!(
+                            "({receiver}).{field}.take().expect(\"required field initialized\")"
+                        )
+                    } else {
+                        required_access
+                    }
+                } else {
+                    format!("{receiver}.{field}")
+                };
+                if !self.assignment_target
+                    && let Some(projected) = self.native_field_type(node)
+                    && !projected.has_identity_representation()
+                {
+                    self.native_field_result(node, &access, &projected)
+                } else {
+                    access
+                }
+            }
         }
+    }
+
+    pub(super) fn native_field_type(
+        &self,
+        node: &SyntaxNode,
+    ) -> Option<crate::rust_interop::projection::ProjectedType> {
+        if node.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let [receiver, member] = node.children.as_slice() else {
+            return None;
+        };
+        let ValueType::Object(identity) = self.receiver_value_type(receiver)? else {
+            return None;
+        };
+        crate::semantics::projected_owned_field_type(self.package, &identity, self.text(member))
+    }
+
+    fn native_field_result(
+        &self,
+        node: &SyntaxNode,
+        value: &str,
+        ty: &crate::rust_interop::projection::ProjectedType,
+    ) -> String {
+        if self.value_type(node).is_some_and(|value_type| {
+            crate::semantics::value_type_contains_nonclone_foreign(self.unit, &value_type)
+        }) {
+            return projected_result_expression(value, ty);
+        }
+        Self::borrowed_field_result(&format!("&({value})"), ty)
+    }
+
+    fn borrowed_field_result(
+        reference: &str,
+        ty: &crate::rust_interop::projection::ProjectedType,
+    ) -> String {
+        use crate::rust_interop::projection::ProjectedType;
+        match ty {
+            ProjectedType::Sequence { item, .. } => {
+                let converted = Self::borrowed_field_result("__terrane_field_item", item);
+                format!(
+                    "terrane_collection_support::List::new(({reference}).iter().map(|__terrane_field_item| {converted}).collect())"
+                )
+            }
+            ProjectedType::Optional(item) => {
+                let converted = Self::borrowed_field_result("__terrane_field_item", item);
+                format!("({reference}).as_ref().map(|__terrane_field_item| {converted})")
+            }
+            ProjectedType::Bool
+            | ProjectedType::Int
+            | ProjectedType::RustInt(_)
+            | ProjectedType::FixedInt(_)
+            | ProjectedType::Float32
+            | ProjectedType::Float
+            | ProjectedType::Char
+            | ProjectedType::None => projected_result_expression(&format!("(*({reference}))"), ty),
+            _ => projected_result_expression(&format!("(*({reference})).clone()"), ty),
+        }
+    }
+
+    fn native_field_name(&self, receiver_type: Option<&ValueType>, name: &str) -> String {
+        if let Some(ValueType::Object(identity)) = receiver_type
+            && let Some(crate::rust_interop::projection::ProjectedItem {
+                kind:
+                    crate::rust_interop::projection::ProjectedKind::ForeignType {
+                        fields,
+                        borrowed_view: false,
+                        enum_payload: None,
+                        ..
+                    },
+                ..
+            }) = self
+                .package
+                .projection
+                .item(&identity.namespace, &identity.name)
+            && let Some(field) = fields.iter().find(|field| field.name == name)
+        {
+            return if field
+                .rust_name
+                .chars()
+                .all(|character| character.is_ascii_digit())
+            {
+                field.rust_name.clone()
+            } else {
+                rust_name(&field.rust_name)
+            };
+        }
+        rust_name(name)
     }
 
     pub(super) fn float_call(

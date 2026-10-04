@@ -1,0 +1,10 @@
+[package]
+name = "terrane-foreign-owner-contract"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+terrane-foreign-owner-value = { version = "=0.1.0" }
+
+[lib]
+path = "src/lib.rs"

@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/provider import Value
+from /core/output import print
+
+function main;
+    value Value = Value::new; 37
+    print; (value.doubled;)
+    print; ((Value::BASE).doubled;)

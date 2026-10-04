@@ -384,6 +384,19 @@ fn extract_complete_public_api(
         })
         .collect())
 }
+/// Loads the pinned Rust toolchain's complete `core` Rustdoc document.
+///
+/// # Errors
+/// Returns an error when the pinned `rust-src` component is unavailable, Rustdoc generation
+/// fails, or the generated JSON cannot be decoded.
+pub fn core_rustdoc(
+    output_root: &Path,
+    target: &str,
+) -> Result<rustdoc_types::Crate, AnalysisError> {
+    let (document, _) = load_core_rustdoc(output_root, target)?;
+    Ok(document)
+}
+
 /// Extracts requested declarations from the pinned Rust toolchain's `core` sources.
 ///
 /// # Errors
@@ -397,6 +410,25 @@ pub fn survey_core_declarations(
     if requested_paths.is_empty() {
         return Ok(Vec::new());
     }
+    let (document, source_root) = load_core_rustdoc(output_root, target)?;
+    let paths = public_paths(&document)
+        .into_iter()
+        .filter(|(id, public_path)| {
+            requested_paths.contains(public_path)
+                || document
+                    .paths
+                    .get(id)
+                    .is_some_and(|summary| requested_paths.contains(&summary.path.join("::")))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let (declarations, _) = declarations(&document, &paths, &source_root, "sysroot/core")?;
+    Ok(declarations)
+}
+
+fn load_core_rustdoc(
+    output_root: &Path,
+    target: &str,
+) -> Result<(rustdoc_types::Crate, PathBuf), AnalysisError> {
     let sysroot_output = Command::new("rustc")
         .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
         .args(["--print", "sysroot"])
@@ -457,18 +489,7 @@ pub fn survey_core_declarations(
     }
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated core Rustdoc"))?;
     let document = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN)?;
-    let paths = public_paths(&document)
-        .into_iter()
-        .filter(|(id, public_path)| {
-            requested_paths.contains(public_path)
-                || document
-                    .paths
-                    .get(id)
-                    .is_some_and(|summary| requested_paths.contains(&summary.path.join("::")))
-        })
-        .collect::<BTreeMap<_, _>>();
-    let (declarations, _) = declarations(&document, &paths, &source_root, "sysroot/core")?;
-    Ok(declarations)
+    Ok((document, source_root))
 }
 
 fn package_source_root(package: &MetadataPackage) -> Result<&Path, AnalysisError> {

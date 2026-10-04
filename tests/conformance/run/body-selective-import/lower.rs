@@ -19,13 +19,13 @@ pub struct DecodeResult {
 }
 impl DecodeResult {
     pub fn terrane_construct(failed: bool, message: String, data: Vec<u8>) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
             value: Vec::from([]),
         };
-        value.construct(failed, message, data);
-        value
+        __terrane_constructed_value.construct(failed, message, data);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
         self.failed = failed;
@@ -57,9 +57,9 @@ pub struct Base64Codec {
 }
 impl Base64Codec {
     pub fn terrane_construct(url_safe: bool) -> Self {
-        let mut value = Self { url_safe: false };
-        value.construct(url_safe);
-        value
+        let mut __terrane_constructed_value = Self { url_safe: false };
+        __terrane_constructed_value.construct(url_safe);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, url_safe: bool) {
         self.url_safe = url_safe;

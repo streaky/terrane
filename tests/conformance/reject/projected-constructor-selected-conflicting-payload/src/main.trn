@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Pair
+
+function main;
+    pair = instance Pair; left = 'left', right = 7

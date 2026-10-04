@@ -298,7 +298,7 @@ fn assess(
                         declined.insert(item.rust_path.clone(), item.reason.clone());
                     }
                 }
-                ProjectedKind::Function(_) => {}
+                ProjectedKind::Function(_) | ProjectedKind::Macro(_) => {}
             }
         }
         for item in &dependency.declined {
@@ -674,6 +674,7 @@ mod tests {
             },
         };
         let projection = Projection {
+            native_owner_aliases: BTreeMap::default(),
             cache_identity: "witness".to_owned(),
             content_hash: "content".to_owned(),
             dependencies: Vec::new(),

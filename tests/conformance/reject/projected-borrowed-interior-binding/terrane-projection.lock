@@ -1,0 +1,58 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Canvas",
+          "Canvas.draw_circle",
+          "Canvas.into",
+          "Canvas.total",
+          "Canvas.try_into",
+          "Entry",
+          "Entry.clone",
+          "Entry.into",
+          "Entry.try_into",
+          "Entry.value",
+          "Extensions",
+          "Extensions.entry",
+          "Extensions.get",
+          "Extensions.into",
+          "Extensions.try_into",
+          "Header",
+          "Header.into",
+          "Header.length",
+          "Header.text",
+          "Header.try_into",
+          "Host",
+          "Host.base_mut",
+          "Host.into",
+          "Host.total",
+          "Host.try_into",
+          "Host::new",
+          "Request",
+          "Request.extensions",
+          "Request.headers",
+          "Request.into",
+          "Request.try_into",
+          "Request::new",
+          "View",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map",
+          "clone_count",
+          "consume",
+          "make_view",
+          "render",
+          "root_count"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

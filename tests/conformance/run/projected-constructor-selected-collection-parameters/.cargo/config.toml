@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-constructor-collection-parameters = { path = "fixture-registry/terrane-constructor-collection-parameters-0.1.0" }

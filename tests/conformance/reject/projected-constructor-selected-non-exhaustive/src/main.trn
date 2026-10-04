@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Open
+
+function main;
+    value = instance Open; payload = 'open'

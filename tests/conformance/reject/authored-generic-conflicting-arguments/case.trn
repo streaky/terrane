@@ -1,0 +1,5 @@
+namespace rejected-generic
+function same of (T) T; first T, second T
+    return first
+function main;
+    selected = same; 1, 'text'

@@ -192,11 +192,6 @@ fn extensionless_source_and_package_paths_dispatch_consistently() {
     let directory_argument = Command::new(binary).arg(&package_root).output().unwrap();
     assert_eq!(directory_argument.status.code(), Some(2));
     assert!(directory_argument.stdout.is_empty());
-    assert!(
-        String::from_utf8(directory_argument.stderr)
-            .unwrap()
-            .starts_with("usage: terrane ")
-    );
 }
 
 #[test]

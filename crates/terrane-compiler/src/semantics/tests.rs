@@ -16,6 +16,8 @@ fn ambiguous_projection() -> Projection {
             rust_path: rust_path.to_owned(),
             docs: None,
             kind: ProjectedKind::ForeignType {
+                generic_parameters: Vec::new(),
+                constructor: None,
                 methods: Vec::new(),
                 static_methods: Vec::new(),
                 constants: Vec::new(),
@@ -34,6 +36,7 @@ fn ambiguous_projection() -> Projection {
         partial_declines: Vec::new(),
     };
     Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "ambiguous-semantics".to_owned(),
         content_hash: String::new(),
         dependencies: vec![
@@ -88,6 +91,7 @@ fn ambiguous_projected_destination_names_every_rust_identity() {
 
 fn unavailable_projection() -> Projection {
     Projection {
+        native_owner_aliases: BTreeMap::default(),
         cache_identity: "unavailable-semantics".to_owned(),
         content_hash: String::new(),
         dependencies: vec![ProjectedDependency {

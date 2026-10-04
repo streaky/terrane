@@ -1,0 +1,8 @@
+package = "projected-constructor-selected-optional"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-constructor-optional-witness"
+version = "=0.1.0"

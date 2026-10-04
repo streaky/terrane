@@ -1,0 +1,23 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/runtime/io": [
+          "ErrorKind"
+        ],
+        "/deps/runtime/macros": [
+          "pin"
+        ],
+        "/deps/runtime/net/addr/sealed": [
+          "Internal"
+        ]
+      },
+      "name": "runtime",
+      "version": "1.53.2"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

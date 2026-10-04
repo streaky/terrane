@@ -338,7 +338,7 @@ pub(super) fn projected_field_abi_type(
 ) -> String {
     use crate::rust_interop::projection::ProjectedType;
     match ty {
-        ProjectedType::String => "String".to_owned(),
+        ProjectedType::String | ProjectedType::BorrowedString => "String".to_owned(),
         ProjectedType::Bool => "bool".to_owned(),
         ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => name.clone(),
         ProjectedType::Float => "f64".to_owned(),
@@ -441,17 +441,34 @@ fn write_enum_payload(
     path: &str,
     fields: &[crate::rust_interop::projection::ProjectedField],
 ) {
-    writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
+    let parameters = fields
+        .iter()
+        .flat_map(|field| projected_generic_names(&field.ty))
+        .collect::<BTreeSet<_>>();
+    let generic_declaration = if parameters.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<{}>",
+            parameters.into_iter().collect::<Vec<_>>().join(", ")
+        )
+    };
+    writeln!(output, "pub struct {rust_name_}{generic_declaration} {{")
+        .expect("writing cannot fail");
     for field in fields {
         writeln!(
             output,
-            "    {}: {},",
+            "    pub {}: {},",
             rust_name(&field.name),
             projected_owned_field_type(&field.ty)
         )
         .expect("writing cannot fail");
     }
-    writeln!(output, "}}\nimpl {rust_name_} {{").expect("writing cannot fail");
+    writeln!(
+        output,
+        "}}\nimpl{generic_declaration} {rust_name_}{generic_declaration} {{"
+    )
+    .expect("writing cannot fail");
     write!(output, "    pub fn terrane_construct(").expect("writing cannot fail");
     for (index, field) in fields.iter().enumerate() {
         if index != 0 {
@@ -477,7 +494,7 @@ fn write_enum_payload(
         write!(output, "{name}: {value}, ").expect("writing cannot fail");
     }
     writeln!(output, "}} }}").expect("writing cannot fail");
-    write!(output, "    fn terrane_into_fields(self) -> (").expect("writing cannot fail");
+    write!(output, "    pub fn terrane_into_fields(self) -> (").expect("writing cannot fail");
     for field in fields {
         write!(output, "{},", projected_owned_field_type(&field.ty)).expect("writing cannot fail");
     }
@@ -487,7 +504,7 @@ fn write_enum_payload(
     }
     writeln!(output, ") }}\n}}\n").expect("writing cannot fail");
     let constructor = enum_payload_constructor_name(path);
-    write!(output, "fn {constructor}(").expect("writing cannot fail");
+    write!(output, "fn {constructor}{generic_declaration}(").expect("writing cannot fail");
     for (index, field) in fields.iter().enumerate() {
         if index != 0 {
             output.push_str(", ");
@@ -501,7 +518,7 @@ fn write_enum_payload(
     }
     write!(
         output,
-        ") -> {rust_name_} {{ {rust_name_}::terrane_construct("
+        ") -> {rust_name_}{generic_declaration} {{ {rust_name_}::terrane_construct("
     )
     .expect("writing cannot fail");
     for index in 0..fields.len() {
@@ -523,7 +540,8 @@ fn projected_generic_names(ty: &crate::rust_interop::projection::ProjectedType) 
             ProjectedType::Sequence { item, .. }
             | ProjectedType::Set { item, .. }
             | ProjectedType::AsyncIterationStep(item)
-            | ProjectedType::Optional(item) => collect(item, names),
+            | ProjectedType::Optional(item)
+            | ProjectedType::Reference { inner: item, .. } => collect(item, names),
             ProjectedType::Mapping { key, value, .. } => {
                 collect(key, names);
                 collect(value, names);
@@ -591,24 +609,6 @@ pub(super) fn write_foreign_import(
     } else {
         writeln!(output, "pub use {path} as {rust_name};")
             .expect("writing to a string cannot fail");
-    }
-}
-
-fn projected_type_is_identity(ty: &crate::rust_interop::projection::ProjectedType) -> bool {
-    match ty {
-        crate::rust_interop::projection::ProjectedType::Optional(inner) => {
-            projected_type_is_identity(inner)
-        }
-        crate::rust_interop::projection::ProjectedType::None
-        | crate::rust_interop::projection::ProjectedType::Bool
-        | crate::rust_interop::projection::ProjectedType::FixedInt(_)
-        | crate::rust_interop::projection::ProjectedType::Float
-        | crate::rust_interop::projection::ProjectedType::Float32
-        | crate::rust_interop::projection::ProjectedType::String
-        | crate::rust_interop::projection::ProjectedType::Bytes
-        | crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-        | crate::rust_interop::projection::ProjectedType::Foreign { .. } => true,
-        _ => false,
     }
 }
 
@@ -739,7 +739,10 @@ fn projected_callback_argument(
         .enumerate()
         .map(|(index, argument)| {
             if parameter_borrows.get(index) == Some(&true) {
-                format!("&{argument}")
+                let mutable = parameter_rust_types.get(index).is_some_and(|rust_type| {
+                    matches!(syn::parse_str::<syn::Type>(rust_type), Ok(syn::Type::Reference(reference)) if reference.mutability.is_some())
+                });
+                format!("&{}{argument}", if mutable { "mut " } else { "" })
             } else {
                 argument.clone()
             }
@@ -836,7 +839,7 @@ pub(super) fn projected_argument_expression(
             *is_async,
         ),
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {
-            if projected_type_is_identity(inner) {
+            if inner.has_identity_representation() {
                 name.to_owned()
             } else {
                 let converted = projected_argument_expression("value", inner);
@@ -855,7 +858,7 @@ pub(super) fn projected_argument_expression(
                 } else {
                     "into_vec"
                 };
-                if projected_type_is_identity(item) {
+                if item.has_identity_representation() {
                     format!("{name}.{consume}()")
                 } else {
                     let converted = projected_argument_expression("item", item);
@@ -913,7 +916,7 @@ pub(super) fn projected_chain_argument_expression(
     name: &str,
     ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
-    if projected_type_is_identity(ty) {
+    if ty.has_identity_representation() {
         return name.to_owned();
     }
     let converted = projected_argument_expression(name, ty);
@@ -938,9 +941,12 @@ pub(super) fn projected_result_expression(
         crate::rust_interop::projection::ProjectedType::RustInt(_) => {
             format!("terrane_int_support::Int::from({value} as i128)")
         }
+        crate::rust_interop::projection::ProjectedType::BorrowedString => {
+            format!("{value}.to_owned()")
+        }
         crate::rust_interop::projection::ProjectedType::Char => format!("{value}.to_string()"),
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {
-            if projected_type_is_identity(inner) {
+            if inner.has_identity_representation() {
                 value.to_owned()
             } else {
                 let converted = projected_result_expression("value", inner);
@@ -957,7 +963,7 @@ pub(super) fn projected_result_expression(
             format!("terrane_collection_support::AsyncSinkOutcome::from_accepted({value})")
         }
         crate::rust_interop::projection::ProjectedType::Sequence { item, .. } => {
-            if projected_type_is_identity(item) {
+            if item.has_identity_representation() {
                 format!("terrane_collection_support::List::new({value})")
             } else {
                 let converted = projected_result_expression("item", item);
@@ -1094,15 +1100,18 @@ pub(super) fn emit_dependency_unit(
             let Some(item) = package.projection.item(&unit.namespace, type_name) else {
                 continue;
             };
-            let crate::rust_interop::projection::ProjectedKind::ForeignType {
-                static_methods, ..
-            } = &item.kind
+            let (crate::rust_interop::projection::ProjectedKind::ForeignType {
+                static_methods,
+                ..
+            }
+            | crate::rust_interop::projection::ProjectedKind::Enum { static_methods, .. }) =
+                &item.kind
             else {
                 continue;
             };
             let Some(projected) = static_methods
                 .iter()
-                .find(|method| method.name == contract.name)
+                .find(|method| method.name == contract.name && method.enum_operation.is_none())
             else {
                 continue;
             };
@@ -1197,7 +1206,18 @@ pub(super) fn emit_dependency_unit(
                     native_bound: Some(_),
                     ..
                 }
-            ) {
+            ) || projected.generic_parameter.is_some()
+                && matches!(
+                    &projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback { result, .. }
+                        if matches!(
+                            result.as_ref(),
+                            crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                                ..
+                            }
+                        )
+                )
+            {
                 arguments.push(name);
                 continue;
             }
@@ -1399,15 +1419,20 @@ pub(super) fn emit_dependency_unit(
         for conversion in argument_conversions {
             writeln!(output, "{conversion}").expect("writing to a string cannot fail");
         }
-        let value_path = static_owner.map_or_else(
-            || rust_value_path(&item.rust_path),
-            |_| {
-                format!(
-                    "{}::{}",
-                    rust_value_path(&item.rust_path),
-                    rust_name(&projected.name)
+        let value_path = projected.native_path.as_deref().map_or_else(
+            || {
+                static_owner.map_or_else(
+                    || rust_value_path(&item.rust_path),
+                    |_| {
+                        format!(
+                            "{}::{}",
+                            rust_value_path(&item.rust_path),
+                            rust_name(&projected.name)
+                        )
+                    },
                 )
             },
+            rust_value_path,
         );
         let call = if unit_variant {
             value_path

@@ -1,0 +1,4 @@
+phase = "check"
+status = "accept"
+canonical-rust = true
+entrypoint = "package.toml"

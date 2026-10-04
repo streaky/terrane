@@ -1,0 +1,9 @@
+package = "projected-macro-reference-conversion"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-macro-reference-witness"
+version = "=0.1.0"
+effects = ["build"]

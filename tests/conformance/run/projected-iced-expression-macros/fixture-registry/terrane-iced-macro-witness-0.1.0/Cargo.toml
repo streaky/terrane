@@ -1,0 +1,10 @@
+[package]
+name = "terrane-iced-macro-witness"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+iced = { version = "=0.14.0", features = ["advanced"] }

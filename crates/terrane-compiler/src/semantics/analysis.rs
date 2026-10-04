@@ -67,8 +67,18 @@ fn projected_expression_owners(
         let result = receiver_owners
             .into_iter()
             .filter_map(|(namespace, owner)| {
-                projection.projected_member_result_owner(&namespace, &owner, member)
+                projection
+                    .projected_member_result_owner(&namespace, &owner, member)
+                    .map(|owner| BTreeSet::from([owner]))
+                    .or_else(|| {
+                        let selector =
+                            projection.projected_payload_selector(&namespace, &owner, member)?;
+                        bindings
+                            .get(&format!("@constructor:{namespace}::{owner}:{selector}"))
+                            .cloned()
+                    })
             })
+            .flatten()
             .collect::<BTreeSet<_>>();
         return if result.is_empty() {
             bindings.get(member).cloned().unwrap_or_default()
@@ -117,6 +127,46 @@ fn collect_projected_binding_owners(
                 .entry(source.text()[name.span.start..name.span.end].to_owned())
                 .or_default()
                 .insert(owner);
+            if let Some(initializer) = node.children.last()
+                && initializer.kind == SyntaxKind::CallExpression
+                && let Some(callee) = initializer.children.first()
+                && callee.kind == SyntaxKind::ConstructionExpression
+                && let Some(owner_name) = callee
+                    .children
+                    .first()
+                    .and_then(|class| projected_name(source, class))
+                && let Some((namespace, owner)) = imported.get(owner_name)
+                && let Some(constructor) = projection.projected_constructor(namespace, owner)
+                && let Some(arguments) = initializer.children.get(1)
+            {
+                let mut positional = 0;
+                for argument in &arguments.children {
+                    let named = argument.children.first().filter(|child| {
+                        child.kind == SyntaxKind::Name && argument.children.len() > 1
+                    });
+                    let parameter = if let Some(name) = named {
+                        constructor.parameters.iter().find(|parameter| {
+                            parameter.name == source.text()[name.span.start..name.span.end]
+                        })
+                    } else {
+                        let parameter = constructor.parameters.get(positional);
+                        positional += 1;
+                        parameter
+                    };
+                    if let Some(selector) = parameter.and_then(|parameter| {
+                        crate::rust_interop::projection::Projection::payload_selector(&parameter.ty)
+                    }) && let Some(value) = argument.children.last()
+                    {
+                        let owners = projected_expression_owners(
+                            source, value, imported, bindings, projection,
+                        );
+                        bindings
+                            .entry(format!("@constructor:{namespace}::{owner}:{selector}"))
+                            .or_default()
+                            .extend(owners);
+                    }
+                }
+            }
         }
     }
     for child in &node.children {
@@ -293,6 +343,8 @@ pub(super) fn parse_unit(
         scopes: Vec::new(),
         typed_bindings: Vec::new(),
         functions: Vec::new(),
+        source_enums: Vec::new(),
+        required_init_proofs: BTreeMap::new(),
         reference_provenance: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
@@ -306,7 +358,7 @@ pub(super) fn parse_unit(
         projected_removals: Vec::new(),
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
-        projected_call_result_types: BTreeMap::new(),
+        selected_expression_types: BTreeMap::new(),
         invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
@@ -573,6 +625,7 @@ fn augment_units_with_projection(
         for item in &dependency.items {
             match &item.kind {
                 crate::rust_interop::projection::ProjectedKind::Function(function)
+                | crate::rust_interop::projection::ProjectedKind::Macro(function)
                     if function.destination_result.is_some() =>
                 {
                     destination_functions.insert(format!("{}::{}", item.namespace, item.name));
@@ -655,6 +708,15 @@ fn validate_projected_static_declines(package: &SemanticPackage) -> Result<(), S
         unit: &SemanticUnit,
         node: &SyntaxNode,
     ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::MatchCase {
+            // A variant selector is a pattern, not a static operation. Enum matching
+            // validates its payload availability; runtime expressions in the arm still
+            // use the ordinary projected-operation admission checks.
+            for child in node.children.iter().skip(1) {
+                visit(package, unit, child)?;
+            }
+            return Ok(());
+        }
         if node.kind == SyntaxKind::StaticMemberExpression
             && let [receiver, member] = node.children.as_slice()
             && let Some(owner) = package.resolve_name_at(
@@ -1113,6 +1175,7 @@ fn analyze_parsed_with_projection(
     validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    super::enums::validate_enum_matches(&mut semantic)?;
     if semantic.execution_strategy == crate::execution::ExecutionStrategy::Local {
         for unit in &semantic.units {
             if let Some(destructor) = unit
@@ -1136,15 +1199,18 @@ fn analyze_parsed_with_projection(
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
+    populate_function_aliases(&mut semantic);
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
-    record_binding_mutability(&mut semantic);
     validate_calls(&semantic)?;
+    super::generic_recursion::validate(&semantic)?;
+    record_binding_mutability(&mut semantic);
     validate_discarded_temporary_mutations(&semantic)?;
     validate_definite_assignment(&semantic)?;
+    super::initialization::validate(&mut semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
     validate_projected_callback_arguments(&semantic)?;
@@ -1375,7 +1441,10 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
                 let span = symbol.declaration_span?;
                 matches!(
                     symbol.kind,
-                    SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                    SymbolKind::Class
+                        | SymbolKind::Interface
+                        | SymbolKind::Trait
+                        | SymbolKind::Enum
                 )
                 .then(|| contracts.get(&(span.file, span.start, span.end)))
                 .flatten()

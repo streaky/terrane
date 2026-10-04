@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-constructor-nonscalar-operation = { path = "fixture-registry/terrane-constructor-nonscalar-operation-0.1.0" }

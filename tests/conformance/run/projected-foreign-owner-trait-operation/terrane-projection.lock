@@ -1,0 +1,30 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/contract": [
+          "Doubled"
+        ]
+      },
+      "name": "contract",
+      "version": "0.1.0"
+    },
+    {
+      "members": {
+        "/deps/provider": [
+          "Value",
+          "Value.doubled",
+          "Value.into",
+          "Value.try_into",
+          "Value::new"
+        ]
+      },
+      "name": "provider",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

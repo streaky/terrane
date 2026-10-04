@@ -1,0 +1,8 @@
+package = "projected-constructor-selected-wrong-native"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-projected-constructor-wrong-native"
+version = "=0.1.0"

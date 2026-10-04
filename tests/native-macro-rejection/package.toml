@@ -1,0 +1,11 @@
+package = "projected-iced-scoped-macro-token-mismatch"
+[namespaces]
+app = "src"
+[rust-dependencies.iced]
+version = "=0.14.0"
+features = ["advanced"]
+effects = ["build"]
+[rust-dependencies.witness]
+package = "terrane-iced-scoped-rejection-witness"
+version = "=0.1.0"
+effects = ["build"]

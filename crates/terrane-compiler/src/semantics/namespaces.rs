@@ -122,7 +122,8 @@ pub(super) fn collect_unit(
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::TraitDeclaration => {
+            | SyntaxKind::TraitDeclaration
+            | SyntaxKind::EnumDeclaration => {
                 collect_declaration(unit, node, namespaces, globals)?;
             }
             SyntaxKind::ImportDeclaration => imports.extend(imports_from_syntax(unit, node)?),
@@ -197,6 +198,7 @@ pub(super) fn declaration_from_syntax(
         SyntaxKind::ClassDeclaration => SymbolKind::Class,
         SyntaxKind::InterfaceDeclaration => SymbolKind::Interface,
         SyntaxKind::TraitDeclaration => SymbolKind::Trait,
+        SyntaxKind::EnumDeclaration => SymbolKind::Enum,
         _ => SymbolKind::Binding,
     };
     Some(Declaration {
@@ -694,6 +696,24 @@ pub(super) fn class_designator_identity(
     unit: &SemanticUnit,
     designator: &SyntaxNode,
 ) -> Option<ObjectIdentity> {
+    if matches!(
+        designator.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+    ) {
+        return class_designator_identity(unit, designator.children.first()?);
+    }
+    if designator.kind == SyntaxKind::AppliedType {
+        let aliases = visible_descriptor_aliases(
+            &unit.descriptor_aliases,
+            designator.span.file,
+            designator.span.start,
+        );
+        let ValueType::Object(identity) = declared_value_type(unit, designator, &aliases).ok()?
+        else {
+            return None;
+        };
+        return Some(identity);
+    }
     if designator.kind != SyntaxKind::Name {
         return None;
     }
@@ -717,8 +737,21 @@ pub(super) fn class_designator_identity(
     }
     unit.descriptors
         .iter()
-        .find(|object| object.name == name && object.kind == ObjectKind::Class)
+        .find(|object| {
+            object.name == name && matches!(object.kind, ObjectKind::Class | ObjectKind::Enum)
+        })
         .map(|object| object.identity.clone())
+        .or_else(|| {
+            let aliases = visible_descriptor_aliases(
+                &unit.descriptor_aliases,
+                designator.span.file,
+                designator.span.start,
+            );
+            match declared_value_type(unit, designator, &aliases).ok()? {
+                ValueType::Object(identity) => Some(identity),
+                _ => None,
+            }
+        })
 }
 
 pub(super) fn method_contract<'a>(
@@ -747,15 +780,22 @@ fn method_contract_with_safety<'a>(
         unit.functions
             .iter()
             .find(|method| {
-                method.owner_identity.as_ref() == Some(object_identity)
-                    && method.name == method_name
+                method.owner_identity.as_ref().is_some_and(|owner| {
+                    owner == object_identity
+                        || (!object_identity.type_arguments.is_empty()
+                            && owner.base() == object_identity.base())
+                }) && method.name == method_name
                     && method.is_static == is_static
                     && method.is_unsafe == is_unsafe
             })
             .or_else(|| {
                 unit.descriptors
                     .iter()
-                    .find(|object| object.identity == *object_identity)
+                    .find(|object| {
+                        object.identity == *object_identity
+                            || (!object_identity.type_arguments.is_empty()
+                                && object.identity.base() == object_identity.base())
+                    })
                     .and_then(|object| object.base.as_ref())
                     .and_then(|base| contract(unit, base, method_name, is_static, is_unsafe))
             })
@@ -764,7 +804,11 @@ fn method_contract_with_safety<'a>(
         .units
         .iter()
         .flat_map(|candidate| &candidate.descriptors)
-        .find(|object| object.identity == *object_identity)?;
+        .find(|object| {
+            object.identity == *object_identity
+                || (!object_identity.type_arguments.is_empty()
+                    && object.identity.base() == object_identity.base())
+        })?;
     package
         .units
         .iter()
@@ -821,10 +865,18 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
         let object_identity = if callee.kind == SyntaxKind::StaticMemberExpression {
             class_designator_identity(unit, receiver)?
         } else {
-            let ValueType::Object(object_identity) = unit.inferred_value_type(receiver)? else {
-                return None;
-            };
-            object_identity
+            match unit.inferred_value_type(receiver)? {
+                ValueType::Object(identity) => identity,
+                ValueType::InvocationScopedNative {
+                    mut family,
+                    expression_scoped: true,
+                    ..
+                } => {
+                    family.native_projection = None;
+                    family
+                }
+                _ => return None,
+            }
         };
         return method_contract_with_safety(
             package,

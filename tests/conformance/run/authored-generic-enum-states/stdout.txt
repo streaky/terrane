@@ -1,0 +1,8 @@
+pending
+7
+running
+done
+failed
+absent
+accepted
+rejected

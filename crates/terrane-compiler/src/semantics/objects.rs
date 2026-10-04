@@ -217,6 +217,7 @@ pub(super) fn analyze_descriptor_contracts(
                 node.span,
             )
         })?;
+        let generic_parameters = super::generics::generic_parameters(unit, node, &visible)?;
         let clause_identities = |clause_kind| -> Result<Vec<ObjectIdentity>, SemanticFailure> {
             let Some(clause) = node.children.iter().find(|child| child.kind == clause_kind) else {
                 return Ok(Vec::new());
@@ -233,53 +234,49 @@ pub(super) fn analyze_descriptor_contracts(
                 .iter()
                 .filter(|type_node| type_node.kind != SyntaxKind::DeclarationQualifier)
                 .map(|type_node| {
-                        if type_node.kind == SyntaxKind::AppliedType {
-                            let [base, argument] = type_node.children.as_slice() else {
-                                return Err(failure(
-                                    &unit.source,
-                                    "T0127",
-                                    "a projected interface application requires exactly one closed type",
-                                    type_node.span,
-                                ));
-                            };
-                            let base_name = node_text(&unit.source, base);
-                            let lookup_name = if is_unsafe {
-                                format!("unsafe::{base_name}")
+                    let mut type_node = type_node;
+                    while matches!(
+                        type_node.kind,
+                        SyntaxKind::TypeExpression | SyntaxKind::GroupExpression
+                    ) && type_node.children.len() == 1
+                    {
+                        type_node = &type_node.children[0];
+                    }
+                    if type_node.kind == SyntaxKind::AppliedType {
+                        let ValueType::Object(identity) = declared_value_type_with_visible_objects(
+                            unit,
+                            type_node,
+                            &visible,
+                            visible_objects,
+                        )?
+                        else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0054",
+                                "relationship requires a nominal object type",
+                                type_node.span,
+                            ));
+                        };
+                        return Ok(identity.with_safety(is_unsafe));
+                    }
+                    let name = node_text(&unit.source, type_node);
+                    let lookup_name = if is_unsafe {
+                        format!("unsafe::{name}")
+                    } else {
+                        name.to_owned()
+                    };
+                    Ok(visible_objects
+                        .get(&lookup_name)
+                        .cloned()
+                        .unwrap_or_else(|| {
+                            if name == "throwable" {
+                                ObjectIdentity::new("/core/errors", name)
                             } else {
-                                base_name.to_owned()
-                            };
-                            let identity = visible_objects
-                                .get(&lookup_name)
-                                .cloned()
-                                .unwrap_or_else(|| {
-                                    ObjectIdentity::new(&unit.namespace, base_name)
-                                        .with_safety(is_unsafe)
-                                });
-                            let application = declared_value_type_with_visible_objects(
-                                unit,
-                                argument,
-                                &visible,
-                                visible_objects,
-                            )?;
-                            Ok(identity.with_application(application))
-                        } else {
-                            let name = node_text(&unit.source, type_node);
-                            let lookup_name = if is_unsafe {
-                                format!("unsafe::{name}")
-                            } else {
-                                name.to_owned()
-                            };
-                            Ok(visible_objects.get(&lookup_name).cloned().unwrap_or_else(|| {
-                                if name == "throwable" {
-                                    ObjectIdentity::new("/core/errors", name)
-                                } else {
-                                    ObjectIdentity::new(&unit.namespace, name)
-                                        .with_safety(is_unsafe)
-                                }
-                            }))
-                        }
-                    })
-                    .collect()
+                                ObjectIdentity::new(&unit.namespace, name).with_safety(is_unsafe)
+                            }
+                        }))
+                })
+                .collect()
         };
         let base = clause_identities(SyntaxKind::ExtendsClause)?
             .into_iter()
@@ -364,6 +361,7 @@ pub(super) fn analyze_descriptor_contracts(
                     value_type,
                     initializer_span: initializer.map(|initializer| initializer.span),
                     is_static,
+                    required: !is_static && initializer.is_none() && !uses_canonical_default,
                     metadata,
                 });
             }
@@ -427,6 +425,7 @@ pub(super) fn analyze_descriptor_contracts(
             identity: ObjectIdentity::new(&unit.namespace, &name).with_safety(is_unsafe),
             name,
             span: node.span,
+            generic_parameters,
             kind,
             is_unsafe,
             resource_owning,
@@ -658,6 +657,160 @@ fn resource_identities(package: &SemanticPackage) -> BTreeSet<String> {
                 })
         })
         .collect()
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive resource classification mirrors semantic value shapes and preserves generic-parameter ownership profiles"
+)]
+pub(crate) fn application_is_resource_owning(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+) -> bool {
+    fn owns(
+        package: &SemanticPackage,
+        value_type: &ValueType,
+        resources: &BTreeSet<String>,
+        parameters: &BTreeMap<String, bool>,
+        visiting: &mut BTreeSet<(ObjectIdentity, Vec<bool>)>,
+    ) -> bool {
+        match value_type {
+            ValueType::Reference(_) | ValueType::SharedReference(_) => return false,
+            ValueType::TypeParameter(name) => return parameters.get(name).copied().unwrap_or(true),
+            _ => {}
+        }
+        if value_type_owns_resource(value_type, resources)
+            || value_type_contains_nonclone_foreign(&package.projection, value_type)
+        {
+            return true;
+        }
+        match value_type {
+            ValueType::Object(identity) => {
+                let Some(descriptor) = package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .find(|descriptor| descriptor.identity.base() == identity.base())
+                else {
+                    return false;
+                };
+                let arguments = identity
+                    .type_arguments
+                    .iter()
+                    .map(|argument| owns(package, argument, resources, parameters, visiting))
+                    .collect::<Vec<_>>();
+                let key = (identity.base(), arguments.clone());
+                if !visiting.insert(key.clone()) {
+                    return false;
+                }
+                let parameters = descriptor
+                    .generic_parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        (
+                            parameter.name.clone(),
+                            arguments.get(index).copied().unwrap_or(true),
+                        )
+                    })
+                    .collect::<BTreeMap<_, _>>();
+                let result = if descriptor.kind == ObjectKind::Enum {
+                    if let Some(enumeration) = package
+                        .units
+                        .iter()
+                        .flat_map(|unit| &unit.source_enums)
+                        .find(|enumeration| enumeration.identity.base() == identity.base())
+                    {
+                        enumeration
+                            .variants
+                            .iter()
+                            .flat_map(|variant| &variant.payload)
+                            .any(|field| {
+                                owns(package, &field.value_type, resources, &parameters, visiting)
+                            })
+                    } else {
+                        package
+                            .projection
+                            .item(&identity.namespace, &identity.name)
+                            .and_then(|item| {
+                                let crate::rust_interop::projection::ProjectedKind::Enum {
+                                    variants,
+                                    ..
+                                } = &item.kind
+                                else {
+                                    return None;
+                                };
+                                Some(variants.iter().flat_map(|variant| &variant.fields).any(
+                                    |field| {
+                                        let Some(field_type) =
+                                            super::enums::projected_enum_payload_type(
+                                                package, &field.ty,
+                                            )
+                                        else {
+                                            return true;
+                                        };
+                                        let field_type = super::generics::substitute_value_type(
+                                            &field_type,
+                                            &identity.native_arguments,
+                                        );
+                                        owns(package, &field_type, resources, &parameters, visiting)
+                                    },
+                                ))
+                            })
+                            .unwrap_or(false)
+                    }
+                } else {
+                    effective_object_fields(package, descriptor)
+                        .iter()
+                        .filter(|field| !field.is_static)
+                        .any(|field| {
+                            owns(package, &field.value_type, resources, &parameters, visiting)
+                        })
+                };
+                visiting.remove(&key);
+                result
+            }
+            ValueType::Optional(inner) => owns(package, inner, resources, parameters, visiting),
+            ValueType::List(inner)
+            | ValueType::Set(inner)
+            | ValueType::Tuple(inner, _)
+            | ValueType::Iterator(inner)
+            | ValueType::IterationStep(inner)
+            | ValueType::UnorderedSet(inner)
+            | ValueType::TaskOutcome(inner) => owns(
+                package,
+                inner.value_type_ref(),
+                resources,
+                parameters,
+                visiting,
+            ),
+            ValueType::Map(key, value)
+            | ValueType::Entry(key, value)
+            | ValueType::UnorderedMap(key, value) => {
+                owns(
+                    package,
+                    key.value_type_ref(),
+                    resources,
+                    parameters,
+                    visiting,
+                ) || owns(
+                    package,
+                    value.value_type_ref(),
+                    resources,
+                    parameters,
+                    visiting,
+                )
+            }
+            _ => false,
+        }
+    }
+    owns(
+        package,
+        value_type,
+        &resource_identities(package),
+        &BTreeMap::new(),
+        &mut BTreeSet::new(),
+    )
 }
 
 pub(super) fn propagate_resource_ownership(
@@ -1281,6 +1434,7 @@ pub(super) fn validate_object_conformance(
                     };
                     let required_render = FunctionContract {
                         name: "render".to_owned(),
+                        generic_parameters: Vec::new(),
                         span: object.span,
                         owner: Some("/core/errors::throwable".to_owned()),
                         owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
@@ -1320,7 +1474,7 @@ pub(super) fn validate_object_conformance(
                     .find(|candidate| {
                         candidate.namespace == resolved_interface.namespace
                             && candidate.descriptors.iter().any(|candidate| {
-                                candidate.identity == *interface_identity
+                                candidate.identity.base() == interface_identity.base()
                                     && candidate.kind == ObjectKind::Interface
                             })
                     })
@@ -1328,17 +1482,34 @@ pub(super) fn validate_object_conformance(
                 let interface = interface_unit
                     .descriptors
                     .iter()
-                    .find(|candidate| candidate.identity == *interface_identity)
+                    .find(|candidate| candidate.identity.base() == interface_identity.base())
                     .expect("resolved interface must have an object contract");
+                let substitutions = interface
+                    .generic_parameters
+                    .iter()
+                    .zip(&interface_identity.type_arguments)
+                    .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                    .collect();
                 let requirements = interface_unit
                     .functions
                     .iter()
                     .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
                     .map(|method| {
-                        bind_projected_requirement(
+                        let mut requirement = bind_projected_requirement(
                             method,
                             interface_identity.application.as_deref(),
-                        )
+                        );
+                        for parameter in &mut requirement.parameters {
+                            parameter.value_type =
+                                parameter.value_type.as_ref().map(|value_type| {
+                                    substitute_value_type(value_type, &substitutions)
+                                });
+                        }
+                        requirement.return_type = requirement
+                            .return_type
+                            .as_ref()
+                            .map(|value_type| substitute_value_type(value_type, &substitutions));
+                        requirement
                     })
                     .collect::<Vec<_>>();
                 for required in &requirements {
@@ -1406,6 +1577,8 @@ pub(super) fn validate_object_conformance(
                                 Some("borrowed parameters are deferred")
                             } else if method.function.error.is_some() {
                                 Some("Result-returning methods are deferred")
+                            } else if method.function.result.contains_borrowed_result() {
+                                Some("borrowed results require native default implementation")
                             } else {
                                 None
                             }
@@ -1576,6 +1749,9 @@ pub(super) fn validate_class_field_initializers(
                         | ValueType::FilesystemAuthority
                 )
             {
+                continue;
+            }
+            if field.required {
                 continue;
             }
             return Err(failure(
@@ -2151,9 +2327,13 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                             &item.kind,
                             crate::rust_interop::projection::ProjectedKind::Interface(interface) if interface.is_unsafe
                         ),
+                        type_arguments: interface_identity.type_arguments.clone(),
+                        type_arguments_key: interface_identity.type_arguments_key.clone(),
                         application: interface_identity.application.clone(),
                         application_key: interface_identity.application_key.clone(),
                         native_projection: interface_identity.native_projection.clone(),
+                        native_arguments: interface_identity.native_arguments.clone(),
+                        native_arguments_key: interface_identity.native_arguments_key.clone(),
                     };
                     if !object.interfaces.contains(&inherited) {
                         object.interfaces.push(inherited);
@@ -2201,6 +2381,10 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                 application: identity.application.clone(),
                 application_key: identity.application_key.clone(),
                 native_projection: identity.native_projection.clone(),
+                native_arguments: identity.native_arguments.clone(),
+                native_arguments_key: identity.native_arguments_key.clone(),
+                type_arguments: Vec::new(),
+                type_arguments_key: None,
             })
             .collect::<Vec<_>>();
         let projectable = package
@@ -2260,6 +2444,125 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Enum declarations publish their variants and nominal descriptor atomically"
+)]
+fn analyze_source_enums(
+    unit: &SemanticUnit,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Result<(Vec<SourceEnumContract>, Vec<DescriptorContract>), SemanticFailure> {
+    let mut result = Vec::new();
+    let mut descriptors = Vec::new();
+    for node in unit
+        .tree
+        .root
+        .children
+        .iter()
+        .filter(|node| node.kind == SyntaxKind::EnumDeclaration)
+    {
+        let name_node = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0053",
+                    "enum declaration requires a name",
+                    node.span,
+                )
+            })?;
+        let name = node_text(&unit.source, name_node).to_owned();
+        let generic_parameters = super::generics::generic_parameters(unit, node, aliases)?;
+        let mut variants = Vec::new();
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            for variant in &block.children {
+                let Some(variant_name) = variant
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                else {
+                    continue;
+                };
+                let mut payload = Vec::new();
+                if let Some(list) = variant
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::ParameterList)
+                {
+                    for field in &list.children {
+                        let Some(field_name) = field
+                            .children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::Name)
+                        else {
+                            continue;
+                        };
+                        let field_type = field
+                            .children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::TypeExpression)
+                            .ok_or_else(|| {
+                                failure(
+                                    &unit.source,
+                                    "T0001",
+                                    "enum payload fields require a type",
+                                    field.span,
+                                )
+                            })?;
+                        payload.push(SourceEnumField {
+                            name: node_text(&unit.source, field_name).to_owned(),
+                            span: field.span,
+                            value_type: declared_value_type(unit, field_type, aliases)?,
+                        });
+                    }
+                }
+                variants.push(SourceEnumVariant {
+                    name: node_text(&unit.source, variant_name).to_owned(),
+                    span: variant.span,
+                    payload,
+                });
+            }
+        }
+        descriptors.push(DescriptorContract {
+            name: name.clone(),
+            identity: ObjectIdentity::new(&unit.namespace, &name),
+            span: node.span,
+            kind: ObjectKind::Enum,
+            generic_parameters,
+            is_unsafe: false,
+            resource_owning: false,
+            builtin: None,
+            categories: vec![TypeCategory::Value, TypeCategory::Object],
+            operations: BTreeMap::new(),
+            members: BTreeSet::new(),
+            methods: BTreeSet::new(),
+            invocation_only_methods: BTreeSet::new(),
+            static_members: BTreeSet::new(),
+            static_methods: BTreeSet::new(),
+            base: None,
+            interfaces: Vec::new(),
+            traits: Vec::new(),
+            fields: Vec::new(),
+        });
+        result.push(SourceEnumContract {
+            identity: ObjectIdentity::new(&unit.namespace, &name),
+            span: node.span,
+            variants,
+        });
+    }
+    Ok((result, descriptors))
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Type-analysis phase ordering is explicit because constructor, binding, and projection selections depend on prior phases"
+)]
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let descriptors = {
@@ -2277,10 +2580,10 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                     )
                 })
                 .map(|(visible_name, symbol)| {
-                    let is_unsafe = visible_name.starts_with("unsafe::");
                     (
                         visible_name.clone(),
-                        ObjectIdentity::new(&symbol.namespace, &symbol.name).with_safety(is_unsafe),
+                        ObjectIdentity::new(&symbol.namespace, &symbol.name)
+                            .with_safety(visible_name.starts_with("unsafe::")),
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
@@ -2288,9 +2591,31 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         };
         package.units[index].descriptors = descriptors;
     }
+    for index in 0..package.units.len() {
+        let (source_enums, enum_descriptors) = {
+            let unit = &package.units[index];
+            let alias_history = descriptor_construct_alias_history(package, unit);
+            let aliases = visible_descriptor_aliases(&alias_history, unit.source.id(), 0);
+            analyze_source_enums(unit, &aliases)?
+        };
+        package.units[index].descriptors.extend(enum_descriptors);
+        package.units[index].source_enums = source_enums;
+    }
     populate_object_aliases(package);
     for unit in &mut package.units {
         for object in &mut unit.descriptors {
+            if package
+                .projection
+                .item(&object.identity.namespace, &object.identity.name)
+                .is_some_and(|item| {
+                    matches!(
+                        item.kind,
+                        crate::rust_interop::projection::ProjectedKind::Enum { .. },
+                    )
+                })
+            {
+                object.kind = ObjectKind::Enum;
+            }
             if package
                 .projection
                 .foreign_owns_resource(&object.identity.namespace, &object.identity.name)
@@ -2329,6 +2654,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
     }
+    super::native_constructors::normalize_contracts(package);
     materialize_projected_interface_applications(package);
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
@@ -2338,6 +2664,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     validate_descriptor_value_uses(package)?;
 
     collect_initial_typed_bindings(package)?;
+    super::enums::validate_enum_constructions(package)?;
     populate_projected_call_result_types(package)?;
     collect_initial_typed_bindings(package)?;
     specialize_projected_results(package)?;
@@ -2364,10 +2691,35 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 }
 
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    fn payload_spans(node: &SyntaxNode, spans: &mut BTreeSet<(usize, usize)>) {
+        if node.kind == SyntaxKind::MatchCase
+            && let Some(parameters) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::ParameterList)
+        {
+            spans.extend(
+                parameters
+                    .children
+                    .iter()
+                    .map(|parameter| (parameter.span.start, parameter.span.end)),
+            );
+        }
+        for child in &node.children {
+            payload_spans(child, spans);
+        }
+    }
     for index in 0..package.units.len() {
         let unit = &package.units[index];
-        let mut visible_bindings = Vec::new();
-        let mut bindings = Vec::new();
+        let mut spans = BTreeSet::new();
+        payload_spans(&unit.tree.root, &mut spans);
+        let mut bindings = unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| spans.contains(&(binding.span.start, binding.span.end)))
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut visible_bindings = bindings.clone();
         collect_typed_bindings(
             unit,
             &unit.tree.root,
@@ -2396,14 +2748,87 @@ fn populate_projected_call_result_types(
         let mut changed = false;
         for (unit_index, key, value_type) in additions {
             changed |= package.units[unit_index]
-                .projected_call_result_types
+                .selected_expression_types
                 .insert(key, value_type)
                 .is_none();
         }
         if !changed {
             return Ok(());
         }
+        rebuild_typed_bindings(package)?;
     }
+}
+
+fn projected_constructor_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    constructor: &crate::rust_interop::projection::ProjectedFunction,
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let Some(arguments) = node.children.get(1) else {
+        return Ok(None);
+    };
+    let mut substitutions = BTreeMap::new();
+    let mut positional = 0;
+    for argument in &arguments.children {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let parameter = if let Some(name) = named {
+            constructor
+                .parameters
+                .iter()
+                .find(|parameter| parameter.name == node_text(&unit.source, name))
+        } else {
+            let parameter = constructor.parameters.get(positional);
+            positional += 1;
+            parameter
+        };
+        let Some(parameter) = parameter else {
+            return Ok(None);
+        };
+        let value = argument.children.last().unwrap_or(argument);
+        let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
+            return Ok(None);
+        };
+        if actual == ValueType::Scalar(ScalarType::None) {
+            continue;
+        }
+        let actual = destination_projected_type(package, &actual).map_err(|error| {
+            failure(
+                &unit.source,
+                "T0129",
+                format!("constructor payload cannot select a native representation: {error}"),
+                value.span,
+            )
+        })?;
+        bind_projected_native_generics(&parameter.ty, &actual, &mut substitutions).map_err(
+            |reason| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    format!(
+                        "constructor payloads select incompatible native representations: {reason}"
+                    ),
+                    value.span,
+                )
+            },
+        )?;
+    }
+    if constructor
+        .generic_parameters
+        .iter()
+        .any(|parameter| !substitutions.contains_key(&parameter.name))
+    {
+        return Ok(None);
+    }
+    let result = substitutions
+        .iter()
+        .fold(constructor.result.clone(), |result, (name, selected)| {
+            substitute_projected_generic(&result, name, selected)
+        });
+    Ok(closed_projected_value_type(package, &result))
 }
 
 #[expect(
@@ -2421,7 +2846,7 @@ fn collect_projected_call_result_types(
         collect_projected_call_result_types(package, unit, child, unit_index, additions)?;
     }
     if node.kind != SyntaxKind::CallExpression
-        || unit.projected_call_result_types.contains_key(&(
+        || unit.selected_expression_types.contains_key(&(
             node.span.file,
             node.span.start,
             node.span.end,
@@ -2432,9 +2857,41 @@ fn collect_projected_call_result_types(
     let Some(callee) = node.children.first() else {
         return Ok(());
     };
+    let designator = if callee.kind == SyntaxKind::AppliedType {
+        callee.children.first().unwrap_or(callee)
+    } else {
+        callee
+    };
+    if super::namespaces::function_contract_for_call(package, unit, designator)
+        .is_some_and(|contract| !contract.generic_parameters.is_empty())
+        && let Some(contract) = super::calls::selected_callable_contract(
+            package,
+            unit,
+            node,
+            crate::syntax::call_is_unsafe(node),
+        )
+        && let Some(value_type) = contract.return_type
+    {
+        additions.push((
+            unit_index,
+            (node.span.file, node.span.start, node.span.end),
+            value_type,
+        ));
+        return Ok(());
+    }
     let Some(function) = projected_function_for_call(package, unit, callee) else {
         return Ok(());
     };
+    if callee.kind == SyntaxKind::ConstructionExpression {
+        if let Some(value_type) = projected_constructor_result(package, unit, node, function)? {
+            additions.push((
+                unit_index,
+                (node.span.file, node.span.start, node.span.end),
+                value_type,
+            ));
+        }
+        return Ok(());
+    }
     if function.chain_role == Some(crate::rust_interop::projection::ChainRole::Continue)
         && let Some(receiver) = callee.children.first()
         && let Some(ValueType::InvocationScopedNative {
@@ -2442,6 +2899,7 @@ fn collect_projected_call_result_types(
             concrete: true,
             family,
             lifetimes,
+            expression_scoped,
             region,
         }) = infer_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
@@ -2479,6 +2937,7 @@ fn collect_projected_call_result_types(
                 concrete: true,
                 family,
                 lifetimes,
+                expression_scoped,
                 region,
             },
         ));
@@ -2490,7 +2949,8 @@ fn collect_projected_call_result_types(
             rust_type,
             name,
             lifetimes,
-            owned: _,
+            expression_scoped,
+            owned,
         } => {
             let region = package.units[unit_index]
                 .enclosing_function_spans
@@ -2507,11 +2967,28 @@ fn collect_projected_call_result_types(
                     })
                 })
                 .map(|span| (span.file, span.start, span.end));
-            let family_namespace = package
+            let region = (!expression_scoped).then_some(region).flatten();
+            let (family_namespace, family_name) = package
                 .projection
-                .item_named(name)
-                .map_or(package.units[unit_index].namespace.as_str(), |item| {
-                    item.namespace.as_str()
+                .borrowed_scope_owner(owned)
+                .unwrap_or_else(|| {
+                    let namespace = callee
+                        .children
+                        .first()
+                        .and_then(|receiver| {
+                            infer_value_type(unit, receiver, &unit.typed_bindings)
+                                .ok()
+                                .flatten()
+                        })
+                        .and_then(|value| match value {
+                            ValueType::Object(identity)
+                            | ValueType::InvocationScopedNative {
+                                family: identity, ..
+                            } => Some(identity.namespace),
+                            _ => None,
+                        })
+                        .unwrap_or_else(|| package.units[unit_index].namespace.clone());
+                    (namespace, name.clone())
                 });
             additions.push((
                 unit_index,
@@ -2519,13 +2996,22 @@ fn collect_projected_call_result_types(
                 ValueType::InvocationScopedNative {
                     rust_type: rust_type.clone(),
                     concrete: true,
-                    family: ObjectIdentity::new(family_namespace, name.clone())
+                    family: ObjectIdentity::new(family_namespace, family_name)
                         .with_native_projection(
-                            rust_type
-                                .split_once('<')
-                                .map_or(rust_type.as_str(), |(base, _)| base),
+                            if matches!(
+                                owned.as_ref(),
+                                crate::rust_interop::projection::ProjectedType::Optional(_)
+                            ) {
+                                "std::option::Option".to_owned()
+                            } else {
+                                owned
+                                    .rust_type()
+                                    .split_once('<')
+                                    .map_or(owned.rust_type(), |(base, _)| base.to_owned())
+                            },
                         ),
                     lifetimes: lifetimes.clone(),
+                    expression_scoped: *expression_scoped,
                     region,
                 },
             ));
@@ -2576,7 +3062,10 @@ fn collect_projected_generic_names(
         ProjectedType::Sequence { item, .. }
         | ProjectedType::Set { item, .. }
         | ProjectedType::AsyncIterationStep(item)
-        | ProjectedType::Optional(item) => collect_projected_generic_names(item, names),
+        | ProjectedType::Optional(item)
+        | ProjectedType::Reference { inner: item, .. } => {
+            collect_projected_generic_names(item, names);
+        }
         ProjectedType::Mapping { key, value, .. } => {
             collect_projected_generic_names(key, names);
             collect_projected_generic_names(value, names);
@@ -2615,6 +3104,7 @@ fn collect_projected_generic_names(
         | ProjectedType::Float32
         | ProjectedType::Char
         | ProjectedType::String
+        | ProjectedType::BorrowedString
         | ProjectedType::Bytes
         | ProjectedType::AsyncSinkOutcome
         | ProjectedType::BoxedInterface {
@@ -2774,6 +3264,114 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .projection
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
+    let mut macro_questions = Vec::new();
+    let mut macro_expansions = Vec::new();
+    let mut macro_sites = Vec::new();
+    for specialization in &pending {
+        let unit = &package.units[specialization.unit];
+        if let Some(node) = find_node_by_span(&unit.tree.root, specialization.span)
+            && let Some(callee) = node.children.first()
+            && projected_macro_for_call(package, unit, callee).is_some()
+            && !matches!(
+                specialization.value_type,
+                ValueType::InvocationScopedNative { .. }
+            )
+        {
+            let (expansion, result) =
+                super::macros::macro_probe(package, unit, node, &specialization.projected_result)?;
+            macro_expansions.push(expansion);
+            macro_questions.push(result);
+            macro_sites.push((
+                specialization.unit,
+                specialization.span,
+                node_text(&unit.source, node).to_owned(),
+            ));
+        }
+    }
+    if !macro_questions.is_empty() {
+        let oracle = crate::rust_interop::ProjectionOracle::new(
+            &workspace,
+            &package.projection.cache_identity,
+            package.projection.containment,
+        );
+        let report = oracle.prove_calls(&macro_questions).map_err(|error| {
+            failure(
+                &package.units[macro_sites[0].0].source,
+                "T0119",
+                format!("native macro proof could not run: {}", error.message),
+                macro_sites[0].1,
+            )
+        })?;
+        package.projection.probe_wall_time_ms = package
+            .projection
+            .probe_wall_time_ms
+            .saturating_add(report.wall_time_ms);
+        let result_answers = report
+            .evidence
+            .iter()
+            .map(|e| (&e.question, &e.answer))
+            .collect::<BTreeMap<_, _>>();
+        let rejected = macro_questions
+            .iter()
+            .enumerate()
+            .filter_map(|(i, question)| {
+                (result_answers.get(question) != Some(&&crate::rust_interop::ProbeAnswer::Yes))
+                    .then_some(i)
+            })
+            .collect::<Vec<_>>();
+        let expansion_questions = rejected
+            .iter()
+            .map(|&i| macro_expansions[i].clone())
+            .collect::<Vec<_>>();
+        let expansion_answers = if expansion_questions.is_empty() {
+            BTreeMap::new()
+        } else {
+            let report = oracle.prove_calls(&expansion_questions).map_err(|error| {
+                failure(
+                    &package.units[macro_sites[rejected[0]].0].source,
+                    "T0119",
+                    format!("native macro proof could not run: {}", error.message),
+                    macro_sites[rejected[0]].1,
+                )
+            })?;
+            package.projection.probe_wall_time_ms = package
+                .projection
+                .probe_wall_time_ms
+                .saturating_add(report.wall_time_ms);
+            report
+                .evidence
+                .iter()
+                .map(|e| (e.question.clone(), e.answer.clone()))
+                .collect::<BTreeMap<_, _>>()
+        };
+        if let Some(i) = rejected.into_iter().next() {
+            let (unit_index, span, invocation) = &macro_sites[i];
+            let result = result_answers.get(&macro_questions[i]);
+            let expansion = expansion_answers.get(&macro_expansions[i]);
+            let reason = match (expansion, result) {
+                (Some(crate::rust_interop::ProbeAnswer::No), _) =>
+                    format!("the native macro expansion rejects the supplied argument(s) in `{invocation}`; check their types and the macro's accepted arguments"),
+                (Some(crate::rust_interop::ProbeAnswer::Yes), Some(crate::rust_interop::ProbeAnswer::No)) =>
+                    "the macro expansion does not produce a value compatible with the destination type".to_owned(),
+                (Some(crate::rust_interop::ProbeAnswer::Unknown { reason }), _)
+                    if reason.contains("no rules expected") || reason.contains("unexpected end of macro invocation") =>
+                    format!("supplied argument(s) in `{invocation}` do not match the native macro's accepted token pattern"),
+                (Some(crate::rust_interop::ProbeAnswer::Unknown { .. }), _) =>
+                    format!("the supplied argument(s) in `{invocation}` could not be checked against the native macro"),
+                (_, Some(crate::rust_interop::ProbeAnswer::Unknown { .. })) =>
+                    "the macro expansion could not be checked against the destination type".to_owned(),
+                _ => "native macro proof returned no answer".to_owned(),
+            };
+            return Err(failure(
+                &package.units[*unit_index].source,
+                "T0119",
+                format!(
+                    "native macro invocation does not satisfy its concrete expression contract: {reason}"
+                ),
+                *span,
+            ));
+        }
+    }
     for mut specialization in pending {
         let mut generic_groups = Vec::new();
         for bound in &specialization.bounds {
@@ -3042,12 +3640,14 @@ fn merge_projected_callback_value_shape(
             rust_type,
             name,
             lifetimes,
+            expression_scoped,
             ..
         }) => Some(ElementType::new(ValueType::InvocationScopedNative {
             rust_type: rust_type.clone(),
             concrete: true,
             family: ObjectIdentity::new(namespace.to_owned(), name.clone()),
             lifetimes: lifetimes.clone(),
+            expression_scoped: *expression_scoped,
             region,
         })),
         _ => None,
@@ -3173,7 +3773,7 @@ fn projected_call_result(
         node = node.children.first()?;
     }
     if let Some(value_type @ ValueType::InvocationScopedNative { .. }) = unit
-        .projected_call_result_types
+        .selected_expression_types
         .get(&(node.span.file, node.span.start, node.span.end))
         && let Ok(mut projected) = destination_projected_type(package, value_type)
     {
@@ -3232,7 +3832,7 @@ fn callback_expression_result(
         return None;
     }
     let value_type = unit
-        .projected_call_result_types
+        .selected_expression_types
         .get(&(node.span.file, node.span.start, node.span.end))
         .cloned()
         .or_else(|| {
@@ -3371,10 +3971,89 @@ pub(super) fn same_projected_native_family(
     }
 }
 
+fn contextual_results(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    results: &mut BTreeMap<(u32, usize, usize), Vec<CallbackFunctionResult>>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && let Some(function) = projected_function_for_call(package, unit, callee)
+    {
+        for (parameter, argument) in function.parameters.iter().zip(&arguments.children) {
+            let ProjectedType::Callback {
+                result,
+                native_result,
+                ..
+            } = &parameter.ty
+            else {
+                continue;
+            };
+            let ProjectedType::InvocationScoped {
+                name,
+                owned,
+                lifetimes,
+                rust_type,
+                ..
+            } = result.as_ref()
+            else {
+                continue;
+            };
+            if native_result.as_ref().is_some_and(|native| {
+                !crate::rust_ir::rust_type_constructors_match(native, rust_type)
+            }) {
+                // A trait adapter's terminal result is not necessarily its
+                // callback producer contract; retain that producer's identity.
+                continue;
+            }
+            let native = native_result.as_ref().unwrap_or(rust_type);
+            let value = argument.children.last().unwrap_or(argument);
+            if value.kind != SyntaxKind::Name {
+                continue;
+            }
+            let Some(contract) =
+                resolved_function_contract(unit, node_text(&unit.source, value), value.span.start)
+            else {
+                continue;
+            };
+            let base = owned.rust_type();
+            let value_type = ValueType::InvocationScopedNative {
+                rust_type: native.clone(),
+                concrete: true,
+                family: ObjectIdentity::new(unit.namespace.clone(), name.clone())
+                    .with_native_projection(
+                        base.split_once('<')
+                            .map_or(base.clone(), |(base, _)| base.to_owned()),
+                    ),
+                lifetimes: lifetimes.clone(),
+                expression_scoped: false,
+                region: None,
+            };
+            let mut projected = result.as_ref().clone();
+            if let ProjectedType::InvocationScoped { rust_type, .. } = &mut projected {
+                rust_type.clone_from(native);
+            }
+            results
+                .entry((contract.span.file, contract.span.start, contract.span.end))
+                .or_default()
+                .push(CallbackFunctionResult {
+                    projected,
+                    value_type,
+                });
+        }
+    }
+    for child in &node.children {
+        contextual_results(package, unit, child, results);
+    }
+}
 fn resolve_callback_function_results(
     package: &SemanticPackage,
     unit: &SemanticUnit,
 ) -> Vec<(Span, CallbackFunctionResult)> {
+    let mut contexts = BTreeMap::new();
+    contextual_results(package, unit, &unit.tree.root, &mut contexts);
     let mut facts = unit
         .functions
         .iter()
@@ -3395,6 +4074,13 @@ fn resolve_callback_function_results(
                 forwarded_returns: Vec::new(),
             };
             collect_callback_function_facts(package, unit, function, &mut facts);
+            // A scoped function's consumer selects its result, even when the
+            // producer is a different native builder closed through Into.
+            if let Some(context) =
+                contexts.get(&(contract.span.file, contract.span.start, contract.span.end))
+            {
+                facts.direct_results.clone_from(context);
+            }
             for result in &mut facts.direct_results {
                 contextualize_callback_value_type(unit, &mut result.value_type, &[contract.span]);
             }
@@ -3546,6 +4232,20 @@ fn bind_projected_native_generics(
     }
     match (expected, actual) {
         (
+            ProjectedType::Reference {
+                inner: expected,
+                mutable: expected_mutable,
+                ..
+            },
+            ProjectedType::Reference {
+                inner: actual,
+                mutable: actual_mutable,
+                ..
+            },
+        ) if expected_mutable == actual_mutable => {
+            bind_projected_native_generics(expected, actual, bindings)
+        }
+        (
             ProjectedType::Foreign {
                 base_rust_path: expected_path,
                 arguments: expected_arguments,
@@ -3586,6 +4286,9 @@ fn bind_projected_native_generics(
             ProjectedType::AsyncIterationStep(expected),
             ProjectedType::AsyncIterationStep(actual),
         ) => bind_projected_native_generics(expected, actual, bindings),
+        (ProjectedType::Optional(expected), actual) if actual != &ProjectedType::None => {
+            bind_projected_native_generics(expected, actual, bindings)
+        }
         (ProjectedType::Tuple(expected), ProjectedType::Tuple(actual))
             if expected.len() == actual.len() =>
         {
@@ -3617,6 +4320,126 @@ fn collect_projected_destinations(
     unit_index: usize,
     pending: &mut Vec<PendingProjectedSpecialization>,
 ) -> Result<(), SemanticFailure> {
+    fn collect_inputs(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        value: &SyntaxNode,
+        function_result: Option<&ValueType>,
+        unit_index: usize,
+        pending: &mut Vec<PendingProjectedSpecialization>,
+    ) -> Result<(), SemanticFailure> {
+        if value.kind == SyntaxKind::CallExpression
+            && let Some(callee) = value.children.first()
+            && super::bindings::projected_macro_for_call(package, unit, callee).is_some()
+        {
+            if let Some(arguments) = value.children.get(1) {
+                for argument in &arguments.children {
+                    collect_inputs(
+                        package,
+                        unit,
+                        argument.children.last().unwrap_or(argument),
+                        function_result,
+                        unit_index,
+                        pending,
+                    )?;
+                }
+            }
+            return Ok(());
+        }
+        if value.kind == SyntaxKind::GroupExpression {
+            for child in &value.children {
+                collect_inputs(package, unit, child, function_result, unit_index, pending)?;
+            }
+            return Ok(());
+        }
+        collect_projected_destinations(
+            package,
+            unit,
+            value,
+            None,
+            function_result,
+            unit_index,
+            pending,
+        )
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && let Some(item) = projected_macro_for_call(package, unit, callee)
+    {
+        let destination = expected.ok_or_else(|| {
+            failure(
+                &unit.source,
+                "T0119",
+                "native macro invocation requires a concrete result destination",
+                node.span,
+            )
+        })?;
+        let projected_result =
+            destination_projected_type(package, destination).map_err(|error| {
+                failure(
+                    &unit.source,
+                    "T0119",
+                    format!("native macro result cannot be projected: {error}"),
+                    node.span,
+                )
+            })?;
+        let projected_parameters = arguments
+            .children
+            .iter()
+            .enumerate()
+            .map(|(index, argument)| {
+                super::macros::macro_argument(
+                    package,
+                    unit,
+                    argument.children.last().unwrap_or(argument),
+                    index,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        pending.push(PendingProjectedSpecialization {
+            unit: unit_index,
+            span: node.span,
+            operation_name: item.name.clone(),
+            substitutions: BTreeMap::new(),
+            generic_arguments: Vec::new(),
+            projected_result,
+            value_type: destination.clone(),
+            value_parameters: vec![None; projected_parameters.len()],
+            projected_parameters,
+            direct_projected_call: true,
+            bounds: Vec::new(),
+        });
+        let input_start = pending.len();
+        for argument in &arguments.children {
+            collect_inputs(
+                package,
+                unit,
+                argument.children.last().unwrap_or(argument),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        if matches!(
+            destination,
+            ValueType::InvocationScopedNative { concrete: true, .. }
+        ) {
+            // The native callback closes producer lifetimes jointly with the macro.
+            // A detached higher-ranked assertion would demand an unrelated lifetime.
+            for producer in &mut pending[input_start..] {
+                producer.bounds.clear();
+                if producer.generic_arguments.iter().any(|argument| {
+                    matches!(
+                        argument,
+                        crate::rust_interop::projection::ProjectedType::Generic(_)
+                    )
+                }) {
+                    producer.generic_arguments.clear();
+                }
+            }
+        }
+        return Ok(());
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && let Some(function) = projected_function_for_call(package, unit, callee)
@@ -3649,13 +4472,36 @@ fn collect_projected_destinations(
         let mut native_bindings = BTreeMap::new();
         let mut native_value_bindings = BTreeMap::new();
         let mut native_projected_parameters = BTreeMap::new();
-        for (parameter_index, ((argument, parameter), projected_parameter)) in arguments
-            .children
+        for (parameter_index, (parameter, projected_parameter)) in contract
+            .parameters
             .iter()
-            .zip(&contract.parameters)
             .zip(&function.parameters)
             .enumerate()
         {
+            let argument = arguments
+                .children
+                .iter()
+                .find(|argument| {
+                    argument.children.first().is_some_and(|name| {
+                        name.kind == SyntaxKind::Name
+                            && argument.children.len() > 1
+                            && node_text(&unit.source, name) == parameter.name
+                    })
+                })
+                .or_else(|| {
+                    arguments
+                        .children
+                        .iter()
+                        .filter(|argument| {
+                            !argument.children.first().is_some_and(|name| {
+                                name.kind == SyntaxKind::Name && argument.children.len() > 1
+                            })
+                        })
+                        .nth(parameter_index)
+                });
+            let Some(argument) = argument else {
+                continue;
+            };
             let value = argument.children.last().unwrap_or(argument);
             let actual_projected = projected_call_result(package, unit, value);
             if let Some(actual_projected) = actual_projected.as_ref() {
@@ -3888,17 +4734,26 @@ fn collect_projected_destinations(
             let projected = if let Some(projected) = native_bindings.get(&generic.name) {
                 projected.clone()
             } else if let Some(actual) = value_bindings.get(&generic.name) {
-                destination_projected_type(package, actual).map_err(|reason| {
-                    failure(
-                        &unit.source,
-                        "T0129",
-                        format!(
-                            "projected generic `{}` cannot use `{actual}`: {reason}",
-                            generic.name
-                        ),
-                        node.span,
-                    )
-                })?
+                let (actual_projection, reference) = match actual {
+                    ValueType::Reference(inner) => (inner.value_type_ref(), Some(true)),
+                    ValueType::SharedReference(inner) => (inner.value_type_ref(), Some(false)),
+                    actual => (actual, None),
+                };
+                let projected =
+                    destination_projected_type(package, actual_projection).map_err(|reason| {
+                        failure(
+                            &unit.source,
+                            "T0129",
+                            format!(
+                                "projected generic `{}` cannot use `{actual}`: {reason}",
+                                generic.name
+                            ),
+                            node.span,
+                        )
+                    })?;
+                reference.map_or(projected.clone(), |mutable| {
+                    projected_reference_type(projected, mutable)
+                })
             } else if matches!(
                 &function.result,
                 crate::rust_interop::projection::ProjectedType::InvocationScoped {
@@ -3939,7 +4794,7 @@ fn collect_projected_destinations(
                     substitute_projected_generic(&specialized, generic, projected)
                 })
         };
-        let projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter> =
+        let mut projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter> =
             function
                 .parameters
                 .iter()
@@ -3969,6 +4824,59 @@ fn collect_projected_destinations(
                     parameter
                 })
                 .collect();
+        if function.native_owner.as_deref() == Some("std::option::Option")
+            && let Some(receiver) = callee.children.first()
+            && let Some(rust_type) = {
+                let mut receiver = receiver;
+                while receiver.kind == SyntaxKind::GroupExpression
+                    && let [inner] = receiver.children.as_slice()
+                {
+                    receiver = inner;
+                }
+                projected_function_for_call(package, unit, receiver)
+                    .map(|function| function.result.rust_type())
+                    .or_else(|| {
+                        match infer_value_type(unit, receiver, &unit.typed_bindings)
+                            .ok()
+                            .flatten()
+                        {
+                            Some(ValueType::InvocationScopedNative { rust_type, .. }) => {
+                                Some(rust_type)
+                            }
+                            _ => None,
+                        }
+                    })
+            }
+            && let Ok(syn::Type::Path(receiver_type)) = syn::parse_str::<syn::Type>(&rust_type)
+            && let Some(segment) = receiver_type.path.segments.last()
+            && let syn::PathArguments::AngleBracketed(arguments) = &segment.arguments
+            && let Some(syn::GenericArgument::Type(syn::Type::Reference(referent))) =
+                arguments.args.first()
+            && referent.mutability.is_some()
+        {
+            for parameter in &mut projected_parameters {
+                if let crate::rust_interop::projection::ProjectedType::Callback {
+                    parameters,
+                    parameter_rust_types,
+                    native_bound,
+                    result,
+                    ..
+                } = &mut parameter.ty
+                {
+                    *parameter_rust_types = parameters
+                        .iter()
+                        .map(|parameter| {
+                            projected_reference_type(parameter.clone(), true).rust_type()
+                        })
+                        .collect();
+                    *native_bound = Some(format!(
+                        "FnOnce({}) -> {}",
+                        parameter_rust_types.join(", "),
+                        result.rust_type(),
+                    ));
+                }
+            }
+        }
         let value_parameters = contract
             .parameters
             .iter()
@@ -3999,6 +4907,7 @@ fn collect_projected_destinations(
                                 concrete: false,
                                 family: ObjectIdentity::new("/deps", name.clone()),
                                 lifetimes: lifetimes.clone(),
+                                expression_scoped: false,
                                 region: None,
                             },
                         )))
@@ -4014,7 +4923,16 @@ fn collect_projected_destinations(
             })
             .collect();
         let mut projected_result = specialize(&function.result);
-        let result = if let crate::rust_interop::projection::ProjectedType::Generic(name) =
+        let result = if callee.kind == SyntaxKind::ConstructionExpression {
+            closed_projected_value_type(package, &projected_result).ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0129",
+                    "constructor payloads do not determine a concrete native representation",
+                    node.span,
+                )
+            })?
+        } else if let crate::rust_interop::projection::ProjectedType::Generic(name) =
             &function.result
             && let Some(bound) = value_bindings.get(name)
         {
@@ -4057,6 +4975,9 @@ fn collect_projected_destinations(
             {
                 for (name, projected) in &substitutions {
                     rust_replacements.insert(name.clone(), projected.rust_type());
+                    for parameter in &mut projected_parameters {
+                        parameter.ty = substitute_projected_generic(&parameter.ty, name, projected);
+                    }
                 }
                 projected_result = align_projected_result_representation(
                     &substitutions
@@ -4110,7 +5031,7 @@ fn collect_projected_destinations(
                         Some("&[u8]".to_owned())
                     }
                     crate::rust_interop::projection::ProjectedType::Foreign { .. } => {
-                        Some(format!("&mut {rust_type}"))
+                        Some(format!("&{rust_type}"))
                     }
                     _ => None,
                 };
@@ -4357,6 +5278,47 @@ fn collect_projected_destinations(
                     })
             })
             .collect();
+        let value_type = match &projected_result {
+            crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                rust_type,
+                name,
+                lifetimes,
+                expression_scoped: true,
+                owned,
+            } => {
+                let namespace = package
+                    .projection
+                    .borrowed_scope_owner(owned)
+                    .map(|(namespace, _)| namespace)
+                    .or_else(|| {
+                        callee
+                            .children
+                            .first()
+                            .and_then(|receiver| {
+                                infer_value_type(unit, receiver, &unit.typed_bindings)
+                                    .ok()
+                                    .flatten()
+                            })
+                            .and_then(|value| match value {
+                                ValueType::Object(identity)
+                                | ValueType::InvocationScopedNative {
+                                    family: identity, ..
+                                } => Some(identity.namespace),
+                                _ => None,
+                            })
+                    })
+                    .unwrap_or_else(|| unit.namespace.clone());
+                ValueType::InvocationScopedNative {
+                    rust_type: rust_type.clone(),
+                    concrete: true,
+                    family: ObjectIdentity::new(namespace, name.clone()),
+                    lifetimes: lifetimes.clone(),
+                    expression_scoped: true,
+                    region: None,
+                }
+            }
+            _ => destination.clone(),
+        };
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
             span: node.span,
@@ -4364,7 +5326,7 @@ fn collect_projected_destinations(
             generic_arguments,
             substitutions,
             projected_result,
-            value_type: destination,
+            value_type,
             value_parameters: function.parameters.iter().map(|_| None).collect(),
             bounds,
             projected_parameters: function.parameters.clone(),
@@ -4374,10 +5336,16 @@ fn collect_projected_destinations(
 
     if is_function_node(node) {
         let return_type = unit
-            .functions
-            .iter()
-            .find(|contract| contract.span == node.span)
-            .and_then(|contract| contract.return_type.clone());
+            .invocation_scoped_function_results
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .cloned()
+            .or_else(|| {
+                unit.functions
+                    .iter()
+                    .find(|contract| contract.span == node.span)
+                    .and_then(|contract| contract.return_type.clone())
+            });
+        let graph_start = pending.len();
         for child in &node.children {
             collect_projected_destinations(
                 package,
@@ -4388,6 +5356,16 @@ fn collect_projected_destinations(
                 unit_index,
                 pending,
             )?;
+        }
+        if matches!(
+            return_type,
+            Some(ValueType::InvocationScopedNative { concrete: true, .. })
+        ) {
+            // The complete callback, including ordinary builders around macros,
+            // closes its native loans in the final backend check.
+            for producer in &mut pending[graph_start..] {
+                producer.bounds.clear();
+            }
         }
         return Ok(());
     }
@@ -4461,15 +5439,34 @@ fn collect_projected_destinations(
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
     {
-        collect_projected_destinations(
-            package,
-            unit,
-            callee,
-            None,
-            function_return,
-            unit_index,
-            pending,
-        )?;
+        if let Some(receiver) = callee.children.first()
+            && let Some(selected) = pending
+                .iter()
+                .rev()
+                .find(|selected| selected.span == node.span)
+            && let Some(destination) =
+                borrowed_receiver_destination(package, unit, receiver, &selected.substitutions)
+        {
+            collect_projected_destinations(
+                package,
+                unit,
+                receiver,
+                Some(&destination),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        } else {
+            collect_projected_destinations(
+                package,
+                unit,
+                callee,
+                None,
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
         let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings) {
             Ok(Some(
                 ValueType::Function(parameters, _, _)
@@ -4518,6 +5515,127 @@ fn collect_projected_destinations(
 }
 
 type DestinationProjectionError = std::borrow::Cow<'static, str>;
+
+fn borrowed_receiver_destination(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    mut receiver: &SyntaxNode,
+    substitutions: &BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+) -> Option<ValueType> {
+    while receiver.kind == SyntaxKind::GroupExpression {
+        receiver = receiver.children.first()?;
+    }
+    let function = projected_function_for_call(package, unit, receiver.children.first()?)?;
+    let crate::rust_interop::projection::ProjectedType::InvocationScoped { owned, .. } =
+        &function.result
+    else {
+        return None;
+    };
+    let projected = substitutions
+        .iter()
+        .fold(owned.as_ref().clone(), |result, (name, selected)| {
+            substitute_projected_generic(&result, name, selected)
+        });
+    closed_projected_value_type(package, &projected)
+}
+
+pub(super) fn closed_projected_value_type(
+    package: &SemanticPackage,
+    projected: &crate::rust_interop::projection::ProjectedType,
+) -> Option<ValueType> {
+    use crate::rust_interop::projection::ProjectedType;
+    Some(match projected {
+        ProjectedType::Optional(inner) => {
+            ValueType::Optional(Box::new(closed_projected_value_type(package, inner)?))
+        }
+        ProjectedType::Foreign {
+            rust_path,
+            arguments,
+            ..
+        } => {
+            let (namespace, name) = package.projection.owner_for_projected_type(projected)?;
+            let mut identity = ObjectIdentity::new(namespace, name);
+            if let Some(constructor) = package
+                .projection
+                .projected_constructor(&identity.namespace, &identity.name)
+                && let ProjectedType::Foreign {
+                    arguments: templates,
+                    ..
+                } = &constructor.result
+            {
+                let selections = templates
+                    .iter()
+                    .zip(arguments)
+                    .filter_map(|(template, actual)| {
+                        let ProjectedType::Generic(name) = template else {
+                            return None;
+                        };
+                        Some(Some((
+                            name.clone(),
+                            closed_projected_value_type(package, actual)?,
+                        )))
+                    })
+                    .collect::<Option<BTreeMap<_, _>>>()?;
+                identity = identity.with_native_arguments(selections);
+            }
+            if let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+                && let crate::rust_interop::projection::ProjectedKind::Enum {
+                    generic_parameters,
+                    ..
+                }
+                | crate::rust_interop::projection::ProjectedKind::ForeignType {
+                    generic_parameters,
+                    ..
+                } = &item.kind
+                && !arguments.is_empty()
+            {
+                let selections = generic_parameters
+                    .iter()
+                    .zip(arguments)
+                    .map(|(parameter, argument)| {
+                        Some((
+                            parameter.name.clone(),
+                            closed_projected_value_type(package, argument)?,
+                        ))
+                    })
+                    .collect::<Option<BTreeMap<_, _>>>()?;
+                let language_arguments = generic_parameters
+                    .iter()
+                    .map(|parameter| selections[&parameter.name].clone())
+                    .collect();
+                identity = identity
+                    .with_type_arguments(language_arguments)
+                    .with_native_arguments(selections);
+            }
+            if !arguments.is_empty() {
+                identity = identity.with_native_projection(
+                    package
+                        .projection
+                        .canonical_native_type(rust_path)
+                        .into_owned(),
+                );
+            }
+            ValueType::Object(identity)
+        }
+        ProjectedType::String | ProjectedType::BorrowedString => {
+            ValueType::Scalar(ScalarType::String)
+        }
+        ProjectedType::Bool => ValueType::Scalar(ScalarType::Bool),
+        ProjectedType::Int => ValueType::Scalar(ScalarType::Int),
+        ProjectedType::RustInt(_)
+        | ProjectedType::FixedInt(_)
+        | ProjectedType::Float
+        | ProjectedType::Float32
+        | ProjectedType::Char
+        | ProjectedType::Bytes => {
+            ValueType::Scalar(ScalarType::from_source_name(&projected.terrane_name())?)
+        }
+        ProjectedType::Sequence { item, .. } => ValueType::List(ElementType::new(
+            closed_projected_value_type(package, item)?,
+        )),
+        _ => return None,
+    })
+}
 
 #[expect(
     clippy::too_many_lines,
@@ -4603,11 +5721,13 @@ pub(crate) fn destination_projected_type(
             concrete: true,
             family,
             lifetimes,
+            expression_scoped,
             ..
         } => ProjectedType::InvocationScoped {
             rust_type: rust_type.clone(),
             name: family.name.clone(),
             lifetimes: lifetimes.clone(),
+            expression_scoped: *expression_scoped,
             owned: Box::new(ProjectedType::Foreign {
                 rust_path: rust_type.clone(),
                 name: family.name.clone(),
@@ -4622,11 +5742,13 @@ pub(crate) fn destination_projected_type(
             concrete: false,
             family,
             lifetimes,
+            expression_scoped,
             ..
         } => ProjectedType::InvocationScoped {
             rust_type: rust_type.clone(),
             name: family.name.clone(),
             lifetimes: lifetimes.clone(),
+            expression_scoped: *expression_scoped,
             owned: Box::new(ProjectedType::Foreign {
                 rust_path: rust_type.clone(),
                 name: family.name.clone(),
@@ -4642,10 +5764,53 @@ pub(crate) fn destination_projected_type(
     })
 }
 
+/// Apply the already-selected owner arguments to its native field contract.
+pub(crate) fn projected_owned_field_type(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    name: &str,
+) -> Option<crate::rust_interop::projection::ProjectedType> {
+    let (_, fields, borrowed_view) = package
+        .projection
+        .projected_struct(&identity.namespace, &identity.name)?;
+    if borrowed_view {
+        return None;
+    }
+    let mut projected = fields.iter().find(|field| field.name == name)?.ty.clone();
+    for (parameter, value_type) in &identity.native_arguments {
+        let selected = destination_projected_type(package, value_type).ok()?;
+        projected = substitute_projected_generic(&projected, parameter, &selected);
+    }
+    Some(projected)
+}
+
+fn projected_reference_type(
+    projected: crate::rust_interop::projection::ProjectedType,
+    mutable: bool,
+) -> crate::rust_interop::projection::ProjectedType {
+    crate::rust_interop::projection::ProjectedType::Reference {
+        inner: Box::new(projected),
+        mutable,
+        lifetime: None,
+    }
+}
+
 fn destination_projected_object(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> Result<crate::rust_interop::projection::ProjectedType, DestinationProjectionError> {
+    if !identity.native_arguments.is_empty()
+        && let Some(constructor) = package
+            .projection
+            .projected_constructor(&identity.namespace, &identity.name)
+    {
+        let mut projected = constructor.result.clone();
+        for (name, value_type) in &identity.native_arguments {
+            let selected = destination_projected_type(package, value_type)?;
+            projected = substitute_projected_generic(&projected, name, &selected);
+        }
+        return Ok(projected);
+    }
     if let Some(projected) = package
         .projection
         .projected_type(&identity.namespace, &identity.name)
@@ -4816,6 +5981,14 @@ fn select_projected_generic_destinations(
     ) -> Result<bool, String> {
         use crate::rust_interop::projection::ProjectedType;
         match (template, expected) {
+            (
+                ProjectedType::InvocationScoped {
+                    owned,
+                    expression_scoped: true,
+                    ..
+                },
+                expected,
+            ) => collect(owned, parameters, expected, destinations),
             (ProjectedType::Generic(name), expected) if parameters.contains(name) => {
                 if let Some(previous) = destinations.get(name) {
                     return if previous == expected {
@@ -5137,6 +6310,15 @@ fn substitute_projected_generic(
             retained: *retained,
             send: *send,
             sync: *sync,
+        },
+        ProjectedType::Reference {
+            inner,
+            mutable,
+            lifetime,
+        } => ProjectedType::Reference {
+            inner: Box::new(substitute_projected_generic(inner, parameter, destination)),
+            mutable: *mutable,
+            lifetime: lifetime.clone(),
         },
         ProjectedType::Foreign {
             name,

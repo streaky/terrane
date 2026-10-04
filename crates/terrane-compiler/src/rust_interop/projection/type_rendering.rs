@@ -56,24 +56,38 @@ fn render_generic_arguments(
     }
 }
 
+pub(super) fn canonicalize_rust_path(path: &str) -> String {
+    match path {
+        "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
+        "core::task::wake::Context" => "core::task::Context".to_owned(),
+        "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),
+        "core::ops::function::Fn" => "std::ops::Fn".to_owned(),
+        "core::ops::function::FnMut" => "std::ops::FnMut".to_owned(),
+        "core::ops::function::FnOnce" => "std::ops::FnOnce".to_owned(),
+        "core::ops::deref::Deref" | "core::ops::Deref" => "std::ops::Deref".to_owned(),
+        "core::ops::deref::DerefMut" | "core::ops::DerefMut" => "std::ops::DerefMut".to_owned(),
+        "core::str::traits::FromStr" | "std::str::traits::FromStr" => {
+            "std::str::FromStr".to_owned()
+        }
+        "core::net::socket_addr::SocketAddr" | "core::net::SocketAddr" => {
+            "std::net::SocketAddr".to_owned()
+        }
+        "core::net::ip_addr::IpAddr" | "core::net::IpAddr" => "std::net::IpAddr".to_owned(),
+        "core::net::ip_addr::Ipv4Addr" | "core::net::Ipv4Addr" => "std::net::Ipv4Addr".to_owned(),
+        "core::net::ip_addr::Ipv6Addr" | "core::net::Ipv6Addr" => "std::net::Ipv6Addr".to_owned(),
+        path => path
+            .strip_prefix("alloc::")
+            .map_or_else(|| path.to_owned(), |path| format!("std::{path}")),
+    }
+}
+
 pub(super) fn render_resolved_path(
     path: &RustdocPath,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<String, String> {
-    let base = match resolved_path_name(path, paths).as_str() {
-        "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
-        "core::task::wake::Context" => "core::task::Context".to_owned(),
-        "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),
-        "core::net::socket_addr::SocketAddr" => "std::net::SocketAddr".to_owned(),
-        "core::net::ip_addr::IpAddr" => "std::net::IpAddr".to_owned(),
-        "core::net::ip_addr::Ipv4Addr" => "std::net::Ipv4Addr".to_owned(),
-        "core::net::ip_addr::Ipv6Addr" => "std::net::Ipv6Addr".to_owned(),
-        path => path
-            .strip_prefix("alloc::")
-            .map_or_else(|| path.to_owned(), |path| format!("std::{path}")),
-    };
+    let base = canonicalize_rust_path(&resolved_path_name(path, paths));
     let Some(arguments) = path.args.as_deref() else {
         return Ok(base);
     };

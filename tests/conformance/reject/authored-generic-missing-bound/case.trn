@@ -1,0 +1,6 @@
+namespace rejected-generic
+interface describable
+function describe of (T implements describable) string; value T
+    return 'value'
+function main;
+    result = describe; 5

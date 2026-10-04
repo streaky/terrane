@@ -1,0 +1,11 @@
+namespace rejected-catch-all-following
+enum state
+    ready
+    done
+
+function inspect; value state
+    match ref value
+        case else
+            return
+        case state::ready
+            return

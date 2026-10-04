@@ -12,14 +12,14 @@ pub struct Counter {
 }
 impl Counter {
     pub fn terrane_construct(stop: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             current: terrane_int_support::Int::from(0_i128),
             stop: terrane_int_support::Int::from(0_i128),
             ended: false,
             advances: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(stop);
-        value
+        __terrane_constructed_value.construct(stop);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, stop: terrane_int_support::Int) {
         self.stop = stop.clone();

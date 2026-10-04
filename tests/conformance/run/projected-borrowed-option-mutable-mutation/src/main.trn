@@ -1,0 +1,54 @@
+namespace app
+from /deps/http import HeaderMap, HeaderName, HeaderValue
+from /core/output import print
+
+function mark; header ref HeaderValue
+    header.set_sensitive; true
+
+function forward; header ref HeaderValue
+    operation = mark
+    operation; ref header
+
+function change bool; header ref HeaderValue
+    forward; ref header
+    return true
+
+function clear bool|none; header ref HeaderValue
+    header.set_sensitive; false
+    return true
+
+function read bool; header ref HeaderValue
+    return header.is_sensitive;
+
+function walk-left; header ref HeaderValue, count int
+    if count > 0
+        walk-right; ref header, count - 1
+    else
+        mark; ref header
+
+function walk-right; header ref HeaderValue, count int
+    walk-left; ref header, count
+
+function main;
+    plain = HeaderValue::from_str; 'plain'
+    forward; ref plain
+    print; (read; ref plain)
+    plain.set_sensitive; false
+    walk-left; ref plain, 2
+    print; (read; ref plain)
+    headers = HeaderMap::new;
+    name = HeaderName::from_str; 'x-test'
+    value = HeaderValue::from_str; 'value'
+    headers.insert; name, value
+    result bool|none = (headers.get_mut; 'x-test').map; change
+    if result != none
+        print; result
+    marked bool|none = (headers.get; 'x-test').map; read
+    if marked != none
+        print; marked
+    cleared bool|none = (headers.get_mut; 'x-test').and_then; clear
+    if cleared != none
+        print; cleared
+    after bool|none = (headers.get; 'x-test').map; read
+    if after != none
+        print; after

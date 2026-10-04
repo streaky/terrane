@@ -1,0 +1,4 @@
+42
+unassigned closed
+initialized closed
+construction failed

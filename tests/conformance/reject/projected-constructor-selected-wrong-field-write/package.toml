@@ -1,0 +1,8 @@
+package = "projected-constructor-selected-wrong-field-write"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-constructor-wrong-field-write"
+version = "=0.1.0"

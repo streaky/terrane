@@ -1,0 +1,9 @@
+package = "projected-concrete-trait-operations"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-concrete-selection-witness"
+version = "=0.1.0"
+effects = ["build"]

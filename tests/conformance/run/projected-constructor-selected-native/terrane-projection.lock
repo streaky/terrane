@@ -1,0 +1,41 @@
+{
+  "format": 4,
+  "dependencies": [
+    {
+      "name": "witness",
+      "version": "0.1.1",
+      "members": {
+        "/deps/witness": [
+          "Address",
+          "Address.clone",
+          "Address.into",
+          "Address.try_into",
+          "Envelope",
+          "Envelope.into",
+          "Envelope.into_payload",
+          "Envelope.try_into",
+          "Frame",
+          "Frame.into",
+          "Frame.try_into",
+          "Maybe",
+          "Maybe.into",
+          "Maybe.try_into",
+          "Pair",
+          "Printable",
+          "Printable.into",
+          "Printable.try_into",
+          "address_port",
+          "frame_port",
+          "into_address",
+          "maybe_port",
+          "pair_summary",
+          "printable_text",
+          "text_length"
+        ]
+      }
+    }
+  ],
+  "removed": [],
+  "source": "Local",
+  "rustdoc_format": 57
+}

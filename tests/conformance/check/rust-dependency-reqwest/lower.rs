@@ -64,7 +64,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -72,7 +72,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -99,7 +99,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -123,14 +123,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -145,7 +145,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -182,7 +182,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -425,7 +425,7 @@ const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
     reason = "projected type methods may be imported without being crossed"
 )]
 fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
+    payload: std::boxed::Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
     member: &'static str,
 ) -> TerraneForeignError {
@@ -463,16 +463,14 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 5] = [
+    pub static SITES: [Site; 4] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:5:16-5:45) */
         { Site { function: 0, file: 0, line: 5, column: 16, end_line: 5, end_column: 45 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:6:5-6:26) */
-        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 26 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:7:34-7:50) */
+        /* terrane-site-row: site 1: /app::main (src/main.trn:7:34-7:50) */
         { Site { function: 0, file: 0, line: 7, column: 34, end_line: 7, end_column: 50 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:8:13-8:40) */
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:13-8:40) */
         { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 40 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:9:19-9:33) */
+        /* terrane-site-row: site 3: /app::main (src/main.trn:9:19-9:33) */
         { Site { function: 0, file: 0, line: 9, column: 19, end_line: 9, end_column: 33 } },
     ];
     #[cold]
@@ -520,25 +518,7 @@ fn main() {
         },
         0 /* terrane-site: src/main.trn:5:16-5:45 */,
     );
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let _ = response.headers_mut();
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "reqwest",
-                        "reqwest::blocking::Response::headers_mut",
-                    ),
-                )
-            }
-        },
-        1 /* terrane-site: src/main.trn:6:5-6:26 */,
-    );
+    response.headers_mut();
     let response_status: StatusCode = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| response.status()),
@@ -554,14 +534,14 @@ fn main() {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:7:34-7:50 */,
+        1 /* terrane-site: src/main.trn:7:34-7:50 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | response_status
         .is_success())) { Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "http", "http::StatusCode::is_success")) },
-        3 /* terrane-site: src/main.trn:8:13-8:40 */))
+        2 /* terrane-site: src/main.trn:8:13-8:40 */))
     );
     let body: String = __terrane_raised(
         match std::panic::catch_unwind(
@@ -589,7 +569,7 @@ fn main() {
                 )
             }
         },
-        4 /* terrane-site: src/main.trn:9:19-9:33 */,
+        3 /* terrane-site: src/main.trn:9:19-9:33 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&body));
 }

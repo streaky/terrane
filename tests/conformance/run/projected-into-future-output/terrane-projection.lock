@@ -4,6 +4,8 @@
       "members": {
         "/deps/terrane-into-future-witness": [
           "ReadyResult",
+          "ReadyResult.into",
+          "ReadyResult.try_into",
           "construction_count",
           "conversion_count",
           "ready_result",
@@ -16,26 +18,6 @@
   ],
   "format": 4,
   "removed": [],
-  "resolution": {
-    "events": [
-      {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
-      }
-    ],
-    "outcome": "LocalRustdoc"
-  },
   "rustdoc_format": 57,
   "source": "Local"
 }

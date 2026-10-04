@@ -1,0 +1,64 @@
+namespace app
+
+from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
+from /core/output import print
+from /deps/http import HeaderMap, HeaderName, HeaderValue
+from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
+
+function entry-value int; entry ref Entry
+    return entry.value;
+
+function request-view host-invocation-scoped-native; request ref Request
+    return make_view; ((request.extensions;).entry;)
+
+function main;
+    request = Request::new; 41
+    request.extensions;
+    print; (((request.extensions;).entry;).value;)
+    print; (consume; ((request.extensions;).entry;))
+    print; ((request.headers;).length;)
+    print; (clone_count;)
+    selected Entry|none = ((request.extensions;).get;).cloned;
+    if selected != none
+        print; (selected.value;)
+    print; (clone_count;)
+    mapped int|none = ((request.extensions;).get;).map; entry-value
+    if mapped != none
+        print; mapped
+    print; (clone_count;)
+    host = Host::new;
+    (host.base_mut;).draw_circle; 7
+    (host.base_mut;).draw_circle; 11
+    print; (host.total;)
+    print; ((((Request::new; 43).extensions;).entry;).value;)
+    print; (root_count;)
+    print; (render; request, request-view)
+    print; (clone_count;)
+
+    headers = HeaderMap::new;
+    missing bool|none = (headers.get_mut; 'forwarded').map; mark-sensitive
+    print; missing == none
+    name = HeaderName::from_str; 'forwarded'
+    value = HeaderValue::from_str; 'initial'
+    headers.insert; name, value
+    before bool|none = (headers.get; 'forwarded').map; read-sensitive
+    if before != none
+        print; before
+    marked bool|none = (headers.get_mut; 'forwarded').map; mark-sensitive
+    if marked != none
+        print; marked
+    snapshot HeaderValue|none = (headers.get_mut; 'forwarded').cloned;
+    cleared bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
+    if cleared != none
+        print; cleared
+    after bool|none = (headers.get; 'forwarded').map; read-sensitive
+    if after != none
+        print; after
+    if snapshot != none
+        print; (snapshot.is_sensitive;)
+    (headers.get_mut; 'forwarded').map; mark-sensitive
+    empty bool|none = (headers.get_mut; 'forwarded').and_then; clear-sensitive-optional
+    print; empty == none
+    final bool|none = (headers.get; 'forwarded').map; read-sensitive
+    if final != none
+        print; final

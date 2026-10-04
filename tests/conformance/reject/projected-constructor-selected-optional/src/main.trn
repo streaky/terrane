@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Optional
+
+function main;
+    value = instance Optional; payload = none

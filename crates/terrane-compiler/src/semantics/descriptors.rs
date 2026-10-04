@@ -339,6 +339,7 @@ fn contract(
         identity: identity(namespace, name),
         span: Span::new(0, 0, 0),
         kind: ObjectKind::Type,
+        generic_parameters: Vec::new(),
         is_unsafe: false,
         resource_owning: false,
         builtin: Some(builtin),
@@ -377,6 +378,7 @@ fn add_float_descriptor_constants(contract: &mut DescriptorContract, scalar: Sca
             value_type,
             initializer_span: None,
             is_static: true,
+            required: false,
             metadata: ObjectFieldMetadata {
                 external_name: name.to_owned(),
                 defaulted: false,
@@ -534,7 +536,7 @@ pub(crate) fn descriptor_contract_for_value<'a>(
         return unit
             .descriptors
             .iter()
-            .find(|contract| contract.identity == *identity);
+            .find(|contract| contract.identity.base() == identity.base());
     }
     let builtin = builtin_for_value_type(value_type);
     unit.builtin_descriptors
@@ -558,12 +560,17 @@ pub(crate) fn materialized_descriptor<'a>(
         });
     }
     let contract = descriptor_contract_for_value(unit, value_type)?;
-    if matches!(value_type, ValueType::Object(_))
-        || matches!(
-            contract.builtin,
-            Some(BuiltinDescriptor::Scalar(_) | BuiltinDescriptor::Encoding)
-        )
-    {
+    if let ValueType::Object(identity) = value_type {
+        return Some(MaterializedDescriptor {
+            contract,
+            identity: identity.qualified(),
+            name: identity.to_string(),
+        });
+    }
+    if matches!(
+        contract.builtin,
+        Some(BuiltinDescriptor::Scalar(_) | BuiltinDescriptor::Encoding)
+    ) {
         return Some(MaterializedDescriptor {
             contract,
             identity: contract.identity.qualified(),
@@ -602,6 +609,12 @@ pub(crate) fn descriptor_contract_by_identity<'a>(
         .rsplit_once("::")
         .map_or(descriptor_identity, |(_, name)| name);
     let family = name.split_once(" of ").map_or(name, |(family, _)| family);
+    if let Some(contract) = unit.descriptors.iter().find(|contract| {
+        contract.identity.name == family
+            && descriptor_identity.starts_with(&format!("{}::", contract.identity.namespace))
+    }) {
+        return Some(contract);
+    }
     unit.builtin_descriptors
         .iter()
         .find(|contract| contract.name == family)

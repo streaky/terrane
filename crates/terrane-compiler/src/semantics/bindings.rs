@@ -392,6 +392,32 @@ pub(super) fn first_write_to<'a>(
 }
 
 pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
+    let mut pending = Vec::new();
+    loop {
+        for (unit_index, unit) in package.units.iter().enumerate() {
+            for (function_index, function) in unit.functions.iter().enumerate() {
+                for (parameter_index, parameter) in function.parameters.iter().enumerate() {
+                    if !parameter.mutable
+                        && binding_span_is_mutated(
+                            package,
+                            unit,
+                            parameter.span,
+                            true,
+                            ClosureWrites::Include,
+                        )
+                    {
+                        pending.push((unit_index, function_index, parameter_index));
+                    }
+                }
+            }
+        }
+        if pending.is_empty() {
+            break;
+        }
+        for (unit, function, parameter) in pending.drain(..) {
+            package.units[unit].functions[function].parameters[parameter].mutable = true;
+        }
+    }
     let mutable_bindings = package
         .units
         .iter()
@@ -412,44 +438,10 @@ pub(super) fn record_binding_mutability(package: &mut SemanticPackage) {
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let mutable_parameters = package
-        .units
-        .iter()
-        .map(|unit| {
-            unit.functions
-                .iter()
-                .map(|function| {
-                    function
-                        .parameters
-                        .iter()
-                        .map(|parameter| {
-                            binding_span_is_mutated(
-                                package,
-                                unit,
-                                parameter.span,
-                                true,
-                                ClosureWrites::Include,
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
 
-    for ((unit, binding_mutability), parameter_mutability) in package
-        .units
-        .iter_mut()
-        .zip(mutable_bindings)
-        .zip(mutable_parameters)
-    {
+    for (unit, binding_mutability) in package.units.iter_mut().zip(mutable_bindings) {
         for (binding, mutable) in unit.typed_bindings.iter_mut().zip(binding_mutability) {
             binding.mutable = mutable;
-        }
-        for (function, mutability) in unit.functions.iter_mut().zip(parameter_mutability) {
-            for (parameter, mutable) in function.parameters.iter_mut().zip(mutability) {
-                parameter.mutable = mutable;
-            }
         }
     }
 }
@@ -887,6 +879,10 @@ pub(super) enum AutoTraitObligation {
     Sync,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive auto-trait proof cases stay aligned with the complete semantic value shape"
+)]
 pub(super) fn value_type_satisfies_auto_trait(
     package: &SemanticPackage,
     value_type: &ValueType,
@@ -918,14 +914,60 @@ pub(super) fn value_type_satisfies_auto_trait(
                     .units
                     .iter()
                     .flat_map(|unit| &unit.descriptors)
-                    .find(|object| object.identity == *identity)
+                    .find(|object| object.identity.base() == identity.base())
                     .is_some_and(|object| match object.kind {
                         ObjectKind::Interface => true,
-                        ObjectKind::Class => effective_object_fields(package, object)
-                            .into_iter()
-                            .all(|field| {
-                                field.is_static
-                                    || satisfies(package, &field.value_type, obligation, visiting)
+                        ObjectKind::Class => {
+                            let substitutions = object
+                                .generic_parameters
+                                .iter()
+                                .zip(&identity.type_arguments)
+                                .map(|(parameter, argument)| {
+                                    (parameter.name.clone(), argument.clone())
+                                })
+                                .collect();
+                            effective_object_fields(package, object)
+                                .into_iter()
+                                .all(|field| {
+                                    field.is_static
+                                        || satisfies(
+                                            package,
+                                            &substitute_value_type(
+                                                &field.value_type,
+                                                &substitutions,
+                                            ),
+                                            obligation,
+                                            visiting,
+                                        )
+                                })
+                        }
+                        ObjectKind::Enum => package
+                            .units
+                            .iter()
+                            .flat_map(|unit| &unit.source_enums)
+                            .find(|enumeration| enumeration.identity.base() == identity.base())
+                            .is_some_and(|enumeration| {
+                                let substitutions = object
+                                    .generic_parameters
+                                    .iter()
+                                    .zip(&identity.type_arguments)
+                                    .map(|(parameter, argument)| {
+                                        (parameter.name.clone(), argument.clone())
+                                    })
+                                    .collect();
+                                enumeration.variants.iter().all(|variant| {
+                                    variant.payload.iter().all(|field| {
+                                        satisfies(
+                                            package,
+                                            &substitute_value_type(
+                                                &field.value_type,
+                                                &substitutions,
+                                            ),
+                                            obligation,
+                                            visiting,
+                                        )
+                                    })
+                                })
                             }),
                         ObjectKind::Trait | ObjectKind::Type => false,
                     });
@@ -1586,7 +1628,7 @@ fn declaration_node_with_name_span(node: &SyntaxNode, span: Span) -> Option<&Syn
         .find_map(|child| declaration_node_with_name_span(child, span))
 }
 
-fn callback_contract<'a>(
+pub(crate) fn callback_contract<'a>(
     package: &SemanticPackage,
     unit: &'a SemanticUnit,
     value: &SyntaxNode,
@@ -1602,10 +1644,11 @@ fn callback_contract<'a>(
             .declaration_span?;
         let declaration_node = declaration_node_with_name_span(&unit.tree.root, declaration)
             .or_else(|| node_with_span(&unit.tree.root, declaration))?;
-        return declaration_node
-            .children
-            .iter()
-            .find_map(|child| callback_contract(package, unit, child));
+        let initializer = super::ownership::binding_initializer(declaration_node)?;
+        if initializer.span.start >= value.span.start {
+            return None;
+        }
+        return callback_contract(package, unit, initializer);
     }
     if value.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = value.children.as_slice()
@@ -1647,12 +1690,51 @@ fn validate_projected_callback_contract(
         invocation_mode,
         retained,
         send,
+        parameter_borrows,
+        parameter_rust_types,
         ..
     } = callback
     else {
         unreachable!("callback validation requires callback metadata");
     };
     let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
+    for (index, parameter) in contract.parameters.iter().enumerate() {
+        if parameter_borrows.get(index) == Some(&true)
+            && parameter_rust_types.get(index).is_some_and(|rust_type| {
+                matches!(
+                    syn::parse_str::<syn::Type>(rust_type),
+                    Ok(syn::Type::Reference(reference)) if reference.mutability.is_none()
+                )
+            })
+            && package
+                .units
+                .iter()
+                .find(|source| source.source.id() == contract.span.file)
+                .and_then(|source| {
+                    source
+                        .functions
+                        .iter()
+                        .find(|actual| actual.span == contract.span)
+                })
+                .and_then(|source| {
+                    source
+                        .parameters
+                        .iter()
+                        .find(|actual| actual.span == parameter.span)
+                })
+                .is_some_and(|source| source.mutable)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0139",
+                format!(
+                    "mutating callback parameter `{}` requires a mutable native reference; the selected callback supplies a shared reference",
+                    parameter.name
+                ),
+                value.span,
+            ));
+        }
+    }
     if *send && contract.task_transferability == TaskTransferability::Local {
         return reject(
             "T0081",
@@ -1792,36 +1874,20 @@ fn projected_chain_role(
     let [callee, _] = node.children.as_slice() else {
         return None;
     };
-    if callee.kind == SyntaxKind::Name {
-        let symbol =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
-        let crate::rust_interop::projection::ProjectedKind::Function(function) = &package
-            .projection
-            .item(&symbol.namespace, &symbol.name)?
-            .kind
-        else {
-            return None;
-        };
-        return function.chain_role;
-    }
-    let [receiver, member] = callee.children.as_slice() else {
-        return None;
-    };
-    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
-        .ok()
-        .flatten()
-    else {
-        return None;
-    };
-    package
-        .projection
-        .method(
-            &identity.namespace,
-            &identity.name,
-            node_text(&unit.source, member),
-            false,
+    let function = projected_function_for_call(package, unit, callee)?;
+    function.chain_role.or_else(|| {
+        let receiver = callee.children.first()?;
+        matches!(
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten(),
+            Some(ValueType::InvocationScopedNative {
+                expression_scoped: true,
+                ..
+            })
         )
-        .and_then(|method| method.chain_role)
+        .then_some(crate::rust_interop::projection::ChainRole::Terminal)
+    })
 }
 
 fn collect_chain_receivers(
@@ -1830,6 +1896,29 @@ fn collect_chain_receivers(
     node: &SyntaxNode,
     receivers: &mut BTreeSet<(u32, usize, usize)>,
 ) {
+    if node.kind == SyntaxKind::Block {
+        for statement in &node.children {
+            let mut value = statement;
+            while value.kind == SyntaxKind::GroupExpression
+                && let [inner] = value.children.as_slice()
+            {
+                value = inner;
+            }
+            if value.kind == SyntaxKind::CallExpression
+                && matches!(
+                    infer_value_type(unit, value, &unit.typed_bindings)
+                        .ok()
+                        .flatten(),
+                    Some(ValueType::InvocationScopedNative {
+                        expression_scoped: true,
+                        ..
+                    })
+                )
+            {
+                receivers.insert(span_key(value.span));
+            }
+        }
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, _] = node.children.as_slice()
         && callee.kind == SyntaxKind::MemberExpression
@@ -1876,12 +1965,39 @@ fn collect_chain_receivers(
     }
 }
 
+pub(crate) fn projected_macro_for_call<'a>(
+    package: &'a SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a crate::rust_interop::projection::ProjectedItem> {
+    if callee.kind != SyntaxKind::Name {
+        return None;
+    }
+    let symbol =
+        package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+    package
+        .projection
+        .item(&symbol.namespace, &symbol.name)
+        .filter(|item| {
+            matches!(
+                item.kind,
+                crate::rust_interop::projection::ProjectedKind::Macro(_)
+            )
+        })
+}
+
 pub(super) fn projected_function_for_call<'a>(
     package: &'a SemanticPackage,
     unit: &SemanticUnit,
     callee: &SyntaxNode,
 ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
     let is_unsafe = crate::syntax::call_is_unsafe(callee);
+    if callee.kind == SyntaxKind::ConstructionExpression {
+        let identity = class_designator_identity(unit, callee.children.first()?)?;
+        return package
+            .projection
+            .projected_constructor(&identity.namespace, &identity.name);
+    }
     if callee.kind == SyntaxKind::Name {
         let lookup_name = if is_unsafe {
             format!("unsafe::{}", node_text(&unit.source, callee))
@@ -1893,9 +2009,8 @@ pub(super) fn projected_function_for_call<'a>(
             .projection
             .item(&symbol.namespace, &symbol.name)
             .and_then(|item| match &item.kind {
-                crate::rust_interop::projection::ProjectedKind::Function(function) => {
-                    Some(function)
-                }
+                crate::rust_interop::projection::ProjectedKind::Function(function)
+                | crate::rust_interop::projection::ProjectedKind::Macro(function) => Some(function),
                 _ => None,
             });
     }
@@ -1908,12 +2023,18 @@ pub(super) fn projected_function_for_call<'a>(
         let receiver_type = infer_value_type(unit, receiver, &unit.typed_bindings)
             .ok()
             .flatten()?;
-        let (ValueType::Object(identity)
-        | ValueType::InvocationScopedNative {
-            family: identity, ..
-        }) = receiver_type
-        else {
-            return None;
+        let identity = match receiver_type {
+            ValueType::Object(identity)
+            | ValueType::InvocationScopedNative {
+                family: identity, ..
+            } => identity,
+            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                let ValueType::Object(identity) = inner.value_type() else {
+                    return None;
+                };
+                identity
+            }
+            _ => return None,
         };
         (identity, false)
     };
@@ -1930,11 +2051,16 @@ pub(super) fn projected_function_for_call<'a>(
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum InvocationScopedRegion {
     Unbound,
+    Expression,
     Bound((u32, usize, usize)),
 }
 
 fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRegion> {
     match value_type {
+        ValueType::InvocationScopedNative {
+            expression_scoped: true,
+            ..
+        } => Some(InvocationScopedRegion::Expression),
         ValueType::InvocationScopedNative { region, .. } => Some(region.map_or(
             InvocationScopedRegion::Unbound,
             InvocationScopedRegion::Bound,
@@ -2247,6 +2373,7 @@ fn validate_invocation_scoped_node(
         });
         if matches!(region, InvocationScopedRegion::Bound(region) if local_region != Some(region))
             || (region == InvocationScopedRegion::Unbound && !region_local_function)
+            || region == InvocationScopedRegion::Expression
         {
             return Err(failure(
                 &unit.source,
@@ -2396,12 +2523,17 @@ fn validate_projected_callback_node(
             let Some(contract) = callback_contract(package, unit, value) else {
                 continue;
             };
+            let callback_parameter = unit
+                .projected_call_specializations
+                .get(&span_key(node.span))
+                .and_then(|selection| selection.projected_parameters.get(index))
+                .unwrap_or(parameter);
             validate_projected_callback_contract(
                 package,
                 unit,
                 value,
                 contract,
-                &parameter.ty,
+                &callback_parameter.ty,
                 consumed_once,
             )?;
         }

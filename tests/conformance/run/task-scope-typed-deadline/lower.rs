@@ -64,7 +64,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -72,7 +72,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -99,7 +99,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -123,14 +123,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -145,7 +145,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -182,7 +182,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -581,11 +581,11 @@ pub struct DurationSubtraction {
 }
 impl DurationSubtraction {
     pub fn terrane_construct(total: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             total_nanoseconds: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(total);
-        value
+        __terrane_constructed_value.construct(total);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, total: terrane_int_support::Int) {
         self.total_nanoseconds = total.clone();
@@ -616,7 +616,7 @@ impl Duration {
         whole_seconds: terrane_int_support::Int,
         fractional_nanoseconds: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             seconds: terrane_int_support::Int::from(0_i128),
             nanoseconds: terrane_int_support::Int::from(0_i128),
             total_nanoseconds: terrane_int_support::Int::from(0_i128),
@@ -624,8 +624,8 @@ impl Duration {
                 terrane_int_support::Int::from(0_i128),
             ),
         };
-        value.construct(whole_seconds, fractional_nanoseconds);
-        value
+        __terrane_constructed_value.construct(whole_seconds, fractional_nanoseconds);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -766,12 +766,12 @@ impl MonotonicInstant {
         runtime_domain: terrane_int_support::Int,
         elapsed: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             domain: terrane_int_support::Int::from(0_i128),
             elapsed_nanoseconds: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(runtime_domain, elapsed);
-        value
+        __terrane_constructed_value.construct(runtime_domain, elapsed);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -818,12 +818,12 @@ impl Instant {
         seconds: terrane_int_support::Int,
         fractional_nanoseconds: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             unix_seconds: terrane_int_support::Int::from(0_i128),
             nanoseconds: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(seconds, fractional_nanoseconds);
-        value
+        __terrane_constructed_value.construct(seconds, fractional_nanoseconds);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -840,14 +840,14 @@ pub struct Deadline {
 }
 impl Deadline {
     pub fn terrane_construct(target: MonotonicInstant) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             expires_at: MonotonicInstant::terrane_construct(
                 terrane_int_support::Int::from(0_i128),
                 terrane_int_support::Int::from(0_i128),
             ),
         };
-        value.construct(target);
-        value
+        __terrane_constructed_value.construct(target);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
         self.expires_at = target;
@@ -904,7 +904,7 @@ impl Tick {
         observed_at: MonotonicInstant,
         expirations: terrane_int_support::Int,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             scheduled: MonotonicInstant::terrane_construct(
                 terrane_int_support::Int::from(0_i128),
                 terrane_int_support::Int::from(0_i128),
@@ -915,8 +915,8 @@ impl Tick {
             ),
             count: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(scheduled_at, observed_at, expirations);
-        value
+        __terrane_constructed_value.construct(scheduled_at, observed_at, expirations);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -938,7 +938,7 @@ pub struct Ticker {
 }
 impl Ticker {
     pub fn terrane_construct(interval: Duration) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             anchor: MonotonicInstant::terrane_construct(
                 terrane_int_support::Int::from(0_i128),
                 terrane_int_support::Int::from(0_i128),
@@ -950,8 +950,8 @@ impl Ticker {
             next_index: terrane_int_support::Int::from(1_i128),
             __terrane_lifetime: std::sync::Arc::new(()),
         };
-        value.construct(interval);
-        value
+        __terrane_constructed_value.construct(interval);
+        __terrane_constructed_value
     }
     pub fn terrane_separate(&self) -> Self {
         let mut value = self.clone();

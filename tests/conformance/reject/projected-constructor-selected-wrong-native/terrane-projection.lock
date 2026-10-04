@@ -1,0 +1,23 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Address",
+          "Address.into",
+          "Address.try_into",
+          "Envelope",
+          "Envelope.into",
+          "Envelope.try_into",
+          "consume_address"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

@@ -1,0 +1,8 @@
+package = "projected-sysroot-trait-decline"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-sysroot-trait-witness"
+version = "=0.1.0"

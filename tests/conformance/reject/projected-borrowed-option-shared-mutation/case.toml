@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0139"
+contains = "mutating callback parameter `header` requires a mutable native reference"

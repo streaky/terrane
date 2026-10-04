@@ -59,7 +59,7 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
     structured: Vec<String>,
 }
@@ -67,7 +67,7 @@ struct TerraneErrorDetail {
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -94,7 +94,7 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
                     cause: None,
                     frames: Vec::new(),
@@ -109,14 +109,14 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
                     structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -131,7 +131,7 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -168,7 +168,7 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
                     cause: None,
                     frames: Vec::new(),
@@ -666,12 +666,12 @@ pub struct FilesystemOperationResult {
 }
 impl FilesystemOperationResult {
     pub fn terrane_construct(failure: bool, detail: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
         };
-        value.construct(failure, detail);
-        value
+        __terrane_constructed_value.construct(failure, detail);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, failure: bool, detail: String) {
         self.failed = failure;
@@ -686,13 +686,13 @@ pub struct ExistenceResult {
 }
 impl ExistenceResult {
     pub fn terrane_construct(exists: bool, failure: bool, detail: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             exists: false,
             failed: false,
             message: String::from(""),
         };
-        value.construct(exists, failure, detail);
-        value
+        __terrane_constructed_value.construct(exists, failure, detail);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, exists: bool, failure: bool, detail: String) {
         self.exists = exists;
@@ -708,13 +708,13 @@ pub struct PathResult {
 }
 impl PathResult {
     pub fn terrane_construct(target: Path, failure: bool, detail: String) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             resolved: Path::terrane_construct(String::from("")),
             failed: false,
             message: String::from(""),
         };
-        value.construct(target, failure, detail);
-        value
+        __terrane_constructed_value.construct(target, failure, detail);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, target: Path, failure: bool, detail: String) {
         self.resolved = target;
@@ -740,7 +740,7 @@ impl FileMetadata {
         failure: bool,
         detail: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             kind: String::from("other"),
             size: terrane_int_support::Int::from(0_i128),
             readonly: false,
@@ -748,8 +748,9 @@ impl FileMetadata {
             failed: false,
             message: String::from(""),
         };
-        value.construct(kind, size, readonly, permission_detail, failure, detail);
-        value
+        __terrane_constructed_value
+            .construct(kind, size, readonly, permission_detail, failure, detail);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -784,15 +785,15 @@ impl FileData {
         failure: bool,
         detail: String,
     ) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             data: Vec::from([]),
             completed: terrane_int_support::Int::from(0_i128),
             end: false,
             failed: false,
             message: String::from(""),
         };
-        value.construct(data, completed, end, failure, detail);
-        value
+        __terrane_constructed_value.construct(data, completed, end, failure, detail);
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -810,7 +811,8 @@ impl FileData {
     }
 }
 pub struct FileHandle {
-    pub handle: TerranePlatformStreamHandle,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
     pub failed: bool,
     pub message: String,
 }
@@ -820,13 +822,15 @@ impl FileHandle {
         failure: bool,
         detail: String,
     ) -> Self {
-        let mut value = Self {
-            handle: Default::default(),
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
             failed: false,
             message: String::from(""),
         };
-        value.construct(raw, failure, detail);
-        value
+        __terrane_constructed_value.construct(raw, failure, detail);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -834,21 +838,27 @@ impl FileHandle {
         failure: bool,
         detail: String,
     ) {
-        self.handle = raw;
+        self.handle = Some(raw);
         self.failed = failure;
         self.message = detail;
     }
     pub fn destruct(&mut self) {
-        terrane_platform_release(&self.handle);
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for FileHandle {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
 pub struct DirectoryHandle {
-    pub handle: TerranePlatformStreamHandle,
+    __terrane_constructed: bool,
+    pub handle: Option<TerranePlatformStreamHandle>,
     pub failed: bool,
     pub message: String,
 }
@@ -858,13 +868,15 @@ impl DirectoryHandle {
         failure: bool,
         detail: String,
     ) -> Self {
-        let mut value = Self {
-            handle: Default::default(),
+        let mut __terrane_constructed_value = Self {
+            __terrane_constructed: false,
+            handle: None,
             failed: false,
             message: String::from(""),
         };
-        value.construct(raw, failure, detail);
-        value
+        __terrane_constructed_value.construct(raw, failure, detail);
+        __terrane_constructed_value.__terrane_constructed = true;
+        __terrane_constructed_value
     }
     pub fn construct(
         &mut self,
@@ -872,16 +884,21 @@ impl DirectoryHandle {
         failure: bool,
         detail: String,
     ) {
-        self.handle = raw;
+        self.handle = Some(raw);
         self.failed = failure;
         self.message = detail;
     }
     pub fn destruct(&mut self) {
-        terrane_platform_release(&self.handle);
+        terrane_platform_release(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
     }
 }
 impl Drop for DirectoryHandle {
     fn drop(&mut self) {
+        if !self.__terrane_constructed {
+            return;
+        }
         self.destruct();
     }
 }
@@ -913,7 +930,7 @@ pub fn file_read(
 ) -> FileData {
     let _ = &capability;
     let raw: TerranePlatformReadResult = terrane_platform_read(
-        &file.handle.clone(),
+        &file.handle.as_ref().expect("required field initialized"),
         limit,
     );
     return FileData::terrane_construct(
@@ -932,7 +949,7 @@ pub fn file_write(
 ) -> FileData {
     let _ = &capability;
     let raw: TerranePlatformWriteResult = terrane_platform_write(
-        &file.handle.clone(),
+        &file.handle.as_ref().expect("required field initialized"),
         &data,
         terrane_int_support::Int::from(offset.clone()),
     );
@@ -949,7 +966,9 @@ pub fn file_flush(
     file: &FileHandle,
 ) -> FilesystemOperationResult {
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_flush(&file.handle.clone());
+    let raw: TerranePlatformUnitResult = terrane_platform_flush(
+        &file.handle.as_ref().expect("required field initialized"),
+    );
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
         raw.message.clone().clone(),
@@ -961,7 +980,7 @@ pub fn file_sync_data(
 ) -> FilesystemOperationResult {
     let _ = &capability;
     let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
-        &file.handle.clone(),
+        &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
@@ -973,7 +992,9 @@ pub fn file_sync_all(
     file: &FileHandle,
 ) -> FilesystemOperationResult {
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&file.handle.clone());
+    let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+        &file.handle.as_ref().expect("required field initialized"),
+    );
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
         raw.message.clone().clone(),
@@ -984,7 +1005,9 @@ pub fn file_close(
     file: FileHandle,
 ) -> FilesystemOperationResult {
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_close(&file.handle);
+    let raw: TerranePlatformUnitResult = terrane_platform_close(
+        &file.handle.as_ref().expect("required field initialized"),
+    );
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
         raw.message.clone().clone(),
@@ -992,18 +1015,16 @@ pub fn file_close(
 }
 #[derive(Clone)]
 pub struct Filesystem {
-    pub authority: TerraneFilesystemAuthority,
+    pub authority: Option<TerraneFilesystemAuthority>,
 }
 impl Filesystem {
     pub fn terrane_construct(authority: TerraneFilesystemAuthority) -> Self {
-        let mut value = Self {
-            authority: Default::default(),
-        };
-        value.construct(authority);
-        value
+        let mut __terrane_constructed_value = Self { authority: None };
+        __terrane_constructed_value.construct(authority);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, authority: TerraneFilesystemAuthority) {
-        self.authority = authority;
+        self.authority = Some(authority);
     }
 }
 pub fn filesystem_capability() -> Filesystem {
@@ -1102,7 +1123,7 @@ pub fn open_file_beneath(
 ) -> FileHandle {
     let _ = &capability;
     let raw: TerranePlatformOpenResult = terrane_platform_open_file_beneath(
-        &directory.handle.clone(),
+        &directory.handle.as_ref().expect("required field initialized"),
         relative.text,
         readable,
         writable,
@@ -1181,9 +1202,9 @@ pub struct Path {
 }
 impl Path {
     pub fn terrane_construct(input: String) -> Self {
-        let mut value = Self { text: String::from("") };
-        value.construct(input);
-        value
+        let mut __terrane_constructed_value = Self { text: String::from("") };
+        __terrane_constructed_value.construct(input);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
         self.text = input;

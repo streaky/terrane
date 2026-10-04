@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-payload-enum-witness import OpenEvent, future_event
+
+function inspect; value OpenEvent
+    match value
+        case OpenEvent::Known; text
+            return

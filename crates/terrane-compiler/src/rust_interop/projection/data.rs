@@ -91,7 +91,8 @@ fn owned_field_is_directly_constructible(ty: &ProjectedType) -> bool {
         | ProjectedType::Char
         | ProjectedType::String
         | ProjectedType::Bytes
-        | ProjectedType::Foreign { .. } => true,
+        | ProjectedType::Foreign { .. }
+        | ProjectedType::Generic(_) => true,
         ProjectedType::Sequence { rust_path, item } => {
             rust_path.contains("Vec<") && owned_field_is_directly_constructible(item)
         }
@@ -123,7 +124,16 @@ pub(super) fn project_struct_fields(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<(Vec<ProjectedField>, bool), String> {
+    let tuple_fields;
     let fields = match &structure.kind {
+        rustdoc_types::StructKind::Tuple(fields) => {
+            tuple_fields = fields
+                .iter()
+                .copied()
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| "tuple struct has private or hidden fields".to_owned())?;
+            &tuple_fields
+        }
         rustdoc_types::StructKind::Plain {
             fields,
             has_stripped_fields: false,
@@ -133,9 +143,6 @@ pub(super) fn project_struct_fields(
             ..
         } => return Err("struct has private or hidden fields".to_owned()),
         rustdoc_types::StructKind::Unit => return Ok((Vec::new(), false)),
-        rustdoc_types::StructKind::Tuple(_) => {
-            return Err("tuple struct fields have no projected field names".to_owned());
-        }
     };
     let borrowed_view = structure
         .generics
@@ -229,6 +236,168 @@ pub(super) fn project_struct_fields(
     Ok((projected, borrowed_view))
 }
 
+pub(super) fn constructor_generic_instantiation(
+    structure: &Struct,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<BTreeMap<String, ProjectedType>, String> {
+    let mut substitutions = BTreeMap::new();
+    for parameter in &structure.generics.params {
+        let ty = match &parameter.kind {
+            GenericParamDefKind::Type {
+                default: Some(default),
+                ..
+            } => project_type(default, index, paths, &substitutions)?,
+            GenericParamDefKind::Type { default: None, .. } => {
+                ProjectedType::Generic(parameter.name.clone())
+            }
+            _ => {
+                return Err(
+                    "constructor-selected native types require owned type parameters".to_owned(),
+                );
+            }
+        };
+        substitutions.insert(parameter.name.clone(), ty);
+    }
+    let (fields, _) = project_struct_fields(structure, index, paths, &substitutions)?;
+    for (name, ty) in &substitutions {
+        if matches!(ty, ProjectedType::Generic(_))
+            && !fields.iter().any(|field| field.ty.contains_generic(name))
+        {
+            return Err(format!(
+                "native representation parameter `{name}` cannot be selected from constructor fields"
+            ));
+        }
+    }
+    Ok(substitutions)
+}
+
+pub(super) fn project_struct_constructor(
+    structure: &Struct,
+    fields: &[ProjectedField],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedFunction, String> {
+    if fields.is_empty() {
+        return Err("native generic constructor requires public payload fields".to_owned());
+    }
+    let ids = match &structure.kind {
+        rustdoc_types::StructKind::Plain { fields, .. } => fields.clone(),
+        rustdoc_types::StructKind::Tuple(fields) => fields.iter().flatten().copied().collect(),
+        rustdoc_types::StructKind::Unit => Vec::new(),
+    };
+    let inputs = fields
+        .iter()
+        .map(|field| {
+            ids.iter()
+                .filter_map(|id| index.get(id))
+                .find_map(|item| {
+                    if item.name.as_deref() != Some(&field.rust_name) {
+                        return None;
+                    }
+                    let ItemEnum::StructField(ty) = &item.inner else {
+                        return None;
+                    };
+                    Some((field.name.clone(), ty.clone()))
+                })
+                .ok_or_else(|| {
+                    format!(
+                        "native constructor field `{}` has no declaration",
+                        field.name
+                    )
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let function = Function {
+        sig: rustdoc_types::FunctionSignature {
+            inputs,
+            output: Some(Type::Generic("Self".to_owned())),
+            is_c_variadic: false,
+        },
+        generics: structure.generics.clone(),
+        header: rustdoc_types::FunctionHeader {
+            is_const: false,
+            is_unsafe: false,
+            is_async: false,
+            abi: rustdoc_types::Abi::Rust,
+        },
+        has_body: false,
+    };
+    project_function_inner(
+        &function,
+        index,
+        paths,
+        public_paths,
+        Some("construct"),
+        generics,
+        false,
+    )
+}
+
+pub(super) fn rebind_method_owner(
+    method: &mut ProjectedFunction,
+    implementation: &rustdoc_types::Impl,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) {
+    let Some(facade) = generics.get("Self") else {
+        return;
+    };
+    let Ok(native) = project_type(&implementation.for_, index, paths, generics) else {
+        return;
+    };
+    if &native == facade {
+        return;
+    }
+    rebind_owner_type(&mut method.result, &native, facade);
+    for parameter in &mut method.parameters {
+        rebind_owner_type(&mut parameter.ty, &native, facade);
+    }
+}
+
+fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &ProjectedType) {
+    let same_owner = match (&*ty, native) {
+        (
+            ProjectedType::Foreign {
+                rust_path: left, ..
+            },
+            ProjectedType::Foreign {
+                rust_path: right, ..
+            },
+        ) => left == right,
+        _ => ty == native,
+    };
+    if same_owner {
+        ty.clone_from(facade);
+        return;
+    }
+    match ty {
+        ProjectedType::Optional(inner)
+        | ProjectedType::Sequence { item: inner, .. }
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::AsyncIterationStep(inner)
+        | ProjectedType::Reference { inner, .. } => {
+            rebind_owner_type(inner, native, facade);
+        }
+        ProjectedType::Tuple(items)
+        | ProjectedType::Foreign {
+            arguments: items, ..
+        } => {
+            for item in items {
+                rebind_owner_type(item, native, facade);
+            }
+        }
+        ProjectedType::Mapping { key, value, .. } => {
+            rebind_owner_type(key, native, facade);
+            rebind_owner_type(value, native, facade);
+        }
+        _ => {}
+    }
+}
+
 pub(super) fn default_generic_instantiation(
     structure: &Struct,
     index: &HashMap<Id, Item>,
@@ -262,10 +431,6 @@ pub(super) fn default_generic_instantiation(
     Ok(substitutions)
 }
 
-pub(super) fn has_type_parameters(parameters: &[rustdoc_types::GenericParamDef]) -> bool {
-    !parameters.is_empty()
-}
-
 pub(super) fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
     let mut segments = path.split("::");
     let _package_root = segments.next();
@@ -294,8 +459,6 @@ pub(super) fn project_rust_constant_expression(expression: &str) -> Option<Strin
                 syn::Lit::Bool(value) => Some(value.value.to_string()),
                 syn::Lit::Int(value) => Some(value.base10_digits().to_owned()),
                 syn::Lit::Float(value) => Some(value.base10_digits().to_owned()),
-                syn::Lit::Char(value) => Some(format!("{:?}", value.value())),
-                syn::Lit::Str(value) => Some(format!("{:?}", value.value())),
                 _ => None,
             },
             syn::Expr::Group(group) => translate(&group.expr),
@@ -343,6 +506,7 @@ pub(super) fn project_rust_constant_expression(expression: &str) -> Option<Strin
         .ok()
         .and_then(|expression| translate(&expression))
 }
+
 pub(super) type SourceConstantCache = BTreeMap<PathBuf, BTreeMap<(String, String), Option<String>>>;
 
 pub(super) fn source_constant_expression(
@@ -408,4 +572,16 @@ pub(super) fn source_constant_expression(
         .get(&(owner.to_owned(), name.to_owned()))
         .cloned()
         .flatten()
+}
+
+#[cfg(test)]
+mod constant_expression_tests {
+    use super::project_rust_constant_expression;
+
+    #[test]
+    fn rust_string_literals_are_not_terrane_constant_expressions() {
+        assert_eq!(project_rust_constant_expression(r#""hello world""#), None);
+        assert_eq!(project_rust_constant_expression(r#""don't""#), None);
+        assert_eq!(project_rust_constant_expression(r#""line\nbreak""#), None);
+    }
 }

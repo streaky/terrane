@@ -1,0 +1,35 @@
+namespace authored-enum-resource-transfer
+from /core/streams import byte-reader, stdin
+from /core/output import print
+
+class connection
+    input byte-reader = stdin;
+    consuming function destruct;
+        print; 'connection closed'
+
+enum acquired-connection
+    unavailable
+    available; value connection
+
+function inspect bool; acquired ref acquired-connection
+    match ref acquired
+        case acquired-connection::unavailable
+            return false
+        case acquired-connection::available; _
+            return true
+
+function extract connection|none; acquired acquired-connection
+    match move acquired
+        case acquired-connection::unavailable
+            return none
+        case acquired-connection::available; value
+            return move value
+
+function release; value connection|none
+    return
+
+function main;
+    acquired = instance acquired-connection::available; value = (instance connection;)
+    print; (inspect; ref acquired)
+    result connection|none = extract; move acquired
+    release; move result

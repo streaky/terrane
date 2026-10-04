@@ -4,22 +4,34 @@
       "members": {
         "/deps/terrane-sink-witness": [
           "Duplex",
+          "Duplex.into",
           "Duplex.split",
+          "Duplex.try_into",
           "Incoming",
           "Incoming.close",
+          "Incoming.into",
           "Incoming.next",
+          "Incoming.try_into",
           "Outgoing",
           "Outgoing.close",
           "Outgoing.flush",
+          "Outgoing.into",
           "Outgoing.send",
+          "Outgoing.try_into",
           "QueueSink",
           "QueueSink.close",
           "QueueSink.flush",
+          "QueueSink.into",
           "QueueSink.send",
+          "QueueSink.try_into",
           "SinkError",
+          "SinkError.into",
+          "SinkError.try_into",
           "SplitEndpoints",
+          "SplitEndpoints.into",
           "SplitEndpoints.take_incoming",
           "SplitEndpoints.take_outgoing",
+          "SplitEndpoints.try_into",
           "blocked_sink",
           "drain_slowly",
           "duplex",
@@ -33,26 +45,6 @@
   ],
   "format": 4,
   "removed": [],
-  "resolution": {
-    "events": [
-      {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
-      }
-    ],
-    "outcome": "LocalRustdoc"
-  },
   "rustdoc_format": 57,
   "source": "Local"
 }

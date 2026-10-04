@@ -159,7 +159,13 @@ pub(super) fn analyze_binding_node(
     if name != "_"
         && node.kind == SyntaxKind::Assignment
         && declared.is_none()
-        && let Some(previous) = bindings.iter().rev().find(|binding| binding.name == name)
+        && let Some(previous) = bindings
+            .iter()
+            .filter(|binding| {
+                binding.name == name
+                    && binding.is_visible_at(unit.source.id(), name_node.span.start)
+            })
+            .max_by_key(|binding| binding.visible_from)
         && let Some(initializer) = initializer
         && let Some(actual) = infer_value_type(unit, initializer, bindings)?
     {
@@ -264,6 +270,23 @@ pub(super) fn analyze_binding_node(
                     bindings,
                 )?;
                 Ok(Some(declared_value))
+            } else if let (
+                Some(
+                    expected
+                    @ (ValueType::Function(_, _, _) | ValueType::AsyncFunction(_, _, _, _)),
+                ),
+                SyntaxKind::Name,
+            ) = (declared_value.as_ref(), value.kind)
+                && let Some(contract) = super::analysis::resolved_function_contract(
+                    unit,
+                    node_text(&unit.source, value),
+                    value.span.start,
+                )
+                && let Some(actual) = infer_value_type(unit, value, bindings)?
+                && let Some(closed) =
+                    super::generics::close_generic_callable_value(unit, contract, &actual, expected)
+            {
+                Ok(Some(closed))
             } else {
                 infer_value_type(unit, value, bindings)
             }
@@ -272,7 +295,16 @@ pub(super) fn analyze_binding_node(
         .flatten();
     let value_type =
         if let (Some(type_node), Some(declared_type)) = (declared, declared_value.clone()) {
-            let value_type = if matches!(declared_type, ValueType::Optional(_)) {
+            let value_type = if let (ValueType::Object(declared), Some(ValueType::Object(actual))) =
+                (&declared_type, &inferred)
+                && declared.base() == actual.base()
+                && declared.native_projection.is_none()
+                && (declared.type_arguments.is_empty()
+                    || declared.type_arguments == actual.type_arguments)
+                && (!actual.native_arguments.is_empty() || !actual.type_arguments.is_empty())
+            {
+                ValueType::Object(actual.clone())
+            } else if matches!(declared_type, ValueType::Optional(_)) {
                 declared_type
             } else if let (Some(inferred), Some(initializer), Ok(_)) = (
                 inferred.clone(),
@@ -629,27 +661,77 @@ pub(super) fn declared_value_type_with_visible_objects(
                 ElementType::new(resolve_argument(value_node)?),
             ));
         }
-        if let [argument] = arguments {
-            let lexical_identity = lexical_scope_chain(unit, base.span.start).find_map(|scope| {
-                scope.symbols.get(base_name).and_then(|symbols| {
-                    symbols.iter().rev().find_map(|symbol| {
-                        matches!(
-                            symbol.kind,
-                            SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
-                        )
-                        .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+        let lexical_identity = lexical_scope_chain(unit, base.span.start).find_map(|scope| {
+            scope.symbols.get(base_name).and_then(|symbols| {
+                symbols.iter().rev().find_map(|symbol| {
+                    matches!(
+                        symbol.kind,
+                        SymbolKind::Class
+                            | SymbolKind::Interface
+                            | SymbolKind::Trait
+                            | SymbolKind::Enum
+                    )
+                    .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+                })
+            })
+        });
+        let object_identity = lexical_identity
+            .or_else(|| visible_objects.get(base_name).cloned())
+            .or_else(|| {
+                unit.descriptors
+                    .iter()
+                    .find(|object| object.builtin.is_none() && object.name == base_name)
+                    .map(|object| object.identity.clone())
+            });
+        if let Some(identity) = object_identity {
+            let descriptor = unit
+                .descriptors
+                .iter()
+                .find(|descriptor| descriptor.identity == identity);
+            let expected = descriptor
+                .map(|descriptor| descriptor.generic_parameters.len())
+                .or_else(|| {
+                    (identity.namespace == unit.namespace).then(|| {
+                        unit.tree
+                            .root
+                            .children
+                            .iter()
+                            .find(|declaration| {
+                                declaration_name(declaration, &unit.source).as_deref()
+                                    == Some(identity.name.as_str())
+                            })
+                            .and_then(|declaration| {
+                                declaration
+                                    .children
+                                    .iter()
+                                    .find(|child| child.kind == SyntaxKind::TypeParameterList)
+                            })
+                            .map_or(0, |parameters| parameters.children.len())
                     })
                 })
-            });
-            let object_identity = lexical_identity
-                .or_else(|| visible_objects.get(base_name).cloned())
-                .or_else(|| {
-                    unit.descriptors
-                        .iter()
-                        .find(|object| object.builtin.is_none() && object.name == base_name)
-                        .map(|object| object.identity.clone())
-                });
-            if let Some(identity) = object_identity {
+                .unwrap_or(0);
+            if expected != 0 {
+                if arguments.len() != expected {
+                    return Err(failure(
+                        &unit.source,
+                        "T0001",
+                        format!(
+                            "`{base_name}` requires {expected} type arguments, found {}",
+                            arguments.len()
+                        ),
+                        shape.span,
+                    ));
+                }
+                return Ok(ValueType::Object(
+                    identity.with_type_arguments(
+                        arguments
+                            .iter()
+                            .map(resolve_argument)
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ),
+                ));
+            }
+            if let [argument] = arguments {
                 return Ok(ValueType::Object(
                     identity.with_application(resolve_argument(argument)?),
                 ));
@@ -662,12 +744,18 @@ pub(super) fn declared_value_type_with_visible_objects(
         .and_then(|value| value.strip_suffix(')'))
         .unwrap_or(type_name)
         .trim();
+    if super::generics::lexical_type_parameter(unit, type_node.span.start, type_name) {
+        return Ok(ValueType::TypeParameter(type_name.to_owned()));
+    }
     let lexical_identity = lexical_scope_chain(unit, type_node.span.start).find_map(|scope| {
         scope.symbols.get(type_name).and_then(|symbols| {
             symbols.iter().rev().find_map(|symbol| {
                 matches!(
                     symbol.kind,
-                    SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                    SymbolKind::Class
+                        | SymbolKind::Interface
+                        | SymbolKind::Trait
+                        | SymbolKind::Enum
                 )
                 .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
             })
@@ -698,6 +786,7 @@ pub(super) fn declared_value_type_with_visible_objects(
                     "invocation-scoped-native".to_owned(),
                 ),
                 lifetimes: Vec::new(),
+                expression_scoped: false,
                 region: None,
             });
         }
@@ -1003,7 +1092,7 @@ pub(super) fn diagnostic_object_identity(
     if identities.len() > 1 {
         identity.qualified()
     } else {
-        identity.name.clone()
+        identity.to_string()
     }
 }
 
@@ -1137,6 +1226,14 @@ pub(super) fn validate_value_destination(
         return Ok(());
     }
     if let ValueType::Scalar(expected) = expected {
+        let actual = match actual {
+            ValueType::Reference(inner) | ValueType::SharedReference(inner)
+                if inner.value_type_ref() == &ValueType::Scalar(expected) =>
+            {
+                inner.value_type()
+            }
+            actual => actual,
+        };
         return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
     }
     if let ValueType::Optional(expected_inner) = expected {
@@ -1217,7 +1314,23 @@ pub(super) fn object_types_compatible(
     expected: &ObjectIdentity,
     actual: &ObjectIdentity,
 ) -> bool {
-    if expected == actual
+    let same_applied_nominal = |left: &ObjectIdentity, right: &ObjectIdentity| {
+        left.namespace == right.namespace
+            && left.name == right.name
+            && left.is_unsafe == right.is_unsafe
+            && (left.application == right.application
+                || (left.application.is_none()
+                    && right.application.is_some()
+                    && left.namespace.starts_with("/deps/")
+                    && left.type_arguments.is_empty()
+                    && right.type_arguments.is_empty()))
+            && ((left.native_projection.is_some()
+                && left.native_projection == right.native_projection)
+                || (left.type_arguments == right.type_arguments
+                    && left.native_projection == right.native_projection
+                    && left.native_arguments == right.native_arguments))
+    };
+    if same_applied_nominal(expected, actual)
         || (expected == &ObjectIdentity::new("/core/errors", "throwable")
             && actual.namespace == "/core/errors"
             && is_builtin_error_type(&actual.name))
@@ -1231,7 +1344,7 @@ pub(super) fn object_types_compatible(
             if object
                 .interfaces
                 .iter()
-                .any(|interface| interface == expected || interface.base() == *expected)
+                .any(|interface| same_applied_nominal(expected, interface))
             {
                 return true;
             }
@@ -1241,11 +1354,11 @@ pub(super) fn object_types_compatible(
                 else {
                     break;
                 };
-                if base_object.identity == *expected
+                if same_applied_nominal(expected, &base_object.identity)
                     || base_object
                         .interfaces
                         .iter()
-                        .any(|interface| interface == expected || interface.base() == *expected)
+                        .any(|interface| same_applied_nominal(expected, interface))
                 {
                     return true;
                 }
@@ -1595,15 +1708,18 @@ pub(crate) fn narrowed_value_type(
         .get(&node.span.start)
         .copied()
         .flatten();
-    let binding = bindings.iter().rev().find(|binding| {
-        binding.name == name
-            && binding.is_visible_at(unit.source.id(), node.span.start)
-            && unit
-                .enclosing_function_spans
-                .get(&binding.span.start)
-                .copied()
-                .flatten()
-                == function_span
-    })?;
+    let binding = bindings
+        .iter()
+        .filter(|binding| {
+            binding.name == name
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+                && unit
+                    .enclosing_function_spans
+                    .get(&binding.span.start)
+                    .copied()
+                    .flatten()
+                    == function_span
+        })
+        .max_by_key(|binding| binding.visible_from)?;
     narrowed_optional_type(unit, node, binding.value_type.clone())
 }

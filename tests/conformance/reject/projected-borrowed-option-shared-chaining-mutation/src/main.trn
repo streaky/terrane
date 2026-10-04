@@ -1,0 +1,17 @@
+namespace app
+from /deps/http import HeaderMap, HeaderName, HeaderValue
+
+function mark; header ref HeaderValue
+    header.set_sensitive; true
+
+function change bool|none; header ref HeaderValue
+    mark; ref header
+    return true
+
+function main;
+    headers = HeaderMap::new;
+    name = HeaderName::from_str; 'x-test'
+    value = HeaderValue::from_str; 'value'
+    headers.insert; name, value
+    callback = change
+    result bool|none = (headers.get; 'x-test').and_then; callback

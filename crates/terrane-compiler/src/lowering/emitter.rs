@@ -1,3 +1,5 @@
+mod enums;
+
 mod call_support;
 mod calls;
 mod context;
@@ -34,6 +36,8 @@ pub(super) struct LoweringSite {
     pub(super) end_column: u32,
 }
 
+type CallbackParameterKey = ((u32, usize, usize), usize);
+
 #[derive(Default)]
 pub(super) struct LoweringRegistry {
     pub(super) files: RefCell<Vec<String>>,
@@ -42,6 +46,9 @@ pub(super) struct LoweringRegistry {
     pub(super) descriptors: RefCell<Vec<(String, String)>>,
     pub(super) descriptor_ids: RefCell<BTreeMap<String, u32>>,
     pub(super) uses_float_coercion_error: Cell<bool>,
+    pub(super) uses_mutable_callable: Cell<bool>,
+    pub(super) uses_consuming_callable: Cell<bool>,
+    pub(super) mutable_native_callback_parameters: RefCell<BTreeSet<CallbackParameterKey>>,
 }
 
 impl LoweringRegistry {

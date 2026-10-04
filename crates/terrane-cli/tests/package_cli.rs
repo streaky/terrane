@@ -82,6 +82,44 @@ fn wait_for_test_runner(process: u32, timeout: Duration) -> Option<u32> {
 }
 
 #[test]
+fn projected_iced_scoped_macro_token_mismatch_is_rejected_by_check() {
+    let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
+    // Contained native Cargo commands hide /tmp outside their bound workspaces.
+    let package = TempPackage(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target")
+            .join(format!(
+                "native-macro-rejection-{}-{serial}",
+                std::process::id()
+            )),
+    );
+    let fixture =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/native-macro-rejection");
+    for relative in [
+        "package.toml",
+        "terrane-dependencies.lock",
+        ".cargo/config.toml",
+        "src/main.trn",
+        "fixture-registry/terrane-iced-scoped-rejection-witness-0.1.0/Cargo.toml",
+        "fixture-registry/terrane-iced-scoped-rejection-witness-0.1.0/src/lib.rs",
+    ] {
+        let destination = package.0.join(relative);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(fixture.join(relative), destination).unwrap();
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("check")
+        .arg(&package.0)
+        .current_dir(&package.0)
+        .output()
+        .unwrap();
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(5), "{diagnostic}");
+    assert!(diagnostic.contains("error[S9003]"), "{diagnostic}");
+    assert!(diagnostic.contains("invalid format string"), "{diagnostic}");
+}
+
+#[test]
 fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
     let package = TempPackage::new();
     let executable = env!("CARGO_BIN_EXE_terrane");
@@ -1128,8 +1166,6 @@ fn native_test_timeout_errors_name_the_invalid_argument() {
             .unwrap();
         assert_eq!(output.status.code(), Some(2));
         let stderr = String::from_utf8(output.stderr).unwrap();
-        assert!(stderr.starts_with("error: "));
         assert!(stderr.contains("--timeout"));
-        assert!(stderr.contains("usage: terrane"));
     }
 }

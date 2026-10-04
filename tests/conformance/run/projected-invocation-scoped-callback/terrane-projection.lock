@@ -3,13 +3,29 @@
     {
       "members": {
         "/deps/witness": [
+          "Application",
           "BorrowedButton",
-          "BorrowedLabel",
           "BorrowedValue-of-String",
           "Button",
+          "Button.into",
+          "Button.try_into",
+          "Button::from",
           "Label",
+          "Label.into",
+          "Label.try_into",
+          "MutableState",
+          "MutableState.into",
+          "MutableState.mark",
+          "MutableState.try_into",
+          "MutableState::new",
           "Row",
+          "Row.into",
+          "Row.try_into",
+          "Row::from",
           "Widget",
+          "Widget.clone",
+          "Widget.into",
+          "Widget.try_into",
           "borrowed_button",
           "borrowed_button_group",
           "borrowed_group",
@@ -20,21 +36,15 @@
           "button",
           "into_widget",
           "label",
+          "launch",
+          "mutable_state_label",
           "render_default",
           "render_exact",
           "render_scoped",
           "reset_trace",
           "row",
+          "run_application",
           "traced_label"
-        ],
-        "/deps/witness/button": [
-          "from"
-        ],
-        "/deps/witness/row": [
-          "from"
-        ],
-        "/deps/witness/widget": [
-          "clone"
         ],
         "/deps/witness/widget/trait/core/convert/from-terrane-invocation-scoped-witness/button": [
           "from"
@@ -55,26 +65,6 @@
   ],
   "format": 4,
   "removed": [],
-  "resolution": {
-    "events": [
-      {
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
-        "source": "BundledArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
-        "source": "PublishedArtifact",
-        "status": "Skipped"
-      },
-      {
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
-        "source": "LocalRustdoc",
-        "status": "Generated"
-      }
-    ],
-    "outcome": "LocalRustdoc"
-  },
   "rustdoc_format": 57,
   "source": "Local"
 }

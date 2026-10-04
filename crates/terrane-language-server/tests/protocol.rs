@@ -545,3 +545,95 @@ fn shared_snapshot_serves_navigation_formatting_and_utf8_positions() {
     drop(stdin);
     assert!(child.wait().unwrap().success());
 }
+
+#[test]
+fn projected_constructor_selection_serves_semantic_hover() {
+    let source_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/projected-constructor-selected-native/src/main.trn")
+        .canonicalize()
+        .unwrap();
+    let text = std::fs::read_to_string(&source_path)
+        .unwrap()
+        .replace("Address, Envelope,", "Address, Envelope as Packet,")
+        .replace("instance Envelope;", "instance Packet;")
+        .replace("envelope Envelope =", "envelope Packet =");
+    let uri = format!("file://{}", source_path.display());
+    let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}),
+    );
+    let _ = receive_response(&mut stdout, 1);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"initialized","params":{}}),
+    );
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","method":"textDocument/didOpen",
+            "params":{"textDocument":{"uri":uri,"languageId":"terrane","version":1,"text":text}}
+        }),
+    );
+    let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
+    assert_eq!(
+        diagnostics["params"]["diagnostics"],
+        json!([]),
+        "{diagnostics}"
+    );
+    let (line, constructor) = text
+        .lines()
+        .enumerate()
+        .find(|(_, line)| line.contains("envelope Packet = instance Packet;"))
+        .unwrap();
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":2,"method":"textDocument/signatureHelp",
+            "params":{"textDocument":{"uri":uri},"position":{"line":line,"character":constructor.find("payload =").unwrap()+10}}
+        }),
+    );
+    let signature = receive_response(&mut stdout, 2);
+    assert_eq!(signature["result"]["activeParameter"], 0);
+    assert_eq!(
+        signature["result"]["signatures"][0]["parameters"],
+        json!([{"label":"payload: Address"}]),
+        "{signature}"
+    );
+    let (line, usage) = text
+        .lines()
+        .enumerate()
+        .find(|(_, line)| line.contains("address_port; envelope"))
+        .unwrap();
+    let position = json!({"line":line,"character":usage.rfind("envelope").unwrap()+1});
+    send(
+        &mut stdin,
+        &json!({
+            "jsonrpc":"2.0","id":3,"method":"textDocument/hover",
+            "params":{"textDocument":{"uri":uri},"position":position}
+        }),
+    );
+    let hover = receive_response(&mut stdout, 3);
+    let content = hover["result"]["contents"].as_str().unwrap();
+    assert!(
+        content.contains("Envelope") && content.contains("Address"),
+        "{hover}"
+    );
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","id":5,"method":"shutdown","params":null}),
+    );
+    let _ = receive_response(&mut stdout, 5);
+    send(
+        &mut stdin,
+        &json!({"jsonrpc":"2.0","method":"exit","params":null}),
+    );
+    drop(stdin);
+    assert!(child.wait().unwrap().success());
+}

@@ -1,0 +1,7 @@
+namespace app
+from /deps/witness import Ipv4Addr
+from /deps/witness/prelude/v1/macros import assert
+from /core/output import print
+function main;
+    _ none = assert; true
+    print; 0

@@ -561,6 +561,13 @@ impl Emitter<'_> {
         &self,
         callee: &SyntaxNode,
     ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
+        if callee.kind == SyntaxKind::ConstructionExpression {
+            let identity = &self.class_designator(callee.children.first()?)?.identity;
+            return self
+                .package
+                .projection
+                .projected_constructor(&identity.namespace, &identity.name);
+        }
         if callee.kind == SyntaxKind::Name {
             let lookup_name = if Self::callee_is_unsafe(callee) {
                 format!("unsafe::{}", self.text(callee))
@@ -575,7 +582,8 @@ impl Emitter<'_> {
                 .projection
                 .item(&symbol.namespace, &symbol.name)
                 .and_then(|item| match &item.kind {
-                    crate::rust_interop::projection::ProjectedKind::Function(function) => {
+                    crate::rust_interop::projection::ProjectedKind::Function(function)
+                    | crate::rust_interop::projection::ProjectedKind::Macro(function) => {
                         Some(function)
                     }
                     _ => None,
@@ -587,8 +595,18 @@ impl Emitter<'_> {
         let (identity, is_static) = if callee.kind == SyntaxKind::StaticMemberExpression {
             (self.class_designator(receiver)?.identity.clone(), true)
         } else {
-            let ValueType::Object(identity) = self.value_type(receiver)? else {
-                return None;
+            let identity = match self.value_type(receiver)? {
+                ValueType::Object(identity)
+                | ValueType::InvocationScopedNative {
+                    family: identity, ..
+                } => identity,
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    let ValueType::Object(identity) = item.value_type() else {
+                        return None;
+                    };
+                    identity
+                }
+                _ => return None,
             };
             (identity, false)
         };
@@ -614,13 +632,20 @@ impl Emitter<'_> {
                 self.class_designator(receiver)
             } else {
                 self.receiver_value_type(receiver).and_then(|value_type| {
-                    let ValueType::Object(identity) = value_type else {
-                        return None;
+                    let identity = match value_type {
+                        ValueType::Object(identity) => identity,
+                        ValueType::InvocationScopedNative {
+                            family,
+                            expression_scoped: true,
+                            ..
+                        } => family,
+                        _ => return None,
                     };
-                    self.unit
-                        .descriptors
-                        .iter()
-                        .find(|object| object.identity == identity)
+                    self.unit.descriptors.iter().find(|object| {
+                        object.identity.namespace == identity.namespace
+                            && object.identity.name == identity.name
+                            && object.identity.application == identity.application
+                    })
                 })
             }?;
             return effective_object_methods(self.unit, object)

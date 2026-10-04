@@ -202,6 +202,15 @@ pub struct SemanticObject {
     pub invocation_mode: Availability<String>,
     pub members: Availability<Vec<MemberFact>>,
     pub inheritance: Availability<Vec<String>>,
+    pub generic_parameters: Availability<Vec<String>>,
+    pub type_arguments: Availability<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+pub struct CallableSignature {
+    pub label: String,
+    pub parameters: Vec<String>,
+    pub active_parameter: Option<usize>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
@@ -950,6 +959,94 @@ impl ToolingEngine {
             return Ok(None);
         };
         Ok(Some(semantic_object(snapshot, document, node, id, None)))
+    }
+
+    /// Resolves a call signature using the same closed contract as semantic checking.
+    ///
+    /// # Errors
+    ///
+    /// Returns a protocol error for stale snapshots, unknown sources, or invalid positions.
+    pub fn signature_help(
+        &self,
+        snapshot_id: &str,
+        uri: &str,
+        offset: usize,
+    ) -> Result<Option<CallableSignature>, ProtocolError> {
+        fn enclosing_call(node: &SyntaxNode, offset: usize) -> Option<&SyntaxNode> {
+            if !(node.span.start <= offset && offset <= node.span.end) {
+                return None;
+            }
+            node.children
+                .iter()
+                .find_map(|child| enclosing_call(child, offset))
+                .or_else(|| (node.kind == SyntaxKind::CallExpression).then_some(node))
+        }
+        let snapshot = self.snapshot(snapshot_id)?;
+        let document = snapshot.document(uri)?;
+        if offset > document.source.text().len() || !document.source.text().is_char_boundary(offset)
+        {
+            return Err(ProtocolError::new(
+                "invalid-position",
+                "position must be a UTF-8 byte boundary within the source",
+            ));
+        }
+        let Some(semantic) = snapshot.semantic.as_ref() else {
+            return Ok(None);
+        };
+        let Some(unit) = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == document.source.id())
+        else {
+            return Ok(None);
+        };
+        let Some(call) = enclosing_call(&unit.tree.root, offset) else {
+            return Ok(None);
+        };
+        let Some(contract) =
+            crate::semantics::selected_callable_contract(semantic, unit, call, call.is_unsafe_call)
+        else {
+            return Ok(None);
+        };
+        let parameters = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                let value_type = parameter
+                    .value_type
+                    .as_ref()
+                    .map_or_else(|| "unresolved".to_owned(), ToString::to_string);
+                format!(
+                    "{}{}: {value_type}{}",
+                    parameter.name,
+                    if parameter.optional { "?" } else { "" },
+                    if parameter.variadic { "..." } else { "" }
+                )
+            })
+            .collect::<Vec<_>>();
+        let result = contract
+            .return_type
+            .as_ref()
+            .map_or_else(|| "none".to_owned(), ToString::to_string);
+        let active_parameter = (!parameters.is_empty()).then(|| {
+            call.children
+                .last()
+                .filter(|arguments| arguments.kind == SyntaxKind::ArgumentList)
+                .and_then(|arguments| {
+                    arguments
+                        .children
+                        .iter()
+                        .enumerate()
+                        .rev()
+                        .find(|(_, argument)| argument.span.start <= offset)
+                })
+                .map_or(0, |(index, _)| index.min(parameters.len() - 1))
+        });
+        Ok(Some(CallableSignature {
+            label: format!("{}({}) -> {result}", contract.name, parameters.join(", ")),
+            parameters,
+            active_parameter,
+        }))
     }
 
     /// # Errors
@@ -1776,6 +1873,81 @@ fn node_by_id<'a>(node: &'a SyntaxNode, wanted: u64, next: &mut u64) -> Option<&
         .find_map(|child| node_by_id(child, wanted, next))
 }
 
+fn semantic_effects(target: &SemanticTarget) -> Option<Vec<String>> {
+    let function = target.function.as_ref()?;
+    let mut effects = Vec::new();
+    if function.is_async {
+        effects.push("async".to_owned());
+    }
+    effects.extend(
+        function
+            .escaping_throwables
+            .iter()
+            .map(|throwable| format!("throws {throwable}")),
+    );
+    Some(effects)
+}
+
+fn semantic_ownership(
+    snapshot: &Snapshot,
+    value_type: Option<&crate::ValueType>,
+) -> Availability<String> {
+    semantic_optional_fact(
+        snapshot,
+        value_type.and_then(|value| {
+            let semantic = snapshot.semantic.as_ref()?;
+            Some(
+                match value {
+                    crate::ValueType::Reference(_) => "mutable-reference",
+                    crate::ValueType::SharedReference(_) => "shared-reference",
+                    _ if crate::semantics::application_is_resource_owning(semantic, value) => {
+                        "resource-owning"
+                    }
+                    _ => "value",
+                }
+                .to_owned(),
+            )
+        }),
+    )
+}
+
+fn generic_parameter_facts(target: &SemanticTarget) -> Option<Vec<String>> {
+    let parameters = target
+        .function
+        .as_ref()
+        .map(|function| &function.generic_parameters)
+        .or_else(|| {
+            target
+                .descriptor
+                .as_ref()
+                .map(|descriptor| &descriptor.generic_parameters)
+        })?;
+    Some(
+        parameters
+            .iter()
+            .map(|parameter| {
+                parameter.bound.as_ref().map_or_else(
+                    || parameter.name.clone(),
+                    |bound| format!("{} implements {bound}", parameter.name),
+                )
+            })
+            .collect(),
+    )
+}
+
+fn type_argument_facts(value: &crate::ValueType) -> Option<Vec<String>> {
+    let crate::ValueType::Object(identity) = unwrapped_value_type(value) else {
+        return None;
+    };
+    Some(
+        identity
+            .type_arguments
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+    )
+}
+
 fn semantic_object(
     snapshot: &Snapshot,
     document: &ParsedDocument,
@@ -1789,21 +1961,7 @@ fn semantic_object(
     let known_or_unavailable = |value: Option<String>| {
         value.map_or_else(|| semantic_fact_unavailable(snapshot), Availability::Known)
     };
-    let effects = target.as_ref().and_then(|target| {
-        target.function.as_ref().map(|function| {
-            let mut effects = Vec::new();
-            if function.is_async {
-                effects.push("async".to_owned());
-            }
-            effects.extend(
-                function
-                    .escaping_throwables
-                    .iter()
-                    .map(|throwable| format!("throws {throwable}")),
-            );
-            effects
-        })
-    });
+    let effects = target.as_ref().and_then(semantic_effects);
     let invocation_mode = target.as_ref().and_then(|target| {
         target
             .function
@@ -1874,7 +2032,7 @@ fn semantic_object(
                 .and_then(|target| target.descriptor_identity.clone()),
         ),
         value_type: known_or_unavailable(value_type.as_ref().map(ToString::to_string)),
-        ownership: Availability::Unsupported,
+        ownership: semantic_ownership(snapshot, value_type.as_ref()),
         safety: semantic_optional_fact(snapshot, safety),
         effects: semantic_optional_fact(snapshot, effects),
         capabilities: semantic_optional_fact(snapshot, capabilities),
@@ -1882,6 +2040,14 @@ fn semantic_object(
         invocation_mode: semantic_optional_fact(snapshot, invocation_mode),
         members: semantic_optional_fact(snapshot, members),
         inheritance: semantic_optional_fact(snapshot, inheritance),
+        generic_parameters: semantic_optional_fact(
+            snapshot,
+            target.as_ref().and_then(generic_parameter_facts),
+        ),
+        type_arguments: semantic_optional_fact(
+            snapshot,
+            value_type.as_ref().and_then(type_argument_facts),
+        ),
     }
 }
 
@@ -1918,6 +2084,42 @@ fn resolve_semantic_target(
         .iter()
         .find(|unit| unit.source.id() == document.source.id())?;
     let name = node_text(&document.source, name_node);
+    if let Some(parent) = parent_node(&document.tree.root, name_node)
+        && matches!(
+            parent.kind,
+            SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+        )
+        && parent
+            .children
+            .last()
+            .is_some_and(|child| child.span == name_node.span)
+    {
+        return member_target(semantic, unit, parent, name);
+    }
+    if let Some(parameter) = unit.type_parameter_at(name_node.span.start, name) {
+        return Some(SemanticTarget {
+            name: parameter.name.clone(),
+            identity: format!(
+                "{}::type-parameter@{}:{}",
+                unit.namespace, parameter.span.file, parameter.span.start,
+            ),
+            declaration_span: Some(parameter.span),
+            descriptor_identity: None,
+            value_type: Some(crate::ValueType::TypeParameter(parameter.name.clone())),
+            function: None,
+            descriptor: None,
+        });
+    }
+    for enumeration in &unit.source_enums {
+        if enumeration.variants.iter().any(|variant| {
+            variant.name == name
+                && declaration_name_span(snapshot, variant.span, name) == Some(name_node.span)
+        }) {
+            let descriptor = all_descriptors(semantic)
+                .find(|descriptor| descriptor.identity.base() == enumeration.identity.base())?;
+            return enum_variant_target(semantic, descriptor, &enumeration.identity, name);
+        }
+    }
     for function in all_functions(semantic) {
         if function.name == name
             && declaration_name_span(snapshot, function.span, name) == Some(name_node.span)
@@ -1946,18 +2148,6 @@ fn resolve_semantic_target(
         })
     {
         return Some(symbol_target(semantic, unit, symbol));
-    }
-    if let Some(parent) = parent_node(&document.tree.root, name_node)
-        && matches!(
-            parent.kind,
-            SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
-        )
-        && parent
-            .children
-            .last()
-            .is_some_and(|child| child.span == name_node.span)
-    {
-        return member_target(semantic, unit, parent, name);
     }
     let symbol = semantic.resolve_name_at(unit, name_node.span.start, name)?;
     Some(symbol_target(semantic, unit, symbol))
@@ -2025,16 +2215,30 @@ fn member_target(
             descriptor: None,
         });
     }
-    let descriptor_identity = match unwrapped_value_type(&receiver_type) {
-        crate::ValueType::Object(identity) => identity.qualified(),
-        crate::ValueType::Descriptor(identity) => identity.clone(),
-        _ => return None,
-    };
+    let receiver_identity = match unwrapped_value_type(&receiver_type) {
+        crate::ValueType::Object(identity) => Some(identity.clone()),
+        crate::ValueType::Descriptor(identity) => all_descriptors(semantic)
+            .find(|descriptor| descriptor.identity.qualified() == *identity)
+            .map(|descriptor| descriptor.identity.clone()),
+        crate::ValueType::TypeParameter(name) => unit
+            .type_parameter_at(receiver.span.start, name)
+            .and_then(|parameter| parameter.bound.clone()),
+        _ => None,
+    }?;
     let descriptor = all_descriptors(semantic)
-        .find(|descriptor| descriptor.identity.qualified() == descriptor_identity)?;
+        .find(|descriptor| descriptor.identity.base() == receiver_identity.base())?;
     let is_static = member_expression.kind == SyntaxKind::StaticMemberExpression;
-    if let Some(field_target) = resolved_member_field_target(semantic, descriptor, name, is_static)
+    if is_static
+        && let Some(target) = enum_variant_target(semantic, descriptor, &receiver_identity, name)
     {
+        return Some(target);
+    }
+    if let Some(mut field_target) =
+        resolved_member_field_target(semantic, descriptor, name, is_static)
+    {
+        field_target.value_type = unit
+            .inferred_value_type(member_expression)
+            .or(field_target.value_type);
         return Some(field_target);
     }
     if let Some(function) = resolved_member_function(semantic, descriptor, name, is_static) {
@@ -2066,6 +2270,46 @@ fn member_target(
         }
     }
     None
+}
+
+fn enum_variant_target(
+    semantic: &crate::SemanticPackage,
+    descriptor: &crate::semantics::DescriptorContract,
+    identity: &crate::semantics::ObjectIdentity,
+    name: &str,
+) -> Option<SemanticTarget> {
+    let source_variant = semantic
+        .units
+        .iter()
+        .flat_map(|unit| &unit.source_enums)
+        .find(|enumeration| enumeration.identity.base() == identity.base())
+        .and_then(|enumeration| {
+            enumeration
+                .variants
+                .iter()
+                .find(|variant| variant.name == name)
+        });
+    let native_variant = semantic
+        .projection
+        .item(&identity.namespace, &identity.name)
+        .and_then(|item| match &item.kind {
+            crate::rust_interop::projection::ProjectedKind::Enum { variants, .. } => {
+                variants.iter().find(|variant| variant.name == name)
+            }
+            _ => None,
+        });
+    if source_variant.is_none() && native_variant.is_none() {
+        return None;
+    }
+    Some(SemanticTarget {
+        name: name.to_owned(),
+        identity: format!("{}::variant::{name}", identity.base().qualified()),
+        declaration_span: source_variant.map(|variant| variant.span),
+        descriptor_identity: Some(identity.qualified()),
+        value_type: Some(crate::ValueType::Object(identity.clone())),
+        function: None,
+        descriptor: Some(descriptor.clone()),
+    })
 }
 
 fn resolved_member_field_target(
@@ -2477,6 +2721,70 @@ fn location_for_span(snapshot: &Snapshot, span: Span) -> Option<Location> {
     })
 }
 
+fn add_enum_member_facts(
+    snapshot: &Snapshot,
+    semantic: &crate::semantics::SemanticPackage,
+    descriptor: &crate::semantics::DescriptorContract,
+    members: &mut BTreeMap<String, MemberFact>,
+) {
+    if let Some(enumeration) = semantic
+        .units
+        .iter()
+        .flat_map(|unit| &unit.source_enums)
+        .find(|enumeration| enumeration.identity.base() == descriptor.identity.base())
+    {
+        for variant in &enumeration.variants {
+            members.insert(
+                variant.name.clone(),
+                MemberFact {
+                    name: variant.name.clone(),
+                    identity: format!("{}::{}", descriptor.identity.qualified(), variant.name),
+                    kind: "variant".to_owned(),
+                    value_type: Availability::Known(format!(
+                        "{}; {}",
+                        descriptor.identity,
+                        variant
+                            .payload
+                            .iter()
+                            .map(|field| format!("{} {}", field.name, field.value_type))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )),
+                    declaration: location_for_span(snapshot, variant.span)
+                        .map_or(Availability::Unresolved, Availability::Known),
+                },
+            );
+        }
+    }
+    if let Some(crate::rust_interop::projection::ProjectedKind::Enum { variants, .. }) = semantic
+        .projection
+        .item(&descriptor.identity.namespace, &descriptor.identity.name)
+        .map(|item| &item.kind)
+    {
+        for variant in variants {
+            members.insert(
+                variant.name.clone(),
+                MemberFact {
+                    name: variant.name.clone(),
+                    identity: format!("{}::{}", descriptor.identity.qualified(), variant.name),
+                    kind: "variant".to_owned(),
+                    value_type: Availability::Known(format!(
+                        "{}; {}",
+                        descriptor.identity,
+                        variant
+                            .fields
+                            .iter()
+                            .map(|field| format!("{} {}", field.name, field.ty.terrane_name()))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )),
+                    declaration: Availability::Unsupported,
+                },
+            );
+        }
+    }
+}
+
 fn member_facts(
     snapshot: &Snapshot,
     descriptor: &crate::semantics::DescriptorContract,
@@ -2496,6 +2804,7 @@ fn member_facts(
         );
     }
     if let Some(semantic) = &snapshot.semantic {
+        add_enum_member_facts(snapshot, semantic, descriptor, &mut members);
         let lineage = descriptor_lineage(semantic, descriptor);
         for inherited in all_descriptors(semantic).filter(|candidate| {
             candidate.identity != descriptor.identity
@@ -3089,6 +3398,74 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
+
+    #[test]
+    fn generic_members_parameters_and_enum_variants_keep_canonical_navigation() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/generic-navigation.trn";
+        let text = "namespace generic-navigation\n\nclass envelope of (T)\n    payload T\n    function construct; payload T\n        this.payload = payload\n\nfunction identity of (T) T; value T\n    return value\n\nenum state of (T)\n    pending\n    completed; result T\n\nfunction main;\n    item = instance envelope; 41\n    number int = item.payload\n    copied int = identity; number\n    explicit int = ((identity of int); number)\n    completed state of int = instance state::completed; result = copied\n";
+        let metadata = open(
+            &mut engine,
+            uri,
+            text,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let parameter_use = text.find("payload T").unwrap() + "payload ".len();
+        let parameter_declaration = text.find("of (T)").unwrap() + "of (".len();
+        let Availability::Known(parameter) = engine
+            .definition(&metadata.snapshot_id, uri, parameter_use)
+            .unwrap()
+        else {
+            panic!("lexical parameter definition must be known");
+        };
+        assert_eq!(parameter.span.start, parameter_declaration);
+
+        let member_use = text.find("item.payload").unwrap() + "item.".len();
+        let Availability::Known(member) = engine
+            .definition(&metadata.snapshot_id, uri, member_use)
+            .unwrap()
+        else {
+            panic!("applied member definition must be known");
+        };
+        assert_eq!(member.span.start, text.find("payload T").unwrap());
+        let member = engine
+            .locate(&metadata.snapshot_id, uri, member_use)
+            .unwrap()
+            .unwrap();
+        assert_eq!(member.value_type, Availability::Known("int".to_owned()));
+
+        let variant_use = text.find("state::completed").unwrap() + "state::".len();
+        let Availability::Known(variant) = engine
+            .definition(&metadata.snapshot_id, uri, variant_use)
+            .unwrap()
+        else {
+            panic!("variant definition must be known");
+        };
+        assert_eq!(variant.span.start, text.find("completed; result").unwrap());
+        let signature = engine
+            .signature_help(
+                &metadata.snapshot_id,
+                uri,
+                text.find("identity; number").unwrap() + "identity; ".len(),
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(signature.parameters, ["value: int"]);
+        assert!(signature.label.ends_with(" -> int"));
+        let explicit_signature = engine
+            .signature_help(
+                &metadata.snapshot_id,
+                uri,
+                text.find("(identity of int); number").unwrap() + "(identity of int); ".len(),
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(explicit_signature.parameters, ["value: int"]);
+        assert!(explicit_signature.label.ends_with(" -> int"));
+    }
 
     struct TemporaryDirectory(PathBuf);
 
@@ -3697,7 +4074,6 @@ mod tests {
         assert_eq!(effects.len(), 2);
         assert_eq!(effects[0], "async");
         assert!(effects[1].starts_with("throws "));
-        assert_eq!(object.ownership, Availability::Unsupported);
         assert_eq!(object.capabilities, Availability::Known(Vec::new()));
         assert!(matches!(object.value_type, Availability::Known(_)));
 

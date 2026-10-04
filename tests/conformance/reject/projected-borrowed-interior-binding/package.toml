@@ -1,0 +1,7 @@
+package = "projected-borrowed-interior-binding"
+[namespaces]
+app = "src"
+[rust-dependencies.witness]
+package = "terrane-borrowed-interior-witness"
+version = "=0.1.0"
+effects = ["build"]

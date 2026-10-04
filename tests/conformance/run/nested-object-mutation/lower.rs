@@ -9,11 +9,11 @@ pub struct Leaf {
 }
 impl Leaf {
     pub fn terrane_construct(initial: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             value: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(initial);
-        value
+        __terrane_constructed_value.construct(initial);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         self.value = initial.clone();
@@ -25,11 +25,11 @@ pub struct Holder {
 }
 impl Holder {
     pub fn terrane_construct(child: Leaf) -> Self {
-        let mut value = Self {
+        let mut __terrane_constructed_value = Self {
             child: Leaf::terrane_construct(terrane_int_support::Int::from(0_i128)),
         };
-        value.construct(child);
-        value
+        __terrane_constructed_value.construct(child);
+        __terrane_constructed_value
     }
     pub fn construct(&mut self, child: Leaf) {
         self.child = child;
