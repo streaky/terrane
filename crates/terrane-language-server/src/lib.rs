@@ -543,94 +543,44 @@ impl LanguageServer for Backend {
         let Some(document) = documents.get(&uri) else {
             return Ok(None);
         };
-        let Some(name) = call_name_before(&document.text, position) else {
-            return Ok(None);
-        };
-        let Some(projection) = projection_for_uri(&uri, &document.text).await else {
-            return Ok(None);
-        };
-        let imported = imported_dependency_item(&document.text, name);
-        let namespace = imported.map(|(namespace, _)| namespace);
-        let projected_name = imported.map_or(name, |(_, original)| original);
-        let item = projection
-            .dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .find(|item| {
-                item.name == projected_name && namespace.is_none_or(|value| item.namespace == value)
-            });
-        let (signature_name, parameters) = match item.map(|item| (&item.name, &item.kind)) {
-            Some((
-                _,
-                terrane_compiler::rust_interop::projection::ProjectedKind::ForeignType {
-                    fields,
-                    constructor,
-                    ..
-                },
-            )) if construction_call_before(&document.text, position) => {
-                let values = constructor.as_ref().map_or_else(
-                    || {
-                        fields
-                            .iter()
-                            .map(|field| (field.name.as_str(), &field.ty))
-                            .collect::<Vec<_>>()
-                    },
-                    |constructor| {
-                        constructor
+        let encoding = self
+            .position_encoding
+            .lock()
+            .expect("position encoding lock")
+            .clone();
+        if let Some(offset) = byte_offset(&document.text, position, &encoding)
+            && let Some(signature) = self
+                .tooling
+                .lock()
+                .expect("tooling engine lock")
+                .signature_help(&document.snapshot_id, &uri.to_string(), offset)
+                .ok()
+                .flatten()
+        {
+            let active_parameter = signature
+                .active_parameter
+                .map(|active| u32::try_from(active).unwrap_or(u32::MAX));
+            return Ok(Some(SignatureHelp {
+                signatures: vec![SignatureInformation {
+                    label: signature.label,
+                    documentation: None,
+                    parameters: Some(
+                        signature
                             .parameters
-                            .iter()
-                            .map(|parameter| (parameter.name.as_str(), &parameter.ty))
-                            .collect()
-                    },
-                );
-                (name, values)
-            }
-            Some((
-                _,
-                terrane_compiler::rust_interop::projection::ProjectedKind::Function(function),
-            )) => (
-                name,
-                function
-                    .parameters
-                    .iter()
-                    .map(|parameter| (parameter.name.as_str(), &parameter.ty))
-                    .collect(),
-            ),
-            _ => return Ok(None),
-        };
-        let parameters = parameters
-            .iter()
-            .map(|(parameter_name, ty)| ParameterInformation {
-                label: ParameterLabel::Simple(format!(
-                    "{} {}",
-                    parameter_name,
-                    signature_parameter_type(ty)
-                )),
-                documentation: None,
-            })
-            .collect::<Vec<_>>();
-        let label = format!(
-            "{}; {}",
-            signature_name,
-            parameters
-                .iter()
-                .filter_map(|parameter| match &parameter.label {
-                    ParameterLabel::Simple(label) => Some(label.as_str()),
-                    ParameterLabel::LabelOffsets(_) => None,
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        Ok(Some(SignatureHelp {
-            signatures: vec![SignatureInformation {
-                label,
-                documentation: None,
-                parameters: Some(parameters),
-                active_parameter: None,
-            }],
-            active_signature: Some(0),
-            active_parameter: Some(0),
-        }))
+                            .into_iter()
+                            .map(|label| ParameterInformation {
+                                label: ParameterLabel::Simple(label),
+                                documentation: None,
+                            })
+                            .collect(),
+                    ),
+                    active_parameter,
+                }],
+                active_signature: Some(0),
+                active_parameter,
+            }));
+        }
+        Ok(projected_signature_help(&uri, &document.text, position).await)
     }
 
     async fn goto_definition(
@@ -984,6 +934,16 @@ fn semantic_hover(
     let mut content = format!("`{name}`");
     if let terrane_compiler::tooling::Availability::Known(value_type) = object.value_type {
         let _ = write!(content, "\n\nType: `{value_type}`");
+    }
+    if let terrane_compiler::tooling::Availability::Known(parameters) = object.generic_parameters
+        && !parameters.is_empty()
+    {
+        let _ = write!(content, "\n\nType parameters: `{}`", parameters.join(", "));
+    }
+    if let terrane_compiler::tooling::Availability::Known(arguments) = object.type_arguments
+        && !arguments.is_empty()
+    {
+        let _ = write!(content, "\n\nSelected types: `{}`", arguments.join(", "));
     }
     if let terrane_compiler::tooling::Availability::Known(safety) = object.safety {
         let _ = write!(content, "\n\nSafety: {safety}");
@@ -1505,6 +1465,78 @@ fn construction_call_before(text: &str, position: Position) -> bool {
                 .filter(|word| !word.is_empty());
             words.next().is_some() && words.next() == Some("instance")
         })
+}
+
+async fn projected_signature_help(
+    uri: &Uri,
+    text: &str,
+    position: Position,
+) -> Option<SignatureHelp> {
+    use terrane_compiler::rust_interop::projection::{ProjectedKind, ProjectedType};
+    let name = call_name_before(text, position)?;
+    let projection = projection_for_uri(uri, text).await?;
+    let imported = imported_dependency_item(text, name);
+    let namespace = imported.map(|(namespace, _)| namespace);
+    let projected_name = imported.map_or(name, |(_, original)| original);
+    let item = projection
+        .dependencies
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .find(|item| {
+            item.name == projected_name && namespace.is_none_or(|value| item.namespace == value)
+        })?;
+    let parameter_information = |name: &str, ty: &ProjectedType| ParameterInformation {
+        label: ParameterLabel::Simple(format!("{name} {}", signature_parameter_type(ty))),
+        documentation: None,
+    };
+    let parameters = match &item.kind {
+        ProjectedKind::ForeignType {
+            fields,
+            constructor,
+            ..
+        } if construction_call_before(text, position) => constructor.as_ref().map_or_else(
+            || {
+                fields
+                    .iter()
+                    .map(|field| parameter_information(&field.name, &field.ty))
+                    .collect::<Vec<_>>()
+            },
+            |constructor| {
+                constructor
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter_information(&parameter.name, &parameter.ty))
+                    .collect()
+            },
+        ),
+        ProjectedKind::Function(function) => function
+            .parameters
+            .iter()
+            .map(|parameter| parameter_information(&parameter.name, &parameter.ty))
+            .collect(),
+        _ => return None,
+    };
+    let label = format!(
+        "{name}; {}",
+        parameters
+            .iter()
+            .filter_map(|parameter| match &parameter.label {
+                ParameterLabel::Simple(label) => Some(label.as_str()),
+                ParameterLabel::LabelOffsets(_) => None,
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    Some(SignatureHelp {
+        signatures: vec![SignatureInformation {
+            label,
+            documentation: None,
+            parameters: Some(parameters),
+            active_parameter: None,
+        }],
+        active_signature: Some(0),
+        active_parameter: Some(0),
+    })
 }
 
 fn signature_parameter_type(
