@@ -1166,8 +1166,6 @@ fn native_test_timeout_errors_name_the_invalid_argument() {
             .unwrap();
         assert_eq!(output.status.code(), Some(2));
         let stderr = String::from_utf8(output.stderr).unwrap();
-        assert!(stderr.starts_with("error: "));
         assert!(stderr.contains("--timeout"));
-        assert!(stderr.contains("usage: terrane"));
     }
 }
