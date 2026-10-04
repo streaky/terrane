@@ -1,33 +1,43 @@
 {
-  "format": 4,
   "dependencies": [
     {
-      "name": "http",
-      "version": "1.5.0",
       "members": {
         "/deps/http": [
           "Error",
+          "Error.into",
           "Error.is",
+          "Error.try_into",
           "Extensions",
           "Extensions.clear",
+          "Extensions.clone",
           "Extensions.extend",
+          "Extensions.get",
+          "Extensions.get_mut",
           "Extensions.get_or_insert",
+          "Extensions.get_or_insert_default",
+          "Extensions.get_or_insert_with",
           "Extensions.insert",
+          "Extensions.into",
           "Extensions.is_empty",
           "Extensions.len",
           "Extensions.remove",
+          "Extensions.try_into",
+          "Extensions::default",
           "Extensions::new",
           "HeaderMap",
           "HeaderMap.append",
           "HeaderMap.capacity",
           "HeaderMap.clear",
+          "HeaderMap.clone",
           "HeaderMap.contains_key",
           "HeaderMap.drain",
           "HeaderMap.entry",
+          "HeaderMap.eq",
           "HeaderMap.get",
           "HeaderMap.get_all",
           "HeaderMap.get_mut",
           "HeaderMap.insert",
+          "HeaderMap.into",
           "HeaderMap.is_empty",
           "HeaderMap.iter",
           "HeaderMap.iter_mut",
@@ -39,43 +49,73 @@
           "HeaderMap.try_append",
           "HeaderMap.try_entry",
           "HeaderMap.try_insert",
+          "HeaderMap.try_into",
           "HeaderMap.try_reserve",
           "HeaderMap.values",
           "HeaderMap.values_mut",
+          "HeaderMap::default",
+          "HeaderMap::from_iter",
           "HeaderMap::new",
           "HeaderMap::try_with_capacity",
           "HeaderMap::with_capacity",
           "HeaderName",
+          "HeaderName.as_ref",
           "HeaderName.as_str",
-          "HeaderName::from_static",
+          "HeaderName.borrow",
+          "HeaderName.clone",
+          "HeaderName.into",
+          "HeaderName.try_into",
+          "HeaderName::from_str",
           "HeaderValue",
+          "HeaderValue.clone",
+          "HeaderValue.cmp",
+          "HeaderValue.into",
           "HeaderValue.is_empty",
           "HeaderValue.is_sensitive",
           "HeaderValue.len",
           "HeaderValue.set_sensitive",
           "HeaderValue.to_str",
+          "HeaderValue.try_into",
           "HeaderValue::from_maybe_shared",
           "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
-          "HeaderValue::from_static",
           "HeaderValue::from_str",
           "Method",
+          "Method.as_ref",
           "Method.as_str",
+          "Method.clone",
+          "Method.cmp",
+          "Method.into",
           "Method.is_idempotent",
           "Method.is_safe",
+          "Method.partial_cmp",
+          "Method.try_into",
+          "Method::default",
+          "Method::from",
+          "Method::from_str",
+          "Method::try_from",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
           "StatusCode.canonical_reason",
+          "StatusCode.clone",
+          "StatusCode.cmp",
+          "StatusCode.into",
           "StatusCode.is_client_error",
           "StatusCode.is_informational",
           "StatusCode.is_redirection",
           "StatusCode.is_server_error",
           "StatusCode.is_success",
+          "StatusCode.partial_cmp",
+          "StatusCode.try_into",
+          "StatusCode::default",
+          "StatusCode::from_str",
           "StatusCode::from_u16",
           "Uri",
           "Uri.authority",
+          "Uri.clone",
           "Uri.host",
+          "Uri.into",
           "Uri.into_parts",
           "Uri.path",
           "Uri.path_and_query",
@@ -84,11 +124,24 @@
           "Uri.query",
           "Uri.scheme",
           "Uri.scheme_str",
+          "Uri.try_into",
           "Uri::builder",
+          "Uri::default",
           "Uri::from_maybe_shared",
           "Uri::from_parts",
-          "Uri::from_static",
-          "Version"
+          "Uri::from_str",
+          "Version",
+          "Version.clone",
+          "Version.cmp",
+          "Version.eq",
+          "Version.into",
+          "Version.partial_cmp",
+          "Version.try_into",
+          "Version::default",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/error/trait/core/convert/from-core/convert/infallible": [
           "from"
@@ -114,45 +167,31 @@
         "/deps/http/error/trait/core/convert/from-http/uri/invaliduriparts": [
           "from"
         ],
-        "/deps/http/extensions": [
-          "clone",
-          "default"
-        ],
         "/deps/http/header": [
           "InvalidHeaderName",
+          "InvalidHeaderName.into",
+          "InvalidHeaderName.try_into",
+          "InvalidHeaderName::from",
           "InvalidHeaderValue",
+          "InvalidHeaderValue.into",
+          "InvalidHeaderValue.try_into",
+          "InvalidHeaderValue::from",
           "MaxSizeReached",
-          "ToStrError"
-        ],
-        "/deps/http/header/invalidheadername": [
-          "from"
-        ],
-        "/deps/http/header/invalidheadervalue": [
-          "from"
+          "MaxSizeReached.into",
+          "MaxSizeReached.try_into",
+          "MaxSizeReached::from",
+          "ToStrError",
+          "ToStrError.into",
+          "ToStrError.try_into"
         ],
         "/deps/http/header/map/as-header-name": [
           "TryEntryError"
-        ],
-        "/deps/http/header/maxsizereached": [
-          "from"
-        ],
-        "/deps/http/headermap": [
-          "clone",
-          "default",
-          "eq",
-          "from_iter"
         ],
         "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue": [
           "extend"
         ],
         "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue": [
           "extend"
-        ],
-        "/deps/http/headername": [
-          "as_ref",
-          "borrow",
-          "clone",
-          "from_str"
         ],
         "/deps/http/headername/trait/core/cmp/partialeq": [
           "eq"
@@ -164,8 +203,6 @@
           "try_from"
         ],
         "/deps/http/headervalue": [
-          "clone",
-          "cmp",
           "from_str"
         ],
         "/deps/http/headervalue/trait/core/cmp/partialeq": [
@@ -224,17 +261,9 @@
         ],
         "/deps/http/method": [
           "InvalidMethod",
-          "as_ref",
-          "clone",
-          "cmp",
-          "default",
-          "from",
-          "from_str",
-          "partial_cmp",
-          "try_from"
-        ],
-        "/deps/http/method/invalidmethod": [
-          "from"
+          "InvalidMethod.into",
+          "InvalidMethod.try_into",
+          "InvalidMethod::from"
         ],
         "/deps/http/method/trait/core/cmp/partialeq": [
           "eq"
@@ -248,20 +277,24 @@
           "Builder.header",
           "Builder.headers_mut",
           "Builder.headers_ref",
+          "Builder.into",
           "Builder.method",
           "Builder.method_ref",
+          "Builder.try_into",
           "Builder.uri",
           "Builder.uri_ref",
           "Builder.version",
           "Builder.version_ref",
+          "Builder::default",
           "Builder::new",
-          "Parts"
-        ],
-        "/deps/http/request/builder": [
-          "default"
-        ],
-        "/deps/http/request/parts": [
-          "clone"
+          "Parts",
+          "Parts.clone",
+          "Parts.into",
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/response": [
           "Builder",
@@ -272,34 +305,28 @@
           "Builder.header",
           "Builder.headers_mut",
           "Builder.headers_ref",
+          "Builder.into",
           "Builder.status",
+          "Builder.try_into",
           "Builder.version",
+          "Builder::default",
           "Builder::new",
-          "Parts"
-        ],
-        "/deps/http/response/builder": [
-          "default"
-        ],
-        "/deps/http/response/parts": [
-          "clone"
+          "Parts",
+          "Parts.clone",
+          "Parts.into",
+          "Parts.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/status": [
-          "InvalidStatusCode"
-        ],
-        "/deps/http/status/invalidstatuscode": [
-          "from"
-        ],
-        "/deps/http/statuscode": [
-          "clone",
-          "cmp",
-          "default",
-          "from_str",
-          "partial_cmp"
+          "InvalidStatusCode",
+          "InvalidStatusCode.into",
+          "InvalidStatusCode.try_into",
+          "InvalidStatusCode::from"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/http/statuscode/trait/core/cmp/partialeq-http/statuscode": [
           "eq"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq-u16": [
@@ -313,38 +340,63 @@
         ],
         "/deps/http/uri": [
           "Authority",
+          "Authority.as_ref",
           "Authority.as_str",
+          "Authority.clone",
           "Authority.host",
+          "Authority.into",
           "Authority.port",
           "Authority.port_u16",
+          "Authority.try_into",
+          "Authority::from",
           "Authority::from_maybe_shared",
-          "Authority::from_static",
+          "Authority::from_str",
           "Builder",
           "Builder.authority",
           "Builder.build",
+          "Builder.into",
           "Builder.path_and_query",
           "Builder.scheme",
+          "Builder.try_into",
+          "Builder::default",
+          "Builder::from",
           "Builder::new",
           "InvalidUri",
+          "InvalidUri.into",
+          "InvalidUri.try_into",
+          "InvalidUri::from",
           "InvalidUriParts",
+          "InvalidUriParts.into",
+          "InvalidUriParts.try_into",
+          "InvalidUriParts::from",
           "Parts",
+          "Parts.into",
+          "Parts.try_into",
+          "Parts::default",
+          "Parts::from",
+          "Parts::try_from",
           "PathAndQuery",
           "PathAndQuery.as_str",
+          "PathAndQuery.clone",
+          "PathAndQuery.into",
           "PathAndQuery.path",
           "PathAndQuery.query",
+          "PathAndQuery.try_into",
+          "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
-          "PathAndQuery::from_static",
+          "PathAndQuery::from_str",
           "Scheme",
+          "Scheme.as_ref",
           "Scheme.as_str",
-          "clone",
-          "default",
-          "from_str"
-        ],
-        "/deps/http/uri/authority": [
-          "as_ref",
-          "clone",
-          "from",
-          "from_str"
+          "Scheme.clone",
+          "Scheme.into",
+          "Scheme.try_into",
+          "Scheme::from_str",
+          "Scheme::try_from",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/http/uri/authority/trait/core/cmp/partialeq": [
           "eq"
@@ -367,26 +419,6 @@
         "/deps/http/uri/authority/trait/core/convert/tryfrom-str": [
           "try_from"
         ],
-        "/deps/http/uri/builder": [
-          "default",
-          "from"
-        ],
-        "/deps/http/uri/invaliduri": [
-          "from"
-        ],
-        "/deps/http/uri/invaliduriparts": [
-          "from"
-        ],
-        "/deps/http/uri/parts": [
-          "default",
-          "from",
-          "try_from"
-        ],
-        "/deps/http/uri/pathandquery": [
-          "clone",
-          "from",
-          "from_str"
-        ],
         "/deps/http/uri/pathandquery/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -405,16 +437,7 @@
         "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-str": [
           "try_from"
         ],
-        "/deps/http/uri/scheme": [
-          "as_ref",
-          "clone",
-          "from_str",
-          "try_from"
-        ],
         "/deps/http/uri/scheme/trait/core/cmp/partialeq": [
-          "eq"
-        ],
-        "/deps/http/uri/scheme/trait/core/cmp/partialeq-http/uri/scheme": [
           "eq"
         ],
         "/deps/http/uri/scheme/trait/core/cmp/partialeq-str": [
@@ -440,31 +463,14 @@
         ],
         "/deps/http/uri/trait/core/convert/tryfrom-str": [
           "try_from"
-        ],
-        "/deps/http/version": [
-          "clone",
-          "cmp",
-          "default",
-          "eq",
-          "partial_cmp"
         ]
-      }
+      },
+      "name": "http",
+      "version": "1.5.0"
     }
   ],
+  "format": 4,
   "removed": [],
-  "cache_identity": "f4f3400a1f216213564d74e94b12891170efa90ffb363d9ae969cddcc71e1fd8",
-  "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "191",
-  "content_hash": "b093f57264e7b0f8146b2c3b3a67817f1b18cac5c06d737b9aa84f0e97074d9a",
-  "resolution": {
-    "outcome": "ExactCache",
-    "events": [
-      {
-        "source": "ExactCache",
-        "status": "Hit",
-        "reason": "matched projection identity `f4f3400a1f216213564d74e94b12891170efa90ffb363d9ae969cddcc71e1fd8`"
-      }
-    ]
-  }
+  "source": "Local"
 }
