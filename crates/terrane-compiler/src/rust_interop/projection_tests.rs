@@ -1031,6 +1031,81 @@ fn receiver_kind_preserves_only_plain_self_receivers() {
 }
 
 #[test]
+fn static_reference_aliases_cannot_bypass_parameter_admission() {
+    let generics = Generics {
+        params: Vec::new(),
+        where_predicates: Vec::new(),
+    };
+    let reference = |lifetime: &str| Type::BorrowedRef {
+        lifetime: Some(lifetime.to_owned()),
+        is_mutable: false,
+        type_: Box::new(Type::Primitive("str".to_owned())),
+    };
+    let alias_id = Id(42);
+    let alias = rustdoc_types::Item {
+        id: alias_id,
+        crate_id: 0,
+        name: Some("StaticText".to_owned()),
+        span: None,
+        visibility: rustdoc_types::Visibility::Public,
+        docs: None,
+        links: HashMap::new(),
+        attrs: Vec::new(),
+        deprecation: None,
+        inner: rustdoc_types::ItemEnum::TypeAlias(rustdoc_types::TypeAlias {
+            type_: reference("'static"),
+            generics: generics.clone(),
+        }),
+    };
+    let mut function = rustdoc_types::Function {
+        sig: rustdoc_types::FunctionSignature {
+            inputs: vec![(
+                "text".to_owned(),
+                Type::ResolvedPath(RustdocPath {
+                    path: "StaticText".to_owned(),
+                    id: alias_id,
+                    args: None,
+                }),
+            )],
+            output: None,
+            is_c_variadic: false,
+        },
+        generics,
+        header: rustdoc_types::FunctionHeader {
+            is_const: false,
+            is_unsafe: false,
+            is_async: false,
+            abi: rustdoc_types::Abi::Rust,
+        },
+        has_body: true,
+    };
+    let index = HashMap::from([(alias_id, alias)]);
+    let failure = super::project_function(
+        &function,
+        &index,
+        &HashMap::new(),
+        &BTreeMap::new(),
+        None,
+        false,
+    )
+    .unwrap_err();
+    assert!(failure.contains("requires a static reference"));
+
+    function.sig.inputs[0].1 = reference("'input");
+    let projected = super::project_function(
+        &function,
+        &index,
+        &HashMap::new(),
+        &BTreeMap::new(),
+        None,
+        false,
+    )
+    .unwrap();
+    assert_eq!(projected.parameters[0].ty, ProjectedType::String);
+    assert!(projected.parameters[0].borrowed);
+}
+
+#[test]
 fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
     let mut dependencies = vec![ProjectedDependency {
         name: "witness".to_owned(),
@@ -2062,6 +2137,19 @@ fn projection_history_retains_removed_members_across_checks() {
     };
     old.content_hash = projection_content_hash(&old).unwrap();
     apply_projection_history(&directory, &mut old).unwrap();
+    let lock_path = directory.join("terrane-projection.lock");
+    let mut reviewed: serde_json::Value =
+        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+    let object = reviewed.as_object_mut().unwrap();
+    for field in [
+        "cache_identity",
+        "projection_schema",
+        "content_hash",
+        "resolution",
+    ] {
+        object.remove(field);
+    }
+    fs::write(&lock_path, serde_json::to_vec_pretty(&reviewed).unwrap()).unwrap();
     let mut current = Projection {
         native_owner_aliases: BTreeMap::default(),
         cache_identity: "current".to_owned(),
@@ -2088,6 +2176,28 @@ fn projection_history_retains_removed_members_across_checks() {
     current.removed.clear();
     apply_projection_history(&directory, &mut current).unwrap();
     assert_eq!(current.removed.len(), 3);
+    let persisted: serde_json::Value =
+        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+    assert_eq!(persisted["dependencies"][0]["version"], "2.0.0");
+    assert_eq!(persisted["removed"].as_array().unwrap().len(), 3);
+    for field in [
+        "cache_identity",
+        "projection_schema",
+        "content_hash",
+        "resolution",
+    ] {
+        assert!(persisted.get(field).is_none(), "unexpected `{field}`");
+    }
+    assert_eq!(persisted["source"], "Local");
+    assert_eq!(persisted["rustdoc_format"], rustdoc_types::FORMAT_VERSION);
+    current.dependencies[0].version = "2.0.1".to_owned();
+    current.content_hash = projection_content_hash(&current).unwrap();
+    apply_projection_history(&directory, &mut current).unwrap();
+    let updated: serde_json::Value =
+        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+    assert_eq!(updated["dependencies"][0]["version"], "2.0.1");
+    assert_eq!(updated["removed"].as_array().unwrap().len(), 3);
+    assert!(updated.get("cache_identity").is_none());
     fs::remove_dir_all(directory).unwrap();
 }
 

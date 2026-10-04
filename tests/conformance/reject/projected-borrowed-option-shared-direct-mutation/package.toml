@@ -1,8 +1,7 @@
-package = "projected-borrowed-option-shared-mutation"
+package = "projected-borrowed-option-shared-direct-mutation"
 
 [namespaces]
 app = "src"
-callbacks = "callbacks"
 
 [rust-dependencies.http]
 version = "=1.5.0"

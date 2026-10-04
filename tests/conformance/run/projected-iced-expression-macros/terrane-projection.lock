@@ -191,7 +191,6 @@
           "Font.into",
           "Font.try_into",
           "Font::default",
-          "Font::with_name",
           "Gradient",
           "Length",
           "Never",
@@ -809,19 +808,13 @@
           "Id.eq",
           "Id.into",
           "Id.try_into",
-          "Id::new",
+          "Id::from",
           "Id::unique",
           "Tree",
           "Tree.into",
           "Tree.try_into",
           "Tree::empty",
           "operate"
-        ],
-        "/deps/iced/advanced/widget/id/trait/core/convert/from-static-str": [
-          "from"
-        ],
-        "/deps/iced/advanced/widget/id/trait/core/convert/from-std/string/string": [
-          "from"
         ],
         "/deps/iced/advanced/widget/operation": [
           "Focusable",

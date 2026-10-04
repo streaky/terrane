@@ -97,7 +97,6 @@
           "HeaderName.clone",
           "HeaderName.into",
           "HeaderName.try_into",
-          "HeaderName::from_static",
           "HeaderName::from_str",
           "HeaderValue",
           "HeaderValue.clone",
@@ -112,7 +111,6 @@
           "HeaderValue::from_maybe_shared",
           "HeaderValue::from_maybe_shared_unchecked",
           "HeaderValue::from_name",
-          "HeaderValue::from_static",
           "HeaderValue::from_str",
           "Method",
           "Method.as_ref",
@@ -161,7 +159,6 @@
           "Uri::default",
           "Uri::from_maybe_shared",
           "Uri::from_parts",
-          "Uri::from_static",
           "Uri::from_str",
           "Version",
           "Version.clone",
@@ -426,7 +423,6 @@
           "Authority.try_into",
           "Authority::from",
           "Authority::from_maybe_shared",
-          "Authority::from_static",
           "Authority::from_str",
           "Builder",
           "Builder.authority",
@@ -461,7 +457,6 @@
           "PathAndQuery.try_into",
           "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
-          "PathAndQuery::from_static",
           "PathAndQuery::from_str",
           "Scheme",
           "Scheme.as_ref",
@@ -991,9 +986,6 @@
         "/deps/reqwest/blocking/body/trait/core/convert/from-bytes/bytes/bytes": [
           "from"
         ],
-        "/deps/reqwest/blocking/body/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/reqwest/blocking/body/trait/core/convert/from-std/fs/file": [
           "from"
         ],
@@ -1007,9 +999,6 @@
           "from"
         ],
         "/deps/reqwest/body/trait/core/convert/from-reqwest/response": [
-          "from"
-        ],
-        "/deps/reqwest/body/trait/core/convert/from-static-str": [
           "from"
         ],
         "/deps/reqwest/body/trait/core/convert/from-std/string/string": [

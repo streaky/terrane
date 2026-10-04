@@ -73,7 +73,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "244";
+const PROJECTION_SCHEMA: &str = "245";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -8504,6 +8504,30 @@ fn project_function_inner(
     let mut parameters: Vec<ProjectedParameter> = Vec::new();
     let mut receiver = None;
     for (parameter_index, (name, ty)) in function.sig.inputs.iter().enumerate() {
+        let requires_static_reference = match ty {
+            Type::BorrowedRef {
+                lifetime: Some(lifetime),
+                ..
+            } => lifetime == "'static",
+            Type::ResolvedPath(path)
+                if index
+                    .get(&path.id)
+                    .is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))) =>
+            {
+                let (effective_input, _) =
+                    expand_output_alias(ty.clone(), index, paths, generic_types.clone())?;
+                matches!(
+                    &effective_input,
+                    Type::BorrowedRef { lifetime: Some(lifetime), .. } if lifetime == "'static"
+                )
+            }
+            _ => false,
+        };
+        if requires_static_reference {
+            return Err(format!(
+                "parameter `{name}` requires a static reference; Terrane arguments cannot guarantee a static lifetime"
+            ));
+        }
         if name == "self" {
             receiver = Some(receiver_kind(ty)?);
             continue;

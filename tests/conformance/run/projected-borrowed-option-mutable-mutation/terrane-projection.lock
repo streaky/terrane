@@ -452,18 +452,18 @@
     }
   ],
   "removed": [],
-  "cache_identity": "f4f3400a1f216213564d74e94b12891170efa90ffb363d9ae969cddcc71e1fd8",
+  "cache_identity": "df470cefca23246091bc206ca8edaadcb71597e2da5a055e250141dffc6cb79b",
   "source": "Local",
   "rustdoc_format": 57,
   "projection_schema": "191",
-  "content_hash": "b093f57264e7b0f8146b2c3b3a67817f1b18cac5c06d737b9aa84f0e97074d9a",
+  "content_hash": "dc3aedc30f7e6f224f4cade5b55e5b946e0e16a6d9c5ab46deefc0d820fa30e4",
   "resolution": {
     "outcome": "ExactCache",
     "events": [
       {
         "source": "ExactCache",
         "status": "Hit",
-        "reason": "matched projection identity `f4f3400a1f216213564d74e94b12891170efa90ffb363d9ae969cddcc71e1fd8`"
+        "reason": "matched projection identity `df470cefca23246091bc206ca8edaadcb71597e2da5a055e250141dffc6cb79b`"
       }
     ]
   }

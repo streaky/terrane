@@ -1680,7 +1680,23 @@ impl Emitter<'_> {
                 crate::syntax::call_is_unsafe(node),
             )
             .or_else(|| self.contract_for_call(callee).cloned())
-        };
+        }
+        .map(|mut contract| {
+            if let Some(canonical) = self
+                .package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.functions)
+                .find(|function| function.span == contract.span)
+            {
+                for (parameter, current) in
+                    contract.parameters.iter_mut().zip(&canonical.parameters)
+                {
+                    parameter.mutable = current.mutable;
+                }
+            }
+            contract
+        });
         let native_struct_construction = callee.kind == SyntaxKind::ConstructionExpression
             && callee
                 .children
@@ -1813,6 +1829,27 @@ impl Emitter<'_> {
                         )
                 }) {
                     self.expression(value)
+                } else if parameter.mutable
+                    && matches!(
+                        parameter.binding_value_type(),
+                        Some(ValueType::Reference(item))
+                            if matches!(
+                                item.value_type(),
+                                ValueType::Object(identity)
+                                    if identity.native_projection.is_some()
+                                        || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                            )
+                    )
+                {
+                    if let Some(operand) = explicit_reference {
+                        if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
+                            format!("&mut *{}", self.expression(operand))
+                        } else {
+                            format!("&mut {}", self.raw_storage_name(operand))
+                        }
+                    } else {
+                        format!("&mut *{}", self.expression(value))
+                    }
                 } else if let Some(ty) = semantic_parameter.as_ref() {
                     self.expression_as(value, ty.clone())
                 } else {

@@ -134,9 +134,6 @@
         "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut": [
           "from"
         ],
-        "/deps/bytes/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],

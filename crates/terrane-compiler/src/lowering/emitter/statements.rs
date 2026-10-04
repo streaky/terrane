@@ -1109,6 +1109,25 @@ impl Emitter<'_> {
         }
         let ty = binding
             .filter(|binding| !matches!(binding.value_type, ValueType::Task(_, _)))
+            .filter(|binding| {
+                // Preserve the defining callable's inferred native borrowing ABI.
+                // The surface callable type's `ref` does not encode `&mut`.
+                !matches!(binding.value_type, ValueType::Function(..) | ValueType::AsyncFunction(..)) || initializer.and_then(|value| crate::semantics::callback_contract(self.package, self.unit, value)).is_none_or(|alias| {
+                    self.package.units.iter().flat_map(|unit| &unit.functions)
+                        .find(|contract| contract.span == alias.span)
+                        .is_none_or(|contract| !contract.parameters.iter().any(|parameter| {
+                            parameter.mutable && matches!(
+                                parameter.binding_value_type(),
+                                Some(ValueType::Reference(item)) if matches!(
+                                    item.value_type(),
+                                    ValueType::Object(identity)
+                                        if identity.native_projection.is_some()
+                                            || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                                )
+                            )
+                        }))
+                })
+            })
             .filter(|_| {
                 initializer.is_none_or(|initializer| {
                     !self.anonymous_function_captures_borrowed_reference(initializer)

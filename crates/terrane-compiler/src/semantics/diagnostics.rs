@@ -568,6 +568,69 @@ fn projected_call_mutates_binding(
     })
 }
 
+fn source_call_mutates_binding(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    target_span: Span,
+) -> bool {
+    fn root_name(node: &SyntaxNode) -> Option<&SyntaxNode> {
+        match node.kind {
+            SyntaxKind::Name => Some(node),
+            SyntaxKind::MemberExpression
+            | SyntaxKind::IndexExpression
+            | SyntaxKind::GroupExpression => node.children.first().and_then(root_name),
+            _ => node.children.last().and_then(root_name),
+        }
+    }
+
+    let [callee, arguments] = call.children.as_slice() else {
+        return false;
+    };
+    let Some(contract) = super::bindings::callback_contract(package, unit, callee) else {
+        return false;
+    };
+    let declaration = contract.span;
+    let contract = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .find(|function| function.span == declaration)
+        .unwrap_or(contract);
+    let mut positional = 0;
+    arguments.children.iter().any(|argument| {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let index = named.map_or_else(
+            || {
+                let index = positional;
+                positional += 1;
+                index
+            },
+            |name| {
+                contract
+                    .parameters
+                    .iter()
+                    .position(|parameter| parameter.name == node_text(&unit.source, name))
+                    .unwrap_or(usize::MAX)
+            },
+        );
+        contract.parameters.get(index).is_some_and(|parameter| {
+            parameter.mutable
+                && matches!(
+                    parameter.binding_value_type(),
+                    Some(ValueType::Reference(_))
+                )
+        }) && root_name(argument).is_some_and(|root| {
+            package
+                .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+        })
+    })
+}
+
 fn object_mutation_root<'a>(unit: &SemanticUnit, node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {
     match node.kind {
         SyntaxKind::Name => Some(node),
@@ -654,8 +717,14 @@ pub(crate) fn binding_span_is_mutated(
             && node.children.get(1).is_some_and(resolves_to_binding);
         let projected_argument_write = node.kind == SyntaxKind::CallExpression
             && projected_call_mutates_binding(package, unit, node, declaration_span);
+        let source_argument_write = node.kind == SyntaxKind::CallExpression
+            && source_call_mutates_binding(package, unit, node, declaration_span);
         let writes_here = usize::from(
-            direct_write || mutator_call || iterator_advance || projected_argument_write,
+            direct_write
+                || mutator_call
+                || iterator_advance
+                || projected_argument_write
+                || source_argument_write,
         );
         writes_here
             + node

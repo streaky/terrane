@@ -237,9 +237,6 @@
         "/deps/sqlx-core/bytes/bytes/trait/core/convert/from-sqlx-core/bytes/bytesmut": [
           "from"
         ],
-        "/deps/sqlx-core/bytes/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/sqlx-core/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -354,9 +351,6 @@
         "/deps/sqlx-core/ext/ustr/ustr/trait/core/convert/from-a-sqlx-core/ext/ustr/ustr": [
           "from"
         ],
-        "/deps/sqlx-core/ext/ustr/ustr/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/sqlx-core/ext/ustr/ustr/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -425,9 +419,7 @@
           "PercentDecode",
           "PercentDecode.decode_utf8",
           "PercentDecode.decode_utf8_lossy",
-          "PercentEncode",
-          "percent_decode_str",
-          "utf8_percent_encode"
+          "percent_decode_str"
         ],
         "/deps/sqlx-core/percent-encoding/asciiset": [
           "add"

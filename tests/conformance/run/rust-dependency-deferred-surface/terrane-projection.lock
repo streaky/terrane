@@ -141,9 +141,6 @@
         "/deps/bytes/bytes/trait/core/convert/from-bytes/bytesmut": [
           "from"
         ],
-        "/deps/bytes/bytes/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/bytes/bytes/trait/core/convert/from-std/string/string": [
           "from"
         ],
@@ -331,25 +328,17 @@
           "Serializer.serialize_i64",
           "Serializer.serialize_i8",
           "Serializer.serialize_map",
-          "Serializer.serialize_newtype_struct",
-          "Serializer.serialize_newtype_variant",
           "Serializer.serialize_none",
           "Serializer.serialize_seq",
           "Serializer.serialize_some",
           "Serializer.serialize_str",
-          "Serializer.serialize_struct",
-          "Serializer.serialize_struct_variant",
           "Serializer.serialize_tuple",
-          "Serializer.serialize_tuple_struct",
-          "Serializer.serialize_tuple_variant",
           "Serializer.serialize_u128",
           "Serializer.serialize_u16",
           "Serializer.serialize_u32",
           "Serializer.serialize_u64",
           "Serializer.serialize_u8",
           "Serializer.serialize_unit",
-          "Serializer.serialize_unit_struct",
-          "Serializer.serialize_unit_variant",
           "Serializer.try_into"
         ],
         "/deps/serde-json/value/ser": [

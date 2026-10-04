@@ -446,9 +446,6 @@
         "/deps/reqwest/blocking/body/trait/core/convert/from-bytes/bytes/bytes": [
           "from"
         ],
-        "/deps/reqwest/blocking/body/trait/core/convert/from-static-str": [
-          "from"
-        ],
         "/deps/reqwest/blocking/body/trait/core/convert/from-std/fs/file": [
           "from"
         ],
@@ -462,9 +459,6 @@
           "from"
         ],
         "/deps/reqwest/body/trait/core/convert/from-reqwest/response": [
-          "from"
-        ],
-        "/deps/reqwest/body/trait/core/convert/from-static-str": [
           "from"
         ],
         "/deps/reqwest/body/trait/core/convert/from-std/string/string": [

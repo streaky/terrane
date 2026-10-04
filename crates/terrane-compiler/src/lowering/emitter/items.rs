@@ -2214,7 +2214,18 @@ impl<'a> Emitter<'a> {
                 .contains(&(
                     (contract.span.file, contract.span.start, contract.span.end),
                     index,
-                ));
+                ))
+                || parameter.mutable
+                    && matches!(
+                        &binding_type,
+                        Some(ValueType::Reference(item))
+                            if matches!(
+                                item.value_type(),
+                                ValueType::Object(identity)
+                                    if identity.native_projection.is_some()
+                                        || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                            )
+                    );
             let ty = match (&binding_type, reference_lender == Some(index)) {
                 (Some(ValueType::Reference(item)), _) if native_mutable_reference => {
                     format!(

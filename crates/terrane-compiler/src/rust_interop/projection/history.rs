@@ -18,17 +18,17 @@ pub(super) struct ProjectionHistory {
     pub(super) bound_dependencies: Vec<ProjectedBoundDependency>,
     #[serde(default)]
     removed: Vec<RemovedItem>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     cache_identity: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) source: Option<ProjectionSource>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) rustdoc_format: Option<u32>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     projection_schema: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) content_hash: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) resolution: Option<ProjectionResolution>,
 }
 
@@ -214,28 +214,45 @@ pub(super) fn apply_projection_history(
     removed
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
     projection.removed.clone_from(&removed);
-    let persisted_resolution = previous
-        .as_ref()
-        .filter(|history| {
-            matches!(history.format, 2..=4)
-                && history.bound_dependencies == projection.bound_dependencies
-                && history.cache_identity.as_deref() == Some(&projection.cache_identity)
-                && history.content_hash.as_deref() == Some(&projection.content_hash)
-                && history.source == Some(projection.source)
-        })
-        .and_then(|history| history.resolution.clone())
-        .unwrap_or_else(|| projection.resolution.clone());
+    let persist_provenance = previous.as_ref().is_none_or(|history| {
+        history.format < 4
+            || history.cache_identity.is_some()
+            || history.projection_schema.is_some()
+            || history.content_hash.is_some()
+            || history.resolution.is_some()
+    });
+    let persist_source = persist_provenance
+        || previous
+            .as_ref()
+            .is_some_and(|history| history.source.is_some());
+    let persist_rustdoc_format = persist_provenance
+        || previous
+            .as_ref()
+            .is_some_and(|history| history.rustdoc_format.is_some());
+    let persisted_resolution = persist_provenance.then(|| {
+        previous
+            .as_ref()
+            .filter(|history| {
+                matches!(history.format, 2..=4)
+                    && history.bound_dependencies == projection.bound_dependencies
+                    && history.cache_identity.as_deref() == Some(&projection.cache_identity)
+                    && history.content_hash.as_deref() == Some(&projection.content_hash)
+                    && history.source == Some(projection.source)
+            })
+            .and_then(|history| history.resolution.clone())
+            .unwrap_or_else(|| projection.resolution.clone())
+    });
     let history = ProjectionHistory {
         format: 4,
         dependencies,
         bound_dependencies: projection.bound_dependencies.clone(),
         removed,
-        cache_identity: Some(projection.cache_identity.clone()),
-        source: Some(projection.source),
-        rustdoc_format: Some(rustdoc_types::FORMAT_VERSION),
-        projection_schema: Some(PROJECTION_SCHEMA.to_owned()),
-        content_hash: Some(projection.content_hash.clone()),
-        resolution: Some(persisted_resolution),
+        cache_identity: persist_provenance.then(|| projection.cache_identity.clone()),
+        source: persist_source.then_some(projection.source),
+        rustdoc_format: persist_rustdoc_format.then_some(rustdoc_types::FORMAT_VERSION),
+        projection_schema: persist_provenance.then(|| PROJECTION_SCHEMA.to_owned()),
+        content_hash: persist_provenance.then(|| projection.content_hash.clone()),
+        resolution: persisted_resolution,
     };
     let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
         message: format!("cannot serialize projection history: {error}"),

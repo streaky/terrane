@@ -80,7 +80,7 @@ mod prelude {
 pub use analysis::{analyze, dependency_projection_demands};
 pub(crate) use bindings::{
     binding_read_value_is_reused, binding_requires_mutable_storage, binding_store_value_is_read,
-    descriptor_binding_is_materialized,
+    callback_contract, descriptor_binding_is_materialized,
 };
 pub(crate) use calls::selected_callable_contract;
 pub(crate) use collections::collection_member_call;

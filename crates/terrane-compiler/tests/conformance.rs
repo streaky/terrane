@@ -1252,6 +1252,16 @@ fn missing_fixture_manifests(files: &[PathBuf]) -> BTreeSet<PathBuf> {
 }
 
 fn assert_fixture_manifests(root: &Path) {
+    if !root
+        .ancestors()
+        .any(|ancestor| ancestor.join(".git").exists())
+    {
+        eprintln!(
+            "notice: skipping Git fixture-inventory hygiene for source archive {}; manifest discovery remains enabled",
+            root.display()
+        );
+        return;
+    }
     // Git's inventory excludes ignored generated-only scratch directories, but includes
     // newly authored fixtures before staging. Validate before applying a corpus filter.
     let output = Command::new("git")
@@ -1265,8 +1275,15 @@ fn assert_fixture_manifests(root: &Path) {
             "--",
             ".",
         ])
-        .output()
-        .expect("Git is required to inventory conformance fixture sources");
+        .output();
+    let output = match output {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("notice: skipping fixture-inventory hygiene because Git is unavailable");
+            return;
+        }
+        Err(error) => panic!("cannot inventory conformance fixture sources: {error}"),
+    };
     assert!(
         output.status.success(),
         "cannot inventory conformance fixtures: {}",
@@ -1365,6 +1382,29 @@ fn fixture_inventory_requires_a_root_manifest_even_for_nested_sources_or_locks()
             .into_iter()
             .collect()
     );
+}
+
+#[test]
+fn source_archive_discovers_and_checks_cases_without_git_inventory() {
+    let build = ConformanceBuild::new();
+    let archive = build.root.join("archive");
+    let case = archive.join("reject/type-error");
+    fs::create_dir_all(&case).unwrap();
+    fs::write(
+        case.join("case.toml"),
+        "phase = \"check\"\nstatus = \"reject\"\ncode = \"T0002\"\n",
+    )
+    .unwrap();
+    fs::write(
+        case.join("case.trn"),
+        "namespace archived\nfunction main;\n    value int = 'not-an-int'\n",
+    )
+    .unwrap();
+    assert_fixture_manifests(&archive);
+    let manifests = manifests_below(&archive);
+    assert_eq!(manifests, vec![case.join("case.toml")]);
+    // Execute the discovered case: absence of Git must not bypass compiler checking.
+    assert!(prepare_conformance_case(0, &manifests[0], &build, false).is_none());
 }
 
 #[test]
