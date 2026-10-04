@@ -483,6 +483,7 @@ mod __terrane_trace {
         )
     }
 }
+extern crate __terrane_recursive_tokio as tokio;
 // Source: src/main.trn
 // Namespace: app
 fn main() {

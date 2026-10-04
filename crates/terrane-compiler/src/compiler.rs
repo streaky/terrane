@@ -341,6 +341,28 @@ fn compilation_rust_dependencies(
     dependencies
 }
 
+fn bind_tokio_runtime_alias(
+    program: &mut crate::rust_ir::Program,
+    dependencies: &[RustDependency],
+    testing: bool,
+) {
+    if !program.requires_async_runtime && !testing {
+        return;
+    }
+    if let Some(dependency) = dependencies
+        .iter()
+        .find(|dependency| dependency.package == "tokio" && dependency.target.is_none())
+        && dependency.name != "tokio"
+    {
+        program
+            .globals
+            .push(crate::rust_ir::Item::generated(&format!(
+                "extern crate {} as tokio;",
+                dependency.name.replace('-', "_"),
+            )));
+    }
+}
+
 fn package_entry<'a>(
     semantic: &'a semantics::SemanticPackage,
     package: &Package,
@@ -483,8 +505,10 @@ pub fn compile_package_with_options(
             !dependency_warning && !library_export_warning
         })
         .collect();
-    let rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
+    let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
+    let mut rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(&semantic, failure))?;
+    bind_tokio_runtime_alias(&mut rust_ir, &rust_dependencies, false);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
@@ -497,7 +521,6 @@ pub fn compile_package_with_options(
     let rust = standalone_file.contents.clone();
     let mut review_rust = rendered_rust.review_file();
     review_rust.push_str(&embedded_authored_rust);
-    let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     Ok(Compilation {
         source: (*source).clone(),
         sources,
@@ -768,9 +791,11 @@ pub fn compile_discovered_test_tier(
             |unit| unit.source.clone(),
         );
     let warnings = collect_warnings(&semantic, options);
-    let rust_ir =
+    let rust_dependencies = compilation_rust_dependencies(&package, &semantic.projection);
+    let mut rust_ir =
         crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(&semantic, failure))?;
+    bind_tokio_runtime_alias(&mut rust_ir, &rust_dependencies, true);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
@@ -804,7 +829,7 @@ pub fn compile_discovered_test_tier(
         requires_async_runtime: rust_ir.requires_async_runtime,
         requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
         warnings,
-        rust_dependencies: compilation_rust_dependencies(&package, &semantic.projection),
+        rust_dependencies,
         dependency_containment: semantic.projection.containment,
     };
     Ok(crate::testing::TestTierCompilation {

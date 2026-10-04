@@ -452,6 +452,10 @@ fn build_native_compilation(
         .map_err(CliFailure::rust_artifact)?;
     let uses_platform_support = compilation.requires_platform_support;
     let uses_async_runtime = includes_test_runtime || compilation.requires_async_runtime;
+    let uses_tokio_blocking = rust_files
+        .iter()
+        .any(|file| file.contents.contains("tokio::task::spawn_blocking"));
+    let uses_async_runtime = uses_async_runtime || uses_tokio_blocking;
     let uses_tokio_sync = rust_files
         .iter()
         .any(|file| file.contents.contains("tokio::sync::"));
@@ -471,7 +475,8 @@ fn build_native_compilation(
         GeneratedCrateOptions {
             panic: package.profile.panic,
             uses_platform_support,
-            uses_async_runtime,
+            uses_async_runtime: includes_test_runtime || compilation.requires_async_runtime,
+            uses_tokio_blocking,
             uses_tokio_sync,
             build_toolchain: package.build_toolchain,
             unsafe_code: if compilation.requires_unsafe_code
