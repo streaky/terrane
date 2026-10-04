@@ -2190,6 +2190,10 @@ fn projection_history_retains_removed_members_across_checks() {
     }
     assert_eq!(persisted["source"], "Local");
     assert_eq!(persisted["rustdoc_format"], rustdoc_types::FORMAT_VERSION);
+    let reviewed_bytes = serde_json::to_vec(&persisted).unwrap();
+    fs::write(&lock_path, &reviewed_bytes).unwrap();
+    apply_projection_history(&directory, &mut current).unwrap();
+    assert_eq!(fs::read(&lock_path).unwrap(), reviewed_bytes);
     current.dependencies[0].version = "2.0.1".to_owned();
     current.content_hash = projection_content_hash(&current).unwrap();
     apply_projection_history(&directory, &mut current).unwrap();

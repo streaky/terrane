@@ -254,6 +254,10 @@ pub(super) fn apply_projection_history(
         content_hash: persist_provenance.then(|| projection.content_hash.clone()),
         resolution: persisted_resolution,
     };
+    // Preserve existing formatting when the history contract has not changed.
+    if previous.as_ref() == Some(&history) {
+        return Ok(());
+    }
     let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
         message: format!("cannot serialize projection history: {error}"),
     })?;
