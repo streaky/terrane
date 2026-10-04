@@ -84,7 +84,13 @@ pub(super) fn macro_probe(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     result: &ProjectedType,
-) -> Result<crate::rust_interop::CallQuestion, SemanticFailure> {
+) -> Result<
+    (
+        crate::rust_interop::CallQuestion,
+        crate::rust_interop::CallQuestion,
+    ),
+    SemanticFailure,
+> {
     fn expression(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -143,13 +149,23 @@ pub(super) fn macro_probe(
     }
     let mut parameters = Vec::new();
     let invocation = expression(package, unit, node, &mut parameters)?;
-    Ok(crate::rust_interop::CallQuestion {
-        label: format!("native macro at {}:{}", unit.source_path, node.span.start),
-        source: format!(
-            "#[allow(dead_code, unused_variables, unused_mut)] fn __terrane_macro_probe({}) -> {} {{ core::convert::Into::into({}) }}\nfn main() {{}}\n",
-            parameters.join(", "),
-            result.rust_type(),
-            invocation
-        ),
-    })
+    let parameters = parameters.join(", ");
+    let expansion_source = format!(
+        "#[allow(dead_code, unused_variables, unused_mut)] fn __terrane_macro_probe({parameters}) {{ let _ = {invocation}; }}\nfn main() {{}}\n"
+    );
+    let result_source = format!(
+        "#[allow(dead_code, unused_variables, unused_mut)] fn __terrane_macro_probe({parameters}) -> {} {{ core::convert::Into::into({invocation}) }}\nfn main() {{}}\n",
+        result.rust_type()
+    );
+    let label = format!("native macro at {}:{}", unit.source_path, node.span.start);
+    Ok((
+        crate::rust_interop::CallQuestion {
+            label: format!("{label}: expansion"),
+            source: expansion_source,
+        },
+        crate::rust_interop::CallQuestion {
+            label: format!("{label}: result"),
+            source: result_source,
+        },
+    ))
 }

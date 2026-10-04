@@ -201,6 +201,7 @@ pub(super) fn select_unit_callable_contract_result(
     let mut substitutions = explicit_callable_arguments(unit, callee, contract)
         .ok_or(GenericSelectionFailure::InvalidArguments)?;
     let explicitly_selected = !substitutions.is_empty();
+    let explicit_substitutions = substitutions.clone();
     let mut positional = 0;
     let mut named_seen = false;
     let mut bound_parameters = BTreeSet::new();
@@ -260,8 +261,13 @@ pub(super) fn select_unit_callable_contract_result(
             {
                 continue;
             }
-            bind_generic_type(&expected, &actual, &mut substitutions)
-                .map_err(GenericSelectionFailure::Argument)?;
+            bind_explicit_generic_type(
+                &expected,
+                &actual,
+                &mut substitutions,
+                &explicit_substitutions,
+            )
+            .map_err(GenericSelectionFailure::Argument)?;
         }
     }
     let expected = package
@@ -557,16 +563,46 @@ pub(crate) fn generic_bounds_satisfied(
     })
 }
 
+fn bind_explicit_generic_type(
+    expected: &ValueType,
+    actual: &ValueType,
+    bindings: &mut BTreeMap<String, ValueType>,
+    explicit_substitutions: &BTreeMap<String, ValueType>,
+) -> Result<(), String> {
+    bind_generic_type_inner(expected, actual, bindings, Some(explicit_substitutions))
+}
+
 pub(crate) fn bind_generic_type(
     expected: &ValueType,
     actual: &ValueType,
     bindings: &mut BTreeMap<String, ValueType>,
 ) -> Result<(), String> {
+    bind_generic_type_inner(expected, actual, bindings, None)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Recursive type-shape binding keeps explicit-selection provenance aligned across all value shapes"
+)]
+fn bind_generic_type_inner(
+    expected: &ValueType,
+    actual: &ValueType,
+    bindings: &mut BTreeMap<String, ValueType>,
+    explicit_substitutions: Option<&BTreeMap<String, ValueType>>,
+) -> Result<(), String> {
     if let ValueType::TypeParameter(name) | ValueType::ProjectedGeneric(name) = expected {
         return match bindings.get(name) {
-            Some(previous) if previous != actual => Err(format!(
-                "type parameter `{name}` must have one invariant type, found `{previous}` and `{actual}`"
-            )),
+            Some(previous) if previous != actual => {
+                if let Some(selected) = explicit_substitutions.and_then(|map| map.get(name)) {
+                    Err(format!(
+                        "argument `{actual}` does not match explicit type argument `{selected}` for `{name}`"
+                    ))
+                } else {
+                    Err(format!(
+                        "type parameter `{name}` must have one invariant type, found `{previous}` and `{actual}`"
+                    ))
+                }
+            }
             Some(_) => Ok(()),
             None => {
                 bindings.insert(name.clone(), actual.clone());
@@ -588,7 +624,7 @@ pub(crate) fn bind_generic_type(
                     .eq(right.native_arguments.keys()) =>
         {
             if let (Some(left), Some(right)) = (&left.application, &right.application) {
-                bind_generic_type(left, right, bindings)?;
+                bind_generic_type_inner(left, right, bindings, explicit_substitutions)?;
                 if substitute_value_type(left, bindings) != **right {
                     return Err(format!(
                         "generic arguments `{left}` and `{right}` are invariant"
@@ -596,7 +632,7 @@ pub(crate) fn bind_generic_type(
                 }
             }
             for (left, right) in left.type_arguments.iter().zip(&right.type_arguments) {
-                bind_generic_type(left, right, bindings)?;
+                bind_generic_type_inner(left, right, bindings, explicit_substitutions)?;
                 if substitute_value_type(left, bindings) != *right {
                     return Err(format!(
                         "generic arguments `{left}` and `{right}` are invariant"
@@ -605,15 +641,19 @@ pub(crate) fn bind_generic_type(
             }
             for (name, left) in &left.native_arguments {
                 let right = &right.native_arguments[name];
-                bind_generic_type(left, right, bindings)?;
+                bind_generic_type_inner(left, right, bindings, explicit_substitutions)?;
                 if substitute_value_type(left, bindings) != *right {
                     return Err(format!("generic argument `{name}` is invariant"));
                 }
             }
             Ok(())
         }
-        (ValueType::Optional(l), ValueType::Optional(r)) => bind_generic_type(l, r, bindings),
-        (ValueType::Optional(inner), actual) => bind_generic_type(inner, actual, bindings),
+        (ValueType::Optional(l), ValueType::Optional(r)) => {
+            bind_generic_type_inner(l, r, bindings, explicit_substitutions)
+        }
+        (ValueType::Optional(inner), actual) => {
+            bind_generic_type_inner(inner, actual, bindings, explicit_substitutions)
+        }
         (ValueType::List(l), ValueType::List(r))
         | (ValueType::Set(l), ValueType::Set(r))
         | (ValueType::UnorderedSet(l), ValueType::UnorderedSet(r))
@@ -630,27 +670,55 @@ pub(crate) fn bind_generic_type(
         | (ValueType::DocumentDecodeOutcome(l), ValueType::DocumentDecodeOutcome(r))
         | (ValueType::Task(l, _), ValueType::Task(r, _))
         | (ValueType::ScopedTask(l, _), ValueType::ScopedTask(r, _))
-        | (ValueType::TaskOutcome(l), ValueType::TaskOutcome(r)) => {
-            bind_generic_type(l.value_type_ref(), r.value_type_ref(), bindings)
-        }
+        | (ValueType::TaskOutcome(l), ValueType::TaskOutcome(r)) => bind_generic_type_inner(
+            l.value_type_ref(),
+            r.value_type_ref(),
+            bindings,
+            explicit_substitutions,
+        ),
         (ValueType::Tuple(l, left_count), ValueType::Tuple(r, right_count))
             if left_count == right_count =>
         {
-            bind_generic_type(l.value_type_ref(), r.value_type_ref(), bindings)
+            bind_generic_type_inner(
+                l.value_type_ref(),
+                r.value_type_ref(),
+                bindings,
+                explicit_substitutions,
+            )
         }
         (ValueType::Map(lk, lv), ValueType::Map(rk, rv))
         | (ValueType::Entry(lk, lv), ValueType::Entry(rk, rv))
         | (ValueType::UnorderedMap(lk, lv), ValueType::UnorderedMap(rk, rv)) => {
-            bind_generic_type(lk.value_type_ref(), rk.value_type_ref(), bindings)?;
-            bind_generic_type(lv.value_type_ref(), rv.value_type_ref(), bindings)
+            bind_generic_type_inner(
+                lk.value_type_ref(),
+                rk.value_type_ref(),
+                bindings,
+                explicit_substitutions,
+            )?;
+            bind_generic_type_inner(
+                lv.value_type_ref(),
+                rv.value_type_ref(),
+                bindings,
+                explicit_substitutions,
+            )
         }
         (ValueType::Function(lp, lr, _), ValueType::Function(rp, rr, _))
             if lp.len() == rp.len() =>
         {
             for (l, r) in lp.iter().zip(rp) {
-                bind_generic_type(l.value_type_ref(), r.value_type_ref(), bindings)?;
+                bind_generic_type_inner(
+                    l.value_type_ref(),
+                    r.value_type_ref(),
+                    bindings,
+                    explicit_substitutions,
+                )?;
             }
-            bind_generic_type(lr.value_type_ref(), rr.value_type_ref(), bindings)
+            bind_generic_type_inner(
+                lr.value_type_ref(),
+                rr.value_type_ref(),
+                bindings,
+                explicit_substitutions,
+            )
         }
         _ if expected == actual => Ok(()),
         _ => Err(format!("type `{actual}` does not match `{expected}`")),

@@ -3265,33 +3265,36 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
     let mut macro_questions = Vec::new();
+    let mut macro_expansions = Vec::new();
     let mut macro_sites = Vec::new();
     for specialization in &pending {
         let unit = &package.units[specialization.unit];
         if let Some(node) = find_node_by_span(&unit.tree.root, specialization.span)
             && let Some(callee) = node.children.first()
             && projected_macro_for_call(package, unit, callee).is_some()
-            // Lifetime-coupled macro graphs are checked with their native callback in the
-            // final Rust program; extracting open producers would lose the shared context.
-            && !matches!(specialization.value_type, ValueType::InvocationScopedNative { .. })
+            && !matches!(
+                specialization.value_type,
+                ValueType::InvocationScopedNative { .. }
+            )
         {
-            macro_questions.push(super::macros::macro_probe(
-                package,
-                unit,
-                node,
-                &specialization.projected_result,
-            )?);
-            macro_sites.push((specialization.unit, specialization.span));
+            let (expansion, result) =
+                super::macros::macro_probe(package, unit, node, &specialization.projected_result)?;
+            macro_expansions.push(expansion);
+            macro_questions.push(result);
+            macro_sites.push((
+                specialization.unit,
+                specialization.span,
+                node_text(&unit.source, node).to_owned(),
+            ));
         }
     }
     if !macro_questions.is_empty() {
-        let report = crate::rust_interop::ProjectionOracle::new(
+        let oracle = crate::rust_interop::ProjectionOracle::new(
             &workspace,
             &package.projection.cache_identity,
             package.projection.containment,
-        )
-        .prove_calls(&macro_questions)
-        .map_err(|error| {
+        );
+        let report = oracle.prove_calls(&macro_questions).map_err(|error| {
             failure(
                 &package.units[macro_sites[0].0].source,
                 "T0119",
@@ -3303,34 +3306,70 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             .projection
             .probe_wall_time_ms
             .saturating_add(report.wall_time_ms);
-        let answers = report
+        let result_answers = report
             .evidence
             .iter()
-            .map(|evidence| (&evidence.question, &evidence.answer))
+            .map(|e| (&e.question, &e.answer))
             .collect::<BTreeMap<_, _>>();
-        for ((unit_index, span), question) in macro_sites.iter().zip(&macro_questions) {
-            match answers.get(question).copied() {
-                Some(crate::rust_interop::ProbeAnswer::Yes) => {}
-                answer => {
-                    let reason = match answer {
-                        Some(crate::rust_interop::ProbeAnswer::Unknown { reason }) => {
-                            reason.as_str()
-                        }
-                        Some(crate::rust_interop::ProbeAnswer::No) => {
-                            "Rust rejected the demanded macro expansion or result type"
-                        }
-                        _ => "native macro proof returned no answer",
-                    };
-                    return Err(failure(
-                        &package.units[*unit_index].source,
-                        "T0119",
-                        format!(
-                            "native macro invocation does not satisfy its concrete expression contract: {reason}"
-                        ),
-                        *span,
-                    ));
-                }
-            }
+        let rejected = macro_questions
+            .iter()
+            .enumerate()
+            .filter_map(|(i, question)| {
+                (result_answers.get(question) != Some(&&crate::rust_interop::ProbeAnswer::Yes))
+                    .then_some(i)
+            })
+            .collect::<Vec<_>>();
+        let expansion_questions = rejected
+            .iter()
+            .map(|&i| macro_expansions[i].clone())
+            .collect::<Vec<_>>();
+        let expansion_answers = if expansion_questions.is_empty() {
+            BTreeMap::new()
+        } else {
+            let report = oracle.prove_calls(&expansion_questions).map_err(|error| {
+                failure(
+                    &package.units[macro_sites[rejected[0]].0].source,
+                    "T0119",
+                    format!("native macro proof could not run: {}", error.message),
+                    macro_sites[rejected[0]].1,
+                )
+            })?;
+            package.projection.probe_wall_time_ms = package
+                .projection
+                .probe_wall_time_ms
+                .saturating_add(report.wall_time_ms);
+            report
+                .evidence
+                .iter()
+                .map(|e| (e.question.clone(), e.answer.clone()))
+                .collect::<BTreeMap<_, _>>()
+        };
+        if let Some(i) = rejected.into_iter().next() {
+            let (unit_index, span, invocation) = &macro_sites[i];
+            let result = result_answers.get(&macro_questions[i]);
+            let expansion = expansion_answers.get(&macro_expansions[i]);
+            let reason = match (expansion, result) {
+                (Some(crate::rust_interop::ProbeAnswer::No), _) =>
+                    format!("the native macro expansion rejects the supplied argument(s) in `{invocation}`; check their types and the macro's accepted arguments"),
+                (Some(crate::rust_interop::ProbeAnswer::Yes), Some(crate::rust_interop::ProbeAnswer::No)) =>
+                    "the macro expansion does not produce a value compatible with the destination type".to_owned(),
+                (Some(crate::rust_interop::ProbeAnswer::Unknown { reason }), _)
+                    if reason.contains("no rules expected") || reason.contains("unexpected end of macro invocation") =>
+                    format!("supplied argument(s) in `{invocation}` do not match the native macro's accepted token pattern"),
+                (Some(crate::rust_interop::ProbeAnswer::Unknown { .. }), _) =>
+                    format!("the supplied argument(s) in `{invocation}` could not be checked against the native macro"),
+                (_, Some(crate::rust_interop::ProbeAnswer::Unknown { .. })) =>
+                    "the macro expansion could not be checked against the destination type".to_owned(),
+                _ => "native macro proof returned no answer".to_owned(),
+            };
+            return Err(failure(
+                &package.units[*unit_index].source,
+                "T0119",
+                format!(
+                    "native macro invocation does not satisfy its concrete expression contract: {reason}"
+                ),
+                *span,
+            ));
         }
     }
     for mut specialization in pending {
