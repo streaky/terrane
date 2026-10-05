@@ -22,7 +22,7 @@ use super::{
     is_builtin_clone, is_builtin_marker_trait, is_internal_rust_protocol_method,
     namespace_overlays_from_metadata, parse_rustdoc, persist_dependency_lock, project_type,
     projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
-    prune_projection_cache, receiver_kind, recursive_owner_dependencies, resolve,
+    receiver_kind, recursive_owner_dependencies, remove_legacy_projection_cache, resolve,
     resolved_library_package, rewrite_projected_owner_root, rewrite_rust_bound_root,
     seed_dependency_lock, selected_target, validate_projection_artifact,
 };
@@ -765,6 +765,163 @@ fn dependency_free_resolution_records_its_outcome() {
         projection.content_hash,
         projection_content_hash(&projection).unwrap()
     );
+}
+#[test]
+fn resolve_regenerates_projection_after_identity_mismatch() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/projection-identity-regression")
+        .join(std::process::id().to_string());
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/projected-macro-reexport");
+    fs::create_dir_all(root.join(".cargo")).unwrap();
+    fs::write(
+        root.join(".cargo/config.toml"),
+        "[patch.crates-io]\nterrane-reexport-facade-witness = { path = \"fixture-registry/terrane-reexport-facade-witness-0.1.0\" }\nterrane-reexport-owner-witness = { path = \"fixture-registry/terrane-reexport-owner-witness-0.1.0\" }\nterrane-generate-api-witness = { path = \"fixture-registry/terrane-generate-api-witness-0.1.0\" }\n",
+    )
+    .unwrap();
+    for package in [
+        "terrane-reexport-facade-witness",
+        "terrane-reexport-owner-witness",
+        "terrane-generate-api-witness",
+    ] {
+        let source = fixture
+            .join("fixture-registry")
+            .join(format!("{package}-0.1.0"));
+        let destination = root
+            .join("fixture-registry")
+            .join(format!("{package}-0.1.0"));
+        fs::create_dir_all(destination.join("src")).unwrap();
+        fs::copy(source.join("Cargo.toml"), destination.join("Cargo.toml")).unwrap();
+        fs::copy(source.join("src/lib.rs"), destination.join("src/lib.rs")).unwrap();
+    }
+    fs::write(
+        root.join(DEPENDENCY_LOCK_FILE),
+        "version = 4\n\n[[package]]\nname = \"terrane-generate-api-witness\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"terrane-reexport-facade-witness\"\nversion = \"0.1.0\"\ndependencies = [\n \"terrane-reexport-owner-witness\",\n]\n\n[[package]]\nname = \"terrane-reexport-owner-witness\"\nversion = \"0.1.0\"\ndependencies = [\n \"terrane-generate-api-witness\",\n]\n",
+    )
+    .unwrap();
+    let dependencies = [
+        "terrane-reexport-facade-witness",
+        "terrane-reexport-owner-witness",
+    ]
+    .map(|name| {
+        let mut dependency = dependency(name, name, &[]);
+        dependency.version = "=0.1.0".to_owned();
+        dependency
+    });
+
+    let first = resolve(&root, &dependencies, None).unwrap();
+    assert!(first.dependencies.iter().any(|dependency| {
+        dependency
+            .items
+            .iter()
+            .any(|item| item.name == "GeneratedValue")
+    }));
+    let cache_path = root.join(".trn/dependencies/projection.json");
+    let mut cache: serde_json::Value =
+        serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
+    cache["cache_identity"] = json!("stale-projection-identity");
+    fs::write(&cache_path, serde_json::to_vec(&cache).unwrap()).unwrap();
+
+    let regenerated = resolve(&root, &dependencies, None).unwrap();
+    assert_eq!(
+        regenerated.resolution.outcome,
+        ResolutionOutcome::LocalRustdoc
+    );
+    assert!(regenerated.dependencies.iter().any(|dependency| {
+        dependency
+            .items
+            .iter()
+            .any(|item| item.name == "GeneratedValue")
+    }));
+    let cache: serde_json::Value = serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
+    assert_ne!(cache["cache_identity"], "stale-projection-identity");
+    fs::remove_dir_all(root).unwrap();
+}
+#[test]
+fn owner_rustdoc_identity_mismatch_regenerates_usable_cache() {
+    let workspace = std::env::temp_dir().join(format!(
+        "terrane-owner-rustdoc-cache-{}",
+        std::process::id()
+    ));
+    let package = workspace.join("owner");
+    fs::create_dir_all(package.join("src")).unwrap();
+    fs::write(
+        workspace.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"owner\"]\nresolver = \"2\"\n",
+    )
+    .unwrap();
+    fs::write(
+        workspace.join("Cargo.lock"),
+        "version = 4\n\n[[package]]\nname = \"owner-fixture\"\nversion = \"1.0.0\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.join("Cargo.toml"),
+        "[package]\nname = \"owner-fixture\"\nversion = \"1.0.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.join("src/lib.rs"),
+        "pub struct UsableOwnerType;\npub fn usable_owner_function() -> bool { true }\n",
+    )
+    .unwrap();
+    fs::create_dir_all(workspace.join("owner-rustdoc")).unwrap();
+    fs::write(
+        workspace.join("owner-rustdoc/owner_fixture.json"),
+        br#"{"terrane_cache_identity":"stale","terrane_cache_package":"owner-fixture@1.0.0","terrane_cache_crate":"owner_fixture"}"#,
+    )
+    .unwrap();
+
+    let document = super::cached_owner_rustdoc(
+        &workspace,
+        "owner-fixture@1.0.0",
+        "owner_fixture",
+        "owner-fixture",
+        "x86_64-unknown-linux-gnu",
+        Containment::Unavailable,
+    )
+    .unwrap();
+    let cached = super::cached_owner_rustdoc(
+        &workspace,
+        "owner-fixture@1.0.0",
+        "owner_fixture",
+        "owner-fixture",
+        "x86_64-unknown-linux-gnu",
+        Containment::Unavailable,
+    )
+    .unwrap();
+    assert!(
+        cached
+            .index
+            .values()
+            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
+    );
+    assert!(
+        cached
+            .index
+            .values()
+            .any(|item| item.name.as_deref() == Some("usable_owner_function"))
+    );
+    assert!(
+        document
+            .index
+            .values()
+            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
+    );
+    assert!(
+        document
+            .index
+            .values()
+            .any(|item| item.name.as_deref() == Some("usable_owner_function"))
+    );
+    let cache: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join("owner-rustdoc/owner_fixture.json")).unwrap(),
+    )
+    .unwrap();
+    assert_ne!(cache["terrane_cache_identity"], "stale");
+    assert_eq!(cache["terrane_cache_package"], "owner-fixture@1.0.0");
+    assert_eq!(cache["terrane_cache_crate"], "owner_fixture");
+    fs::remove_dir_all(workspace).unwrap();
 }
 
 #[test]
@@ -2425,7 +2582,7 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
 }
 
 #[test]
-fn projection_cache_prunes_only_legacy_projection_records() {
+fn projection_cache_removes_only_legacy_projection_records() {
     let directory =
         std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));
     let stable = directory.join("projection.json");
@@ -2455,7 +2612,7 @@ fn projection_cache_prunes_only_legacy_projection_records() {
         .unwrap();
     }
 
-    prune_projection_cache(&directory).unwrap();
+    remove_legacy_projection_cache(&directory).unwrap();
 
     assert!(stable.exists());
     assert!(oracle.exists());
