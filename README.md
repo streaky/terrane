@@ -37,7 +37,7 @@ an extra object model the programmer must manage.
 
 These capabilities have executable coverage in [`tests/conformance/`](tests/conformance/) and the
 CLI integration suites. They do not mean that every Rust API or every combination of features is
-supported. Design experiments in `demos/`, when present, are not a supported example corpus.
+supported.
 
 ## Quick start
 
