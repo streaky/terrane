@@ -560,6 +560,15 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for Map<K, V> 
     }
 }
 
+impl<K: Eq + Hash + Clone, V: Clone> IntoIterator for Map<K, V> {
+    type Item = (K, V);
+    type IntoIter = indexmap::map::IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Arc::unwrap_or_clone(self.0).into_iter()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Set<T: Eq + Hash>(Arc<indexmap::IndexSet<T, FixedState>>);
 impl<T: Eq + Hash + Clone> Set<T> {
@@ -746,14 +755,6 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for UnorderedM
         CollectionIterator::new(self.clone())
     }
 }
-impl<K: Eq + Hash + Clone, V: Clone> IntoIterator for Map<K, V> {
-    type Item = (K, V);
-    type IntoIter = indexmap::map::IntoIter<K, V>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Arc::unwrap_or_clone(self.0).into_iter()
-    }
-}
 
 #[derive(Clone, Debug)]
 struct UnorderedSetData<T: Eq + Hash> {
@@ -879,7 +880,14 @@ impl<K: Eq + Hash, V> std::iter::Iterator for UnorderedMapIntoIter<K, V> {
             .expect("indexed key must exist");
         Some((key, value))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.keys.size_hint()
+    }
 }
+
+impl<K: Eq + Hash, V> ExactSizeIterator for UnorderedMapIntoIter<K, V> {}
+impl<K: Eq + Hash, V> std::iter::FusedIterator for UnorderedMapIntoIter<K, V> {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Range {
@@ -1196,6 +1204,65 @@ mod tests {
         let mut hasher = StableHasher::default();
         hasher.write(b"terrane");
         assert_eq!(hasher.finish(), 0x3f87_dd9c_872a_eb2c);
+    }
+
+    #[test]
+    fn owning_collection_iterators_preserve_order_and_shared_storage() {
+        let set = Set::new(vec![3, 1, 2]);
+        let shared_set = set.clone();
+        assert_eq!(set.into_iter().collect::<Vec<_>>(), vec![3, 1, 2]);
+        assert_eq!(shared_set.into_iter().collect::<Vec<_>>(), vec![3, 1, 2]);
+
+        let map = Map::new(vec![
+            Entry::new("third", 3),
+            Entry::new("first", 1),
+            Entry::new("second", 2),
+        ]);
+        let shared_map = map.clone();
+        assert_eq!(
+            map.into_iter().collect::<Vec<_>>(),
+            vec![("third", 3), ("first", 1), ("second", 2)]
+        );
+        assert_eq!(
+            shared_map.into_iter().collect::<Vec<_>>(),
+            vec![("third", 3), ("first", 1), ("second", 2)]
+        );
+
+        let unordered_set = UnorderedSet::new(vec![3, 1, 2]);
+        let shared_unordered_set = unordered_set.clone();
+        assert_eq!(unordered_set.into_iter().collect::<Vec<_>>(), vec![3, 1, 2]);
+        assert_eq!(
+            shared_unordered_set.into_iter().collect::<Vec<_>>(),
+            vec![3, 1, 2]
+        );
+
+        let unordered_map = UnorderedMap::new(vec![
+            Entry::new("third", 3),
+            Entry::new("first", 1),
+            Entry::new("second", 2),
+        ]);
+        let shared_unordered_map = unordered_map.clone();
+        assert_eq!(
+            unordered_map.into_iter().collect::<Vec<_>>(),
+            vec![("third", 3), ("first", 1), ("second", 2)]
+        );
+        assert_eq!(
+            shared_unordered_map.into_iter().collect::<Vec<_>>(),
+            vec![("third", 3), ("first", 1), ("second", 2)]
+        );
+    }
+
+    #[test]
+    fn unordered_map_into_iterator_reports_exact_size_and_fuses() {
+        let mut iterator =
+            UnorderedMap::new(vec![Entry::new("a", 1), Entry::new("b", 2)]).into_iter();
+        assert_eq!(iterator.size_hint(), (2, Some(2)));
+        assert_eq!(iterator.len(), 2);
+        assert_eq!(iterator.next(), Some(("a", 1)));
+        assert_eq!(iterator.len(), 1);
+        assert_eq!(iterator.next(), Some(("b", 2)));
+        assert_eq!(iterator.next(), None);
+        assert_eq!(iterator.next(), None);
     }
 
     #[test]

@@ -14,90 +14,27 @@ impl SemanticPackage {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Capability collection, proof caching, and fail-closed application are one ordered closed-world analysis."
-)]
 pub(super) fn populate_native_capabilities(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
-    let mut native_types = BTreeSet::<String>::new();
-    for unit in &package.units {
-        for binding in &unit.typed_bindings {
-            collect_native_types(&binding.value_type, &mut native_types);
-        }
-        for value_type in unit.selected_expression_types.values() {
-            collect_native_types(value_type, &mut native_types);
-        }
-        for value_type in unit.invocation_scoped_function_results.values() {
-            collect_native_types(value_type, &mut native_types);
-        }
-        for function in &unit.functions {
-            for parameter in &function.parameters {
-                if let Some(value_type) = &parameter.value_type {
-                    collect_native_types(value_type, &mut native_types);
-                }
-            }
-            if let Some(value_type) = &function.return_type {
-                collect_native_types(value_type, &mut native_types);
-            }
-            for value_type in &function.thrown_types {
-                collect_native_types(value_type, &mut native_types);
-            }
-        }
-        for descriptor in &unit.descriptors {
-            for field in &descriptor.fields {
-                collect_native_types(&field.value_type, &mut native_types);
-            }
-        }
-        for specialization in unit.projected_call_specializations.values() {
-            collect_native_types(&specialization.value_type, &mut native_types);
-            for value_type in specialization.value_parameters.iter().flatten() {
-                collect_native_types(value_type, &mut native_types);
-            }
-        }
+    let mut native_types = BTreeMap::<String, (usize, Span)>::new();
+    for (unit_index, unit) in package.units.iter().enumerate() {
+        visit_unit_types(unit, &mut |value_type, span| {
+            collect_native_types(value_type, span, unit_index, &mut native_types);
+        });
     }
-    native_types.retain(|rust_type| {
+    native_types.retain(|rust_type, _| {
         !package.native_capabilities.contains_key(rust_type)
             && !is_borrowed_native_type(&package.projection, rust_type)
     });
     prove_native_capabilities(package, &native_types)?;
     // Nominal facts still apply when there are no fresh concrete proofs to request.
     for unit in &mut package.units {
+        let mut nonclone_foreign_objects = std::mem::take(&mut unit.nonclone_foreign_objects);
         let mut objects = Vec::new();
-        for binding in &unit.typed_bindings {
-            collect_objects(&binding.value_type, &mut objects);
-        }
-        for value_type in unit.selected_expression_types.values() {
+        visit_unit_types(unit, &mut |value_type, _| {
             collect_objects(value_type, &mut objects);
-        }
-        for value_type in unit.invocation_scoped_function_results.values() {
-            collect_objects(value_type, &mut objects);
-        }
-        for function in &unit.functions {
-            for parameter in &function.parameters {
-                if let Some(value_type) = &parameter.value_type {
-                    collect_objects(value_type, &mut objects);
-                }
-            }
-            if let Some(value_type) = &function.return_type {
-                collect_objects(value_type, &mut objects);
-            }
-            for value_type in &function.thrown_types {
-                collect_objects(value_type, &mut objects);
-            }
-        }
-        for descriptor in &unit.descriptors {
-            for field in &descriptor.fields {
-                collect_objects(&field.value_type, &mut objects);
-            }
-        }
-        for specialization in unit.projected_call_specializations.values() {
-            collect_objects(&specialization.value_type, &mut objects);
-            for value_type in specialization.value_parameters.iter().flatten() {
-                collect_objects(value_type, &mut objects);
-            }
-        }
+        });
         for identity in objects {
             // An exact concrete proof supersedes the nominal declaration's Clone fact.
             let cloneable = identity
@@ -131,24 +68,65 @@ pub(super) fn populate_native_capabilities(
                         is_borrowed_native_type(&package.projection, rust_type)
                     });
             if cloneable == Some(false) && !borrowed {
-                unit.nonclone_foreign_objects.insert(identity.clone());
+                nonclone_foreign_objects.insert(identity.clone());
             } else {
-                unit.nonclone_foreign_objects.remove(identity);
+                nonclone_foreign_objects.remove(identity);
             }
         }
+        unit.nonclone_foreign_objects = nonclone_foreign_objects;
     }
     Ok(())
 }
 
+fn visit_unit_types<'a>(
+    unit: &'a super::model::SemanticUnit,
+    visit: &mut impl FnMut(&'a ValueType, Span),
+) {
+    for binding in &unit.typed_bindings {
+        visit(&binding.value_type, binding.span);
+    }
+    for (&(file, start, end), value_type) in &unit.selected_expression_types {
+        visit(value_type, Span::new(file, start, end));
+    }
+    for (&(file, start, end), value_type) in &unit.invocation_scoped_function_results {
+        visit(value_type, Span::new(file, start, end));
+    }
+    for function in &unit.functions {
+        for parameter in &function.parameters {
+            if let Some(value_type) = &parameter.value_type {
+                visit(value_type, parameter.span);
+            }
+        }
+        if let Some(value_type) = &function.return_type {
+            visit(value_type, function.span);
+        }
+        for value_type in &function.thrown_types {
+            visit(value_type, function.span);
+        }
+    }
+    for descriptor in &unit.descriptors {
+        for field in &descriptor.fields {
+            visit(&field.value_type, field.span);
+        }
+    }
+    for (&(file, start, end), specialization) in &unit.projected_call_specializations {
+        let span = Span::new(file, start, end);
+        visit(&specialization.value_type, span);
+        for value_type in specialization.value_parameters.iter().flatten() {
+            visit(value_type, span);
+        }
+    }
+}
+
 fn prove_native_capabilities(
     package: &mut SemanticPackage,
-    native_types: &BTreeSet<String>,
+    native_types: &BTreeMap<String, (usize, Span)>,
 ) -> Result<(), SemanticFailure> {
     if native_types.is_empty() {
         return Ok(());
     }
     let mut questions = BTreeSet::new();
-    for rust_type in native_types {
+    for rust_type in native_types.keys() {
         for rust_bound in [
             "core::clone::Clone",
             "core::marker::Send",
@@ -198,18 +176,18 @@ fn prove_native_capabilities(
     )
     .prove_bounds(&questions)
     .map_err(|error| {
-        let unit = package
-            .units
-            .first()
-            .expect("native types were collected from semantic units");
+        let &(unit_index, span) = native_types
+            .values()
+            .min_by_key(|(unit_index, span)| (*unit_index, span.start))
+            .expect("nonempty capability questions retain their source sites");
         super::diagnostics::failure(
-            &unit.source,
+            &package.units[unit_index].source,
             "T0119",
             format!(
                 "cannot prove selected native type capabilities: {}",
                 error.message
             ),
-            Span::new(unit.source.id(), 0, 0),
+            span,
         )
     })?;
     for evidence in report.evidence {
@@ -231,77 +209,47 @@ fn prove_native_capabilities(
     Ok(())
 }
 
-fn collect_native_types(value_type: &ValueType, types: &mut BTreeSet<String>) {
-    match value_type {
-        ValueType::Object(identity) => {
-            if let Some(native) = &identity.native_projection
-                && identity.application.as_deref().is_none_or(is_closed)
-                && identity.type_arguments.iter().all(is_closed)
-                && identity.native_arguments.values().all(is_closed)
-            {
-                types.insert(native.clone());
-            }
-            if let Some(application) = &identity.application {
-                collect_native_types(application, types);
-            }
-            for argument in &identity.type_arguments {
-                collect_native_types(argument, types);
-            }
-            for argument in identity.native_arguments.values() {
-                collect_native_types(argument, types);
-            }
+fn collect_native_types(
+    value_type: &ValueType,
+    span: Span,
+    unit_index: usize,
+    types: &mut BTreeMap<String, (usize, Span)>,
+) {
+    walk_value_type(value_type, &mut |value_type| {
+        if let ValueType::Object(identity) = value_type
+            && let Some(native) = &identity.native_projection
+            && identity.application.as_deref().is_none_or(is_closed)
+            && identity.type_arguments.iter().all(is_closed)
+            && identity.native_arguments.values().all(is_closed)
+        {
+            types.entry(native.clone()).or_insert((unit_index, span));
         }
-        ValueType::Optional(inner) => collect_native_types(inner, types),
-        ValueType::Iterator(inner)
-        | ValueType::IterationStep(inner)
-        | ValueType::AsyncIterationStep(inner)
-        | ValueType::ChannelPair(inner)
-        | ValueType::ChannelSender(inner)
-        | ValueType::ChannelReceiver(inner)
-        | ValueType::ChannelSendOutcome(inner)
-        | ValueType::ChannelReceiveOutcome(inner)
-        | ValueType::DocumentDecodeOutcome(inner)
-        | ValueType::List(inner)
-        | ValueType::Set(inner)
-        | ValueType::Tuple(inner, _)
-        | ValueType::UnorderedSet(inner)
-        | ValueType::Task(inner, _)
-        | ValueType::ScopedTask(inner, _)
-        | ValueType::TaskOutcome(inner)
-        | ValueType::Reference(inner)
-        | ValueType::SharedReference(inner) => collect_native_types(inner.value_type_ref(), types),
-        ValueType::Map(key, value)
-        | ValueType::Entry(key, value)
-        | ValueType::UnorderedMap(key, value) => {
-            collect_native_types(key.value_type_ref(), types);
-            collect_native_types(value.value_type_ref(), types);
-        }
-        ValueType::Function(parameters, result, _)
-        | ValueType::AsyncFunction(parameters, result, _, _) => {
-            for parameter in parameters {
-                collect_native_types(parameter.value_type_ref(), types);
-            }
-            collect_native_types(result.value_type_ref(), types);
-        }
-        _ => {}
-    }
+    });
 }
 
 fn collect_objects<'a>(value_type: &'a ValueType, objects: &mut Vec<&'a ObjectIdentity>) {
+    walk_value_type(value_type, &mut |value_type| {
+        if let ValueType::Object(identity) = value_type {
+            objects.push(identity);
+        }
+    });
+}
+
+fn walk_value_type<'a>(value_type: &'a ValueType, visit: &mut impl FnMut(&'a ValueType)) {
+    visit(value_type);
     match value_type {
         ValueType::Object(identity) => {
-            objects.push(identity);
             if let Some(application) = &identity.application {
-                collect_objects(application, objects);
+                walk_value_type(application, visit);
             }
             for argument in &identity.type_arguments {
-                collect_objects(argument, objects);
+                walk_value_type(argument, visit);
             }
             for argument in identity.native_arguments.values() {
-                collect_objects(argument, objects);
+                walk_value_type(argument, visit);
             }
         }
-        ValueType::Optional(inner) => collect_objects(inner, objects),
+        ValueType::Optional(inner) => walk_value_type(inner, visit),
         ValueType::Iterator(inner)
         | ValueType::IterationStep(inner)
         | ValueType::AsyncIterationStep(inner)
@@ -319,19 +267,19 @@ fn collect_objects<'a>(value_type: &'a ValueType, objects: &mut Vec<&'a ObjectId
         | ValueType::ScopedTask(inner, _)
         | ValueType::TaskOutcome(inner)
         | ValueType::Reference(inner)
-        | ValueType::SharedReference(inner) => collect_objects(inner.value_type_ref(), objects),
+        | ValueType::SharedReference(inner) => walk_value_type(inner.value_type_ref(), visit),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
         | ValueType::UnorderedMap(key, value) => {
-            collect_objects(key.value_type_ref(), objects);
-            collect_objects(value.value_type_ref(), objects);
+            walk_value_type(key.value_type_ref(), visit);
+            walk_value_type(value.value_type_ref(), visit);
         }
         ValueType::Function(parameters, result, _)
         | ValueType::AsyncFunction(parameters, result, _, _) => {
             for parameter in parameters {
-                collect_objects(parameter.value_type_ref(), objects);
+                walk_value_type(parameter.value_type_ref(), visit);
             }
-            collect_objects(result.value_type_ref(), objects);
+            walk_value_type(result.value_type_ref(), visit);
         }
         _ => {}
     }
@@ -363,44 +311,14 @@ fn is_borrowed_native_type(
 }
 
 fn is_closed(value_type: &ValueType) -> bool {
-    match value_type {
-        ValueType::ProjectedGeneric(_) | ValueType::TypeParameter(_) => false,
-        ValueType::Object(identity) => {
-            identity.application.as_deref().is_none_or(is_closed)
-                && identity.type_arguments.iter().all(is_closed)
-                && identity.native_arguments.values().all(is_closed)
+    let mut closed = true;
+    walk_value_type(value_type, &mut |value_type| {
+        if matches!(
+            value_type,
+            ValueType::ProjectedGeneric(_) | ValueType::TypeParameter(_)
+        ) {
+            closed = false;
         }
-        ValueType::Optional(inner) => is_closed(inner),
-        ValueType::Iterator(inner)
-        | ValueType::IterationStep(inner)
-        | ValueType::AsyncIterationStep(inner)
-        | ValueType::ChannelPair(inner)
-        | ValueType::ChannelSender(inner)
-        | ValueType::ChannelReceiver(inner)
-        | ValueType::ChannelSendOutcome(inner)
-        | ValueType::ChannelReceiveOutcome(inner)
-        | ValueType::DocumentDecodeOutcome(inner)
-        | ValueType::List(inner)
-        | ValueType::Set(inner)
-        | ValueType::Tuple(inner, _)
-        | ValueType::UnorderedSet(inner)
-        | ValueType::Task(inner, _)
-        | ValueType::ScopedTask(inner, _)
-        | ValueType::TaskOutcome(inner)
-        | ValueType::Reference(inner)
-        | ValueType::SharedReference(inner) => is_closed(inner.value_type_ref()),
-        ValueType::Map(key, value)
-        | ValueType::Entry(key, value)
-        | ValueType::UnorderedMap(key, value) => {
-            is_closed(key.value_type_ref()) && is_closed(value.value_type_ref())
-        }
-        ValueType::Function(parameters, result, _)
-        | ValueType::AsyncFunction(parameters, result, _, _) => {
-            parameters
-                .iter()
-                .all(|parameter| is_closed(parameter.value_type_ref()))
-                && is_closed(result.value_type_ref())
-        }
-        _ => true,
-    }
+    });
+    closed
 }

@@ -622,10 +622,6 @@ fn selected_signature_type(
     closed_projected_value_type(package, projected)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "This recursive traversal handles every nested value-type shape while preserving one diagnostic site and selection context."
-)]
 fn collect_written_native_selections(
     package: &SemanticPackage,
     value_type: &ValueType,
@@ -634,129 +630,36 @@ fn collect_written_native_selections(
     selections: &mut BTreeMap<ObjectIdentity, ObjectIdentity>,
     sites: &mut Vec<(ObjectIdentity, usize, Span)>,
 ) -> Result<(), super::model::SemanticFailure> {
-    match value_type {
-        ValueType::Object(identity) => {
-            for argument in identity
-                .type_arguments
-                .iter()
-                .chain(identity.application.iter().map(std::convert::AsRef::as_ref))
-                .chain(identity.native_arguments.values())
-            {
-                collect_written_native_selections(
-                    package, argument, unit_index, span, selections, sites,
-                )?;
-            }
-            if package
-                .projection
-                .item(&identity.namespace, &identity.name)
-                .is_none()
-            {
-                return Ok(());
-            }
-            if let Some(problem) = native_application_problem(package, identity) {
-                return Err(super::diagnostics::failure(
-                    &package.units[unit_index].source,
-                    "T0117",
-                    problem,
-                    span,
-                ));
-            }
-            sites.push((identity.clone(), unit_index, span));
-            if let Some(selected) = super::objects::close_written_native_nominal(package, identity)
-            {
-                selections.insert(identity.clone(), selected);
-            }
+    visit_native_objects(value_type, &mut |identity| {
+        if package
+            .projection
+            .item(&identity.namespace, &identity.name)
+            .is_none()
+        {
+            return Ok(());
         }
-        ValueType::Optional(inner) => {
-            collect_written_native_selections(package, inner, unit_index, span, selections, sites)?;
-        }
-        ValueType::Reference(inner)
-        | ValueType::SharedReference(inner)
-        | ValueType::List(inner)
-        | ValueType::Set(inner)
-        | ValueType::UnorderedSet(inner)
-        | ValueType::Iterator(inner)
-        | ValueType::IterationStep(inner)
-        | ValueType::AsyncIterationStep(inner)
-        | ValueType::Tuple(inner, _)
-        | ValueType::Task(inner, _)
-        | ValueType::ScopedTask(inner, _)
-        | ValueType::TaskOutcome(inner)
-        | ValueType::ChannelPair(inner)
-        | ValueType::ChannelSender(inner)
-        | ValueType::ChannelReceiver(inner)
-        | ValueType::ChannelReceiveOutcome(inner)
-        | ValueType::ChannelSendOutcome(inner)
-        | ValueType::DocumentDecodeOutcome(inner) => {
-            collect_written_native_selections(
-                package,
-                inner.value_type_ref(),
-                unit_index,
+        if let Some(problem) = native_application_problem(package, identity) {
+            return Err(super::diagnostics::failure(
+                &package.units[unit_index].source,
+                "T0117",
+                problem,
                 span,
-                selections,
-                sites,
-            )?;
+            ));
         }
-        ValueType::Map(key, value)
-        | ValueType::UnorderedMap(key, value)
-        | ValueType::Entry(key, value) => {
-            collect_written_native_selections(
-                package,
-                key.value_type_ref(),
-                unit_index,
-                span,
-                selections,
-                sites,
-            )?;
-            collect_written_native_selections(
-                package,
-                value.value_type_ref(),
-                unit_index,
-                span,
-                selections,
-                sites,
-            )?;
+        sites.push((identity.clone(), unit_index, span));
+        if let Some(selected) = super::objects::close_written_native_nominal(package, identity) {
+            selections.insert(identity.clone(), selected);
         }
-        ValueType::Function(parameters, result, _)
-        | ValueType::AsyncFunction(parameters, result, _, _) => {
-            for parameter in parameters {
-                collect_written_native_selections(
-                    package,
-                    parameter.value_type_ref(),
-                    unit_index,
-                    span,
-                    selections,
-                    sites,
-                )?;
-            }
-            collect_written_native_selections(
-                package,
-                result.value_type_ref(),
-                unit_index,
-                span,
-                selections,
-                sites,
-            )?;
-        }
-        _ => {}
-    }
-    Ok(())
+        Ok(())
+    })
 }
 fn collect_inferred_native_selections(
     package: &SemanticPackage,
     value_type: &ValueType,
     selections: &mut BTreeMap<ObjectIdentity, ObjectIdentity>,
 ) {
-    match value_type {
-        ValueType::Object(identity) => {
-            for argument in identity
-                .type_arguments
-                .iter()
-                .chain(identity.application.iter().map(std::convert::AsRef::as_ref))
-                .chain(identity.native_arguments.values())
-            {
-                collect_inferred_native_selections(package, argument, selections);
-            }
+    let _: Result<(), std::convert::Infallible> =
+        visit_native_objects(value_type, &mut |identity| {
             if identity.native_projection.is_none()
                 && !source_abi_nominal(package, identity)
                 && !selections.contains_key(identity)
@@ -765,10 +668,27 @@ fn collect_inferred_native_selections(
             {
                 selections.insert(identity.clone(), selected);
             }
+            Ok(())
+        });
+}
+
+fn visit_native_objects<E>(
+    value_type: &ValueType,
+    visit: &mut impl FnMut(&ObjectIdentity) -> Result<(), E>,
+) -> Result<(), E> {
+    match value_type {
+        ValueType::Object(identity) => {
+            for argument in identity
+                .type_arguments
+                .iter()
+                .chain(identity.application.iter().map(std::convert::AsRef::as_ref))
+                .chain(identity.native_arguments.values())
+            {
+                visit_native_objects(argument, visit)?;
+            }
+            visit(identity)?;
         }
-        ValueType::Optional(inner) => {
-            collect_inferred_native_selections(package, inner, selections);
-        }
+        ValueType::Optional(inner) => visit_native_objects(inner, visit)?,
         ValueType::Reference(inner)
         | ValueType::SharedReference(inner)
         | ValueType::List(inner)
@@ -787,23 +707,24 @@ fn collect_inferred_native_selections(
         | ValueType::ChannelReceiveOutcome(inner)
         | ValueType::ChannelSendOutcome(inner)
         | ValueType::DocumentDecodeOutcome(inner) => {
-            collect_inferred_native_selections(package, inner.value_type_ref(), selections);
+            visit_native_objects(inner.value_type_ref(), visit)?;
         }
         ValueType::Map(key, value)
         | ValueType::UnorderedMap(key, value)
         | ValueType::Entry(key, value) => {
-            collect_inferred_native_selections(package, key.value_type_ref(), selections);
-            collect_inferred_native_selections(package, value.value_type_ref(), selections);
+            visit_native_objects(key.value_type_ref(), visit)?;
+            visit_native_objects(value.value_type_ref(), visit)?;
         }
         ValueType::Function(parameters, result, _)
         | ValueType::AsyncFunction(parameters, result, _, _) => {
             for parameter in parameters {
-                collect_inferred_native_selections(package, parameter.value_type_ref(), selections);
+                visit_native_objects(parameter.value_type_ref(), visit)?;
             }
-            collect_inferred_native_selections(package, result.value_type_ref(), selections);
+            visit_native_objects(result.value_type_ref(), visit)?;
         }
         _ => {}
     }
+    Ok(())
 }
 
 fn native_application_problem(

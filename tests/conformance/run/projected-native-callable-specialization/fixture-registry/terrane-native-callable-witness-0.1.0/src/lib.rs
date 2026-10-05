@@ -13,14 +13,17 @@ impl<T> Cell<T> {
     pub fn get(&self) -> Option<&T> { Some(&self.value) }
 }
 
-pub struct Holder<T> {
-    pub value: T,
+#[expect(non_camel_case_types, reason = "exercise owner binder identity containing the internal separator")]
+pub struct Holder<T__Inner> {
+    pub value: T__Inner,
 }
 
-impl<T> Holder<T> {
-    pub fn make<U: Default>() -> U { U::default() }
+impl<A> Holder<A> {
+    #[expect(non_camel_case_types, reason = "exercise shadowing of a separator-containing nominal binder")]
+    pub fn make<T__Inner: Default>() -> T__Inner { T__Inner::default() }
 
-    pub fn with_owner<U: From<T>>(value: T) -> U { U::from(value) }
+    pub fn with_owner<U: From<A>>(value: A) -> U { U::from(value) }
+
 }
 
 pub struct Factory;

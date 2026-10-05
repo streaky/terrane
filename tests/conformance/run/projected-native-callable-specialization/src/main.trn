@@ -43,6 +43,8 @@ async function main;
     static-default = ((Holder of uint8)::make of uint16);
     print; static-default
     static-owner = ((Holder of uint8)::with_owner of uint16); retained-byte
+    static-collision = ((Holder of uint8)::make of string);
+    print; static-collision == ''
     print; static-owner
     async-free = await ((make_async of Marker);)
     async-member = await ((factory.create_async of Marker); marker)

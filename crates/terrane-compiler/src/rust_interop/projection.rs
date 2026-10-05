@@ -73,7 +73,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "258";
+const PROJECTION_SCHEMA: &str = "259";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -1155,9 +1155,6 @@ fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
 
 fn projected_owner_path_matches(candidate: &str, owner: &str) -> bool {
     candidate == owner
-        || candidate
-            .split_once('<')
-            .is_some_and(|(constructor, _)| constructor == owner)
         || candidate
             .strip_prefix(owner)
             .is_some_and(|suffix| suffix.starts_with('<'))
@@ -8323,6 +8320,66 @@ fn project_operation_owner_generics(
     Ok(projected.into_values().collect())
 }
 
+fn disambiguate_static_method_owner_generics(
+    implementation: &Impl,
+    function: &Function,
+    mut generics: BTreeMap<String, ProjectedType>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> BTreeMap<String, ProjectedType> {
+    // Keep owner and method binders distinct before name-keyed signature projection.
+    let method_names = function
+        .generics
+        .params
+        .iter()
+        .map(|parameter| parameter.name.as_str())
+        .collect::<BTreeSet<_>>();
+    let mut used_names = method_names
+        .iter()
+        .map(|name| (*name).to_owned())
+        .collect::<BTreeSet<_>>();
+    used_names.extend(
+        implementation
+            .generics
+            .params
+            .iter()
+            .map(|parameter| parameter.name.clone()),
+    );
+    used_names.extend(generics.values().filter_map(|generic| match generic {
+        ProjectedType::Generic(name) => Some(name.clone()),
+        _ => None,
+    }));
+    for parameter in &implementation.generics.params {
+        let GenericParamDefKind::Type {
+            is_synthetic: false,
+            ..
+        } = &parameter.kind
+        else {
+            continue;
+        };
+        let Some(ProjectedType::Generic(owner_slot)) = generics.get(&parameter.name) else {
+            continue;
+        };
+        if !method_names.contains(owner_slot.as_str()) {
+            continue;
+        }
+        let owner_slot = owner_slot.clone();
+        let mut suffix = 0;
+        let mut renamed = format!("__TerraneOwner_{owner_slot}__{suffix}");
+        while used_names.contains(&renamed) {
+            suffix += 1;
+            renamed = format!("__TerraneOwner_{owner_slot}__{suffix}");
+        }
+        used_names.insert(renamed.clone());
+        generics.remove(&owner_slot);
+        generics.insert(parameter.name.clone(), ProjectedType::Generic(renamed));
+    }
+    if let Ok(owner) = project_type(&implementation.for_, index, paths, &generics) {
+        generics.insert("Self".to_owned(), owner);
+    }
+    generics
+}
+
 #[expect(
     clippy::too_many_arguments,
     clippy::too_many_lines,
@@ -8556,13 +8613,33 @@ fn project_methods(
                 }
                 continue;
             }
+            let static_owner_generics = inherent
+                && implementation.blanket_impl.is_none()
+                && !function.sig.inputs.iter().any(|(name, _)| name == "self");
+            let method_generics = if static_owner_generics {
+                disambiguate_static_method_owner_generics(
+                    implementation,
+                    function,
+                    implementation_generics.clone(),
+                    index,
+                    paths,
+                )
+            } else {
+                implementation_generics.clone()
+            };
+            let method_native_owner = if static_owner_generics {
+                render_rust_type(&implementation.for_, index, paths, &method_generics)
+                    .unwrap_or_else(|_| native_owner.clone())
+            } else {
+                native_owner.clone()
+            };
             match project_function_with_generics(
                 function,
                 index,
                 paths,
                 public_paths,
                 Some(name),
-                &implementation_generics,
+                &method_generics,
                 allow_lifetime_output,
             ) {
                 Ok(mut method) => {
@@ -8571,18 +8648,15 @@ fn project_methods(
                         implementation,
                         index,
                         paths,
-                        &implementation_generics,
+                        &method_generics,
                     );
-                    method.native_owner = Some(native_owner.clone());
-                    if inherent
-                        && implementation.blanket_impl.is_none()
-                        && method.receiver.is_none()
-                    {
+                    method.native_owner = Some(method_native_owner);
+                    if static_owner_generics {
                         match project_operation_owner_generics(
                             implementation,
                             index,
                             paths,
-                            &implementation_generics,
+                            &method_generics,
                         ) {
                             Ok(owner_generics) => method.operation_owner_generics = owner_generics,
                             Err(reason) => {

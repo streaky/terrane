@@ -3216,8 +3216,28 @@ pub(super) fn qualify_projected_rust_names(
 }
 
 fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
-    while specialize_projected_result_batch(package)? {}
-    Ok(())
+    loop {
+        let before = projected_specialization_count(package);
+        let Some((unit_index, span)) = specialize_projected_result_batch(package)? else {
+            return Ok(());
+        };
+        if projected_specialization_count(package) == before {
+            return Err(failure(
+                &package.units[unit_index].source,
+                "T0119",
+                "internal compiler error: projected result specialization made no progress",
+                span,
+            ));
+        }
+    }
+}
+
+fn projected_specialization_count(package: &SemanticPackage) -> usize {
+    package
+        .units
+        .iter()
+        .map(|unit| unit.projected_call_specializations.len())
+        .sum()
 }
 
 #[expect(
@@ -3226,7 +3246,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
 )]
 fn specialize_projected_result_batch(
     package: &mut SemanticPackage,
-) -> Result<bool, SemanticFailure> {
+) -> Result<Option<(usize, Span)>, SemanticFailure> {
     for unit_index in 0..package.units.len() {
         let plans = {
             let unit = &package.units[unit_index];
@@ -3263,9 +3283,10 @@ fn specialize_projected_result_batch(
             return Err(error);
         }
     }
-    if pending.is_empty() {
-        return Ok(false);
-    }
+    let Some(first_pending) = pending.first() else {
+        return Ok(None);
+    };
+    let first_pending_site = (first_pending.unit, first_pending.span);
     let projected_rust_names = pending
         .iter()
         .flat_map(|specialization| &specialization.bounds)
@@ -3579,7 +3600,7 @@ fn specialize_projected_result_batch(
     }
     super::capabilities::populate_native_capabilities(package)?;
     rebuild_typed_bindings(package)?;
-    Ok(true)
+    Ok(Some(first_pending_site))
 }
 fn oracle_diagnostic_summary(message: &str) -> String {
     const LIMIT: usize = 240;
@@ -5515,7 +5536,7 @@ fn collect_projected_destinations(
                 if types.len() != binders.len() {
                     return Err(failure(
                         &unit.source,
-                        "T0117",
+                        "T0129",
                         "explicit native type arguments must select every projected result parameter",
                         callee.span,
                     ));
@@ -5533,10 +5554,10 @@ fn collect_projected_destinations(
                                 ty.span.start,
                             ),
                         )
-                        .map_err(|_| failure(&unit.source, "T0117", "explicit native type argument is not available", ty.span))?;
+                        .map_err(|_| failure(&unit.source, "T0129", "explicit native type argument is not available", ty.span))?;
                         destination_projected_type(package, &value)
                             .map(|projected| (generic.name.clone(), projected))
-                            .map_err(|reason| failure(&unit.source, "T0117", format!("explicit native type argument cannot be projected: {reason}"), ty.span))
+                            .map_err(|reason| failure(&unit.source, "T0129", format!("explicit native type argument cannot be projected: {reason}"), ty.span))
                     })
                     .collect::<Result<BTreeMap<_, _>, SemanticFailure>>()
             })
@@ -5560,7 +5581,7 @@ fn collect_projected_destinations(
                     .collect::<Option<BTreeMap<_, _>>>()
                     .ok_or_else(|| failure(
                         &unit.source,
-                        "T0117",
+                        "T0129",
                         "explicit native type arguments do not select every projected result parameter",
                         callee.span,
                     ))?,
@@ -5596,7 +5617,7 @@ fn collect_projected_destinations(
         {
             return Err(failure(
                 &unit.source,
-                "T0117",
+                "T0129",
                 "explicit native type arguments conflict with the written result destination",
                 node.span,
             ));
@@ -6878,12 +6899,44 @@ pub(super) fn projected_call_owner_substitutions(
     let Some(owner) = projected_call_owner_identity(package, unit, callee) else {
         return Ok(BTreeMap::new());
     };
+    let function =
+        projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(callee));
+    let Some(function) = function.filter(|function| !function.operation_owner_generics.is_empty())
+    else {
+        return owner
+            .native_arguments
+            .into_iter()
+            .map(|(name, value_type)| {
+                destination_projected_type(package, &value_type)
+                    .map(|projected| (name.clone(), projected))
+                    .map_err(|reason| {
+                        format!(
+                            "projected method owner argument `{name}` is not supported: {reason}"
+                        )
+                    })
+            })
+            .collect();
+    };
     let mut substitutions = BTreeMap::new();
-    for (name, value_type) in owner.native_arguments {
-        let projected = destination_projected_type(package, &value_type).map_err(|reason| {
-            format!("projected method owner argument `{name}` is not supported: {reason}")
+    for owner_slot in &function.operation_owner_generics {
+        let native_argument = owner
+            .native_arguments
+            .get_key_value(&owner_slot.name)
+            .or_else(|| {
+                let (name, suffix) = owner_slot
+                    .name
+                    .strip_prefix("__TerraneOwner_")?
+                    .rsplit_once("__")?;
+                suffix.parse::<usize>().ok()?;
+                owner.native_arguments.get_key_value(name)
+            });
+        let Some((nominal_name, value_type)) = native_argument else {
+            continue;
+        };
+        let projected = destination_projected_type(package, value_type).map_err(|reason| {
+            format!("projected method owner argument `{nominal_name}` is not supported: {reason}")
         })?;
-        substitutions.insert(name, projected);
+        substitutions.insert(owner_slot.name.clone(), projected);
     }
     Ok(substitutions)
 }

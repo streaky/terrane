@@ -2107,21 +2107,19 @@ impl Emitter<'_> {
                         rust_name(&projected.name)
                     )
                 })
-            } else if projected_static_owner.is_some() {
+            } else if let Some(contract) = contract
+                .as_ref()
+                .filter(|_| projected_static_owner.is_some())
+            {
                 let name = crate::lowering::dependencies::projected_static_shim_name(
                     self.package,
-                    contract
-                        .as_ref()
-                        .expect("projected static calls retain their contract"),
+                    contract,
                 );
                 let selected_identity = match self.value_type(node) {
                     Some(ValueType::Object(identity))
-                        if contract
-                            .as_ref()
-                            .and_then(|contract| contract.owner_identity.as_ref())
-                            .is_some_and(|owner| {
-                                identity.namespace == owner.namespace && identity.name == owner.name
-                            }) =>
+                        if contract.owner_identity.as_ref().is_some_and(|owner| {
+                            identity.namespace == owner.namespace && identity.name == owner.name
+                        }) =>
                     {
                         Some(identity)
                     }

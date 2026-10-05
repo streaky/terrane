@@ -389,12 +389,15 @@ pub(super) fn project_closed_alias_members(
                 &alias_segments[..alias_segments.len().saturating_sub(1)],
             );
             let alias_name = alias_segments.last().map_or("", String::as_str);
-            if let Some(item) = projected[dependency_index].items.iter_mut().find(|item| {
+            let alias_item_index = projected[dependency_index].items.iter().position(|item| {
                 item.rust_path == alias_path
                     || item.namespace == alias_namespace && item.name == alias_name
-            }) && let ProjectedKind::ForeignType {
-                generic_parameters, ..
-            } = &mut item.kind
+            });
+            if let Some(item) =
+                alias_item_index.and_then(|index| projected[dependency_index].items.get_mut(index))
+                && let ProjectedKind::ForeignType {
+                    generic_parameters, ..
+                } = &mut item.kind
                 && let Ok(parameters) = super::projected_nominal_generic_parameters(
                     &alias.generics,
                     &alias_generics.bindings,
@@ -448,10 +451,9 @@ pub(super) fn project_closed_alias_members(
             {
                 continue;
             }
-            let Some(item) = projected[dependency_index].items.iter_mut().find(|item| {
-                item.rust_path == alias_path
-                    || item.namespace == alias_namespace && item.name == alias_name
-            }) else {
+            let Some(item) =
+                alias_item_index.and_then(|index| projected[dependency_index].items.get_mut(index))
+            else {
                 continue;
             };
             let alias_arguments = alias

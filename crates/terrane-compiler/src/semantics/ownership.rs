@@ -573,6 +573,20 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         .find(|child| child.kind != SyntaxKind::Block)
                 })
                 .flatten();
+            let loop_bindings = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::ForTarget)
+                .into_iter()
+                .flat_map(|target| {
+                    unit.typed_bindings
+                        .iter()
+                        .enumerate()
+                        .filter(move |(_, binding)| {
+                            target.children.iter().any(|name| binding.span == name.span)
+                        })
+                        .map(|(index, _)| index)
+                });
             for child in &node.children {
                 if Some(child) != body {
                     visit(package, unit, child, &mut entry, false, resource_objects)?;
@@ -599,9 +613,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     false,
                     resource_objects,
                 )?;
-                // Validate the back edge: the next iteration starts with the first iteration's
-                // move state, even though only the may-execute-once state leaves the loop.
+                // Loop targets are rebound for each iteration; other move state carries across.
                 let mut next_iteration = after_iteration.clone();
+                for binding in loop_bindings {
+                    next_iteration.remove(&binding);
+                }
                 visit(
                     package,
                     unit,
