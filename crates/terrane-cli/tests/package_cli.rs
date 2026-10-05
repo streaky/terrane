@@ -1173,6 +1173,16 @@ fn native_test_timeout_errors_name_the_invalid_argument() {
 #[test]
 fn stable_build_roles_invalidate_changed_sources_and_isolate_tests() {
     let package = TempPackage::new();
+    let build = package.0.join(".trn/build");
+    let legacy = build.join("0".repeat(64));
+    fs::create_dir_all(&legacy).unwrap();
+    fs::write(legacy.join("terrane-build.toml"), "version = 1\n").unwrap();
+    let unrelated = build.join("notes");
+    fs::create_dir_all(&unrelated).unwrap();
+    fs::write(unrelated.join("keep.txt"), "user-owned").unwrap();
+    let unmarked_hash = build.join("1".repeat(64));
+    fs::create_dir_all(&unmarked_hash).unwrap();
+    fs::write(unmarked_hash.join("keep.txt"), "not-a-generated-crate").unwrap();
     let invoke = |command| {
         let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
             .arg(command)
@@ -1187,6 +1197,17 @@ fn stable_build_roles_invalidate_changed_sources_and_isolate_tests() {
         String::from_utf8(output.stdout).unwrap()
     };
     assert_eq!(invoke("run"), "manifest CLI\n");
+    assert!(!legacy.exists());
+    assert_eq!(
+        fs::read_to_string(unrelated.join("keep.txt")).unwrap(),
+        "user-owned"
+    );
+    assert_eq!(
+        fs::read_to_string(unmarked_hash.join("keep.txt")).unwrap(),
+        "not-a-generated-crate"
+    );
+    fs::remove_dir_all(unrelated).unwrap();
+    fs::remove_dir_all(unmarked_hash).unwrap();
     fs::create_dir_all(package.0.join("tests/unit")).unwrap();
     fs::write(package.0.join("tests/unit/smoke.trn"),
         "namespace cli/app\nfrom /core/errors import throwable\nfrom /core/testing import assert-equal-int\nfunction test-smoke none throws throwable;\n  assert-equal-int; 1, 1\n  return none\n").unwrap();
@@ -1213,4 +1234,56 @@ fn stable_build_roles_invalidate_changed_sources_and_isolate_tests() {
         .collect::<Vec<_>>();
     roles.sort();
     assert_eq!(roles, ["application", "test-unit"]);
+}
+
+#[test]
+fn changed_native_inputs_invalidate_check_stamps_and_remove_unused_platform_support() {
+    let package = TempPackage::new();
+    let mut manifest = fs::read_to_string(package.0.join("package.toml")).unwrap();
+    manifest.push_str("\n[rust-modules]\nadapter = \"rust/adapter.rs\"\n");
+    fs::write(package.0.join("package.toml"), manifest).unwrap();
+    fs::create_dir_all(package.0.join("rust")).unwrap();
+    let adapter = package.0.join("rust/adapter.rs");
+    fs::write(&adapter, "pub const VALUE: u8 = 1;\n").unwrap();
+    fs::write(package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /core/process import arguments\nfrom /core/output import print\nfunction main;\n  actual = arguments;\n  print; actual.length\n").unwrap();
+    let invoke = |command| {
+        Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg(command)
+            .arg(&package.0)
+            .output()
+            .unwrap()
+    };
+    let checked = invoke("check");
+    assert!(checked.status.success(), "{checked:?}");
+    let application = package.0.join(".trn/build/application");
+    let stamp = application.join("artifacts/check-success");
+    assert!(stamp.is_file());
+    for name in ["terrane-platform-support", "terrane-signal-support"] {
+        assert!(application.join("support").join(name).is_dir());
+    }
+    fs::write(package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /core/output import print\nfunction main;\n  print; 'without platform support'\n").unwrap();
+    fs::write(
+        &adapter,
+        "compile_error!(\"changed authored Rust must be checked\");\n",
+    )
+    .unwrap();
+    let rejected = invoke("check");
+    assert!(!rejected.status.success(), "{rejected:?}");
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr).contains("changed authored Rust must be checked"),
+        "{rejected:?}"
+    );
+    assert!(!stamp.exists());
+    for name in ["terrane-platform-support", "terrane-signal-support"] {
+        assert!(!application.join("support").join(name).exists());
+    }
+    fs::write(&adapter, "pub const VALUE: u8 = 2;\n").unwrap();
+    let repaired = invoke("check");
+    assert!(repaired.status.success(), "{repaired:?}");
+    assert!(stamp.is_file());
+    let run = invoke("run");
+    assert!(run.status.success(), "{run:?}");
+    assert_eq!(run.stdout, b"without platform support\n");
 }
