@@ -3,9 +3,17 @@
     {
       "members": {
         "/deps/terrane-opaque-result-witness": [
+          "SelectedLayer",
+          "SelectedLayer.into",
+          "SelectedLayer.serve",
+          "SelectedLayer.try_into",
           "Value",
+          "Wrapper",
           "Wrapper-of-Value-u32",
           "Wrapper-of-Value-u32.value",
+          "Wrapper.into",
+          "Wrapper.try_into",
+          "Wrapper.value",
           "choose",
           "consume",
           "make",

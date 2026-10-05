@@ -1,0 +1,19 @@
+namespace app
+
+from /core/errors import index-error
+from /core/output import print
+
+function selected-index int;
+    print; 'index evaluated'
+    return 0
+
+function main;
+    fields = 'value'.split; ','
+    try
+        print; fields[2]
+    catch index-error
+        print; fields[(selected-index;)]
+        try
+            print; fields[ -1]
+        catch index-error
+            print; 'invalid index caught'

@@ -1,0 +1,57 @@
+namespace app
+
+from /deps/witness import Cell, Factory, Holder, Marker, byte, consume, cycle, echo, make, make_async, make_unsafe, mixed, ordered
+from /core/output import print
+
+function marker-value int; value ref Marker
+    return value.value;
+
+async function async-identity of (T) T; value T
+    return value
+
+async function main;
+    marker-cell = (make of Marker);
+    factory = Factory::new;
+    method-cell = (factory.create of Marker);
+    defaulted Cell of Marker = (make of Marker);
+    print; (consume; marker-cell)
+    print; (consume; method-cell)
+    print; (consume; defaulted)
+    selected int|none = (marker-cell.get;).map; marker-value
+    if selected != none
+        print; selected
+    print; selected != none
+    marker = instance Marker; n0 = 7
+    print; ((ordered of (Marker, bool)); marker, true)
+    mixed-cell Cell of bool = (mixed of (Marker, bool)); marker
+    print; (consume; mixed-cell)
+    inline-byte = (echo of uint8); (byte;)
+    print; (consume; inline-byte)
+    retained-byte uint8 = byte;
+    stored-byte = (echo of uint8); retained-byte
+    print; (consume; stored-byte)
+    unsafe-cell = (unsafe (make_unsafe of Marker);)
+    print; (consume; unsafe-cell)
+    unsafe-method-cell = (unsafe (factory.unsafe_create of Marker);)
+    print; (consume; unsafe-method-cell)
+    left = cycle;
+    right = left.next;
+    returned-left = right.next;
+    print; (returned-left.is_left;)
+    native-int Cell of int64 = (make of int);
+    print; (consume; native-int)
+    static-default = ((Holder of uint8)::make of uint16);
+    print; static-default
+    static-owner = ((Holder of uint8)::with_owner of uint16); retained-byte
+    print; static-owner
+    async-free = await ((make_async of Marker);)
+    async-member = await ((factory.create_async of Marker); marker)
+    print; (consume; async-free), ' ', (consume; async-member)
+    async-free-value int|none = (async-free.get;).map; marker-value
+    if async-free-value != none
+        print; async-free-value
+    async-member-value int|none = (async-member.get;).map; marker-value
+    if async-member-value != none
+        print; async-member-value
+    async-authored string = await ((async-identity of string); 'authored async')
+    print; async-authored

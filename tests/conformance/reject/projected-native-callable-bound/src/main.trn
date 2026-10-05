@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import make
+
+function main;
+    invalid = (make of string);

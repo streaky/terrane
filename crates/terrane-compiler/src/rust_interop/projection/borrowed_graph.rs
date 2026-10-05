@@ -53,6 +53,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
         name: "T".to_owned(),
         input_selected: true,
         rust_bounds: Vec::new(),
+        default: None,
     });
     map.parameters.push(ProjectedParameter {
         name: "operation".to_owned(),
@@ -130,7 +131,9 @@ fn optional_method(
             input_selected: false,
             name: selected.to_owned(),
             rust_bounds: bounds.clone(),
+            default: None,
         }],
+        operation_owner_generics: Vec::new(),
         rust_generic_arguments: Vec::new(),
         result,
         destination_result: Some(ProjectedDestinationResult {

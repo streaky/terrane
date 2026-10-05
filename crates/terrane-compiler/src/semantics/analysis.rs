@@ -68,7 +68,10 @@ fn projected_expression_owners(
             .into_iter()
             .filter_map(|(namespace, owner)| {
                 projection
-                    .projected_member_result_owner(&namespace, &owner, member)
+                    .projected_member_scoped_family_owner(&namespace, &owner, member)
+                    .or_else(|| {
+                        projection.projected_member_result_owner(&namespace, &owner, member)
+                    })
                     .map(|owner| BTreeSet::from([owner]))
                     .or_else(|| {
                         let selector =
@@ -359,6 +362,7 @@ pub(super) fn parse_unit(
         projected_destination_functions: BTreeSet::new(),
         projected_call_specializations: BTreeMap::new(),
         selected_expression_types: BTreeMap::new(),
+        projected_callable_applications: BTreeMap::new(),
         invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
@@ -831,18 +835,6 @@ fn analyze_parsed_with_projection(
     persist_inventory: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
-    let nonclone_foreign_objects = projection
-        .dependencies
-        .iter()
-        .flat_map(|dependency| &dependency.items)
-        .filter_map(|item| match &item.kind {
-            crate::rust_interop::projection::ProjectedKind::ForeignType {
-                cloneable: false,
-                ..
-            } => Some(ObjectIdentity::new(&item.namespace, &item.name)),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
     for unit in &mut units {
         unit.comparable_foreign_objects = projection
             .dependencies
@@ -860,8 +852,6 @@ fn analyze_parsed_with_projection(
             })
             .map(|item| ObjectIdentity::new(&item.namespace, &item.name))
             .collect();
-        unit.nonclone_foreign_objects
-            .clone_from(&nonclone_foreign_objects);
         unit.projected_interfaces_requiring_application = projection
             .dependencies
             .iter()
@@ -1132,6 +1122,7 @@ fn analyze_parsed_with_projection(
     } else {
         bootstrap_prelude()
     };
+    materialize_projected_public_aliases(&imports, &mut namespaces, &projection)?;
     let mut import_warnings = resolve_imports(
         imports,
         &mut namespaces,
@@ -1166,6 +1157,7 @@ fn analyze_parsed_with_projection(
         descriptor_constructs,
         units,
         projection,
+        native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
         referenced_functions: BTreeSet::new(),
         import_warnings,
@@ -1542,9 +1534,28 @@ pub(super) fn resolved_function_contract<'a>(
         .or_else(|| unit.function_aliases.get(name))
 }
 
+fn enqueue_object_identity_dependencies(
+    identity: &ObjectIdentity,
+    queue: &mut Vec<ObjectIdentity>,
+) {
+    for argument in &identity.type_arguments {
+        enqueue_value_type_object_dependencies(argument, queue);
+    }
+    if let Some(application) = &identity.application {
+        enqueue_value_type_object_dependencies(application, queue);
+    }
+    for argument in identity.native_arguments.values() {
+        enqueue_value_type_object_dependencies(argument, queue);
+    }
+    queue.push(identity.base());
+}
+
 fn enqueue_value_type_object_dependencies(value_type: &ValueType, queue: &mut Vec<ObjectIdentity>) {
     match value_type {
-        ValueType::Object(identity) => queue.push(identity.clone()),
+        ValueType::Object(identity)
+        | ValueType::InvocationScopedNative {
+            family: identity, ..
+        } => enqueue_object_identity_dependencies(identity, queue),
         ValueType::Optional(inner) => enqueue_value_type_object_dependencies(inner, queue),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
@@ -1612,7 +1623,7 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
                 let canonical =
                     object.name == object.identity.name && namespace == object.identity.namespace;
                 objects
-                    .entry(object.identity.clone())
+                    .entry(object.identity.base())
                     .and_modify(|existing| {
                         if canonical {
                             existing.clone_from(object);
@@ -1648,15 +1659,14 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
         {
             enqueue_function_contract_object_dependencies(contract, &mut queue);
         }
-        queue.extend(
-            unit.descriptors
-                .iter()
-                .filter(|object| {
-                    object.name != object.identity.name
-                        || object.identity.namespace != unit.namespace
-                })
-                .map(|object| object.identity.clone()),
-        );
+        unit.descriptors
+            .iter()
+            .filter(|object| {
+                object.name != object.identity.name || object.identity.namespace != unit.namespace
+            })
+            .for_each(|object| {
+                enqueue_object_identity_dependencies(&object.identity, &mut queue);
+            });
         let mut visited = BTreeSet::new();
         while let Some(key) = queue.pop() {
             if !visited.insert(key.clone()) {

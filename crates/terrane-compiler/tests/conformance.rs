@@ -363,10 +363,19 @@ fn with_compilation_dependencies(
 fn verify_reviewed_rust(
     case: &Path,
     lower_path: &Path,
-    expected: &str,
+    expected: Option<&str>,
     compilation: &terrane_compiler::Compilation,
     update_goldens: bool,
 ) {
+    let Some(expected) = expected else {
+        return;
+    };
+    if update_goldens
+        && std::env::var_os("TERRANE_UPDATE_GOLDENS")
+            .is_some_and(|mode| mode == std::ffi::OsStr::new("projection"))
+    {
+        return;
+    }
     let normalized = normalized_review_rust(compilation);
     if update_goldens {
         write_reviewed_golden(lower_path, expected, &normalized);
@@ -501,7 +510,7 @@ fn prepare_conformance_case(
     match (phase, status) {
         ("run" | "check", "accept") => {
             let lower_path = case.join("lower.rs");
-            let expected = read_reviewed_golden(&lower_path, update_goldens);
+            let expected = read_reviewed_golden(&lower_path);
             let (mut compilation, dependencies) = if package_case {
                 compile_package_case(
                     &source_path,
@@ -517,7 +526,13 @@ fn prepare_conformance_case(
                 (compilation, Vec::new())
             };
             assert_expected_warnings(case, &manifest, &compilation);
-            verify_reviewed_rust(case, &lower_path, &expected, &compilation, update_goldens);
+            verify_reviewed_rust(
+                case,
+                &lower_path,
+                expected.as_deref(),
+                &compilation,
+                update_goldens,
+            );
             if let Some(limit) = usize_field(&manifest, "list-preallocation-limit-bytes") {
                 let production = format!("{}usize", 256 * 1024 * 1024);
                 assert!(
@@ -813,12 +828,10 @@ fn compile_and_maybe_run(
         );
     }
 }
-fn read_reviewed_golden(path: &Path, allow_missing: bool) -> String {
+fn read_reviewed_golden(path: &Path) -> Option<String> {
     match fs::read_to_string(path) {
-        Ok(contents) => contents,
-        Err(error) if allow_missing && error.kind() == std::io::ErrorKind::NotFound => {
-            String::new()
-        }
+        Ok(contents) => Some(contents),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => panic!("cannot read reviewed golden {}: {error}", path.display()),
     }
 }

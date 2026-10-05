@@ -236,42 +236,6 @@ pub(super) fn project_struct_fields(
     Ok((projected, borrowed_view))
 }
 
-pub(super) fn constructor_generic_instantiation(
-    structure: &Struct,
-    index: &HashMap<Id, Item>,
-    paths: &HashMap<Id, ItemSummary>,
-) -> Result<BTreeMap<String, ProjectedType>, String> {
-    let mut substitutions = BTreeMap::new();
-    for parameter in &structure.generics.params {
-        let ty = match &parameter.kind {
-            GenericParamDefKind::Type {
-                default: Some(default),
-                ..
-            } => project_type(default, index, paths, &substitutions)?,
-            GenericParamDefKind::Type { default: None, .. } => {
-                ProjectedType::Generic(parameter.name.clone())
-            }
-            _ => {
-                return Err(
-                    "constructor-selected native types require owned type parameters".to_owned(),
-                );
-            }
-        };
-        substitutions.insert(parameter.name.clone(), ty);
-    }
-    let (fields, _) = project_struct_fields(structure, index, paths, &substitutions)?;
-    for (name, ty) in &substitutions {
-        if matches!(ty, ProjectedType::Generic(_))
-            && !fields.iter().any(|field| field.ty.contains_generic(name))
-        {
-            return Err(format!(
-                "native representation parameter `{name}` cannot be selected from constructor fields"
-            ));
-        }
-    }
-    Ok(substitutions)
-}
-
 pub(super) fn project_struct_constructor(
     structure: &Struct,
     fields: &[ProjectedField],

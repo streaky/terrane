@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import make_value, consume_value
+
+function main;
+    value = make_value;
+    consume_value; value
+    consume_value; value

@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-native-sync-capability-witness = { path = "fixture-registry/terrane-native-sync-capability-witness-0.1.0" }

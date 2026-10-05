@@ -1,0 +1,18 @@
+namespace app
+
+from /deps/ipnet import IpAddr, IpNet, AddrParseError
+from /deps/tokio/net import SocketAddr
+from /core/output import print
+
+function main;
+    address IpAddr = IpAddr::from_str; '192.0.2.44'
+    socket SocketAddr = SocketAddr::new; address, 3210
+    print; (socket.port;)
+    network IpNet = IpNet::from_str; '192.0.2.44/32'
+    payload IpAddr = socket.ip;
+    print; (network.contains; ref payload)
+    try
+        _invalid = IpAddr::from_str; 'not-an-address'
+        print; 'unexpected parse success'
+    catch AddrParseError
+        print; 'invalid address caught'

@@ -1,0 +1,14 @@
+namespace app
+
+from /deps/witness import Builder, DefaultOnly, make_lane as make-lane
+from /core/output import print
+
+function callback int;
+    return 7
+
+function main;
+    defaulted Builder = Builder::new;
+    attached = defaulted.attach; (make-lane; callback)
+    print; (attached.value;)
+    concrete DefaultOnly = DefaultOnly::new;
+    print; (concrete.value;)

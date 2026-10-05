@@ -1,0 +1,8 @@
+package = "selected-native-auto-traits"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-auto-traits-witness"
+version = "=0.1.0"

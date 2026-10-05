@@ -1,0 +1,30 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "NonClone",
+          "NonClone.into",
+          "NonClone.try_into",
+          "Payload",
+          "Payload.into",
+          "Payload.try_into",
+          "make_value"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.1"
+    }
+  ],
+  "format": 4,
+  "removed": [
+    {
+      "current_version": "0.1.1",
+      "name": "consume_item",
+      "namespace": "/deps/witness",
+      "previous_version": "0.1.0"
+    }
+  ],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

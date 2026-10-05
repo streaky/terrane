@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/terrane-member-graph-witness/left import Left
+from /deps/terrane-member-graph-witness/right import Right
+from /core/output import print
+
+function main;
+  left = Left::new;
+  right Right = left.poison;
+  returned = right.poison;
+  print; (returned.value;)

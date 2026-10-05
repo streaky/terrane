@@ -1,0 +1,8 @@
+package = "projected-string-reuse-and-optional-ref"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.http]
+version = "=1.5.0"
+effects = ["build"]

@@ -3,7 +3,8 @@
     {
       "members": {
         "/deps/contract": [
-          "Doubled"
+          "Doubled",
+          "Response"
         ]
       },
       "name": "contract",

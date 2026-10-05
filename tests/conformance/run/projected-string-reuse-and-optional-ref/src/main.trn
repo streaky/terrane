@@ -1,0 +1,35 @@
+namespace app
+
+from /deps/http import HeaderValue
+from /deps/http/header import InvalidHeaderValue
+from /core/output import print
+
+function parse-twice int; text string
+    try
+        _first = HeaderValue::from_str; text
+        return 1
+    catch InvalidHeaderValue
+        try
+            _second = HeaderValue::from_str; text
+            return 2
+        catch InvalidHeaderValue
+            if text.contains; '\n'
+                return 3
+            return 4
+
+function sensitive bool; header ref HeaderValue
+    return header.is_sensitive;
+
+function mark-sensitive; header ref HeaderValue
+    header.set_sensitive; true
+
+function main;
+    print; (parse-twice; 'valid')
+    print; (parse-twice; 'bad\nvalue')
+    header HeaderValue|none = HeaderValue::from_str; 'value'
+    if header != none
+        print; (sensitive; ref header)
+        mark-sensitive; ref header
+        print; (sensitive; ref header)
+    else
+        print; 'unexpected absence'

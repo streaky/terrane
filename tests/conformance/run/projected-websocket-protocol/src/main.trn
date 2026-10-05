@@ -18,28 +18,25 @@ async function socket-session; socket WebSocket
       if message != none
         kind string = message.variant-name;
         if kind == 'Text'
-          value string|none = (move message).into-Text;
-          if value != none
-            if value == 'shutdown'
-              print; 'close-sent'
-              await (socket.send; (Message::Close; none))
-              return
-            print; 'text', value
-            await (socket.send; (Message::Text; value))
+          native-text = (move message).into_text;
+          value string = native-text.as_str;
+          if value == 'shutdown'
+            print; 'close-sent'
+            await (socket.send; (Message::Close; none))
+            return
+          print; 'text', value
+          await (socket.send; (Message::text; value))
         else if kind == 'Binary'
-          value bytes|none = (move message).into-Binary;
-          if value != none
-            print; 'binary', value.length
-            await (socket.send; (Message::Binary; value))
+          value = (move message).into_data;
+          print; 'binary', (value.len;)
+          await (socket.send; (Message::Binary; move value))
         else if kind == 'Ping'
-          value bytes|none = (move message).into-Ping;
-          if value != none
-            print; 'ping', value.length
-            await (socket.send; (Message::Pong; value))
+          value = (move message).into_data;
+          print; 'ping', (value.len;)
+          await (socket.send; (Message::Pong; move value))
         else if kind == 'Pong'
-          value bytes|none = (move message).into-Pong;
-          if value != none
-            print; 'pong', value.length
+          value = (move message).into_data;
+          print; 'pong', (value.len;)
         else if kind == 'Close'
           print; 'close'
       else

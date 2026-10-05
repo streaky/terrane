@@ -1,0 +1,12 @@
+package = "projected-native-alias-selection-mismatch"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.api]
+package = "terrane-native-alias-facade"
+version = "=0.1.0"
+
+[rust-dependencies.owner]
+package = "terrane-native-alias-owner"
+version = "=0.1.0"

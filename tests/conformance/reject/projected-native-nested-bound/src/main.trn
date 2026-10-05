@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/witness import Outer, CopyOnly
+
+function invalid; value Outer of (CopyOnly of string)
+    return none
+
+function main;
+    return none

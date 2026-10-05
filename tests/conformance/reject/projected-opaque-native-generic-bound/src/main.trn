@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/bounds import CopyOnly
+
+function needs; value CopyOnly of string
+    return none
+
+function main;
+    return none

@@ -521,19 +521,23 @@ fn main() {
         .fields.len() as i128))
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields
-        .iter().map(| field | field.name.to_owned()).collect:: < Vec < String > > ()
-        .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */)).cloned().ok_or_else(| |
-        terrane_collection_support::IndexError::from_usize(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */))), 0 /* terrane-site: case.trn:12:12-12:37 */)),
+        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised({ let
+        __terrane_receiver = &descriptor.fields.iter().map(| field | field.name
+        .to_owned()).collect:: < Vec < String > > (); let __terrane_index =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        0 /* terrane-site: case.trn:12:12-12:37 */); __terrane_receiver
+        .get(__terrane_index).cloned().ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index)) },
+        0 /* terrane-site: case.trn:12:12-12:37 */)),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields.iter()
-        .map(| field | field.external_name.to_owned()).collect:: < Vec < String > > ()
-        .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */)).cloned().ok_or_else(| |
-        terrane_collection_support::IndexError::from_usize(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */))), 1 /* terrane-site: case.trn:12:44-12:78 */))
+        terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_receiver =
+        &descriptor.fields.iter().map(| field | field.external_name.to_owned()).collect::
+        < Vec < String > > (); let __terrane_index =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        1 /* terrane-site: case.trn:12:44-12:78 */); __terrane_receiver
+        .get(__terrane_index).cloned().ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index)) },
+        1 /* terrane-site: case.trn:12:44-12:78 */))
     );
     println!(
         "{}{}{}",

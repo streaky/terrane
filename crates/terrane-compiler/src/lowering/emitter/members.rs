@@ -174,7 +174,7 @@ impl Emitter<'_> {
                 };
                 self.fallible(
                     format!(
-                        "({receiver}).into_unique_vec().into_iter().nth({index}).ok_or_else(|| terrane_collection_support::IndexError::from_usize({index}))"
+                        "{{ let __terrane_receiver = {receiver}; let __terrane_index = {index}; __terrane_receiver.into_unique_vec().into_iter().nth(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index)) }}"
                     ),
                     node,
                 )
@@ -192,7 +192,7 @@ impl Emitter<'_> {
                 if receiver_type == Some(ValueType::StringList) {
                     self.fallible(
                         format!(
-                            "({receiver}).get({index}).cloned().ok_or_else(|| terrane_collection_support::IndexError::from_usize({index}))"
+                            "{{ let __terrane_receiver = &({receiver}); let __terrane_index = {index}; __terrane_receiver.get(__terrane_index).cloned().ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index)) }}"
                         ),
                         node,
                     )
@@ -230,6 +230,13 @@ impl Emitter<'_> {
             }
             Some(ValueType::Reference(_)) => format!("({}).clone()", self.expression(receiver)),
             _ => self.expression(receiver),
+        }
+    }
+
+    pub(super) fn consuming_native_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        match self.value_type(receiver) {
+            Some(value_type @ ValueType::Object(_)) => self.expression_as(receiver, value_type),
+            _ => self.receiver_expression(receiver),
         }
     }
 

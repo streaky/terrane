@@ -221,7 +221,7 @@ fn lower_with_tests(
                 .map(|specialization| specialization.projected_parameters.as_slice())
                 .or_else(|| {
                     emitter
-                        .projected_function_for_call(callee)
+                        .projected_function_for_call(callee, crate::syntax::call_is_unsafe(call))
                         .map(|function| function.parameters.as_slice())
                 });
             let Some(parameters) = parameters else {
@@ -245,7 +245,7 @@ fn lower_with_tests(
                 if argument.kind != SyntaxKind::Name {
                     continue;
                 }
-                let Some(contract) = emitter.contract_for_call(argument) else {
+                let Some(contract) = emitter.contract_for_call(argument, false) else {
                     continue;
                 };
                 let contract = package

@@ -309,6 +309,34 @@ pub(super) fn validate_call_nodes<'a>(
             };
             callee = inner;
         }
+        if callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(class) = callee.children.first()
+            && let Some(identity) = class_designator_identity(unit, class)
+            && let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+            && matches!(
+                item.kind,
+                crate::rust_interop::projection::ProjectedKind::ForeignType { .. }
+                    | crate::rust_interop::projection::ProjectedKind::Enum { .. }
+            )
+            && package
+                .projection
+                .projected_constructor(&identity.namespace, &identity.name)
+                .is_none()
+            && package
+                .projection
+                .projected_struct(&identity.namespace, &identity.name)
+                .is_none_or(|(_, fields, _)| fields.is_empty())
+        {
+            return Err(failure(
+                &unit.source,
+                "T0117",
+                format!(
+                    "native class `{}` has no projected source constructor; use an admitted factory or enum variant",
+                    identity.name
+                ),
+                callee.span,
+            ));
+        }
         let designator = if callee.kind == SyntaxKind::AppliedType {
             callee.children.first().unwrap_or(callee)
         } else {
@@ -475,7 +503,9 @@ fn validate_projected_generic_arguments(
     let [callee, arguments] = node.children.as_slice() else {
         return Ok(());
     };
-    let Some(projected) = projected_function_for_call(package, unit, callee) else {
+    let Some(projected) =
+        projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
+    else {
         return Ok(());
     };
     for (argument, parameter) in arguments.children.iter().zip(&projected.parameters) {
@@ -851,6 +881,24 @@ pub(super) fn bind_projected_generics(
             actual_item.value_type_ref(),
             bindings,
         ),
+        (ValueType::Object(expected), ValueType::Object(actual))
+            if expected.namespace == actual.namespace
+                && expected.name == actual.name
+                && expected.is_unsafe == actual.is_unsafe
+                && expected.type_arguments.len() == actual.type_arguments.len() =>
+        {
+            for (expected, actual) in expected.type_arguments.iter().zip(&actual.type_arguments) {
+                bind_projected_generics(expected, actual, bindings)?;
+            }
+            for (name, expected) in &expected.native_arguments {
+                let actual = actual
+                    .native_arguments
+                    .get(name)
+                    .ok_or_else(|| name.clone())?;
+                bind_projected_generics(expected, actual, bindings)?;
+            }
+            Ok(())
+        }
         (
             ValueType::Function(expected_parameters, expected_result, _),
             ValueType::Function(actual_parameters, actual_result, _),
@@ -1008,11 +1056,14 @@ pub(super) fn resolved_call_type(
             .first()
             .and_then(|child| resolved_call_type(package, unit, child, contracts));
     }
-    if let Some(specialization) =
-        unit.projected_call_specializations
-            .get(&(node.span.file, node.span.start, node.span.end))
-    {
-        return Some(specialization.value_type.clone());
+    if unit.projected_call_specializations.contains_key(&(
+        node.span.file,
+        node.span.start,
+        node.span.end,
+    )) {
+        return infer_value_type(unit, node, &unit.typed_bindings)
+            .ok()
+            .flatten();
     }
     let [callee, arguments] = node.children.as_slice() else {
         return None;
@@ -1410,9 +1461,10 @@ pub(crate) fn selected_callable_contract(
             }
             selected.return_type = Some(result.value_type());
         }
+        canonicalize_selected_contract(package, &mut selected);
         return Some(selected);
     }
-    let (selected, substitutions) = super::generics::select_unit_callable_contract(
+    let (mut selected, substitutions) = super::generics::select_unit_callable_contract(
         Some(package),
         unit,
         call,
@@ -1445,7 +1497,20 @@ pub(crate) fn selected_callable_contract(
             return None;
         }
     }
+    canonicalize_selected_contract(package, &mut selected);
     Some(selected)
+}
+
+fn canonicalize_selected_contract(package: &SemanticPackage, contract: &mut FunctionContract) {
+    for value_type in contract
+        .parameters
+        .iter_mut()
+        .filter_map(|parameter| parameter.value_type.as_mut())
+        .chain(contract.return_type.iter_mut())
+        .chain(contract.thrown_types.iter_mut())
+    {
+        super::objects::canonicalize_native_value_type(package, value_type);
+    }
 }
 
 #[cfg(test)]

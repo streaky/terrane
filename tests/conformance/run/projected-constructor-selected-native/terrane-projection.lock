@@ -1,9 +1,6 @@
 {
-  "format": 4,
   "dependencies": [
     {
-      "name": "witness",
-      "version": "0.1.1",
       "members": {
         "/deps/witness": [
           "Address",
@@ -32,10 +29,13 @@
           "printable_text",
           "text_length"
         ]
-      }
+      },
+      "name": "witness",
+      "version": "0.1.1"
     }
   ],
+  "format": 4,
   "removed": [],
-  "source": "Local",
-  "rustdoc_format": 57
+  "rustdoc_format": 57,
+  "source": "Local"
 }

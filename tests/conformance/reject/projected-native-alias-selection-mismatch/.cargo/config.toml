@@ -1,0 +1,3 @@
+[patch.crates-io]
+terrane-native-alias-facade = { path = "fixture-registry/terrane-native-alias-facade-0.1.0" }
+terrane-native-alias-owner = { path = "fixture-registry/terrane-native-alias-owner-0.1.0" }

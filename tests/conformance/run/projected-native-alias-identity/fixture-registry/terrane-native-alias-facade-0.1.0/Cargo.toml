@@ -1,0 +1,10 @@
+[package]
+name = "terrane-native-alias-facade"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+terrane-native-alias-owner = "=0.1.0"

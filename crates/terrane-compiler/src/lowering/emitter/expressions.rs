@@ -105,12 +105,17 @@ impl Emitter<'_> {
         {
             operand = grouped;
         }
-        let callee = (operand.kind == SyntaxKind::CallExpression)
-            .then(|| operand.children.first())
-            .flatten();
-        let contract = callee.and_then(|callee| self.contract_for_call(callee));
-        let projected =
-            callee.is_some_and(|callee| self.projected_function_for_call(callee).is_some());
+        let call = (operand.kind == SyntaxKind::CallExpression).then_some(operand);
+        let callee = call.and_then(|call| call.children.first());
+        let contract = callee.and_then(|callee| {
+            self.contract_for_call(callee, call.is_some_and(crate::syntax::call_is_unsafe))
+        });
+        let projected = call.is_some_and(|call| {
+            call.children.first().is_some_and(|callee| {
+                self.projected_function_for_call(callee, crate::syntax::call_is_unsafe(call))
+                    .is_some()
+            })
+        });
         let function_value_throws = contract.is_none()
             && callee
                 .and_then(|callee| self.value_type(callee))
@@ -125,7 +130,7 @@ impl Emitter<'_> {
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
         {
-            let contract = self.contract_for_call(callee);
+            let contract = self.contract_for_call(callee, crate::syntax::call_is_unsafe(node));
             let callable_throws = contract.is_none()
                 && self.value_type(callee).is_some_and(|value_type| {
                     matches!(
@@ -291,7 +296,8 @@ impl Emitter<'_> {
         if node.kind != SyntaxKind::AppliedType {
             return None;
         }
-        let contract = self.contract_for_call(node.children.first()?)?;
+        let contract =
+            self.contract_for_call(node.children.first()?, crate::syntax::call_is_unsafe(node))?;
         let (ValueType::Function(parameters, result, _)
         | ValueType::AsyncFunction(parameters, result, _, _)) = self.value_type(node)?
         else {
@@ -537,7 +543,8 @@ impl Emitter<'_> {
             }
             let expected = if producer.kind == SyntaxKind::CallExpression
                 && let Some(callee) = producer.children.first()
-                && let Some(function) = self.projected_function_for_call(callee)
+                && let Some(function) = self
+                    .projected_function_for_call(callee, crate::syntax::call_is_unsafe(producer))
             {
                 let replacements = function
                     .generic_parameters
@@ -826,8 +833,12 @@ impl Emitter<'_> {
             ValueType::PlatformStreamHandle if node.kind == SyntaxKind::MemberExpression => {
                 format!("({}).clone()", self.expression(node))
             }
-            ValueType::Object(name)
-                if node.kind == SyntaxKind::Name && self.object_owns_resource(&name) =>
+            ValueType::Object(_)
+                if node.kind == SyntaxKind::Name
+                    && self
+                        .value_type(node)
+                        .as_ref()
+                        .is_some_and(|value_type| self.value_type_owns_resource(value_type)) =>
             {
                 self.expression(node)
             }
@@ -836,6 +847,7 @@ impl Emitter<'_> {
             {
                 format!("({}).terrane_separate()", self.expression(node))
             }
+
             ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
             | ValueType::List(_)
             | ValueType::Map(_, _)
@@ -888,7 +900,7 @@ impl Emitter<'_> {
                     }
                     _ => (InvocationMode::Shared, false),
                 };
-                if let Some(contract) = self.contract_for_call(node) {
+                if let Some(contract) = self.contract_for_call(node, false) {
                     let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);
@@ -944,7 +956,7 @@ impl Emitter<'_> {
                     .expect("bound object method receiver must have a static type");
                 let receiver = self.expression_as(receiver, receiver_type);
                 let expected_mode = expected_effects.modes.written;
-                let method_contract = self.contract_for_call(node);
+                let method_contract = self.contract_for_call(node, false);
                 let actual_mode = method_contract.map_or(InvocationMode::Shared, |contract| {
                     contract.written_invocation_mode
                 });
@@ -1007,7 +1019,7 @@ impl Emitter<'_> {
                     &value_type,
                     Some(ValueType::Function(_, _, effects)) if effects.requires_throwing_abi()
                 );
-                let method_contract = self.contract_for_call(node);
+                let method_contract = self.contract_for_call(node, false);
                 let actual_throws =
                     method_contract.map_or(value_requires_throwing_abi, |contract| {
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi)
@@ -1055,7 +1067,7 @@ impl Emitter<'_> {
                         "{{ let {mutable}receiver = {receiver}; {constructor}(move |{declarations}| {body}) }}"
                     );
                 }
-                let method_name = self.contract_for_call(node).map_or_else(
+                let method_name = self.contract_for_call(node, false).map_or_else(
                     || rust_name(self.text(member)),
                     |contract| function_name(self.package, contract),
                 );
@@ -1090,7 +1102,7 @@ impl Emitter<'_> {
                     }
                     _ => (InvocationMode::Shared, false),
                 };
-                if let Some(contract) = self.contract_for_call(node) {
+                if let Some(contract) = self.contract_for_call(node, false) {
                     let function = function_name(self.package, contract);
                     let actual_throws =
                         self.contract_requires_throwing_abi(contract, value_requires_throwing_abi);

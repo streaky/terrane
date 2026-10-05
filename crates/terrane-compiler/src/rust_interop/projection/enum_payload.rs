@@ -240,6 +240,7 @@ pub(super) fn project_multi_enum_payload(
             name: name.clone(),
             input_selected: true,
             rust_bounds: Vec::new(),
+            default: None,
         })
         .collect::<Vec<_>>();
     let payload_name = format!("{enum_name}-{variant}");

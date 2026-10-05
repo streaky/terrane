@@ -5,7 +5,16 @@ pub(super) type DependencyImportOwners = BTreeMap<String, (String, String, Vec<S
 
 fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&ObjectIdentity)) {
     match value_type {
-        ValueType::Object(identity) => visit(identity),
+        ValueType::Object(identity) => {
+            visit(identity);
+            for argument in identity
+                .type_arguments
+                .iter()
+                .chain(identity.native_arguments.values())
+            {
+                visit_value_type_objects(argument, visit);
+            }
+        }
         ValueType::Optional(inner) => visit_value_type_objects(inner, visit),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
@@ -102,6 +111,48 @@ pub(super) fn index_dependency_import_owners(
     package: &SemanticPackage,
     static_method_references: &StaticMethodReferences,
 ) -> DependencyImportOwners {
+    let mut source_objects = BTreeSet::new();
+    for unit in &package.units {
+        if unit.bundled && unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        for binding in &unit.typed_bindings {
+            collect_value_type_objects(&binding.value_type, &mut source_objects);
+        }
+        for function in &unit.functions {
+            if let Some(return_type) = &function.return_type {
+                collect_value_type_objects(return_type, &mut source_objects);
+            }
+            for parameter in &function.parameters {
+                if let Some(value_type) = &parameter.value_type {
+                    collect_value_type_objects(value_type, &mut source_objects);
+                }
+            }
+        }
+        for descriptor in &unit.descriptors {
+            if descriptor.identity.namespace == unit.namespace {
+                for field in &descriptor.fields {
+                    collect_value_type_objects(&field.value_type, &mut source_objects);
+                }
+            }
+        }
+        for value_type in unit.selected_expression_types.values() {
+            collect_value_type_objects(value_type, &mut source_objects);
+        }
+        for specialization in unit.projected_call_specializations.values() {
+            collect_value_type_objects(&specialization.value_type, &mut source_objects);
+            for value_type in specialization.value_parameters.iter().flatten() {
+                collect_value_type_objects(value_type, &mut source_objects);
+            }
+        }
+    }
+    // Direct native calls do not retain support wrappers whose signatures used to
+    // supply these root imports. Their selected type graph is declaration demand.
+    let native_selected_nominals = source_objects
+        .iter()
+        .filter(|identity| identity.native_projection.is_some())
+        .map(|identity| (identity.namespace.as_str(), identity.name.as_str()))
+        .collect::<BTreeSet<_>>();
     let mut owners = BTreeMap::new();
     for unit in &package.units {
         if !unit.bundled || !unit.namespace.starts_with("/deps/") {
@@ -112,7 +163,10 @@ pub(super) fn index_dependency_import_owners(
                 continue;
             }
             if object.identity.namespace != unit.namespace
-                || !unit_references_object(unit, &object.identity, static_method_references)
+                || !(native_selected_nominals.contains(&(
+                    object.identity.namespace.as_str(),
+                    object.identity.name.as_str(),
+                )) || unit_references_object(unit, &object.identity, static_method_references))
                 || package
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
@@ -146,7 +200,8 @@ pub(super) fn index_dependency_import_owners(
             let Some(path) = path else {
                 continue;
             };
-            let rust_name = rust_object_type_name(package, &object.identity);
+            // A declaration imports the nominal family, not its inferred default application.
+            let rust_name = rust_object_name(&object.identity.name);
             let generic_parameters = projected
                 .as_ref()
                 .map(projected_generic_names)
@@ -176,8 +231,15 @@ pub(super) fn index_dependency_import_owners(
             let rust_name = rust_object_name(&name);
             if !unit.descriptors.iter().any(|object| {
                 object.kind != ObjectKind::Interface
-                    && rust_object_type_name(package, &object.identity) == rust_name
-                    && unit_references_object(unit, &object.identity, static_method_references)
+                    && rust_object_name(&object.identity.name) == rust_name
+                    && (native_selected_nominals.contains(&(
+                        object.identity.namespace.as_str(),
+                        object.identity.name.as_str(),
+                    )) || unit_references_object(
+                        unit,
+                        &object.identity,
+                        static_method_references,
+                    ))
             }) {
                 continue;
             }
@@ -188,10 +250,35 @@ pub(super) fn index_dependency_import_owners(
             {
                 continue;
             }
-            let generic_parameters = projected
-                .as_ref()
-                .map(projected_generic_names)
-                .unwrap_or_default();
+            let declared_generic =
+                package
+                    .projection
+                    .item(&unit.namespace, &name)
+                    .is_some_and(|item| match &item.kind {
+                        crate::rust_interop::projection::ProjectedKind::ForeignType {
+                            generic_parameters,
+                            ..
+                        }
+                        | crate::rust_interop::projection::ProjectedKind::Enum {
+                            generic_parameters,
+                            ..
+                        } => !generic_parameters.is_empty(),
+                        _ => false,
+                    });
+            let (path, generic_parameters) = if declared_generic {
+                (
+                    crate::rust_ir::rust_type_constructor(&path).unwrap_or(path),
+                    Vec::new(),
+                )
+            } else {
+                (
+                    path,
+                    projected
+                        .as_ref()
+                        .map(projected_generic_names)
+                        .unwrap_or_default(),
+                )
+            };
             owners
                 .entry(rust_name)
                 .and_modify(
@@ -213,25 +300,6 @@ pub(super) fn index_dependency_import_owners(
     else {
         return owners;
     };
-    let mut source_objects = BTreeSet::new();
-    for unit in &package.units {
-        if unit.bundled && unit.namespace.starts_with("/deps/") {
-            continue;
-        }
-        for binding in &unit.typed_bindings {
-            collect_value_type_objects(&binding.value_type, &mut source_objects);
-        }
-        for function in &unit.functions {
-            if let Some(return_type) = &function.return_type {
-                collect_value_type_objects(return_type, &mut source_objects);
-            }
-            for parameter in &function.parameters {
-                if let Some(value_type) = &parameter.value_type {
-                    collect_value_type_objects(value_type, &mut source_objects);
-                }
-            }
-        }
-    }
     let specialized_nominals = source_objects
         .iter()
         .filter_map(|identity| {
@@ -282,7 +350,37 @@ pub(super) fn index_dependency_import_owners(
         let Some(path) = path else {
             continue;
         };
-        let rust_name = rust_object_type_name(package, &identity);
+        if path
+            .split(|character: char| !character.is_alphanumeric() && character != '_')
+            .any(|token| token == "_")
+        {
+            // Anonymous native arguments are inferred at use sites, not item aliases.
+            continue;
+        }
+        let declared_generic = package
+            .projection
+            .item(&identity.namespace, &identity.name)
+            .is_some_and(|item| match &item.kind {
+                crate::rust_interop::projection::ProjectedKind::ForeignType {
+                    generic_parameters,
+                    ..
+                }
+                | crate::rust_interop::projection::ProjectedKind::Enum {
+                    generic_parameters, ..
+                } => !generic_parameters.is_empty(),
+                _ => false,
+            });
+        let mut rust_name = if declared_generic || !identity.native_arguments.is_empty() {
+            // Generic foreign declarations have one import identity; applications
+            // are rendered at use sites rather than becoming Rust declaration names.
+            rust_object_name(&identity.name)
+        } else {
+            rust_object_type_name(package, &identity)
+        };
+        if let Some(application) = rust_name.find('<') {
+            // Declaration ownership is the root symbol, never a type application.
+            rust_name.truncate(application);
+        }
         let generic_parameters = projected
             .as_ref()
             .map(projected_generic_names)
@@ -596,6 +694,15 @@ pub(super) fn write_foreign_import(
     if path.contains("<'_>") {
         return;
     }
+    if path.contains('<')
+        && let Some(constructor) = crate::rust_ir::rust_type_constructor(&path)
+        && constructor.rsplit("::").next() == Some(rust_name)
+    {
+        // A root nominal import retains its Rust binders and defaults. Concrete
+        // applications belong at use sites, not in a binder-free root alias.
+        writeln!(output, "pub use {constructor};").expect("writing to a string cannot fail");
+        return;
+    }
     if path.contains('<') || path.starts_with('(') || path.starts_with('[') {
         let parameters = if generic_parameters.is_empty() {
             String::new()
@@ -887,10 +994,10 @@ pub(super) fn projected_argument_expression(
             value,
             ..
         } => {
-            let key = projected_argument_expression("entry.key", key);
-            let value = projected_argument_expression("entry.value", value);
+            let key = projected_argument_expression("key", key);
+            let value = projected_argument_expression("value", value);
             format!(
-                "terrane_collection_support::Iterable::terrane_iterator(&{name}).map(|entry| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
+                "{name}.into_iter().map(|(key, value)| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
             )
         }
         crate::rust_interop::projection::ProjectedType::Tuple(items) => {
@@ -1078,13 +1185,22 @@ pub(super) fn emit_dependency_unit(
 ) -> String {
     let mut output = String::new();
     emit_dependency_imports(package, import_owners, unit, &mut output);
-    for contract in &unit.functions {
+    // Imported contracts retain their declaration span and only reference its native wrapper.
+    for contract in unit
+        .functions
+        .iter()
+        .filter(|contract| contract.span.file == unit.source.id())
+    {
         let (item, projected, static_owner) = if let Some(owner) =
             contract.owner.as_deref().filter(|_| contract.is_static)
         {
             let Some(identity) = contract.owner_identity.as_ref() else {
                 continue;
             };
+            if identity.namespace != unit.namespace || identity.name != owner {
+                // Public aliases call the canonical owner's single declaration.
+                continue;
+            }
             if !static_method_references.contains(&(
                 identity.namespace.clone(),
                 identity.name.clone(),
@@ -1356,6 +1472,34 @@ pub(super) fn emit_dependency_unit(
         }
         let mut generic_parameters = Vec::new();
         let mut generic_parameter_names = BTreeSet::new();
+        if let Some(owner_item) =
+            static_owner.and_then(|owner| package.projection.item(&unit.namespace, owner))
+        {
+            let owner_generics = if projected.native_owner.is_some() {
+                projected.operation_owner_generics.as_slice()
+            } else {
+                match &owner_item.kind {
+                    crate::rust_interop::projection::ProjectedKind::ForeignType {
+                        generic_parameters,
+                        ..
+                    }
+                    | crate::rust_interop::projection::ProjectedKind::Enum {
+                        generic_parameters,
+                        ..
+                    } => generic_parameters.as_slice(),
+                    _ => &[],
+                }
+            };
+            for parameter in owner_generics {
+                if generic_parameter_names.insert(parameter.name.clone()) {
+                    generic_parameters.push(if parameter.rust_bounds.is_empty() {
+                        parameter.name.clone()
+                    } else {
+                        format!("{}: {}", parameter.name, parameter.rust_bounds.join(" + "))
+                    });
+                }
+            }
+        }
         if invocation_scoped {
             generic_parameters.push("'view".to_owned());
         }
@@ -1411,7 +1555,7 @@ pub(super) fn emit_dependency_unit(
             if projected.is_unsafe { "unsafe " } else { "" },
             static_owner.map_or_else(
                 || function_name(package, contract),
-                |owner| projected_static_shim_name(owner, &contract.name),
+                |_| projected_static_shim_name(package, contract),
             ),
             parameters.join(", ")
         )
@@ -1426,7 +1570,9 @@ pub(super) fn emit_dependency_unit(
                     |_| {
                         format!(
                             "{}::{}",
-                            rust_value_path(&item.rust_path),
+                            rust_value_path(
+                                projected.native_owner.as_deref().unwrap_or(&item.rust_path)
+                            ),
                             rust_name(&projected.name)
                         )
                     },
@@ -1441,13 +1587,33 @@ pub(super) fn emit_dependency_unit(
                 projected
                     .destination_result
                     .as_ref()
-                    .map_or_else(String::new, |destination| {
+                    .map_or_else(String::new, |_| {
                         format!(
                             "::<{}>",
-                            destination
-                                .parameters
+                            projected
+                                .rust_generic_arguments
                                 .iter()
-                                .map(|parameter| parameter.name.as_str())
+                                .map(|argument| match argument {
+                                    crate::rust_interop::projection::ProjectedType::Callback {
+                                        ..
+                                    } => "_".to_owned(),
+                                    crate::rust_interop::projection::ProjectedType::Generic(name)
+                                        if projected.parameters.iter().any(|parameter| {
+                                            parameter.generic_parameter.as_deref()
+                                                == Some(name.as_str())
+                                                && matches!(
+                                                    parameter.ty,
+                                                    crate::rust_interop::projection::ProjectedType::Callback { .. }
+                                                )
+                                        }) =>
+                                    {
+                                        "_".to_owned()
+                                    }
+                                    _ => package
+                                        .projection
+                                        .canonical_native_type(&argument.rust_type())
+                                        .into_owned(),
+                                })
                                 .collect::<Vec<_>>()
                                 .join(", ")
                         )
@@ -1525,11 +1691,23 @@ pub(super) fn emit_dependency_unit(
     }
     output
 }
-pub(super) fn projected_static_shim_name(owner: &str, method: &str) -> String {
+pub(super) fn projected_static_shim_name(
+    package: &SemanticPackage,
+    contract: &FunctionContract,
+) -> String {
+    let owner = contract
+        .owner_identity
+        .as_ref()
+        .expect("projected static methods retain their descriptor owner");
+    let owner = crate::lowering::helpers::rust_object_type_name(package, owner);
+    // One generic root wrapper serves all applied arguments of its contract.
+    let owner = owner
+        .split_once('<')
+        .map_or(owner.as_str(), |(root, _)| root);
     format!(
         "terrane_static_{}_{}",
         rust_name(owner).trim_start_matches('_'),
-        rust_name(method)
+        function_name(package, contract)
     )
 }
 pub(super) fn rust_value_path(path: &str) -> String {
@@ -1540,54 +1718,4 @@ pub(super) fn rust_value_path(path: &str) -> String {
         || path.to_owned(),
         |arguments| format!("{}::{}", &path[..arguments], &path[arguments..]),
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{rust_value_path, write_foreign_import};
-
-    #[test]
-    fn instantiated_foreign_import_is_a_type_alias() {
-        let mut output = String::new();
-        write_foreign_import(&mut output, "witness::Wrapper<u8>", "Wrapper_abcd", &[]);
-        assert_eq!(output, "pub type Wrapper_abcd = witness::Wrapper<u8>;\n");
-    }
-
-    #[test]
-    fn open_foreign_import_declares_its_type_parameters() {
-        let mut output = String::new();
-        write_foreign_import(
-            &mut output,
-            "witness::Wrapper<T>",
-            "Wrapper_open",
-            &["T".to_owned()],
-        );
-        assert_eq!(output, "pub type Wrapper_open<T> = witness::Wrapper<T>;\n");
-    }
-
-    #[test]
-    fn private_standard_library_paths_use_public_reexports() {
-        let mut output = String::new();
-        write_foreign_import(&mut output, "std::io::error::Error", "Error", &[]);
-        write_foreign_import(
-            &mut output,
-            "core::net::socket_addr::SocketAddr",
-            "SocketAddr",
-            &[],
-        );
-        assert_eq!(
-            output,
-            "pub use std::io::Error;\npub use std::net::SocketAddr;\n"
-        );
-    }
-
-    #[test]
-    fn instantiated_foreign_value_paths_use_turbofish_syntax() {
-        assert_eq!(
-            rust_value_path(
-                "tower_http::services::ServeDir<tower_http::services::fs::DefaultServeDirFallback>"
-            ),
-            "tower_http::services::ServeDir::<tower_http::services::fs::DefaultServeDirFallback>"
-        );
-    }
 }

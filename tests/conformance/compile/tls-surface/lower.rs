@@ -1617,20 +1617,19 @@ pub async fn lookup_dns(
             __terrane_list_append_0
                 .push(
                     __terrane_raised(
-                        raw_candidates
-                            .get(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
-                                    0 /* terrane-site: core/networking.trn:328:28-328:49 */,
-                                ),
-                            )
-                            .cloned()
-                            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
-                                    0 /* terrane-site: core/networking.trn:328:28-328:49 */,
-                                ),
-                            )),
+                        {
+                            let __terrane_receiver = &raw_candidates;
+                            let __terrane_index = __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                0 /* terrane-site: core/networking.trn:328:28-328:49 */,
+                            );
+                            __terrane_receiver
+                                .get(__terrane_index)
+                                .cloned()
+                                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                                    __terrane_index,
+                                ))
+                        },
                         0 /* terrane-site: core/networking.trn:328:28-328:49 */,
                     ),
                 );

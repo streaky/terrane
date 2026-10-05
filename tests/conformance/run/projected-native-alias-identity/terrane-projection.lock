@@ -1,0 +1,71 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/api": [
+          "Alias",
+          "Alias.clone",
+          "Alias.into",
+          "Alias.into_value",
+          "Alias.try_into",
+          "Alias::new",
+          "OtherHolder",
+          "OtherHolder.clone",
+          "OtherHolder.into",
+          "OtherHolder.into_value",
+          "OtherHolder.try_into",
+          "OtherHolder::new",
+          "PublicHolder",
+          "PublicHolder.clone",
+          "PublicHolder.into",
+          "PublicHolder.into_value",
+          "PublicHolder.try_into",
+          "PublicHolder::new",
+          "PublicValue",
+          "PublicValue.into",
+          "PublicValue.into_value",
+          "PublicValue.try_into",
+          "PublicValue::new",
+          "StringAlias",
+          "StringAlias.clone",
+          "StringAlias.into",
+          "StringAlias.into_value",
+          "StringAlias.try_into",
+          "StringAlias::new",
+          "make_default",
+          "make_string",
+          "make_string_default",
+          "take_byte",
+          "take_text"
+        ]
+      },
+      "name": "api",
+      "version": "0.1.0"
+    },
+    {
+      "members": {
+        "/deps/owner": [
+          "Holder",
+          "Holder.clone",
+          "Holder.into",
+          "Holder.into_value",
+          "Holder.try_into",
+          "Holder::new",
+          "PublicValue",
+          "PublicValue.into",
+          "PublicValue.into_value",
+          "PublicValue.try_into",
+          "PublicValue::new",
+          "make_owner",
+          "owner_byte"
+        ]
+      },
+      "name": "owner",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

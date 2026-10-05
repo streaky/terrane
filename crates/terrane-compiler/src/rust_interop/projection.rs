@@ -61,7 +61,7 @@ use source_rendering::{
     inventory_member_syntax_gap, projected_item_for_foreign, projected_item_functions,
     projected_source_dependencies, propagate_partial_contract_requirements, render_demand_sites,
     render_foreign_declaration, render_required_projected_declarations,
-    render_unavailable_projection, unavailable_member_map,
+    render_unavailable_projection, source_foreign_aliases, unavailable_member_map,
 };
 use type_rendering::{
     canonicalize_rust_path, instantiated_nominal_name, instantiated_type_name, nominal_generics,
@@ -73,7 +73,7 @@ use history::{ProjectionHistory, apply_projection_history};
 
 pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "245";
+const PROJECTION_SCHEMA: &str = "258";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
@@ -87,11 +87,11 @@ pub struct Projection {
     #[serde(default)]
     pub content_hash: String,
     pub dependencies: Vec<ProjectedDependency>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub bound_dependencies: Vec<ProjectedBoundDependency>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub native_owner_aliases: BTreeMap<String, String>,
     pub containment: Containment,
+    #[serde(default)]
+    pub bound_dependencies: Vec<ProjectedBoundDependency>,
     #[serde(default)]
     pub source: ProjectionSource,
     #[serde(default)]
@@ -104,6 +104,14 @@ pub struct Projection {
     pub removed: Vec<RemovedItem>,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedNativeAlias {
+    pub native_type: ProjectedType,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_parameters: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub generic_defaults: Vec<Option<ProjectedType>>,
+}
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedBoundDependency {
     pub name: String,
@@ -237,6 +245,8 @@ pub struct ProjectedDependency {
     pub version: String,
     pub items: Vec<ProjectedItem>,
     pub declined: Vec<DeclinedItem>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub native_alias_identities: BTreeMap<String, ProjectedNativeAlias>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) partial_declines: Vec<PartialProjectionRecord>,
 }
@@ -524,6 +534,10 @@ pub struct ProjectedFunction {
     pub parameters: Vec<ProjectedParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generic_parameters: Vec<ProjectedGenericParameter>,
+    /// Inherent impl bounds, keyed by the selected nominal owner's generic slots.
+    /// These do not introduce method-owned generic arguments.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub operation_owner_generics: Vec<ProjectedGenericParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rust_generic_arguments: Vec<ProjectedType>,
     pub result: ProjectedType,
@@ -553,6 +567,8 @@ pub struct ProjectedGenericParameter {
     pub name: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rust_bounds: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<ProjectedType>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1140,18 +1156,34 @@ fn projected_type_owner(ty: &ProjectedType) -> Option<&str> {
 fn projected_owner_path_matches(candidate: &str, owner: &str) -> bool {
     candidate == owner
         || candidate
+            .split_once('<')
+            .is_some_and(|(constructor, _)| constructor == owner)
+        || candidate
             .strip_prefix(owner)
             .is_some_and(|suffix| suffix.starts_with('<'))
 }
 
+fn projected_item_for_native_owner<'a>(
+    items: impl Iterator<Item = &'a ProjectedItem>,
+    name: &str,
+    owner_path: &str,
+) -> Option<&'a ProjectedItem> {
+    let owner_path = owner_path
+        .split_once('<')
+        .map_or(owner_path, |(base, _)| base);
+    let mut matching = items.filter(|item| {
+        item.name == name && projected_owner_path_matches(&item.rust_path, owner_path)
+    });
+    let item = matching.next()?;
+    matching.next().is_none().then_some(item)
+}
+
 impl Projection {
-    /// Renders the projected dependency sources required by `imports`, limiting foreign member
-    /// declarations and their type graph to member names that occur in the importing package.
+    /// Renders imported projected source units with requested members.
     ///
     /// # Errors
     ///
-    /// Returns an error when an imported projected name is ambiguous or demanded projected sources
-    /// form a cycle.
+    /// Returns an error when an imported projected name is ambiguous.
     pub fn source_for_imports_with_members(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
@@ -1172,116 +1204,146 @@ impl Projection {
             .iter()
             .flat_map(|dependency| dependency.items.iter())
             .collect::<Vec<_>>();
+        let canonical_members =
+            source_rendering::source_member_demands(self, &all_items, demanded_members);
+        let demanded_members = &canonical_members;
         let imports = expanded_source_imports(&all_items, imports, demanded_members);
-        let mut sources = Vec::new();
-        for (namespace, names) in &imports {
-            for name in names {
-                if let Some(details) = self.item_ambiguity(namespace, name) {
-                    return Err(format!(
-                        "projected import `{namespace}::{name}` is ambiguous: {details}"
-                    ));
-                }
-            }
-            let selected = all_items
-                .iter()
-                .copied()
-                .filter(|item| item.namespace == *namespace && names.contains(&item.name))
-                .collect::<Vec<_>>();
-            if selected.is_empty() {
-                continue;
-            }
-            let foreign = collect_source_foreign(&all_items, &selected, demanded_members);
-            let mut aliases = foreign_aliases(&foreign);
-            let distinct_aliases = aliases.clone();
-            for (rust_path, alias) in &mut aliases {
-                let Some(item) =
-                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
-                else {
-                    continue;
-                };
-                if item.namespace == *namespace {
-                    alias.clone_from(&foreign[rust_path]);
-                } else if let Some(distinct_alias) = distinct_aliases.get(&item.rust_path) {
-                    alias.clone_from(distinct_alias);
-                }
-            }
-            let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
-            ordered_foreign.sort_by_key(|(rust_path, name)| {
-                let projected_item = projected_item_for_foreign(&all_items, rust_path, name);
-                let cross_namespace =
-                    projected_item.is_some_and(|item| item.namespace != *namespace);
-                let dependency_count = all_items
-                    .iter()
-                    .copied()
-                    .find(|item| item.rust_path == **rust_path)
-                    .and_then(|item| match &item.kind {
-                        ProjectedKind::ForeignType {
-                            methods,
-                            static_methods,
-                            ..
-                        } => Some(
-                            methods
-                                .iter()
-                                .chain(static_methods)
-                                .map(|method| foreign_function_dependency_count(method, name))
-                                .sum::<usize>(),
-                        ),
-                        _ => None,
-                    })
-                    .unwrap_or_default();
-                (!cross_namespace, dependency_count, aliases.get(*rust_path))
-            });
-            let source_dependencies =
-                projected_source_dependencies(&ordered_foreign, &all_items, namespace);
-            let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
-            let mut rendered_foreign = BTreeSet::new();
-            for (rust_path, _) in ordered_foreign {
-                let name = &aliases[rust_path];
-                let projected_item =
-                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path]);
-                let declaration_path =
-                    projected_item.map_or(rust_path.as_str(), |item| item.rust_path.as_str());
-                if !rendered_foreign.insert(declaration_path) {
-                    continue;
-                }
-                render_foreign_declaration(
-                    &mut text,
+        let mut sources = imports
+            .iter()
+            .map(|(namespace, names)| {
+                self.render_imported_namespace(
                     namespace,
-                    name,
-                    projected_item,
-                    &aliases,
+                    names,
+                    &all_items,
                     demanded_members,
                     unavailable_members,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        sources.retain(|(_, source, _)| !source.is_empty());
+        Ok(Self::finalize_projected_sources(
+            sources,
+            allow_namespace_cycles,
+        ))
+    }
+
+    fn render_imported_namespace(
+        &self,
+        namespace: &str,
+        names: &BTreeSet<String>,
+        all_items: &[&ProjectedItem],
+        demanded_members: &ProjectedMemberDemands,
+        unavailable_members: Option<&UnavailableMemberMap<'_>>,
+    ) -> Result<(String, String, BTreeSet<String>), String> {
+        for name in names {
+            if let Some(details) = self.item_ambiguity(namespace, name) {
+                return Err(format!(
+                    "projected import `{namespace}::{name}` is ambiguous: {details}"
+                ));
+            }
+        }
+        let selected = all_items
+            .iter()
+            .copied()
+            .filter(|item| item.namespace == namespace && names.contains(&item.name))
+            .collect::<Vec<_>>();
+        if selected.is_empty() {
+            return Ok((namespace.to_owned(), String::new(), BTreeSet::new()));
+        }
+        let foreign = collect_source_foreign(all_items, &selected, demanded_members);
+        let aliases = source_foreign_aliases(&foreign, all_items, namespace);
+        let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
+        ordered_foreign.sort_by_key(|(rust_path, name)| {
+            let projected_item = projected_item_for_foreign(all_items, rust_path, name);
+            let cross_namespace = projected_item.is_some_and(|item| item.namespace != namespace);
+            let dependency_count = all_items
+                .iter()
+                .copied()
+                .find(|item| item.rust_path == **rust_path)
+                .and_then(|item| match &item.kind {
+                    ProjectedKind::ForeignType {
+                        methods,
+                        static_methods,
+                        ..
+                    } => Some(
+                        methods
+                            .iter()
+                            .chain(static_methods)
+                            .map(|method| foreign_function_dependency_count(method, name))
+                            .sum::<usize>(),
+                    ),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            (!cross_namespace, dependency_count, aliases.get(*rust_path))
+        });
+        let source_dependencies =
+            projected_source_dependencies(&ordered_foreign, all_items, namespace);
+        let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
+        let mut rendered_foreign = BTreeSet::new();
+        for (rust_path, _) in ordered_foreign {
+            let name = &aliases[rust_path];
+            let projected_item =
+                projected_item_for_foreign(all_items, rust_path, &foreign[rust_path]);
+            let declaration_path =
+                projected_item.map_or(rust_path.as_str(), |item| item.rust_path.as_str());
+            if !rendered_foreign.insert(declaration_path) {
+                continue;
+            }
+            render_foreign_declaration(
+                &mut text,
+                namespace,
+                name,
+                projected_item,
+                &aliases,
+                demanded_members,
+                unavailable_members,
+            );
+        }
+        for item in selected {
+            if matches!(
+                item.kind,
+                ProjectedKind::ForeignType { .. }
+                    | ProjectedKind::Enum { .. }
+                    | ProjectedKind::Interface(_)
+            ) && let Some(canonical_name) = aliases.get(&item.rust_path)
+                && canonical_name != &item.name
+                && let Some(canonical) = projected_item_for_foreign(
+                    all_items,
+                    &item.rust_path,
+                    &foreign[&item.rust_path],
+                )
+            {
+                source_rendering::render_foreign_import(
+                    &mut text,
+                    &canonical.namespace,
+                    &canonical.name,
+                    &item.name,
                 );
             }
-            for item in selected {
-                source_rendering::render_callable_declaration(&mut text, item, &aliases);
-            }
-            sources.push((namespace.clone(), text, source_dependencies));
+            source_rendering::render_callable_declaration(&mut text, item, &aliases);
         }
-        Self::finalize_projected_sources(sources, allow_namespace_cycles)
+        Ok((namespace.to_owned(), text, source_dependencies))
     }
 
     fn finalize_projected_sources(
         sources: Vec<(String, String, BTreeSet<String>)>,
         allow_namespace_cycles: bool,
-    ) -> Result<Vec<(String, String)>, String> {
+    ) -> Vec<(String, String)> {
         if allow_namespace_cycles {
-            Ok(sources
+            sources
                 .into_iter()
                 .map(|(namespace, source, _)| (namespace, source))
-                .collect())
+                .collect()
         } else {
             Self::order_projected_sources(sources)
         }
     }
-
     /// Renders complete projected dependency sources for callers without importing-package syntax.
     ///
     /// # Errors
     ///
-    /// Returns an error when an imported projected name is ambiguous or projected sources form a
-    /// cycle.
+    /// Returns an error when an imported projected name is ambiguous.
     pub fn source_for_imports(
         &self,
         imports: &BTreeMap<String, BTreeSet<String>>,
@@ -1584,7 +1646,7 @@ impl Projection {
 
     fn order_projected_sources(
         mut sources: Vec<(String, String, BTreeSet<String>)>,
-    ) -> Result<Vec<(String, String)>, String> {
+    ) -> Vec<(String, String)> {
         let mut ordered = Vec::with_capacity(sources.len());
         while !sources.is_empty() {
             let remaining_names = sources
@@ -1596,29 +1658,19 @@ impl Projection {
                     .iter()
                     .all(|dependency| !remaining_names.contains(dependency))
             }) else {
-                let cycle = sources
-                    .iter()
-                    .map(|(namespace, _, dependencies)| {
-                        let unresolved = dependencies
-                            .iter()
-                            .filter(|dependency| remaining_names.contains(dependency))
-                            .cloned()
-                            .collect::<Vec<_>>()
-                            .join(", ");
-                        format!("{namespace} -> [{unresolved}]")
-                    })
-                    .collect::<Vec<_>>()
-                    .join("; ");
-                return Err(format!(
-                    "projected dependency source namespaces contain an import cycle: {cycle}; \
-                     this is the recorded `projection/mutually-referential-namespace-sources` \
-                     limitation"
-                ));
+                // Generated declarations are staged together, including mutually
+                // referring namespaces. Authored source cycles are checked separately.
+                ordered.extend(
+                    sources
+                        .into_iter()
+                        .map(|(namespace, text, _)| (namespace, text)),
+                );
+                return ordered;
             };
             let (namespace, text, _) = sources.remove(index);
             ordered.push((namespace, text));
         }
-        Ok(ordered)
+        ordered
     }
 
     #[must_use]
@@ -1814,14 +1866,14 @@ impl Projection {
             },
             ProjectedKind::Interface(_) | ProjectedKind::Macro(_) => return None,
         };
-        self.dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .find(|candidate| {
-                candidate.name == *owner_name
-                    && projected_owner_path_matches(&candidate.rust_path, owner_path)
-            })
-            .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
+        projected_item_for_native_owner(
+            self.dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items),
+            owner_name,
+            owner_path,
+        )
+        .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
     }
 
     pub(crate) fn projected_member_result_owner(
@@ -1872,6 +1924,7 @@ impl Projection {
         let ProjectedType::Foreign {
             rust_path,
             base_rust_path,
+            name,
             ..
         } = result
         else {
@@ -1882,13 +1935,59 @@ impl Projection {
         } else {
             base_rust_path
         };
-        if projected_owner_path_matches(&item.rust_path, owner_path) {
+        let items = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items);
+        if item.name == *name && projected_owner_path_matches(&item.rust_path, owner_path) {
             return Some((item.namespace.clone(), item.name.clone()));
         }
+        projected_item_for_native_owner(items, name, owner_path)
+            .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
+    }
+
+    pub(crate) fn projected_member_scoped_family_owner(
+        &self,
+        namespace: &str,
+        owner: &str,
+        member: &str,
+    ) -> Option<(String, String)> {
+        let item = self.item(namespace, owner)?;
+        let result = match &item.kind {
+            ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+                ..
+            }
+            | ProjectedKind::Enum {
+                methods,
+                static_methods,
+                ..
+            } => {
+                &methods
+                    .iter()
+                    .chain(static_methods)
+                    .find(|function| function.name == member)?
+                    .result
+            }
+            _ => return None,
+        };
+        let ProjectedType::InvocationScoped {
+            name, rust_type, ..
+        } = result
+        else {
+            return None;
+        };
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|candidate| projected_owner_path_matches(&candidate.rust_path, owner_path))
+            .filter(|candidate| candidate.name == *name)
+            .find(|candidate| {
+                projected_owner_path_matches(
+                    &self.canonical_native_type(&candidate.rust_path),
+                    &self.canonical_native_type(rust_type),
+                )
+            })
             .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
     }
 
@@ -2028,7 +2127,13 @@ impl Projection {
                     &self.canonical_native_type(owner),
                 )
             })
-            .min_by_key(|item| preferred_name.is_some_and(|name| item.name != name))
+            .min_by_key(|item| {
+                (
+                    // Canonical native equivalence must not replace an advertised source slot.
+                    !projected_owner_path_matches(&item.rust_path, owner),
+                    preferred_name.is_some_and(|name| item.name != name),
+                )
+            })
             .map(|item| (item.namespace.clone(), item.name.clone()))
     }
 
@@ -2592,18 +2697,6 @@ pub fn resolve(
         let public_paths = rustdoc_public_paths(&document);
         rustdocs.push((dependency, document, public_paths));
     }
-    let mut reexport_declines = (0..dependencies.len())
-        .map(|_| Vec::new())
-        .collect::<Vec<_>>();
-    let reexport_rustdocs = external_reexport_rustdocs(
-        &workspace,
-        &rustdocs,
-        &metadata,
-        &target,
-        sandbox,
-        demands,
-        &mut reexport_declines,
-    )?;
     let mut declared_public_paths = BTreeMap::new();
     for (_, document, public_paths) in &rustdocs {
         for (id, public_path) in public_paths {
@@ -2634,6 +2727,19 @@ pub fn resolve(
             )
         })
         .collect::<Vec<_>>();
+    let mut reexport_declines = (0..dependencies.len())
+        .map(|_| Vec::new())
+        .collect::<Vec<_>>();
+    let reexport_rustdocs = external_reexport_rustdocs(
+        &workspace,
+        &rustdocs,
+        &projected,
+        &metadata,
+        &target,
+        sandbox,
+        demands,
+        &mut reexport_declines,
+    )?;
     for (dependency, mut declines) in projected.iter_mut().zip(reexport_declines) {
         dependency.declined.append(&mut declines);
         normalize_projected_items(&mut dependency.items, &mut dependency.declined);
@@ -3797,8 +3903,12 @@ fn unsupported_projected_error<'a>(
             && (!projected_error_types.contains(*error) || !displayable.contains(*error))
     })
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one recursive metadata pass keeps all native names and error identities canonical"
+)]
 fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
-    let names = projected
+    let mut names = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
         .filter(|item| {
@@ -3809,6 +3919,24 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
         })
         .map(|item| (item.rust_path.clone(), item.name.clone()))
         .collect::<BTreeMap<_, _>>();
+    for item in projected.iter().flat_map(|dependency| &dependency.items) {
+        let (ProjectedKind::ForeignType {
+            generic_parameters: parameters,
+            ..
+        }
+        | ProjectedKind::Enum {
+            generic_parameters: parameters,
+            ..
+        }) = &item.kind
+        else {
+            continue;
+        };
+        if !parameters.is_empty()
+            && let Some(root) = crate::rust_ir::rust_type_constructor(&item.rust_path)
+        {
+            names.entry(root).or_insert_with(|| item.name.clone());
+        }
+    }
     let error_paths = projected
         .iter()
         .flat_map(|dependency| {
@@ -3851,45 +3979,83 @@ fn canonicalize_projected_type_names(projected: &mut [ProjectedDependency]) {
             .and_modify(|path| *path = None)
             .or_insert_with(|| Some(item.rust_path.clone()));
     }
+    let canonicalize_function = |function: &mut ProjectedFunction| {
+        for ty in function
+            .parameters
+            .iter_mut()
+            .map(|parameter| &mut parameter.ty)
+            .chain(std::iter::once(&mut function.result))
+            .chain(
+                function
+                    .generic_parameters
+                    .iter_mut()
+                    .chain(function.operation_owner_generics.iter_mut())
+                    .filter_map(|parameter| parameter.default.as_mut()),
+            )
+        {
+            canonicalize_projected_type_name(ty, &names);
+        }
+        if let Some(error) = &mut function.error {
+            let canonical = error_paths.get(error).cloned().or_else(|| {
+                rust_path_owner(error)?;
+                let name = error.rsplit("::").next()?;
+                unique_error_paths.get(name)?.clone()
+            });
+            if let Some(canonical) = canonical {
+                error.clone_from(&canonical);
+            }
+        }
+    };
     for item in projected
         .iter_mut()
         .flat_map(|dependency| &mut dependency.items)
     {
-        let functions: Vec<&mut ProjectedFunction> = match &mut item.kind {
-            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => vec![function],
+        match &mut item.kind {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
+                canonicalize_function(function);
+            }
             ProjectedKind::ForeignType {
+                fields,
                 methods,
                 static_methods,
+                constructor,
+                generic_parameters,
                 ..
+            } => {
+                for field in fields {
+                    canonicalize_projected_type_name(&mut field.ty, &names);
+                }
+                for parameter in generic_parameters {
+                    if let Some(default) = &mut parameter.default {
+                        canonicalize_projected_type_name(default, &names);
+                    }
+                }
+                for function in methods.iter_mut().chain(static_methods).chain(constructor) {
+                    canonicalize_function(function);
+                }
             }
-            | ProjectedKind::Enum {
+            ProjectedKind::Enum {
+                variants,
                 methods,
                 static_methods,
+                generic_parameters,
                 ..
-            } => methods.iter_mut().chain(static_methods).collect(),
-            ProjectedKind::Interface(interface) => interface
-                .methods
-                .iter_mut()
-                .map(|method| &mut method.function)
-                .collect(),
-        };
-        for function in functions {
-            for ty in function
-                .parameters
-                .iter_mut()
-                .map(|parameter| &mut parameter.ty)
-                .chain(std::iter::once(&mut function.result))
-            {
-                canonicalize_projected_type_name(ty, &names);
+            } => {
+                for field in variants.iter_mut().flat_map(|variant| &mut variant.fields) {
+                    canonicalize_projected_type_name(&mut field.ty, &names);
+                }
+                for parameter in generic_parameters {
+                    if let Some(default) = &mut parameter.default {
+                        canonicalize_projected_type_name(default, &names);
+                    }
+                }
+                for function in methods.iter_mut().chain(static_methods) {
+                    canonicalize_function(function);
+                }
             }
-            if let Some(error) = &mut function.error {
-                let canonical = error_paths.get(error).cloned().or_else(|| {
-                    rust_path_owner(error)?;
-                    let name = error.rsplit("::").next()?;
-                    unique_error_paths.get(name)?.clone()
-                });
-                if let Some(canonical) = canonical {
-                    error.clone_from(&canonical);
+            ProjectedKind::Interface(interface) => {
+                for method in &mut interface.methods {
+                    canonicalize_function(&mut method.function);
                 }
             }
         }
@@ -3905,6 +4071,11 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
             ..
         } => {
             if let Some(canonical) = names.get(rust_path) {
+                name.clone_from(canonical);
+            } else if !arguments.is_empty()
+                && let Some(root) = crate::rust_ir::rust_type_constructor(rust_path)
+                && let Some(canonical) = names.get(&root)
+            {
                 name.clone_from(canonical);
             }
             for argument in arguments {
@@ -4145,10 +4316,15 @@ fn projected_bound_dependencies(
                 function
                     .generic_parameters
                     .iter()
+                    .chain(&function.operation_owner_generics)
                     .flat_map(|parameter| &parameter.rust_bounds)
                     .flat_map(|bound| rust_bound_roots(bound)),
             );
-            for parameter in &function.generic_parameters {
+            for parameter in function
+                .generic_parameters
+                .iter()
+                .chain(&function.operation_owner_generics)
+            {
                 roots.remove(&parameter.name);
             }
             roots
@@ -4537,7 +4713,9 @@ struct ReexportRequest {
     package_spec: String,
     package_name: String,
     aliases: BTreeMap<usize, BTreeMap<String, String>>,
+    named_aliases: BTreeMap<usize, BTreeSet<(String, String)>>,
     prefixes: BTreeMap<usize, Vec<(String, String)>>,
+    signature_paths: BTreeMap<usize, BTreeSet<String>>,
 }
 
 fn generate_rustdoc(
@@ -4765,13 +4943,87 @@ fn reexport_is_demanded(
         || demands.contains(&(format!("{namespace}/macros"), name.clone()))
 }
 
+fn signature_foreign_aliases(
+    dependency: &RustDependency,
+    items: &[ProjectedItem],
+) -> BTreeMap<String, String> {
+    let source_prefix = format!("/deps/{}", dependency.name);
+    let crate_name = dependency.package.replace('-', "_");
+    let mut aliases = BTreeMap::new();
+    for item in items {
+        let mut foreign = BTreeMap::new();
+        match &item.kind {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => {
+                collect_foreign_function(function, &mut foreign);
+            }
+            ProjectedKind::ForeignType {
+                fields,
+                methods,
+                static_methods,
+                constructor,
+                generic_parameters,
+                ..
+            } => {
+                for field in fields {
+                    source_rendering::collect_foreign_type(&field.ty, &mut foreign);
+                }
+                for function in methods.iter().chain(static_methods).chain(constructor) {
+                    collect_foreign_function(function, &mut foreign);
+                }
+                for parameter in generic_parameters {
+                    if let Some(default) = &parameter.default {
+                        source_rendering::collect_foreign_type(default, &mut foreign);
+                    }
+                }
+            }
+            ProjectedKind::Enum {
+                variants,
+                methods,
+                static_methods,
+                ..
+            } => {
+                for field in variants.iter().flat_map(|variant| &variant.fields) {
+                    source_rendering::collect_foreign_type(&field.ty, &mut foreign);
+                }
+                for function in methods.iter().chain(static_methods) {
+                    collect_foreign_function(function, &mut foreign);
+                }
+            }
+            ProjectedKind::Interface(interface) => {
+                for method in &interface.methods {
+                    collect_foreign_function(&method.function, &mut foreign);
+                }
+            }
+        }
+        let Some(namespace) = item.namespace.strip_prefix(&source_prefix) else {
+            continue;
+        };
+        for (rust_path, name) in foreign {
+            let Some(constructor) = crate::rust_ir::rust_type_constructor(&rust_path) else {
+                continue;
+            };
+            let public_path = format!("{crate_name}{}::{name}", namespace.replace('/', "::"));
+            aliases
+                .entry(constructor)
+                .and_modify(|current| prefer_alias(current, &public_path))
+                .or_insert(public_path);
+        }
+    }
+    aliases
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one pass groups demanded facade aliases and prefixes, then materializes each owner"
 )]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "owner discovery uses the exact resolved graph, target, containment, demand, and decline sink"
+)]
 fn external_reexport_rustdocs(
     workspace: &Path,
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
+    projected: &[ProjectedDependency],
     metadata: &serde_json::Value,
     target: &str,
     containment: Containment,
@@ -4833,7 +5085,9 @@ fn external_reexport_rustdocs(
                         package_spec: String::new(),
                         package_name: "core".to_owned(),
                         aliases: BTreeMap::new(),
+                        named_aliases: BTreeMap::new(),
                         prefixes: BTreeMap::new(),
+                        signature_paths: BTreeMap::new(),
                     });
                 let aliases = request.aliases.entry(dependency_index).or_default();
                 aliases
@@ -4859,7 +5113,9 @@ fn external_reexport_rustdocs(
                     package_spec: format!("{package_name}@{version}"),
                     package_name,
                     aliases: BTreeMap::new(),
+                    named_aliases: BTreeMap::new(),
                     prefixes: BTreeMap::new(),
+                    signature_paths: BTreeMap::new(),
                 });
             let aliases = request.aliases.entry(dependency_index).or_default();
             aliases
@@ -4868,15 +5124,22 @@ fn external_reexport_rustdocs(
                 .or_insert_with(|| public_path.clone());
         }
         for reexport in terrane_rust_analysis::external_reexports(document) {
-            if !reexport.expands_descendants
-                || matches!(reexport.crate_name.as_str(), "std" | "core" | "alloc")
-                || !reexport_is_demanded(dependency, &reexport.public_path, true, demands)
+            if matches!(reexport.crate_name.as_str(), "std" | "alloc")
+                || reexport.crate_name == "core" && reexport.expands_descendants
+                || !reexport_is_demanded(
+                    dependency,
+                    &reexport.public_path,
+                    reexport.expands_descendants,
+                    demands,
+                )
             {
                 continue;
             }
-            let (package_name, version) =
+            let (package_spec, package_name) = if reexport.crate_name == "core" {
+                (String::new(), "core".to_owned())
+            } else {
                 match resolved_library_package(metadata, &reexport.crate_name) {
-                    Ok(package) => package,
+                    Ok((name, version)) => (format!("{name}@{version}"), name),
                     Err(reason) => {
                         declines[dependency_index].push(DeclinedItem {
                             rust_path: reexport.public_path,
@@ -4884,20 +5147,101 @@ fn external_reexport_rustdocs(
                         });
                         continue;
                     }
-                };
+                }
+            };
             let request = requests
                 .entry(reexport.crate_name)
                 .or_insert_with(|| ReexportRequest {
-                    package_spec: format!("{package_name}@{version}"),
+                    package_spec,
                     package_name,
                     aliases: BTreeMap::new(),
+                    named_aliases: BTreeMap::new(),
                     prefixes: BTreeMap::new(),
+                    signature_paths: BTreeMap::new(),
                 });
-            request
-                .prefixes
+            if reexport.expands_descendants {
+                request
+                    .prefixes
+                    .entry(dependency_index)
+                    .or_default()
+                    .push((reexport.canonical_path, reexport.public_path));
+            } else {
+                request
+                    .aliases
+                    .entry(dependency_index)
+                    .or_default()
+                    .entry(reexport.canonical_path.clone())
+                    .and_modify(|current| prefer_alias(current, &reexport.public_path))
+                    .or_insert_with(|| reexport.public_path.clone());
+                request
+                    .named_aliases
+                    .entry(dependency_index)
+                    .or_default()
+                    .insert((reexport.canonical_path, reexport.public_path));
+            }
+        }
+    }
+
+    for (dependency_index, ((dependency, document, _), projection)) in
+        rustdocs.iter().zip(projected).enumerate()
+    {
+        let summaries = document
+            .paths
+            .values()
+            .filter(|summary| {
+                summary.crate_id != 0 && matches!(summary.kind, ItemKind::Struct | ItemKind::Enum)
+            })
+            .map(|summary| (canonicalize_rust_path(&summary.path.join("::")), summary))
+            .collect::<BTreeMap<_, _>>();
+        for (rust_path, public_path) in signature_foreign_aliases(dependency, &projection.items) {
+            let Some(summary) = summaries.get(&rust_path) else {
+                continue;
+            };
+            let Some(external) = document.external_crates.get(&summary.crate_id) else {
+                continue;
+            };
+            if matches!(external.name.as_str(), "std" | "alloc") {
+                continue;
+            }
+            let (package_spec, package_name) = if external.name == "core" {
+                (String::new(), "core".to_owned())
+            } else {
+                let (name, version) = match resolved_library_package(metadata, &external.name) {
+                    Ok(package) => package,
+                    Err(reason) => {
+                        declines[dependency_index].push(DeclinedItem {
+                            rust_path: public_path,
+                            reason,
+                        });
+                        continue;
+                    }
+                };
+                (format!("{name}@{version}"), name)
+            };
+            let request =
+                requests
+                    .entry(external.name.clone())
+                    .or_insert_with(|| ReexportRequest {
+                        package_spec,
+                        package_name,
+                        aliases: BTreeMap::new(),
+                        named_aliases: BTreeMap::new(),
+                        prefixes: BTreeMap::new(),
+                        signature_paths: BTreeMap::new(),
+                    });
+            // Real demanded Rust reexports outrank names inferred from signatures.
+            // The latter may not even be exported by the facade.
+            let public_path = request
+                .aliases
                 .entry(dependency_index)
                 .or_default()
-                .push((reexport.canonical_path, reexport.public_path));
+                .entry(summary.path.join("::"))
+                .or_insert(public_path);
+            request
+                .signature_paths
+                .entry(dependency_index)
+                .or_default()
+                .insert(public_path.clone());
         }
     }
 
@@ -4936,7 +5280,7 @@ fn external_reexport_rustdocs(
                     provider_indices.insert(dependency_index);
                 }
             }
-            let providers = provider_indices
+            let mut providers: Vec<ReexportProvider> = provider_indices
                 .into_iter()
                 .filter_map(|dependency_index| {
                     let dependency = rustdocs[dependency_index].0;
@@ -4984,13 +5328,22 @@ fn external_reexport_rustdocs(
                                 owner_path,
                                 public_path,
                             );
-                            if crate_name == "core" {
-                                rust_path_aliases.insert(
-                                    public_path.clone(),
-                                    canonicalize_rust_path(&canonical_path),
-                                );
+                            if crate_name == "core"
+                                || request
+                                    .signature_paths
+                                    .get(&dependency_index)
+                                    .is_some_and(|paths| paths.contains(public_path))
+                            {
+                                let native_path = canonicalize_rust_path(owner_path);
+                                rust_path_aliases.insert(public_path.clone(), native_path.clone());
+                                rust_path_aliases.insert(canonical_path.clone(), native_path);
                             }
-                            if reexport_is_demanded(dependency, public_path, false, demands) {
+                            if reexport_is_demanded(dependency, public_path, false, demands)
+                                || request
+                                    .signature_paths
+                                    .get(&dependency_index)
+                                    .is_some_and(|paths| paths.contains(public_path))
+                            {
                                 terrane_rust_analysis::prefer_public_path(
                                     &mut public_paths,
                                     *id,
@@ -5037,6 +5390,52 @@ fn external_reexport_rustdocs(
                     })
                 })
                 .collect();
+            // One preferred path per Rustdoc ID supplies the normal fragment.
+            // Additional demanded public bindings need their own source views of
+            // that same canonical declaration, with the same generic/member graph.
+            let owner_ids = document
+                .paths
+                .iter()
+                .filter(|(_, summary)| summary.crate_id == 0)
+                .map(|(id, summary)| (summary.path.join("::"), *id))
+                .chain(
+                    owner_public_paths
+                        .iter()
+                        .map(|(id, path)| (path.clone(), *id)),
+                )
+                .collect::<BTreeMap<_, _>>();
+            for (dependency_index, bindings) in &request.named_aliases {
+                for (canonical_path, public_path) in bindings {
+                    let Some(id) = owner_ids.get(canonical_path) else {
+                        continue;
+                    };
+                    if providers.iter().any(|provider| {
+                        provider.dependency_index == *dependency_index
+                            && provider.public_paths.get(id) == Some(public_path)
+                    }) {
+                        continue;
+                    }
+                    let Some(primary) = providers
+                        .iter()
+                        .find(|provider| provider.dependency_index == *dependency_index)
+                    else {
+                        continue;
+                    };
+                    let owner_path = owner_public_paths.get(id).unwrap_or(canonical_path);
+                    let mut canonical_public_paths = primary.canonical_public_paths.clone();
+                    canonical_public_paths.insert(canonical_path.clone(), public_path.clone());
+                    canonical_public_paths.insert(owner_path.clone(), public_path.clone());
+                    let mut rust_path_aliases = primary.rust_path_aliases.clone();
+                    rust_path_aliases
+                        .insert(public_path.clone(), canonicalize_rust_path(owner_path));
+                    providers.push(ReexportProvider {
+                        dependency_index: *dependency_index,
+                        public_paths: BTreeMap::from([(*id, public_path.clone())]),
+                        canonical_public_paths,
+                        rust_path_aliases,
+                    });
+                }
+            }
             Ok(ReexportRustdoc {
                 document,
                 providers,
@@ -5234,6 +5633,12 @@ fn rewrite_projected_function_root(
     package_root: &str,
     dependency_root: &str,
 ) {
+    if let Some(owner) = &mut function.native_owner {
+        *owner = rewrite_rust_bound_root(owner, package_root, dependency_root);
+    }
+    if let Some(path) = &mut function.native_path {
+        *path = rewrite_rust_bound_root(path, package_root, dependency_root);
+    }
     for parameter in &mut function.parameters {
         rewrite_projected_rust_root(&mut parameter.ty, package_root, dependency_root);
         if let Some(associated) = &mut parameter.associated_type {
@@ -5246,7 +5651,11 @@ fn rewrite_projected_function_root(
             *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
         }
     }
-    for generic in &mut function.generic_parameters {
+    for generic in function
+        .generic_parameters
+        .iter_mut()
+        .chain(&mut function.operation_owner_generics)
+    {
         for bound in &mut generic.rust_bounds {
             *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
         }
@@ -6562,44 +6971,47 @@ fn projected_nominal_generic_parameters(
     generics
         .params
         .iter()
-        .filter(|parameter| {
-            matches!(parameter.kind, GenericParamDefKind::Type { .. })
-                && matches!(
-                    substitutions.get(&parameter.name),
-                    Some(ProjectedType::Generic(_))
-                )
-        })
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
         .map(|parameter| {
             let rust_bounds = callable::generic_bounds_from_generics(parameter, generics)
                 .iter()
                 .map(|bound| render_generic_bound(bound, &[], index, paths, substitutions))
                 .collect::<Result<Vec<_>, _>>()?;
+            let default = match &parameter.kind {
+                GenericParamDefKind::Type {
+                    default: Some(default),
+                    ..
+                } => Some(project_type(default, index, paths, substitutions)?),
+                GenericParamDefKind::Type { default: None, .. } => None,
+                _ => unreachable!("only type generic parameters are retained"),
+            };
             Ok(ProjectedGenericParameter {
                 name: parameter.name.clone(),
-                input_selected: false,
+                input_selected: true,
                 rust_bounds,
+                default,
             })
         })
         .collect()
 }
 fn nominal_generic_instantiation(
     generics: &Generics,
-    index: &HashMap<Id, Item>,
-    paths: &HashMap<Id, ItemSummary>,
+    _index: &HashMap<Id, Item>,
+    _paths: &HashMap<Id, ItemSummary>,
 ) -> Result<BTreeMap<String, ProjectedType>, String> {
+    let lifetime_only = !generics.params.is_empty()
+        && generics
+            .params
+            .iter()
+            .all(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }));
     let mut substitutions = BTreeMap::new();
     for parameter in &generics.params {
         let projected = match &parameter.kind {
-            GenericParamDefKind::Type {
-                default: Some(default),
-                ..
-            } => project_type(default, index, paths, &substitutions)?,
-            GenericParamDefKind::Type { default: None, .. } => {
-                ProjectedType::Generic(parameter.name.clone())
-            }
+            GenericParamDefKind::Type { .. } => ProjectedType::Generic(parameter.name.clone()),
+            GenericParamDefKind::Lifetime { .. } if lifetime_only => continue,
             GenericParamDefKind::Lifetime { .. } => {
                 return Err(format!(
-                    "lifetime parameter `{}` requires non-escaping projection",
+                    "lifetime parameter `{}` cannot be mixed with projected type parameters",
                     parameter.name
                 ));
             }
@@ -6634,17 +7046,53 @@ fn project_rustdoc(
         }
     }
     let paths = &canonical_paths;
+    let mut items = Vec::new();
+    let mut declined = Vec::new();
     let mut candidates = BTreeMap::<Id, Vec<String>>::new();
     if include_canonical_items {
         for (id, summary) in paths.iter().filter(|(_, summary)| summary.crate_id == 0) {
+            let path = summary.path.join("::");
+            // `Drop` has Terrane's dedicated consuming-destruct protocol. Its public
+            // reexports must remain declined just like a directly named import.
+            if matches!(
+                path.as_str(),
+                "core::ops::Drop" | "core::ops::drop::Drop" | "std::ops::Drop"
+            ) {
+                declined.push(DeclinedItem {
+                    rust_path: extern_rust_path(dependency, &path),
+                    reason: "canonical Rust `Drop` is declared with Terrane `consuming destruct`"
+                        .to_owned(),
+                });
+                continue;
+            }
             candidates.insert(*id, summary.path.clone());
         }
     }
     for (id, public_path) in public_paths {
+        let canonical_path = original_paths
+            .get(id)
+            .map(|summary| summary.path.join("::"));
+        if canonical_path.as_deref().is_some_and(|path| {
+            matches!(
+                path,
+                "core::ops::Drop" | "core::ops::drop::Drop" | "std::ops::Drop"
+            )
+        }) {
+            let rust_path = extern_rust_path(dependency, public_path);
+            if !declined
+                .iter()
+                .any(|declined| declined.rust_path == rust_path)
+            {
+                declined.push(DeclinedItem {
+                    rust_path,
+                    reason: "canonical Rust `Drop` is declared with Terrane `consuming destruct`"
+                        .to_owned(),
+                });
+            }
+            continue;
+        }
         candidates.insert(*id, public_path.split("::").map(str::to_owned).collect());
     }
-    let mut items = Vec::new();
-    let mut declined = Vec::new();
     let mut partial_declines = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
@@ -6869,15 +7317,8 @@ fn project_rustdoc(
                 let mut alias_generics = BTreeMap::new();
                 for parameter in &alias.generics.params {
                     let projected = match &parameter.kind {
-                        GenericParamDefKind::Type {
-                            default: Some(default),
-                            ..
-                        } => project_type(default, index, paths, &alias_generics)?,
-                        GenericParamDefKind::Type { default: None, .. } => {
-                            return Err(format!(
-                                "generic type parameter `{}` has no default instantiation",
-                                parameter.name
-                            ));
+                        GenericParamDefKind::Type { .. } => {
+                            ProjectedType::Generic(parameter.name.clone())
                         }
                         GenericParamDefKind::Lifetime { .. } => {
                             return Err(format!(
@@ -6894,12 +7335,6 @@ fn project_rustdoc(
                     };
                     alias_generics.insert(parameter.name.clone(), projected);
                 }
-                if !matches!(
-                    project_type(&alias.type_, index, paths, &alias_generics)?,
-                    ProjectedType::Foreign { .. }
-                ) {
-                    return Err("type alias target has no projectable foreign identity".to_owned());
-                }
                 Ok(ProjectedKind::ForeignType {
                     constructor: None,
                     methods: Vec::new(),
@@ -6910,7 +7345,12 @@ fn project_rustdoc(
                     borrowed_view: false,
                     native_view_type: None,
                     enum_payload: None,
-                    generic_parameters: Vec::new(),
+                    generic_parameters: projected_nominal_generic_parameters(
+                        &alias.generics,
+                        &alias_generics,
+                        index,
+                        paths,
+                    )?,
                     displayable: false,
                     cloneable: false,
                     send: false,
@@ -6919,9 +7359,7 @@ fn project_rustdoc(
             })(),
             ItemEnum::Struct(structure) => {
                 let mut owner_generics =
-                    match default_generic_instantiation(structure, index, paths).or_else(|_| {
-                        data::constructor_generic_instantiation(structure, index, paths)
-                    }) {
+                    match nominal_generic_instantiation(&structure.generics, index, paths) {
                         Ok(generics) => generics,
                         Err(reason) => {
                             declined.push(DeclinedItem {
@@ -7007,23 +7445,24 @@ fn project_rustdoc(
                             rust_path: rust_path.clone(),
                             reason: "non-exhaustive native structs cannot be constructed outside their defining crate".to_owned(),
                         });
-                        continue;
-                    }
-                    match data::project_struct_constructor(
-                        structure,
-                        &fields,
-                        index,
-                        paths,
-                        public_paths,
-                        &owner_generics,
-                    ) {
-                        Ok(constructor) => Some(constructor),
-                        Err(reason) => {
-                            declined.push(DeclinedItem {
-                                rust_path: rust_path.clone(),
-                                reason,
-                            });
-                            continue;
+                        None
+                    } else {
+                        match data::project_struct_constructor(
+                            structure,
+                            &fields,
+                            index,
+                            paths,
+                            public_paths,
+                            &owner_generics,
+                        ) {
+                            Ok(constructor) => Some(constructor),
+                            Err(reason) => {
+                                declined.push(DeclinedItem {
+                                    rust_path: rust_path.clone(),
+                                    reason,
+                                });
+                                None
+                            }
                         }
                     }
                 } else {
@@ -7124,7 +7563,9 @@ fn project_rustdoc(
                             paths,
                             "core::fmt::Display",
                         ),
-                        cloneable: implements_trait(
+                        cloneable: !structure.generics.params.iter().any(|parameter| {
+                            matches!(parameter.kind, GenericParamDefKind::Type { .. })
+                        }) && implements_trait(
                             &structure.impls,
                             index,
                             paths,
@@ -7418,8 +7859,9 @@ fn project_rustdoc(
                             )
                         });
                         static_methods.push(ProjectedFunction {
-                            native_owner: None,
                             native_path: None,
+                            native_owner: None,
+                            operation_owner_generics: Vec::new(),
                             name: variant_name.to_owned(),
                             parameters: (constructor_type != ProjectedType::None)
                                 .then(|| ProjectedParameter {
@@ -7458,11 +7900,12 @@ fn project_rustdoc(
                             && !matches!(extraction_type, ProjectedType::Optional(_))
                         {
                             methods.push(ProjectedFunction {
+                                generic_parameters: Vec::new(),
                                 native_owner: None,
                                 native_path: None,
+                                operation_owner_generics: Vec::new(),
                                 name: format!("into-{variant_name}"),
                                 parameters: Vec::new(),
-                                generic_parameters: Vec::new(),
                                 rust_generic_arguments: Vec::new(),
                                 result: ProjectedType::Optional(Box::new(extraction_type)),
                                 destination_result: None,
@@ -7485,11 +7928,12 @@ fn project_rustdoc(
                     }
                     if data_carrying {
                         methods.push(ProjectedFunction {
+                            generic_parameters: Vec::new(),
                             native_owner: None,
                             native_path: None,
+                            operation_owner_generics: Vec::new(),
                             name: "variant-name".to_owned(),
                             parameters: Vec::new(),
-                            generic_parameters: Vec::new(),
                             rust_generic_arguments: Vec::new(),
                             result: ProjectedType::String,
                             destination_result: None,
@@ -7678,34 +8122,7 @@ fn project_rustdoc(
     let package_root = dependency.package.replace('-', "_");
     let dependency_root = dependency.name.replace('-', "_");
     let normalize = |function: &mut ProjectedFunction| {
-        for parameter in &mut function.parameters {
-            rewrite_projected_rust_root(&mut parameter.ty, &package_root, &dependency_root);
-            if let Some(associated) = &mut parameter.associated_type {
-                rewrite_projected_rust_root(&mut associated.ty, &package_root, &dependency_root);
-            }
-            if let Some(interface) = &mut parameter.generic_interface {
-                *interface = rewrite_rust_bound_root(interface, &package_root, &dependency_root);
-            }
-        }
-        for argument in &mut function.rust_generic_arguments {
-            rewrite_projected_rust_root(argument, &package_root, &dependency_root);
-        }
-        rewrite_projected_rust_root(&mut function.result, &package_root, &dependency_root);
-        if let Some(error) = &mut function.error {
-            *error = rewrite_rust_bound_root(error, &package_root, &dependency_root);
-        }
-        if let Some(destination) = &mut function.destination_result {
-            for parameter in &mut destination.parameters {
-                for bound in &mut parameter.rust_bounds {
-                    *bound = rewrite_rust_bound_root(bound, &package_root, &dependency_root);
-                }
-            }
-            for root in &mut destination.bound_roots {
-                if root == &package_root {
-                    root.clone_from(&dependency_root);
-                }
-            }
-        }
+        rewrite_projected_function_root(function, &package_root, &dependency_root);
     };
     let interface_identities = items
         .iter()
@@ -7787,6 +8204,7 @@ fn project_rustdoc(
     ProjectedDependency {
         name: dependency.name.clone(),
         partial_declines,
+        native_alias_identities: BTreeMap::new(),
         package: dependency.package.clone(),
         version: document
             .crate_version
@@ -7803,6 +8221,107 @@ type ProjectedMethods = (
     Vec<ProjectedConstant>,
     Vec<(String, String)>,
 );
+
+fn project_operation_owner_generics(
+    implementation: &Impl,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Vec<ProjectedGenericParameter>, String> {
+    let declaration = &implementation.generics;
+    let has_owner_lifetimes = declaration
+        .params
+        .iter()
+        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }));
+    for predicate in &declaration.where_predicates {
+        if !matches!(
+            predicate,
+            WherePredicate::BoundPredicate {
+                type_: Type::Generic(name),
+                ..
+            } if declaration.params.iter().any(|parameter| {
+                parameter.name == *name
+                    && matches!(
+                        parameter.kind,
+                        GenericParamDefKind::Type { is_synthetic: false, .. }
+                    )
+            })
+        ) {
+            return Err(
+                "inherent impl predicate has no stable owner-generic projection".to_owned(),
+            );
+        }
+    }
+    let mut projected = BTreeMap::<String, ProjectedGenericParameter>::new();
+    for parameter in &declaration.params {
+        match &parameter.kind {
+            GenericParamDefKind::Type {
+                is_synthetic: false,
+                ..
+            } => {}
+            GenericParamDefKind::Lifetime { outlives } if outlives.is_empty() => continue,
+            _ => {
+                return Err(
+                    "inherent impl parameter has no stable owner-generic projection".to_owned(),
+                );
+            }
+        }
+        let rust_bounds = callable::render_generic_bounds_from_generics(
+            parameter,
+            declaration,
+            &[],
+            index,
+            paths,
+            generics,
+        )?;
+        if rust_bounds.iter().any(|bound| {
+            (bound.starts_with('\'') && bound != "'static")
+                || (has_owner_lifetimes
+                    && rust_lifetimes(bound).iter().any(|lifetime| {
+                        declaration.params.iter().any(|parameter| {
+                            parameter.name == *lifetime
+                                && matches!(parameter.kind, GenericParamDefKind::Lifetime { .. })
+                        })
+                    }))
+        }) {
+            return Err(
+                "inherent impl lifetime bound has no stable owner-generic projection".to_owned(),
+            );
+        }
+        // The self-type substitution maps impl binders to nominal or alias slots.
+        // Concrete alias arguments need no helper parameter; Rust checks their bounds.
+        let Some(selected) = generics.get(&parameter.name) else {
+            if rust_bounds.is_empty() {
+                continue;
+            }
+            return Err(format!(
+                "inherent impl binder `{}` has no selected owner-generic slot",
+                parameter.name
+            ));
+        };
+        let ProjectedType::Generic(name) = selected else {
+            if !selected.contains_open_generic() || rust_bounds.is_empty() {
+                continue;
+            }
+            return Err(format!(
+                "inherent impl binder `{}` has no stable owner-generic projection",
+                parameter.name
+            ));
+        };
+        let entry = projected
+            .entry(name.clone())
+            .or_insert_with(|| ProjectedGenericParameter {
+                input_selected: false,
+                name: name.clone(),
+                rust_bounds: Vec::new(),
+                default: None,
+            });
+        entry.rust_bounds.extend(rust_bounds);
+        entry.rust_bounds.sort();
+        entry.rust_bounds.dedup();
+    }
+    Ok(projected.into_values().collect())
+}
 
 #[expect(
     clippy::too_many_arguments,
@@ -7835,15 +8354,22 @@ fn project_methods(
             continue;
         }
         let inherent = implementation.trait_.is_none();
+        let mut implementation_generics =
+            aliases::implementation_owner_generics(implementation, index, owner_generics);
         let native_owner = if matches!(implementation.for_, Type::Generic(_))
             && implementation.blanket_impl.is_some()
         {
             owner_rust_path.to_owned()
         } else {
-            render_rust_type(&implementation.for_, index, paths, owner_generics)
+            render_rust_type(&implementation.for_, index, paths, &implementation_generics)
                 .unwrap_or_else(|_| owner_rust_path.to_owned())
         };
-        let mut implementation_generics = owner_generics.clone();
+        if inherent
+            && let Ok(owner) =
+                project_type(&implementation.for_, index, paths, &implementation_generics)
+        {
+            implementation_generics.insert("Self".to_owned(), owner);
+        }
         if let Some(Type::Generic(generic)) = &implementation.blanket_impl
             && let Some(owner) = owner_generics.get("Self")
         {
@@ -7861,7 +8387,7 @@ fn project_methods(
             else {
                 continue;
             };
-            if let Ok(projected) = project_type(type_, index, paths, owner_generics) {
+            if let Ok(projected) = project_type(type_, index, paths, &implementation_generics) {
                 implementation_generics.insert(format!("Self::{name}"), projected);
             }
         }
@@ -8048,6 +8574,23 @@ fn project_methods(
                         &implementation_generics,
                     );
                     method.native_owner = Some(native_owner.clone());
+                    if inherent
+                        && implementation.blanket_impl.is_none()
+                        && method.receiver.is_none()
+                    {
+                        match project_operation_owner_generics(
+                            implementation,
+                            index,
+                            paths,
+                            &implementation_generics,
+                        ) {
+                            Ok(owner_generics) => method.operation_owner_generics = owner_generics,
+                            Err(reason) => {
+                                declined.push((name.to_owned(), reason));
+                                continue;
+                            }
+                        }
+                    }
                     candidates.push(method);
                 }
                 Err(reason) => declined.push((name.to_owned(), reason)),
@@ -8992,6 +9535,7 @@ fn project_function_inner(
                     paths,
                     &generic_types,
                 )?,
+                default: None,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -9011,9 +9555,9 @@ fn project_function_inner(
             name: name.clone(),
             input_selected: true,
             rust_bounds: parameter.generic_bounds.clone(),
+            default: None,
         })
     }));
-    generic_parameters.sort_by(|left, right| left.name.cmp(&right.name));
     let mut merged_generic_parameters: Vec<ProjectedGenericParameter> = Vec::new();
     for generic in generic_parameters {
         if let Some(existing) = merged_generic_parameters
@@ -9055,6 +9599,7 @@ fn project_function_inner(
     )
     .then_some(ChainRole::Root);
     Ok(ProjectedFunction {
+        operation_owner_generics: Vec::new(),
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,
         native_path: None,

@@ -95,7 +95,7 @@ impl Emitter<'_> {
         {
             return None;
         }
-        let contract = self.contract_for_call(value)?;
+        let contract = self.contract_for_call(value, false)?;
         let function = function_name(self.package, contract);
         let declarations = parameter_rust_types
             .iter()
@@ -264,9 +264,26 @@ impl Emitter<'_> {
         reason = "all call forms share one ordering and error-propagation path"
     )]
     pub(super) fn call(&mut self, node: &SyntaxNode) -> String {
-        let [callee, arguments] = node.children.as_slice() else {
+        let [source_callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        let is_unsafe =
+            crate::syntax::call_is_unsafe(node) || crate::syntax::call_is_unsafe(source_callee);
+        let projected_application = self
+            .projected_function_for_call(source_callee, is_unsafe)
+            .is_some();
+        let mut callee = source_callee;
+        if projected_application {
+            while matches!(
+                callee.kind,
+                SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+            ) {
+                let Some(inner) = callee.children.first() else {
+                    break;
+                };
+                callee = inner;
+            }
+        }
         if callee.kind == SyntaxKind::ConstructionExpression
             && let Some(designator) = callee.children.first()
             && let Some(value) = self.source_enum_construction(designator, arguments, node)
@@ -400,7 +417,7 @@ impl Emitter<'_> {
                 "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
                     let callable = argument.children.last().unwrap_or(argument);
                     let callable_type = self.value_type(callable);
-                    let direct_contract = self.contract_for_call(callable);
+                    let direct_contract = self.contract_for_call(callable, false);
                     let throws = direct_contract.map_or_else(
                         || {
                             matches!(
@@ -693,7 +710,7 @@ impl Emitter<'_> {
                     .children
                     .first()
                     .and_then(|argument| argument.children.last())
-                    .and_then(|callback| self.contract_for_call(callback))
+                    .and_then(|callback| self.contract_for_call(callback, false))
                     .is_some_and(|contract| contract.throws);
             let call = match method.family {
                 MemberFamily::Parse => format!("{argument}({receiver})"),
@@ -1637,7 +1654,9 @@ impl Emitter<'_> {
             node.span.start,
             node.span.end,
         ));
-        let projected_function = self.projected_function_for_call(callee).cloned();
+        let projected_function = self
+            .projected_function_for_call(source_callee, is_unsafe)
+            .cloned();
         let (projected_parameters, projected_chain_role, projected_error) = projected_function
             .as_ref()
             .map_or((None, None, false), |function| {
@@ -1673,13 +1692,8 @@ impl Emitter<'_> {
         let contract = if native_macro_path.is_some() {
             None
         } else {
-            crate::semantics::selected_callable_contract(
-                self.package,
-                self.unit,
-                node,
-                crate::syntax::call_is_unsafe(node),
-            )
-            .or_else(|| self.contract_for_call(callee).cloned())
+            crate::semantics::selected_callable_contract(self.package, self.unit, node, is_unsafe)
+                .or_else(|| self.contract_for_call(callee, is_unsafe).cloned())
         }
         .map(|mut contract| {
             if let Some(canonical) = self
@@ -1803,6 +1817,10 @@ impl Emitter<'_> {
                                     | crate::rust_interop::projection::ProjectedType::Bytes
                             )
                     })
+                    && (specialization
+                        .is_some_and(|specialization| specialization.direct_projected_call)
+                        || projected_chain_role.is_some()
+                        || callee.kind == SyntaxKind::MemberExpression)
                 {
                     self.raw_storage_name(value)
                 } else if projected_parameter.is_some_and(|parameter| {
@@ -1810,7 +1828,14 @@ impl Emitter<'_> {
                         && (parameter.mutable_borrow || explicit_reference.is_some())
                 }) {
                     if let Some(operand) = explicit_reference {
-                        format!("&mut {}", self.raw_storage_name(operand))
+                        if self.narrowed_optional_name(operand).is_some() {
+                            format!(
+                                "&mut *{}.as_mut().expect(\"semantic optional narrowing\")",
+                                self.raw_storage_name(operand)
+                            )
+                        } else {
+                            format!("&mut {}", self.raw_storage_name(operand))
+                        }
                     } else {
                         format!("&mut {}", self.expression(value))
                     }
@@ -1842,7 +1867,13 @@ impl Emitter<'_> {
                     )
                 {
                     if let Some(operand) = explicit_reference {
-                        if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
+                        if self.narrowed_optional_name(operand).is_some() {
+                            format!(
+                                "&mut *{}.as_mut().expect(\"semantic optional narrowing\")",
+                                self.raw_storage_name(operand)
+                            )
+                        } else if matches!(self.value_type(operand), Some(ValueType::Reference(_)))
+                        {
                             format!("&mut *{}", self.expression(operand))
                         } else {
                             format!("&mut {}", self.raw_storage_name(operand))
@@ -2065,7 +2096,7 @@ impl Emitter<'_> {
                     .package
                     .projection
                     .item(&object.identity.namespace, &object.identity.name)
-                && let Some(projected) = self.projected_function_for_call(callee)
+                && let Some(projected) = self.projected_function_for_call(callee, is_unsafe)
             {
                 projected.native_path.clone().unwrap_or_else(|| {
                     format!(
@@ -2076,8 +2107,80 @@ impl Emitter<'_> {
                         rust_name(&projected.name)
                     )
                 })
-            } else if let Some(owner) = projected_static_owner {
-                crate::lowering::dependencies::projected_static_shim_name(owner, self.text(member))
+            } else if projected_static_owner.is_some() {
+                let name = crate::lowering::dependencies::projected_static_shim_name(
+                    self.package,
+                    contract
+                        .as_ref()
+                        .expect("projected static calls retain their contract"),
+                );
+                let selected_identity = match self.value_type(node) {
+                    Some(ValueType::Object(identity))
+                        if contract
+                            .as_ref()
+                            .and_then(|contract| contract.owner_identity.as_ref())
+                            .is_some_and(|owner| {
+                                identity.namespace == owner.namespace && identity.name == owner.name
+                            }) =>
+                    {
+                        Some(identity)
+                    }
+                    _ => None,
+                };
+                let arguments = selected_identity
+                    .as_ref()
+                    .and_then(|identity| {
+                        self.package
+                            .projection
+                            .item(&identity.namespace, &identity.name)
+                    })
+                    .and_then(|item| match &item.kind {
+                        crate::rust_interop::projection::ProjectedKind::ForeignType {
+                            generic_parameters,
+                            ..
+                        }
+                        | crate::rust_interop::projection::ProjectedKind::Enum {
+                            generic_parameters,
+                            ..
+                        } if !generic_parameters.is_empty() => {
+                            selected_identity.as_ref().and_then(|identity| {
+                                let generic_parameters = self
+                                    .projected_function_for_call(callee, is_unsafe)
+                                    .filter(|projected| projected.native_owner.is_some())
+                                    .map_or(generic_parameters.as_slice(), |projected| {
+                                        projected.operation_owner_generics.as_slice()
+                                    });
+                                if generic_parameters.is_empty() {
+                                    return None;
+                                }
+                                Some(
+                                    generic_parameters
+                                        .iter()
+                                        .map(|parameter| {
+                                            identity
+                                                .native_arguments
+                                                .get(&parameter.name)
+                                                .and_then(|value| {
+                                                    crate::semantics::destination_projected_type(
+                                                        self.package,
+                                                        value,
+                                                    )
+                                                    .ok()
+                                                })
+                                                .map_or_else(
+                                                    || "_".to_owned(),
+                                                    |projected| projected.rust_type(),
+                                                )
+                                        })
+                                        .collect::<Vec<_>>(),
+                                )
+                            })
+                        }
+                        _ => None,
+                    });
+                arguments.map_or(name.clone(), |arguments| {
+                    format!("{name}::<{}>", arguments.join(", "))
+                })
             } else {
                 format!(
                     "{rust_type}::terrane_static_{}",
@@ -2087,8 +2190,13 @@ impl Emitter<'_> {
         } else if let Some(contract) = &contract
             && contract.owner.is_none()
         {
+            let lookup_name = is_unsafe.then(|| format!("unsafe::{}", self.text(callee)));
             self.package
-                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .resolve_name_at(
+                    self.unit,
+                    callee.span.start,
+                    lookup_name.as_deref().unwrap_or_else(|| self.text(callee)),
+                )
                 .and_then(|symbol| {
                     self.package
                         .projection
@@ -2121,6 +2229,9 @@ impl Emitter<'_> {
                 }
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
                     format!("&mut {}", self.native_receiver_expression(receiver, true))
+                }
+                Some(crate::rust_interop::projection::Receiver::Move) => {
+                    self.consuming_native_receiver_expression(receiver)
                 }
                 _ => self.receiver_expression(receiver),
             };
@@ -2181,6 +2292,8 @@ impl Emitter<'_> {
                         Some(crate::rust_interop::projection::Receiver::MutableBorrow)
                     ),
                 )
+            } else if projected_receiver == Some(crate::rust_interop::projection::Receiver::Move) {
+                self.consuming_native_receiver_expression(receiver)
             } else {
                 self.receiver_expression(receiver)
             };
@@ -2204,7 +2317,15 @@ impl Emitter<'_> {
             } else {
                 receiver_expression
             };
-            format!("({receiver}).{}", function_name(self.package, contract))
+            let method_name = if specialization
+                .is_some_and(|specialization| specialization.direct_projected_call)
+                && let Some(projected) = projected_function.as_ref()
+            {
+                rust_name(&projected.name)
+            } else {
+                function_name(self.package, contract)
+            };
+            format!("({receiver}).{method_name}")
         } else {
             self.expression(callee)
         };
@@ -2213,19 +2334,11 @@ impl Emitter<'_> {
             .and_then(|projected| {
                 projected
                     .native_path
-                    .as_ref()
-                    .or(projected.native_owner.as_ref())
-                    .map(|path| (projected, path))
+                    .as_deref()
+                    .or(projected.native_owner.as_deref())
             })
-            .map_or_else(Vec::new, |(projected, path)| {
-                let names = crate::rust_ir::rust_type_parameter_names(path);
-                projected
-                    .generic_parameters
-                    .iter()
-                    .filter(|parameter| names.contains(&parameter.name))
-                    .map(|parameter| parameter.name.clone())
-                    .collect()
-            });
+            .map(crate::rust_ir::rust_type_parameter_names)
+            .unwrap_or_default();
         let name = if let Some(specialization) = specialization
             && !native_path_generics.is_empty()
         {
@@ -2262,52 +2375,59 @@ impl Emitter<'_> {
                 .generic_arguments
                 .iter()
                 .enumerate()
-                .filter(|(index, _)| {
-                    projected_function
-                        .as_ref()
-                        .and_then(|projected| projected.generic_parameters.get(*index))
-                        .is_none_or(|parameter| !native_path_generics.contains(&parameter.name))
-                })
-                .map(|(_, argument)| {
-                    let native = argument.rust_type();
-                    if projected_function.as_ref().is_some_and(|projected| {
-                        projected
-                            .generic_parameters
-                            .iter()
-                            .any(|parameter| parameter.name == native)
-                    }) {
-                        "_".to_owned()
-                    } else {
-                        native
+                .filter_map(|(index, argument)| {
+                    use crate::rust_interop::projection::ProjectedType;
+                    let projected = projected_function.as_ref();
+                    let template =
+                        projected.and_then(|function| function.rust_generic_arguments.get(index));
+                    // Concrete UFCS owner arguments already belong to the trait path.
+                    if matches!(template, Some(ProjectedType::Foreign { .. }))
+                        && projected
+                            .and_then(|function| function.native_path.as_deref())
+                            .is_some_and(|path| path.starts_with('<'))
+                    {
+                        return None;
                     }
+                    let parameter_name = match template {
+                        Some(ProjectedType::Generic(name)) => Some(name.as_str()),
+                        None => projected
+                            .and_then(|function| function.generic_parameters.get(index))
+                            .map(|parameter| parameter.name.as_str()),
+                        _ => None,
+                    };
+                    if parameter_name.is_some_and(|name| native_path_generics.contains(name)) {
+                        return None;
+                    }
+                    let callback_generic = match template {
+                        Some(ProjectedType::Callback { .. }) => true,
+                        Some(ProjectedType::Generic(name)) => projected.is_some_and(|function| {
+                            function.parameters.iter().any(|parameter| {
+                                parameter.generic_parameter.as_deref() == Some(name.as_str())
+                                    && matches!(parameter.ty, ProjectedType::Callback { .. })
+                            })
+                        }),
+                        _ => false,
+                    };
+                    let native = argument.rust_type();
+                    Some(
+                        if callback_generic
+                            || projected.is_some_and(|function| {
+                                function
+                                    .generic_parameters
+                                    .iter()
+                                    .any(|parameter| parameter.name == native)
+                            })
+                        {
+                            "_".to_owned()
+                        } else {
+                            self.package
+                                .projection
+                                .canonical_native_type(&native)
+                                .into_owned()
+                        },
+                    )
                 })
                 .collect::<Vec<_>>();
-            if let Some(projected) = projected_function.as_ref() {
-                for (argument, template) in generic_arguments
-                    .iter_mut()
-                    .zip(&projected.rust_generic_arguments)
-                {
-                    let callback_generic =
-                        match template {
-                            crate::rust_interop::projection::ProjectedType::Callback { .. } => true,
-                            crate::rust_interop::projection::ProjectedType::Generic(name) => {
-                                projected.parameters.iter().any(|parameter| {
-                                    parameter.generic_parameter.as_deref() == Some(name)
-                                        && matches!(
-                                        parameter.ty,
-                                        crate::rust_interop::projection::ProjectedType::Callback {
-                                            ..
-                                        }
-                                    )
-                                })
-                            }
-                            _ => false,
-                        };
-                    if callback_generic {
-                        "_".clone_into(argument);
-                    }
-                }
-            }
             if let (
                 Some(projected),
                 Some(ValueType::InvocationScopedNative {
@@ -2422,7 +2542,17 @@ impl Emitter<'_> {
                                 super::super::dependencies::projected_field_abi_type(inner)
                             )
                         }
-                        (_, Some(value)) if borrowed_view || projected_function.is_some() => value,
+                        (_, Some(value))
+                            if borrowed_view
+                                || (projected_function.is_some()
+                                    && !(matches!(
+                                        &field.ty,
+                                        crate::rust_interop::projection::ProjectedType::Optional(_)
+                                    ) && native_optional_arguments.get(index)
+                                        != Some(&true))) =>
+                        {
+                            value
+                        }
                         (
                             crate::rust_interop::projection::ProjectedType::Optional(_),
                             Some(value),
@@ -2517,54 +2647,46 @@ impl Emitter<'_> {
         } else {
             format!("{name}({})", values.join(", "))
         };
-        let direct_projected_function = specialization
-            .is_some_and(|specialization| specialization.direct_projected_call)
-            || (callee.kind == SyntaxKind::Name
-                && self
-                    .projected_function_for_call(callee)
-                    .is_some_and(|function| {
-                        function.chain_role
-                            == Some(crate::rust_interop::projection::ChainRole::Root)
-                    }));
         let projected_enum_receiver = callee
             .children
             .first()
             .map(|receiver| self.receiver_expression(receiver));
-        let foreign_method = if direct_projected_function {
-            self.projected_function_for_call(callee)
-        } else {
-            contract.as_ref().and_then(|contract| {
-                let [receiver, _member] = callee.children.as_slice() else {
-                    return None;
-                };
-                let identity = self
-                    .class_designator(receiver)
-                    .map(|object| object.identity.clone())
-                    .or_else(|| match self.value_type(receiver)? {
-                        ValueType::Object(identity) => Some(identity),
-                        ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                            let ValueType::Object(identity) = item.value_type() else {
-                                return None;
-                            };
-                            Some(identity.clone())
-                        }
-                        ValueType::InvocationScopedNative { family, .. } => Some(family),
-                        _ => None,
-                    })?;
-                if projected_interface_dispatch {
-                    return None;
-                }
-                self.package
-                    .projection
-                    .method(
-                        &identity.namespace,
-                        &identity.name,
-                        &contract.name,
-                        contract.is_static,
-                    )
-                    .filter(|method| !contract.is_static || method.enum_operation.is_some())
-            })
-        };
+        let foreign_method =
+            if specialization.is_some_and(|specialization| specialization.direct_projected_call) {
+                projected_function.as_ref()
+            } else {
+                contract.as_ref().and_then(|contract| {
+                    let [receiver, _member] = callee.children.as_slice() else {
+                        return None;
+                    };
+                    let identity = self
+                        .class_designator(receiver)
+                        .map(|object| object.identity.clone())
+                        .or_else(|| match self.value_type(receiver)? {
+                            ValueType::Object(identity) => Some(identity),
+                            ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                                let ValueType::Object(identity) = item.value_type() else {
+                                    return None;
+                                };
+                                Some(identity.clone())
+                            }
+                            ValueType::InvocationScopedNative { family, .. } => Some(family),
+                            _ => None,
+                        })?;
+                    if projected_interface_dispatch {
+                        return None;
+                    }
+                    self.package
+                        .projection
+                        .method(
+                            &identity.namespace,
+                            &identity.name,
+                            &contract.name,
+                            contract.is_static,
+                        )
+                        .filter(|method| !contract.is_static || method.enum_operation.is_some())
+                })
+            };
         let enum_operation = foreign_method.and_then(|method| method.enum_operation.clone());
         let call = enum_operation
             .as_ref()
@@ -2623,7 +2745,10 @@ impl Emitter<'_> {
         ) {
             return call;
         }
-        let foreign_error = foreign_method.is_some()
+        let direct_projected_call =
+            specialization.is_some_and(|specialization| specialization.direct_projected_call);
+        let foreign_error = direct_projected_call
+            || foreign_method.is_some()
             || (callee.kind == SyntaxKind::Name
                 && self
                     .package
@@ -2637,8 +2762,8 @@ impl Emitter<'_> {
                         )
                     }));
         let call = if let Some(method) = foreign_method {
-            let (dependency, member) = if specialization
-                .is_some_and(|specialization| specialization.direct_projected_call)
+            let (dependency, member) = if callee.kind == SyntaxKind::Name
+                || specialization.is_some_and(|specialization| specialization.direct_projected_call)
             {
                 let dependency = self
                     .package
@@ -2680,6 +2805,11 @@ impl Emitter<'_> {
                         .to_owned(),
                     format!("{type_path}::{}", method.name),
                 )
+            };
+            let call = if method.is_unsafe {
+                format!("unsafe {{ {call} }}")
+            } else {
+                call
             };
             let invocation = if method.into_future {
                 "std::future::IntoFuture::into_future(__terrane_call).await".to_owned()
@@ -2782,7 +2912,14 @@ impl Emitter<'_> {
         } else {
             call
         };
-        let call = if contract.as_ref().is_some_and(|contract| contract.is_unsafe) {
+        let call = if foreign_method.is_none()
+            && (contract.as_ref().is_some_and(|contract| contract.is_unsafe)
+                || specialization
+                    .is_some_and(|specialization| specialization.direct_projected_call)
+                    && projected_function
+                        .as_ref()
+                        .is_some_and(|function| function.is_unsafe))
+        {
             format!("unsafe {{ {call} }}")
         } else {
             call

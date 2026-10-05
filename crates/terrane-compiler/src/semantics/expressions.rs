@@ -1,5 +1,64 @@
 use super::prelude::*;
 
+pub(super) fn call_base_designator(mut callee: &SyntaxNode) -> Option<&SyntaxNode> {
+    while matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+    ) {
+        callee = callee.children.first()?;
+    }
+    Some(callee)
+}
+
+pub(super) fn call_base_contract<'a>(
+    unit: &'a SemanticUnit,
+    call: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<&'a FunctionContract>, SemanticFailure> {
+    let Some(callee) = call.children.first().and_then(call_base_designator) else {
+        return Ok(None);
+    };
+    let is_unsafe = crate::syntax::call_is_unsafe(call);
+    if callee.kind == SyntaxKind::Name {
+        let name = node_text(&unit.source, callee);
+        return Ok(if is_unsafe {
+            resolved_function_contract(unit, &format!("unsafe::{name}"), callee.span.start)
+        } else {
+            resolved_function_contract(unit, name, callee.span.start)
+        });
+    }
+    if matches!(
+        callee.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+    ) && let [receiver, member] = callee.children.as_slice()
+    {
+        let is_static = callee.kind == SyntaxKind::StaticMemberExpression;
+        let identity = if is_static {
+            class_designator_identity(unit, receiver)
+        } else {
+            match infer_receiver_value_type(unit, receiver, bindings)? {
+                Some(
+                    ValueType::Object(identity)
+                    | ValueType::InvocationScopedNative {
+                        family: identity, ..
+                    },
+                ) => Some(identity),
+                _ => None,
+            }
+        };
+        return Ok(identity.as_ref().and_then(|identity| {
+            object_method_contract_with_safety(
+                unit,
+                identity,
+                node_text(&unit.source, member),
+                is_static,
+                is_unsafe,
+            )
+        }));
+    }
+    Ok(None)
+}
+
 fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<ValueType> {
     if let Some(scalar) = ScalarType::from_source_name(name) {
         return Some(ValueType::Scalar(scalar));
@@ -177,6 +236,17 @@ pub(super) fn infer_value_type(
     }
     if node.kind == SyntaxKind::TypeMembershipExpression {
         return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
+    }
+    if node.kind == SyntaxKind::AppliedType
+        && let Some(contract) = call_base_contract(unit, node, bindings)?
+        && let Some(selected) = unit
+            .projected_callable_applications
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .and_then(|contracts| {
+                contracts.get(&(contract.span.file, contract.span.start, contract.span.end))
+            })
+    {
+        return Ok(Some(selected.clone()));
     }
     if node.kind == SyntaxKind::AppliedType
         && let Some(name_node) = node.children.first()
@@ -489,17 +559,35 @@ pub(super) fn infer_value_type(
             .ok_or_else(|| missing_static_member_failure(unit, &identity, member));
     }
     if node.kind == SyntaxKind::CallExpression {
-        if let Some(specialization) = unit.projected_call_specializations.get(&(
-            node.span.file,
-            node.span.start,
-            node.span.end,
-        )) {
-            return Ok(Some(specialization.value_type.clone()));
-        }
-        if let Some(value_type) =
-            unit.selected_expression_types
-                .get(&(node.span.file, node.span.start, node.span.end))
-        {
+        let cached_value_type = unit
+            .projected_call_specializations
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .map(|specialization| &specialization.value_type)
+            .or_else(|| {
+                unit.selected_expression_types.get(&(
+                    node.span.file,
+                    node.span.start,
+                    node.span.end,
+                ))
+            });
+        if let Some(value_type) = cached_value_type {
+            let transferability = if let Some(contract) = call_base_contract(unit, node, bindings)?
+            {
+                contract.is_async.then_some(contract.task_transferability)
+            } else if let Some(callee) = node.children.first().and_then(call_base_designator)
+                && let Some(ValueType::AsyncFunction(_, _, transferability, _)) =
+                    infer_value_type(unit, callee, bindings)?
+            {
+                Some(transferability)
+            } else {
+                None
+            };
+            if let Some(transferability) = transferability {
+                return Ok(Some(ValueType::Task(
+                    ElementType::new(value_type.clone()),
+                    transferability,
+                )));
+            }
             return Ok(Some(value_type.clone()));
         }
         if is_destination_directed_projected_call(unit, node, bindings)? {
@@ -679,6 +767,21 @@ pub(super) fn infer_value_type(
                 else {
                     return Ok(Some(ValueType::Object(identity)));
                 };
+                // Native generic construction is selected and admitted from projection
+                // metadata, not the authored-class generic constructor contract.
+                if identity.namespace.starts_with("/deps/") {
+                    if let Some(ValueType::Object(expected)) =
+                        super::generics::expected_destination_in_unit(
+                            unit,
+                            &unit.tree.root,
+                            node.span,
+                        )
+                        && expected.base() == identity.base()
+                    {
+                        return Ok(Some(ValueType::Object(expected)));
+                    }
+                    return Ok(Some(ValueType::Object(identity)));
+                }
                 if descriptor.generic_parameters.is_empty() || !identity.type_arguments.is_empty() {
                     return Ok(Some(ValueType::Object(identity)));
                 }
@@ -829,7 +932,13 @@ pub(super) fn infer_value_type(
                                     if method.owner.as_deref() == Some(returned.name.as_str())
                             )
                         })
-                        .map_or(result, |_| ValueType::Object(identity));
+                        .map_or(result, |_| {
+                            ValueType::Object(
+                                super::member_inference::selected_descriptor_identity(
+                                    unit, &identity,
+                                ),
+                            )
+                        });
                         Ok(Some(result))
                     }
                     ValueType::AsyncFunction(_, result, transferability, _) => {

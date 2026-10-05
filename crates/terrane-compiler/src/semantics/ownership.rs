@@ -341,7 +341,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     ));
                 }
             }
-            let projected = super::bindings::projected_function_for_call(package, unit, callee);
+            let projected = super::bindings::projected_function_for_call(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            );
             let transferred = arguments
                 .children
                 .iter()

@@ -805,13 +805,6 @@ impl Emitter<'_> {
         crate::semantics::application_is_resource_owning(self.package, value_type)
     }
 
-    pub(super) fn object_owns_resource(&self, identity: &ObjectIdentity) -> bool {
-        crate::semantics::application_is_resource_owning(
-            self.package,
-            &ValueType::Object(identity.clone()),
-        )
-    }
-
     pub(super) fn object_requires_separation(&self, identity: &ObjectIdentity) -> bool {
         let Some(object) = self
             .unit
@@ -858,6 +851,21 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn narrowed_optional_name(&self, operand: &SyntaxNode) -> Option<ValueType> {
+        if operand.kind != SyntaxKind::Name {
+            return None;
+        }
+        narrowed_value_type(self.unit, operand, &self.unit.typed_bindings).or_else(|| {
+            self.parameter_types
+                .iter()
+                .rev()
+                .find(|(name, _)| name == self.text(operand))
+                .and_then(|(_, value_type)| {
+                    narrowed_optional_type(self.unit, operand, value_type.clone())
+                })
+        })
+    }
+
     pub(super) fn reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
         if operand.kind == SyntaxKind::GroupExpression
             && let Some(inner) = operand.children.first()
@@ -875,6 +883,10 @@ impl Emitter<'_> {
             Some(ValueType::SharedReference(_))
         ) {
             return format!("std::sync::Arc::downgrade(&{})", self.expression(operand));
+        }
+        if self.narrowed_optional_name(operand).is_some() {
+            let source_name = rust_name(self.text(operand));
+            return format!("&*{source_name}.as_ref().expect(\"semantic optional narrowing\")");
         }
         if operand.kind == SyntaxKind::Name {
             return format!("&{}", self.raw_storage_name(operand));

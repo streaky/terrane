@@ -597,6 +597,14 @@ impl<T: Eq + Hash + Clone + 'static> Iterable for Set<T> {
         CollectionIterator::new(self.clone())
     }
 }
+impl<T: Eq + Hash + Clone> IntoIterator for Set<T> {
+    type Item = T;
+    type IntoIter = indexmap::set::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Arc::unwrap_or_clone(self.0).into_iter()
+    }
+}
 
 /// Values carry their iteration positions so removal needs no parallel key-index map.
 ///
@@ -738,6 +746,14 @@ impl<K: Eq + Hash + Clone + 'static, V: Clone + 'static> Iterable for UnorderedM
         CollectionIterator::new(self.clone())
     }
 }
+impl<K: Eq + Hash + Clone, V: Clone> IntoIterator for Map<K, V> {
+    type Item = (K, V);
+    type IntoIter = indexmap::map::IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Arc::unwrap_or_clone(self.0).into_iter()
+    }
+}
 
 #[derive(Clone, Debug)]
 struct UnorderedSetData<T: Eq + Hash> {
@@ -823,6 +839,45 @@ impl<T: Eq + Hash + Clone + 'static> Iterable for UnorderedSet<T> {
     type Iter = CollectionIterator<Self>;
     fn terrane_iterator(&self) -> Self::Iter {
         CollectionIterator::new(self.clone())
+    }
+}
+impl<T: Eq + Hash + Clone> IntoIterator for UnorderedSet<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Arc::unwrap_or_clone(self.0).iteration_items.into_iter()
+    }
+}
+
+impl<K: Eq + Hash + Clone, V: Clone> IntoIterator for UnorderedMap<K, V> {
+    type Item = (K, V);
+    type IntoIter = UnorderedMapIntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let data = Arc::unwrap_or_clone(self.0);
+        UnorderedMapIntoIter {
+            keys: data.iteration_keys.into_iter(),
+            values: data.values,
+        }
+    }
+}
+
+pub struct UnorderedMapIntoIter<K: Eq + Hash, V> {
+    keys: std::vec::IntoIter<K>,
+    values: HashMap<K, (usize, V), FixedState>,
+}
+
+impl<K: Eq + Hash, V> std::iter::Iterator for UnorderedMapIntoIter<K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let key = self.keys.next()?;
+        let (key, (_, value)) = self
+            .values
+            .remove_entry(&key)
+            .expect("indexed key must exist");
+        Some((key, value))
     }
 }
 

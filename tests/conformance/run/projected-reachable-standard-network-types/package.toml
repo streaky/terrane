@@ -1,0 +1,13 @@
+package = "projected-reachable-standard-network-types"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.ipnet]
+version = "=2.11.0"
+effects = ["build"]
+
+[rust-dependencies.tokio]
+version = "=1.47.1"
+features = ["net"]
+effects = ["build"]

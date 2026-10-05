@@ -15,6 +15,7 @@ mod scopes;
 
 // Type contracts and expression-family inference.
 mod calls;
+mod capabilities;
 mod collections;
 mod contracts;
 mod descriptors;

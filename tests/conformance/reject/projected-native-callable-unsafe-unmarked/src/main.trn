@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Marker, make_unsafe
+
+function main;
+    selected = (make_unsafe of Marker);

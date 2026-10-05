@@ -1,0 +1,10 @@
+namespace app
+
+from /deps/api import Alias, make_string
+from /deps/owner import owner_byte
+
+function main;
+    # This explicitly selects Alias<String>, distinct from Alias's u8 default.
+    selected Alias of string = make_string;
+    # The underlying owner parameter requires Holder<u8>, not Holder<String>.
+    print; (owner_byte; selected)

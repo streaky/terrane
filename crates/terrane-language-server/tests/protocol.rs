@@ -556,7 +556,8 @@ fn projected_constructor_selection_serves_semantic_hover() {
         .unwrap()
         .replace("Address, Envelope,", "Address, Envelope as Packet,")
         .replace("instance Envelope;", "instance Packet;")
-        .replace("envelope Envelope =", "envelope Packet =");
+        .replace("envelope Envelope =", "envelope Packet =")
+        .replace("Envelope of ", "Packet of ");
     let uri = format!("file://{}", source_path.display());
     let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
         .stdin(Stdio::piped())
