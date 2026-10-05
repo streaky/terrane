@@ -492,16 +492,13 @@ fn load_cache(path: &Path, identity: &str) -> Result<OracleCache, ProjectionErro
     }
     match fs::read(path) {
         Ok(bytes) => {
-            let header: CacheHeader<'_> =
-                serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
-                    message: format!("invalid cached projection oracle identity: {error}"),
-                })?;
+            let Ok(header) = serde_json::from_slice::<CacheHeader<'_>>(&bytes) else {
+                return Ok(OracleCache::new(identity));
+            };
             if header.identity != identity {
                 return Ok(OracleCache::new(identity));
             }
-            serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
-                message: format!("invalid cached projection oracle: {error}"),
-            })
+            serde_json::from_slice(&bytes).or_else(|_| Ok(OracleCache::new(identity)))
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             Ok(OracleCache::new(identity))
@@ -520,15 +517,28 @@ fn save_cache(path: &Path, cache: &OracleCache) -> Result<(), ProjectionError> {
         std::process::id(),
         TEMPORARY_CACHE_ID.fetch_add(1, Ordering::Relaxed)
     ));
-    let mut file = fs::OpenOptions::new()
+    let mut file = match fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)
-        .map_err(io_error("create projection oracle cache temporary file"))?;
-    file.write_all(&bytes)
-        .map_err(io_error("write projection oracle cache"))?;
-    drop(file);
-    fs::rename(&temporary, path).map_err(io_error("replace projection oracle cache"))
+    {
+        Ok(file) => file,
+        Err(error) => {
+            return Err(io_error("create projection oracle cache temporary file")(
+                error,
+            ));
+        }
+    };
+    let result = (|| {
+        file.write_all(&bytes)
+            .map_err(io_error("write projection oracle cache"))?;
+        drop(file);
+        fs::rename(&temporary, path).map_err(io_error("replace projection oracle cache"))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
 }
 
 fn remove_legacy_caches(directory: &Path) -> Result<(), ProjectionError> {
@@ -585,6 +595,7 @@ mod tests {
 
     use super::{
         BoundQuestion, CallQuestion, ImplQuestion, OracleCache, ProbeAnswer, ProjectionOracle,
+        save_cache,
     };
     use crate::{Containment, RUSTDOC_TOOLCHAIN};
 
@@ -665,7 +676,7 @@ mod tests {
     }
 
     #[test]
-    fn oracle_cache_keeps_batches_and_resets_when_identity_changes() {
+    fn oracle_cache_regenerates_corrupt_same_identity_and_resets_on_identity_change() {
         let workspace = workspace("stable-cache");
         let witness = workspace.join("src/lib.rs");
         fs::write(&witness, "pub struct Local;\npub trait Marker {}\n").unwrap();
@@ -685,7 +696,6 @@ mod tests {
         };
         let first_call = oracle.prove_calls(std::slice::from_ref(&call)).unwrap();
         assert_eq!(first_call.evidence[0].answer, ProbeAnswer::No);
-
         let batch_two = BoundQuestion {
             rust_type: "String".to_owned(),
             rust_bound: "Copy".to_owned(),
@@ -708,20 +718,86 @@ mod tests {
             oracle.prove_calls(std::slice::from_ref(&call)).unwrap(),
             first_call
         );
+        fs::write(workspace.join("oracle.json"), b"not json").unwrap();
+        let regenerated = oracle
+            .prove_bounds(std::slice::from_ref(&question))
+            .unwrap();
+        assert_eq!(regenerated.evidence[0].answer, ProbeAnswer::Yes);
+        assert_eq!(
+            oracle
+                .prove_calls(std::slice::from_ref(&call))
+                .unwrap()
+                .evidence[0]
+                .answer,
+            ProbeAnswer::Yes
+        );
+        fs::write(&witness, "pub struct Local;\npub trait Marker {}\n").unwrap();
         fs::write(
             workspace.join("oracle.json"),
             r#"{"identity":"first","bound_reports":"obsolete schema","call_reports":null}"#,
         )
         .unwrap();
-
+        assert_eq!(
+            oracle
+                .prove_bounds(std::slice::from_ref(&question))
+                .unwrap()
+                .evidence[0]
+                .answer,
+            ProbeAnswer::No
+        );
+        assert_eq!(
+            oracle
+                .prove_calls(std::slice::from_ref(&call))
+                .unwrap()
+                .evidence[0]
+                .answer,
+            ProbeAnswer::No
+        );
+        fs::write(
+            &witness,
+            "pub struct Local;\npub trait Marker {}\nimpl Marker for Local {}\n",
+        )
+        .unwrap();
         let changed = ProjectionOracle::new(&workspace, "second", Containment::Unavailable);
-        let rebuilt = changed.prove_bounds(&[question]).unwrap();
-        assert_eq!(rebuilt.evidence[0].answer, ProbeAnswer::Yes);
-        let rebuilt_call = changed.prove_calls(&[call]).unwrap();
-        assert_eq!(rebuilt_call.evidence[0].answer, ProbeAnswer::Yes);
-        let cache: OracleCache =
-            serde_json::from_slice(&fs::read(workspace.join("oracle.json")).unwrap()).unwrap();
-        assert_eq!(cache.identity, "second");
+        assert_eq!(
+            changed.prove_bounds(&[question]).unwrap().evidence[0].answer,
+            ProbeAnswer::Yes
+        );
+        assert_eq!(
+            changed.prove_calls(&[call]).unwrap().evidence[0].answer,
+            ProbeAnswer::Yes
+        );
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_cache_removes_temp_after_rename_failure_and_preserves_target() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let workspace = std::env::temp_dir().join(format!("terrane-oracle-rename-failure-{nonce}"));
+        fs::create_dir(&workspace).unwrap();
+        let destination = workspace.join("oracle.json");
+        fs::create_dir(&destination).unwrap();
+        let prior = destination.join("preserved.txt");
+        fs::write(&prior, "prior target").unwrap();
+        let cache = OracleCache::new("identity");
+        let result = save_cache(&destination, &cache);
+        assert!(result.is_err());
+        assert_eq!(fs::read(&prior).unwrap(), b"prior target");
+        let entries = fs::read_dir(&workspace)
+            .unwrap()
+            .map(Result::unwrap)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            entries
+                .into_iter()
+                .map(|entry| entry.path())
+                .collect::<Vec<_>>(),
+            [destination]
+        );
         fs::remove_dir_all(workspace).unwrap();
     }
 
