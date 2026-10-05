@@ -6,6 +6,8 @@ Everything is an object in Terrane's semantics, but not everything becomes a hea
 
 > **Status:** actively developed and built from source. The language, CLI, and generated-code contracts are not yet stable, and there is no finalized release distribution. See the [language scoreboard](docs/language-scoreboard.html) for implemented features and their evidence.
 
+> **Platforms:** development and testing currently target Linux. Windows and macOS are untested and likely do not work yet; neither is currently a supported platform. The quick start below assumes Linux.
+
 ## What works today
 
 - **Language:** indentation-sensitive syntax, namespaces and imports, lexical scope, typed and inferred bindings, functions with named/default/variadic arguments, closures, and bound methods.

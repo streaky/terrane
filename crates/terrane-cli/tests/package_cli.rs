@@ -297,16 +297,15 @@ fn cached_dynamic_library_links_and_loads_without_shared_build_outputs() {
     let mut compiler = Command::new("rustc");
     compiler
         .arg(&source)
-        .args([
-            "--edition=2024",
-            "-Dwarnings",
-            "-l",
-            "dylib=terrane_program_application",
-        ])
+        .args(["--edition=2024", "-Dwarnings"])
         .arg("-L")
         .arg(format!("native={}", slot.display()))
         .arg("-o")
         .arg(&host);
+    #[cfg(all(target_os = "windows", target_env = "msvc"))]
+    compiler.args(["-l", "dylib:+verbatim=terrane_program_application.dll.lib"]);
+    #[cfg(unix)]
+    compiler.args(["-l", "dylib=terrane_program_application"]);
     #[cfg(unix)]
     compiler
         .arg("-C")
