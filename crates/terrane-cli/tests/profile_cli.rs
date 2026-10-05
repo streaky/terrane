@@ -456,3 +456,65 @@ fn missing_and_permission_denied_collectors_fail_explicitly() {
     assert!(!denied.status.success());
     assert!(String::from_utf8_lossy(&denied.stderr).contains("perf permission denied fixture"));
 }
+
+#[test]
+fn profile_record_preserves_ordinary_debug_and_release_artifacts() {
+    let _guard = RealProfilerGuard::acquire();
+    let directory = TemporaryDirectory::new();
+    assert!(
+        perf_available(directory.path()),
+        "profiling requires an available perf collector"
+    );
+    fs::write(
+        directory.path().join("src/α.trn"),
+        workload(10_000_000, None),
+    )
+    .unwrap();
+    let invoke = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(args)
+            .arg(directory.path().join("package.toml"))
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+    };
+    invoke(&["build"]);
+    invoke(&["build", "--release"]);
+    let application = directory.path().join(".trn/build/application");
+    let artifact = |profile| {
+        application
+            .join("artifacts")
+            .join(profile)
+            .join(format!("terrane_program{}", std::env::consts::EXE_SUFFIX))
+    };
+    let debug = artifact("debug");
+    let release = artifact("release");
+    let debug_modified = fs::metadata(&debug).unwrap().modified().unwrap();
+    let release_modified = fs::metadata(&release).unwrap().modified().unwrap();
+    let capture = record(&directory, "preserved.trnprof");
+    assert!(capture.status.success(), "{capture:?}");
+    assert_eq!(
+        fs::metadata(&debug).unwrap().modified().unwrap(),
+        debug_modified
+    );
+    assert_eq!(
+        fs::metadata(&release).unwrap().modified().unwrap(),
+        release_modified
+    );
+    invoke(&["build"]);
+    invoke(&["build", "--release"]);
+    assert_eq!(
+        fs::metadata(debug).unwrap().modified().unwrap(),
+        debug_modified
+    );
+    assert_eq!(
+        fs::metadata(release).unwrap().modified().unwrap(),
+        release_modified
+    );
+    let inspected = directory.path().join(".trn/build/application-debug");
+    assert!(
+        inspected
+            .join("artifacts/terrane-profile/terrane_program")
+            .is_file()
+    );
+}

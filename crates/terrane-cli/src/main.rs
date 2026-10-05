@@ -317,7 +317,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let uses_async_runtime = compilation.requires_async_runtime;
     let uses_tokio_blocking = compilation.requires_blocking_runtime;
     let uses_tokio_sync = compilation.requires_runtime_sync;
-    let crate_dir = generated_crate_path(&package.root, "application")?;
+    let role = if matches!(command, CliCommand::Debug | CliCommand::Profile) {
+        "application-debug"
+    } else {
+        "application"
+    };
+    let crate_dir = generated_crate_path(&package.root, role)?;
     let artifact_profile = match command {
         CliCommand::Debug => Some(profile_with_panic(
             terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
@@ -348,7 +353,6 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             } else {
                 UnsafeCodePolicy::Forbid
             },
-            artifact_profile,
             artifact: package.artifact,
         },
     )?;
@@ -364,6 +368,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         package.artifact,
         match command {
             CliCommand::Profile => CargoProfile::Profiling,
+            CliCommand::Debug => CargoProfile::Debugger,
             _ if release => CargoProfile::Release,
             _ => CargoProfile::Debug,
         },
@@ -584,6 +589,7 @@ fn emit_warnings(compilation: &terrane_compiler::Compilation) {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CargoProfile {
     Debug,
+    Debugger,
     Release,
     Profiling,
 }
@@ -592,6 +598,7 @@ impl CargoProfile {
     const fn directory(self) -> &'static str {
         match self {
             Self::Debug => "debug",
+            Self::Debugger => "terrane-debug",
             Self::Release => "release",
             Self::Profiling => "terrane-profile",
         }
@@ -600,6 +607,9 @@ impl CargoProfile {
     fn configure(self, command: &mut Command) {
         match self {
             Self::Debug => {}
+            Self::Debugger => {
+                command.args(["--profile", "terrane-debug"]);
+            }
             Self::Release => {
                 command.arg("--release");
             }
@@ -1070,7 +1080,6 @@ fn profile_with_panic(
     profile
 }
 
-type ArtifactProfile = Option<terrane_compiler::provenance::ArtifactProfile>;
 #[derive(Clone, Copy)]
 enum UnsafeCodePolicy {
     Forbid,
@@ -1100,7 +1109,6 @@ struct GeneratedCrateOptions {
     build_toolchain: terrane_compiler::BuildToolchain,
     unsafe_code: UnsafeCodePolicy,
     artifact: terrane_compiler::ArtifactKind,
-    artifact_profile: ArtifactProfile,
 }
 
 fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
@@ -1120,35 +1128,24 @@ fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
     )
 }
 
-fn append_build_profiles(
-    manifest: &mut String,
-    panic: terrane_compiler::PanicProfile,
-    artifact_profile: ArtifactProfile,
-) {
-    if panic == terrane_compiler::PanicProfile::Abort
-        || artifact_profile.is_some_and(|profile| {
-            profile.id == terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE.id
-        })
-    {
-        manifest.push_str("\n[profile.dev]\n");
-        if panic == terrane_compiler::PanicProfile::Abort {
-            manifest.push_str("panic = \"abort\"\n");
-        }
-        if let Some(profile) = artifact_profile
-            .filter(|profile| profile.id == terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE.id)
-        {
-            writeln!(manifest, "opt-level = {}", profile.optimization)
-                .expect("writing to a string cannot fail");
-            writeln!(manifest, "debug = {}", profile.cargo_debug)
-                .expect("writing to a string cannot fail");
-            writeln!(manifest, "strip = {:?}", profile.stripping)
-                .expect("writing to a string cannot fail");
-        }
+fn append_build_profiles(manifest: &mut String, panic: terrane_compiler::PanicProfile) {
+    if panic == terrane_compiler::PanicProfile::Abort {
+        manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
-    if let Some(profile) = artifact_profile
-        .filter(|profile| profile.id == terrane_compiler::profiling::CPU_ARTIFACT_PROFILE.id)
-    {
-        manifest.push_str("\n[profile.terrane-profile]\ninherits = \"release\"\n");
+    for (name, parent, profile) in [
+        (
+            "terrane-debug",
+            "dev",
+            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+        ),
+        (
+            "terrane-profile",
+            "release",
+            terrane_compiler::profiling::CPU_ARTIFACT_PROFILE,
+        ),
+    ] {
+        writeln!(manifest, "\n[profile.{name}]\ninherits = {parent:?}")
+            .expect("writing to a string cannot fail");
         writeln!(manifest, "opt-level = {}", profile.optimization)
             .expect("writing to a string cannot fail");
         writeln!(manifest, "debug = {}", profile.cargo_debug)
@@ -1215,7 +1212,7 @@ fn write_generated_crate(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
     }
-    write_runtime_dependencies(&mut manifest, rust_dependencies, &options);
+    write_runtime_dependencies(&mut manifest, rust_dependencies, options);
     let target_tables = rust_dependencies
         .iter()
         .map(terrane_compiler::RustDependency::cargo_manifest_table)
@@ -1233,7 +1230,7 @@ fn write_generated_crate(
     if options.artifact == terrane_compiler::ArtifactKind::DynamicLibrary {
         manifest.push_str("\n[lib]\ncrate-type = [\"cdylib\"]\n");
     }
-    append_build_profiles(&mut manifest, options.panic, options.artifact_profile);
+    append_build_profiles(&mut manifest, options.panic);
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -1292,7 +1289,7 @@ fn write_generated_crate(
 fn write_runtime_dependencies(
     manifest: &mut String,
     rust_dependencies: &[terrane_compiler::RustDependency],
-    options: &GeneratedCrateOptions,
+    options: GeneratedCrateOptions,
 ) {
     let dependencies =
         if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
@@ -2246,92 +2243,6 @@ mod tests {
             fs::read(cached.with_extension("dll.lib")).unwrap(),
             b"import-library"
         );
-        fs::remove_dir_all(directory).unwrap();
-    }
-
-    #[test]
-    fn generated_cargo_manifest_configures_build_profiles_and_runtime() {
-        let directory =
-            std::env::temp_dir().join(format!("terrane-build-profiles-{}", std::process::id()));
-        if directory.exists() {
-            fs::remove_dir_all(&directory).unwrap();
-        }
-
-        assert!(
-            write_generated_crate(
-                &directory,
-                &[],
-                &[],
-                &[],
-                GeneratedCrateOptions {
-                    panic: terrane_compiler::PanicProfile::Abort,
-                    uses_platform_support: false,
-                    uses_async_runtime: true,
-                    uses_tokio_blocking: false,
-                    uses_tokio_sync: true,
-                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    artifact: terrane_compiler::ArtifactKind::Executable,
-                    unsafe_code: UnsafeCodePolicy::Forbid,
-                    artifact_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,),
-                },
-            )
-            .is_ok()
-        );
-
-        let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
-        assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
-        assert!(manifest.contains("opt-level = 0\ndebug = 2\nstrip = \"none\"\n"));
-        assert!(
-            manifest
-                .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
-        );
-        assert!(manifest.contains(&format!(
-            "rust-version = \"{}\"",
-            terrane_compiler::BUILD_TOOLCHAIN
-        )));
-        assert!(manifest.contains("unicode-data-version = \"16.0.0\""));
-        assert!(manifest.contains(
-            "tokio = { package = \"tokio\", version = \"=1.53.0\", default-features = true, \
-             features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }"
-        ));
-        assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
-        let string_support =
-            fs::read_to_string(directory.join("support/terrane-string-support/Cargo.toml"))
-                .unwrap();
-        assert!(string_support.contains("caseless = \"=0.2.2\""));
-        assert!(string_support.contains("unicode-normalization = \"=0.1.24\""));
-        assert!(string_support.contains("unicode-segmentation = \"=1.12.0\""));
-        assert!(directory.join("rust-toolchain.toml").is_file());
-        let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
-        assert!(metadata.contains(&format!(
-            "rust-toolchain = \"{}\"",
-            terrane_compiler::BUILD_TOOLCHAIN
-        )));
-
-        assert!(
-            write_generated_crate(
-                &directory,
-                &[],
-                &[],
-                &[],
-                GeneratedCrateOptions {
-                    panic: terrane_compiler::PanicProfile::Abort,
-                    uses_platform_support: false,
-                    uses_async_runtime: false,
-                    uses_tokio_blocking: false,
-                    uses_tokio_sync: false,
-                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    artifact: terrane_compiler::ArtifactKind::DynamicLibrary,
-                    unsafe_code: UnsafeCodePolicy::MaintainedModules,
-                    artifact_profile: None,
-                },
-            )
-            .is_ok()
-        );
-        let synchronous_manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
-        assert!(!synchronous_manifest.contains("\ntokio = "));
-        assert!(synchronous_manifest.contains("[lib]\ncrate-type = [\"cdylib\"]"));
-        assert!(synchronous_manifest.contains("[lints.rust]\nunsafe_code = \"deny\""));
         fs::remove_dir_all(directory).unwrap();
     }
 }

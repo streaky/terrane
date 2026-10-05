@@ -481,7 +481,6 @@ fn build_native_compilation(
                 crate::UnsafeCodePolicy::Forbid
             },
             artifact: terrane_compiler::ArtifactKind::Executable,
-            artifact_profile: None,
         },
     )?;
     let target_dir = package.root.join(".trn/cache/target");
