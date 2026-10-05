@@ -1,0 +1,9 @@
+package = "projected-native-cached-result-template"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-cached-result-witness"
+version = "=0.1.1"
+effects = ["build"]

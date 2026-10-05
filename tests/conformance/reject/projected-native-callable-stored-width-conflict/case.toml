@@ -1,0 +1,6 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+
+[diagnostics]
+code = "T0129"

@@ -2,4 +2,5 @@ namespace union-parameter-unsupported
 function choose; value int8 | int32
   print; value
 function main;
-  choose; 1
+  value int8 = 1
+  choose; value

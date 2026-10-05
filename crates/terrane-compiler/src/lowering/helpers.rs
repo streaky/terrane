@@ -606,7 +606,15 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         {
             "TerraneError".to_owned()
         }
-        ValueType::Object(identity) => rust_object_type_name(package, &identity),
+        ValueType::Object(identity) => identity.native_projection.as_deref().map_or_else(
+            || rust_object_type_name(package, &identity),
+            |native| {
+                package
+                    .projection
+                    .canonical_native_type(native)
+                    .into_owned()
+            },
+        ),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<std::sync::Mutex<{}>>",
             rust_element_type(package, item)

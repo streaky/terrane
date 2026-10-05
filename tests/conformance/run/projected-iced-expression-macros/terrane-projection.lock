@@ -26,11 +26,6 @@
       "version": "=0.14.0"
     },
     {
-      "name": "__terrane_recursive_iced_renderer",
-      "package": "iced_renderer",
-      "version": "=0.14.0"
-    },
-    {
       "name": "__terrane_recursive_iced_runtime",
       "package": "iced_runtime",
       "version": "=0.14.0"
@@ -41,6 +36,11 @@
       "version": "=0.14.1"
     },
     {
+      "name": "__terrane_recursive_lilt",
+      "package": "lilt",
+      "version": "=0.8.2"
+    },
+    {
       "name": "__terrane_recursive_naga",
       "package": "naga",
       "version": "=27.0.3"
@@ -49,11 +49,6 @@
       "name": "__terrane_recursive_raw_window_handle",
       "package": "raw-window-handle",
       "version": "=0.6.2"
-    },
-    {
-      "name": "__terrane_recursive_smol_str",
-      "package": "smol_str",
-      "version": "=0.2.2"
     },
     {
       "name": "__terrane_recursive_wgpu_core",
@@ -71,14 +66,34 @@
       "version": "=27.0.1"
     },
     {
+      "name": "__terrane_recursive_winit",
+      "package": "winit",
+      "version": "=0.30.13"
+    },
+    {
       "name": "bytes",
       "package": "bytes",
       "version": "=1.12.1"
     },
     {
+      "name": "futures_core",
+      "package": "futures-core",
+      "version": "=0.3.34"
+    },
+    {
       "name": "iced_program",
       "package": "iced_program",
       "version": "=0.14.0"
+    },
+    {
+      "name": "iced_renderer",
+      "package": "iced_renderer",
+      "version": "=0.14.0"
+    },
+    {
+      "name": "num_traits",
+      "package": "num-traits",
+      "version": "=0.2.19"
     }
   ],
   "dependencies": [
@@ -86,6 +101,29 @@
       "members": {
         "/deps/iced": [
           "Alignment",
+          "Animation",
+          "Animation.auto_reverse",
+          "Animation.clone",
+          "Animation.delay",
+          "Animation.duration",
+          "Animation.easing",
+          "Animation.go",
+          "Animation.go_mut",
+          "Animation.interpolate",
+          "Animation.interpolate_with",
+          "Animation.into",
+          "Animation.is_animating",
+          "Animation.quick",
+          "Animation.remaining",
+          "Animation.repeat",
+          "Animation.repeat_forever",
+          "Animation.slow",
+          "Animation.try_into",
+          "Animation.value",
+          "Animation.very_quick",
+          "Animation.very_slow",
+          "Animation::new",
+          "Application",
           "Application-of-Program-State-Instant-Theme",
           "Application-of-Program-State-Instant-Theme.antialiasing",
           "Application-of-Program-State-Instant-Theme.centered",
@@ -130,6 +168,30 @@
           "Application-of-Program-State-Message-Theme.transparent",
           "Application-of-Program-State-Message-Theme.window",
           "Application-of-Program-State-Message-Theme.window_size",
+          "Application.antialiasing",
+          "Application.centered",
+          "Application.decorations",
+          "Application.default_font",
+          "Application.executor",
+          "Application.exit_on_close_request",
+          "Application.font",
+          "Application.into",
+          "Application.level",
+          "Application.position",
+          "Application.presets",
+          "Application.resizable",
+          "Application.run",
+          "Application.scale_factor",
+          "Application.settings",
+          "Application.style",
+          "Application.subscription",
+          "Application.theme",
+          "Application.title",
+          "Application.transparent",
+          "Application.try_into",
+          "Application.view",
+          "Application.window",
+          "Application.window_size",
           "Background",
           "Border",
           "Border.clone",
@@ -160,6 +222,7 @@
           "Color::from_rgba8",
           "Color::from_str",
           "ContentFit",
+          "Daemon",
           "Daemon-of-Program-State-Message-Theme",
           "Daemon-of-Program-State-Message-Theme.antialiasing",
           "Daemon-of-Program-State-Message-Theme.default_font",
@@ -173,6 +236,22 @@
           "Daemon-of-Program-State-Message-Theme.subscription",
           "Daemon-of-Program-State-Message-Theme.theme",
           "Daemon-of-Program-State-Message-Theme.title",
+          "Daemon.antialiasing",
+          "Daemon.default_font",
+          "Daemon.executor",
+          "Daemon.font",
+          "Daemon.into",
+          "Daemon.presets",
+          "Daemon.run",
+          "Daemon.scale_factor",
+          "Daemon.settings",
+          "Daemon.style",
+          "Daemon.subscription",
+          "Daemon.theme",
+          "Daemon.title",
+          "Daemon.try_into",
+          "Daemon.view",
+          "Daemon.window",
           "Degrees",
           "Degrees.add",
           "Degrees.clone",
@@ -183,6 +262,7 @@
           "Degrees::from_i64",
           "Degrees::from_u64",
           "Error",
+          "Error-GraphicsAdapterNotFound",
           "Event",
           "Font",
           "Font.assert_fields_are_eq",
@@ -192,7 +272,17 @@
           "Font.try_into",
           "Font::default",
           "Gradient",
+          "Id",
+          "Id.assert_fields_are_eq",
+          "Id.clone",
+          "Id.cmp",
+          "Id.eq",
+          "Id.into",
+          "Id.partial_cmp",
+          "Id.try_into",
+          "Id::unique",
           "Length",
+          "Level",
           "Never",
           "Padding",
           "Padding.bottom",
@@ -232,6 +322,11 @@
           "Point::default",
           "Point::from",
           "Point::new",
+          "Position",
+          "Preset",
+          "Preset.into",
+          "Preset.name",
+          "Preset.try_into",
           "Radians",
           "Radians.add_assign",
           "Radians.clone",
@@ -280,10 +375,6 @@
           "Result",
           "Rotation",
           "Settings",
-          "Settings.clone",
-          "Settings.into",
-          "Settings.try_into",
-          "Settings::default",
           "Shadow",
           "Shadow.clone",
           "Shadow.eq",
@@ -307,6 +398,33 @@
           "Size.try_into",
           "Size::default",
           "Size::new",
+          "Subscription",
+          "Subscription.filter_map",
+          "Subscription.into",
+          "Subscription.map",
+          "Subscription.try_into",
+          "Subscription.units",
+          "Subscription::batch",
+          "Subscription::none",
+          "Task",
+          "Task.and_then",
+          "Task.chain",
+          "Task.collect",
+          "Task.discard",
+          "Task.into",
+          "Task.map",
+          "Task.then",
+          "Task.try_into",
+          "Task.units",
+          "Task::batch",
+          "Task::default",
+          "Task::done",
+          "Task::from",
+          "Task::future",
+          "Task::none",
+          "Task::perform",
+          "Task::run",
+          "Task::stream",
           "Theme",
           "Transformation",
           "Transformation.clone",
@@ -361,8 +479,16 @@
         ],
         "/deps/iced/advanced/graphics": [
           "Antialiasing",
-          "Error",
-          "Error-GraphicsAdapterNotFound",
+          "Cache",
+          "Cache.clear",
+          "Cache.group",
+          "Cache.into",
+          "Cache.put",
+          "Cache.state",
+          "Cache.try_into",
+          "Cache::default",
+          "Cache::new",
+          "Cache::with_group",
           "Gradient",
           "Image",
           "Image-Raster",
@@ -455,6 +581,21 @@
           "Packed.into",
           "Packed.try_into",
           "pack"
+        ],
+        "/deps/iced/advanced/graphics/layer": [
+          "Stack",
+          "Stack.flush",
+          "Stack.into",
+          "Stack.merge",
+          "Stack.pop_clip",
+          "Stack.pop_transformation",
+          "Stack.push_clip",
+          "Stack.push_transformation",
+          "Stack.reset",
+          "Stack.transformation",
+          "Stack.try_into",
+          "Stack::default",
+          "Stack::new"
         ],
         "/deps/iced/advanced/graphics/mesh": [
           "AttributeCount",
@@ -579,7 +720,8 @@
         "/deps/iced/advanced/graphics/text/cache": [
           "Entry",
           "Entry.into",
-          "Entry.try_into"
+          "Entry.try_into",
+          "KeyHash"
         ],
         "/deps/iced/advanced/graphics/text/editor": [
           "Weak",
@@ -801,6 +943,22 @@
         "/deps/iced/advanced/text/lineheight/trait/core/convert/from-iced/pixels": [
           "from"
         ],
+        "/deps/iced/advanced/text/paragraph": [
+          "Plain",
+          "Plain.align_x",
+          "Plain.align_y",
+          "Plain.as_text",
+          "Plain.clone",
+          "Plain.content",
+          "Plain.into",
+          "Plain.min_bounds",
+          "Plain.min_height",
+          "Plain.min_width",
+          "Plain.raw",
+          "Plain.try_into",
+          "Plain::default",
+          "Plain::new"
+        ],
         "/deps/iced/advanced/widget": [
           "Id",
           "Id.assert_fields_are_eq",
@@ -852,6 +1010,20 @@
           "Format.into",
           "Format.try_into",
           "Format::default",
+          "State",
+          "State.align_x",
+          "State.align_y",
+          "State.as_text",
+          "State.clone",
+          "State.content",
+          "State.into",
+          "State.min_bounds",
+          "State.min_height",
+          "State.min_width",
+          "State.raw",
+          "State.try_into",
+          "State::default",
+          "State::new",
           "Style",
           "Style.clone",
           "Style.eq",
@@ -903,7 +1075,19 @@
           "from"
         ],
         "/deps/iced/application": [
-          "timed"
+          "Style",
+          "Style.clone",
+          "Style.eq",
+          "Style.into",
+          "Style.try_into",
+          "scale_factor",
+          "settings",
+          "style",
+          "subscription",
+          "theme",
+          "timed",
+          "title",
+          "window"
         ],
         "/deps/iced/background/trait/core/convert/from-iced/color": [
           "from"
@@ -965,6 +1149,14 @@
           "write",
           "write_primary"
         ],
+        "/deps/iced/daemon": [
+          "scale_factor",
+          "settings",
+          "style",
+          "subscription",
+          "theme",
+          "title"
+        ],
         "/deps/iced/debug": [
           "Span",
           "Span.finish",
@@ -992,6 +1184,7 @@
           "from"
         ],
         "/deps/iced/event": [
+          "Event",
           "Status",
           "listen"
         ],
@@ -1209,7 +1402,7 @@
         "/deps/iced/point/trait/core/ops/arith/sub": [
           "sub"
         ],
-        "/deps/iced/point/trait/core/ops/arith/sub-iced/vector-f32": [
+        "/deps/iced/point/trait/core/ops/arith/sub-iced/vector-t": [
           "sub"
         ],
         "/deps/iced/radians/trait/core/cmp/partialeq": [
@@ -1263,25 +1456,25 @@
         "/deps/iced/rotation/trait/core/convert/from-iced/radians": [
           "from"
         ],
-        "/deps/iced/size/trait/core/convert/from-f32-f32": [
-          "from"
-        ],
         "/deps/iced/size/trait/core/convert/from-iced/padding": [
           "from"
         ],
-        "/deps/iced/size/trait/core/convert/from-iced/vector-f32": [
+        "/deps/iced/size/trait/core/convert/from-iced/vector-t": [
+          "from"
+        ],
+        "/deps/iced/size/trait/core/convert/from-t-t": [
           "from"
         ],
         "/deps/iced/size/trait/core/convert/from-u32-u32": [
           "from"
         ],
-        "/deps/iced/size/trait/core/ops/arith/mul-f32": [
-          "mul"
-        ],
         "/deps/iced/size/trait/core/ops/arith/mul-iced/transformation": [
           "mul"
         ],
-        "/deps/iced/size/trait/core/ops/arith/mul-iced/vector-f32": [
+        "/deps/iced/size/trait/core/ops/arith/mul-iced/vector-t": [
+          "mul"
+        ],
+        "/deps/iced/size/trait/core/ops/arith/mul-t": [
           "mul"
         ],
         "/deps/iced/system": [
@@ -1296,7 +1489,26 @@
           "Handle.drop",
           "Handle.into",
           "Handle.is_aborted",
-          "Handle.try_into"
+          "Handle.try_into",
+          "Task",
+          "Task.and_then",
+          "Task.chain",
+          "Task.collect",
+          "Task.discard",
+          "Task.into",
+          "Task.map",
+          "Task.then",
+          "Task.try_into",
+          "Task.units",
+          "Task::batch",
+          "Task::default",
+          "Task::done",
+          "Task::from",
+          "Task::future",
+          "Task::none",
+          "Task::perform",
+          "Task::run",
+          "Task::stream"
         ],
         "/deps/iced/theme": [
           "Custom",
@@ -1312,11 +1524,6 @@
           "Palette.eq",
           "Palette.into",
           "Palette.try_into",
-          "Style",
-          "Style.clone",
-          "Style.eq",
-          "Style.into",
-          "Style.try_into",
           "default",
           "palette"
         ],
@@ -1400,7 +1607,7 @@
         "/deps/iced/transformation/trait/core/ops/arith/mul": [
           "mul"
         ],
-        "/deps/iced/vector/trait/core/convert/from-iced/size-f32": [
+        "/deps/iced/vector/trait/core/convert/from-iced/size-t": [
           "from"
         ],
         "/deps/iced/vector/trait/core/ops/arith/add": [
@@ -1412,16 +1619,16 @@
         "/deps/iced/vector/trait/core/ops/arith/addassign": [
           "add_assign"
         ],
-        "/deps/iced/vector/trait/core/ops/arith/addassign-iced/vector-f32": [
+        "/deps/iced/vector/trait/core/ops/arith/addassign-iced/vector-t": [
           "add_assign"
-        ],
-        "/deps/iced/vector/trait/core/ops/arith/mul-f32": [
-          "mul"
         ],
         "/deps/iced/vector/trait/core/ops/arith/mul-iced/transformation": [
           "mul"
         ],
-        "/deps/iced/vector/trait/core/ops/arith/mul-iced/vector-f32": [
+        "/deps/iced/vector/trait/core/ops/arith/mul-iced/vector-t": [
+          "mul"
+        ],
+        "/deps/iced/vector/trait/core/ops/arith/mul-t": [
           "mul"
         ],
         "/deps/iced/vector/trait/core/ops/arith/sub": [
@@ -1433,7 +1640,7 @@
         "/deps/iced/vector/trait/core/ops/arith/subassign": [
           "sub_assign"
         ],
-        "/deps/iced/vector/trait/core/ops/arith/subassign-iced/vector-f32": [
+        "/deps/iced/vector/trait/core/ops/arith/subassign-iced/vector-t": [
           "sub_assign"
         ],
         "/deps/iced/wgpu": [
@@ -1582,6 +1789,7 @@
           "Device.try_into",
           "Error",
           "ErrorFilter",
+          "ErrorSource",
           "ExternalTexture",
           "ExternalTexture.clone",
           "ExternalTexture.cmp",
@@ -1840,6 +2048,15 @@
           "from_bits_retain"
         ],
         "/deps/iced/widget": [
+          "Action",
+          "Action.and_capture",
+          "Action.clone",
+          "Action.into",
+          "Action.try_into",
+          "Action::capture",
+          "Action::publish",
+          "Action::request_redraw",
+          "Action::request_redraw_at",
           "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952",
           "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.clip",
           "Button-hash-hf691aaf9f927f5674c348188aadd7b38253c8a26d0b8fee3c57d56840d842952.height",
@@ -1980,6 +2197,15 @@
           "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.on_hide",
           "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.on_resize",
           "Sensor-hash-h8fbad68dc8b579701c4f1d35344cf9ac9c94634d6963aea07073326070abf9d1.on_show",
+          "Shader",
+          "Shader.height",
+          "Shader.into",
+          "Shader.size",
+          "Shader.state",
+          "Shader.tag",
+          "Shader.try_into",
+          "Shader.width",
+          "Shader::new",
           "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4",
           "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.default",
           "Slider-hash-h05f24248cf290e557c7f4f4c7fcede682745194974e078ae58cc735f6be120a4.height",
@@ -2145,6 +2371,16 @@
           "secondary",
           "success"
         ],
+        "/deps/iced/widget/combo-box": [
+          "State",
+          "State.clone",
+          "State.into",
+          "State.into_options",
+          "State.push",
+          "State.try_into",
+          "State::default",
+          "State::new"
+        ],
         "/deps/iced/widget/container": [
           "Style",
           "Style.background",
@@ -2263,6 +2499,25 @@
           "Split.into",
           "Split.partial_cmp",
           "Split.try_into",
+          "State",
+          "State.adjacent",
+          "State.clone",
+          "State.drop",
+          "State.get",
+          "State.get_mut",
+          "State.into",
+          "State.is_empty",
+          "State.layout",
+          "State.len",
+          "State.maximize",
+          "State.maximized",
+          "State.move_to_edge",
+          "State.resize",
+          "State.restore",
+          "State.split_with",
+          "State.swap",
+          "State.try_into",
+          "State::with_configuration",
           "Style",
           "Style.clone",
           "Style.eq",
@@ -2270,6 +2525,10 @@
           "Style.try_into",
           "Target",
           "Target-Pane",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map",
           "default"
         ],
         "/deps/iced/widget/pane-grid/state": [
@@ -2479,6 +2738,12 @@
           "KeyPress.eq",
           "KeyPress.into",
           "KeyPress.try_into",
+          "State",
+          "State.focus",
+          "State.into",
+          "State.is_focused",
+          "State.try_into",
+          "State.unfocus",
           "Status",
           "Status-Focused",
           "Style",
@@ -2487,6 +2752,9 @@
           "Style.into",
           "Style.try_into",
           "default"
+        ],
+        "/deps/iced/widget/text-editor/state": [
+          "is_focused"
         ],
         "/deps/iced/widget/text-input": [
           "Cursor",
@@ -2503,6 +2771,22 @@
           "Icon.into",
           "Icon.try_into",
           "Side",
+          "State",
+          "State.clone",
+          "State.cursor",
+          "State.focus",
+          "State.into",
+          "State.is_focused",
+          "State.move_cursor_to",
+          "State.move_cursor_to_end",
+          "State.move_cursor_to_front",
+          "State.select_all",
+          "State.select_range",
+          "State.text",
+          "State.try_into",
+          "State.unfocus",
+          "State::default",
+          "State::new",
           "Status",
           "Status-Focused",
           "Style",
@@ -2531,6 +2815,16 @@
         "/deps/iced/widget/text-input/cursor": [
           "State",
           "State-Selection"
+        ],
+        "/deps/iced/widget/text-input/state": [
+          "focus",
+          "is_focused",
+          "move_cursor_to",
+          "move_cursor_to_end",
+          "move_cursor_to_front",
+          "select_all",
+          "select_range",
+          "unfocus"
         ],
         "/deps/iced/widget/toggler": [
           "Status",
@@ -2579,18 +2873,7 @@
           "Icon.clone",
           "Icon.into",
           "Icon.try_into",
-          "Id",
-          "Id.assert_fields_are_eq",
-          "Id.clone",
-          "Id.cmp",
-          "Id.eq",
-          "Id.into",
-          "Id.partial_cmp",
-          "Id.try_into",
-          "Id::unique",
-          "Level",
           "Mode",
-          "Position",
           "RedrawRequest",
           "Screenshot",
           "Screenshot.clone",
@@ -2599,11 +2882,6 @@
           "Screenshot.try_into",
           "Screenshot::from",
           "Screenshot::new",
-          "Settings",
-          "Settings.clone",
-          "Settings.into",
-          "Settings.try_into",
-          "Settings::default",
           "UserAttention",
           "allow_automatic_tabbing",
           "close",

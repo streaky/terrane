@@ -1,0 +1,26 @@
+namespace app
+
+from /deps/witness import Opaque, Pair, make_text, make_flag, make_nested, default_pair, pair_code, flag_code, mapping_value, pair_text, pair, flags, lookup
+from /core/output import print
+
+function present bool; value Opaque of string
+    return (value.into_value;) == 'text'
+
+function main;
+    text Opaque of string = make_text;
+    flag Opaque of bool = make_flag;
+    defaulted Opaque = make_text;
+    print; (present; text)
+    print; (flag.into_value;)
+    nested Opaque of Opaque of bool = make_nested;
+    aggregate = pair;
+    print; (pair_code; aggregate)
+    selected = flags;
+    print; (flag_code; selected)
+    mapping = lookup;
+    print; (mapping_value; mapping)
+    defaulted_pair Pair = default_pair;
+    print; (pair_text; defaulted_pair)
+    inner Opaque of bool = nested.into_value;
+    print; (inner.into_value;)
+    print; (defaulted.into_value;)

@@ -47,6 +47,28 @@
           "Body.try_into",
           "Body::default",
           "Body::wrap",
+          "Bytes",
+          "Bytes.advance",
+          "Bytes.clear",
+          "Bytes.clone",
+          "Bytes.cmp",
+          "Bytes.copy_to_bytes",
+          "Bytes.drop",
+          "Bytes.extend",
+          "Bytes.into",
+          "Bytes.is_empty",
+          "Bytes.is_unique",
+          "Bytes.len",
+          "Bytes.remaining",
+          "Bytes.slice",
+          "Bytes.split_off",
+          "Bytes.split_to",
+          "Bytes.truncate",
+          "Bytes.try_into",
+          "Bytes::default",
+          "Bytes::from_iter",
+          "Bytes::from_owner",
+          "Bytes::new",
           "Certificate",
           "Certificate.clone",
           "Certificate.into",
@@ -122,6 +144,63 @@
           "ClientBuilder::default",
           "ClientBuilder::from",
           "ClientBuilder::new",
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.add",
+          "Duration.add_assign",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.clone",
+          "Duration.cmp",
+          "Duration.div",
+          "Duration.div_assign",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.eq",
+          "Duration.into",
+          "Duration.is_zero",
+          "Duration.mul_assign",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.partial_cmp",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.sub",
+          "Duration.sub_assign",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration.try_into",
+          "Duration::default",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
           "Error",
           "Error.into",
           "Error.is_body",
@@ -138,6 +217,71 @@
           "Error.url_mut",
           "Error.with_url",
           "Error.without_url",
+          "Extensions",
+          "Extensions.clear",
+          "Extensions.clone",
+          "Extensions.extend",
+          "Extensions.get",
+          "Extensions.get_mut",
+          "Extensions.get_or_insert",
+          "Extensions.get_or_insert_default",
+          "Extensions.get_or_insert_with",
+          "Extensions.insert",
+          "Extensions.into",
+          "Extensions.is_empty",
+          "Extensions.len",
+          "Extensions.remove",
+          "Extensions.try_into",
+          "Extensions::default",
+          "Extensions::new",
+          "HeaderMap",
+          "HeaderMap.append",
+          "HeaderMap.capacity",
+          "HeaderMap.clear",
+          "HeaderMap.clone",
+          "HeaderMap.contains_key",
+          "HeaderMap.drain",
+          "HeaderMap.entry",
+          "HeaderMap.eq",
+          "HeaderMap.get",
+          "HeaderMap.get_all",
+          "HeaderMap.get_mut",
+          "HeaderMap.insert",
+          "HeaderMap.into",
+          "HeaderMap.is_empty",
+          "HeaderMap.iter",
+          "HeaderMap.iter_mut",
+          "HeaderMap.keys",
+          "HeaderMap.keys_len",
+          "HeaderMap.len",
+          "HeaderMap.remove",
+          "HeaderMap.reserve",
+          "HeaderMap.try_append",
+          "HeaderMap.try_entry",
+          "HeaderMap.try_insert",
+          "HeaderMap.try_into",
+          "HeaderMap.try_reserve",
+          "HeaderMap.values",
+          "HeaderMap.values_mut",
+          "HeaderMap::default",
+          "HeaderMap::from_iter",
+          "HeaderMap::new",
+          "HeaderMap::try_with_capacity",
+          "HeaderMap::with_capacity",
+          "HeaderValue",
+          "HeaderValue.clone",
+          "HeaderValue.cmp",
+          "HeaderValue.into",
+          "HeaderValue.is_empty",
+          "HeaderValue.is_sensitive",
+          "HeaderValue.len",
+          "HeaderValue.set_sensitive",
+          "HeaderValue.to_str",
+          "HeaderValue.try_into",
+          "HeaderValue::from_maybe_shared",
+          "HeaderValue::from_maybe_shared_unchecked",
+          "HeaderValue::from_name",
+          "HeaderValue::from_str",
           "Identity",
           "Identity.clone",
           "Identity.into",
@@ -227,6 +371,22 @@
           "Response.upgrade",
           "Response.url",
           "Response.version",
+          "Result",
+          "SizeHint",
+          "SizeHint.add",
+          "SizeHint.clone",
+          "SizeHint.exact",
+          "SizeHint.into",
+          "SizeHint.lower",
+          "SizeHint.set_exact",
+          "SizeHint.set_lower",
+          "SizeHint.set_upper",
+          "SizeHint.try_into",
+          "SizeHint.upper",
+          "SizeHint::default",
+          "SizeHint::new",
+          "SizeHint::with_exact",
+          "SocketAddr",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
@@ -467,6 +627,42 @@
         "/deps/reqwest/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-bytes/bytes-mut/bytesmut": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-std/vec/vec-u8": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-str": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord-std/string/string": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord-std/vec/vec-u8": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord-str": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/convert/from-bytes/bytes-mut/bytesmut": [
+          "from"
+        ],
+        "/deps/reqwest/bytes/trait/core/convert/from-std/string/string": [
+          "from"
+        ],
+        "/deps/reqwest/bytes/trait/core/convert/from-std/vec/vec-u8": [
+          "from"
+        ],
         "/deps/reqwest/connect/sealed": [
           "Conn",
           "Unnameable"
@@ -475,16 +671,25 @@
           "Internal"
         ],
         "/deps/reqwest/dns": [
+          "Addrs",
           "Name",
           "Name.as_str",
           "Name.into",
           "Name.try_into",
-          "Name::from_str"
+          "Name::from_str",
+          "Resolving"
         ],
         "/deps/reqwest/dns/resolve/sealed": [
           "InvalidNameError"
         ],
+        "/deps/reqwest/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
+        ],
         "/deps/reqwest/header": [
+          "IntoIter",
+          "IntoIter.drop",
+          "IntoIter.into",
+          "IntoIter.try_into",
           "InvalidHeaderName",
           "InvalidHeaderName.into",
           "InvalidHeaderName.try_into",
@@ -503,6 +708,69 @@
         ],
         "/deps/reqwest/header/map/as-header-name": [
           "TryEntryError"
+        ],
+        "/deps/reqwest/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/header/name/headername-t": [
+          "extend"
+        ],
+        "/deps/reqwest/headermap/trait/core/iter/traits/collect/extend-http/header/name/headername-t": [
+          "extend"
+        ],
+        "/deps/reqwest/headervalue": [
+          "from_str"
+        ],
+        "/deps/reqwest/headervalue/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/reqwest/headervalue/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/reqwest/headervalue/trait/core/cmp/partialeq-str": [
+          "eq"
+        ],
+        "/deps/reqwest/headervalue/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/headervalue/trait/core/cmp/partialord-std/string/string": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/headervalue/trait/core/cmp/partialord-str": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-http/header/name/headername": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-i16": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-i64": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-isize": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-reqwest/headervalue": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-u16": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-u64": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/from-usize": [
+          "from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/tryfrom-std/vec/vec-u8": [
+          "try_from"
+        ],
+        "/deps/reqwest/headervalue/trait/core/convert/tryfrom-str": [
+          "try_from"
         ],
         "/deps/reqwest/method/trait/core/cmp/partialeq": [
           "eq"
@@ -535,6 +803,12 @@
         "/deps/reqwest/retry/classify": [
           "Action"
         ],
+        "/deps/reqwest/socketaddr/trait/core/convert/from-core/net/socket-addr/socketaddrv4": [
+          "from"
+        ],
+        "/deps/reqwest/socketaddr/trait/core/convert/from-core/net/socket-addr/socketaddrv6": [
+          "from"
+        ],
         "/deps/reqwest/statuscode/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -551,6 +825,7 @@
           "CertificateRevocationList",
           "CertificateRevocationList.into",
           "CertificateRevocationList.try_into",
+          "Ordering",
           "TlsInfo",
           "TlsInfo.clone",
           "TlsInfo.into",

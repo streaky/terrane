@@ -1,0 +1,9 @@
+package = "projected-native-nested-bound"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-nested-bound-witness"
+version = "=0.1.0"
+effects = ["build"]

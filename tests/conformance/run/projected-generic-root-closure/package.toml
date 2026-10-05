@@ -1,0 +1,9 @@
+package = "projected-generic-root-closure"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-generic-root-witness"
+version = "=0.1.0"
+effects = ["build"]

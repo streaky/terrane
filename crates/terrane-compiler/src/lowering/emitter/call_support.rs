@@ -559,8 +559,16 @@ impl Emitter<'_> {
 
     pub(super) fn projected_function_for_call(
         &self,
-        callee: &SyntaxNode,
+        mut callee: &SyntaxNode,
+        is_unsafe: bool,
     ) -> Option<&crate::rust_interop::projection::ProjectedFunction> {
+        let is_unsafe = is_unsafe || Self::callee_is_unsafe(callee);
+        while matches!(
+            callee.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+        ) {
+            callee = callee.children.first()?;
+        }
         if callee.kind == SyntaxKind::ConstructionExpression {
             let identity = &self.class_designator(callee.children.first()?)?.identity;
             return self
@@ -569,7 +577,7 @@ impl Emitter<'_> {
                 .projected_constructor(&identity.namespace, &identity.name);
         }
         if callee.kind == SyntaxKind::Name {
-            let lookup_name = if Self::callee_is_unsafe(callee) {
+            let lookup_name = if is_unsafe {
                 format!("unsafe::{}", self.text(callee))
             } else {
                 self.text(callee).to_owned()
@@ -616,11 +624,23 @@ impl Emitter<'_> {
             identity.native_projection.as_deref(),
             self.text(member),
             is_static,
-            Self::callee_is_unsafe(callee),
+            is_unsafe,
         )
     }
 
-    pub(super) fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
+    pub(super) fn contract_for_call(
+        &self,
+        mut callee: &SyntaxNode,
+        mut is_unsafe: bool,
+    ) -> Option<&FunctionContract> {
+        is_unsafe |= Self::callee_is_unsafe(callee);
+        while matches!(
+            callee.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+        ) {
+            callee = callee.children.first()?;
+            is_unsafe |= Self::callee_is_unsafe(callee);
+        }
         if let [receiver, member] = callee.children.as_slice()
             && matches!(
                 callee.kind,
@@ -653,7 +673,7 @@ impl Emitter<'_> {
                 .find(|contract| {
                     contract.name == self.text(member)
                         && contract.is_static == is_static
-                        && contract.is_unsafe == Self::callee_is_unsafe(callee)
+                        && contract.is_unsafe == is_unsafe
                 });
         }
         if callee.kind == SyntaxKind::ConstructionExpression {
@@ -668,7 +688,7 @@ impl Emitter<'_> {
         if callee.kind != SyntaxKind::Name {
             return None;
         }
-        let lookup_name = if Self::callee_is_unsafe(callee) {
+        let lookup_name = if is_unsafe {
             format!("unsafe::{}", self.text(callee))
         } else {
             self.text(callee).to_owned()

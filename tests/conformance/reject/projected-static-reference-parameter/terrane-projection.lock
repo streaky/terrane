@@ -1,9 +1,6 @@
 {
-  "format": 4,
   "dependencies": [
     {
-      "name": "http",
-      "version": "1.5.0",
       "members": {
         "/deps/http": [
           "Error",
@@ -97,6 +94,59 @@
           "Method::from",
           "Method::from_str",
           "Method::try_from",
+          "Ordering",
+          "Request",
+          "Request.body",
+          "Request.body_mut",
+          "Request.clone",
+          "Request.extensions",
+          "Request.extensions_mut",
+          "Request.headers",
+          "Request.headers_mut",
+          "Request.into",
+          "Request.into_body",
+          "Request.map",
+          "Request.method",
+          "Request.method_mut",
+          "Request.try_into",
+          "Request.uri",
+          "Request.uri_mut",
+          "Request.version",
+          "Request.version_mut",
+          "Request::builder",
+          "Request::connect",
+          "Request::default",
+          "Request::delete",
+          "Request::from_parts",
+          "Request::get",
+          "Request::head",
+          "Request::new",
+          "Request::options",
+          "Request::patch",
+          "Request::post",
+          "Request::put",
+          "Request::trace",
+          "Response",
+          "Response.body",
+          "Response.body_mut",
+          "Response.clone",
+          "Response.extensions",
+          "Response.extensions_mut",
+          "Response.headers",
+          "Response.headers_mut",
+          "Response.into",
+          "Response.into_body",
+          "Response.map",
+          "Response.status",
+          "Response.status_mut",
+          "Response.try_into",
+          "Response.version",
+          "Response.version_mut",
+          "Response::builder",
+          "Response::default",
+          "Response::from_parts",
+          "Response::new",
+          "Result",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
@@ -147,6 +197,7 @@
           "borrowed-option.map"
         ],
         "/deps/http/error/trait/core/convert/from-core/convert/infallible": [
+          "Infallible",
           "from"
         ],
         "/deps/http/error/trait/core/convert/from-http/header/invalidheadername": [
@@ -171,6 +222,10 @@
           "from"
         ],
         "/deps/http/header": [
+          "IntoIter",
+          "IntoIter.drop",
+          "IntoIter.into",
+          "IntoIter.try_into",
           "InvalidHeaderName",
           "InvalidHeaderName.into",
           "InvalidHeaderName.try_into",
@@ -190,10 +245,10 @@
         "/deps/http/header/map/as-header-name": [
           "TryEntryError"
         ],
-        "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue": [
+        "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-t": [
           "extend"
         ],
-        "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue": [
+        "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-t": [
           "extend"
         ],
         "/deps/http/headername/trait/core/cmp/partialeq": [
@@ -388,6 +443,13 @@
           "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
           "PathAndQuery::from_str",
+          "Port",
+          "Port.as_ref",
+          "Port.as_str",
+          "Port.as_u16",
+          "Port.into",
+          "Port.try_into",
+          "Port::from",
           "Scheme",
           "Scheme.as_ref",
           "Scheme.as_str",
@@ -440,6 +502,9 @@
         "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-str": [
           "try_from"
         ],
+        "/deps/http/uri/port/trait/core/cmp/partialeq-u16": [
+          "eq"
+        ],
         "/deps/http/uri/scheme/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -467,10 +532,13 @@
         "/deps/http/uri/trait/core/convert/tryfrom-str": [
           "try_from"
         ]
-      }
+      },
+      "name": "http",
+      "version": "1.5.0"
     }
   ],
+  "format": 4,
   "removed": [],
-  "source": "Local",
-  "rustdoc_format": 57
+  "rustdoc_format": 57,
+  "source": "Local"
 }

@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/witness import byte, echo
+
+function main;
+    retained int = byte;
+    selected = (echo of uint8); retained

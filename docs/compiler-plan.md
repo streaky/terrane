@@ -2979,8 +2979,8 @@ Projection schema 61 makes projected source materialization owner-specific witho
 stored completion/catalog surface, admits closed defaulted aliases at their canonical owner, and
 records concrete `IntoFuture` conversion plus substituted output semantics. Structurally resolved
 receiver identities select demanded members; unrelated same-named user members cannot pull foreign
-operations into the source graph. Mutually referential demanded namespace signatures still decline
-under the recorded `projection/mutually-referential-namespace-sources` limitation. The compiler
+operations into the source graph. Mutually referential generated dependency namespaces are now
+staged together; the former `projection/mutually-referential-namespace-sources` limitation is closed. The compiler
 invokes canonical `IntoFuture::into_future` exactly once before the existing generated async panic
 boundary rather than hiding executor behavior in a host helper. Direct PDF generation and direct
 Axum response/callback/server operation have replaced their adapter features.
@@ -4980,16 +4980,16 @@ Deleting the registry does not erase unresolved work:
   resources. S1 closes it when consuming collection or stream iteration lets Terrane process every
   non-`Clone` row returned by fetch-all without adapter-owned conversion. Until then, iteration and
   indexing that would copy such an item decline as `T0135`.
-- `projection/mutually-referential-namespace-sources` affects every projected Rustdoc graph whose
-  demanded signatures form a namespace cycle. It closes when projected dependency declarations use
-  semantic descriptors or another representation that resolves mutually referential namespaces
-  without cyclic generated-source ordering.
 - `native-interop/rust-proc-macro-extension-entry` affects Godot 0.5.x GDExtension registration. It
   closes when a generic native-extension contract can generate a `cdylib` entrypoint and registered
   host class without a maintained Rust module. Milestone 30.5 and the Godot manual own that work.
 
 Godot's former `projection/godot-generated-reexport-surface` gap closed in the dedicated
 generated-API milestone.
+The former `projection/mutually-referential-namespace-sources` gap is also closed:
+generated dependency declarations are staged together even when their signatures form
+a namespace cycle. `projected-demanded-member-cycle` now executes the round trip and
+checks its returned value; authored namespace cycles remain invalid.
 
 #### General variadic call contract
 

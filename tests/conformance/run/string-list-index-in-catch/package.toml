@@ -1,0 +1,4 @@
+package = "string-list-index-in-catch"
+
+[namespaces]
+app = "src"

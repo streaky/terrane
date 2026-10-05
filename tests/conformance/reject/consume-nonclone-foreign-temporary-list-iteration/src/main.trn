@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/terrane-nonclone-list-witness import rows
+
+function main;
+  for row in (rows;)
+    _ = row

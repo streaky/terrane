@@ -1,6 +1,11 @@
 {
   "bound_dependencies": [
     {
+      "name": "__terrane_recursive_bytes",
+      "package": "bytes",
+      "version": "=1.12.1"
+    },
+    {
       "name": "__terrane_recursive_either",
       "package": "either",
       "version": "=1.18.0"
@@ -21,14 +26,29 @@
       "version": "=1.1.0"
     },
     {
+      "name": "__terrane_recursive_indexmap",
+      "package": "indexmap",
+      "version": "=2.14.2"
+    },
+    {
       "name": "__terrane_recursive_log",
       "package": "log",
       "version": "=0.4.34"
     },
     {
+      "name": "__terrane_recursive_smallvec",
+      "package": "smallvec",
+      "version": "=1.16.2"
+    },
+    {
       "name": "__terrane_recursive_url",
       "package": "url",
       "version": "=2.5.8"
+    },
+    {
+      "name": "equivalent",
+      "package": "equivalent",
+      "version": "=1.0.2"
     },
     {
       "name": "futures_io",
@@ -44,6 +64,129 @@
           "Error",
           "Error-ColumnIndexOutOfBounds",
           "Error-TypeNotFound",
+          "IndexMap",
+          "IndexMap.append",
+          "IndexMap.as_mut_slice",
+          "IndexMap.as_slice",
+          "IndexMap.binary_search_by",
+          "IndexMap.binary_search_by_key",
+          "IndexMap.binary_search_keys",
+          "IndexMap.capacity",
+          "IndexMap.clear",
+          "IndexMap.clone",
+          "IndexMap.clone_from",
+          "IndexMap.contains_key",
+          "IndexMap.drain",
+          "IndexMap.entry",
+          "IndexMap.extract_if",
+          "IndexMap.first_entry",
+          "IndexMap.get",
+          "IndexMap.get_index_entry",
+          "IndexMap.get_index_of",
+          "IndexMap.get_mut",
+          "IndexMap.get_range",
+          "IndexMap.get_range_mut",
+          "IndexMap.hasher",
+          "IndexMap.index_mut",
+          "IndexMap.insert",
+          "IndexMap.into",
+          "IndexMap.into_keys",
+          "IndexMap.into_values",
+          "IndexMap.is_empty",
+          "IndexMap.is_sorted",
+          "IndexMap.is_sorted_by",
+          "IndexMap.is_sorted_by_key",
+          "IndexMap.iter",
+          "IndexMap.iter_mut",
+          "IndexMap.iter_mut2",
+          "IndexMap.keys",
+          "IndexMap.last_entry",
+          "IndexMap.len",
+          "IndexMap.move_index",
+          "IndexMap.partition_point",
+          "IndexMap.raw_entry_mut_v1",
+          "IndexMap.raw_entry_v1",
+          "IndexMap.remove",
+          "IndexMap.replace_index",
+          "IndexMap.reserve",
+          "IndexMap.reserve_exact",
+          "IndexMap.retain",
+          "IndexMap.retain2",
+          "IndexMap.reverse",
+          "IndexMap.shift_insert",
+          "IndexMap.shift_remove",
+          "IndexMap.shrink_to",
+          "IndexMap.shrink_to_fit",
+          "IndexMap.sort_by",
+          "IndexMap.sort_by_cached_key",
+          "IndexMap.sort_by_key",
+          "IndexMap.sort_keys",
+          "IndexMap.sort_unstable_by",
+          "IndexMap.sort_unstable_by_key",
+          "IndexMap.sort_unstable_keys",
+          "IndexMap.sorted_by",
+          "IndexMap.sorted_unstable_by",
+          "IndexMap.splice",
+          "IndexMap.split_off",
+          "IndexMap.swap_indices",
+          "IndexMap.swap_remove",
+          "IndexMap.truncate",
+          "IndexMap.try_into",
+          "IndexMap.values",
+          "IndexMap.values_mut",
+          "IndexMap::default",
+          "IndexMap::from_iter",
+          "IndexMap::new",
+          "IndexMap::with_capacity",
+          "IndexMap::with_capacity_and_hasher",
+          "IndexMap::with_hasher",
+          "Result",
+          "SmallVec",
+          "SmallVec.append",
+          "SmallVec.capacity",
+          "SmallVec.clear",
+          "SmallVec.clone",
+          "SmallVec.clone_from",
+          "SmallVec.cmp",
+          "SmallVec.dedup",
+          "SmallVec.dedup_by",
+          "SmallVec.dedup_by_key",
+          "SmallVec.drain",
+          "SmallVec.drop",
+          "SmallVec.extend",
+          "SmallVec.grow",
+          "SmallVec.inline_size",
+          "SmallVec.insert",
+          "SmallVec.insert_many",
+          "SmallVec.into",
+          "SmallVec.into_inner",
+          "SmallVec.into_vec",
+          "SmallVec.is_empty",
+          "SmallVec.len",
+          "SmallVec.partial_cmp",
+          "SmallVec.pop",
+          "SmallVec.push",
+          "SmallVec.remove",
+          "SmallVec.reserve",
+          "SmallVec.reserve_exact",
+          "SmallVec.resize",
+          "SmallVec.resize_with",
+          "SmallVec.retain",
+          "SmallVec.retain_mut",
+          "SmallVec.set_len",
+          "SmallVec.shrink_to_fit",
+          "SmallVec.spilled",
+          "SmallVec.swap_remove",
+          "SmallVec.truncate",
+          "SmallVec.try_into",
+          "SmallVec::default",
+          "SmallVec::from_buf",
+          "SmallVec::from_buf_and_len",
+          "SmallVec::from_buf_and_len_unchecked",
+          "SmallVec::from_iter",
+          "SmallVec::from_vec",
+          "SmallVec::new",
+          "SmallVec::with_capacity",
           "Url",
           "Url.as_ref",
           "Url.as_str",
@@ -167,9 +310,65 @@
           "TryGetError::from"
         ],
         "/deps/sqlx-core/bytes/buf": [
+          "Chain",
+          "Chain.advance",
+          "Chain.advance_mut",
+          "Chain.chunk_mut",
+          "Chain.copy_to_bytes",
+          "Chain.first_mut",
+          "Chain.first_ref",
+          "Chain.into_iter",
+          "Chain.last_mut",
+          "Chain.last_ref",
+          "Chain.remaining",
+          "Chain.remaining_mut",
+          "IntoIter",
+          "IntoIter.get_mut",
+          "IntoIter.get_ref",
+          "IntoIter.into",
+          "IntoIter.into_inner",
+          "IntoIter.next",
+          "IntoIter.try_into",
+          "IntoIter::new",
+          "Limit",
+          "Limit.advance_mut",
+          "Limit.chunk_mut",
+          "Limit.get_mut",
+          "Limit.get_ref",
+          "Limit.into",
+          "Limit.into_inner",
+          "Limit.limit",
+          "Limit.remaining_mut",
+          "Limit.set_limit",
+          "Limit.try_into",
+          "Reader",
+          "Reader.consume",
+          "Reader.get_mut",
+          "Reader.get_ref",
+          "Reader.into",
+          "Reader.into_inner",
+          "Reader.try_into",
+          "Take",
+          "Take.advance",
+          "Take.copy_to_bytes",
+          "Take.get_mut",
+          "Take.get_ref",
+          "Take.into",
+          "Take.into_inner",
+          "Take.limit",
+          "Take.remaining",
+          "Take.set_limit",
+          "Take.try_into",
           "UninitSlice",
           "UninitSlice.len",
-          "UninitSlice.write_byte"
+          "UninitSlice.write_byte",
+          "Writer",
+          "Writer.flush",
+          "Writer.get_mut",
+          "Writer.get_ref",
+          "Writer.into",
+          "Writer.into_inner",
+          "Writer.try_into"
         ],
         "/deps/sqlx-core/bytes/buf/uninitslice/trait/core/ops/index/index-core/ops/range/range-usize": [
           "index"
@@ -295,9 +494,84 @@
           "DebugFn",
           "DebugFn.deref",
           "DebugFn.into",
-          "DebugFn.try_into"
+          "DebugFn.try_into",
+          "StatementCache",
+          "StatementCache.capacity",
+          "StatementCache.clear",
+          "StatementCache.contains_key",
+          "StatementCache.get_mut",
+          "StatementCache.insert",
+          "StatementCache.into",
+          "StatementCache.is_empty",
+          "StatementCache.is_enabled",
+          "StatementCache.len",
+          "StatementCache.remove_lru",
+          "StatementCache.try_into",
+          "StatementCache::new",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
         ],
         "/deps/sqlx-core/connection": [
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.add",
+          "Duration.add_assign",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.clone",
+          "Duration.cmp",
+          "Duration.div",
+          "Duration.div_assign",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.eq",
+          "Duration.into",
+          "Duration.is_zero",
+          "Duration.mul_assign",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.partial_cmp",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.sub",
+          "Duration.sub_assign",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration.try_into",
+          "Duration::default",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
+          "LevelFilter",
           "LogSettings",
           "LogSettings.clone",
           "LogSettings.into",
@@ -305,6 +579,60 @@
           "LogSettings.log_statements",
           "LogSettings.try_into",
           "LogSettings::default"
+        ],
+        "/deps/sqlx-core/connection/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
+        ],
+        "/deps/sqlx-core/connection/levelfilter/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/sqlx-core/connection/levelfilter/trait/core/cmp/partialeq-log/level": [
+          "eq"
+        ],
+        "/deps/sqlx-core/connection/levelfilter/trait/core/cmp/partialeq-sqlx-core/connection/levelfilter": [
+          "eq"
+        ],
+        "/deps/sqlx-core/connection/levelfilter/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/sqlx-core/connection/levelfilter/trait/core/cmp/partialord-log/level": [
+          "partial_cmp"
+        ],
+        "/deps/sqlx-core/connection/levelfilter/trait/core/cmp/partialord-sqlx-core/connection/levelfilter": [
+          "partial_cmp"
+        ],
+        "/deps/sqlx-core/driver-prelude": [
+          "Either"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asmut-core/ffi/c-str/cstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asmut-std/ffi/os-str/osstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asmut-std/path/path": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asmut-str": [
+          "as_mut"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asref-core/ffi/c-str/cstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asref-std/ffi/os-str/osstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asref-std/path/path": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/asref-str": [
+          "as_ref"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/from-core/result/result-r-l": [
+          "from"
+        ],
+        "/deps/sqlx-core/driver-prelude/either/trait/core/convert/from-sqlx-core/driver-prelude/either-l-r": [
+          "from"
         ],
         "/deps/sqlx-core/either/trait/core/convert/asmut-core/ffi/c-str/cstr": [
           "as_mut"
@@ -340,10 +668,17 @@
           "IsNull"
         ],
         "/deps/sqlx-core/error": [
+          "BoxDynError",
           "ErrorKind",
           "UnexpectedNullError",
           "UnexpectedNullError.into",
           "UnexpectedNullError.try_into"
+        ],
+        "/deps/sqlx-core/ext/async-stream": [
+          "Yielder",
+          "Yielder.into",
+          "Yielder.try_into",
+          "Yielder.yield"
         ],
         "/deps/sqlx-core/ext/ustr": [
           "UStr"
@@ -370,6 +705,36 @@
           "remove_dir_all",
           "remove_file"
         ],
+        "/deps/sqlx-core/indexmap/trait/core/iter/traits/collect/extend-a-k-a-v": [
+          "extend"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/iter/traits/collect/extend-k-v": [
+          "extend"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/bound-usize-core/ops/range/bound-usize": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/range-usize": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/rangefrom-usize": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/rangefull": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/rangeinclusive-usize": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/rangeto-usize": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-core/ops/range/rangetoinclusive-usize": [
+          "index"
+        ],
+        "/deps/sqlx-core/indexmap/trait/core/ops/index/index-usize": [
+          "index"
+        ],
         "/deps/sqlx-core/logger": [
           "parse_query_summary"
         ],
@@ -385,6 +750,23 @@
           "try_stream"
         ],
         "/deps/sqlx-core/net": [
+          "BufferedSocket",
+          "BufferedSocket.flush",
+          "BufferedSocket.into",
+          "BufferedSocket.into_inner",
+          "BufferedSocket.read",
+          "BufferedSocket.read_buffered",
+          "BufferedSocket.shrink_buffers",
+          "BufferedSocket.shutdown",
+          "BufferedSocket.try_into",
+          "BufferedSocket.try_read",
+          "BufferedSocket.write",
+          "BufferedSocket.write_buffer",
+          "BufferedSocket.write_buffer_mut",
+          "BufferedSocket.write_with",
+          "BufferedSocket::new",
+          "ControlFlow-hash-h7401b25d42256a608f42e8654e7e09281072d9e3862bd11be1b7e8542aed8a36",
+          "Result-hash-hc52abed56b2b91b1ae9ddb633550ce904d1b82e4ecb5918584c22a5cc2e851f6",
           "SocketIntoBox",
           "SocketIntoBox.into",
           "SocketIntoBox.try_into",
@@ -399,6 +781,9 @@
           "WriteBuffer.try_into",
           "connect_tcp",
           "connect_uds"
+        ],
+        "/deps/sqlx-core/net/result-hash-hc52abed56b2b91b1ae9ddb633550ce904d1b82e4ecb5918584c22a5cc2e851f6/trait/core/ops/try-trait/fromresidual-core/ops/try-trait/yeet-e": [
+          "from_residual"
         ],
         "/deps/sqlx-core/net/tls": [
           "CertificateInput",
@@ -430,9 +815,71 @@
           "CloseEvent.into",
           "CloseEvent.is_terminated",
           "CloseEvent.try_into",
+          "Pool",
+          "Pool.acquire",
+          "Pool.begin",
+          "Pool.begin_with",
+          "Pool.clone",
+          "Pool.fetch_many",
+          "Pool.fetch_optional",
+          "Pool.into",
+          "Pool.is_closed",
+          "Pool.num_idle",
+          "Pool.options",
+          "Pool.size",
+          "Pool.try_acquire",
+          "Pool.try_begin",
+          "Pool.try_begin_with",
+          "Pool.try_into",
+          "Pool::connect",
+          "Pool::connect_lazy",
+          "PoolConnection",
+          "PoolConnection.acquire",
+          "PoolConnection.as_mut",
+          "PoolConnection.as_ref",
+          "PoolConnection.begin",
+          "PoolConnection.close",
+          "PoolConnection.close_on_drop",
+          "PoolConnection.deref",
+          "PoolConnection.detach",
+          "PoolConnection.drop",
+          "PoolConnection.into",
+          "PoolConnection.leak",
+          "PoolConnection.try_into",
+          "PoolConnection::from",
           "PoolConnectionMetadata",
           "PoolConnectionMetadata.into",
-          "PoolConnectionMetadata.try_into"
+          "PoolConnectionMetadata.try_into",
+          "PoolOptions",
+          "PoolOptions.acquire_slow_level",
+          "PoolOptions.acquire_slow_threshold",
+          "PoolOptions.acquire_time_level",
+          "PoolOptions.acquire_timeout",
+          "PoolOptions.after_connect",
+          "PoolOptions.after_release",
+          "PoolOptions.before_acquire",
+          "PoolOptions.clone",
+          "PoolOptions.connect",
+          "PoolOptions.connect_lazy",
+          "PoolOptions.get_acquire_slow_threshold",
+          "PoolOptions.get_acquire_timeout",
+          "PoolOptions.get_idle_timeout",
+          "PoolOptions.get_max_connections",
+          "PoolOptions.get_max_lifetime",
+          "PoolOptions.get_min_connections",
+          "PoolOptions.get_test_before_acquire",
+          "PoolOptions.idle_timeout",
+          "PoolOptions.into",
+          "PoolOptions.max_connections",
+          "PoolOptions.max_lifetime",
+          "PoolOptions.min_connections",
+          "PoolOptions.test_before_acquire",
+          "PoolOptions.try_into",
+          "PoolOptions::default",
+          "PoolOptions::new"
+        ],
+        "/deps/sqlx-core/pool/pool": [
+          "begin"
         ],
         "/deps/sqlx-core/query": [
           "Query-hash-h66ca2ff0b16ec9c61f65812738be1ab10b9810f9ad836cb22c1d0b149809198f",
@@ -514,6 +961,12 @@
           "timeout",
           "yield_now"
         ],
+        "/deps/sqlx-core/smallvec/trait/core/convert/from-a": [
+          "from"
+        ],
+        "/deps/sqlx-core/smallvec/trait/core/convert/from-std/vec/vec-a/item": [
+          "from"
+        ],
         "/deps/sqlx-core/sync": [
           "AsyncSemaphore",
           "AsyncSemaphore.acquire",
@@ -533,6 +986,7 @@
           "ParamChecking"
         ],
         "/deps/sqlx-core/types": [
+          "Ordering",
           "Text",
           "Text.clone",
           "Text.cmp",
@@ -602,6 +1056,68 @@
     {
       "members": {
         "/deps/sqlx-sqlite": [
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.add",
+          "Duration.add_assign",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.clone",
+          "Duration.cmp",
+          "Duration.div",
+          "Duration.div_assign",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.eq",
+          "Duration.into",
+          "Duration.is_zero",
+          "Duration.mul_assign",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.partial_cmp",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.sub",
+          "Duration.sub_assign",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration.try_into",
+          "Duration::default",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
+          "Either-of-sqlx-sqlite-SqliteQueryResult-and-sqlx-sqlite-SqliteRow",
+          "ErrorKind",
+          "LevelFilter",
+          "Ordering",
+          "Result-of-either-Either-sqlx-sqlite-SqliteQueryResult-sqlx-sqlite-SqliteRow-and-sqlx-core-Error",
           "Sqlite",
           "Sqlite.into",
           "Sqlite.size_hint",
@@ -751,13 +1267,132 @@
           "SqliteValue.into",
           "SqliteValue.is_null",
           "SqliteValue.try_into",
-          "SqliteValue.type_info"
+          "SqliteValue.type_info",
+          "Url",
+          "Url.as_ref",
+          "Url.as_str",
+          "Url.authority",
+          "Url.cannot_be_a_base",
+          "Url.check_invariants",
+          "Url.clone",
+          "Url.cmp",
+          "Url.domain",
+          "Url.eq",
+          "Url.fragment",
+          "Url.has_authority",
+          "Url.has_host",
+          "Url.host",
+          "Url.host_str",
+          "Url.into",
+          "Url.into_string",
+          "Url.is_special",
+          "Url.join",
+          "Url.make_relative",
+          "Url.origin",
+          "Url.partial_cmp",
+          "Url.password",
+          "Url.path",
+          "Url.path_segments",
+          "Url.path_segments_mut",
+          "Url.port",
+          "Url.port_or_known_default",
+          "Url.query",
+          "Url.query_pairs",
+          "Url.query_pairs_mut",
+          "Url.scheme",
+          "Url.set_ip_host",
+          "Url.set_path",
+          "Url.set_port",
+          "Url.set_scheme",
+          "Url.set_username",
+          "Url.socket_addrs",
+          "Url.to_file_path",
+          "Url.try_into",
+          "Url.username",
+          "Url::from",
+          "Url::from_directory_path",
+          "Url::from_file_path",
+          "Url::from_str",
+          "Url::options",
+          "Url::parse",
+          "Url::parse_with_params",
+          "Url::try_from",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map"
+        ],
+        "/deps/sqlx-sqlite/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asmut-core/ffi/c-str/cstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asmut-std/ffi/os-str/osstr": [
+          "as_mut"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asmut-std/path/path": [
+          "as_mut"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asmut-str": [
+          "as_mut"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asref-core/ffi/c-str/cstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asref-std/ffi/os-str/osstr": [
+          "as_ref"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asref-std/path/path": [
+          "as_ref"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/asref-str": [
+          "as_ref"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/from-core/result/result-r-l": [
+          "from"
+        ],
+        "/deps/sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow/trait/core/convert/from-sqlx-sqlite/either-of-sqlx-sqlite-sqlitequeryresult-and-sqlx-sqlite-sqliterow-l-r": [
+          "from"
+        ],
+        "/deps/sqlx-sqlite/levelfilter/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/sqlx-sqlite/levelfilter/trait/core/cmp/partialeq-log/level": [
+          "eq"
+        ],
+        "/deps/sqlx-sqlite/levelfilter/trait/core/cmp/partialeq-sqlx-sqlite/levelfilter": [
+          "eq"
+        ],
+        "/deps/sqlx-sqlite/levelfilter/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/sqlx-sqlite/levelfilter/trait/core/cmp/partialord-log/level": [
+          "partial_cmp"
+        ],
+        "/deps/sqlx-sqlite/levelfilter/trait/core/cmp/partialord-sqlx-sqlite/levelfilter": [
+          "partial_cmp"
+        ],
+        "/deps/sqlx-sqlite/result-of-either-either-sqlx-sqlite-sqlitequeryresult-sqlx-sqlite-sqliterow-and-sqlx-core-error/trait/core/ops/try-trait/fromresidual-core/ops/try-trait/yeet-e": [
+          "from_residual"
         ],
         "/deps/sqlx-sqlite/sqliteconnection/trait/sqlx-core/acquire/acquire-c": [
           "begin"
         ],
         "/deps/sqlx-sqlite/sqliteconnection/trait/sqlx-core/connection/connection": [
           "begin"
+        ],
+        "/deps/sqlx-sqlite/url/trait/core/ops/index/index-core/ops/range/range-url/slicing/position": [
+          "index"
+        ],
+        "/deps/sqlx-sqlite/url/trait/core/ops/index/index-core/ops/range/rangefrom-url/slicing/position": [
+          "index"
+        ],
+        "/deps/sqlx-sqlite/url/trait/core/ops/index/index-core/ops/range/rangefull": [
+          "index"
+        ],
+        "/deps/sqlx-sqlite/url/trait/core/ops/index/index-core/ops/range/rangeto-url/slicing/position": [
+          "index"
         ]
       },
       "name": "sqlx-sqlite",

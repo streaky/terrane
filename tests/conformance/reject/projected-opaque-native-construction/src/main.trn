@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Opaque
+
+function main;
+    unavailable = instance (Opaque of int);

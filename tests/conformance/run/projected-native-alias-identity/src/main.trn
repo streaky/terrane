@@ -1,0 +1,33 @@
+namespace app
+
+from /deps/api import Alias, StringAlias, PublicHolder, OtherHolder, PublicValue as FacadeValue, make_default, make_string, make_string_default, take_byte, take_text
+from /deps/owner import Holder as OwnerHolder, PublicValue as ProviderValue, make_owner, owner_byte
+
+function main;
+    # Omitted alias arguments select the Rust u8 default.
+    defaulted Alias = make_default;
+    facade PublicHolder = defaulted
+    second_facade OtherHolder = facade
+    declared_owner OwnerHolder of uint8 = second_facade
+    print; (defaulted.into_value;)
+    print; (take_byte; declared_owner)
+    print; (owner_byte; defaulted)
+
+    underlying OwnerHolder of uint8 = make_owner;
+    round_trip Alias = underlying
+    print; (round_trip.into_value;)
+
+    # make_string returns explicit Rust Alias<String>, not Alias's u8 default.
+    selected Alias of string = make_string;
+    print; (selected.into_value;)
+    print; (take_text; selected)
+    default_text StringAlias = make_string_default;
+    print; (default_text.into_value;)
+
+    # Both advertised paths retain the same native declaration and static methods.
+    provider-input uint8 = 23
+    facade-input uint8 = 29
+    provider_value ProviderValue = FacadeValue::new; provider-input
+    facade_value FacadeValue = ProviderValue::new; facade-input
+    print; (provider_value.into_value;)
+    print; (facade_value.into_value;)

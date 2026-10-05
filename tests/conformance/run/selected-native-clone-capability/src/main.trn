@@ -1,0 +1,9 @@
+namespace app
+
+from /deps/witness import make_text, consume_text
+from /core/output import print
+
+function main;
+    value = make_text;
+    print; (consume_text; value)
+    print; (consume_text; value)

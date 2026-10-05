@@ -3,9 +3,17 @@
     {
       "members": {
         "/deps/terrane-into-future-witness": [
+          "Ready-hash-h1d5f665c03f50a52fa2b1b24dce51690e22643818838b1245b7c639bfd35e0f0",
+          "Ready-hash-h1d5f665c03f50a52fa2b1b24dce51690e22643818838b1245b7c639bfd35e0f0.into",
+          "Ready-hash-h1d5f665c03f50a52fa2b1b24dce51690e22643818838b1245b7c639bfd35e0f0.into_inner",
+          "Ready-hash-h1d5f665c03f50a52fa2b1b24dce51690e22643818838b1245b7c639bfd35e0f0.try_into",
           "ReadyResult",
           "ReadyResult.into",
           "ReadyResult.try_into",
+          "ReadyValue",
+          "ReadyValue.into",
+          "ReadyValue.into_future",
+          "ReadyValue.try_into",
           "construction_count",
           "conversion_count",
           "ready_result",

@@ -1,0 +1,9 @@
+package = "projected-native-direct-specialization-only"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-direct-specialization-witness"
+version = "=0.1.0"
+effects = ["build"]

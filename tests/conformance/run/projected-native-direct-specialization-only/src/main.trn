@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import Cell, consume, make
+from /core/output import print
+
+async function main;
+    native-int Cell of int64 = (make of int);
+    print; (consume; native-int)

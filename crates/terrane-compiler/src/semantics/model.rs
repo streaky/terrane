@@ -57,6 +57,13 @@ pub struct Namespace {
     pub symbols: BTreeMap<String, Symbol>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct NativeTypeCapabilities {
+    pub cloneable: bool,
+    pub send: bool,
+    pub sync: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct SemanticPackage {
     pub identity: String,
@@ -69,6 +76,7 @@ pub struct SemanticPackage {
     pub profile: crate::package::CapabilityProfile,
     pub(crate) root: std::path::PathBuf,
     pub projection: crate::rust_interop::projection::Projection,
+    pub(super) native_capabilities: BTreeMap<String, NativeTypeCapabilities>,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -1545,6 +1553,8 @@ pub(crate) struct ProjectedCallSpecialization {
     pub value_type: ValueType,
 }
 
+type CallableApplications = BTreeMap<(u32, usize, usize), BTreeMap<(u32, usize, usize), ValueType>>;
+
 #[derive(Clone, Debug)]
 pub struct SemanticUnit {
     pub source: SourceFile,
@@ -1578,6 +1588,8 @@ pub struct SemanticUnit {
     pub(crate) projected_call_specializations:
         BTreeMap<(u32, usize, usize), ProjectedCallSpecialization>,
     pub(crate) selected_expression_types: BTreeMap<(u32, usize, usize), ValueType>,
+    /// Selected physical callable shapes, indexed by application and exact declaration.
+    pub(super) projected_callable_applications: CallableApplications,
     pub(crate) invocation_scoped_function_results: BTreeMap<(u32, usize, usize), ValueType>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,

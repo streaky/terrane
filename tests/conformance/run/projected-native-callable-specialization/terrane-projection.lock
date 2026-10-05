@@ -1,0 +1,67 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Cell",
+          "Cell.get",
+          "Cell.into",
+          "Cell.try_into",
+          "Factory",
+          "Factory.create",
+          "Factory.create_async",
+          "Factory.into",
+          "Factory.try_into",
+          "Factory.unsafe_create",
+          "Factory::new",
+          "Holder",
+          "Holder.into",
+          "Holder.try_into",
+          "Holder::make",
+          "Holder::with_owner",
+          "Marker",
+          "Marker.clone",
+          "Marker.into",
+          "Marker.try_into",
+          "Marker.value",
+          "Marker::default",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map",
+          "byte",
+          "consume",
+          "cycle",
+          "echo",
+          "make",
+          "make_async",
+          "make_unsafe",
+          "marker_value",
+          "mixed",
+          "ordered"
+        ],
+        "/deps/witness/left": [
+          "Left",
+          "Left.clone",
+          "Left.into",
+          "Left.is_left",
+          "Left.next",
+          "Left.try_into"
+        ],
+        "/deps/witness/right": [
+          "Right",
+          "Right.clone",
+          "Right.into",
+          "Right.next",
+          "Right.try_into"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

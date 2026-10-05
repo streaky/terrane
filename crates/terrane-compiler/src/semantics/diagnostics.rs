@@ -523,8 +523,12 @@ fn projected_call_mutates_binding(
     let [callee, arguments] = call.children.as_slice() else {
         return false;
     };
-    let Some(projected) = super::bindings::projected_function_for_call(package, unit, callee)
-    else {
+    let Some(projected) = super::bindings::projected_function_for_call(
+        package,
+        unit,
+        callee,
+        crate::syntax::call_is_unsafe(call),
+    ) else {
         return false;
     };
     let projected_parameters = unit

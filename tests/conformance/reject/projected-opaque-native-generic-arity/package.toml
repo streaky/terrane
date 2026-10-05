@@ -1,0 +1,9 @@
+package = "projected-opaque-native-generic-arity"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.bounds]
+package = "terrane-opaque-native-bound-witness"
+version = "=0.1.0"
+effects = ["build"]

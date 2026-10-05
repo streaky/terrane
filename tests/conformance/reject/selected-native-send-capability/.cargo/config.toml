@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-native-send-capability-witness = { path = "fixture-registry/terrane-native-send-capability-witness-0.1.0" }

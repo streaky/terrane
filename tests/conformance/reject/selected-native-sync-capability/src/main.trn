@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import Opaque, BadValue as bad-value, make_value, Worker as worker
+
+class sync-worker implements worker
+    item Opaque of bad-value = make_value;
+    function work bool;
+        return true

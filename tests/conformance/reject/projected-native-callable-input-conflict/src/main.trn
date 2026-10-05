@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Marker, echo
+
+function main;
+    conflict = (echo of Marker); true

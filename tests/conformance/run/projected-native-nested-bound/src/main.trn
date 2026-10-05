@@ -1,0 +1,8 @@
+namespace app
+
+from /deps/witness import Outer, CopyOnly, nested, read
+from /core/output import print
+
+function main;
+    value Outer of (CopyOnly of bool) = nested;
+    print; (read; value)

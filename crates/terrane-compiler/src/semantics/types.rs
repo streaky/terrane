@@ -383,6 +383,13 @@ pub(super) fn declared_value_type_with_visible_objects(
     aliases: &BTreeMap<String, ScalarType>,
     visible_objects: &BTreeMap<String, ObjectIdentity>,
 ) -> Result<ValueType, SemanticFailure> {
+    if let Some(selected) = unit.selected_expression_types.get(&(
+        type_node.span.file,
+        type_node.span.start,
+        type_node.span.end,
+    )) {
+        return Ok(selected.clone());
+    }
     let shape = if type_node.kind == SyntaxKind::TypeExpression {
         type_node.children.first().unwrap_or(type_node)
     } else {
@@ -555,34 +562,38 @@ pub(super) fn declared_value_type_with_visible_objects(
         .first()
         .filter(|child| child.kind == SyntaxKind::UnionType)
     {
-        let arms = union
-            .children
-            .iter()
-            .filter(|arm| node_text(&unit.source, arm).trim() != "none")
-            .collect::<Vec<_>>();
-        if union.children.len() == 2 && arms.len() == 1 {
-            let Some(arm) = arms.first().copied() else {
-                return Err(failure(
-                    &unit.source,
-                    "T0001",
-                    "an optional type requires one non-`none` arm",
-                    union.span,
-                ));
-            };
-            let inner =
+        let mut arms = Vec::new();
+        for arm in &union.children {
+            let value =
                 declared_value_type_with_visible_objects(unit, arm, aliases, visible_objects)?;
-            if matches!(
-                inner,
-                ValueType::Scalar(ScalarType::None) | ValueType::Optional(_)
-            ) {
-                return Err(failure(
-                    &unit.source,
-                    "T0001",
-                    "an optional type cannot contain `none` or another optional type",
-                    union.span,
-                ));
+            if !arms.contains(&value) {
+                arms.push(value);
             }
-            return Ok(ValueType::Optional(Box::new(inner)));
+        }
+        match arms.as_slice() {
+            [ValueType::Scalar(ScalarType::None)] => {
+                return Ok(ValueType::Scalar(ScalarType::None));
+            }
+            [inner, ValueType::Scalar(ScalarType::None)]
+            | [ValueType::Scalar(ScalarType::None), inner] => {
+                if matches!(
+                    inner,
+                    ValueType::Optional(_) | ValueType::Scalar(ScalarType::None)
+                ) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0001",
+                        "an optional type cannot contain `none` or another optional type",
+                        union.span,
+                    ));
+                }
+                return Ok(ValueType::Optional(Box::new(inner.clone())));
+            }
+            [only] => return Ok(only.clone()),
+            [first, ..] if arms.iter().all(|arm| matches!(arm, ValueType::Scalar(_))) => {
+                return Ok(first.clone());
+            }
+            _ => {}
         }
     }
     if shape.kind == SyntaxKind::GroupExpression
@@ -710,6 +721,25 @@ pub(super) fn declared_value_type_with_visible_objects(
                     })
                 })
                 .unwrap_or(0);
+            if unit
+                .projected_interfaces_requiring_application
+                .contains(&identity.base())
+                && let [argument] = arguments
+            {
+                return Ok(ValueType::Object(
+                    identity.with_application(resolve_argument(argument)?),
+                ));
+            }
+            if identity.namespace.starts_with("/deps/") && !arguments.is_empty() {
+                return Ok(ValueType::Object(
+                    identity.with_type_arguments(
+                        arguments
+                            .iter()
+                            .map(resolve_argument)
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ),
+                ));
+            }
             if expected != 0 {
                 if arguments.len() != expected {
                     return Err(failure(
@@ -1315,20 +1345,18 @@ pub(super) fn object_types_compatible(
     actual: &ObjectIdentity,
 ) -> bool {
     let same_applied_nominal = |left: &ObjectIdentity, right: &ObjectIdentity| {
-        left.namespace == right.namespace
-            && left.name == right.name
-            && left.is_unsafe == right.is_unsafe
-            && (left.application == right.application
-                || (left.application.is_none()
-                    && right.application.is_some()
-                    && left.namespace.starts_with("/deps/")
-                    && left.type_arguments.is_empty()
-                    && right.type_arguments.is_empty()))
-            && ((left.native_projection.is_some()
-                && left.native_projection == right.native_projection)
-                || (left.type_arguments == right.type_arguments
-                    && left.native_projection == right.native_projection
-                    && left.native_arguments == right.native_arguments))
+        left.is_unsafe == right.is_unsafe
+            && match (&left.native_projection, &right.native_projection) {
+                (Some(left), Some(right)) => left == right,
+                (None, None) => {
+                    left.namespace == right.namespace
+                        && left.name == right.name
+                        && left.application == right.application
+                        && left.type_arguments == right.type_arguments
+                        && left.native_arguments == right.native_arguments
+                }
+                _ => false,
+            }
     };
     if same_applied_nominal(expected, actual)
         || (expected == &ObjectIdentity::new("/core/errors", "throwable")
@@ -1722,4 +1750,30 @@ pub(crate) fn narrowed_value_type(
         })
         .max_by_key(|binding| binding.visible_from)?;
     narrowed_optional_type(unit, node, binding.value_type.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::object_types_compatible;
+    use crate::semantics::ObjectIdentity;
+
+    #[test]
+    fn nominal_compatibility_preserves_source_identity_and_exact_native_aliases() {
+        let source = ObjectIdentity::new("/app", "Record");
+        assert!(object_types_compatible(&[], &source, &source));
+        assert!(!object_types_compatible(
+            &[],
+            &source,
+            &ObjectIdentity::new("/other", "Record"),
+        ));
+        let alias = ObjectIdentity::new("/deps/facade", "Alias")
+            .with_native_projection("owner::Record<u8>");
+        let owner = ObjectIdentity::new("/deps/owner", "Record")
+            .with_native_projection("owner::Record<u8>");
+        assert!(object_types_compatible(&[], &alias, &owner));
+        let other = ObjectIdentity::new("/deps/owner", "Record")
+            .with_native_projection("owner::Record<u16>");
+        assert!(!object_types_compatible(&[], &alias, &other));
+        assert!(!object_types_compatible(&[], &alias, &source));
+    }
 }

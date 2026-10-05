@@ -20,6 +20,7 @@ pub(super) fn project_macro(name: &str) -> ProjectedFunction {
             associated_type: None,
         }],
         generic_parameters: Vec::new(),
+        operation_owner_generics: Vec::new(),
         rust_generic_arguments: Vec::new(),
         result: ProjectedType::Generic("__MacroResult".to_owned()),
         destination_result: Some(ProjectedDestinationResult {

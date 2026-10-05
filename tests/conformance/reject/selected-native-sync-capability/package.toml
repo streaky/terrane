@@ -1,0 +1,8 @@
+package = "selected-native-sync-capability"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-sync-capability-witness"
+version = "=0.1.0"

@@ -8,6 +8,7 @@ use crate::rust_interop::projection::{
 fn ambiguous_projection() -> Projection {
     let dependency = |package: &str, rust_path: &str, send: bool| ProjectedDependency {
         name: package.to_owned(),
+        native_alias_identities: BTreeMap::new(),
         package: package.to_owned(),
         version: "1.0.0".to_owned(),
         items: vec![ProjectedItem {
@@ -89,6 +90,58 @@ fn ambiguous_projected_destination_names_every_rust_identity() {
     );
 }
 
+#[test]
+fn projected_public_reexports_are_addressable_before_authored_imports() {
+    let mut projection = ambiguous_projection();
+    for (dependency, namespace) in projection
+        .dependencies
+        .iter_mut()
+        .zip(["/deps/facade", "/deps/provider"])
+    {
+        dependency.name = namespace.trim_start_matches("/deps/").to_owned();
+        dependency.package = dependency.name.clone();
+        dependency.items[0].namespace = namespace.to_owned();
+        dependency.items[0].rust_path = "provider::Generic".to_owned();
+    }
+    let mut renamed = projection.dependencies[1].items[0].clone();
+    renamed.name = "PublicGeneric".to_owned();
+    projection.dependencies[1].items.push(renamed);
+    let mut package = Package::implicit(
+        "main.trn",
+        concat!(
+            "namespace app\n",
+            "from /deps/provider import Generic as ProviderGeneric, PublicGeneric\n",
+            "from /deps/facade import Generic as FacadeGeneric\n",
+        )
+        .to_owned(),
+    );
+    for name in ["provider", "facade"] {
+        package.rust_dependencies.push(RustDependency {
+            name: name.to_owned(),
+            package: name.to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: false,
+            target: None,
+            effects: Vec::new(),
+        });
+    }
+    let semantic = analyze_with_projection(&package, projection).unwrap();
+    let symbols = &semantic.namespaces["/app"].symbols;
+    assert_eq!(
+        symbols["ProviderGeneric"].identity,
+        symbols["FacadeGeneric"].identity
+    );
+    assert_eq!(
+        symbols["PublicGeneric"].identity,
+        symbols["FacadeGeneric"].identity
+    );
+    assert_eq!(
+        semantic.namespaces["/deps/provider"].symbols["PublicGeneric"].identity,
+        symbols["FacadeGeneric"].identity
+    );
+}
+
 fn unavailable_projection() -> Projection {
     Projection {
         native_owner_aliases: BTreeMap::default(),
@@ -96,6 +149,7 @@ fn unavailable_projection() -> Projection {
         content_hash: String::new(),
         dependencies: vec![ProjectedDependency {
             name: "shared".to_owned(),
+            native_alias_identities: BTreeMap::new(),
             package: "shared".to_owned(),
             version: "1.0.0".to_owned(),
             items: Vec::new(),

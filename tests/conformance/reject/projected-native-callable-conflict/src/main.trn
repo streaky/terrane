@@ -1,0 +1,6 @@
+namespace app
+
+from /deps/witness import Cell, Marker, make
+
+function main;
+    conflict Cell of bool = (make of Marker);

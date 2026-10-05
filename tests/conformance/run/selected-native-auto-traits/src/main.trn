@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/witness import Opaque, make_text, Worker as worker
+
+class worker-impl implements worker
+    value Opaque = make_text;
+    function work bool;
+        return true
+
+function main;
+    value worker-impl = instance worker-impl;

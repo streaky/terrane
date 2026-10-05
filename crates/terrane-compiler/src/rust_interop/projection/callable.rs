@@ -466,19 +466,36 @@ pub(super) fn render_generic_bounds(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<Vec<String>, String> {
+    render_generic_bounds_from_generics(
+        parameter,
+        &function.generics,
+        &function.generics.params,
+        index,
+        paths,
+        generics,
+    )
+}
+pub(super) fn render_generic_bounds_from_generics(
+    parameter: &GenericParamDef,
+    declaration: &Generics,
+    outer_generic_params: &[GenericParamDef],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Vec<String>, String> {
     let mut rendered = Vec::new();
     if let GenericParamDefKind::Type { bounds, .. } = &parameter.kind {
         for bound in bounds {
             rendered.push(render_generic_bound(
                 bound,
-                &function.generics.params,
+                outer_generic_params,
                 index,
                 paths,
                 generics,
             )?);
         }
     }
-    for predicate in &function.generics.where_predicates {
+    for predicate in &declaration.where_predicates {
         let WherePredicate::BoundPredicate {
             type_: Type::Generic(name),
             bounds,
@@ -488,9 +505,7 @@ pub(super) fn render_generic_bounds(
             continue;
         };
         if name == &parameter.name {
-            let outer_generic_params = function
-                .generics
-                .params
+            let outer_generic_params = outer_generic_params
                 .iter()
                 .chain(generic_params)
                 .cloned()

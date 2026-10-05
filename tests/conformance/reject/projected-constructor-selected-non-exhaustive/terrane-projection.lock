@@ -1,7 +1,13 @@
 {
   "dependencies": [
     {
-      "members": {},
+      "members": {
+        "/deps/witness": [
+          "Open",
+          "Open.into",
+          "Open.try_into"
+        ]
+      },
       "name": "witness",
       "version": "0.1.0"
     }

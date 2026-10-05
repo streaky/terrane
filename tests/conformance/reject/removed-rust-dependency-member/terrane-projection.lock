@@ -15,6 +15,7 @@
           "HttpDate.partial_cmp",
           "HttpDate.try_into",
           "HttpDate::from_str",
+          "Ordering",
           "fmt_http_date",
           "parse_http_date"
         ],

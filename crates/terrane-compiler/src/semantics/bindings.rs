@@ -327,7 +327,8 @@ pub(super) fn first_write_to<'a>(
 ) -> Option<&'a SyntaxNode> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && let Some(function) = projected_function_for_call(package, unit, callee)
+        && let Some(function) =
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
     {
         let projected_parameters = unit
             .projected_call_specializations
@@ -897,6 +898,12 @@ pub(super) fn value_type_satisfies_auto_trait(
         match value_type {
             ValueType::Reference(_) => false,
             ValueType::Object(identity) => {
+                if let Some(capability) = package.native_capability(identity) {
+                    return match obligation {
+                        AutoTraitObligation::Send => capability.send,
+                        AutoTraitObligation::Sync => capability.sync,
+                    };
+                }
                 if let Some((send, sync)) = package
                     .projection
                     .foreign_auto_traits(&identity.namespace, &identity.name)
@@ -1028,10 +1035,15 @@ pub(super) fn value_type_is_task_transferable(
     match value_type {
         ValueType::Reference(_) => false,
         ValueType::Object(identity) => {
-            !identity.namespace.starts_with("/deps/")
-                || package
+            if !identity.namespace.starts_with("/deps/") {
+                true
+            } else if let Some(capability) = package.native_capability(identity) {
+                capability.send
+            } else {
+                package
                     .projection
                     .projected_type_is_send(&identity.namespace, &identity.name)
+            }
         }
         ValueType::Optional(inner) => value_type_is_task_transferable(package, inner),
         ValueType::Iterator(inner)
@@ -1092,12 +1104,21 @@ fn async_boundary_transferability(
     }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
-        && resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
+        && call_base_contract(unit, node, &unit.typed_bindings)
+            .ok()
+            .flatten()
             .is_some_and(|contract| {
                 contract.is_async && contract.task_transferability == TaskTransferability::Local
             })
     {
-        return if projected_function_for_call(package, unit, callee).is_some() {
+        return if projected_function_for_call(
+            package,
+            unit,
+            callee,
+            crate::syntax::call_is_unsafe(node),
+        )
+        .is_some()
+        {
             TaskTransferability::RustProven
         } else {
             TaskTransferability::Local
@@ -1145,7 +1166,7 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
                         else {
                             return true;
                         };
-                        !suspensions.iter().any(|suspension| {
+                        let live_across_suspension = suspensions.iter().any(|suspension| {
                             suspension.start >= binding.visible_from
                                 && suspension.end <= contract.span.end
                                 && events.iter().any(|event| {
@@ -1155,7 +1176,8 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
                                             if span.start > suspension.end
                                     )
                                 })
-                        })
+                        });
+                        !live_across_suspension
                     });
                     let transferability = if unit.namespace.starts_with("/deps/")
                         || boundary == TaskTransferability::Local
@@ -1874,7 +1896,8 @@ fn projected_chain_role(
     let [callee, _] = node.children.as_slice() else {
         return None;
     };
-    let function = projected_function_for_call(package, unit, callee)?;
+    let function =
+        projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))?;
     function.chain_role.or_else(|| {
         let receiver = callee.children.first()?;
         matches!(
@@ -1938,6 +1961,7 @@ fn collect_chain_receivers(
             package,
             unit,
             node.children.first().expect("call expression has a callee"),
+            crate::syntax::call_is_unsafe(node),
         )
         .is_some()
         && let Some(arguments) = node.children.get(1)
@@ -1990,8 +2014,16 @@ pub(super) fn projected_function_for_call<'a>(
     package: &'a SemanticPackage,
     unit: &SemanticUnit,
     callee: &SyntaxNode,
+    is_unsafe: bool,
 ) -> Option<&'a crate::rust_interop::projection::ProjectedFunction> {
-    let is_unsafe = crate::syntax::call_is_unsafe(callee);
+    let is_unsafe = is_unsafe || crate::syntax::call_is_unsafe(callee);
+    let mut callee = callee;
+    while matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+    ) {
+        callee = callee.children.first()?;
+    }
     if callee.kind == SyntaxKind::ConstructionExpression {
         let identity = class_designator_identity(unit, callee.children.first()?)?;
         return package
@@ -2145,23 +2177,25 @@ fn local_lender_in_scoped_expression(
 ) -> Option<(String, Span)> {
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && (projected_function_for_call(package, unit, callee).is_some_and(|function| {
-            matches!(
-                function.result,
-                crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-            )
-        }) || (callee.kind == SyntaxKind::Name
-            && resolved_function_contract(
-                unit,
-                node_text(&unit.source, callee),
-                callee.span.start,
-            )
+        && (projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
             .is_some_and(|function| {
                 matches!(
-                    function.return_type,
-                    Some(ValueType::InvocationScopedNative { .. })
+                    function.result,
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
                 )
-            })))
+            })
+            || (callee.kind == SyntaxKind::Name
+                && resolved_function_contract(
+                    unit,
+                    node_text(&unit.source, callee),
+                    callee.span.start,
+                )
+                .is_some_and(|function| {
+                    matches!(
+                        function.return_type,
+                        Some(ValueType::InvocationScopedNative { .. })
+                    )
+                })))
     {
         let lender = arguments
             .children
@@ -2484,7 +2518,8 @@ fn validate_projected_callback_node(
     validate_projected_borrowed_async_call(package, unit, node, immediately_awaited)?;
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && let Some(function) = projected_function_for_call(package, unit, callee)
+        && let Some(function) =
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
     {
         for (index, parameter) in function.parameters.iter().enumerate() {
             let Some(value) = projected_argument_for_parameter(unit, function, arguments, index)

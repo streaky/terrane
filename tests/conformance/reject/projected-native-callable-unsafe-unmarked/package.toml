@@ -1,0 +1,9 @@
+package = "projected-native-callable-unsafe-unmarked"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-callable-witness"
+version = "=0.1.0"
+effects = ["build"]

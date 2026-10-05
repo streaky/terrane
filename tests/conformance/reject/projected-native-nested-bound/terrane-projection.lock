@@ -1,0 +1,24 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "CopyOnly",
+          "CopyOnly.into",
+          "CopyOnly.try_into",
+          "Outer",
+          "Outer.into",
+          "Outer.try_into",
+          "nested",
+          "read"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

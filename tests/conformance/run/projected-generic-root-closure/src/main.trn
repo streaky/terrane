@@ -1,0 +1,15 @@
+namespace app
+
+from /deps/witness import Holder, Payload, make_holder
+from /core/output import print
+
+function payload-value int; value ref Payload
+    return value.n0
+
+function main;
+    holder = make_holder;
+    selected int|none = ((holder.values;).get;).map; payload-value
+    if selected != none
+        print; selected
+    else
+        print; 'missing'

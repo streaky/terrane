@@ -25,6 +25,22 @@ pub(super) fn descriptor_contract<'a>(
     })
 }
 
+pub(super) fn selected_descriptor_identity(
+    unit: &SemanticUnit,
+    identity: &ObjectIdentity,
+) -> ObjectIdentity {
+    if !identity.type_arguments.is_empty()
+        || !identity.native_arguments.is_empty()
+        || identity.application.is_some()
+    {
+        return identity.clone();
+    }
+    descriptor_contract(unit, identity).map_or_else(
+        || identity.clone(),
+        |descriptor| descriptor.identity.clone(),
+    )
+}
+
 fn object_type_substitutions(
     object: &DescriptorContract,
     identity: &ObjectIdentity,
@@ -51,7 +67,7 @@ pub(super) fn descriptor_protocol_method<'a>(
     object_method_contract(unit, identity, member, false)
 }
 
-fn object_method_contract_with_safety<'a>(
+pub(super) fn object_method_contract_with_safety<'a>(
     unit: &'a SemanticUnit,
     identity: &ObjectIdentity,
     member: &str,
@@ -134,11 +150,12 @@ pub(super) fn object_field_type(
         .iter()
         .find(|field| field.name == member && field.is_static == is_static)
     {
-        let substitutions = object_type_substitutions(object, object_identity);
+        let selected_identity = selected_descriptor_identity(unit, object_identity);
+        let substitutions = object_type_substitutions(object, &selected_identity);
         let value_type = super::generics::substitute_value_type(&field.value_type, &substitutions);
         return Some(super::calls::substitute_projected_value_generics(
             &value_type,
-            &object_identity.native_arguments,
+            &selected_identity.native_arguments,
         ));
     }
     for used_trait in &object.traits {
@@ -199,12 +216,13 @@ pub(crate) fn object_member_type(
         return Some(field_type);
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
-        let substitutions = object_type_substitutions(object, object_identity);
+        let selected_identity = selected_descriptor_identity(unit, object_identity);
+        let substitutions = object_type_substitutions(object, &selected_identity);
         return method_value_type(method).map(|value_type| {
             let value_type = super::generics::substitute_value_type(&value_type, &substitutions);
             super::calls::substitute_projected_value_generics(
                 &value_type,
-                &object_identity.native_arguments,
+                &selected_identity.native_arguments,
             )
         });
     }

@@ -608,10 +608,13 @@ pub(crate) fn validate_enum_constructions(
                 continue;
             };
             let variant = node_text(&unit.source, variant_node);
-            if let Some(source_enum) = source_enums
-                .iter()
-                .find(|item| item.identity.qualified() == *identity)
-            {
+            if let Some(source_enum) = source_enums.iter().find(|item| {
+                item.identity.qualified() == *identity
+                    && package
+                        .projection
+                        .item(&item.identity.namespace, &item.identity.name)
+                        .is_none()
+            }) {
                 let Some(contract) = source_enum
                     .variants
                     .iter()
@@ -823,19 +826,52 @@ pub(crate) fn validate_enum_constructions(
             let arguments = find_call_containing(&unit.tree.root, construction.span)
                 .and_then(|call| call.children.get(1))
                 .map_or(&[][..], |list| list.children.as_slice());
-            if arguments.len() != contract.fields.len() {
+            let payload_carrier = package
+                .projection
+                .item(namespace, name)
+                .and_then(|item| native_enum_payload_carrier(package, item, contract));
+            let expected_arguments = if payload_carrier.is_some() {
+                1
+            } else {
+                contract.fields.len()
+            };
+            if arguments.len() != expected_arguments {
                 return Err(failure(
                     &unit.source,
                     "T0216",
                     format!(
-                        "variant `{variant}` requires {} payload value(s), found {}",
-                        contract.fields.len(),
+                        "variant `{variant}` requires {expected_arguments} payload value(s), found {}",
                         arguments.len()
                     ),
                     construction.span,
                 ));
             }
-            let ordered_arguments = if contract.style
+            if let Some(carrier) = &payload_carrier {
+                let value = arguments[0]
+                    .children
+                    .last()
+                    .expect("argument AST has a value");
+                let actual =
+                    infer_value_type(unit, value, &unit.typed_bindings)?.ok_or_else(|| {
+                        failure(
+                            &unit.source,
+                            "T0218",
+                            "cannot determine enum payload carrier type",
+                            value.span,
+                        )
+                    })?;
+                if !super::types::value_types_compatible(&unit.descriptors, carrier, &actual) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0218",
+                        format!("native enum payload expects `{carrier}`, found `{actual}`"),
+                        value.span,
+                    ));
+                }
+            }
+            let ordered_arguments = if payload_carrier.is_some() {
+                Vec::new()
+            } else if contract.style
                 == crate::rust_interop::projection::ProjectedEnumVariantStyle::Struct
             {
                 let mut by_name = BTreeMap::new();
@@ -1022,19 +1058,27 @@ pub(crate) fn validate_enum_constructions(
                         })
                     })
                     .collect::<Result<Vec<_>, _>>()?;
-                let base_path = item
-                    .rust_path
-                    .split_once('<')
-                    .map_or(item.rust_path.as_str(), |(base, _)| base);
+                let base_path = package
+                    .projection
+                    .canonical_native_type(
+                        item.rust_path
+                            .split_once('<')
+                            .map_or(item.rust_path.as_str(), |(base, _)| base),
+                    )
+                    .into_owned();
                 let native_path = if carriers.is_empty() {
-                    base_path.to_owned()
+                    base_path
                 } else {
                     format!("{base_path}<{}>", carriers.join(", "))
                 };
-                let identity = ObjectIdentity::new(namespace, name)
+                let mut identity = ObjectIdentity::new(namespace, name)
                     .with_type_arguments(arguments)
                     .with_native_arguments(native_arguments)
                     .with_native_projection(native_path);
+                if super::native_constructors::source_abi_nominal(package, &identity) {
+                    identity =
+                        super::native_constructors::canonical_source_nominal(package, &identity);
+                }
                 selections.push((
                     (call.span.file, call.span.start, call.span.end),
                     ValueType::Object(identity),
@@ -1046,6 +1090,37 @@ pub(crate) fn validate_enum_constructions(
             .extend(selections);
     }
     Ok(())
+}
+
+fn native_enum_payload_carrier(
+    package: &SemanticPackage,
+    owner: &crate::rust_interop::projection::ProjectedItem,
+    variant: &crate::rust_interop::projection::ProjectedEnumVariant,
+) -> Option<ValueType> {
+    if matches!(
+        &owner.kind,
+        crate::rust_interop::projection::ProjectedKind::Enum { generic_parameters, .. }
+            if !generic_parameters.is_empty()
+    ) {
+        // Authored generic enum contracts expose their payload fields directly.
+        return None;
+    }
+    package
+        .projection
+        .dependencies
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .find_map(|item| {
+            let crate::rust_interop::projection::ProjectedKind::ForeignType {
+                enum_payload: Some(payload),
+                ..
+            } = &item.kind
+            else {
+                return None;
+            };
+            (payload.owner_rust_path == owner.rust_path && payload.variant == variant.name)
+                .then(|| ValueType::Object(ObjectIdentity::new(&item.namespace, &item.name)))
+        })
 }
 
 #[expect(
@@ -1137,23 +1212,36 @@ pub(super) fn selected_enum_constructor_contract(
         .zip(&result.type_arguments)
         .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
         .collect::<BTreeMap<_, _>>();
-    let parameters = variant
-        .fields
-        .iter()
-        .map(|field| {
-            Some(ParameterContract {
-                name: field.name.clone(),
-                span: call.span,
-                value_type: Some(substitute_value_type(
-                    &projected_enum_payload_type(package, &field.ty)?,
-                    &substitutions,
-                )),
-                optional: false,
-                mutable: false,
-                variadic: false,
+    let parameters = if let Some(ValueType::Object(carrier)) =
+        native_enum_payload_carrier(package, item, variant)
+    {
+        vec![ParameterContract {
+            name: "payload".to_owned(),
+            span: call.span,
+            value_type: Some(ValueType::Object(carrier)),
+            optional: false,
+            mutable: false,
+            variadic: false,
+        }]
+    } else {
+        variant
+            .fields
+            .iter()
+            .map(|field| {
+                Some(ParameterContract {
+                    name: field.name.clone(),
+                    span: call.span,
+                    value_type: Some(substitute_value_type(
+                        &projected_enum_payload_type(package, &field.ty)?,
+                        &substitutions,
+                    )),
+                    optional: false,
+                    mutable: false,
+                    variadic: false,
+                })
             })
-        })
-        .collect::<Option<Vec<_>>>()?;
+            .collect::<Option<Vec<_>>>()?
+    };
     Some(enum_constructor_contract(
         &variant.name,
         call.span,

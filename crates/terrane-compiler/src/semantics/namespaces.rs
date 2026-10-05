@@ -579,6 +579,56 @@ pub(super) fn visible_fallback_symbol<'a>(
         .or_else(|| prelude.then(|| prelude_bindings.get(name)).flatten())
 }
 
+/// Materialize only advertised native public aliases before authored import lookup.
+/// Generated signature imports and ordinary Terrane imports are not public exports.
+pub(super) fn materialize_projected_public_aliases(
+    imports: &[Import],
+    namespaces: &mut BTreeMap<String, Namespace>,
+    projection: &crate::rust_interop::projection::Projection,
+) -> Result<(), SemanticFailure> {
+    let aliases = imports
+        .iter()
+        .filter(|import| import.bundled && !import.namespace_wide)
+        .filter(|import| {
+            let Some(public) = projection.item(&import.namespace, &import.alias) else {
+                return false;
+            };
+            let Some(target) = projection.item(&import.target, &import.object) else {
+                return false;
+            };
+            projection.canonical_native_type(&public.rust_path)
+                == projection.canonical_native_type(&target.rust_path)
+        })
+        .collect::<Vec<_>>();
+    loop {
+        let mut changed = false;
+        for import in &aliases {
+            if !namespaces.get(&import.target).is_some_and(|namespace| {
+                namespace.symbols.contains_key(&import.object)
+                    || namespace
+                        .symbols
+                        .contains_key(&format!("unsafe::{}", import.object))
+            }) {
+                continue;
+            }
+            for (name, mut symbol) in imported_objects(import, namespaces)? {
+                let destination = namespaces
+                    .get_mut(&import.namespace)
+                    .expect("projected alias namespace is assembled");
+                if destination.symbols.contains_key(&name) {
+                    continue;
+                }
+                symbol.binding_span = Some(import.span);
+                destination.symbols.insert(name, symbol);
+                changed = true;
+            }
+        }
+        if !changed {
+            return Ok(());
+        }
+    }
+}
+
 pub(super) fn resolve_imports(
     imports: Vec<Import>,
     namespaces: &mut BTreeMap<String, Namespace>,
@@ -855,6 +905,17 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
     callee: &SyntaxNode,
     is_unsafe: bool,
 ) -> Option<&'a FunctionContract> {
+    if matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+    ) {
+        return function_contract_for_call_with_safety(
+            package,
+            unit,
+            callee.children.first()?,
+            is_unsafe,
+        );
+    }
     if matches!(
         callee.kind,
         SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression

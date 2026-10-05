@@ -126,6 +126,7 @@ fn builtin_owner_reexports_never_request_supplemental_rustdoc() {
     let supplemental = external_reexport_rustdocs(
         &workspace,
         &rustdocs,
+        &[],
         &json!({"packages": []}),
         "x86_64-unknown-linux-gnu",
         Containment::Unavailable,
@@ -166,6 +167,7 @@ fn projected_function_item(namespace: &str, name: &str, rust_path: &str) -> Proj
             native_path: None,
             name: name.to_owned(),
             generic_parameters: Vec::new(),
+            operation_owner_generics: Vec::new(),
             rust_generic_arguments: Vec::new(),
             parameters: Vec::new(),
             result: ProjectedType::None,
@@ -243,6 +245,70 @@ fn canonical_projected_item_name_wins_over_provider_path_hash() {
     assert_eq!(
         foreign.get("iced::Point").map(String::as_str),
         Some("Point")
+    );
+}
+
+#[test]
+fn canonical_public_reexports_share_demanded_members() {
+    let facade = projected_foreign_type_item("/deps/api", "Value", "api::Value", "read");
+    let provider = projected_foreign_type_item("/deps/owner", "Value", "owner::Value", "read");
+    let demanded = ProjectedMemberDemands::from([(
+        (provider.namespace.clone(), provider.name.clone()),
+        BTreeSet::from(["read".to_owned()]),
+    )]);
+    let projection = Projection {
+        native_owner_aliases: BTreeMap::from([(
+            "api::Value".to_owned(),
+            "owner::Value".to_owned(),
+        )]),
+        cache_identity: "public-member-demands".to_owned(),
+        content_hash: String::new(),
+        dependencies: [("api", facade.clone()), ("owner", provider.clone())]
+            .into_iter()
+            .map(|(name, item)| ProjectedDependency {
+                name: name.to_owned(),
+                package: name.to_owned(),
+                version: "0.1.0".to_owned(),
+                items: vec![item],
+                declined: Vec::new(),
+                native_alias_identities: BTreeMap::new(),
+                partial_declines: Vec::new(),
+            })
+            .collect(),
+        bound_dependencies: Vec::new(),
+        containment: Containment::Enforced,
+        source: ProjectionSource::default(),
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution::default(),
+        removed: Vec::new(),
+    };
+    assert_eq!(
+        projection.owner_for_projected_type(&ProjectedType::Foreign {
+            rust_path: provider.rust_path.clone(),
+            base_rust_path: provider.rust_path.clone(),
+            name: provider.name.clone(),
+            arguments: Vec::new(),
+        }),
+        Some((provider.namespace.clone(), provider.name.clone()))
+    );
+    assert_eq!(
+        projection.owner_for_projected_type(&ProjectedType::Foreign {
+            rust_path: facade.rust_path.clone(),
+            base_rust_path: facade.rust_path.clone(),
+            name: facade.name.clone(),
+            arguments: Vec::new(),
+        }),
+        Some((facade.namespace.clone(), facade.name.clone()))
+    );
+    let expanded = super::source_rendering::source_member_demands(
+        &projection,
+        &[&facade, &provider],
+        &demanded,
+    );
+    assert_eq!(
+        expanded[&(facade.namespace, facade.name)],
+        BTreeSet::from(["read".to_owned()])
     );
 }
 
@@ -363,6 +429,7 @@ fn projected_type_lookup_is_scoped_to_canonical_namespace() {
         dependencies: vec![
             ProjectedDependency {
                 name: "one".to_owned(),
+                native_alias_identities: BTreeMap::new(),
                 package: "one".to_owned(),
                 version: "1.0.0".to_owned(),
                 items: vec![item("/deps/one", "one::Message")],
@@ -371,6 +438,7 @@ fn projected_type_lookup_is_scoped_to_canonical_namespace() {
             },
             ProjectedDependency {
                 name: "two".to_owned(),
+                native_alias_identities: BTreeMap::new(),
                 package: "two".to_owned(),
                 version: "1.0.0".to_owned(),
                 items: vec![item("/deps/two", "two::Message")],
@@ -531,6 +599,7 @@ fn namespace_overlays_require_a_direct_target_and_reject_collisions() {
     let mut projected = [
         ProjectedDependency {
             name: "upstream".to_owned(),
+            native_alias_identities: BTreeMap::new(),
             package: "upstream".to_owned(),
             version: "1.0.0".to_owned(),
             items: vec![projected_function_item(
@@ -543,6 +612,7 @@ fn namespace_overlays_require_a_direct_target_and_reject_collisions() {
         },
         ProjectedDependency {
             name: "adapter".to_owned(),
+            native_alias_identities: BTreeMap::new(),
             package: "adapter".to_owned(),
             version: "1.0.0".to_owned(),
             items: vec![projected_function_item(
@@ -709,6 +779,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
         content_hash: "content".to_owned(),
         dependencies: vec![ProjectedDependency {
             name: "witness".to_owned(),
+            native_alias_identities: BTreeMap::new(),
             package: "witness".to_owned(),
             version: "1.0.0".to_owned(),
             items: vec![projected_function_item(
@@ -850,6 +921,7 @@ fn documented_inventory_populates_admitted_members_and_comments_declines() {
         content_hash: "content".to_owned(),
         dependencies: vec![ProjectedDependency {
             name: "witness".to_owned(),
+            native_alias_identities: BTreeMap::new(),
             package: "witness".to_owned(),
             version: "1.0.0".to_owned(),
             items: vec![projected_foreign_type_item(
@@ -895,6 +967,7 @@ fn documented_inventory_populates_admitted_members_and_comments_declines() {
 fn exact_decline_path_wins_over_conflicting_suffixes() {
     let dependency = |name: &str, rust_path: &str, reason: &str| ProjectedDependency {
         name: name.to_owned(),
+        native_alias_identities: BTreeMap::new(),
         package: name.to_owned(),
         version: "1.0.0".to_owned(),
         items: Vec::new(),
@@ -922,6 +995,7 @@ fn exact_decline_path_wins_over_conflicting_suffixes() {
 fn ambiguous_projected_type_identities_do_not_resolve() {
     let dependency = |name: &str, rust_path: &str| ProjectedDependency {
         name: name.to_owned(),
+        native_alias_identities: BTreeMap::new(),
         package: name.to_owned(),
         version: "1.0.0".to_owned(),
         items: vec![ProjectedItem {
@@ -1109,6 +1183,7 @@ fn static_reference_aliases_cannot_bypass_parameter_admission() {
 fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
     let mut dependencies = vec![ProjectedDependency {
         name: "witness".to_owned(),
+        native_alias_identities: BTreeMap::new(),
         package: "witness".to_owned(),
         version: "1.0.0".to_owned(),
         items: vec![
@@ -1154,6 +1229,7 @@ fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
                     native_path: None,
                     name: "rejected_total".to_owned(),
                     generic_parameters: Vec::new(),
+                    operation_owner_generics: Vec::new(),
                     rust_generic_arguments: Vec::new(),
                     parameters: vec![ProjectedParameter {
                         name: "value".to_owned(),
@@ -1612,6 +1688,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
     };
     let response_status = || ProjectedDependency {
         name: "reqwest".to_owned(),
+        native_alias_identities: BTreeMap::new(),
         package: "reqwest".to_owned(),
         version: "0.12.28".to_owned(),
         items: vec![ProjectedItem {
@@ -1624,6 +1701,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
                 native_path: None,
                 name: "status".to_owned(),
                 generic_parameters: Vec::new(),
+                operation_owner_generics: Vec::new(),
                 rust_generic_arguments: Vec::new(),
                 parameters: Vec::new(),
                 result: ProjectedType::Foreign {
@@ -1824,29 +1902,6 @@ fn function_signatures_keep_same_named_foreign_types_distinct() {
     ));
 }
 
-#[test]
-fn projected_source_cycles_are_diagnostic() {
-    let cycle = Projection::order_projected_sources(vec![
-        (
-            "/deps/one".to_owned(),
-            String::new(),
-            BTreeSet::from(["/deps/two".to_owned()]),
-        ),
-        (
-            "/deps/two".to_owned(),
-            String::new(),
-            BTreeSet::from(["/deps/one".to_owned()]),
-        ),
-    ])
-    .unwrap_err();
-
-    assert_eq!(
-        cycle,
-        "projected dependency source namespaces contain an import cycle: \
-             /deps/one -> [/deps/two]; /deps/two -> [/deps/one]; this is the recorded \
-             `projection/mutually-referential-namespace-sources` limitation"
-    );
-}
 #[test]
 fn wider_primitives_project_without_narrowing() {
     let paths = HashMap::new();
@@ -2058,6 +2113,7 @@ fn projection_history_retains_removed_members_across_checks() {
     fs::create_dir_all(&directory).unwrap();
     let dependency = |version: &str, items: Vec<ProjectedItem>| ProjectedDependency {
         name: "fixture".to_owned(),
+        native_alias_identities: BTreeMap::new(),
         package: "fixture".to_owned(),
         version: version.to_owned(),
         items,
@@ -2083,6 +2139,7 @@ fn projection_history_retains_removed_members_across_checks() {
                 native_path: None,
                 name: "read".to_owned(),
                 generic_parameters: Vec::new(),
+                operation_owner_generics: Vec::new(),
                 rust_generic_arguments: Vec::new(),
                 parameters: Vec::new(),
                 result: ProjectedType::None,
@@ -2102,6 +2159,7 @@ fn projection_history_retains_removed_members_across_checks() {
                 native_path: None,
                 name: "create".to_owned(),
                 generic_parameters: Vec::new(),
+                operation_owner_generics: Vec::new(),
                 rust_generic_arguments: Vec::new(),
                 parameters: Vec::new(),
                 result: ProjectedType::None,
@@ -2277,6 +2335,7 @@ fn legacy_format_three_history_migrates_without_losing_removed_members() {
         content_hash: String::new(),
         dependencies: vec![ProjectedDependency {
             name: "bytes".to_owned(),
+            native_alias_identities: BTreeMap::new(),
             package: "bytes".to_owned(),
             version: "1.10.2".to_owned(),
             items: Vec::new(),

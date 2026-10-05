@@ -342,6 +342,34 @@ fn projected_member_is_demanded(
         .is_some_and(|members| members.contains(member))
 }
 
+pub(super) fn source_member_demands(
+    projection: &Projection,
+    all_items: &[&ProjectedItem],
+    demanded: &ProjectedMemberDemands,
+) -> ProjectedMemberDemands {
+    let mut native_members = BTreeMap::<std::borrow::Cow<'_, str>, BTreeSet<&String>>::new();
+    for item in all_items {
+        if let Some(members) = demanded.get(&(item.namespace.clone(), item.name.clone())) {
+            native_members
+                .entry(projection.canonical_native_type(&item.rust_path))
+                .or_default()
+                .extend(members);
+        }
+    }
+    let mut expanded = demanded.clone();
+    for item in all_items {
+        if let Some(members) =
+            native_members.get(&projection.canonical_native_type(&item.rust_path))
+        {
+            expanded
+                .entry((item.namespace.clone(), item.name.clone()))
+                .or_default()
+                .extend(members.iter().map(|name| (*name).clone()));
+        }
+    }
+    expanded
+}
+
 pub(super) fn expanded_source_imports(
     all_items: &[&ProjectedItem],
     imports: &BTreeMap<String, BTreeSet<String>>,
@@ -360,7 +388,9 @@ pub(super) fn expanded_source_imports(
             })
             .collect::<Vec<_>>();
         for (rust_path, name) in collect_source_foreign(all_items, &selected, demanded_members) {
-            if let Some(item) = projected_item_for_foreign(all_items, &rust_path, &name) {
+            let constructor = crate::rust_ir::rust_type_constructor(&rust_path);
+            let owner_path = constructor.as_deref().unwrap_or(&rust_path);
+            if let Some(item) = projected_item_for_foreign(all_items, owner_path, &name) {
                 expanded
                     .entry(item.namespace.clone())
                     .or_default()
@@ -393,6 +423,13 @@ pub(super) fn projected_item_for_foreign<'a>(
     rust_path: &str,
     name: &str,
 ) -> Option<&'a ProjectedItem> {
+    if let Some(exact_named) = all_items
+        .iter()
+        .copied()
+        .find(|item| item.rust_path == rust_path && item.name == name)
+    {
+        return Some(exact_named);
+    }
     if let Some(exact) = all_items
         .iter()
         .copied()
@@ -546,6 +583,58 @@ pub(super) fn collect_source_foreign(
     }
 }
 
+pub(super) fn source_foreign_aliases(
+    foreign: &BTreeMap<String, String>,
+    all_items: &[&ProjectedItem],
+    namespace: &str,
+) -> BTreeMap<String, String> {
+    let is_generic = |item: &ProjectedItem| {
+        matches!(
+            &item.kind,
+            ProjectedKind::ForeignType { generic_parameters, .. }
+                | ProjectedKind::Enum { generic_parameters, .. }
+                if !generic_parameters.is_empty()
+        )
+    };
+    let mut declarations = BTreeMap::new();
+    for (rust_path, name) in foreign {
+        if let Some(item) = projected_item_for_foreign(all_items, rust_path, name)
+            && is_generic(item)
+        {
+            declarations.insert(item.rust_path.clone(), item.name.clone());
+        } else {
+            declarations.insert(rust_path.clone(), name.clone());
+        }
+    }
+    let names = foreign_aliases(&declarations);
+    let mut aliases = BTreeMap::new();
+    for (rust_path, name) in foreign {
+        let item = projected_item_for_foreign(all_items, rust_path, name);
+        let alias = match item {
+            Some(item) if item.namespace == namespace => item.name.clone(),
+            Some(item) => names
+                .get(&item.rust_path)
+                .unwrap_or_else(|| &names[rust_path])
+                .clone(),
+            None => names[rust_path].clone(),
+        };
+        aliases.insert(rust_path.clone(), alias.clone());
+        if let Some(item) = item
+            && is_generic(item)
+        {
+            // These constructor keys distinguish admitted generic declarations
+            // from closed foreign fallback classes with readable applied names.
+            if let Some(constructor) = crate::rust_ir::rust_type_constructor(rust_path) {
+                aliases.insert(constructor, alias.clone());
+            }
+            if let Some(constructor) = crate::rust_ir::rust_type_constructor(&item.rust_path) {
+                aliases.insert(constructor, alias);
+            }
+        }
+    }
+    aliases
+}
+
 pub(super) fn foreign_aliases(foreign: &BTreeMap<String, String>) -> BTreeMap<String, String> {
     let preferred = foreign
         .iter()
@@ -644,7 +733,7 @@ pub(super) fn collect_foreign_function(
     }
 }
 
-fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, String>) {
+pub(super) fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, String>) {
     match ty {
         ProjectedType::Foreign {
             rust_path,
@@ -724,6 +813,67 @@ fn render_projected_type_parameters(
     output.push(')');
 }
 
+fn projected_selector_type_name(
+    ty: &ProjectedType,
+    aliases: &BTreeMap<String, String>,
+) -> Option<String> {
+    match ty {
+        ProjectedType::RustInt(name) => crate::ScalarType::ALL.into_iter().find_map(|scalar| {
+            (scalar.rust_type() == Some(name.as_str())).then(|| scalar.source_name().to_owned())
+        }),
+        ProjectedType::FixedInt(_)
+        | ProjectedType::Float32
+        | ProjectedType::Float
+        | ProjectedType::Int
+        | ProjectedType::Bool
+        | ProjectedType::String
+        | ProjectedType::BorrowedString
+        | ProjectedType::Bytes
+        | ProjectedType::None => Some(ty.terrane_name()),
+        ProjectedType::Foreign {
+            rust_path,
+            base_rust_path,
+            name,
+            arguments,
+        } => {
+            let alias = aliases.get(base_rust_path)?;
+            if arguments.is_empty() {
+                return aliases
+                    .get(rust_path)
+                    .cloned()
+                    .or_else(|| Some(name.clone()));
+            }
+            let arguments = arguments
+                .iter()
+                .map(|argument| projected_selector_type_name(argument, aliases))
+                .collect::<Option<Vec<_>>>()?;
+            Some(format!("{alias} of ({})", arguments.join(", ")))
+        }
+        ProjectedType::Sequence { item, .. } => Some(format!(
+            "list of {}",
+            projected_selector_type_name(item, aliases)?
+        )),
+        ProjectedType::Optional(inner) => Some(format!(
+            "{}|none",
+            projected_selector_type_name(inner, aliases)?
+        )),
+        _ => None,
+    }
+}
+
+pub(super) fn render_foreign_import(
+    output: &mut String,
+    namespace: &str,
+    imported: &str,
+    name: &str,
+) {
+    write!(output, "from {namespace} import {imported}").expect("writing to a string cannot fail");
+    if name != imported {
+        write!(output, " as {name}").expect("writing to a string cannot fail");
+    }
+    output.push('\n');
+}
+
 pub(super) fn render_foreign_declaration(
     output: &mut String,
     namespace: &str,
@@ -736,12 +886,7 @@ pub(super) fn render_foreign_declaration(
     if let Some(item) = projected_item
         && item.namespace != namespace
     {
-        write!(output, "from {} import {}", item.namespace, item.name)
-            .expect("writing to a string cannot fail");
-        if name != item.name {
-            write!(output, " as {name}").expect("writing to a string cannot fail");
-        }
-        output.push('\n');
+        render_foreign_import(output, &item.namespace, &item.name, name);
         return;
     }
     match projected_item.map(|item| &item.kind) {
@@ -1081,7 +1226,7 @@ pub(super) fn render_function(
             }
             write!(
                 output,
-                "{} {}{}",
+                "{} {}",
                 parameter.name,
                 if parameter.borrowed
                     && matches!(function.result, ProjectedType::InvocationScoped { .. })
@@ -1090,9 +1235,24 @@ pub(super) fn render_function(
                 } else {
                     ""
                 },
-                projected_parameter_type_name(&parameter.ty, foreign_aliases)
             )
             .expect("writing to a string cannot fail");
+            if let Some(associated) = &parameter.associated_type
+                && matches!(parameter.ty, ProjectedType::Foreign { .. })
+            {
+                write!(
+                    output,
+                    "({} of {})",
+                    projected_type_name(&parameter.ty, foreign_aliases),
+                    projected_type_name(&associated.ty, foreign_aliases),
+                )
+                .expect("writing to a string cannot fail");
+            } else {
+                output.push_str(&projected_parameter_type_name(
+                    &parameter.ty,
+                    foreign_aliases,
+                ));
+            }
         }
     }
     output.push('\n');
@@ -1133,11 +1293,26 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
     match ty {
         ProjectedType::Reference { inner, .. } => projected_type_name(inner, foreign_aliases),
         ProjectedType::Foreign {
-            rust_path, name, ..
-        } => foreign_aliases
-            .get(rust_path)
-            .cloned()
-            .unwrap_or_else(|| name.clone()),
+            rust_path,
+            base_rust_path,
+            name,
+            arguments,
+        } => {
+            if let Some(base) = foreign_aliases.get(base_rust_path)
+                && !arguments.is_empty()
+                && let Some(rendered_arguments) = arguments
+                    .iter()
+                    .map(|argument| projected_selector_type_name(argument, foreign_aliases))
+                    .collect::<Option<Vec<_>>>()
+            {
+                format!("{base} of ({})", rendered_arguments.join(", "))
+            } else {
+                foreign_aliases
+                    .get(rust_path)
+                    .cloned()
+                    .unwrap_or_else(|| name.clone())
+            }
+        }
         ProjectedType::InvocationScoped {
             owned,
             name,

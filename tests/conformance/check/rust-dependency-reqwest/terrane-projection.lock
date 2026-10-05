@@ -124,6 +124,59 @@
           "Method::from",
           "Method::from_str",
           "Method::try_from",
+          "Ordering",
+          "Request",
+          "Request.body",
+          "Request.body_mut",
+          "Request.clone",
+          "Request.extensions",
+          "Request.extensions_mut",
+          "Request.headers",
+          "Request.headers_mut",
+          "Request.into",
+          "Request.into_body",
+          "Request.map",
+          "Request.method",
+          "Request.method_mut",
+          "Request.try_into",
+          "Request.uri",
+          "Request.uri_mut",
+          "Request.version",
+          "Request.version_mut",
+          "Request::builder",
+          "Request::connect",
+          "Request::default",
+          "Request::delete",
+          "Request::from_parts",
+          "Request::get",
+          "Request::head",
+          "Request::new",
+          "Request::options",
+          "Request::patch",
+          "Request::post",
+          "Request::put",
+          "Request::trace",
+          "Response",
+          "Response.body",
+          "Response.body_mut",
+          "Response.clone",
+          "Response.extensions",
+          "Response.extensions_mut",
+          "Response.headers",
+          "Response.headers_mut",
+          "Response.into",
+          "Response.into_body",
+          "Response.map",
+          "Response.status",
+          "Response.status_mut",
+          "Response.try_into",
+          "Response.version",
+          "Response.version_mut",
+          "Response::builder",
+          "Response::default",
+          "Response::from_parts",
+          "Response::new",
+          "Result",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
@@ -174,6 +227,7 @@
           "borrowed-option.map"
         ],
         "/deps/http/error/trait/core/convert/from-core/convert/infallible": [
+          "Infallible",
           "from"
         ],
         "/deps/http/error/trait/core/convert/from-http/header/invalidheadername": [
@@ -198,6 +252,10 @@
           "from"
         ],
         "/deps/http/header": [
+          "IntoIter",
+          "IntoIter.drop",
+          "IntoIter.into",
+          "IntoIter.try_into",
           "InvalidHeaderName",
           "InvalidHeaderName.into",
           "InvalidHeaderName.try_into",
@@ -217,10 +275,10 @@
         "/deps/http/header/map/as-header-name": [
           "TryEntryError"
         ],
-        "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-http/headervalue": [
+        "/deps/http/headermap/trait/core/iter/traits/collect/extend-core/option/option-http/headername-t": [
           "extend"
         ],
-        "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-http/headervalue": [
+        "/deps/http/headermap/trait/core/iter/traits/collect/extend-http/headername-t": [
           "extend"
         ],
         "/deps/http/headername/trait/core/cmp/partialeq": [
@@ -458,6 +516,13 @@
           "PathAndQuery::from",
           "PathAndQuery::from_maybe_shared",
           "PathAndQuery::from_str",
+          "Port",
+          "Port.as_ref",
+          "Port.as_str",
+          "Port.as_u16",
+          "Port.into",
+          "Port.try_into",
+          "Port::from",
           "Scheme",
           "Scheme.as_ref",
           "Scheme.as_str",
@@ -534,6 +599,9 @@
         "/deps/http/uri/pathandquery/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
         ],
+        "/deps/http/uri/port/trait/core/cmp/partialeq-u16": [
+          "eq"
+        ],
         "/deps/http/uri/scheme/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -587,6 +655,28 @@
           "Body.try_into",
           "Body::default",
           "Body::wrap",
+          "Bytes",
+          "Bytes.advance",
+          "Bytes.clear",
+          "Bytes.clone",
+          "Bytes.cmp",
+          "Bytes.copy_to_bytes",
+          "Bytes.drop",
+          "Bytes.extend",
+          "Bytes.into",
+          "Bytes.is_empty",
+          "Bytes.is_unique",
+          "Bytes.len",
+          "Bytes.remaining",
+          "Bytes.slice",
+          "Bytes.split_off",
+          "Bytes.split_to",
+          "Bytes.truncate",
+          "Bytes.try_into",
+          "Bytes::default",
+          "Bytes::from_iter",
+          "Bytes::from_owner",
+          "Bytes::new",
           "Certificate",
           "Certificate.clone",
           "Certificate.into",
@@ -662,6 +752,63 @@
           "ClientBuilder::default",
           "ClientBuilder::from",
           "ClientBuilder::new",
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.add",
+          "Duration.add_assign",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.clone",
+          "Duration.cmp",
+          "Duration.div",
+          "Duration.div_assign",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.eq",
+          "Duration.into",
+          "Duration.is_zero",
+          "Duration.mul_assign",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.partial_cmp",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.sub",
+          "Duration.sub_assign",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration.try_into",
+          "Duration::default",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
           "Error",
           "Error.into",
           "Error.is_body",
@@ -765,6 +912,22 @@
           "Response.upgrade",
           "Response.url",
           "Response.version",
+          "Result",
+          "SizeHint",
+          "SizeHint.add",
+          "SizeHint.clone",
+          "SizeHint.exact",
+          "SizeHint.into",
+          "SizeHint.lower",
+          "SizeHint.set_exact",
+          "SizeHint.set_lower",
+          "SizeHint.set_upper",
+          "SizeHint.try_into",
+          "SizeHint.upper",
+          "SizeHint::default",
+          "SizeHint::new",
+          "SizeHint::with_exact",
+          "SocketAddr",
           "StatusCode",
           "StatusCode.as_str",
           "StatusCode.as_u16",
@@ -1007,6 +1170,42 @@
         "/deps/reqwest/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-bytes/bytes-mut/bytesmut": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-std/string/string": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-std/vec/vec-u8": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialeq-str": [
+          "eq"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord-std/string/string": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord-std/vec/vec-u8": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/cmp/partialord-str": [
+          "partial_cmp"
+        ],
+        "/deps/reqwest/bytes/trait/core/convert/from-bytes/bytes-mut/bytesmut": [
+          "from"
+        ],
+        "/deps/reqwest/bytes/trait/core/convert/from-std/string/string": [
+          "from"
+        ],
+        "/deps/reqwest/bytes/trait/core/convert/from-std/vec/vec-u8": [
+          "from"
+        ],
         "/deps/reqwest/connect/sealed": [
           "Conn",
           "Unnameable"
@@ -1015,16 +1214,25 @@
           "Internal"
         ],
         "/deps/reqwest/dns": [
+          "Addrs",
           "Name",
           "Name.as_str",
           "Name.into",
           "Name.try_into",
-          "Name::from_str"
+          "Name::from_str",
+          "Resolving"
         ],
         "/deps/reqwest/dns/resolve/sealed": [
           "InvalidNameError"
         ],
+        "/deps/reqwest/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
+        ],
         "/deps/reqwest/header": [
+          "IntoIter",
+          "IntoIter.drop",
+          "IntoIter.into",
+          "IntoIter.try_into",
           "InvalidHeaderName",
           "InvalidHeaderName.into",
           "InvalidHeaderName.try_into",
@@ -1084,6 +1292,12 @@
         "/deps/reqwest/retry/classify": [
           "Action"
         ],
+        "/deps/reqwest/socketaddr/trait/core/convert/from-core/net/socket-addr/socketaddrv4": [
+          "from"
+        ],
+        "/deps/reqwest/socketaddr/trait/core/convert/from-core/net/socket-addr/socketaddrv6": [
+          "from"
+        ],
         "/deps/reqwest/statuscode/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -1106,6 +1320,7 @@
           "CertificateRevocationList",
           "CertificateRevocationList.into",
           "CertificateRevocationList.try_into",
+          "Ordering",
           "TlsInfo",
           "TlsInfo.clone",
           "TlsInfo.into",
