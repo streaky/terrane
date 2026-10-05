@@ -20,11 +20,11 @@ use super::{
     external_reexport_rustdocs, foreign_aliases, generated_projection_units,
     has_supported_callable_trait_shape, instantiated_nominal_name, instantiated_type_name,
     is_builtin_clone, is_builtin_marker_trait, is_internal_rust_protocol_method,
-    mark_cache_record_used, namespace_overlays_from_metadata, parse_rustdoc,
-    persist_dependency_lock, project_type, projectable_interface_bound, projection_content_hash,
-    provider_fragment_public_paths, prune_projection_cache, receiver_kind,
-    recursive_owner_dependencies, resolve, resolved_library_package, rewrite_projected_owner_root,
-    rewrite_rust_bound_root, seed_dependency_lock, selected_target, validate_projection_artifact,
+    namespace_overlays_from_metadata, parse_rustdoc, persist_dependency_lock, project_type,
+    projectable_interface_bound, projection_content_hash, provider_fragment_public_paths,
+    prune_projection_cache, receiver_kind, recursive_owner_dependencies, resolve,
+    resolved_library_package, rewrite_projected_owner_root, rewrite_rust_bound_root,
+    seed_dependency_lock, selected_target, validate_projection_artifact,
 };
 #[test]
 fn rust_protocol_plumbing_is_not_reported_as_a_callable_gap() {
@@ -2425,84 +2425,61 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
 }
 
 #[test]
-fn projection_cache_retains_bounded_families_and_unrelated_files() {
+fn projection_cache_prunes_only_legacy_projection_records() {
     let directory =
         std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));
-    let retained = directory.join("projection-current.json");
+    let stable = directory.join("projection.json");
+    let oracle = directory.join("oracle.json");
+    let owner = directory.join("owner-rustdoc.json");
     let unrelated = directory.join("Cargo.lock");
     fs::create_dir_all(&directory).unwrap();
-    fs::write(&retained, b"current").unwrap();
+    fs::write(&stable, b"current").unwrap();
+    fs::write(&oracle, b"oracle").unwrap();
+    fs::write(&owner, b"owner envelope").unwrap();
+    fs::write(&unrelated, b"lock").unwrap();
+    fs::write(
+        directory.join(format!("owner-rustdoc-{:064x}.json", 1)),
+        b"legacy owner",
+    )
+    .unwrap();
+    fs::write(
+        directory.join(format!("owner-rustdoc-{:064x}.identity", 1)),
+        b"legacy identity",
+    )
+    .unwrap();
     for index in 0..18 {
         fs::write(
-            directory.join(format!("projection-previous-{index}.json")),
-            b"previous",
+            directory.join(format!("projection-{index:064x}.json")),
+            b"legacy",
         )
         .unwrap();
-        let owner = directory.join(format!("owner-rustdoc-previous-{index}.json"));
-        fs::write(&owner, b"owner").unwrap();
-        fs::OpenOptions::new()
-            .write(true)
-            .open(owner)
-            .unwrap()
-            .set_times(
-                fs::FileTimes::new()
-                    .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(index)),
-            )
-            .unwrap();
     }
-    let reused_owner = directory.join("owner-rustdoc-previous-0.json");
-    mark_cache_record_used(&reused_owner);
-    fs::write(&unrelated, b"lock").unwrap();
 
-    prune_projection_cache(&directory, &retained).unwrap();
+    prune_projection_cache(&directory).unwrap();
 
-    let family_count = |prefix: &str| {
+    assert!(stable.exists());
+    assert!(oracle.exists());
+    assert!(owner.exists());
+    assert!(unrelated.exists());
+    assert!(
+        !directory
+            .join(format!("owner-rustdoc-{:064x}.json", 1))
+            .exists()
+    );
+    assert!(
+        !directory
+            .join(format!("owner-rustdoc-{:064x}.identity", 1))
+            .exists()
+    );
+    assert!(
         fs::read_dir(&directory)
             .unwrap()
             .filter_map(Result::ok)
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_str()
-                    .is_some_and(|name| name.starts_with(prefix))
-            })
-            .count()
-    };
-    assert_eq!(
-        family_count("projection-"),
-        super::MAX_PROJECTION_CACHE_RECORDS
+            .all(|entry| !entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("projection-"))
     );
-    assert_eq!(
-        family_count("owner-rustdoc-"),
-        super::MAX_OWNER_RUSTDOC_CACHE_RECORDS
-    );
-    assert!(reused_owner.exists());
-    assert!(!directory.join("owner-rustdoc-previous-1.json").exists());
-    assert!(!directory.join("owner-rustdoc-previous-2.json").exists());
-    assert!(retained.exists());
-    assert!(unrelated.exists());
-    fs::remove_dir_all(directory).unwrap();
-}
-
-#[test]
-fn five_owner_rustdoc_working_set_survives_pruning() {
-    let directory = std::env::temp_dir().join(format!(
-        "terrane-owner-rustdoc-working-set-{}",
-        std::process::id()
-    ));
-    let retained = directory.join("projection-current.json");
-    fs::create_dir_all(&directory).unwrap();
-    fs::write(&retained, b"current").unwrap();
-    let owners = (0..5)
-        .map(|index| directory.join(format!("owner-rustdoc-{index}.json")))
-        .collect::<Vec<_>>();
-    for owner in &owners {
-        fs::write(owner, b"owner").unwrap();
-    }
-
-    prune_projection_cache(&directory, &retained).unwrap();
-
-    assert!(owners.iter().all(|owner| owner.exists()));
     fs::remove_dir_all(directory).unwrap();
 }
 #[test]

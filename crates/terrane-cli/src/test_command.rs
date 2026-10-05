@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use super::{
     CliCommand, CliFailure, GeneratedCrateOptions, ensure_rust_toolchain, generated_crate_path,
-    prepare_artifact, record_and_prune_generated_crates, write_generated_crate,
+    prepare_artifact, write_generated_crate,
 };
 use terrane_compiler::{
     Package,
@@ -276,6 +276,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
             &application_package,
             &application,
             false,
+            "application",
         )?)
     } else {
         None
@@ -284,7 +285,12 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
     for tier in &compiled_tiers {
         executables.insert(
             tier.tier,
-            build_native_compilation(&tier.package, &tier.compilation, true)?,
+            build_native_compilation(
+                &tier.package,
+                &tier.compilation,
+                true,
+                &format!("test-{}", tier.tier.name()),
+            )?,
         );
     }
     let run_root = test_package.package.root.join(".trn/test/run");
@@ -445,23 +451,16 @@ fn build_native_compilation(
     package: &Package,
     compilation: &terrane_compiler::Compilation,
     includes_test_runtime: bool,
+    role: &str,
 ) -> Result<PathBuf, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let rust_files = compilation
         .rust_files_for(Path::new("src/main.rs"))
         .map_err(CliFailure::rust_artifact)?;
     let uses_platform_support = compilation.requires_platform_support;
-    let uses_async_runtime = includes_test_runtime || compilation.requires_async_runtime;
     let uses_tokio_blocking = compilation.requires_blocking_runtime;
     let uses_tokio_sync = compilation.requires_runtime_sync;
-    let crate_dir = generated_crate_path(
-        &package.root,
-        &rust_files,
-        uses_platform_support,
-        uses_async_runtime || uses_tokio_blocking || uses_tokio_sync,
-        &compilation.rust_dependencies,
-        package.build_toolchain,
-    )?;
+    let crate_dir = generated_crate_path(&package.root, role)?;
     write_generated_crate(
         &crate_dir,
         &rust_files,
@@ -485,7 +484,6 @@ fn build_native_compilation(
             artifact_profile: None,
         },
     )?;
-    record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
     prepare_artifact(
         CliCommand::Build,

@@ -160,6 +160,15 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
     fs::write(&source, workload(300_000_000, None)).unwrap();
     let slow = record(&directory, "slow.trnprof");
     assert!(slow.status.success(), "{slow:?}");
+    let fresh = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["profile", "show"])
+        .arg(directory.path().join("slow.trnprof"))
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+    assert!(fresh.status.success(), "{fresh:?}");
+    let fresh: serde_json::Value = serde_json::from_slice(&fresh.stdout).unwrap();
+    assert_eq!(fresh["report"]["fidelity"], "exact-build-source");
 
     fs::write(&source, workload(50_000_000, None)).unwrap();
     let corrected = record(&directory, "corrected.trnprof");
@@ -221,7 +230,6 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
         "{report}"
     );
     assert!(buckets["native-only"].as_u64().unwrap() > 0);
-    assert_eq!(report["report"]["fidelity"], "exact-build-source");
 }
 
 #[test]

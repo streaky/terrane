@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::LazyLock;
@@ -78,8 +79,11 @@ pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
 
-const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
-const MAX_OWNER_RUSTDOC_CACHE_RECORDS: usize = 16;
+#[derive(Deserialize)]
+struct ProjectionCacheIdentity<'a> {
+    #[serde(borrow)]
+    cache_identity: &'a str,
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
@@ -2594,15 +2598,12 @@ pub fn resolve(
     }
     persist_dependency_lock(root, &workspace)?;
     let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
-    let cache_path = workspace.join(format!("projection-{identity}.json"));
-    if let Ok(bytes) = fs::read(&cache_path) {
-        let mut cached =
-            serde_json::from_slice::<Projection>(&bytes).map_err(|error| ProjectionError {
-                message: format!(
-                    "invalid cached dependency projection `{}`: {error}",
-                    cache_path.display()
-                ),
-            })?;
+    let cache_path = workspace.join("projection.json");
+    if let Ok(bytes) = fs::read(&cache_path)
+        && let Ok(header) = serde_json::from_slice::<ProjectionCacheIdentity<'_>>(&bytes)
+        && header.cache_identity == identity
+        && let Ok(mut cached) = serde_json::from_slice::<Projection>(&bytes)
+    {
         let actual_hash = projection_content_hash(&cached)?;
         if cached.content_hash != actual_hash {
             return Err(ProjectionError {
@@ -2629,7 +2630,7 @@ pub fn resolve(
         )?;
         persist_dependency_lock(root, &workspace)?;
         history::apply_projection_history(root, &mut cached)?;
-        prune_projection_cache(&workspace, &cache_path)?;
+        prune_projection_cache(&workspace)?;
         return Ok(cached);
     }
 
@@ -2662,9 +2663,9 @@ pub fn resolve(
                 serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
                     message: format!("cannot serialize published dependency projection: {error}"),
                 })?;
-            write_if_changed(&cache_path, &bytes)?;
+            write_cache_atomically(&cache_path, &bytes)?;
             history::apply_projection_history(root, &mut projection)?;
-            prune_projection_cache(&workspace, &cache_path)?;
+            prune_projection_cache(&workspace)?;
             projection
                 .probes
                 .sort_by(|left, right| left.question.cmp(&right.question));
@@ -2938,9 +2939,9 @@ pub fn resolve(
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
-    write_if_changed(&cache_path, &bytes)?;
+    write_cache_atomically(&cache_path, &bytes)?;
     history::apply_projection_history(root, &mut projection)?;
-    prune_projection_cache(&workspace, &cache_path)?;
+    prune_projection_cache(&workspace)?;
     Ok(projection)
 }
 fn fetch_remote_projection(
@@ -3128,59 +3129,43 @@ fn projection_content_hash(projection: &Projection) -> Result<String, Projection
     Ok(format!("{:x}", Sha256::digest(payload)))
 }
 
-fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), ProjectionError> {
-    prune_cache_family(
-        directory,
-        "projection-",
-        Some(retained),
-        MAX_PROJECTION_CACHE_RECORDS,
-        "remove stale dependency projection",
-    )?;
-    prune_cache_family(
-        directory,
-        "owner-rustdoc-",
-        None,
-        MAX_OWNER_RUSTDOC_CACHE_RECORDS,
-        "remove stale owner rustdoc",
-    )
+fn prune_projection_cache(directory: &Path) -> Result<(), ProjectionError> {
+    remove_legacy_projection_cache(directory)
 }
 
-fn prune_cache_family(
-    directory: &Path,
-    prefix: &str,
-    retained: Option<&Path>,
-    max_records: usize,
-    removal_context: &'static str,
-) -> Result<(), ProjectionError> {
-    let entries = fs::read_dir(directory).map_err(io_error("read dependency projection cache"))?;
-    let mut previous = Vec::new();
-    for entry in entries {
+fn remove_legacy_projection_cache(directory: &Path) -> Result<(), ProjectionError> {
+    for entry in fs::read_dir(directory).map_err(io_error("read dependency projection cache"))? {
         let entry = entry.map_err(io_error("read dependency projection cache entry"))?;
         let path = entry.path();
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
             continue;
         };
-        if retained.is_some_and(|retained| path == retained)
-            || !name.starts_with(prefix)
-            || path.extension() != Some(std::ffi::OsStr::new("json"))
+        let json_stem = name.strip_suffix(".json").unwrap_or_default();
+        let identity_stem = name.strip_suffix(".identity").unwrap_or_default();
+        let legacy_projection = json_stem
+            .strip_prefix("projection-")
+            .is_some_and(is_legacy_cache_hash);
+        let legacy_owner = json_stem
+            .strip_prefix("owner-rustdoc-")
+            .is_some_and(is_legacy_cache_hash)
+            || identity_stem
+                .strip_prefix("owner-rustdoc-")
+                .is_some_and(is_legacy_cache_hash);
+        if (legacy_projection || legacy_owner)
+            && entry
+                .file_type()
+                .map_err(io_error("read legacy projection cache type"))?
+                .is_file()
         {
-            continue;
+            fs::remove_file(path).map_err(io_error("remove legacy projection cache"))?;
         }
-        let modified = entry
-            .metadata()
-            .and_then(|metadata| metadata.modified())
-            .map_err(io_error("read dependency projection cache metadata"))?;
-        previous.push((modified, path));
-    }
-    previous.sort_by(|left, right| right.cmp(left));
-    let retained_count = usize::from(retained.is_some());
-    for (_, path) in previous
-        .into_iter()
-        .skip(max_records.saturating_sub(retained_count))
-    {
-        fs::remove_file(&path).map_err(io_error(removal_context))?;
     }
     Ok(())
+}
+
+fn is_legacy_cache_hash(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 fn write_workspace(
@@ -4772,29 +4757,39 @@ fn cached_owner_rustdoc(
     target: &str,
     containment: Containment,
 ) -> Result<RustdocCrate, ProjectionError> {
-    let mut hash = Sha256::new();
+    #[derive(Deserialize)]
+    struct CacheHeader<'a> {
+        #[serde(borrow)]
+        terrane_cache_identity: &'a str,
+    }
     let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
+    let containment_fingerprint = format!("{containment:?}");
+    let mut fingerprint_hash = Sha256::new();
     for (label, value) in [
         ("package-spec", package_spec),
         ("crate-name", crate_name),
         ("package-name", package_name),
-        ("hidden-items", "true"),
         ("target", target),
+        ("hidden-items", "true"),
         ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN),
         ("rustdoc-format", rustdoc_format.as_str()),
+        ("containment", containment_fingerprint.as_str()),
     ] {
-        hash.update(label.len().to_le_bytes());
-        hash.update(label.as_bytes());
-        hash.update(value.len().to_le_bytes());
-        hash.update(value.as_bytes());
+        fingerprint_hash.update(label.len().to_le_bytes());
+        fingerprint_hash.update(label.as_bytes());
+        fingerprint_hash.update(value.len().to_le_bytes());
+        fingerprint_hash.update(value.as_bytes());
     }
-    hash.update(format!("{containment:?}"));
-    let cache_path = workspace.join(format!("owner-rustdoc-{:x}.json", hash.finalize()));
+    let fingerprint = format!("{:x}", fingerprint_hash.finalize());
+    let cache_path = workspace
+        .join("owner-rustdoc")
+        .join(format!("{crate_name}.json"));
     if let Ok(bytes) = fs::read(&cache_path)
+        && let Ok(header) = serde_json::from_slice::<CacheHeader<'_>>(&bytes)
+        && header.terrane_cache_identity == fingerprint
         && let Ok(document) =
             terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
     {
-        mark_cache_record_used(&cache_path);
         return Ok(document);
     }
     let document = generate_rustdoc(
@@ -4814,19 +4809,18 @@ fn cached_owner_rustdoc(
             generated_path.display()
         ),
     })?;
-    write_if_changed(&cache_path, &bytes)?;
+    let mut payload: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
+            message: format!("cannot decode generated owner rustdoc: {error}"),
+        })?;
+    payload["terrane_cache_identity"] = serde_json::Value::String(fingerprint);
+    payload["terrane_cache_package"] = serde_json::Value::String(package_spec.to_owned());
+    payload["terrane_cache_crate"] = serde_json::Value::String(crate_name.to_owned());
+    let bytes = serde_json::to_vec(&payload).map_err(|error| ProjectionError {
+        message: format!("cannot serialize owner rustdoc cache: {error}"),
+    })?;
+    write_cache_atomically(&cache_path, &bytes)?;
     Ok(document)
-}
-
-fn mark_cache_record_used(path: &Path) {
-    // Cache recency is best-effort: a usable owner document must not become a projection failure
-    // merely because its timestamp cannot be updated.
-    let _ = fs::OpenOptions::new()
-        .write(true)
-        .open(path)
-        .and_then(|file| {
-            file.set_times(fs::FileTimes::new().set_modified(std::time::SystemTime::now()))
-        });
 }
 
 fn resolved_library_package(
@@ -10539,6 +10533,41 @@ fn containment() -> Containment {
         }
     });
     *CONTAINMENT
+}
+
+fn write_cache_atomically(path: &Path, content: &[u8]) -> Result<(), ProjectionError> {
+    static TEMP_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    if fs::read(path).is_ok_and(|existing| existing == content) {
+        return Ok(());
+    }
+    let parent = path.parent().ok_or_else(|| ProjectionError {
+        message: format!("cache path `{}` has no parent directory", path.display()),
+    })?;
+    fs::create_dir_all(parent).map_err(io_error("create dependency cache directory"))?;
+    let name = path.file_name().ok_or_else(|| ProjectionError {
+        message: format!("cache path `{}` has no file name", path.display()),
+    })?;
+    let sequence = TEMP_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let temporary = parent.join(format!(
+        ".{}.{}.{}.tmp",
+        name.to_string_lossy(),
+        std::process::id(),
+        sequence
+    ));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(io_error("create temporary dependency cache"))?;
+    if let Err(error) = file.write_all(content) {
+        let _ = fs::remove_file(&temporary);
+        return Err(io_error("write temporary dependency cache")(error));
+    }
+    if let Err(error) = fs::rename(&temporary, path) {
+        let _ = fs::remove_file(&temporary);
+        return Err(io_error("replace dependency cache")(error));
+    }
+    Ok(())
 }
 
 fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), ProjectionError> {

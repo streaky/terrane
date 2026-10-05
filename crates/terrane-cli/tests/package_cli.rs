@@ -1169,3 +1169,48 @@ fn native_test_timeout_errors_name_the_invalid_argument() {
         assert!(stderr.contains("--timeout"));
     }
 }
+
+#[test]
+fn stable_build_roles_invalidate_changed_sources_and_isolate_tests() {
+    let package = TempPackage::new();
+    let invoke = |command| {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg(command)
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    };
+    assert_eq!(invoke("run"), "manifest CLI\n");
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(package.0.join("tests/unit/smoke.trn"),
+        "namespace cli/app\nfrom /core/errors import throwable\nfrom /core/testing import assert-equal-int\nfunction test-smoke none throws throwable;\n  assert-equal-int; 1, 1\n  return none\n").unwrap();
+    let tests = invoke("test");
+    assert!(tests.contains("passed /cli/app::test-smoke"), "{tests}");
+    assert_eq!(invoke("run"), "manifest CLI\n");
+    let application = package.0.join(".trn/build/application");
+    fs::write(
+        application.join("src/obsolete.rs"),
+        "compile_error!(\"obsolete source\");",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /core/output import print\nfunction main;\n  print; 'changed'\n",
+    )
+    .unwrap();
+    assert_eq!(invoke("run"), "changed\n");
+    assert!(!application.join("src/obsolete.rs").exists());
+    assert_eq!(invoke("run"), "changed\n");
+    let mut roles = fs::read_dir(package.0.join(".trn/build"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    roles.sort();
+    assert_eq!(roles, ["application", "test-unit"]);
+}

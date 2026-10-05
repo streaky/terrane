@@ -1,13 +1,17 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
+use std::io::Write as _;
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{AnalysisError as ProjectionError, Containment};
+
+static TEMPORARY_CACHE_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct BoundQuestion {
@@ -75,6 +79,23 @@ pub struct ImplProbeReport {
     pub wall_time_ms: u128,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct OracleCache {
+    identity: String,
+    bound_reports: HashMap<String, ProbeReport>,
+    call_reports: HashMap<String, CallProbeReport>,
+}
+
+impl OracleCache {
+    fn new(identity: &str) -> Self {
+        Self {
+            identity: identity.to_owned(),
+            bound_reports: HashMap::new(),
+            call_reports: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ProjectionOracle<'a> {
     workspace: &'a Path,
@@ -108,11 +129,11 @@ impl<'a> ProjectionOracle<'a> {
             return Ok(ProbeReport::default());
         }
         let batch_identity = batch_identity(self.cache_identity, &questions)?;
-        let cache_path = self.workspace.join(format!("oracle-{batch_identity}.json"));
-        if let Ok(bytes) = fs::read(&cache_path) {
-            return serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
-                message: format!("invalid cached projection probe: {error}"),
-            });
+        let cache_path = self.workspace.join("oracle.json");
+        let mut cache = load_cache(&cache_path, self.cache_identity)?;
+        if let Some(report) = cache.bound_reports.get(&batch_identity) {
+            remove_legacy_caches(self.workspace)?;
+            return Ok(report.clone());
         }
 
         let started = Instant::now();
@@ -165,11 +186,9 @@ impl<'a> ProjectionOracle<'a> {
             compiled_probe_count: names.len(),
             wall_time_ms: started.elapsed().as_millis(),
         };
-        let mut bytes = serde_json::to_vec_pretty(&report).map_err(|error| ProjectionError {
-            message: format!("cannot serialize projection probe cache: {error}"),
-        })?;
-        bytes.push(b'\n');
-        write_if_changed(&cache_path, &bytes)?;
+        cache.bound_reports.insert(batch_identity, report.clone());
+        save_cache(&cache_path, &cache)?;
+        remove_legacy_caches(self.workspace)?;
         Ok(report)
     }
 
@@ -193,13 +212,11 @@ impl<'a> ProjectionOracle<'a> {
             return Ok(CallProbeReport::default());
         }
         let batch_identity = call_batch_identity(self.cache_identity, &questions)?;
-        let cache_path = self
-            .workspace
-            .join(format!("oracle-calls-{batch_identity}.json"));
-        if let Ok(bytes) = fs::read(&cache_path) {
-            return serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
-                message: format!("invalid cached projection call probe: {error}"),
-            });
+        let cache_path = self.workspace.join("oracle.json");
+        let mut cache = load_cache(&cache_path, self.cache_identity)?;
+        if let Some(report) = cache.call_reports.get(&batch_identity) {
+            remove_legacy_caches(self.workspace)?;
+            return Ok(report.clone());
         }
 
         let started = Instant::now();
@@ -241,11 +258,9 @@ impl<'a> ProjectionOracle<'a> {
             compiled_probe_count: names.len(),
             wall_time_ms: started.elapsed().as_millis(),
         };
-        let mut bytes = serde_json::to_vec_pretty(&report).map_err(|error| ProjectionError {
-            message: format!("cannot serialize projection call probe cache: {error}"),
-        })?;
-        bytes.push(b'\n');
-        write_if_changed(&cache_path, &bytes)?;
+        cache.call_reports.insert(batch_identity, report.clone());
+        save_cache(&cache_path, &cache)?;
+        remove_legacy_caches(self.workspace)?;
         Ok(report)
     }
 
@@ -469,6 +484,81 @@ pub(crate) fn cargo_output(
         })
 }
 
+fn load_cache(path: &Path, identity: &str) -> Result<OracleCache, ProjectionError> {
+    #[derive(Deserialize)]
+    struct CacheHeader<'a> {
+        #[serde(borrow)]
+        identity: &'a str,
+    }
+    match fs::read(path) {
+        Ok(bytes) => {
+            let header: CacheHeader<'_> =
+                serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
+                    message: format!("invalid cached projection oracle identity: {error}"),
+                })?;
+            if header.identity != identity {
+                return Ok(OracleCache::new(identity));
+            }
+            serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
+                message: format!("invalid cached projection oracle: {error}"),
+            })
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(OracleCache::new(identity))
+        }
+        Err(error) => Err(io_error("read projection oracle cache")(error)),
+    }
+}
+
+fn save_cache(path: &Path, cache: &OracleCache) -> Result<(), ProjectionError> {
+    let mut bytes = serde_json::to_vec_pretty(cache).map_err(|error| ProjectionError {
+        message: format!("cannot serialize projection oracle cache: {error}"),
+    })?;
+    bytes.push(b'\n');
+    let temporary = path.with_extension(format!(
+        "json.{}.{}.tmp",
+        std::process::id(),
+        TEMPORARY_CACHE_ID.fetch_add(1, Ordering::Relaxed)
+    ));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(io_error("create projection oracle cache temporary file"))?;
+    file.write_all(&bytes)
+        .map_err(io_error("write projection oracle cache"))?;
+    drop(file);
+    fs::rename(&temporary, path).map_err(io_error("replace projection oracle cache"))
+}
+
+fn remove_legacy_caches(directory: &Path) -> Result<(), ProjectionError> {
+    for entry in
+        fs::read_dir(directory).map_err(io_error("read projection oracle cache directory"))?
+    {
+        let entry = entry.map_err(io_error("read projection oracle cache entry"))?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        let stem = name
+            .strip_prefix("oracle-calls-")
+            .or_else(|| name.strip_prefix("oracle-"));
+        let legacy = stem
+            .and_then(|stem| stem.strip_suffix(".json"))
+            .is_some_and(|hash| {
+                hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+            });
+        if legacy
+            && entry
+                .file_type()
+                .map_err(io_error("read projection oracle cache type"))?
+                .is_file()
+        {
+            fs::remove_file(entry.path())
+                .map_err(io_error("remove legacy projection oracle cache"))?;
+        }
+    }
+    Ok(())
+}
+
 fn write_if_changed(path: &Path, bytes: &[u8]) -> Result<(), ProjectionError> {
     if fs::read(path).ok().as_deref() == Some(bytes) {
         return Ok(());
@@ -493,7 +583,9 @@ mod tests {
 
     use rustdoc_types::{Crate as RustdocCrate, ItemEnum};
 
-    use super::{BoundQuestion, CallQuestion, ImplQuestion, ProbeAnswer, ProjectionOracle};
+    use super::{
+        BoundQuestion, CallQuestion, ImplQuestion, OracleCache, ProbeAnswer, ProjectionOracle,
+    };
     use crate::{Containment, RUSTDOC_TOOLCHAIN};
 
     fn workspace(name: &str) -> std::path::PathBuf {
@@ -569,6 +661,67 @@ mod tests {
 
         let second = oracle.prove_bounds(&questions).unwrap();
         assert_eq!(second, first);
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn oracle_cache_keeps_batches_and_resets_when_identity_changes() {
+        let workspace = workspace("stable-cache");
+        let witness = workspace.join("src/lib.rs");
+        fs::write(&witness, "pub struct Local;\npub trait Marker {}\n").unwrap();
+        let question = BoundQuestion {
+            rust_type: "terrane_dependency_projection::Local".to_owned(),
+            rust_bound: "terrane_dependency_projection::Marker".to_owned(),
+            inferred_parameters: Vec::new(),
+        };
+        let oracle = ProjectionOracle::new(&workspace, "first", Containment::Unavailable);
+        let first = oracle
+            .prove_bounds(std::slice::from_ref(&question))
+            .unwrap();
+        assert_eq!(first.evidence[0].answer, ProbeAnswer::No);
+        let call = CallQuestion {
+            label: "Local implements Marker".to_owned(),
+            source: "fn require<T: terrane_dependency_projection::Marker>() {}\nfn main() { require::<terrane_dependency_projection::Local>(); }\n".to_owned(),
+        };
+        let first_call = oracle.prove_calls(std::slice::from_ref(&call)).unwrap();
+        assert_eq!(first_call.evidence[0].answer, ProbeAnswer::No);
+
+        let batch_two = BoundQuestion {
+            rust_type: "String".to_owned(),
+            rust_bound: "Copy".to_owned(),
+            inferred_parameters: Vec::new(),
+        };
+        let second = oracle.prove_bounds(&[batch_two]).unwrap();
+        assert_eq!(second.evidence[0].answer, ProbeAnswer::No);
+        fs::write(
+            &witness,
+            "pub struct Local;\npub trait Marker {}\nimpl Marker for Local {}\n",
+        )
+        .unwrap();
+        assert_eq!(
+            oracle
+                .prove_bounds(std::slice::from_ref(&question))
+                .unwrap(),
+            first
+        );
+        assert_eq!(
+            oracle.prove_calls(std::slice::from_ref(&call)).unwrap(),
+            first_call
+        );
+        fs::write(
+            workspace.join("oracle.json"),
+            r#"{"identity":"first","bound_reports":"obsolete schema","call_reports":null}"#,
+        )
+        .unwrap();
+
+        let changed = ProjectionOracle::new(&workspace, "second", Containment::Unavailable);
+        let rebuilt = changed.prove_bounds(&[question]).unwrap();
+        assert_eq!(rebuilt.evidence[0].answer, ProbeAnswer::Yes);
+        let rebuilt_call = changed.prove_calls(&[call]).unwrap();
+        assert_eq!(rebuilt_call.evidence[0].answer, ProbeAnswer::Yes);
+        let cache: OracleCache =
+            serde_json::from_slice(&fs::read(workspace.join("oracle.json")).unwrap()).unwrap();
+        assert_eq!(cache.identity, "second");
         fs::remove_dir_all(workspace).unwrap();
     }
 
