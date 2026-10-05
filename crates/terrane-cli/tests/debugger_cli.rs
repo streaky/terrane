@@ -78,7 +78,7 @@ impl DebugFixture {
             .map(|entry| entry.unwrap().path())
             .find(|path| path.join("terrane-debug.json").is_file())
             .unwrap();
-        let mut executable = build.join("artifacts/debug/terrane_program");
+        let mut executable = build.join("artifacts/terrane-debug/terrane_program");
         executable.set_extension(std::env::consts::EXE_EXTENSION);
         (executable, build.join("terrane-debug.json"))
     }
@@ -1633,4 +1633,43 @@ fn adapter_reports_attach_host_policy_and_honors_disconnect_policy() {
     }
     target.kill().ok();
     target.wait().ok();
+}
+
+#[test]
+fn debugger_build_does_not_replace_ordinary_application_artifacts() {
+    let fixture = DebugFixture::new();
+    let invoke = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(args)
+            .arg(&fixture.source)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        output
+    };
+    assert_eq!(invoke(&["run"]).stdout, b"42\n");
+    invoke(&["build", "--release"]);
+    let application = fixture.root.join(".trn/build/application");
+    let artifact = |profile| {
+        application
+            .join("artifacts")
+            .join(profile)
+            .join(format!("terrane_program{}", std::env::consts::EXE_SUFFIX))
+    };
+    let debug = artifact("debug");
+    let release = artifact("release");
+    let debug_modified = fs::metadata(&debug).unwrap().modified().unwrap();
+    let release_modified = fs::metadata(&release).unwrap().modified().unwrap();
+    let (debugger, _) = fixture.build();
+    assert_ne!(debugger, debug);
+    assert_eq!(invoke(&["run"]).stdout, b"42\n");
+    invoke(&["build", "--release"]);
+    assert_eq!(
+        fs::metadata(debug).unwrap().modified().unwrap(),
+        debug_modified
+    );
+    assert_eq!(
+        fs::metadata(release).unwrap().modified().unwrap(),
+        release_modified
+    );
 }

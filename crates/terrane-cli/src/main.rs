@@ -317,14 +317,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let uses_async_runtime = compilation.requires_async_runtime;
     let uses_tokio_blocking = compilation.requires_blocking_runtime;
     let uses_tokio_sync = compilation.requires_runtime_sync;
-    let crate_dir = generated_crate_path(
-        &package.root,
-        &rust_files,
-        uses_platform_support,
-        uses_async_runtime || uses_tokio_blocking || uses_tokio_sync,
-        &compilation.rust_dependencies,
-        package.build_toolchain,
-    )?;
+    let role = if matches!(command, CliCommand::Debug | CliCommand::Profile) {
+        GeneratedCrateRole::Inspection
+    } else {
+        GeneratedCrateRole::Application
+    };
+    let crate_dir = generated_crate_path(&package.root, role)?;
     let artifact_profile = match command {
         CliCommand::Debug => Some(profile_with_panic(
             terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
@@ -342,6 +340,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.units,
         &compilation.rust_dependencies,
         GeneratedCrateOptions {
+            role,
             panic: package.profile.panic,
             uses_platform_support,
             uses_async_runtime,
@@ -355,15 +354,14 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             } else {
                 UnsafeCodePolicy::Forbid
             },
-            artifact_profile,
             artifact: package.artifact,
         },
     )?;
-    record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
     let artifact = prepare_artifact(
         command,
         &crate_dir,
+        role,
         &target_dir,
         &rust_files,
         &package.units,
@@ -372,6 +370,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         package.artifact,
         match command {
             CliCommand::Profile => CargoProfile::Profiling,
+            CliCommand::Debug => CargoProfile::Debugger,
             _ if release => CargoProfile::Release,
             _ => CargoProfile::Debug,
         },
@@ -592,6 +591,7 @@ fn emit_warnings(compilation: &terrane_compiler::Compilation) {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CargoProfile {
     Debug,
+    Debugger,
     Release,
     Profiling,
 }
@@ -600,6 +600,7 @@ impl CargoProfile {
     const fn directory(self) -> &'static str {
         match self {
             Self::Debug => "debug",
+            Self::Debugger => "terrane-debug",
             Self::Release => "release",
             Self::Profiling => "terrane-profile",
         }
@@ -608,6 +609,9 @@ impl CargoProfile {
     fn configure(self, command: &mut Command) {
         match self {
             Self::Debug => {}
+            Self::Debugger => {
+                command.args(["--profile", "terrane-debug"]);
+            }
             Self::Release => {
                 command.arg("--release");
             }
@@ -618,6 +622,80 @@ impl CargoProfile {
     }
 }
 
+fn artifact_identity(
+    crate_dir: &Path,
+    containment: terrane_compiler::rust_interop::projection::Containment,
+    artifact_kind: terrane_compiler::ArtifactKind,
+) -> Result<String, CliFailure> {
+    fn hash_path(path: &Path, hash: &mut Sha256) -> std::io::Result<()> {
+        if !path.exists() {
+            hash.update(b"absent\0");
+        } else if path.is_dir() {
+            let mut entries = fs::read_dir(path)?.collect::<Result<Vec<_>, _>>()?;
+            entries.sort_by_key(std::fs::DirEntry::file_name);
+            for entry in entries {
+                hash.update(entry.file_name().as_encoded_bytes());
+                hash.update(b"\0");
+                hash_path(&entry.path(), hash)?;
+            }
+        } else {
+            let bytes = fs::read(path)?;
+            hash.update(bytes.len().to_le_bytes());
+            hash.update(&bytes);
+        }
+        Ok(())
+    }
+    let mut hash = Sha256::new();
+    hash.update(b"terrane-native-artifact-v4\0");
+    hash.update(terrane_compiler::VERSION.as_bytes());
+    hash.update(format!("{containment:?}/{artifact_kind:?}"));
+    if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
+        hash.update(b"role-owned-library-basename-v1\0");
+    }
+    for variable in [
+        "CARGO_BUILD_TARGET",
+        "CARGO_ENCODED_RUSTFLAGS",
+        "RUSTC",
+        "RUSTFLAGS",
+        "TERRANE_SCCACHE",
+    ] {
+        hash.update(variable.as_bytes());
+        hash.update(b"\0");
+        hash.update(
+            std::env::var_os(variable)
+                .unwrap_or_default()
+                .as_encoded_bytes(),
+        );
+        hash.update(b"\0");
+    }
+    for relative in [
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+        "terrane-build.toml",
+        "src",
+        "support",
+        ".cargo",
+    ] {
+        hash.update(relative.as_bytes());
+        hash_path(&crate_dir.join(relative), &mut hash).map_err(|error| {
+            CliFailure::backend(format!("cannot fingerprint generated crate: {error}"))
+        })?;
+    }
+    let compiler = Command::new("rustc")
+        .arg("-vV")
+        .current_dir(crate_dir)
+        .output()
+        .map_err(|error| CliFailure::backend(format!("cannot inspect native compiler: {error}")))?;
+    if !compiler.status.success() {
+        return Err(CliFailure::backend(
+            "cannot inspect native compiler version".to_owned(),
+        ));
+    }
+    hash.update(&compiler.stdout);
+    Ok(format!("{:x}", hash.finalize()))
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "artifact preparation forwards one complete Cargo build context without hidden state"
@@ -625,6 +703,7 @@ impl CargoProfile {
 fn prepare_artifact(
     command: CliCommand,
     crate_dir: &Path,
+    role: GeneratedCrateRole,
     target_dir: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
@@ -633,6 +712,22 @@ fn prepare_artifact(
     artifact_kind: terrane_compiler::ArtifactKind,
     profile: CargoProfile,
 ) -> Result<Option<PathBuf>, CliFailure> {
+    let identity = artifact_identity(crate_dir, containment, artifact_kind)?;
+    if fs::read_to_string(crate_dir.join(".artifact-identity"))
+        .ok()
+        .as_deref()
+        != Some(&identity)
+    {
+        let artifacts = crate_dir.join("artifacts");
+        if artifacts.exists() {
+            fs::remove_dir_all(&artifacts).map_err(|error| {
+                CliFailure::backend(format!("cannot invalidate cached artifacts: {error}"))
+            })?;
+        }
+        fs::write(crate_dir.join(".artifact-identity"), &identity).map_err(|error| {
+            CliFailure::backend(format!("cannot record artifact identity: {error}"))
+        })?;
+    }
     if command == CliCommand::Check {
         let stamp = crate_dir.join("artifacts/check-success");
         if !stamp.is_file() {
@@ -646,6 +741,13 @@ fn prepare_artifact(
                 containment,
                 CargoProfile::Debug,
             )?;
+            fs::write(
+                crate_dir.join(".artifact-identity"),
+                artifact_identity(crate_dir, containment, artifact_kind)?,
+            )
+            .map_err(|error| {
+                CliFailure::backend(format!("cannot record artifact identity: {error}"))
+            })?;
             fs::create_dir_all(stamp.parent().expect("artifact stamp has a parent")).map_err(
                 |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
             )?;
@@ -659,6 +761,11 @@ fn prepare_artifact(
     let artifact = artifact_path(
         &crate_dir.join("artifacts").join(profile_directory),
         artifact_kind,
+        if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
+            role.cargo_name()
+        } else {
+            "terrane_program"
+        },
     );
     if !artifact.is_file() {
         run_cargo(
@@ -671,7 +778,11 @@ fn prepare_artifact(
             containment,
             profile,
         )?;
-        let built = artifact_path(&target_dir.join(profile_directory), artifact_kind);
+        let built = artifact_path(
+            &target_dir.join(profile_directory),
+            artifact_kind,
+            role.cargo_name(),
+        );
         fs::create_dir_all(artifact.parent().expect("cached artifact has a parent")).map_err(
             |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
         )?;
@@ -682,6 +793,13 @@ fn prepare_artifact(
         if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
             cache_import_library(&built, &artifact)?;
         }
+        fs::write(
+            crate_dir.join(".artifact-identity"),
+            artifact_identity(crate_dir, containment, artifact_kind)?,
+        )
+        .map_err(|error| {
+            CliFailure::backend(format!("cannot record artifact identity: {error}"))
+        })?;
     }
     artifact
         .canonicalize()
@@ -689,17 +807,21 @@ fn prepare_artifact(
         .map_err(|error| CliFailure::backend(format!("cannot locate built artifact: {error}")))
 }
 
-fn executable_path(directory: &Path) -> PathBuf {
-    let mut path = directory.join("terrane_program");
+fn executable_path(directory: &Path, name: &str) -> PathBuf {
+    let mut path = directory.join(name);
     path.set_extension(std::env::consts::EXE_EXTENSION);
     path
 }
 
-fn artifact_path(directory: &Path, artifact_kind: terrane_compiler::ArtifactKind) -> PathBuf {
+fn artifact_path(
+    directory: &Path,
+    artifact_kind: terrane_compiler::ArtifactKind,
+    name: &str,
+) -> PathBuf {
     match artifact_kind {
-        terrane_compiler::ArtifactKind::Executable => executable_path(directory),
+        terrane_compiler::ArtifactKind::Executable => executable_path(directory, name),
         terrane_compiler::ArtifactKind::DynamicLibrary => directory.join(format!(
-            "{}terrane_program{}",
+            "{}{name}{}",
             std::env::consts::DLL_PREFIX,
             std::env::consts::DLL_SUFFIX
         )),
@@ -937,11 +1059,7 @@ fn configure_generated_toolchain(command: &mut Command, crate_dir: &Path) {
 
 fn generated_crate_path(
     package_root: &Path,
-    rust_files: &[terrane_compiler::rust_ir::RenderedFile],
-    uses_platform_support: bool,
-    uses_async_runtime: bool,
-    rust_dependencies: &[terrane_compiler::RustDependency],
-    build_toolchain: terrane_compiler::BuildToolchain,
+    role: GeneratedCrateRole,
 ) -> Result<PathBuf, CliFailure> {
     let root = package_root.canonicalize().map_err(|error| {
         CliFailure::backend(format!(
@@ -949,107 +1067,28 @@ fn generated_crate_path(
             package_root.display()
         ))
     })?;
-    let mut hash = Sha256::new();
-    hash.update(b"terrane-generated-crate-v3\0");
-    hash.update(terrane_compiler::VERSION.as_bytes());
-    for variable in [
-        "CARGO_BUILD_TARGET",
-        "CARGO_ENCODED_RUSTFLAGS",
-        "RUSTC",
-        "RUSTFLAGS",
-        "TERRANE_SCCACHE",
-    ] {
-        hash.update(variable.as_bytes());
-        hash.update(b"=");
-        hash.update(std::env::var(variable).unwrap_or_default());
-        hash.update(b"\0");
-    }
-    hash.update(format!("build-toolchain={build_toolchain:?}\0").as_bytes());
-    hash.update([u8::from(uses_async_runtime)]);
-    hash.update(b"profile=debug\0");
-    for file in rust_files {
-        hash.update(file.path.as_bytes());
-        hash.update(b"\0");
-        hash.update(file.contents.as_bytes());
-        hash.update(b"\0");
-    }
-    for dependency in rust_dependencies {
-        hash.update(dependency.name.as_bytes());
-        hash.update(b"\0");
-        hash.update(dependency.package.as_bytes());
-        hash.update(b"\0");
-        hash.update(dependency.version.as_bytes());
-        hash.update(b"\0");
-        hash.update([u8::from(dependency.default_features)]);
-        hash.update(b"\0target=");
-        hash.update(dependency.target.as_deref().unwrap_or_default().as_bytes());
-        for feature in &dependency.features {
-            hash.update(feature.as_bytes());
-            hash.update(b"\0");
+    let build = root.join(".trn/build");
+    if build.is_dir() {
+        for entry in fs::read_dir(&build).map_err(|error| {
+            CliFailure::backend(format!("cannot inspect generated builds: {error}"))
+        })? {
+            let entry = entry.map_err(|error| {
+                CliFailure::backend(format!("cannot inspect generated build: {error}"))
+            })?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.len() == 64
+                && name.bytes().all(|byte| byte.is_ascii_hexdigit())
+                && entry.file_type().is_ok_and(|kind| kind.is_dir())
+                && entry.path().join("terrane-build.toml").is_file()
+            {
+                fs::remove_dir_all(entry.path()).map_err(|error| {
+                    CliFailure::backend(format!("cannot remove obsolete generated build: {error}"))
+                })?;
+            }
         }
     }
-    for support in [
-        include_bytes!("../../terrane-int-support/src/lib.rs").as_slice(),
-        include_bytes!("../../terrane-scalar-support/src/lib.rs").as_slice(),
-        include_bytes!("../../terrane-string-support/src/lib.rs").as_slice(),
-        include_bytes!("../../terrane-stream-abi/src/lib.rs").as_slice(),
-    ] {
-        hash.update(support);
-        hash.update(b"\0");
-    }
-    if uses_platform_support {
-        hash.update(include_bytes!("../../terrane-platform-support/src/lib.rs"));
-        hash.update(b"\0");
-        hash.update(include_bytes!(
-            "../../terrane-platform-support/src/observability.rs"
-        ));
-        hash.update(b"\0");
-        hash.update(include_bytes!(
-            "../../terrane-platform-support/src/signals.rs"
-        ));
-        hash.update(b"\0");
-        hash.update(include_bytes!("../../terrane-signal-support/src/lib.rs"));
-        hash.update(b"\0");
-    }
-    Ok(root
-        .join(".trn/build")
-        .join(format!("{:x}", hash.finalize())))
-}
-
-fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
-    const MAX_GENERATED_CRATES: usize = 8;
-
-    fs::write(active.join(".last-used"), []).map_err(|error| {
-        CliFailure::backend(format!("cannot record generated crate use: {error}"))
-    })?;
-    let root = active
-        .parent()
-        .expect("generated crate identity always has a build directory");
-    let mut inactive = fs::read_dir(root)
-        .map_err(|error| CliFailure::backend(format!("cannot inspect generated crates: {error}")))?
-        .filter_map(Result::ok)
-        .filter(|entry| entry.path() != active && entry.path().is_dir())
-        .filter_map(|entry| {
-            let used = entry
-                .path()
-                .join(".last-used")
-                .metadata()
-                .or_else(|_| entry.metadata())
-                .and_then(|metadata| metadata.modified())
-                .ok()?;
-            Some((used, entry.path()))
-        })
-        .collect::<Vec<_>>();
-    inactive.sort_by_key(|entry| std::cmp::Reverse(entry.0));
-    for (_, path) in inactive.into_iter().skip(MAX_GENERATED_CRATES - 1) {
-        fs::remove_dir_all(&path).map_err(|error| {
-            CliFailure::backend(format!(
-                "cannot evict stale generated crate {}: {error}",
-                path.display()
-            ))
-        })?;
-    }
-    Ok(())
+    Ok(build.join(role.directory()))
 }
 
 fn profile_with_panic(
@@ -1063,7 +1102,6 @@ fn profile_with_panic(
     profile
 }
 
-type ArtifactProfile = Option<terrane_compiler::provenance::ArtifactProfile>;
 #[derive(Clone, Copy)]
 enum UnsafeCodePolicy {
     Forbid,
@@ -1080,11 +1118,43 @@ impl UnsafeCodePolicy {
 }
 
 #[derive(Clone, Copy)]
+enum GeneratedCrateRole {
+    Application,
+    Inspection,
+    UnitTest,
+    IntegrationTest,
+    EndToEndTest,
+}
+
+impl GeneratedCrateRole {
+    const fn directory(self) -> &'static str {
+        match self {
+            Self::Application => "application",
+            Self::Inspection => "application-debug",
+            Self::UnitTest => "test-unit",
+            Self::IntegrationTest => "test-integration",
+            Self::EndToEndTest => "test-end-to-end",
+        }
+    }
+
+    const fn cargo_name(self) -> &'static str {
+        match self {
+            Self::Application => "terrane_program_application",
+            Self::Inspection => "terrane_program_application_debug",
+            Self::UnitTest => "terrane_program_test_unit",
+            Self::IntegrationTest => "terrane_program_test_integration",
+            Self::EndToEndTest => "terrane_program_test_end_to_end",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 #[expect(
     clippy::struct_excessive_bools,
     reason = "Generated Cargo features are independent additive requirements, not mutually exclusive runtime states"
 )]
 struct GeneratedCrateOptions {
+    role: GeneratedCrateRole,
     panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
     uses_async_runtime: bool,
@@ -1093,12 +1163,11 @@ struct GeneratedCrateOptions {
     build_toolchain: terrane_compiler::BuildToolchain,
     unsafe_code: UnsafeCodePolicy,
     artifact: terrane_compiler::ArtifactKind,
-    artifact_profile: ArtifactProfile,
 }
 
-fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
+fn base_generated_manifest(unsafe_code: UnsafeCodePolicy, role: GeneratedCrateRole) -> String {
     format!(
-        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
+        "[package]\nname = {:?}\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
          [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
          [lints.rust]\nunsafe_code = {:?}\n\n\
          [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
@@ -1107,41 +1176,31 @@ fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
          terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\
          terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
+        role.cargo_name(),
         terrane_compiler::BUILD_TOOLCHAIN,
         terrane_compiler::UNICODE_DATA_VERSION,
         unsafe_code.lint_level()
     )
 }
 
-fn append_build_profiles(
-    manifest: &mut String,
-    panic: terrane_compiler::PanicProfile,
-    artifact_profile: ArtifactProfile,
-) {
-    if panic == terrane_compiler::PanicProfile::Abort
-        || artifact_profile.is_some_and(|profile| {
-            profile.id == terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE.id
-        })
-    {
-        manifest.push_str("\n[profile.dev]\n");
-        if panic == terrane_compiler::PanicProfile::Abort {
-            manifest.push_str("panic = \"abort\"\n");
-        }
-        if let Some(profile) = artifact_profile
-            .filter(|profile| profile.id == terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE.id)
-        {
-            writeln!(manifest, "opt-level = {}", profile.optimization)
-                .expect("writing to a string cannot fail");
-            writeln!(manifest, "debug = {}", profile.cargo_debug)
-                .expect("writing to a string cannot fail");
-            writeln!(manifest, "strip = {:?}", profile.stripping)
-                .expect("writing to a string cannot fail");
-        }
+fn append_build_profiles(manifest: &mut String, panic: terrane_compiler::PanicProfile) {
+    if panic == terrane_compiler::PanicProfile::Abort {
+        manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
-    if let Some(profile) = artifact_profile
-        .filter(|profile| profile.id == terrane_compiler::profiling::CPU_ARTIFACT_PROFILE.id)
-    {
-        manifest.push_str("\n[profile.terrane-profile]\ninherits = \"release\"\n");
+    for (name, parent, profile) in [
+        (
+            "terrane-debug",
+            "dev",
+            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
+        ),
+        (
+            "terrane-profile",
+            "release",
+            terrane_compiler::profiling::CPU_ARTIFACT_PROFILE,
+        ),
+    ] {
+        writeln!(manifest, "\n[profile.{name}]\ninherits = {parent:?}")
+            .expect("writing to a string cannot fail");
         writeln!(manifest, "opt-level = {}", profile.optimization)
             .expect("writing to a string cannot fail");
         writeln!(manifest, "debug = {}", profile.cargo_debug)
@@ -1158,6 +1217,26 @@ fn append_build_profiles(
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }
 
+fn remove_obsolete_sources(
+    root: &Path,
+    directory: &Path,
+    files: &[terrane_compiler::rust_ir::RenderedFile],
+) -> std::io::Result<()> {
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            remove_obsolete_sources(root, &path, files)?;
+        } else if !files.iter().any(|file| {
+            path.strip_prefix(root)
+                .is_ok_and(|relative| relative == Path::new(&file.path))
+        }) {
+            fs::remove_file(path)?;
+        }
+    }
+    Ok(())
+}
+
 fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
@@ -1167,13 +1246,28 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let mut manifest = base_generated_manifest(options.unsafe_code);
+    remove_obsolete_sources(directory, &directory.join("src"), rust_files).map_err(|error| {
+        CliFailure::backend(format!("cannot remove obsolete generated source: {error}"))
+    })?;
+    if !options.uses_platform_support {
+        for name in ["terrane-platform-support", "terrane-signal-support"] {
+            let obsolete = directory.join("support").join(name);
+            if obsolete.is_dir() {
+                fs::remove_dir_all(obsolete).map_err(|error| {
+                    CliFailure::backend(format!(
+                        "cannot remove obsolete generated support: {error}"
+                    ))
+                })?;
+            }
+        }
+    }
+    let mut manifest = base_generated_manifest(options.unsafe_code, options.role);
     if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
     }
-    write_runtime_dependencies(&mut manifest, rust_dependencies, &options);
+    write_runtime_dependencies(&mut manifest, rust_dependencies, options);
     let target_tables = rust_dependencies
         .iter()
         .map(terrane_compiler::RustDependency::cargo_manifest_table)
@@ -1191,7 +1285,7 @@ fn write_generated_crate(
     if options.artifact == terrane_compiler::ArtifactKind::DynamicLibrary {
         manifest.push_str("\n[lib]\ncrate-type = [\"cdylib\"]\n");
     }
-    append_build_profiles(&mut manifest, options.panic, options.artifact_profile);
+    append_build_profiles(&mut manifest, options.panic);
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -1250,7 +1344,7 @@ fn write_generated_crate(
 fn write_runtime_dependencies(
     manifest: &mut String,
     rust_dependencies: &[terrane_compiler::RustDependency],
-    options: &GeneratedCrateOptions,
+    options: GeneratedCrateOptions,
 ) {
     let dependencies =
         if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
@@ -2028,7 +2122,178 @@ mod tests {
         SourceFile, SourceUnit, Span,
         rust_ir::{RenderedFile, SourceAssociation},
     };
+    use toml::Value as TomlValue;
 
+    fn toml_table<'a>(value: &'a TomlValue, path: &[&str]) -> &'a toml::Table {
+        path.iter()
+            .fold(value, |value, key| &value[*key])
+            .as_table()
+            .expect("expected TOML table")
+    }
+
+    fn assert_generated_runtime_manifest(manifest: &str, directory: &Path) {
+        let application: TomlValue = manifest.parse().unwrap();
+        let package = toml_table(&application, &["package"]);
+        assert_eq!(
+            package["rust-version"].as_str(),
+            Some(terrane_compiler::BUILD_TOOLCHAIN)
+        );
+        assert_eq!(
+            toml_table(&application, &["package", "metadata", "terrane"])["unicode-data-version"]
+                .as_str(),
+            Some(terrane_compiler::UNICODE_DATA_VERSION)
+        );
+        assert_eq!(
+            toml_table(&application, &["lints", "rust"])["unsafe_code"].as_str(),
+            Some("forbid")
+        );
+        let dependencies = toml_table(&application, &["dependencies"]);
+        let tokio = dependencies["tokio"].as_table().expect("Tokio dependency");
+        assert_eq!(tokio["version"].as_str(), Some("=1.53.0"));
+        let features: Vec<_> = tokio["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        for feature in ["macros", "rt", "rt-multi-thread", "sync", "time"] {
+            assert!(
+                features.contains(&feature),
+                "missing Tokio feature {feature}"
+            );
+        }
+        assert_eq!(
+            toml_table(&application, &["profile", "dev"])["panic"].as_str(),
+            Some("abort")
+        );
+        let release = toml_table(&application, &["profile", "release"]);
+        assert_eq!(release["opt-level"].as_integer(), Some(3));
+        assert_eq!(release["lto"].as_str(), Some("fat"));
+        assert_eq!(release["codegen-units"].as_integer(), Some(1));
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-debug"])["inherits"].as_str(),
+            Some("dev")
+        );
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-profile"])["inherits"].as_str(),
+            Some("release")
+        );
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-debug"])["opt-level"].as_integer(),
+            Some(0)
+        );
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-profile"])["opt-level"].as_integer(),
+            Some(3)
+        );
+
+        let support: TomlValue =
+            fs::read_to_string(directory.join("support/terrane-string-support/Cargo.toml"))
+                .unwrap()
+                .parse()
+                .unwrap();
+        let string_dependencies = toml_table(&support, &["dependencies"]);
+        assert_eq!(string_dependencies["caseless"].as_str(), Some("=0.2.2"));
+        assert_eq!(
+            string_dependencies["unicode-normalization"].as_str(),
+            Some("=0.1.24")
+        );
+        assert_eq!(
+            string_dependencies["unicode-segmentation"].as_str(),
+            Some("=1.12.0")
+        );
+        let toolchain: TomlValue = fs::read_to_string(directory.join("rust-toolchain.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            toml_table(&toolchain, &["toolchain"])["channel"].as_str(),
+            Some(terrane_compiler::BUILD_TOOLCHAIN)
+        );
+        let metadata: TomlValue = fs::read_to_string(directory.join("terrane-build.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            metadata["rust-toolchain"].as_str(),
+            Some(terrane_compiler::BUILD_TOOLCHAIN)
+        );
+    }
+
+    #[test]
+    fn generated_cargo_manifest_configures_runtime_profiles_and_toolchain() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-generated-manifest-{}", std::process::id()));
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+        let write = |role, panic, runtime, artifact, unsafe_code, toolchain| {
+            write_generated_crate(
+                &directory,
+                &[],
+                &[],
+                &[],
+                GeneratedCrateOptions {
+                    role,
+                    panic,
+                    uses_platform_support: false,
+                    uses_async_runtime: runtime,
+                    uses_tokio_blocking: false,
+                    uses_tokio_sync: runtime,
+                    build_toolchain: toolchain,
+                    unsafe_code,
+                    artifact,
+                },
+            )
+            .unwrap();
+            fs::read_to_string(directory.join("Cargo.toml")).unwrap()
+        };
+
+        let application = write(
+            GeneratedCrateRole::Application,
+            terrane_compiler::PanicProfile::Abort,
+            true,
+            terrane_compiler::ArtifactKind::Executable,
+            UnsafeCodePolicy::Forbid,
+            terrane_compiler::BuildToolchain::Pinned,
+        );
+        assert_generated_runtime_manifest(&application, &directory);
+
+        let library = write(
+            GeneratedCrateRole::UnitTest,
+            terrane_compiler::PanicProfile::Unwind,
+            false,
+            terrane_compiler::ArtifactKind::DynamicLibrary,
+            UnsafeCodePolicy::MaintainedModules,
+            terrane_compiler::BuildToolchain::System,
+        )
+        .parse::<TomlValue>()
+        .unwrap();
+        assert_eq!(
+            toml_table(&library, &["lib"])["crate-type"]
+                .as_array()
+                .unwrap()[0]
+                .as_str(),
+            Some("cdylib")
+        );
+        assert_eq!(
+            toml_table(&library, &["lints", "rust"])["unsafe_code"].as_str(),
+            Some("deny")
+        );
+        assert!(!toml_table(&library, &["dependencies"]).contains_key("tokio"));
+        assert!(!toml_table(&library, &["profile"]).contains_key("dev"));
+        assert!(toml_table(&library, &["profile", "terrane-debug"]).contains_key("inherits"));
+        assert_eq!(
+            fs::read_to_string(directory.join("terrane-build.toml"))
+                .unwrap()
+                .parse::<TomlValue>()
+                .unwrap()["rust-toolchain"]
+                .as_str(),
+            Some("system")
+        );
+        assert!(!directory.join("rust-toolchain.toml").exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
     #[test]
     fn source_path_dispatches_to_run_and_forwards_arguments() {
         let arguments = [
@@ -2186,25 +2451,6 @@ mod tests {
     }
 
     #[test]
-    fn generated_crate_cache_evicts_stale_identities() {
-        let directory =
-            std::env::temp_dir().join(format!("terrane-cache-eviction-{}", std::process::id()));
-        if directory.exists() {
-            fs::remove_dir_all(&directory).unwrap();
-        }
-        fs::create_dir_all(&directory).unwrap();
-        for index in 0..10 {
-            let identity = directory.join(format!("{index:02}"));
-            fs::create_dir(&identity).unwrap();
-            assert!(record_and_prune_generated_crates(&identity).is_ok());
-        }
-        let identities = fs::read_dir(&directory).unwrap().count();
-        assert_eq!(identities, 8);
-        assert!(directory.join("09").is_dir());
-        fs::remove_dir_all(directory).unwrap();
-    }
-
-    #[test]
     fn windows_import_library_cache_copies_the_dll_companion() {
         let directory =
             std::env::temp_dir().join(format!("terrane-import-library-{}", std::process::id()));
@@ -2223,92 +2469,6 @@ mod tests {
             fs::read(cached.with_extension("dll.lib")).unwrap(),
             b"import-library"
         );
-        fs::remove_dir_all(directory).unwrap();
-    }
-
-    #[test]
-    fn generated_cargo_manifest_configures_build_profiles_and_runtime() {
-        let directory =
-            std::env::temp_dir().join(format!("terrane-build-profiles-{}", std::process::id()));
-        if directory.exists() {
-            fs::remove_dir_all(&directory).unwrap();
-        }
-
-        assert!(
-            write_generated_crate(
-                &directory,
-                &[],
-                &[],
-                &[],
-                GeneratedCrateOptions {
-                    panic: terrane_compiler::PanicProfile::Abort,
-                    uses_platform_support: false,
-                    uses_async_runtime: true,
-                    uses_tokio_blocking: false,
-                    uses_tokio_sync: true,
-                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    artifact: terrane_compiler::ArtifactKind::Executable,
-                    unsafe_code: UnsafeCodePolicy::Forbid,
-                    artifact_profile: Some(terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,),
-                },
-            )
-            .is_ok()
-        );
-
-        let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
-        assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
-        assert!(manifest.contains("opt-level = 0\ndebug = 2\nstrip = \"none\"\n"));
-        assert!(
-            manifest
-                .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
-        );
-        assert!(manifest.contains(&format!(
-            "rust-version = \"{}\"",
-            terrane_compiler::BUILD_TOOLCHAIN
-        )));
-        assert!(manifest.contains("unicode-data-version = \"16.0.0\""));
-        assert!(manifest.contains(
-            "tokio = { package = \"tokio\", version = \"=1.53.0\", default-features = true, \
-             features = [\"macros\", \"rt\", \"rt-multi-thread\", \"sync\", \"time\"] }"
-        ));
-        assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
-        let string_support =
-            fs::read_to_string(directory.join("support/terrane-string-support/Cargo.toml"))
-                .unwrap();
-        assert!(string_support.contains("caseless = \"=0.2.2\""));
-        assert!(string_support.contains("unicode-normalization = \"=0.1.24\""));
-        assert!(string_support.contains("unicode-segmentation = \"=1.12.0\""));
-        assert!(directory.join("rust-toolchain.toml").is_file());
-        let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
-        assert!(metadata.contains(&format!(
-            "rust-toolchain = \"{}\"",
-            terrane_compiler::BUILD_TOOLCHAIN
-        )));
-
-        assert!(
-            write_generated_crate(
-                &directory,
-                &[],
-                &[],
-                &[],
-                GeneratedCrateOptions {
-                    panic: terrane_compiler::PanicProfile::Abort,
-                    uses_platform_support: false,
-                    uses_async_runtime: false,
-                    uses_tokio_blocking: false,
-                    uses_tokio_sync: false,
-                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
-                    artifact: terrane_compiler::ArtifactKind::DynamicLibrary,
-                    unsafe_code: UnsafeCodePolicy::MaintainedModules,
-                    artifact_profile: None,
-                },
-            )
-            .is_ok()
-        );
-        let synchronous_manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
-        assert!(!synchronous_manifest.contains("\ntokio = "));
-        assert!(synchronous_manifest.contains("[lib]\ncrate-type = [\"cdylib\"]"));
-        assert!(synchronous_manifest.contains("[lints.rust]\nunsafe_code = \"deny\""));
         fs::remove_dir_all(directory).unwrap();
     }
 }

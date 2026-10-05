@@ -263,6 +263,60 @@ fn dynamic_library_builds_warning_free_and_rejects_execution_commands() {
     );
 }
 
+#[cfg(any(unix, all(target_os = "windows", target_env = "msvc")))]
+#[test]
+fn cached_dynamic_library_links_and_loads_without_shared_build_outputs() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"cached-library\"\nartifact = \"dynamic-library\"\nprelude = false\n[namespaces]\n\"cli/app\" = \"app\"\n[rust-modules]\nexports = \"exports.rs\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("exports.rs"),
+        "#![allow(unsafe_code)]\n#[unsafe(no_mangle)]\npub extern \"C\" fn terrane_cache_answer() -> i32 { 42 }\n",
+    )
+    .unwrap();
+    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("build")
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(build.status.success(), "{build:?}");
+    let artifact = PathBuf::from(String::from_utf8(build.stdout).unwrap().trim());
+    let slot = artifact.parent().unwrap();
+    // A host must load solely from the public slot, not accidentally from Cargo's outputs.
+    fs::remove_dir_all(package.0.join(".trn/cache/target")).unwrap();
+    let source = package.0.join("host.rs");
+    fs::write(
+        &source,
+        "unsafe extern \"C\" { fn terrane_cache_answer() -> i32; }\nfn main() { println!(\"{}\", unsafe { terrane_cache_answer() }); }\n",
+    )
+    .unwrap();
+    let host = slot.join(format!("host{}", std::env::consts::EXE_SUFFIX));
+    let mut compiler = Command::new("rustc");
+    compiler
+        .arg(&source)
+        .args(["--edition=2024", "-Dwarnings"])
+        .arg("-L")
+        .arg(format!("native={}", slot.display()))
+        .arg("-o")
+        .arg(&host);
+    #[cfg(all(target_os = "windows", target_env = "msvc"))]
+    compiler.args(["-l", "dylib:+verbatim=terrane_program_application.dll.lib"]);
+    #[cfg(unix)]
+    compiler.args(["-l", "dylib=terrane_program_application"]);
+    #[cfg(unix)]
+    compiler
+        .arg("-C")
+        .arg(format!("link-arg=-Wl,-rpath,{}", slot.display()));
+    let linked = compiler.output().unwrap();
+    assert!(linked.status.success(), "{linked:?}");
+    let loaded = Command::new(&host).output().unwrap();
+    assert!(loaded.status.success(), "{loaded:?}");
+    assert_eq!(String::from_utf8(loaded.stdout).unwrap().trim(), "42");
+}
+
 #[test]
 fn projected_reqwest_runs_against_a_loopback_server() {
     let package = TempPackage::new();
@@ -1168,4 +1222,159 @@ fn native_test_timeout_errors_name_the_invalid_argument() {
         let stderr = String::from_utf8(output.stderr).unwrap();
         assert!(stderr.contains("--timeout"));
     }
+}
+
+#[test]
+fn stable_build_roles_invalidate_changed_sources_and_isolate_tests() {
+    let package = TempPackage::new();
+    let build = package.0.join(".trn/build");
+    let legacy = build.join("0".repeat(64));
+    fs::create_dir_all(&legacy).unwrap();
+    fs::write(legacy.join("terrane-build.toml"), "version = 1\n").unwrap();
+    let unrelated = build.join("notes");
+    fs::create_dir_all(&unrelated).unwrap();
+    fs::write(unrelated.join("keep.txt"), "user-owned").unwrap();
+    let unmarked_hash = build.join("1".repeat(64));
+    fs::create_dir_all(&unmarked_hash).unwrap();
+    fs::write(unmarked_hash.join("keep.txt"), "not-a-generated-crate").unwrap();
+    let invoke = |command| {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg(command)
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap()
+    };
+    assert_eq!(invoke("run"), "manifest CLI\n");
+    assert!(!legacy.exists());
+    assert_eq!(
+        fs::read_to_string(unrelated.join("keep.txt")).unwrap(),
+        "user-owned"
+    );
+    assert_eq!(
+        fs::read_to_string(unmarked_hash.join("keep.txt")).unwrap(),
+        "not-a-generated-crate"
+    );
+    fs::remove_dir_all(unrelated).unwrap();
+    fs::remove_dir_all(unmarked_hash).unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(package.0.join("tests/unit/smoke.trn"),
+        "namespace cli/app\nfrom /core/errors import throwable\nfrom /core/testing import assert-equal-int\nfunction test-smoke none throws throwable;\n  assert-equal-int; 1, 1\n  return none\n").unwrap();
+    let tests = invoke("test");
+    assert!(tests.contains("passed /cli/app::test-smoke"), "{tests}");
+    assert_eq!(invoke("run"), "manifest CLI\n");
+    let application = package.0.join(".trn/build/application");
+    fs::write(
+        application.join("src/obsolete.rs"),
+        "compile_error!(\"obsolete source\");",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /core/output import print\nfunction main;\n  print; 'changed'\n",
+    )
+    .unwrap();
+    assert_eq!(invoke("run"), "changed\n");
+    assert!(!application.join("src/obsolete.rs").exists());
+    assert_eq!(invoke("run"), "changed\n");
+    let mut roles = fs::read_dir(package.0.join(".trn/build"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    roles.sort();
+    assert_eq!(roles, ["application", "test-unit"]);
+}
+
+#[test]
+fn changed_native_inputs_invalidate_check_stamps_and_remove_unused_platform_support() {
+    let package = TempPackage::new();
+    let mut manifest = fs::read_to_string(package.0.join("package.toml")).unwrap();
+    manifest.push_str("\n[rust-modules]\nadapter = \"rust/adapter.rs\"\n");
+    fs::write(package.0.join("package.toml"), manifest).unwrap();
+    fs::create_dir_all(package.0.join("rust")).unwrap();
+    let adapter = package.0.join("rust/adapter.rs");
+    fs::write(&adapter, "pub const VALUE: u8 = 1;\n").unwrap();
+    fs::write(package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /core/process import arguments\nfrom /core/output import print\nfunction main;\n  actual = arguments;\n  print; actual.length\n").unwrap();
+    let invoke = |command| {
+        Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg(command)
+            .arg(&package.0)
+            .output()
+            .unwrap()
+    };
+    let checked = invoke("check");
+    assert!(checked.status.success(), "{checked:?}");
+    let application = package.0.join(".trn/build/application");
+    let stamp = application.join("artifacts/check-success");
+    assert!(stamp.is_file());
+    for name in ["terrane-platform-support", "terrane-signal-support"] {
+        assert!(application.join("support").join(name).is_dir());
+    }
+    fs::write(package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /core/output import print\nfunction main;\n  print; 'without platform support'\n").unwrap();
+    fs::write(
+        &adapter,
+        "compile_error!(\"changed authored Rust must be checked\");\n",
+    )
+    .unwrap();
+    let rejected = invoke("check");
+    assert!(!rejected.status.success(), "{rejected:?}");
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr).contains("changed authored Rust must be checked"),
+        "{rejected:?}"
+    );
+    assert!(!stamp.exists());
+    for name in ["terrane-platform-support", "terrane-signal-support"] {
+        assert!(!application.join("support").join(name).exists());
+    }
+    fs::write(&adapter, "pub const VALUE: u8 = 2;\n").unwrap();
+    let repaired = invoke("check");
+    assert!(repaired.status.success(), "{repaired:?}");
+    assert!(stamp.is_file());
+    let run = invoke("run");
+    assert!(run.status.success(), "{run:?}");
+    assert_eq!(run.stdout, b"without platform support\n");
+}
+
+#[test]
+fn native_test_tiers_restore_their_own_binary_from_shared_cargo_cache() {
+    let package = TempPackage::new();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/native-testing");
+    for relative in [
+        "package.toml",
+        "src/application.trn",
+        "tests/unit/assertions.trn",
+        "tests/integration/public-surface.trn",
+        "tests/end-to-end/application.trn",
+    ] {
+        let destination = package.0.join(relative);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(fixture.join(relative), destination).unwrap();
+    }
+    let invoke = || {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8_lossy(&output.stdout);
+        for case in [
+            "/sample::test-custom-value-comparison",
+            "/sample::test-controlled-async-time",
+            "/sample-integration::test-public-answer",
+            "/sample-end-to-end::test-production-application",
+        ] {
+            assert!(text.contains(&format!("passed {case}")), "{text}");
+        }
+    };
+    invoke();
+    fs::remove_dir_all(package.0.join(".trn/build/test-unit/artifacts")).unwrap();
+    invoke();
 }
