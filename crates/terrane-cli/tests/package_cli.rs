@@ -263,6 +263,61 @@ fn dynamic_library_builds_warning_free_and_rejects_execution_commands() {
     );
 }
 
+#[cfg(any(unix, all(target_os = "windows", target_env = "msvc")))]
+#[test]
+fn cached_dynamic_library_links_and_loads_without_shared_build_outputs() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"cached-library\"\nartifact = \"dynamic-library\"\nprelude = false\n[namespaces]\n\"cli/app\" = \"app\"\n[rust-modules]\nexports = \"exports.rs\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("exports.rs"),
+        "#![allow(unsafe_code)]\n#[unsafe(no_mangle)]\npub extern \"C\" fn terrane_cache_answer() -> i32 { 42 }\n",
+    )
+    .unwrap();
+    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("build")
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(build.status.success(), "{build:?}");
+    let artifact = PathBuf::from(String::from_utf8(build.stdout).unwrap().trim());
+    let slot = artifact.parent().unwrap();
+    // A host must load solely from the public slot, not accidentally from Cargo's outputs.
+    fs::remove_dir_all(package.0.join(".trn/cache/target")).unwrap();
+    let source = package.0.join("host.rs");
+    fs::write(
+        &source,
+        "unsafe extern \"C\" { fn terrane_cache_answer() -> i32; }\nfn main() { println!(\"{}\", unsafe { terrane_cache_answer() }); }\n",
+    )
+    .unwrap();
+    let host = slot.join(format!("host{}", std::env::consts::EXE_SUFFIX));
+    let mut compiler = Command::new("rustc");
+    compiler
+        .arg(&source)
+        .args([
+            "--edition=2024",
+            "-Dwarnings",
+            "-l",
+            "dylib=terrane_program_application",
+        ])
+        .arg("-L")
+        .arg(format!("native={}", slot.display()))
+        .arg("-o")
+        .arg(&host);
+    #[cfg(unix)]
+    compiler
+        .arg("-C")
+        .arg(format!("link-arg=-Wl,-rpath,{}", slot.display()));
+    let linked = compiler.output().unwrap();
+    assert!(linked.status.success(), "{linked:?}");
+    let loaded = Command::new(&host).output().unwrap();
+    assert!(loaded.status.success(), "{loaded:?}");
+    assert_eq!(String::from_utf8(loaded.stdout).unwrap().trim(), "42");
+}
+
 #[test]
 fn projected_reqwest_runs_against_a_loopback_server() {
     let package = TempPackage::new();

@@ -649,6 +649,9 @@ fn artifact_identity(
     hash.update(b"terrane-native-artifact-v4\0");
     hash.update(terrane_compiler::VERSION.as_bytes());
     hash.update(format!("{containment:?}/{artifact_kind:?}"));
+    if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
+        hash.update(b"role-owned-library-basename-v1\0");
+    }
     for variable in [
         "CARGO_BUILD_TARGET",
         "CARGO_ENCODED_RUSTFLAGS",
@@ -758,7 +761,11 @@ fn prepare_artifact(
     let artifact = artifact_path(
         &crate_dir.join("artifacts").join(profile_directory),
         artifact_kind,
-        "terrane_program",
+        if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
+            role.cargo_name()
+        } else {
+            "terrane_program"
+        },
     );
     if !artifact.is_file() {
         run_cargo(
@@ -2115,7 +2122,178 @@ mod tests {
         SourceFile, SourceUnit, Span,
         rust_ir::{RenderedFile, SourceAssociation},
     };
+    use toml::Value as TomlValue;
 
+    fn toml_table<'a>(value: &'a TomlValue, path: &[&str]) -> &'a toml::Table {
+        path.iter()
+            .fold(value, |value, key| &value[*key])
+            .as_table()
+            .expect("expected TOML table")
+    }
+
+    fn assert_generated_runtime_manifest(manifest: &str, directory: &Path) {
+        let application: TomlValue = manifest.parse().unwrap();
+        let package = toml_table(&application, &["package"]);
+        assert_eq!(
+            package["rust-version"].as_str(),
+            Some(terrane_compiler::BUILD_TOOLCHAIN)
+        );
+        assert_eq!(
+            toml_table(&application, &["package", "metadata", "terrane"])["unicode-data-version"]
+                .as_str(),
+            Some(terrane_compiler::UNICODE_DATA_VERSION)
+        );
+        assert_eq!(
+            toml_table(&application, &["lints", "rust"])["unsafe_code"].as_str(),
+            Some("forbid")
+        );
+        let dependencies = toml_table(&application, &["dependencies"]);
+        let tokio = dependencies["tokio"].as_table().expect("Tokio dependency");
+        assert_eq!(tokio["version"].as_str(), Some("=1.53.0"));
+        let features: Vec<_> = tokio["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        for feature in ["macros", "rt", "rt-multi-thread", "sync", "time"] {
+            assert!(
+                features.contains(&feature),
+                "missing Tokio feature {feature}"
+            );
+        }
+        assert_eq!(
+            toml_table(&application, &["profile", "dev"])["panic"].as_str(),
+            Some("abort")
+        );
+        let release = toml_table(&application, &["profile", "release"]);
+        assert_eq!(release["opt-level"].as_integer(), Some(3));
+        assert_eq!(release["lto"].as_str(), Some("fat"));
+        assert_eq!(release["codegen-units"].as_integer(), Some(1));
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-debug"])["inherits"].as_str(),
+            Some("dev")
+        );
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-profile"])["inherits"].as_str(),
+            Some("release")
+        );
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-debug"])["opt-level"].as_integer(),
+            Some(0)
+        );
+        assert_eq!(
+            toml_table(&application, &["profile", "terrane-profile"])["opt-level"].as_integer(),
+            Some(3)
+        );
+
+        let support: TomlValue =
+            fs::read_to_string(directory.join("support/terrane-string-support/Cargo.toml"))
+                .unwrap()
+                .parse()
+                .unwrap();
+        let string_dependencies = toml_table(&support, &["dependencies"]);
+        assert_eq!(string_dependencies["caseless"].as_str(), Some("=0.2.2"));
+        assert_eq!(
+            string_dependencies["unicode-normalization"].as_str(),
+            Some("=0.1.24")
+        );
+        assert_eq!(
+            string_dependencies["unicode-segmentation"].as_str(),
+            Some("=1.12.0")
+        );
+        let toolchain: TomlValue = fs::read_to_string(directory.join("rust-toolchain.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            toml_table(&toolchain, &["toolchain"])["channel"].as_str(),
+            Some(terrane_compiler::BUILD_TOOLCHAIN)
+        );
+        let metadata: TomlValue = fs::read_to_string(directory.join("terrane-build.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(
+            metadata["rust-toolchain"].as_str(),
+            Some(terrane_compiler::BUILD_TOOLCHAIN)
+        );
+    }
+
+    #[test]
+    fn generated_cargo_manifest_configures_runtime_profiles_and_toolchain() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-generated-manifest-{}", std::process::id()));
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+        let write = |role, panic, runtime, artifact, unsafe_code, toolchain| {
+            write_generated_crate(
+                &directory,
+                &[],
+                &[],
+                &[],
+                GeneratedCrateOptions {
+                    role,
+                    panic,
+                    uses_platform_support: false,
+                    uses_async_runtime: runtime,
+                    uses_tokio_blocking: false,
+                    uses_tokio_sync: runtime,
+                    build_toolchain: toolchain,
+                    unsafe_code,
+                    artifact,
+                },
+            )
+            .unwrap();
+            fs::read_to_string(directory.join("Cargo.toml")).unwrap()
+        };
+
+        let application = write(
+            GeneratedCrateRole::Application,
+            terrane_compiler::PanicProfile::Abort,
+            true,
+            terrane_compiler::ArtifactKind::Executable,
+            UnsafeCodePolicy::Forbid,
+            terrane_compiler::BuildToolchain::Pinned,
+        );
+        assert_generated_runtime_manifest(&application, &directory);
+
+        let library = write(
+            GeneratedCrateRole::UnitTest,
+            terrane_compiler::PanicProfile::Unwind,
+            false,
+            terrane_compiler::ArtifactKind::DynamicLibrary,
+            UnsafeCodePolicy::MaintainedModules,
+            terrane_compiler::BuildToolchain::System,
+        )
+        .parse::<TomlValue>()
+        .unwrap();
+        assert_eq!(
+            toml_table(&library, &["lib"])["crate-type"]
+                .as_array()
+                .unwrap()[0]
+                .as_str(),
+            Some("cdylib")
+        );
+        assert_eq!(
+            toml_table(&library, &["lints", "rust"])["unsafe_code"].as_str(),
+            Some("deny")
+        );
+        assert!(!toml_table(&library, &["dependencies"]).contains_key("tokio"));
+        assert!(!toml_table(&library, &["profile"]).contains_key("dev"));
+        assert!(toml_table(&library, &["profile", "terrane-debug"]).contains_key("inherits"));
+        assert_eq!(
+            fs::read_to_string(directory.join("terrane-build.toml"))
+                .unwrap()
+                .parse::<TomlValue>()
+                .unwrap()["rust-toolchain"]
+                .as_str(),
+            Some("system")
+        );
+        assert!(!directory.join("rust-toolchain.toml").exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
     #[test]
     fn source_path_dispatches_to_run_and_forwards_arguments() {
         let arguments = [
