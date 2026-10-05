@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::time::{Duration, Instant};
 
 use super::{
-    CliCommand, CliFailure, GeneratedCrateOptions, ensure_rust_toolchain, generated_crate_path,
-    prepare_artifact, write_generated_crate,
+    CliCommand, CliFailure, GeneratedCrateOptions, GeneratedCrateRole, ensure_rust_toolchain,
+    generated_crate_path, prepare_artifact, write_generated_crate,
 };
 use terrane_compiler::{
     Package,
@@ -276,7 +276,7 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
             &application_package,
             &application,
             false,
-            "application",
+            GeneratedCrateRole::Application,
         )?)
     } else {
         None
@@ -289,7 +289,11 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
                 &tier.package,
                 &tier.compilation,
                 true,
-                &format!("test-{}", tier.tier.name()),
+                match tier.tier {
+                    TestTier::Unit => GeneratedCrateRole::UnitTest,
+                    TestTier::Integration => GeneratedCrateRole::IntegrationTest,
+                    TestTier::EndToEnd => GeneratedCrateRole::EndToEndTest,
+                },
             )?,
         );
     }
@@ -451,7 +455,7 @@ fn build_native_compilation(
     package: &Package,
     compilation: &terrane_compiler::Compilation,
     includes_test_runtime: bool,
-    role: &str,
+    role: GeneratedCrateRole,
 ) -> Result<PathBuf, CliFailure> {
     ensure_rust_toolchain(package.build_toolchain)?;
     let rust_files = compilation
@@ -467,6 +471,7 @@ fn build_native_compilation(
         &package.units,
         &compilation.rust_dependencies,
         GeneratedCrateOptions {
+            role,
             panic: package.profile.panic,
             uses_platform_support,
             uses_async_runtime: includes_test_runtime || compilation.requires_async_runtime,
@@ -487,6 +492,7 @@ fn build_native_compilation(
     prepare_artifact(
         CliCommand::Build,
         &crate_dir,
+        role,
         &target_dir,
         &rust_files,
         &package.units,

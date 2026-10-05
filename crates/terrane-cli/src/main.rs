@@ -318,9 +318,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let uses_tokio_blocking = compilation.requires_blocking_runtime;
     let uses_tokio_sync = compilation.requires_runtime_sync;
     let role = if matches!(command, CliCommand::Debug | CliCommand::Profile) {
-        "application-debug"
+        GeneratedCrateRole::Inspection
     } else {
-        "application"
+        GeneratedCrateRole::Application
     };
     let crate_dir = generated_crate_path(&package.root, role)?;
     let artifact_profile = match command {
@@ -340,6 +340,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.units,
         &compilation.rust_dependencies,
         GeneratedCrateOptions {
+            role,
             panic: package.profile.panic,
             uses_platform_support,
             uses_async_runtime,
@@ -360,6 +361,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let artifact = prepare_artifact(
         command,
         &crate_dir,
+        role,
         &target_dir,
         &rust_files,
         &package.units,
@@ -698,6 +700,7 @@ fn artifact_identity(
 fn prepare_artifact(
     command: CliCommand,
     crate_dir: &Path,
+    role: GeneratedCrateRole,
     target_dir: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
@@ -755,6 +758,7 @@ fn prepare_artifact(
     let artifact = artifact_path(
         &crate_dir.join("artifacts").join(profile_directory),
         artifact_kind,
+        "terrane_program",
     );
     if !artifact.is_file() {
         run_cargo(
@@ -767,7 +771,11 @@ fn prepare_artifact(
             containment,
             profile,
         )?;
-        let built = artifact_path(&target_dir.join(profile_directory), artifact_kind);
+        let built = artifact_path(
+            &target_dir.join(profile_directory),
+            artifact_kind,
+            role.cargo_name(),
+        );
         fs::create_dir_all(artifact.parent().expect("cached artifact has a parent")).map_err(
             |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
         )?;
@@ -792,17 +800,21 @@ fn prepare_artifact(
         .map_err(|error| CliFailure::backend(format!("cannot locate built artifact: {error}")))
 }
 
-fn executable_path(directory: &Path) -> PathBuf {
-    let mut path = directory.join("terrane_program");
+fn executable_path(directory: &Path, name: &str) -> PathBuf {
+    let mut path = directory.join(name);
     path.set_extension(std::env::consts::EXE_EXTENSION);
     path
 }
 
-fn artifact_path(directory: &Path, artifact_kind: terrane_compiler::ArtifactKind) -> PathBuf {
+fn artifact_path(
+    directory: &Path,
+    artifact_kind: terrane_compiler::ArtifactKind,
+    name: &str,
+) -> PathBuf {
     match artifact_kind {
-        terrane_compiler::ArtifactKind::Executable => executable_path(directory),
+        terrane_compiler::ArtifactKind::Executable => executable_path(directory, name),
         terrane_compiler::ArtifactKind::DynamicLibrary => directory.join(format!(
-            "{}terrane_program{}",
+            "{}{name}{}",
             std::env::consts::DLL_PREFIX,
             std::env::consts::DLL_SUFFIX
         )),
@@ -1038,7 +1050,10 @@ fn configure_generated_toolchain(command: &mut Command, crate_dir: &Path) {
     }
 }
 
-fn generated_crate_path(package_root: &Path, role: &str) -> Result<PathBuf, CliFailure> {
+fn generated_crate_path(
+    package_root: &Path,
+    role: GeneratedCrateRole,
+) -> Result<PathBuf, CliFailure> {
     let root = package_root.canonicalize().map_err(|error| {
         CliFailure::backend(format!(
             "cannot locate package root {}: {error}",
@@ -1066,7 +1081,7 @@ fn generated_crate_path(package_root: &Path, role: &str) -> Result<PathBuf, CliF
             }
         }
     }
-    Ok(build.join(role))
+    Ok(build.join(role.directory()))
 }
 
 fn profile_with_panic(
@@ -1096,11 +1111,43 @@ impl UnsafeCodePolicy {
 }
 
 #[derive(Clone, Copy)]
+enum GeneratedCrateRole {
+    Application,
+    Inspection,
+    UnitTest,
+    IntegrationTest,
+    EndToEndTest,
+}
+
+impl GeneratedCrateRole {
+    const fn directory(self) -> &'static str {
+        match self {
+            Self::Application => "application",
+            Self::Inspection => "application-debug",
+            Self::UnitTest => "test-unit",
+            Self::IntegrationTest => "test-integration",
+            Self::EndToEndTest => "test-end-to-end",
+        }
+    }
+
+    const fn cargo_name(self) -> &'static str {
+        match self {
+            Self::Application => "terrane_program_application",
+            Self::Inspection => "terrane_program_application_debug",
+            Self::UnitTest => "terrane_program_test_unit",
+            Self::IntegrationTest => "terrane_program_test_integration",
+            Self::EndToEndTest => "terrane_program_test_end_to_end",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 #[expect(
     clippy::struct_excessive_bools,
     reason = "Generated Cargo features are independent additive requirements, not mutually exclusive runtime states"
 )]
 struct GeneratedCrateOptions {
+    role: GeneratedCrateRole,
     panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
     uses_async_runtime: bool,
@@ -1111,9 +1158,9 @@ struct GeneratedCrateOptions {
     artifact: terrane_compiler::ArtifactKind,
 }
 
-fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
+fn base_generated_manifest(unsafe_code: UnsafeCodePolicy, role: GeneratedCrateRole) -> String {
     format!(
-        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
+        "[package]\nname = {:?}\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
          [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
          [lints.rust]\nunsafe_code = {:?}\n\n\
          [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
@@ -1122,6 +1169,7 @@ fn base_generated_manifest(unsafe_code: UnsafeCodePolicy) -> String {
          terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\
          terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
+        role.cargo_name(),
         terrane_compiler::BUILD_TOOLCHAIN,
         terrane_compiler::UNICODE_DATA_VERSION,
         unsafe_code.lint_level()
@@ -1206,7 +1254,7 @@ fn write_generated_crate(
             }
         }
     }
-    let mut manifest = base_generated_manifest(options.unsafe_code);
+    let mut manifest = base_generated_manifest(options.unsafe_code, options.role);
     if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",

@@ -1287,3 +1287,40 @@ fn changed_native_inputs_invalidate_check_stamps_and_remove_unused_platform_supp
     assert!(run.status.success(), "{run:?}");
     assert_eq!(run.stdout, b"without platform support\n");
 }
+
+#[test]
+fn native_test_tiers_restore_their_own_binary_from_shared_cargo_cache() {
+    let package = TempPackage::new();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/native-testing");
+    for relative in [
+        "package.toml",
+        "src/application.trn",
+        "tests/unit/assertions.trn",
+        "tests/integration/public-surface.trn",
+        "tests/end-to-end/application.trn",
+    ] {
+        let destination = package.0.join(relative);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(fixture.join(relative), destination).unwrap();
+    }
+    let invoke = || {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("test")
+            .arg(&package.0)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8_lossy(&output.stdout);
+        for case in [
+            "/sample::test-custom-value-comparison",
+            "/sample::test-controlled-async-time",
+            "/sample-integration::test-public-answer",
+            "/sample-end-to-end::test-production-application",
+        ] {
+            assert!(text.contains(&format!("passed {case}")), "{text}");
+        }
+    };
+    invoke();
+    fs::remove_dir_all(package.0.join(".trn/build/test-unit/artifacts")).unwrap();
+    invoke();
+}
