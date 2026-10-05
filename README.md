@@ -113,8 +113,7 @@ The compiler preserves exact native types and obligations through calls, generic
 callbacks, moves, and borrows. It can specialize operations from ordinary arguments, receiver
 types, callable contracts, explicit selections, and result destinations. This does not imply
 unrestricted projection of arbitrary Rust traits, lifetimes, macros, or host registration APIs.
-Tracked integration witnesses include [`projects/gui-test/`](projects/gui-test/) (Iced),
-[`projects/godot-test/`](projects/godot-test/) (Godot), and SQLx conformance fixtures.
+Executable integration evidence lives in the compiler's conformance and CLI integration suites.
 
 Rust builds use the compiler-selected stable release; projection additionally uses a pinned
 rustdoc toolchain. Linux local dependency inspection requires `bubblewrap` (`bwrap`) and permission
