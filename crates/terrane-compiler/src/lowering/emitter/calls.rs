@@ -2042,7 +2042,12 @@ impl Emitter<'_> {
                         } else {
                             value
                         };
-                        format!("&mut {}", self.native_receiver_expression(receiver, true))
+                        let native = self.native_receiver_expression(receiver, true);
+                        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+                            format!("&mut *{native}")
+                        } else {
+                            format!("&mut {native}")
+                        }
                     } else {
                         self.expression_as(value, parameter.value_type())
                     }
