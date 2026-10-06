@@ -2,26 +2,11 @@ use std::fs;
 
 use serde_json::json;
 
-use crate::RustDependency;
 use crate::rust_interop::projection::*;
 
 use super::super::cargo_workspace::DEPENDENCY_LOCK_FILE;
+use super::super::test_support::dependency;
 use super::*;
-
-fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
-    RustDependency {
-        name: name.to_owned(),
-        package: package.to_owned(),
-        version: "=1.0.0".to_owned(),
-        features: features
-            .iter()
-            .map(|feature| (*feature).to_owned())
-            .collect(),
-        default_features: true,
-        target: None,
-        effects: Vec::new(),
-    }
-}
 
 #[test]
 fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {

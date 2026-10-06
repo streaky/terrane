@@ -3,23 +3,8 @@ use std::collections::{BTreeMap, HashMap};
 use rustdoc_types::{Crate as RustdocCrate, ExternalCrate, Id, ItemKind, ItemSummary, Target};
 use serde_json::json;
 
+use super::super::test_support::dependency;
 use super::*;
-use crate::RustDependency;
-
-fn dependency(name: &str, package: &str, features: &[&str]) -> RustDependency {
-    RustDependency {
-        name: name.to_owned(),
-        package: package.to_owned(),
-        version: "=1.0.0".to_owned(),
-        features: features
-            .iter()
-            .map(|feature| (*feature).to_owned())
-            .collect(),
-        default_features: true,
-        target: None,
-        effects: Vec::new(),
-    }
-}
 
 #[test]
 fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {

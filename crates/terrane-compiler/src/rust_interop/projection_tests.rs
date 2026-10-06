@@ -8,43 +8,14 @@ use serde_json::json;
 
 use super::{
     Containment, DeclinedItem, InvocationMode, PartialCallbackShape, PartialProjection,
-    PartialProjectionRecord, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedFunction,
-    ProjectedItem, ProjectedKind, ProjectedMemberDemands, ProjectedType, Projection,
-    ProjectionDemandSites, ProjectionResolution, ProjectionSource, Receiver,
-    collect_source_foreign, generated_projection_units, project_type, projectable_interface_bound,
-    rewrite_rust_bound_root,
+    PartialProjectionRecord, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem,
+    ProjectedKind, ProjectedMemberDemands, ProjectedType, Projection, ProjectionDemandSites,
+    ProjectionResolution, ProjectionSource, Receiver, collect_source_foreign,
+    generated_projection_units, project_type, projectable_interface_bound, rewrite_rust_bound_root,
 };
 
+use super::test_support::projected_function_item;
 use terrane_rust_analysis::prefer_public_path;
-
-fn projected_function_item(namespace: &str, name: &str, rust_path: &str) -> ProjectedItem {
-    ProjectedItem {
-        namespace: namespace.to_owned(),
-        name: name.to_owned(),
-        rust_path: rust_path.to_owned(),
-        docs: None,
-        kind: ProjectedKind::Function(ProjectedFunction {
-            native_owner: None,
-            native_path: None,
-            name: name.to_owned(),
-            generic_parameters: Vec::new(),
-            operation_owner_generics: Vec::new(),
-            rust_generic_arguments: Vec::new(),
-            parameters: Vec::new(),
-            result: ProjectedType::None,
-            destination_result: None,
-            error: None,
-            is_async: false,
-            is_unsafe: false,
-            into_future: false,
-            execution_requirements: None,
-            enum_operation: None,
-            error_optional_depth: 0,
-            chain_role: None,
-            receiver: None,
-        }),
-    }
-}
 
 fn projected_foreign_type_item(
     namespace: &str,

@@ -26,6 +26,8 @@
 //! - `source_rendering.rs`: Terrane declaration rendering and import closure.
 //! - `type_rendering.rs`: Rust type spelling and instantiated nominal names.
 //! - `types.rs`: value-type admission.
+//!
+//! Shared public-metadata fixtures for owner-local tests live in test-only `test_support.rs`.
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::fs;
@@ -65,6 +67,8 @@ mod reexports;
 mod resolution;
 mod rustdoc_support;
 mod source_rendering;
+#[cfg(test)]
+mod test_support;
 mod type_rendering;
 mod types;
 
