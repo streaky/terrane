@@ -1355,7 +1355,24 @@ pub(super) fn object_types_compatible(
                         && left.type_arguments == right.type_arguments
                         && left.native_arguments == right.native_arguments
                 }
-                _ => false,
+                (Some(_), None) | (None, Some(_)) => {
+                    left.namespace == right.namespace
+                        && left.name == right.name
+                        && left.application == right.application
+                        && left.type_arguments == right.type_arguments
+                        && left.native_arguments.iter().all(|(name, argument)| {
+                            right.native_arguments.get(name).map_or_else(
+                                || left.type_arguments.contains(argument),
+                                |actual| actual == argument,
+                            )
+                        })
+                        && right.native_arguments.iter().all(|(name, argument)| {
+                            left.native_arguments.get(name).map_or_else(
+                                || right.type_arguments.contains(argument),
+                                |actual| actual == argument,
+                            )
+                        })
+                }
             }
     };
     if same_applied_nominal(expected, actual)
@@ -1775,5 +1792,35 @@ mod tests {
             .with_native_projection("owner::Record<u16>");
         assert!(!object_types_compatible(&[], &alias, &other));
         assert!(!object_types_compatible(&[], &alias, &source));
+    }
+
+    #[test]
+    fn nominal_compatibility_accepts_redundant_but_not_hidden_native_arguments() {
+        use crate::ScalarType;
+        use crate::semantics::ValueType;
+        use std::collections::BTreeMap;
+
+        let integer = ValueType::Scalar(ScalarType::Int);
+        let written = ObjectIdentity::new("/deps/witness", "Container")
+            .with_type_arguments(vec![integer.clone()]);
+        let native = written
+            .clone()
+            .with_native_arguments(BTreeMap::from([("T".to_owned(), integer)]))
+            .with_native_projection("witness::Container<i64>");
+        assert!(object_types_compatible(&[], &native, &written));
+        assert!(object_types_compatible(&[], &written, &native));
+        let conflicting = written.clone().with_native_arguments(BTreeMap::from([(
+            "T".to_owned(),
+            ValueType::Scalar(ScalarType::String),
+        )]));
+        assert!(!object_types_compatible(&[], &native, &conflicting));
+        let hidden = native.with_native_arguments(BTreeMap::from([(
+            "Hidden".to_owned(),
+            ValueType::Scalar(ScalarType::Bool),
+        )]));
+        assert!(!object_types_compatible(&[], &hidden, &written));
+        let other = ObjectIdentity::new("/deps/witness", "Container")
+            .with_type_arguments(vec![ValueType::Scalar(ScalarType::String)]);
+        assert!(!object_types_compatible(&[], &hidden, &other));
     }
 }

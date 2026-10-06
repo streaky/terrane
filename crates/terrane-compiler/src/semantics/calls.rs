@@ -890,12 +890,19 @@ pub(super) fn bind_projected_generics(
             for (expected, actual) in expected.type_arguments.iter().zip(&actual.type_arguments) {
                 bind_projected_generics(expected, actual, bindings)?;
             }
-            for (name, expected) in &expected.native_arguments {
-                let actual = actual
+            for (name, expected_argument) in &expected.native_arguments {
+                let actual_argument = actual
                     .native_arguments
                     .get(name)
+                    .or_else(|| {
+                        expected
+                            .type_arguments
+                            .iter()
+                            .position(|argument| argument == expected_argument)
+                            .and_then(|index| actual.type_arguments.get(index))
+                    })
                     .ok_or_else(|| name.clone())?;
-                bind_projected_generics(expected, actual, bindings)?;
+                bind_projected_generics(expected_argument, actual_argument, bindings)?;
             }
             Ok(())
         }
@@ -1553,5 +1560,37 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn nominal_arguments_bind_without_redundant_native_metadata() {
+        use crate::semantics::ObjectIdentity;
+
+        let generic = ValueType::ProjectedGeneric("T".to_owned());
+        let expected = ValueType::Object(
+            ObjectIdentity::new("/deps/witness", "Container")
+                .with_type_arguments(vec![generic.clone()])
+                .with_native_arguments(BTreeMap::from([("T".to_owned(), generic)])),
+        );
+        let integer = ValueType::Scalar(ScalarType::Int);
+        let actual = ValueType::Object(
+            ObjectIdentity::new("/deps/witness", "Container")
+                .with_type_arguments(vec![integer.clone()]),
+        );
+        let mut bindings = BTreeMap::new();
+        bind_projected_generics(&expected, &actual, &mut bindings).unwrap();
+        assert_eq!(bindings["T"], integer);
+        bindings.insert("T".to_owned(), ValueType::Scalar(ScalarType::String));
+        assert!(bind_projected_generics(&expected, &actual, &mut bindings).is_err());
+
+        let hidden = ValueType::Object(
+            ObjectIdentity::new("/deps/witness", "Container")
+                .with_type_arguments(vec![ValueType::Scalar(ScalarType::Int)])
+                .with_native_arguments(BTreeMap::from([(
+                    "Hidden".to_owned(),
+                    ValueType::ProjectedGeneric("Hidden".to_owned()),
+                )])),
+        );
+        assert!(bind_projected_generics(&hidden, &actual, &mut BTreeMap::new()).is_err());
     }
 }
