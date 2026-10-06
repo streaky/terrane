@@ -119,15 +119,16 @@ pub(super) fn analyze_binding_node(
             }
         };
         let actual = infer_value_type(unit, value, bindings)?;
-        if let (Some(expected), Some(actual)) = (expected, actual)
-            && expected != actual
-        {
-            return Err(failure(
+        if let (Some(expected), Some(actual)) = (expected, actual) {
+            validate_value_destination(
                 &unit.source,
+                &unit.descriptors,
+                "indexed assignment",
+                expected,
+                actual,
+                value,
                 "T0046",
-                format!("indexed assignment requires `{expected}`, found `{actual}`"),
-                value.span,
-            ));
+            )?;
         }
         return Ok(());
     }

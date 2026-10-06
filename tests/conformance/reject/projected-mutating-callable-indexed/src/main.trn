@@ -1,0 +1,7 @@
+namespace app
+from /core/collections import list
+from /callbacks import mark-sensitive, read-sensitive
+
+function main;
+    actions = list; (read-sensitive)
+    actions[0] = mark-sensitive

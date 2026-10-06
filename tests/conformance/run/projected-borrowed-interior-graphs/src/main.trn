@@ -102,3 +102,8 @@ function main;
     observers = list; (read-sensitive)
     for observer in observers
         print; (observer; ref named-target)
+    observers.append; read-sensitive
+    observers.set; 0, read-sensitive
+    observers[0] = read-sensitive
+    for observer in observers
+        print; (observer; ref named-target)

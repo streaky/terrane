@@ -1,0 +1,6 @@
+namespace app
+from /core/collections import unordered-map
+from /callbacks import mark-sensitive, read-sensitive
+function main;
+    actions = unordered-map; operation=read-sensitive
+    actions.set; 'probe', value=mark-sensitive

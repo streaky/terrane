@@ -687,6 +687,8 @@ Focused rejection witnesses cover named and anonymous function-typed arguments, 
 
 Review N4 extended the same rejection to inferred collection constructor elements, including lists, tuples, maps, unordered maps, entries, and nested constructors. Constructor validation runs after mutation inference regardless of whether a destination type was written. Shared native observers remain valid collection elements; this is not a mutable erased callable ABI.
 
+Review N5 and M2 close existing-collection storage boundaries: collection method element/value arguments and indexed assignment reuse destination compatibility validation, rejecting incompatible native mutators with T0140 rather than leaking Rust errors or displaying identical callable types in a T0046 mismatch.
+
 
 Implemented: a selected blanket callback recipe may retain an invocation-lifetime-dependent
 terminal entirely in its result obligation. Call analysis jointly selects the owned Terrane callback

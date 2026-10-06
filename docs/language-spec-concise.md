@@ -677,6 +677,7 @@ coercion-error               coercion has no compatible result outside the overf
 - Reflection separately exposes `throwable-contract` (written upper bound, if any) and
   `escaping-throwables` (current inferred concrete set), even when private bodies are stripped.
 - Callable compatibility admits fewer compatible throwables, never an incompatible one.
+- Shared-reference callable storage rejects native-reference mutators with T0140, including collection constructors, element/value method arguments, and indexed assignment. Direct calls, inferred aliases, shared observers, and native-selected mutable callbacks remain supported.
 - A written callable type with `throws T` admits only implementations whose exact escaping set
   conforms to `T`. An implementation may be infallible or narrower. Omitting `throws` declares an
   infallible callable type. Every source callable has either exact inferred metadata or an explicit

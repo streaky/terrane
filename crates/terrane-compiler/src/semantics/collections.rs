@@ -1,5 +1,93 @@
 use super::prelude::*;
 
+fn validate_collection_mutator_value(
+    unit: &SemanticUnit,
+    arguments: &SyntaxNode,
+    value_position: usize,
+    expected: &ValueType,
+    destination: &str,
+    named_values: &[&str],
+    bindings: &[TypedBinding],
+) -> Result<(), SemanticFailure> {
+    let mut positional = 0;
+    for argument in &arguments.children {
+        let name = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1)
+            .map(|name| node_text(&unit.source, name));
+        let is_value = if let Some(name) = name {
+            named_values.contains(&name)
+        } else {
+            let position = positional;
+            positional += 1;
+            position == value_position
+        };
+        if is_value {
+            return validate_collection_constructor_value(
+                unit,
+                argument.children.last().unwrap_or(argument),
+                expected,
+                destination,
+                bindings,
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_collection_mutator_storage(
+    unit: &SemanticUnit,
+    receiver_type: &ValueType,
+    member: &str,
+    arguments: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<(), SemanticFailure> {
+    match (receiver_type, member) {
+        (ValueType::List(item), "append") => validate_collection_mutator_value(
+            unit,
+            arguments,
+            0,
+            &item.value_type(),
+            "list item",
+            &["value", "item"],
+            bindings,
+        ),
+        (ValueType::List(item), "set") => validate_collection_mutator_value(
+            unit,
+            arguments,
+            1,
+            &item.value_type(),
+            "list item",
+            &["value"],
+            bindings,
+        ),
+        (ValueType::Map(_, value) | ValueType::UnorderedMap(_, value), "set") => {
+            validate_collection_mutator_value(
+                unit,
+                arguments,
+                1,
+                &value.value_type(),
+                "map value",
+                &["value"],
+                bindings,
+            )
+        }
+        (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => {
+            validate_collection_mutator_value(
+                unit,
+                arguments,
+                0,
+                &item.value_type(),
+                "set item",
+                &["value", "item"],
+                bindings,
+            )
+        }
+        _ => Ok(()),
+    }
+}
+
 pub(super) fn element_type(
     unit: &SemanticUnit,
     value: &SyntaxNode,
@@ -503,6 +591,7 @@ pub(super) fn infer_collection_call_type(
             }
             return Ok(None);
         }
+        validate_collection_mutator_storage(unit, &receiver_type, member, arguments, bindings)?;
         if operation == Some("collection.remove")
             && matches!(
                 receiver_type,
