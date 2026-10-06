@@ -1,17 +1,31 @@
 //! Shared projection metadata and public query APIs.
 //!
-//! Extend the owning implementation below rather than adding admission or resolution policy here.
-//! Implementation module map:
-//! - `projection/functions.rs` and `projection/types.rs`: callable and value-type admission.
-//! - `projection/items.rs`, `projection/methods.rs`, and `projection/interfaces.rs`: rustdoc
-//!   item, method/owner, and interface projection.
-//! - `projection/partial.rs`: unavailable-item partial contracts.
-//! - `projection/resolution.rs`: end-to-end projection resolution orchestration.
-//! - `projection/artifacts.rs`: cached and remote projection artifact handling.
-//! - `projection/cargo_workspace.rs`: Cargo workspace execution and lock metadata.
-//! - `projection/dependency_owners.rs`: dependency reachability and owner rewrites.
-//! - `projection/reexports.rs`: supplemental rustdoc discovery for reexports.
-//! - `projection/namespace_overlays.rs`: Cargo metadata namespace overlays.
+//! Extend the owning module rather than adding admission or resolution policy here.
+//! Implementation modules live under `projection/`:
+//! - `aliases.rs`: same-owner callable aliases and Rust-path aliases.
+//! - `artifacts.rs`: cached and remote projection artifact handling.
+//! - `borrowed_graph.rs`: borrowed-operation owners and optional boundary conversions.
+//! - `cache_identity.rs`: projection identity, effective target, and cache paths.
+//! - `callable.rs`: generic callable selection, bound matching, and blanket trait recipes.
+//! - `cargo_workspace.rs`: Cargo workspace execution and dependency lock metadata.
+//! - `data.rs`: fields, constants, and projected-item normalization.
+//! - `dependency_owners.rs`: dependency reachability, owner binding, and Rust-root rewrites.
+//! - `enum_payload.rs`: enum payload projection and boundary conversion.
+//! - `foreign_impls.rs`: implementation discovery and probes across dependency crates.
+//! - `functions.rs`: complete function-signature admission.
+//! - `history.rs`: projection-lock provenance and replay history.
+//! - `interfaces.rs`: projected interfaces, associated types, and trait operations.
+//! - `items.rs`: Rustdoc item admission and nominal generic parameters.
+//! - `macros.rs`: macro-generated public reexports.
+//! - `methods.rs`: impl methods, chain owners, and output aliases.
+//! - `namespace_overlays.rs`: Cargo metadata namespace overlays.
+//! - `partial.rs`: unavailable-item partial contracts.
+//! - `reexports.rs`: supplemental Rustdoc discovery for reexports.
+//! - `resolution.rs`: the resolution transaction and impl-witness/bound admission policy.
+//! - `rustdoc_support.rs`: Rustdoc path resolution, type inspection, and boundary capabilities.
+//! - `source_rendering.rs`: Terrane declaration rendering and import closure.
+//! - `type_rendering.rs`: Rust type spelling and instantiated nominal names.
+//! - `types.rs`: value-type admission.
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::fs;
@@ -30,38 +44,55 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 mod aliases;
-mod resolution;
-pub use resolution::resolve;
-mod namespace_overlays;
-use namespace_overlays::{apply_namespace_overlays, namespace_overlays_from_metadata};
 mod artifacts;
+mod borrowed_graph;
+mod cache_identity;
+mod callable;
 mod cargo_workspace;
-#[cfg(test)]
-use artifacts::{ArtifactDependency, ProjectionArtifact, validate_projection_artifact};
+mod data;
+mod dependency_owners;
+mod enum_payload;
+mod foreign_impls;
+mod functions;
+mod history;
+mod interfaces;
+mod items;
+mod macros;
+mod methods;
+mod namespace_overlays;
+mod partial;
+mod reexports;
+mod resolution;
+mod rustdoc_support;
+mod source_rendering;
+mod type_rendering;
+mod types;
+
+pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
+pub use crate::RUSTDOC_TOOLCHAIN;
+pub use resolution::resolve;
+
 use artifacts::{
     ProjectionCacheIdentity, PublishedProjection, fetch_remote_projection, projection_content_hash,
     remove_legacy_projection_cache, write_cache_atomically, write_if_changed,
 };
-#[cfg(test)]
-use cargo_workspace::DEPENDENCY_LOCK_FILE;
+use cache_identity::cache_identity;
+use callable::{
+    GenericMonomorphisations, concrete_into_future_output, generic_bounds,
+    generic_monomorphisations, project_callable_adapter_bounds, render_generic_bound,
+    render_generic_bounds, resolved_path_type_arguments, rust_bound_roots, rust_lifetimes,
+    trait_bound_name, type_contains_lifetime_argument, type_mentions_generic,
+};
 use cargo_workspace::{
     CargoExecution, CargoToolchain, containment, persist_dependency_lock,
     resolved_dependency_metadata, run_cargo, seed_dependency_lock, write_workspace,
     write_workspace_with_bound_dependencies,
 };
-#[cfg(test)]
-use methods::is_internal_rust_protocol_method;
-#[cfg(test)]
-use namespace_overlays::NamespaceOverlay;
-mod reexports;
-#[cfg(test)]
-use reexports::{ReexportProvider, cached_owner_rustdoc, resolved_library_package};
-use reexports::{
-    ReexportRustdoc, external_reexport_rustdocs, generate_rustdoc, prefer_alias,
-    provider_fragment_public_paths,
+use data::{
+    SourceConstantCache, default_generic_instantiation, extern_rust_path,
+    normalize_projected_items, project_rust_constant_expression, project_struct_fields,
+    projected_constant_name, source_constant_expression,
 };
-mod borrowed_graph;
-mod dependency_owners;
 use dependency_owners::{
     canonicalize_projected_type_names, decline_unnameable_bound_owners,
     decline_unrepresentable_error_types, enforce_transitive_reachability,
@@ -70,54 +101,25 @@ use dependency_owners::{
     rewrite_projected_owner_root, rewrite_projected_rust_root, rewrite_rust_bound_root,
     rust_path_owner,
 };
-mod cache_identity;
-mod callable;
-use cache_identity::cache_identity;
-#[cfg(test)]
-use cache_identity::selected_target;
-mod data;
-mod enum_payload;
-mod foreign_impls;
-mod interfaces;
+use enum_payload::{project_enum_payload, project_multi_enum_payload};
+use functions::{project_function, project_function_with_generics, promote_async_endpoint_methods};
 use interfaces::{
     ProjectedTraitOperation, merge_projected_trait_operations, owner_trait_namespace,
     project_external_provided_trait_methods, project_interface, projected_interface_impl_question,
     trait_fallback_namespace, trait_operation_docs,
 };
-mod macros;
-use macros::project_macro;
-mod functions;
-mod items;
-mod methods;
-mod partial;
-mod rustdoc_support;
-mod source_rendering;
-mod type_rendering;
-mod types;
-use callable::{
-    GenericMonomorphisations, concrete_into_future_output, generic_bounds,
-    generic_monomorphisations, project_callable_adapter_bounds, render_generic_bound,
-    render_generic_bounds, resolved_path_type_arguments, rust_bound_roots, rust_lifetimes,
-    trait_bound_name, type_contains_lifetime_argument, type_mentions_generic,
-};
-#[cfg(test)]
-use callable::{
-    builtin_callable_mode, has_supported_callable_trait_shape, is_builtin_clone,
-    is_builtin_marker_trait,
-};
-use data::{
-    SourceConstantCache, default_generic_instantiation, extern_rust_path,
-    normalize_projected_items, project_rust_constant_expression, project_struct_fields,
-    projected_constant_name, source_constant_expression,
-};
-use enum_payload::{project_enum_payload, project_multi_enum_payload};
-use functions::{project_function, project_function_with_generics, promote_async_endpoint_methods};
 use items::{project_rustdoc, projected_nominal_generic_parameters};
+use macros::project_macro;
 use methods::{
     alias_type_substitutions, expand_output_alias, project_chain_owner, project_methods,
     resolved_nominal_id,
 };
+use namespace_overlays::{apply_namespace_overlays, namespace_overlays_from_metadata};
 use partial::{partial_projection, partial_projection_references};
+use reexports::{
+    ReexportRustdoc, external_reexport_rustdocs, generate_rustdoc, prefer_alias,
+    provider_fragment_public_paths,
+};
 use rustdoc_support::{
     descriptive_rust_identity, impl_trait_bounds, implementation_trait_path, implements_trait,
     is_rust_byte_vector_type, is_rust_string_type, project_boundary_capabilities, receiver_kind,
@@ -140,12 +142,7 @@ use types::{
     project_dyn_interface, project_invocation_scoped_type, project_type,
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
-mod history;
-#[cfg(test)]
-use history::{ProjectionHistory, apply_projection_history};
 
-pub use super::generated_projection::{GeneratedProjectionUnit, generated_projection_units};
-pub use crate::RUSTDOC_TOOLCHAIN;
 const PROJECTION_SCHEMA: &str = "259";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
@@ -2468,79 +2465,6 @@ impl From<terrane_rust_analysis::AnalysisError> for ProjectionError {
     }
 }
 
-fn decline_unproven_projected_interfaces(
-    projected: &mut [ProjectedDependency],
-    evidence: &[crate::rust_interop::ImplProbeEvidence],
-) {
-    for evidence in evidence
-        .iter()
-        .filter(|evidence| evidence.answer != crate::rust_interop::ProbeAnswer::Yes)
-    {
-        for dependency in &mut *projected {
-            let Some(index) = dependency
-                .items
-                .iter()
-                .position(|item| item.rust_path == evidence.question.label)
-            else {
-                continue;
-            };
-            let item = dependency.items.remove(index);
-            dependency.declined.push(DeclinedItem {
-                rust_path: item.rust_path,
-                reason:
-                    "trait implementation signature is not representable against the resolved dependency"
-                        .to_owned(),
-            });
-            break;
-        }
-    }
-}
-fn decline_functions_with_missing_generic_interfaces(projected: &mut [ProjectedDependency]) {
-    let projected_interfaces = projected
-        .iter()
-        .flat_map(|dependency| &dependency.items)
-        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
-        .map(|item| item.rust_path.clone())
-        .collect::<BTreeSet<_>>();
-    for dependency in projected {
-        let mut retained = Vec::with_capacity(dependency.items.len());
-        for item in std::mem::take(&mut dependency.items) {
-            let declined_bound = match &item.kind {
-                ProjectedKind::Function(function) => function
-                    .parameters
-                    .iter()
-                    .filter_map(|parameter| parameter.generic_interface.as_ref())
-                    .find(|bound| !projected_interfaces.contains(*bound))
-                    .cloned(),
-                _ => None,
-            };
-            if let Some(bound) = declined_bound {
-                dependency.declined.push(DeclinedItem {
-                    rust_path: item.rust_path,
-                    reason: format!("generic input references declined interface `{bound}`"),
-                });
-            } else {
-                retained.push(item);
-            }
-        }
-        dependency.items = retained;
-    }
-}
-
-// Production rustdoc parsing is centralized in `generate_rustdoc`; this byte-oriented helper
-// remains only for focused decoder and projection unit tests.
-#[cfg(test)]
-fn parse_rustdoc(
-    dependency: &RustDependency,
-    bytes: &[u8],
-) -> Result<RustdocCrate, ProjectionError> {
-    terrane_rust_analysis::parse_rustdoc(&dependency.package, bytes, RUSTDOC_TOOLCHAIN).map_err(
-        |error| ProjectionError {
-            message: error.message,
-        },
-    )
-}
-
 fn rustdoc_public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
     terrane_rust_analysis::public_paths(document)
 }
@@ -2578,42 +2502,6 @@ pub fn namespace_for_rust_path(dependency: &ProjectedDependency, rust_path: &str
                 .collect::<Vec<_>>()
                 .join("/")
         )
-    }
-}
-
-fn safe_parameter_name(name: &str) -> String {
-    if matches!(
-        name,
-        "as" | "await"
-            | "case"
-            | "catch"
-            | "class"
-            | "else"
-            | "finally"
-            | "for"
-            | "function"
-            | "goto"
-            | "if"
-            | "import"
-            | "is"
-            | "label"
-            | "linear"
-            | "match"
-            | "move"
-            | "namespace"
-            | "ref"
-            | "return"
-            | "rust"
-            | "throw"
-            | "unsafe"
-            | "use"
-            | "when"
-            | "select"
-            | "yield"
-    ) {
-        format!("{name}_")
-    } else {
-        name.to_owned()
     }
 }
 

@@ -563,7 +563,7 @@ pub(super) fn merge_projected_trait_operations(
 }
 #[expect(
     clippy::too_many_lines,
-    reason = "external provided trait methods retain exact owner and generic contracts"
+    reason = "implemented foreign traits are projected from complete owner and method rustdoc metadata"
 )]
 pub(super) fn project_external_provided_trait_methods(
     projected: &mut [ProjectedDependency],

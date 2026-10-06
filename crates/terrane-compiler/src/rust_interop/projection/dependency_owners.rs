@@ -1323,3 +1323,5 @@ pub(super) fn rewrite_projected_owner_root(
         }
     }
 }
+#[cfg(test)]
+mod tests;

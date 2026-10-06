@@ -248,3 +248,5 @@ pub(super) fn containment() -> Containment {
     });
     *CONTAINMENT
 }
+#[cfg(test)]
+mod tests;

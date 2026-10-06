@@ -6,12 +6,11 @@ use std::fs;
 use std::path::Path;
 
 use super::{
-    CargoExecution, CargoToolchain, ProjectedKind, Projection, ProjectionCacheIdentity,
-    ProjectionError, ProjectionResolution, ProjectionSource, PublishedProjection, ResolutionEvent,
-    ResolutionOutcome, ResolutionSource, ResolutionStatus, RustDependency, aliases,
-    apply_namespace_overlays, borrowed_graph, cache_identity, canonicalize_projected_type_names,
-    containment, decline_functions_with_missing_generic_interfaces,
-    decline_unnameable_bound_owners, decline_unproven_projected_interfaces,
+    CargoExecution, CargoToolchain, DeclinedItem, ProjectedDependency, ProjectedKind, Projection,
+    ProjectionCacheIdentity, ProjectionError, ProjectionResolution, ProjectionSource,
+    PublishedProjection, ResolutionEvent, ResolutionOutcome, ResolutionSource, ResolutionStatus,
+    RustDependency, aliases, apply_namespace_overlays, borrowed_graph, cache_identity,
+    canonicalize_projected_type_names, containment, decline_unnameable_bound_owners,
     decline_unrepresentable_error_types, enforce_transitive_reachability,
     external_reexport_rustdocs, fetch_remote_projection, foreign_impls, generate_rustdoc, history,
     namespace_overlays_from_metadata, normalize_projected_items, persist_dependency_lock,
@@ -433,3 +432,63 @@ pub fn resolve(
     remove_legacy_projection_cache(&workspace)?;
     Ok(projection)
 }
+fn decline_unproven_projected_interfaces(
+    projected: &mut [ProjectedDependency],
+    evidence: &[crate::rust_interop::ImplProbeEvidence],
+) {
+    for evidence in evidence
+        .iter()
+        .filter(|evidence| evidence.answer != crate::rust_interop::ProbeAnswer::Yes)
+    {
+        for dependency in &mut *projected {
+            let Some(index) = dependency
+                .items
+                .iter()
+                .position(|item| item.rust_path == evidence.question.label)
+            else {
+                continue;
+            };
+            let item = dependency.items.remove(index);
+            dependency.declined.push(DeclinedItem {
+                rust_path: item.rust_path,
+                reason:
+                    "trait implementation signature is not representable against the resolved dependency"
+                        .to_owned(),
+            });
+            break;
+        }
+    }
+}
+fn decline_functions_with_missing_generic_interfaces(projected: &mut [ProjectedDependency]) {
+    let projected_interfaces = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
+        .map(|item| item.rust_path.clone())
+        .collect::<BTreeSet<_>>();
+    for dependency in projected {
+        let mut retained = Vec::with_capacity(dependency.items.len());
+        for item in std::mem::take(&mut dependency.items) {
+            let declined_bound = match &item.kind {
+                ProjectedKind::Function(function) => function
+                    .parameters
+                    .iter()
+                    .filter_map(|parameter| parameter.generic_interface.as_ref())
+                    .find(|bound| !projected_interfaces.contains(*bound))
+                    .cloned(),
+                _ => None,
+            };
+            if let Some(bound) = declined_bound {
+                dependency.declined.push(DeclinedItem {
+                    rust_path: item.rust_path,
+                    reason: format!("generic input references declined interface `{bound}`"),
+                });
+            } else {
+                retained.push(item);
+            }
+        }
+        dependency.items = retained;
+    }
+}
+#[cfg(test)]
+mod tests;

@@ -94,7 +94,7 @@ pub(super) fn generate_rustdoc(
     })
 }
 
-pub(super) fn cached_owner_rustdoc(
+fn cached_owner_rustdoc(
     workspace: &Path,
     package_spec: &str,
     crate_name: &str,
@@ -729,7 +729,7 @@ pub(super) fn external_reexport_rustdocs(
         })
         .collect()
 }
-pub(super) fn resolved_library_package(
+fn resolved_library_package(
     metadata: &serde_json::Value,
     crate_name: &str,
 ) -> Result<(String, String), String> {
@@ -789,3 +789,5 @@ pub(super) fn resolved_library_package(
         )),
     }
 }
+#[cfg(test)]
+mod tests;

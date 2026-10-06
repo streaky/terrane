@@ -725,6 +725,7 @@ fn alias_generics(
 #[cfg(test)]
 mod tests {
     use super::super::ItemSummary;
+    use super::super::reexports::ReexportProvider;
     use super::super::{
         Containment, ProjectedNativeAlias, Projection, ProjectionResolution, ProjectionSource,
     };
@@ -1271,7 +1272,7 @@ mod tests {
         facade.index.remove(&Id(1));
         let reexport = ReexportRustdoc {
             document,
-            providers: vec![super::super::ReexportProvider {
+            providers: vec![ReexportProvider {
                 dependency_index: 0,
                 public_paths: BTreeMap::from([(Id(1), "facade::extract::Alias".to_owned())]),
                 canonical_public_paths: BTreeMap::new(),

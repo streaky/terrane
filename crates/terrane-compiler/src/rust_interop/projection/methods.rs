@@ -503,7 +503,7 @@ pub(super) fn project_methods(
     constants.sort_by(|left, right| left.name.cmp(&right.name));
     (methods, trait_methods, constants, declined)
 }
-pub(super) fn is_internal_rust_protocol_method(trait_path: &str, method: &str) -> bool {
+fn is_internal_rust_protocol_method(trait_path: &str, method: &str) -> bool {
     (method == "fmt"
         && (trait_path.ends_with("::fmt::Debug") || trait_path.ends_with("::fmt::Display")))
         || (method == "hash" && trait_path.ends_with("::hash::Hash"))
@@ -689,3 +689,5 @@ pub(super) fn expand_output_alias(
         output = alias.type_.clone();
     }
 }
+#[cfg(test)]
+mod tests;

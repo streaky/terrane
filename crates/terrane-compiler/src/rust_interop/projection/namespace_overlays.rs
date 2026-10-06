@@ -310,3 +310,5 @@ pub(super) fn apply_namespace_overlays(
     }
     Ok(())
 }
+#[cfg(test)]
+mod tests;

@@ -12,10 +12,7 @@ use super::{
     render_resolved_path, resolved_name, resolved_path_name, type_contains_borrowed_ref,
     type_contains_lifetime_argument,
 };
-use super::{
-    expand_output_alias, projected_error_name, safe_parameter_name, type_arguments,
-    type_mentions_generic,
-};
+use super::{expand_output_alias, projected_error_name, type_arguments, type_mentions_generic};
 
 pub(super) fn project_function_with_generics(
     function: &Function,
@@ -865,5 +862,40 @@ pub(super) fn promote_async_endpoint_methods(methods: &mut [ProjectedFunction]) 
         {
             method.result = ProjectedType::AsyncSinkOutcome;
         }
+    }
+}
+fn safe_parameter_name(name: &str) -> String {
+    if matches!(
+        name,
+        "as" | "await"
+            | "case"
+            | "catch"
+            | "class"
+            | "else"
+            | "finally"
+            | "for"
+            | "function"
+            | "goto"
+            | "if"
+            | "import"
+            | "is"
+            | "label"
+            | "linear"
+            | "match"
+            | "move"
+            | "namespace"
+            | "ref"
+            | "return"
+            | "rust"
+            | "throw"
+            | "unsafe"
+            | "use"
+            | "when"
+            | "select"
+            | "yield"
+    ) {
+        format!("{name}_")
+    } else {
+        name.to_owned()
     }
 }

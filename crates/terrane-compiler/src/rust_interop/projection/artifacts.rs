@@ -126,7 +126,7 @@ fn artifact_dependency_mismatch(
     None
 }
 
-pub(super) fn validate_projection_artifact(
+fn validate_projection_artifact(
     artifact: ProjectionArtifact,
     identity: &str,
     target: &str,
@@ -328,3 +328,5 @@ pub(super) fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), Projec
     }
     fs::write(path, content).map_err(io_error("write dependency projection input"))
 }
+#[cfg(test)]
+mod tests;

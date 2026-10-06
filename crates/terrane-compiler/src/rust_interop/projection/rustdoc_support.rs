@@ -286,3 +286,5 @@ pub(super) fn resolved_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Opti
         _ => None,
     }
 }
+#[cfg(test)]
+mod tests;
