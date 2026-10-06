@@ -679,6 +679,13 @@ before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are t
 ecosystem witness. Exact higher-ranked native callback input types now survive specialization,
 and source `ref` parameters receive invocation-local converted values.
 
+**Resolved: mutable native-reference parameters in function-typed slots.**
+
+Review N3 exposed native-mutating named and anonymous callables entering shared-reference function-typed storage and leaking Rust E0631. Source checking now conservatively rejects those incompatible destinations with T0140, including arguments, initial bindings, reassignment, returns, and class fields. Mutable native-reference requirements survive callable specialization; final boundary validation runs after native mutation inference.
+
+Focused rejection witnesses cover named and anonymous function-typed arguments, conditional reassignment, initial binding, return, field initialization, and field assignment. Direct native mutation, inferred aliases, shared observers, native-selected mutable callbacks, and ordinary scalar callable behavior remain supported. This does not add mutable-reference syntax or a mutable erased function-slot ABI.
+
+
 Implemented: a selected blanket callback recipe may retain an invocation-lifetime-dependent
 terminal entirely in its result obligation. Call analysis jointly selects the owned Terrane callback
 result and every correlated native parameter, then the projection oracle proves the complete

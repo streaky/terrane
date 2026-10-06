@@ -1,0 +1,9 @@
+namespace app
+from /deps/http import HeaderValue
+from /callbacks import mark-sensitive
+function make-action function from ref HeaderValue to bool;
+    return mark-sensitive
+function main;
+    action = make-action;
+    value = HeaderValue::from_str; 'value'
+    action; ref value

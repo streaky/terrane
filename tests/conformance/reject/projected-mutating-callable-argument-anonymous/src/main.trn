@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/http import HeaderValue
+
+function apply-header bool; action function from ref HeaderValue to bool, header ref HeaderValue
+    return action; header
+
+function main;
+    update = function bool; header ref HeaderValue
+        header.set_sensitive; true
+        return true
+    value = HeaderValue::from_str; 'value'
+    apply-header; update, ref value

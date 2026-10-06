@@ -1191,6 +1191,7 @@ fn analyze_parsed_with_projection(
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
+    record_binding_mutability(&mut semantic);
     populate_function_aliases(&mut semantic);
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     analyze_selections(&mut semantic)?;
@@ -1199,7 +1200,6 @@ fn analyze_parsed_with_projection(
     validate_global_definite_assignment(&semantic)?;
     validate_calls(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
-    record_binding_mutability(&mut semantic);
     validate_discarded_temporary_mutations(&semantic)?;
     validate_definite_assignment(&semantic)?;
     super::initialization::validate(&mut semantic)?;

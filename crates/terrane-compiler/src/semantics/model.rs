@@ -622,6 +622,7 @@ pub enum TaskTransferability {
 pub struct CallableParameterType {
     value_type: ElementType,
     variadic: bool,
+    pub(super) requires_mutable_reference: bool,
 }
 
 impl CallableParameterType {
@@ -629,6 +630,7 @@ impl CallableParameterType {
         Self {
             value_type,
             variadic: false,
+            requires_mutable_reference: false,
         }
     }
 
@@ -636,6 +638,7 @@ impl CallableParameterType {
         Self {
             value_type,
             variadic: true,
+            requires_mutable_reference: false,
         }
     }
 
@@ -659,6 +662,7 @@ impl CallableParameterType {
         Self {
             value_type,
             variadic: self.variadic,
+            requires_mutable_reference: self.requires_mutable_reference,
         }
     }
 
@@ -1551,12 +1555,18 @@ impl ParameterContract {
 
     pub(crate) fn callable_type(&self) -> Option<CallableParameterType> {
         self.value_type.clone().map(|value_type| {
+            let requires_mutable_reference = self.mutable
+                && matches!(&value_type, ValueType::Reference(inner)
+                    if matches!(inner.value_type_ref(), ValueType::Object(identity)
+                        if identity.native_projection.is_some() || identity.namespace.starts_with("/deps/")));
             let element = ElementType::new(value_type);
-            if self.variadic {
+            let mut parameter = if self.variadic {
                 CallableParameterType::variadic(element)
             } else {
                 CallableParameterType::fixed(element)
-            }
+            };
+            parameter.requires_mutable_reference = requires_mutable_reference;
+            parameter
         })
     }
 }

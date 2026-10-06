@@ -1291,6 +1291,16 @@ pub(super) fn validate_value_destination(
             mismatch_code,
         );
     }
+    if native_mutating_callable_destination(&expected, &actual) {
+        return Err(failure(
+            source,
+            "T0140",
+            format!(
+                "native-mutating callable cannot enter `{name}`: function-typed storage requires shared native references"
+            ),
+            value.span,
+        ));
+    }
     if value_types_compatible(objects, &expected, &actual) {
         return Ok(());
     }
@@ -1304,6 +1314,56 @@ pub(super) fn validate_value_destination(
         ),
         value.span,
     ))
+}
+
+fn native_mutating_callable_destination(expected: &ValueType, actual: &ValueType) -> bool {
+    match (expected, actual) {
+        (
+            ValueType::Function(expected, expected_result, _),
+            ValueType::Function(actual, actual_result, _),
+        )
+        | (
+            ValueType::AsyncFunction(expected, expected_result, _, _),
+            ValueType::AsyncFunction(actual, actual_result, _, _),
+        ) => {
+            expected.iter().zip(actual).any(|(expected, actual)| {
+                actual.requires_mutable_reference
+                    && matches!(expected.value_type_ref(), ValueType::Reference(_))
+                    || native_mutating_callable_destination(
+                        expected.value_type_ref(),
+                        actual.value_type_ref(),
+                    )
+            }) || native_mutating_callable_destination(
+                expected_result.value_type_ref(),
+                actual_result.value_type_ref(),
+            )
+        }
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            native_mutating_callable_destination(expected, actual)
+        }
+        (ValueType::List(expected), ValueType::List(actual))
+        | (ValueType::Set(expected), ValueType::Set(actual))
+        | (ValueType::Tuple(expected, _), ValueType::Tuple(actual, _)) => {
+            native_mutating_callable_destination(expected.value_type_ref(), actual.value_type_ref())
+        }
+        (
+            ValueType::Map(expected_key, expected_value),
+            ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::UnorderedMap(expected_key, expected_value),
+            ValueType::UnorderedMap(actual_key, actual_value),
+        ) => {
+            native_mutating_callable_destination(
+                expected_key.value_type_ref(),
+                actual_key.value_type_ref(),
+            ) || native_mutating_callable_destination(
+                expected_value.value_type_ref(),
+                actual_value.value_type_ref(),
+            )
+        }
+        _ => false,
+    }
 }
 
 fn callable_types_compatible(

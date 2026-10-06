@@ -412,6 +412,13 @@ pub(super) fn validate_call_nodes<'a>(
                 arguments,
                 specialized.as_ref().unwrap_or(contract),
                 scoped_bindings,
+                projected_function_for_call(
+                    package,
+                    unit,
+                    callee,
+                    crate::syntax::call_is_unsafe(node),
+                )
+                .is_some(),
             )?;
         }
     }
@@ -1223,11 +1230,24 @@ fn bind_destination_selected_callback(
     Ok(true)
 }
 
+fn defer_native_callback_borrow_validation(value: &mut ValueType, native_callback: bool) {
+    // The selected native callback ABI validator owns this borrow authority.
+    if native_callback
+        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
+            value
+    {
+        for parameter in parameters {
+            parameter.requires_mutable_reference = false;
+        }
+    }
+}
+
 pub(super) fn validate_call_arguments(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
     contract: &FunctionContract,
     bindings: &[TypedBinding],
+    native_callback: bool,
 ) -> Result<(), SemanticFailure> {
     let mut bound = BTreeSet::new();
     let mut generic_bindings = BTreeMap::new();
@@ -1264,7 +1284,8 @@ pub(super) fn validate_call_arguments(
                     &parameter.name,
                     bindings,
                 )?;
-            } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            } else if let Some(mut actual) = infer_value_type(unit, value, bindings)? {
+                defer_native_callback_borrow_validation(&mut actual, native_callback);
                 if bind_destination_selected_callback(
                     &expected,
                     &actual,

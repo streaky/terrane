@@ -1731,20 +1731,15 @@ pub(super) fn validate_class_field_initializers(
                                 initializer.span,
                             )
                         })?;
-                if !value_types_compatible(&effective.unit.descriptors, &field.value_type, &actual)
-                {
-                    return Err(failure(
-                        &effective.unit.source,
-                        "T0060",
-                        format!(
-                            "class field `{}` requires `{}`, found `{}`",
-                            field.name,
-                            diagnostic_value_type(&effective.unit.descriptors, &field.value_type),
-                            diagnostic_value_type(&effective.unit.descriptors, &actual)
-                        ),
-                        initializer.span,
-                    ));
-                }
+                validate_value_destination(
+                    &effective.unit.source,
+                    &effective.unit.descriptors,
+                    &field.name,
+                    field.value_type.clone(),
+                    actual,
+                    initializer,
+                    "T0060",
+                )?;
                 continue;
             }
             if super::bindings::declaration_is_constant(package, field.span)

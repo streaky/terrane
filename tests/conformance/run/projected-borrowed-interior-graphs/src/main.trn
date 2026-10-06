@@ -10,6 +10,9 @@ function entry-value int; entry ref Entry
 function request-view host-invocation-scoped-native; request ref Request
     return make_view; ((request.extensions;).entry;)
 
+function observe-header bool; action function from ref HeaderValue to bool, header ref HeaderValue
+    return action; header
+
 function main;
     request = Request::new; 41
     request.extensions;
@@ -86,3 +89,12 @@ function main;
     anonymous-update; ref direct
     print; (direct.is_sensitive;)
     print; (anonymous-read; ref direct)
+    print; (observe-header; read-sensitive, ref direct)
+    aliased-update = anonymous-update
+    aliased = HeaderValue::from_str; 'aliased'
+    aliased-update; ref aliased
+    print; (aliased.is_sensitive;)
+    named-update = mark-sensitive
+    named-target = HeaderValue::from_str; 'named'
+    named-update; ref named-target
+    print; (named-target.is_sensitive;)
