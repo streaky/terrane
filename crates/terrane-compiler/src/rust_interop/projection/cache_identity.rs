@@ -144,3 +144,5 @@ fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionE
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
+#[cfg(test)]
+mod tests;

@@ -1350,3 +1350,5 @@ pub(super) fn rust_bound_roots(bound: &str) -> BTreeSet<String> {
         })
         .collect()
 }
+#[cfg(test)]
+mod tests;

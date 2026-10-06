@@ -264,3 +264,5 @@ pub(super) fn apply_projection_history(
     bytes.push(b'\n');
     write_if_changed(&path, &bytes)
 }
+#[cfg(test)]
+mod tests;

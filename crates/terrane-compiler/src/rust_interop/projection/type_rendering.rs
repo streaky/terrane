@@ -344,3 +344,5 @@ fn split_top_level_arguments(arguments: &str) -> Vec<&str> {
     split.push(arguments[start..].trim());
     split
 }
+#[cfg(test)]
+mod tests;
