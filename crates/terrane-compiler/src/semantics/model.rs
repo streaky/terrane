@@ -343,7 +343,7 @@ pub(super) fn iteration_target_bindings(
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
@@ -356,6 +356,26 @@ pub struct ObjectIdentity {
     pub(crate) native_arguments: BTreeMap<String, ValueType>,
     pub(crate) native_arguments_key: Option<String>,
     pub(crate) native_parameters: Vec<String>,
+}
+
+// Identity keys format nested values with Debug, so derived parameter metadata
+// must also stay out of Debug to avoid affecting enclosing identities.
+impl std::fmt::Debug for ObjectIdentity {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ObjectIdentity")
+            .field("namespace", &self.namespace)
+            .field("name", &self.name)
+            .field("is_unsafe", &self.is_unsafe)
+            .field("application", &self.application)
+            .field("application_key", &self.application_key)
+            .field("type_arguments", &self.type_arguments)
+            .field("type_arguments_key", &self.type_arguments_key)
+            .field("native_projection", &self.native_projection)
+            .field("native_arguments", &self.native_arguments)
+            .field("native_arguments_key", &self.native_arguments_key)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ObjectIdentity {
@@ -474,6 +494,29 @@ impl std::fmt::Display for ObjectIdentity {
         Ok(())
     }
 }
+impl PartialEq for ObjectIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        (
+            &self.namespace,
+            &self.name,
+            self.application_key.as_deref(),
+            self.type_arguments_key.as_deref(),
+            self.is_unsafe,
+            self.native_projection.as_deref(),
+            self.native_arguments_key.as_deref(),
+        ) == (
+            &other.namespace,
+            &other.name,
+            other.application_key.as_deref(),
+            other.type_arguments_key.as_deref(),
+            other.is_unsafe,
+            other.native_projection.as_deref(),
+            other.native_arguments_key.as_deref(),
+        )
+    }
+}
+
+impl Eq for ObjectIdentity {}
 
 impl Ord for ObjectIdentity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -485,7 +528,6 @@ impl Ord for ObjectIdentity {
             self.is_unsafe,
             self.native_projection.as_deref(),
             self.native_arguments_key.as_deref(),
-            &self.native_parameters,
         )
             .cmp(&(
                 &other.namespace,
@@ -495,7 +537,6 @@ impl Ord for ObjectIdentity {
                 other.is_unsafe,
                 other.native_projection.as_deref(),
                 other.native_arguments_key.as_deref(),
-                &other.native_parameters,
             ))
     }
 }
@@ -1796,4 +1837,44 @@ pub(super) fn index_enclosing_function_spans(root: &SyntaxNode) -> BTreeMap<usiz
     let mut spans = BTreeMap::new();
     visit(root, None, &mut spans);
     spans
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::{ObjectIdentity, ValueType};
+    use crate::ScalarType;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn derived_native_parameter_order_does_not_change_identity() {
+        let identity = ObjectIdentity::new("/deps/witness", "Boxed")
+            .with_type_arguments(vec![ValueType::Scalar(ScalarType::Int)]);
+        let annotated = identity
+            .clone()
+            .with_native_parameters(vec!["T".to_owned()]);
+        assert_eq!(identity, annotated);
+        assert_eq!(identity.cmp(&annotated), std::cmp::Ordering::Equal);
+        let wrappers: [fn(ValueType) -> ObjectIdentity; 3] = [
+            |value| ObjectIdentity::new("/witness", "Outer").with_type_arguments(vec![value]),
+            |value| ObjectIdentity::new("/witness", "Outer").with_application(value),
+            |value| {
+                ObjectIdentity::new("/witness", "Outer").with_native_arguments(
+                    std::collections::BTreeMap::from([("T".to_owned(), value)]),
+                )
+            },
+        ];
+        for wrap in wrappers {
+            let left = wrap(ValueType::Object(identity.clone()));
+            let right = wrap(ValueType::Object(annotated.clone()));
+            assert_eq!(left, right);
+            assert_eq!(left.cmp(&right), std::cmp::Ordering::Equal);
+        }
+        let identities = BTreeSet::from([identity.clone(), annotated]);
+        assert!(identities.contains(&identity));
+        assert_eq!(identities.len(), 1);
+        let different = ObjectIdentity::new("/deps/witness", "Boxed")
+            .with_type_arguments(vec![ValueType::Scalar(ScalarType::String)]);
+        assert_ne!(identity, different);
+        assert_ne!(identity.cmp(&different), std::cmp::Ordering::Equal);
+    }
 }

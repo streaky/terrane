@@ -2017,16 +2017,35 @@ impl Emitter<'_> {
                 .last()
                 .filter(|parameter| parameter.is_variadic());
             let fixed = parameters.len() - usize::from(variadic.is_some());
+            let callable = crate::semantics::callback_contract(self.package, self.unit, callee);
             values = arguments
                 .children
                 .iter()
                 .take(fixed)
                 .zip(&parameters)
-                .map(|(argument, parameter)| {
-                    self.expression_as(
-                        argument.children.last().unwrap_or(argument),
-                        parameter.value_type(),
-                    )
+                .enumerate()
+                .map(|(index, (argument, parameter))| {
+                    let value = argument.children.last().unwrap_or(argument);
+                    let mutable_native_reference = callable.is_some_and(|contract| {
+                        index < contract.parameters.len()
+                            && self.mutable_native_reference_parameter(
+                                contract,
+                                index,
+                                Some(parameter.value_type_ref()),
+                            )
+                    });
+                    if mutable_native_reference {
+                        let receiver = if value.kind == SyntaxKind::UnaryExpression
+                            && self.unary_operator(value).as_deref() == Some("ref")
+                        {
+                            value.children.last().unwrap_or(value)
+                        } else {
+                            value
+                        };
+                        format!("&mut {}", self.native_receiver_expression(receiver, true))
+                    } else {
+                        self.expression_as(value, parameter.value_type())
+                    }
                 })
                 .collect();
             if let Some(parameter) = variadic {

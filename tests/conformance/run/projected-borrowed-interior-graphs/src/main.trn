@@ -81,3 +81,8 @@ function main;
     final bool|none = (headers.get; 'forwarded').map; read-sensitive
     if final != none
         print; final
+
+    direct = HeaderValue::from_str; 'direct'
+    anonymous-update; ref direct
+    print; (direct.is_sensitive;)
+    print; (anonymous-read; ref direct)
