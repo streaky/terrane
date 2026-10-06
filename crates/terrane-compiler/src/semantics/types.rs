@@ -1316,6 +1316,22 @@ pub(super) fn validate_value_destination(
     ))
 }
 
+pub(super) fn validate_inferred_collection_storage(
+    source: &SourceFile,
+    inferred: &ValueType,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if native_mutating_callable_destination(inferred, inferred) {
+        return Err(failure(
+            source,
+            "T0140",
+            "native-mutating callable cannot enter `collection`: function-typed storage requires shared native references",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 fn native_mutating_callable_destination(expected: &ValueType, actual: &ValueType) -> bool {
     match (expected, actual) {
         (
@@ -1343,12 +1359,17 @@ fn native_mutating_callable_destination(expected: &ValueType, actual: &ValueType
         }
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
+        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
         | (ValueType::Tuple(expected, _), ValueType::Tuple(actual, _)) => {
             native_mutating_callable_destination(expected.value_type_ref(), actual.value_type_ref())
         }
         (
             ValueType::Map(expected_key, expected_value),
             ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::Entry(expected_key, expected_value),
+            ValueType::Entry(actual_key, actual_value),
         )
         | (
             ValueType::UnorderedMap(expected_key, expected_value),

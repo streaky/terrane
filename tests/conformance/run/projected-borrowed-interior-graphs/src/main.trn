@@ -3,6 +3,7 @@ namespace app
 from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
+from /core/collections import list
 
 function entry-value int; entry ref Entry
     return entry.value;
@@ -98,3 +99,6 @@ function main;
     named-target = HeaderValue::from_str; 'named'
     named-update; ref named-target
     print; (named-target.is_sensitive;)
+    observers = list; (read-sensitive)
+    for observer in observers
+        print; (observer; ref named-target)

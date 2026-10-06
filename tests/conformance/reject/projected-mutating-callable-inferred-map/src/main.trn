@@ -1,0 +1,5 @@
+namespace app
+from /core/collections import list, tuple, map, unordered-map, entry
+from /callbacks import mark-sensitive
+function main;
+    actions = map; operation=mark-sensitive

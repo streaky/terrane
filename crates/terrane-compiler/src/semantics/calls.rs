@@ -176,6 +176,12 @@ pub(super) fn validate_call_nodes<'a>(
     }
     if node.kind == SyntaxKind::CallExpression {
         let inferred = infer_value_type(unit, node, scoped_bindings)?;
+        // Collection elements always use erased callable storage, even when inferred.
+        if let Some(expected) = inferred.as_ref()
+            && collection_constructor_matches(unit, node, expected, scoped_bindings)
+        {
+            super::types::validate_inferred_collection_storage(&unit.source, expected, node)?;
+        }
         if inferred.is_none()
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
