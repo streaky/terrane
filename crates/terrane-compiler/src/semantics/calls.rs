@@ -176,6 +176,12 @@ pub(super) fn validate_call_nodes<'a>(
     }
     if node.kind == SyntaxKind::CallExpression {
         let inferred = infer_value_type(unit, node, scoped_bindings)?;
+        // Collection elements always use erased callable storage, even when inferred.
+        if let Some(expected) = inferred.as_ref()
+            && collection_constructor_matches(unit, node, expected, scoped_bindings)
+        {
+            super::types::validate_inferred_collection_storage(&unit.source, expected, node)?;
+        }
         if inferred.is_none()
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
@@ -412,6 +418,13 @@ pub(super) fn validate_call_nodes<'a>(
                 arguments,
                 specialized.as_ref().unwrap_or(contract),
                 scoped_bindings,
+                projected_function_for_call(
+                    package,
+                    unit,
+                    callee,
+                    crate::syntax::call_is_unsafe(node),
+                )
+                .is_some(),
             )?;
         }
     }
@@ -818,6 +831,28 @@ pub(super) fn validate_resolved_assignment(
     )
 }
 
+pub(super) fn bind_projected_native_arguments(
+    expected: &ObjectIdentity,
+    actual: &ObjectIdentity,
+    bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<(), String> {
+    for (name, expected_argument) in &expected.native_arguments {
+        let actual_argument = expected
+            .corresponding_native_argument(actual, name)
+            .ok_or_else(|| name.clone())?;
+        bind_projected_generics(expected_argument, actual_argument, bindings)?;
+    }
+    for (name, actual_argument) in &actual.native_arguments {
+        if !expected.native_arguments.contains_key(name) {
+            let expected_argument = actual
+                .corresponding_native_argument(expected, name)
+                .ok_or_else(|| name.clone())?;
+            bind_projected_generics(expected_argument, actual_argument, bindings)?;
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn bind_projected_generics(
     expected: &ValueType,
     actual: &ValueType,
@@ -890,14 +925,7 @@ pub(super) fn bind_projected_generics(
             for (expected, actual) in expected.type_arguments.iter().zip(&actual.type_arguments) {
                 bind_projected_generics(expected, actual, bindings)?;
             }
-            for (name, expected) in &expected.native_arguments {
-                let actual = actual
-                    .native_arguments
-                    .get(name)
-                    .ok_or_else(|| name.clone())?;
-                bind_projected_generics(expected, actual, bindings)?;
-            }
-            Ok(())
+            bind_projected_native_arguments(expected, actual, bindings)
         }
         (
             ValueType::Function(expected_parameters, expected_result, _),
@@ -1208,11 +1236,24 @@ fn bind_destination_selected_callback(
     Ok(true)
 }
 
+fn defer_native_callback_borrow_validation(value: &mut ValueType, native_callback: bool) {
+    // The selected native callback ABI validator owns this borrow authority.
+    if native_callback
+        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
+            value
+    {
+        for parameter in parameters {
+            parameter.requires_mutable_reference = false;
+        }
+    }
+}
+
 pub(super) fn validate_call_arguments(
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
     contract: &FunctionContract,
     bindings: &[TypedBinding],
+    native_callback: bool,
 ) -> Result<(), SemanticFailure> {
     let mut bound = BTreeSet::new();
     let mut generic_bindings = BTreeMap::new();
@@ -1249,7 +1290,8 @@ pub(super) fn validate_call_arguments(
                     &parameter.name,
                     bindings,
                 )?;
-            } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            } else if let Some(mut actual) = infer_value_type(unit, value, bindings)? {
+                defer_native_callback_borrow_validation(&mut actual, native_callback);
                 if bind_destination_selected_callback(
                     &expected,
                     &actual,
@@ -1553,5 +1595,53 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn nominal_arguments_bind_without_redundant_native_metadata() {
+        use crate::semantics::ObjectIdentity;
+
+        let generic = ValueType::ProjectedGeneric("T".to_owned());
+        let expected = ValueType::Object(
+            ObjectIdentity::new("/deps/witness", "Container")
+                .with_type_arguments(vec![generic.clone()])
+                .with_native_parameters(vec!["T".to_owned()])
+                .with_native_arguments(BTreeMap::from([("T".to_owned(), generic)])),
+        );
+        let integer = ValueType::Scalar(ScalarType::Int);
+        let actual = ValueType::Object(
+            ObjectIdentity::new("/deps/witness", "Container")
+                .with_type_arguments(vec![integer.clone()]),
+        );
+        let mut bindings = BTreeMap::new();
+        bind_projected_generics(&expected, &actual, &mut bindings).unwrap();
+        assert_eq!(bindings["T"], integer);
+        bindings.insert("T".to_owned(), ValueType::Scalar(ScalarType::String));
+        assert!(bind_projected_generics(&expected, &actual, &mut bindings).is_err());
+
+        let hidden = ValueType::Object(
+            ObjectIdentity::new("/deps/witness", "Container")
+                .with_type_arguments(vec![ValueType::Scalar(ScalarType::Int)])
+                .with_native_arguments(BTreeMap::from([(
+                    "Hidden".to_owned(),
+                    ValueType::ProjectedGeneric("Hidden".to_owned()),
+                )])),
+        );
+        assert!(bind_projected_generics(&hidden, &actual, &mut BTreeMap::new()).is_err());
+    }
+
+    #[test]
+    fn native_binding_rejects_equal_valued_hidden_arguments() {
+        use super::bind_projected_native_arguments;
+        use crate::semantics::ObjectIdentity;
+        let integer = ValueType::Scalar(ScalarType::Int);
+        let written = ObjectIdentity::new("/deps/witness", "Container")
+            .with_type_arguments(vec![integer.clone()]);
+        let hidden = written
+            .clone()
+            .with_native_parameters(vec!["T".to_owned()])
+            .with_native_arguments(BTreeMap::from([("Hidden".to_owned(), integer)]));
+        assert!(bind_projected_native_arguments(&hidden, &written, &mut BTreeMap::new()).is_err());
+        assert!(bind_projected_native_arguments(&written, &hidden, &mut BTreeMap::new()).is_err());
     }
 }

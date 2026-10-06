@@ -1731,20 +1731,15 @@ pub(super) fn validate_class_field_initializers(
                                 initializer.span,
                             )
                         })?;
-                if !value_types_compatible(&effective.unit.descriptors, &field.value_type, &actual)
-                {
-                    return Err(failure(
-                        &effective.unit.source,
-                        "T0060",
-                        format!(
-                            "class field `{}` requires `{}`, found `{}`",
-                            field.name,
-                            diagnostic_value_type(&effective.unit.descriptors, &field.value_type),
-                            diagnostic_value_type(&effective.unit.descriptors, &actual)
-                        ),
-                        initializer.span,
-                    ));
-                }
+                validate_value_destination(
+                    &effective.unit.source,
+                    &effective.unit.descriptors,
+                    &format!("class field {}", field.name),
+                    field.value_type.clone(),
+                    actual,
+                    initializer,
+                    "T0060",
+                )?;
                 continue;
             }
             if super::bindings::declaration_is_constant(package, field.span)
@@ -2352,6 +2347,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                         application_key: interface_identity.application_key.clone(),
                         native_projection: interface_identity.native_projection.clone(),
                         native_arguments: interface_identity.native_arguments.clone(),
+                        native_parameters: interface_identity.native_parameters.clone(),
                         native_arguments_key: interface_identity.native_arguments_key.clone(),
                     };
                     if !object.interfaces.contains(&inherited) {
@@ -2401,6 +2397,7 @@ fn materialize_projected_interface_applications(package: &mut SemanticPackage) {
                 application_key: identity.application_key.clone(),
                 native_projection: identity.native_projection.clone(),
                 native_arguments: identity.native_arguments.clone(),
+                native_parameters: identity.native_parameters.clone(),
                 native_arguments_key: identity.native_arguments_key.clone(),
                 type_arguments: Vec::new(),
                 type_arguments_key: None,
@@ -6072,6 +6069,12 @@ fn closed_projected_foreign_value_type(
             close_projected_foreign_generic_arguments(package, generic_parameters, arguments)?;
         identity = identity
             .with_type_arguments(language_arguments)
+            .with_native_parameters(
+                generic_parameters
+                    .iter()
+                    .map(|parameter| parameter.name.clone())
+                    .collect(),
+            )
             .with_native_arguments(selections);
     } else if let Some(constructor) = package
         .projection
@@ -6353,6 +6356,32 @@ fn close_written_native_arguments(
     }
     Some((selections, substitutions))
 }
+fn close_nongeneric_native_nominal(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    rust_path: &str,
+) -> Option<ObjectIdentity> {
+    let constructor = crate::rust_ir::rust_type_constructor(rust_path)?;
+    if identity.native_projection.is_none()
+        && !package
+            .projection
+            .native_owner_aliases
+            .contains_key(&constructor)
+    {
+        // Compiler-owned protocol families have no Rustdoc nominal declaration.
+        return None;
+    }
+    let native = identity.native_projection.as_deref().unwrap_or(rust_path);
+    Some(
+        identity.clone().with_native_projection(
+            package
+                .projection
+                .canonical_native_type(native)
+                .into_owned(),
+        ),
+    )
+}
+
 pub(super) fn close_written_native_nominal(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
@@ -6385,28 +6414,7 @@ pub(super) fn close_written_native_nominal(
         return None;
     }
     if generic_parameters.is_empty() {
-        let constructor = crate::rust_ir::rust_type_constructor(&item.rust_path)?;
-        if identity.native_projection.is_none()
-            && !package
-                .projection
-                .native_owner_aliases
-                .contains_key(&constructor)
-        {
-            // Compiler-owned protocol families have no Rustdoc nominal declaration.
-            return None;
-        }
-        let native = identity
-            .native_projection
-            .as_deref()
-            .unwrap_or(&item.rust_path);
-        return Some(
-            identity.clone().with_native_projection(
-                package
-                    .projection
-                    .canonical_native_type(native)
-                    .into_owned(),
-            ),
-        );
+        return close_nongeneric_native_nominal(package, identity, &item.rust_path);
     }
     let (selections, substitutions) =
         close_written_native_arguments(package, generic_parameters, supplied_arguments)?;
@@ -6454,6 +6462,12 @@ pub(super) fn close_written_native_nominal(
                 generic_parameters
                     .iter()
                     .map(|parameter| selections[&parameter.name].clone())
+                    .collect(),
+            )
+            .with_native_parameters(
+                generic_parameters
+                    .iter()
+                    .map(|parameter| parameter.name.clone())
                     .collect(),
             )
             .with_native_arguments(selections)

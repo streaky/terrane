@@ -679,6 +679,17 @@ before Rust lowering. Axum's arity-indexed `Handler<T, S>` implementations are t
 ecosystem witness. Exact higher-ranked native callback input types now survive specialization,
 and source `ref` parameters receive invocation-local converted values.
 
+**Resolved: mutable native-reference parameters in function-typed slots.**
+
+Review N3 exposed native-mutating named and anonymous callables entering shared-reference function-typed storage and leaking Rust E0631. Source checking now conservatively rejects those incompatible destinations with T0140, including arguments, initial bindings, reassignment, returns, and class fields. Mutable native-reference requirements survive callable specialization; final boundary validation runs after native mutation inference.
+
+Focused rejection witnesses cover named and anonymous function-typed arguments, conditional reassignment, initial binding, return, field initialization, and field assignment. Direct native mutation, inferred aliases, shared observers, native-selected mutable callbacks, and ordinary scalar callable behavior remain supported. This does not add mutable-reference syntax or a mutable erased function-slot ABI.
+
+Review N4 extended the same rejection to inferred collection constructor elements, including lists, tuples, maps, unordered maps, entries, and nested constructors. Constructor validation runs after mutation inference regardless of whether a destination type was written. Shared native observers remain valid collection elements; this is not a mutable erased callable ABI.
+
+Review N5 and M2 close existing-collection storage boundaries: collection method element/value arguments and indexed assignment reuse destination compatibility validation, rejecting incompatible native mutators with T0140 rather than leaking Rust errors or displaying identical callable types in a T0046 mismatch.
+
+
 Implemented: a selected blanket callback recipe may retain an invocation-lifetime-dependent
 terminal entirely in its result obligation. Call analysis jointly selects the owned Terrane callback
 result and every correlated native parameter, then the projection oracle proves the complete

@@ -1,0 +1,18 @@
+namespace anonymous-mutable-parameters
+
+async function main;
+    shared = function int; value int
+        value = value + 1
+        return value
+    total int = 0
+    stateful = mutable function int; value int
+        value = value * 2
+        total = total + value
+        return total
+    later = async function int; value int
+        value = value + 3
+        return value
+    print; (shared; 4)
+    print; (stateful; 2)
+    print; (stateful; 3)
+    print; await (later; 4)

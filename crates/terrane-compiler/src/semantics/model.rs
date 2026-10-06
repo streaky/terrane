@@ -343,7 +343,7 @@ pub(super) fn iteration_target_bindings(
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
@@ -355,6 +355,27 @@ pub struct ObjectIdentity {
     pub(crate) native_projection: Option<String>,
     pub(crate) native_arguments: BTreeMap<String, ValueType>,
     pub(crate) native_arguments_key: Option<String>,
+    pub(crate) native_parameters: Vec<String>,
+}
+
+// Identity keys format nested values with Debug, so derived parameter metadata
+// must also stay out of Debug to avoid affecting enclosing identities.
+impl std::fmt::Debug for ObjectIdentity {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ObjectIdentity")
+            .field("namespace", &self.namespace)
+            .field("name", &self.name)
+            .field("is_unsafe", &self.is_unsafe)
+            .field("application", &self.application)
+            .field("application_key", &self.application_key)
+            .field("type_arguments", &self.type_arguments)
+            .field("type_arguments_key", &self.type_arguments_key)
+            .field("native_projection", &self.native_projection)
+            .field("native_arguments", &self.native_arguments)
+            .field("native_arguments_key", &self.native_arguments_key)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ObjectIdentity {
@@ -370,6 +391,7 @@ impl ObjectIdentity {
             native_projection: None,
             native_arguments: BTreeMap::new(),
             native_arguments_key: None,
+            native_parameters: Vec::new(),
         }
     }
 
@@ -406,6 +428,32 @@ impl ObjectIdentity {
         self.native_arguments_key = (!arguments.is_empty()).then(|| format!("{arguments:?}"));
         self.native_arguments = arguments;
         self
+    }
+
+    pub(crate) fn with_native_parameters(mut self, parameters: Vec<String>) -> Self {
+        self.native_parameters = parameters;
+        self
+    }
+
+    pub(crate) fn corresponding_native_argument<'a>(
+        &self,
+        other: &'a Self,
+        name: &str,
+    ) -> Option<&'a ValueType> {
+        if let Some(argument) = other.native_arguments.get(name) {
+            return Some(argument);
+        }
+        let index = self
+            .native_parameters
+            .iter()
+            .position(|parameter| parameter == name)?;
+        if self.type_arguments.get(index) != self.native_arguments.get(name)
+            || (!other.native_parameters.is_empty()
+                && other.native_parameters.get(index).map(String::as_str) != Some(name))
+        {
+            return None;
+        }
+        other.type_arguments.get(index)
     }
 }
 
@@ -446,6 +494,29 @@ impl std::fmt::Display for ObjectIdentity {
         Ok(())
     }
 }
+impl PartialEq for ObjectIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        (
+            &self.namespace,
+            &self.name,
+            self.application_key.as_deref(),
+            self.type_arguments_key.as_deref(),
+            self.is_unsafe,
+            self.native_projection.as_deref(),
+            self.native_arguments_key.as_deref(),
+        ) == (
+            &other.namespace,
+            &other.name,
+            other.application_key.as_deref(),
+            other.type_arguments_key.as_deref(),
+            other.is_unsafe,
+            other.native_projection.as_deref(),
+            other.native_arguments_key.as_deref(),
+        )
+    }
+}
+
+impl Eq for ObjectIdentity {}
 
 impl Ord for ObjectIdentity {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -551,6 +622,7 @@ pub enum TaskTransferability {
 pub struct CallableParameterType {
     value_type: ElementType,
     variadic: bool,
+    pub(super) requires_mutable_reference: bool,
 }
 
 impl CallableParameterType {
@@ -558,6 +630,7 @@ impl CallableParameterType {
         Self {
             value_type,
             variadic: false,
+            requires_mutable_reference: false,
         }
     }
 
@@ -565,6 +638,7 @@ impl CallableParameterType {
         Self {
             value_type,
             variadic: true,
+            requires_mutable_reference: false,
         }
     }
 
@@ -588,6 +662,7 @@ impl CallableParameterType {
         Self {
             value_type,
             variadic: self.variadic,
+            requires_mutable_reference: self.requires_mutable_reference,
         }
     }
 
@@ -1480,12 +1555,18 @@ impl ParameterContract {
 
     pub(crate) fn callable_type(&self) -> Option<CallableParameterType> {
         self.value_type.clone().map(|value_type| {
+            let requires_mutable_reference = self.mutable
+                && matches!(&value_type, ValueType::Reference(inner)
+                    if matches!(inner.value_type_ref(), ValueType::Object(identity)
+                        if identity.native_projection.is_some() || identity.namespace.starts_with("/deps/")));
             let element = ElementType::new(value_type);
-            if self.variadic {
+            let mut parameter = if self.variadic {
                 CallableParameterType::variadic(element)
             } else {
                 CallableParameterType::fixed(element)
-            }
+            };
+            parameter.requires_mutable_reference = requires_mutable_reference;
+            parameter
         })
     }
 }
@@ -1766,4 +1847,44 @@ pub(super) fn index_enclosing_function_spans(root: &SyntaxNode) -> BTreeMap<usiz
     let mut spans = BTreeMap::new();
     visit(root, None, &mut spans);
     spans
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::{ObjectIdentity, ValueType};
+    use crate::ScalarType;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn derived_native_parameter_order_does_not_change_identity() {
+        let identity = ObjectIdentity::new("/deps/witness", "Boxed")
+            .with_type_arguments(vec![ValueType::Scalar(ScalarType::Int)]);
+        let annotated = identity
+            .clone()
+            .with_native_parameters(vec!["T".to_owned()]);
+        assert_eq!(identity, annotated);
+        assert_eq!(identity.cmp(&annotated), std::cmp::Ordering::Equal);
+        let wrappers: [fn(ValueType) -> ObjectIdentity; 3] = [
+            |value| ObjectIdentity::new("/witness", "Outer").with_type_arguments(vec![value]),
+            |value| ObjectIdentity::new("/witness", "Outer").with_application(value),
+            |value| {
+                ObjectIdentity::new("/witness", "Outer").with_native_arguments(
+                    std::collections::BTreeMap::from([("T".to_owned(), value)]),
+                )
+            },
+        ];
+        for wrap in wrappers {
+            let left = wrap(ValueType::Object(identity.clone()));
+            let right = wrap(ValueType::Object(annotated.clone()));
+            assert_eq!(left, right);
+            assert_eq!(left.cmp(&right), std::cmp::Ordering::Equal);
+        }
+        let identities = BTreeSet::from([identity.clone(), annotated]);
+        assert!(identities.contains(&identity));
+        assert_eq!(identities.len(), 1);
+        let different = ObjectIdentity::new("/deps/witness", "Boxed")
+            .with_type_arguments(vec![ValueType::Scalar(ScalarType::String)]);
+        assert_ne!(identity, different);
+        assert_ne!(identity.cmp(&different), std::cmp::Ordering::Equal);
+    }
 }

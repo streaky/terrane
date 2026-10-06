@@ -1,0 +1,14 @@
+package = "projected-mutating-callable-method-list-set"
+
+[namespaces]
+app = "src"
+callbacks = "callbacks"
+
+[rust-dependencies.witness]
+package = "terrane-borrowed-interior-witness"
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.http]
+version = "=1.5.0"
+effects = ["build"]

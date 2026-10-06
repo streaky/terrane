@@ -1,15 +1,18 @@
 namespace app
 
 from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
-from /core/output import print
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
+from /core/collections import list
 
 function entry-value int; entry ref Entry
     return entry.value;
 
 function request-view host-invocation-scoped-native; request ref Request
     return make_view; ((request.extensions;).entry;)
+
+function observe-header bool; action function from ref HeaderValue to bool, header ref HeaderValue
+    return action; header
 
 function main;
     request = Request::new; 41
@@ -47,11 +50,31 @@ function main;
     marked bool|none = (headers.get_mut; 'forwarded').map; mark-sensitive
     if marked != none
         print; marked
+    anonymous-reset bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
+    if anonymous-reset != none
+        print; anonymous-reset
+    anonymous-update = function bool; header ref HeaderValue
+        header.set_sensitive; true
+        return true
+    anonymous-result bool|none = (headers.get_mut; 'forwarded').map; anonymous-update
+    if anonymous-result != none
+        print; anonymous-result
+    anonymous-observed bool|none = (headers.get; 'forwarded').map; read-sensitive
+    if anonymous-observed != none
+        print; anonymous-observed
     snapshot HeaderValue|none = (headers.get_mut; 'forwarded').cloned;
     cleared bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
     if cleared != none
         print; cleared
     after bool|none = (headers.get; 'forwarded').map; read-sensitive
+    anonymous-read = function bool; header ref HeaderValue
+        return header.is_sensitive;
+    anonymous-read-result bool|none = (headers.get; 'forwarded').map; anonymous-read
+    if anonymous-read-result != none
+        print; anonymous-read-result
+    mutable-read bool|none = (headers.get_mut; 'forwarded').map; anonymous-read
+    if mutable-read != none
+        print; mutable-read
     if after != none
         print; after
     if snapshot != none
@@ -62,3 +85,25 @@ function main;
     final bool|none = (headers.get; 'forwarded').map; read-sensitive
     if final != none
         print; final
+
+    direct = HeaderValue::from_str; 'direct'
+    anonymous-update; ref direct
+    print; (direct.is_sensitive;)
+    print; (anonymous-read; ref direct)
+    print; (observe-header; read-sensitive, ref direct)
+    aliased-update = anonymous-update
+    aliased = HeaderValue::from_str; 'aliased'
+    aliased-update; ref aliased
+    print; (aliased.is_sensitive;)
+    named-update = mark-sensitive
+    named-target = HeaderValue::from_str; 'named'
+    named-update; ref named-target
+    print; (named-target.is_sensitive;)
+    observers = list; (read-sensitive)
+    for observer in observers
+        print; (observer; ref named-target)
+    observers.append; read-sensitive
+    observers.set; 0, read-sensitive
+    observers[0] = read-sensitive
+    for observer in observers
+        print; (observer; ref named-target)

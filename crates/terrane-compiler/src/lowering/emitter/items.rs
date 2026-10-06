@@ -2370,6 +2370,33 @@ impl<'a> Emitter<'a> {
         self.line("}");
     }
 
+    pub(super) fn mutable_native_reference_parameter(
+        &self,
+        contract: &FunctionContract,
+        index: usize,
+        binding_type: Option<&ValueType>,
+    ) -> bool {
+        (contract.parameters[index].mutable
+            && matches!(
+                binding_type,
+                Some(ValueType::Reference(item))
+                    if matches!(
+                        item.value_type_ref(),
+                        ValueType::Object(identity)
+                            if identity.native_projection.is_some()
+                                || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                    )
+            ))
+            || self
+                .registry
+                .mutable_native_callback_parameters
+                .borrow()
+                .contains(&(
+                    (contract.span.file, contract.span.start, contract.span.end),
+                    index,
+                ))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "closure ownership, contracts, captures, and body lowering form one emission path"
@@ -2381,32 +2408,41 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("analyzed closure must have a semantic contract");
-        let parameters = contract
+        let parameter_layout = contract
             .parameters
             .iter()
-            .map(|parameter| {
-                let ty = parameter.binding_value_type().map_or_else(
-                    || "i128".to_owned(),
-                    |value_type| rust_value_type(self.package, value_type),
-                );
-                format!("{}: {ty}", rust_name(&parameter.name))
+            .enumerate()
+            .map(|(index, parameter)| {
+                let binding_type = parameter.binding_value_type();
+                let native_mutable_reference =
+                    self.mutable_native_reference_parameter(contract, index, binding_type.as_ref());
+                let ty = match binding_type {
+                    Some(ValueType::Reference(item)) if native_mutable_reference => {
+                        format!("&mut {}", rust_element_type(self.package, item))
+                    }
+                    Some(value_type) => rust_value_type(self.package, value_type),
+                    None => "i128".to_owned(),
+                };
+                let mutable = if parameter.mutable && !native_mutable_reference {
+                    "mut "
+                } else {
+                    ""
+                };
+                (format!("{mutable}{}", rust_name(&parameter.name)), ty)
             })
+            .collect::<Vec<_>>();
+        let parameters = parameter_layout
+            .iter()
+            .map(|(name, ty)| format!("{name}: {ty}"))
             .collect::<Vec<_>>()
             .join(", ");
-        let parameter_names = contract
-            .parameters
+        let parameter_names = parameter_layout
             .iter()
-            .map(|parameter| rust_name(&parameter.name))
+            .map(|(name, _)| name.clone())
             .collect::<Vec<_>>();
-        let parameter_types = contract
-            .parameters
+        let parameter_types = parameter_layout
             .iter()
-            .map(|parameter| {
-                parameter.binding_value_type().map_or_else(
-                    || "i128".to_owned(),
-                    |value_type| rust_value_type(self.package, value_type),
-                )
-            })
+            .map(|(_, ty)| ty.clone())
             .collect::<Vec<_>>();
         let tuple_pattern = match parameter_names.as_slice() {
             [] => "()".to_owned(),

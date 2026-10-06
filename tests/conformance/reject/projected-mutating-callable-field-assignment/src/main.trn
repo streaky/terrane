@@ -1,0 +1,8 @@
+namespace app
+from /deps/http import HeaderValue
+from /callbacks import mark-sensitive, read-sensitive
+class holder
+    action function from ref HeaderValue to bool = read-sensitive
+function main;
+    value = instance holder;
+    value.action = mark-sensitive

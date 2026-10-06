@@ -1,4 +1,3 @@
 phase = "check"
 status = "reject"
 code = "T0060"
-contains = "class field `operation` requires `function from int to string throws coercion-error`, found `function from int to string throws throwable`"

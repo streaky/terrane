@@ -1,0 +1,8 @@
+package = "projected-native-argument-reconciliation"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-native-identity-witness"
+version = "=0.1.0"

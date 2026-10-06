@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/http import HeaderValue
+from /callbacks import mark-sensitive, read-sensitive
+
+function main;
+    chooser function from ref HeaderValue to bool = read-sensitive
+    if true
+        chooser = mark-sensitive
+    value = HeaderValue::from_str; 'value'
+    chooser; ref value
