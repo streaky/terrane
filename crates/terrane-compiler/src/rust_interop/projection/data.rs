@@ -1,3 +1,4 @@
+use super::functions::project_function_inner;
 use super::*;
 pub(super) fn normalize_projected_items(
     items: &mut Vec<ProjectedItem>,
