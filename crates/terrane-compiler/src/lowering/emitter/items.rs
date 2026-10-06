@@ -2389,14 +2389,18 @@ impl<'a> Emitter<'a> {
                     || "i128".to_owned(),
                     |value_type| rust_value_type(self.package, value_type),
                 );
-                format!("{}: {ty}", rust_name(&parameter.name))
+                let mutable = if parameter.mutable { "mut " } else { "" };
+                format!("{mutable}{}: {ty}", rust_name(&parameter.name))
             })
             .collect::<Vec<_>>()
             .join(", ");
         let parameter_names = contract
             .parameters
             .iter()
-            .map(|parameter| rust_name(&parameter.name))
+            .map(|parameter| {
+                let mutable = if parameter.mutable { "mut " } else { "" };
+                format!("{mutable}{}", rust_name(&parameter.name))
+            })
             .collect::<Vec<_>>();
         let parameter_types = contract
             .parameters
