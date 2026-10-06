@@ -1734,7 +1734,7 @@ pub(super) fn validate_class_field_initializers(
                 validate_value_destination(
                     &effective.unit.source,
                     &effective.unit.descriptors,
-                    &field.name,
+                    &format!("class field {}", field.name),
                     field.value_type.clone(),
                     actual,
                     initializer,
