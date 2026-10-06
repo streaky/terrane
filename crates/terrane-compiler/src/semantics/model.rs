@@ -355,6 +355,7 @@ pub struct ObjectIdentity {
     pub(crate) native_projection: Option<String>,
     pub(crate) native_arguments: BTreeMap<String, ValueType>,
     pub(crate) native_arguments_key: Option<String>,
+    pub(crate) native_parameters: Vec<String>,
 }
 
 impl ObjectIdentity {
@@ -370,6 +371,7 @@ impl ObjectIdentity {
             native_projection: None,
             native_arguments: BTreeMap::new(),
             native_arguments_key: None,
+            native_parameters: Vec::new(),
         }
     }
 
@@ -406,6 +408,32 @@ impl ObjectIdentity {
         self.native_arguments_key = (!arguments.is_empty()).then(|| format!("{arguments:?}"));
         self.native_arguments = arguments;
         self
+    }
+
+    pub(crate) fn with_native_parameters(mut self, parameters: Vec<String>) -> Self {
+        self.native_parameters = parameters;
+        self
+    }
+
+    pub(crate) fn corresponding_native_argument<'a>(
+        &self,
+        other: &'a Self,
+        name: &str,
+    ) -> Option<&'a ValueType> {
+        if let Some(argument) = other.native_arguments.get(name) {
+            return Some(argument);
+        }
+        let index = self
+            .native_parameters
+            .iter()
+            .position(|parameter| parameter == name)?;
+        if self.type_arguments.get(index) != self.native_arguments.get(name)
+            || (!other.native_parameters.is_empty()
+                && other.native_parameters.get(index).map(String::as_str) != Some(name))
+        {
+            return None;
+        }
+        other.type_arguments.get(index)
     }
 }
 
@@ -457,6 +485,7 @@ impl Ord for ObjectIdentity {
             self.is_unsafe,
             self.native_projection.as_deref(),
             self.native_arguments_key.as_deref(),
+            &self.native_parameters,
         )
             .cmp(&(
                 &other.namespace,
@@ -466,6 +495,7 @@ impl Ord for ObjectIdentity {
                 other.is_unsafe,
                 other.native_projection.as_deref(),
                 other.native_arguments_key.as_deref(),
+                &other.native_parameters,
             ))
     }
 }

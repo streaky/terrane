@@ -818,6 +818,28 @@ pub(super) fn validate_resolved_assignment(
     )
 }
 
+pub(super) fn bind_projected_native_arguments(
+    expected: &ObjectIdentity,
+    actual: &ObjectIdentity,
+    bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<(), String> {
+    for (name, expected_argument) in &expected.native_arguments {
+        let actual_argument = expected
+            .corresponding_native_argument(actual, name)
+            .ok_or_else(|| name.clone())?;
+        bind_projected_generics(expected_argument, actual_argument, bindings)?;
+    }
+    for (name, actual_argument) in &actual.native_arguments {
+        if !expected.native_arguments.contains_key(name) {
+            let expected_argument = actual
+                .corresponding_native_argument(expected, name)
+                .ok_or_else(|| name.clone())?;
+            bind_projected_generics(expected_argument, actual_argument, bindings)?;
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn bind_projected_generics(
     expected: &ValueType,
     actual: &ValueType,
@@ -890,21 +912,7 @@ pub(super) fn bind_projected_generics(
             for (expected, actual) in expected.type_arguments.iter().zip(&actual.type_arguments) {
                 bind_projected_generics(expected, actual, bindings)?;
             }
-            for (name, expected_argument) in &expected.native_arguments {
-                let actual_argument = actual
-                    .native_arguments
-                    .get(name)
-                    .or_else(|| {
-                        expected
-                            .type_arguments
-                            .iter()
-                            .position(|argument| argument == expected_argument)
-                            .and_then(|index| actual.type_arguments.get(index))
-                    })
-                    .ok_or_else(|| name.clone())?;
-                bind_projected_generics(expected_argument, actual_argument, bindings)?;
-            }
-            Ok(())
+            bind_projected_native_arguments(expected, actual, bindings)
         }
         (
             ValueType::Function(expected_parameters, expected_result, _),
@@ -1570,6 +1578,7 @@ mod tests {
         let expected = ValueType::Object(
             ObjectIdentity::new("/deps/witness", "Container")
                 .with_type_arguments(vec![generic.clone()])
+                .with_native_parameters(vec!["T".to_owned()])
                 .with_native_arguments(BTreeMap::from([("T".to_owned(), generic)])),
         );
         let integer = ValueType::Scalar(ScalarType::Int);
@@ -1592,5 +1601,20 @@ mod tests {
                 )])),
         );
         assert!(bind_projected_generics(&hidden, &actual, &mut BTreeMap::new()).is_err());
+    }
+
+    #[test]
+    fn native_binding_rejects_equal_valued_hidden_arguments() {
+        use super::bind_projected_native_arguments;
+        use crate::semantics::ObjectIdentity;
+        let integer = ValueType::Scalar(ScalarType::Int);
+        let written = ObjectIdentity::new("/deps/witness", "Container")
+            .with_type_arguments(vec![integer.clone()]);
+        let hidden = written
+            .clone()
+            .with_native_parameters(vec!["T".to_owned()])
+            .with_native_arguments(BTreeMap::from([("Hidden".to_owned(), integer)]));
+        assert!(bind_projected_native_arguments(&hidden, &written, &mut BTreeMap::new()).is_err());
+        assert!(bind_projected_native_arguments(&written, &hidden, &mut BTreeMap::new()).is_err());
     }
 }

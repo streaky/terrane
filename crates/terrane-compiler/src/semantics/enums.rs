@@ -1073,6 +1073,13 @@ pub(crate) fn validate_enum_constructions(
                 };
                 let mut identity = ObjectIdentity::new(namespace, name)
                     .with_type_arguments(arguments)
+                    .with_native_parameters(
+                        descriptor
+                            .into_iter()
+                            .flat_map(|descriptor| &descriptor.generic_parameters)
+                            .map(|parameter| parameter.name.clone())
+                            .collect(),
+                    )
                     .with_native_arguments(native_arguments)
                     .with_native_projection(native_path);
                 if super::native_constructors::source_abi_nominal(package, &identity) {

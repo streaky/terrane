@@ -1359,19 +1359,7 @@ pub(super) fn object_types_compatible(
                     left.namespace == right.namespace
                         && left.name == right.name
                         && left.application == right.application
-                        && left.type_arguments == right.type_arguments
-                        && left.native_arguments.iter().all(|(name, argument)| {
-                            right.native_arguments.get(name).map_or_else(
-                                || left.type_arguments.contains(argument),
-                                |actual| actual == argument,
-                            )
-                        })
-                        && right.native_arguments.iter().all(|(name, argument)| {
-                            left.native_arguments.get(name).map_or_else(
-                                || right.type_arguments.contains(argument),
-                                |actual| actual == argument,
-                            )
-                        })
+                        && reconcile_projected_native_arguments(left, right)
                 }
             }
     };
@@ -1411,6 +1399,20 @@ pub(super) fn object_types_compatible(
             }
             false
         })
+}
+
+pub(super) fn reconcile_projected_native_arguments(
+    left: &ObjectIdentity,
+    right: &ObjectIdentity,
+) -> bool {
+    let positions_match = |owner: &ObjectIdentity, other: &ObjectIdentity| {
+        owner.native_arguments.iter().all(|(name, argument)| {
+            owner.corresponding_native_argument(other, name) == Some(argument)
+        })
+    };
+    left.type_arguments == right.type_arguments
+        && positions_match(left, right)
+        && positions_match(right, left)
 }
 
 #[expect(
@@ -1805,6 +1807,7 @@ mod tests {
             .with_type_arguments(vec![integer.clone()]);
         let native = written
             .clone()
+            .with_native_parameters(vec!["T".to_owned()])
             .with_native_arguments(BTreeMap::from([("T".to_owned(), integer)]))
             .with_native_projection("witness::Container<i64>");
         assert!(object_types_compatible(&[], &native, &written));
@@ -1822,5 +1825,36 @@ mod tests {
         let other = ObjectIdentity::new("/deps/witness", "Container")
             .with_type_arguments(vec![ValueType::Scalar(ScalarType::String)]);
         assert!(!object_types_compatible(&[], &hidden, &other));
+    }
+
+    #[test]
+    fn native_argument_positions_follow_declarations_not_values_or_map_order() {
+        use crate::ScalarType;
+        use crate::semantics::ValueType;
+        use std::collections::BTreeMap;
+
+        let integer = ValueType::Scalar(ScalarType::Int);
+        let string = ValueType::Scalar(ScalarType::String);
+        let written = ObjectIdentity::new("/deps/witness", "Pair")
+            .with_type_arguments(vec![integer.clone(), string.clone()]);
+        let native = written
+            .clone()
+            .with_native_parameters(vec!["Z".to_owned(), "A".to_owned()])
+            .with_native_arguments(BTreeMap::from([
+                ("Z".to_owned(), integer.clone()),
+                ("A".to_owned(), string.clone()),
+            ]))
+            .with_native_projection("witness::Pair<i64, String>");
+        assert!(object_types_compatible(&[], &native, &written));
+        assert!(object_types_compatible(&[], &written, &native));
+        let swapped = native.clone().with_native_arguments(BTreeMap::from([
+            ("Z".to_owned(), string),
+            ("A".to_owned(), integer.clone()),
+        ]));
+        assert!(!object_types_compatible(&[], &swapped, &written));
+        assert!(!object_types_compatible(&[], &written, &swapped));
+        let hidden = native.with_native_arguments(BTreeMap::from([("Hidden".to_owned(), integer)]));
+        assert!(!object_types_compatible(&[], &hidden, &written));
+        assert!(!object_types_compatible(&[], &written, &hidden));
     }
 }

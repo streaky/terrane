@@ -572,6 +572,36 @@ fn bind_explicit_generic_type(
     bind_generic_type_inner(expected, actual, bindings, Some(explicit_substitutions))
 }
 
+fn bind_generic_native_arguments(
+    expected: &ObjectIdentity,
+    actual: &ObjectIdentity,
+    bindings: &mut BTreeMap<String, ValueType>,
+    explicit_substitutions: Option<&BTreeMap<String, ValueType>>,
+) -> Result<(), String> {
+    let mut bind = |name: &str, expected: &ValueType, actual: &ValueType| {
+        bind_generic_type_inner(expected, actual, bindings, explicit_substitutions)?;
+        if substitute_value_type(expected, bindings) != *actual {
+            return Err(format!("generic argument `{name}` is invariant"));
+        }
+        Ok(())
+    };
+    for (name, expected_argument) in &expected.native_arguments {
+        let actual_argument = expected
+            .corresponding_native_argument(actual, name)
+            .ok_or_else(|| format!("missing native generic argument `{name}`"))?;
+        bind(name, expected_argument, actual_argument)?;
+    }
+    for (name, actual_argument) in &actual.native_arguments {
+        if !expected.native_arguments.contains_key(name) {
+            let expected_argument = actual
+                .corresponding_native_argument(expected, name)
+                .ok_or_else(|| format!("missing native generic argument `{name}`"))?;
+            bind(name, expected_argument, actual_argument)?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn bind_generic_type(
     expected: &ValueType,
     actual: &ValueType,
@@ -615,13 +645,12 @@ fn bind_generic_type_inner(
             if left.namespace == right.namespace
                 && left.name == right.name
                 && left.is_unsafe == right.is_unsafe
-                && left.native_projection == right.native_projection
+                && match (&left.native_projection, &right.native_projection) {
+                    (Some(left), Some(right)) => left == right,
+                    _ => true,
+                }
                 && left.application.is_some() == right.application.is_some()
-                && left.type_arguments.len() == right.type_arguments.len()
-                && left
-                    .native_arguments
-                    .keys()
-                    .eq(right.native_arguments.keys()) =>
+                && left.type_arguments.len() == right.type_arguments.len() =>
         {
             if let (Some(left), Some(right)) = (&left.application, &right.application) {
                 bind_generic_type_inner(left, right, bindings, explicit_substitutions)?;
@@ -639,14 +668,7 @@ fn bind_generic_type_inner(
                     ));
                 }
             }
-            for (name, left) in &left.native_arguments {
-                let right = &right.native_arguments[name];
-                bind_generic_type_inner(left, right, bindings, explicit_substitutions)?;
-                if substitute_value_type(left, bindings) != *right {
-                    return Err(format!("generic argument `{name}` is invariant"));
-                }
-            }
-            Ok(())
+            bind_generic_native_arguments(left, right, bindings, explicit_substitutions)
         }
         (ValueType::Optional(l), ValueType::Optional(r)) => {
             bind_generic_type_inner(l, r, bindings, explicit_substitutions)

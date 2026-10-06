@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import Entry, Host, Request, clone_count, consume, make_view, render, root_count
-from /core/output import print
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 from /callbacks import mark-sensitive, clear-sensitive, read-sensitive, clear-sensitive-optional
 
@@ -47,11 +46,31 @@ function main;
     marked bool|none = (headers.get_mut; 'forwarded').map; mark-sensitive
     if marked != none
         print; marked
+    anonymous-reset bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
+    if anonymous-reset != none
+        print; anonymous-reset
+    anonymous-update = function bool; header ref HeaderValue
+        header.set_sensitive; true
+        return true
+    anonymous-result bool|none = (headers.get_mut; 'forwarded').map; anonymous-update
+    if anonymous-result != none
+        print; anonymous-result
+    anonymous-observed bool|none = (headers.get; 'forwarded').map; read-sensitive
+    if anonymous-observed != none
+        print; anonymous-observed
     snapshot HeaderValue|none = (headers.get_mut; 'forwarded').cloned;
     cleared bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
     if cleared != none
         print; cleared
     after bool|none = (headers.get; 'forwarded').map; read-sensitive
+    anonymous-read = function bool; header ref HeaderValue
+        return header.is_sensitive;
+    anonymous-read-result bool|none = (headers.get; 'forwarded').map; anonymous-read
+    if anonymous-read-result != none
+        print; anonymous-read-result
+    mutable-read bool|none = (headers.get_mut; 'forwarded').map; anonymous-read
+    if mutable-read != none
+        print; mutable-read
     if after != none
         print; after
     if snapshot != none
