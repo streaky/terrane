@@ -161,18 +161,16 @@ features:
 - id: declaration-annotations
   name: General declaration annotations and documentation reflection
   category: syntax
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '31.0'
   reference:
     state: documented
     paths:
-    - manual/reference/records/internals/future/annotations.yaml
-  notes: Planned package-defined typed immutable metadata on classes, callables, parameters and fields, with compile-time declaration/documentation reflection and exported dependency metadata. Candidate @[name; arguments] syntax is not implemented. Independent CLI and serialization/validation consumers must prove the generic mechanism; HTTP is only a possible use. Deferred with-realization modifiers remain separate.
+    - manual/reference/records/language/declarations/annotations.yaml
+  notes: Implemented and verified. Compiler unit tests and filtered annotation conformance cover CLI, codec, declaration annotations, and source-free interfaces through generated Rust/Cargo; consumers are explicit trusted format-1 executables, synchronous, bounded at 16 MiB, with no wall-clock timeout.
   sources:
   - docs/language-spec-concise.md#ANNOTATIONS
-  - docs/language-spec-and-compiler-architecture-draft.md
-  - docs/surface-v1.md#15.1 General declaration annotations
   - docs/compiler-plan.md#Milestone 31.0
 - id: decorative-modifiers
   name: Open decorative with-modifiers

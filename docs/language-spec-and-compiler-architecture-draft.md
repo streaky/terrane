@@ -202,7 +202,7 @@ The initial language is not intended to be:
 
 ## General declaration annotations (planned)
 
-**Planned for milestone 31.0, not implemented syntax.** General declaration annotations attach typed immutable metadata to declarations for explicit compile-time consumers. They are not executable decorators, HTTP-specific compiler hooks, or the separately deferred `with` declaration-realization protocol. The canonical design is [General declaration annotations](../manual/reference/records/internals/future/annotations.yaml); the [compiler plan](compiler-plan.md) specifies the generic mechanism and independent proving consumers.
+**Implemented capability; this legacy inventory is non-authoritative.** General declaration annotations attach typed immutable metadata to declarations for explicit compile-time consumers. They are not executable decorators, HTTP-specific compiler hooks, or the separately deferred `with` declaration-realization protocol. See the current [declaration annotations reference](../manual/reference/records/language/declarations/annotations.yaml) and [compiler plan](compiler-plan.md) for the verified contract and conformance evidence.
 
 ### Annotation types and applications
 

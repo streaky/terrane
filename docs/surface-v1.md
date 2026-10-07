@@ -1424,7 +1424,7 @@ Debugging, tracing, profiling, and generated Rust all preserve stable source ide
 
 ### 15.1 General declaration annotations
 
-**Planned for milestone 31.0; not supported by the current compiler.** See the [general annotation design](../manual/reference/records/internals/future/annotations.yaml) and [milestone 31.0](compiler-plan.md). This is declaration metadata, not a claim that current reflection exposes comments or annotations.
+**Historical design sketch, not the current contract.** See the implemented and verified [declaration annotations reference](../manual/reference/records/language/declarations/annotations.yaml) and [milestone 31.0](compiler-plan.md). This section remains a proposed-surface document and is non-authoritative.
 
 Candidate applications use `@[name; arguments]`, including `;` with zero arguments and ordinary `name = value` named arguments. Package-defined annotation types use a proposed intrinsic `/core/annotations` marker, typed attachment targets, and repeatability. Initial targets are classes, functions/methods, parameters, and fields; parameter metadata precedes that parameter within the ordinary parameter-list grammar.
 
