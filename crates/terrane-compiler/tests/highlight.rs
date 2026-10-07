@@ -112,7 +112,7 @@ fn classifies_linear_as_an_ordinary_binding_when_context_disambiguates_it() {
 
 #[test]
 fn retains_highlights_around_lexical_and_syntax_errors() {
-    let source = "namespace app\ninvalid = @\nfunction main;\n  value = 'ok'\n";
+    let source = "namespace app\ninvalid = `\nfunction main;\n  value = 'ok'\n";
     let file = SourceFile::new(0, "broken.trn".into(), source.to_owned());
     let output = highlight(&file);
 
