@@ -226,7 +226,7 @@ receiver: evaluated before selection
 and_or: short-circuit
 other_binary: both operands evaluated
 default_args: call site, after supplied args, parameter order
-local_functions: local calls retain their own parameter/result contract, including inferred bindings; each return is checked against its current callable, not a nested or enclosing callable. Named local functions may recurse and shadow outer functions, but cannot capture enclosing callable bindings; use an anonymous closure for captures
+local_functions: named declarations are visible throughout their owning block, supporting later-sibling calls and mutual recursion; their names cannot be reassigned or replaced by same-scope bindings, but may shadow outer declarations. Calls retain their own parameter/result contracts; returns are checked against the current callable. Enclosing callable bindings and instance receiver state cannot be captured (S2062); use an anonymous closure. Class-level self::member access needs no instance capture
 ```
 
 ## GRAMMAR
