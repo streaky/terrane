@@ -41,7 +41,7 @@ pub(super) fn literal(text: &str) -> String {
     }
     let value = if let Some(value) = trimmed.strip_prefix('>') {
         if let Some(block) = value.strip_prefix('>') {
-            block_string(block)
+            crate::lexer::block_string(block)
         } else {
             value.to_owned()
         }
@@ -49,7 +49,7 @@ pub(super) fn literal(text: &str) -> String {
         && ((trimmed.starts_with('\'') && trimmed.ends_with('\''))
             || (trimmed.starts_with('"') && trimmed.ends_with('"')))
     {
-        unescape(&trimmed[1..trimmed.len() - 1])
+        crate::lexer::unescape_string(&trimmed[1..trimmed.len() - 1])
     } else {
         trimmed.to_owned()
     };
@@ -131,47 +131,6 @@ pub(super) fn integer_literal(text: &str) -> Option<BigInt> {
             (10, text)
         };
     BigInt::parse_bytes(digits.as_bytes(), radix)
-}
-
-pub(super) fn block_string(text: &str) -> String {
-    let mut lines = text.lines();
-    let first = lines.next().unwrap_or_default();
-    if !first.trim().is_empty() {
-        return first.to_owned();
-    }
-    let collected = lines.collect::<Vec<_>>();
-    let indent = collected
-        .iter()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.len() - line.trim_start().len())
-        .min()
-        .unwrap_or(0);
-    collected
-        .iter()
-        .map(|line| line.get(indent..).unwrap_or_default())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-pub(super) fn unescape(value: &str) -> String {
-    let mut output = String::new();
-    let mut chars = value.chars();
-    while let Some(character) = chars.next() {
-        if character == '\\' {
-            match chars.next() {
-                Some('n') => output.push('\n'),
-                Some('r') => output.push('\r'),
-                Some('t') => output.push('\t'),
-                Some('\\') | None => output.push('\\'),
-                Some('\'') => output.push('\''),
-                Some('"') => output.push('"'),
-                Some(other) => output.push(other),
-            }
-        } else {
-            output.push(character);
-        }
-    }
-    output
 }
 
 pub(super) fn object_descendants<'a>(

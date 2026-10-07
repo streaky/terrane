@@ -39,6 +39,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut rust_block: Option<(usize, Option<usize>)> = None;
     let mut block_terminator: Option<(usize, usize)> = None;
     let mut block_comment_start = None;
+    let mut block_comment_documentation = false;
     let mut indent_style = None;
     let mut indent_stack = vec![0];
     let mut parenthesis_depth = 0usize;
@@ -163,6 +164,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 &mut trivia,
                 &mut diagnostics,
                 &mut block_comment_start,
+                &mut block_comment_documentation,
             );
             for token in &tokens[token_count..] {
                 match token.kind {
@@ -281,6 +283,7 @@ fn lex_line(
     trivia: &mut Vec<Trivia>,
     diagnostics: &mut Vec<Diagnostic>,
     block_comment_start: &mut Option<usize>,
+    block_comment_documentation: &mut bool,
 ) {
     let bytes = line.as_bytes();
     let mut index = 0;
@@ -289,16 +292,25 @@ fn lex_line(
             if let Some(relative_end) = line[index..].find("*/") {
                 let end = index + relative_end + 2;
                 trivia.push(Trivia {
-                    kind: TriviaKind::BlockComment,
+                    kind: if *block_comment_documentation {
+                        TriviaKind::DocumentationBlock
+                    } else {
+                        TriviaKind::BlockComment
+                    },
                     span: Span::new(source.id(), base + index, base + end),
                     text: line[index..end].to_owned(),
                 });
                 *block_comment_start = None;
+                *block_comment_documentation = false;
                 index = end;
                 continue;
             }
             trivia.push(Trivia {
-                kind: TriviaKind::BlockComment,
+                kind: if *block_comment_documentation {
+                    TriviaKind::DocumentationBlock
+                } else {
+                    TriviaKind::BlockComment
+                },
                 span: Span::new(source.id(), base + index, base + line.len()),
                 text: line[index..].to_owned(),
             });
@@ -339,24 +351,40 @@ fn lex_line(
                         Span::new(source.id(), base + start, base + start + 2),
                     ));
                 }
+                let documentation = bytes.get(index + 2) == Some(&b'/');
                 trivia.push(Trivia {
-                    kind: TriviaKind::LineComment,
+                    kind: if documentation {
+                        TriviaKind::DocumentationLine
+                    } else {
+                        TriviaKind::LineComment
+                    },
                     span: Span::new(source.id(), base + start, base + bytes.len()),
                     text: line[start..].to_owned(),
                 });
                 break;
             }
             b'/' if bytes.get(index + 1) == Some(&b'*') => {
+                let documentation = bytes.get(index + 2) == Some(&b'*');
+                *block_comment_documentation = documentation;
                 if let Some(relative_end) = line[index + 2..].find("*/") {
                     index += relative_end + 4;
                     trivia.push(Trivia {
-                        kind: TriviaKind::BlockComment,
+                        kind: if documentation {
+                            TriviaKind::DocumentationBlock
+                        } else {
+                            TriviaKind::BlockComment
+                        },
                         span: Span::new(source.id(), base + start, base + index),
                         text: line[start..index].to_owned(),
                     });
+                    *block_comment_documentation = false;
                 } else {
                     trivia.push(Trivia {
-                        kind: TriviaKind::BlockComment,
+                        kind: if documentation {
+                            TriviaKind::DocumentationBlock
+                        } else {
+                            TriviaKind::BlockComment
+                        },
                         span: Span::new(source.id(), base + start, base + line.len()),
                         text: line[start..].to_owned(),
                     });
@@ -681,7 +709,10 @@ fn lex_line(
                 break;
             }
             byte if is_joiner(byte)
-                || matches!(byte, b'!' | b'/' | b'<' | b'>' | b'%' | b'&' | b'^' | b'~') =>
+                || matches!(
+                    byte,
+                    b'!' | b'/' | b'<' | b'>' | b'%' | b'&' | b'^' | b'~' | b'@'
+                ) =>
             {
                 index += 1;
                 if index < bytes.len()
@@ -717,7 +748,8 @@ fn lex_line(
                 let allowed_left_attachment =
                     matches!(kind, TokenKind::Increment | TokenKind::Decrement)
                         || matches!(text, ">" | ">=")
-                        || (text == "/" && namespace_path_line(tokens));
+                        || (text == "/" && namespace_path_line(tokens))
+                        || text == "@";
                 if matches!(attached, Attachment::Left | Attachment::Both)
                     && !allowed_left_attachment
                 {
@@ -741,6 +773,49 @@ fn lex_line(
             }
         }
     }
+}
+
+pub(crate) fn block_string(text: &str) -> String {
+    let mut lines = text.lines();
+    let first = lines.next().unwrap_or_default();
+    if !first.trim().is_empty() {
+        return first.to_owned();
+    }
+    let indent = lines
+        .clone()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.len() - line.trim_start().len())
+        .min()
+        .unwrap_or(0);
+    let mut output = String::with_capacity(text.len());
+    for (index, line) in lines.enumerate() {
+        if index != 0 {
+            output.push('\n');
+        }
+        output.push_str(line.get(indent..).unwrap_or_default());
+    }
+    output
+}
+
+pub(crate) fn unescape_string(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut chars = value.chars();
+    while let Some(character) = chars.next() {
+        if character == '\\' {
+            match chars.next() {
+                Some('n') => output.push('\n'),
+                Some('r') => output.push('\r'),
+                Some('t') => output.push('\t'),
+                Some('\\') | None => output.push('\\'),
+                Some('\'') => output.push('\''),
+                Some('"') => output.push('"'),
+                Some(other) => output.push(other),
+            }
+        } else {
+            output.push(character);
+        }
+    }
+    output
 }
 
 pub(crate) fn unescape_bytes(value: &str) -> Result<Vec<u8>, (usize, usize)> {

@@ -344,6 +344,7 @@ pub(super) fn parse_unit(
         bundled,
         role,
         scopes: Vec::new(),
+        declaration_metadata: Vec::new(),
         typed_bindings: Vec::new(),
         functions: Vec::new(),
         source_enums: Vec::new(),
@@ -810,11 +811,21 @@ fn dependency_projection(
 ///
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
+
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
     let demands = dependency_demands_from_units(&units)?;
     let projection = dependency_projection(package, &demands)?;
-    analyze_parsed_with_projection(package, projection, units, true)
+    analyze_parsed_with_projection(package, projection, units, true, false)
+}
+
+/// Prepares canonical declared signatures and metadata before generated bodies exist.
+/// The completed program always passes through the full analysis afterward.
+pub(crate) fn analyze_declarations(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
+    let units = parse_authored_units(package)?;
+    let demands = dependency_demands_from_units(&units)?;
+    let projection = dependency_projection(package, &demands)?;
+    analyze_parsed_with_projection(package, projection, units, true, true)
 }
 
 #[cfg(test)]
@@ -823,7 +834,7 @@ pub(super) fn analyze_with_projection(
     projection: crate::rust_interop::projection::Projection,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    analyze_parsed_with_projection(package, projection, units, false)
+    analyze_parsed_with_projection(package, projection, units, false, false)
 }
 
 #[expect(
@@ -835,6 +846,7 @@ fn analyze_parsed_with_projection(
     projection: crate::rust_interop::projection::Projection,
     units: Vec<SemanticUnit>,
     persist_inventory: bool,
+    declarations_only: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
     for unit in &mut units {
@@ -1125,6 +1137,15 @@ fn analyze_parsed_with_projection(
         bootstrap_prelude()
     };
     materialize_projected_public_aliases(&imports, &mut namespaces, &projection)?;
+    if declarations_only {
+        // Generated imports have no bindings yet; no placeholder declarations are invented.
+        // Every authored import is resolved again in the mandatory final analysis.
+        imports.retain(|import| {
+            namespaces.get(&import.target).is_some_and(|namespace| {
+                import.namespace_wide || namespace.symbols.contains_key(&import.object)
+            })
+        });
+    }
     let mut import_warnings = resolve_imports(
         imports,
         &mut namespaces,
@@ -1161,10 +1182,16 @@ fn analyze_parsed_with_projection(
         projection,
         native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
+        metadata_constant_reads: BTreeMap::new(),
         referenced_functions: BTreeSet::new(),
         import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
+    if declarations_only {
+        super::objects::prepare_type_declarations(&mut semantic)?;
+        super::annotations::populate_declaration_metadata(&mut semantic)?;
+        return Ok(semantic);
+    }
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
@@ -1219,6 +1246,7 @@ fn analyze_parsed_with_projection(
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
     record_function_references(&mut semantic);
+    super::annotations::populate_declaration_metadata(&mut semantic)?;
     Ok(semantic)
 }
 

@@ -2579,7 +2579,9 @@ fn analyze_source_enums(
     clippy::too_many_lines,
     reason = "Type-analysis phase ordering is explicit because constructor, binding, and projection selections depend on prior phases"
 )]
-pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+pub(super) fn prepare_type_declarations(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let descriptors = {
             let unit = &package.units[index];
@@ -2592,7 +2594,10 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                 .filter(|(_, symbol)| {
                     matches!(
                         symbol.kind,
-                        SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                        SymbolKind::Class
+                            | SymbolKind::Enum
+                            | SymbolKind::Interface
+                            | SymbolKind::Trait
                     )
                 })
                 .map(|(visible_name, symbol)| {
@@ -2676,6 +2681,11 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
     refresh_source_descriptor_members(&mut package.units);
+    Ok(())
+}
+
+pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    prepare_type_declarations(package)?;
     validate_closed_projected_types(package)?;
     validate_descriptor_value_uses(package)?;
 

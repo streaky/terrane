@@ -130,14 +130,47 @@ ancestor. Node IDs are deterministic only inside the exact snapshot. Tokens and 
 exact authored `text`, and `span`. Diagnostic objects carry `severity`, stable `code`, `message`,
 nullable primary `span`, and nullable `help`.
 
+Declaration annotations are `AnnotationApplication` nodes under the `annotation` child field;
+their name and argument-list fields are `annotation-type` and `arguments`. Metadata syntax is
+separate from executable declaration children internally, but appears in the same tooling tree.
+Documentation trivia kinds are `DocumentationLine` and `DocumentationBlock`; their authored
+bytes remain intact, including indentation and Markdown hard-break spaces.
+
+### Package declaration consumers
+
+Package manifests may explicitly configure trusted compile-time metadata consumers:
+
+```toml
+[consumers.cli]
+command = "python3"
+args = ["tools/cli.py"]
+declarations = ["/example::run", "/example::run::name"]
+interfaces = ["metadata/library-interface.json"]
+```
+
+`command` is one executable path; `args`, `declarations`, and optional `interfaces` are arrays of strings. Every configured consumer selects explicit canonical declaration identities. Interface paths add exported declaration metadata whose dependency bodies or source text need not be loaded. The executable runs synchronously in the package directory; this is an explicit trusted-tool boundary, not a sandbox.
+
+The compiler sends one UTF-8 JSON request on stdin with protocol `format: 1`, the package identity, and selected declarations. A declaration record contains `identity`, `span`, `origin`, `visibility`, `kind`, nullable `documentation`, ordered `annotations`, and signature, fields, and contracts snapshots. Annotation records contain canonical `identity`, their own `span`, and a tagged immutable `payload` (`kind` plus `value` where applicable). Metadata spans use source-file IDs, paths, and half-open byte offsets. Consumer tools should use canonical identities and spans, not infer declaration origins from names.
+
+The Rust `DeclarationInterface` format 1 API provides `to_json` and `from_json`, validating the metadata fingerprint and source/span mappings. Its JSON contains package identity, fingerprint, file-ID-to-path `sources`, and declaration records; it contains no source bodies. Export omits bundled roots and private descendants/fields and redacts defaults for non-public or secret fields. Annotation schemas require public data fields. Annotation payloads use tagged immutable values: `none`, `boolean`, `integer`, `float`, `string`, `bytes`, `tuple`, `list`, `map`, `set`, `descriptor`, and `kind`.
+
+The response is one JSON object on stdout with `format: 1`, `generated_sources`, and `diagnostics`. Each generated source has a relative safe `identity` and Terrane `source` text; the compiler namespaces its identity by consumer. Each diagnostic has a declaration source span and `message`; selected source spans report at their source location, while unavailable dependency text is reported as an origin diagnostic. A failed process, malformed response, invalid identity, duplicate generated identity, or invalid diagnostic span is a compilation error.
+
+Consumer input, stdout and stderr, and imported declaration-interface files are capped at 16 MiB. Generated sources are added after declaration preparation and before ordinary whole-package checking, then parsed and checked with authored source through the normal pipeline. Consumer execution itself is synchronous, with no wall-clock timeout in the current contract.
+
 ### `locate`, `definition`, `references`, and `implementations`
 
 Each accepts `snapshot_id`, `uri`, and an `offset` at a UTF-8 boundary and is available through both
 JSON-lines stdio and one-shot query transports. `locate` returns the smallest syntax object containing
 the position, augmented with nullable name and availability-tagged canonical symbol identity,
 descriptor identity, value type, ownership, exact effects, capability requirements, declaration,
-invocation mode, member facts, and inheritance. Ownership is `unsupported` until the semantic model
-exposes an authoritative ownership state. Locations contain `{uri,span}`. Definitions and references
+invocation mode, member facts, inheritance, and `declaration_metadata`. The latter is an
+availability-tagged canonical declaration record, containing identity, kind, source/origin spans,
+documentation, ordered typed annotations, and signature/field/contract snapshots. It reports the
+actual declaring origin, not metadata copied onto callable value aliases or overrides. Semantic
+hover renders documentation and annotation identities from this record. Ownership is `unsupported`
+until the semantic model exposes an authoritative ownership state. Locations contain `{uri,span}`.
+Definitions and references
 resolve by syntactic role and canonical semantic identity, not matching text. A reference query for
 an interface method returns sites resolved directly to that interface identity; calls through a
 concrete receiver belong to the resolved concrete override and remain discoverable from the

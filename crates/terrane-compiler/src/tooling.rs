@@ -199,6 +199,7 @@ pub struct SemanticObject {
     pub effects: Availability<Vec<String>>,
     pub capabilities: Availability<Vec<String>>,
     pub declaration: Availability<Location>,
+    pub declaration_metadata: Availability<crate::DeclarationMetadata>,
     pub invocation_mode: Availability<String>,
     pub members: Availability<Vec<MemberFact>>,
     pub inheritance: Availability<Vec<String>>,
@@ -1749,6 +1750,7 @@ fn snapshot_package(
         units,
         rust_dependencies: Vec::new(),
         authored_rust_modules: Vec::new(),
+        consumer_configs: Vec::new(),
         terrane_dependencies: Vec::new(),
         dependency_manifests: Vec::new(),
         library_source_ids: BTreeSet::new(),
@@ -1763,8 +1765,7 @@ fn project_tree(
     let id = *next_id;
     *next_id = next_id.saturating_add(1);
     let children = node
-        .children
-        .iter()
+        .syntax_children()
         .enumerate()
         .map(|(index, child)| SyntaxChild {
             field: node.kind.child_field(index, child.kind).to_owned(),
@@ -1831,7 +1832,7 @@ fn walk_nodes(
         let id = *next;
         *next = next.saturating_add(1);
         visit(node, field, id);
-        for (index, child) in node.children.iter().enumerate() {
+        for (index, child) in node.syntax_children().enumerate() {
             recurse(
                 child,
                 Some(node.kind.child_field(index, child.kind)),
@@ -1845,11 +1846,15 @@ fn walk_nodes(
 }
 
 fn smallest_node_at(node: &SyntaxNode, offset: usize, id: u64) -> Option<(&SyntaxNode, u64, u64)> {
-    if offset < node.span.start || offset > node.span.end {
+    if (offset < node.span.start || offset > node.span.end)
+        && !node
+            .annotations()
+            .any(|annotation| annotation.span.start <= offset && offset <= annotation.span.end)
+    {
         return None;
     }
     let mut next = id.saturating_add(1);
-    for child in &node.children {
+    for child in node.syntax_children() {
         if let Some(found) = smallest_node_at(child, offset, next) {
             return Some(found);
         }
@@ -1859,7 +1864,7 @@ fn smallest_node_at(node: &SyntaxNode, offset: usize, id: u64) -> Option<(&Synta
 }
 
 fn node_count(node: &SyntaxNode) -> u64 {
-    1 + node.children.iter().map(node_count).sum::<u64>()
+    1 + node.syntax_children().map(node_count).sum::<u64>()
 }
 
 fn node_by_id<'a>(node: &'a SyntaxNode, wanted: u64, next: &mut u64) -> Option<&'a SyntaxNode> {
@@ -1868,8 +1873,7 @@ fn node_by_id<'a>(node: &'a SyntaxNode, wanted: u64, next: &mut u64) -> Option<&
     if id == wanted {
         return Some(node);
     }
-    node.children
-        .iter()
+    node.syntax_children()
         .find_map(|child| node_by_id(child, wanted, next))
 }
 
@@ -2016,6 +2020,14 @@ fn semantic_object(
             .and_then(|target| declaration_location(snapshot, target))
             .map_or_else(|| semantic_fact_unavailable(snapshot), Availability::Known)
     };
+    let declaration_metadata = snapshot.semantic.as_ref().and_then(|semantic| {
+        target.as_ref().and_then(|target| {
+            target
+                .declaration_span
+                .and_then(|span| semantic.declaration_at(span))
+                .cloned()
+        })
+    });
     SemanticObject {
         source_uri: uri.unwrap_or(&document.identity.uri).to_owned(),
         span: node.span.into(),
@@ -2037,6 +2049,7 @@ fn semantic_object(
         effects: semantic_optional_fact(snapshot, effects),
         capabilities: semantic_optional_fact(snapshot, capabilities),
         declaration,
+        declaration_metadata: semantic_optional_fact(snapshot, declaration_metadata),
         invocation_mode: semantic_optional_fact(snapshot, invocation_mode),
         members: semantic_optional_fact(snapshot, members),
         inheritance: semantic_optional_fact(snapshot, inheritance),
@@ -3108,7 +3121,10 @@ fn format_source(document: &ParsedDocument) -> String {
                 .trivia
                 .iter()
                 .filter(|trivia| {
-                    trivia.kind == TriviaKind::BlockComment && trivia.text.contains('\n')
+                    matches!(
+                        trivia.kind,
+                        TriviaKind::DocumentationLine | TriviaKind::DocumentationBlock
+                    ) || trivia.kind == TriviaKind::BlockComment && trivia.text.contains('\n')
                 })
                 .map(|trivia| trivia.span),
         )
@@ -3682,6 +3698,58 @@ mod tests {
             .find(&first.snapshot_id, &selector, Some(1), Some(&continuation))
             .expect_err("evicted continuation must fail");
         assert!(error.retry_fresh_query);
+    }
+
+    #[test]
+    fn callable_documentation_reports_the_origin_without_copying_to_value_aliases() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/origins.trn";
+        let source = "namespace origins\n/// Original documentation.\nfunction answer int;\n    return 42\n\nfunction main;\n    alias = answer\n    _ = answer;\n    _ = alias;\n";
+        let snapshot = open(
+            &mut engine,
+            uri,
+            source,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let original = engine
+            .locate(&snapshot.snapshot_id, uri, source.rfind("answer;").unwrap())
+            .unwrap()
+            .unwrap();
+        let Availability::Known(metadata) = &original.declaration_metadata else {
+            panic!("named declaration metadata must be known: {original:?}");
+        };
+        assert_eq!(metadata.identity, "/origins::answer");
+        assert_eq!(
+            metadata.documentation.as_deref(),
+            Some("Original documentation.")
+        );
+        let alias = engine
+            .locate(&snapshot.snapshot_id, uri, source.rfind("alias;").unwrap())
+            .unwrap()
+            .unwrap();
+        if let Availability::Known(alias_metadata) = alias.declaration_metadata {
+            assert_ne!(alias_metadata.origin, metadata.origin);
+            assert_ne!(
+                alias_metadata.documentation.as_deref(),
+                metadata.documentation.as_deref()
+            );
+        }
+    }
+
+    #[test]
+    fn formatter_preserves_documentation_content_while_formatting_the_declaration() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/documented.trn";
+        let source = "/**\n * A paragraph with a hard break.  \n *\n *     indented example  \n */\nfunction main;   \n    value int=1\n";
+        let snapshot = open(&mut engine, uri, source, SnapshotOptions::default());
+        let formatted = engine.format(&snapshot.snapshot_id, uri).unwrap();
+        assert_eq!(
+            formatted.text,
+            "/**\n * A paragraph with a hard break.  \n *\n *     indented example  \n */\nfunction main;\n    value int = 1\n"
+        );
     }
 
     #[test]

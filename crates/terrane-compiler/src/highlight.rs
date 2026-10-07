@@ -56,7 +56,10 @@ pub fn highlight(source: &SourceFile) -> HighlightOutput {
         .filter(|trivia| {
             matches!(
                 trivia.kind,
-                TriviaKind::LineComment | TriviaKind::BlockComment
+                TriviaKind::LineComment
+                    | TriviaKind::BlockComment
+                    | TriviaKind::DocumentationLine
+                    | TriviaKind::DocumentationBlock
             )
         })
         .map(|trivia| Highlight {
@@ -123,7 +126,7 @@ fn classify_node(
     tokens: &[Token],
     classified: &mut [Option<(HighlightKind, bool)>],
 ) {
-    for child in &node.children {
+    for child in node.syntax_children() {
         classify_node(child, tokens, classified);
     }
     match node.kind {
@@ -132,6 +135,11 @@ fn classify_node(
         }
         SyntaxKind::TypeExpression => {
             classify_names(node, tokens, classified, HighlightKind::Type, false);
+        }
+        SyntaxKind::AnnotationApplication => {
+            if let Some(name) = node.children.first() {
+                classify_names(name, tokens, classified, HighlightKind::Type, false);
+            }
         }
         SyntaxKind::Parameter => {
             if let Some(name) = node

@@ -1,5 +1,6 @@
 mod bundled;
 mod compiler;
+mod consumers;
 pub mod debugging;
 pub mod diagnostic;
 mod execution;
@@ -36,9 +37,11 @@ pub use package::{
     with_tokio_runtime,
 };
 pub use semantics::{
-    BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, EvaluationKind, EvaluationStep,
-    FunctionContract, MemberFamily, Namespace, ParameterContract, SemanticFailure, SemanticPackage,
-    SemanticUnit, Symbol, TypedBinding, ValueType, Visibility, analyze,
+    AnnotationTarget, BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, CompileTimeValue,
+    DeclarationInterface, DeclarationKind, DeclarationMetadata, EvaluationKind, EvaluationStep,
+    FunctionContract, MemberFamily, MetadataSpan, Namespace, ParameterContract, ResolvedAnnotation,
+    SemanticFailure, SemanticPackage, SemanticUnit, Symbol, TypedBinding, ValueType, Visibility,
+    analyze,
 };
 pub use source::{SourceFile, Span};
 pub use terrane_rust_analysis::RUSTDOC_TOOLCHAIN;

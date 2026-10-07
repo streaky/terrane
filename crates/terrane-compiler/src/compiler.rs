@@ -494,10 +494,39 @@ pub fn compile_package_with_options(
     package: &Package,
     options: CompilerOptions,
 ) -> Result<Compilation, CompilationFailure> {
+    if package.consumer_configs.is_empty() {
+        return compile_package_without_consumers(package, options);
+    }
+    let semantic =
+        semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
+            source: failure.source,
+            diagnostics: failure.diagnostics,
+        })?;
+    let generated = crate::consumers::run(package, &semantic)?;
+    if generated.is_empty() {
+        return compile_package_without_consumers(package, options);
+    }
+    let mut expanded_package = package.clone();
+    crate::consumers::add_generated_sources(&mut expanded_package, generated);
+    compile_package_without_consumers(&expanded_package, options)
+}
+
+fn compile_package_without_consumers(
+    package: &Package,
+    options: CompilerOptions,
+) -> Result<Compilation, CompilationFailure> {
     let semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
         source: failure.source,
         diagnostics: failure.diagnostics,
     })?;
+    compile_analyzed_package(package, semantic, options)
+}
+
+fn compile_analyzed_package(
+    package: &Package,
+    semantic: semantics::SemanticPackage,
+    options: CompilerOptions,
+) -> Result<Compilation, CompilationFailure> {
     let (source, entry_span) = package_entry(&semantic, package)?;
     let sources = compilation_sources(&semantic, package);
     let warnings = collect_warnings(&semantic, options)

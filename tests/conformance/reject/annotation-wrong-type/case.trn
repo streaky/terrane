@@ -1,0 +1,10 @@
+namespace annotation-wrong-type
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::class;))]
+class tag
+    value int = 0
+
+@[tag; value = 'not an integer']
+class subject

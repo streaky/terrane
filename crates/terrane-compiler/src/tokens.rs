@@ -51,6 +51,8 @@ pub enum TriviaKind {
     Whitespace,
     LineComment,
     BlockComment,
+    DocumentationLine,
+    DocumentationBlock,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

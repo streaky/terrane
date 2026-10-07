@@ -1,0 +1,13 @@
+namespace annotation-runtimecall
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+function runtime-value string;
+    return 'runtime'
+
+@[annotation; targets = (list; (instance annotation-target::class;))]
+class tag
+    value string = ''
+
+@[tag; value = (runtime-value;)]
+class subject

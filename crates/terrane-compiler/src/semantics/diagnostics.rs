@@ -244,9 +244,16 @@ pub(crate) fn warnings(
             };
             if binding.name.starts_with('_')
                 && binding.name != "_"
-                && let Some(BindingEvent::Read { span, .. }) = events
+                && let Some(span) = events
                     .iter()
-                    .find(|event| matches!(event, BindingEvent::Read { .. }))
+                    .find_map(|event| {
+                        if let BindingEvent::Read { span, .. } = event {
+                            Some(span)
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| package.metadata_constant_reads.get(&span_key(binding.span)))
             {
                 let suggested = binding.name.trim_start_matches('_');
                 let help = if suggested.is_empty() {
@@ -276,7 +283,12 @@ pub(crate) fn warnings(
                 else {
                     continue;
                 };
-                if binding_store_value_is_read(package, binding.span, *store_span) {
+                if binding_store_value_is_read(package, binding.span, *store_span)
+                    || (*store_span == binding.span
+                        && package
+                            .metadata_constant_reads
+                            .contains_key(&span_key(binding.span)))
+                {
                     continue;
                 }
                 let later_store = events[index + 1..]

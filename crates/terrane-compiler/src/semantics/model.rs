@@ -83,9 +83,106 @@ pub struct SemanticPackage {
     pub descriptor_constructs: BTreeMap<String, Symbol>,
     pub units: Vec<SemanticUnit>,
     pub(super) binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    pub(super) metadata_constant_reads: BTreeMap<(u32, usize, usize), Span>,
     pub(super) referenced_functions: BTreeSet<(u32, usize, usize)>,
     pub(super) import_warnings: Vec<Diagnostic>,
     pub bootstrap_version: &'static str,
+}
+
+impl SemanticPackage {
+    /// Canonical authored declarations, ordered by source unit and declaration span.
+    pub fn declarations(&self) -> impl Iterator<Item = &DeclarationMetadata> {
+        self.units
+            .iter()
+            .flat_map(|unit| unit.declaration_metadata.iter())
+    }
+
+    /// Finds metadata by either the declaration's full span or its declared-name span.
+    pub fn declaration_at(&self, span: Span) -> Option<&DeclarationMetadata> {
+        self.declarations().find(|declaration| {
+            (declaration.origin.file == span.file
+                && declaration.origin.start == span.start
+                && declaration.origin.end == span.end)
+                || (declaration.span.file == span.file
+                    && declaration.span.start == span.start
+                    && declaration.span.end == span.end)
+        })
+    }
+
+    /// Builds the public source-independent declaration interface.
+    pub fn declaration_interface(&self) -> DeclarationInterface {
+        let authored_files = self
+            .units
+            .iter()
+            .filter(|unit| !unit.bundled)
+            .map(|unit| unit.source.id())
+            .collect::<BTreeSet<_>>();
+        let private_declarations = self
+            .declarations()
+            .filter(|declaration| declaration.visibility != "public")
+            .map(|declaration| declaration.identity.as_str())
+            .collect::<BTreeSet<_>>();
+        let public_roots = self
+            .namespaces
+            .values()
+            .flat_map(|namespace| namespace.symbols.values())
+            .filter(|symbol| {
+                symbol.visibility == Visibility::Public
+                    && symbol
+                        .declaration_span
+                        .is_some_and(|span| authored_files.contains(&span.file))
+            })
+            .map(|symbol| symbol.identity.as_str())
+            .collect::<BTreeSet<_>>();
+        let mut declarations = self
+            .declarations()
+            .filter(|declaration| {
+                let mut scope = declaration.identity.as_str();
+                let mut published = false;
+                loop {
+                    if private_declarations.contains(scope) {
+                        return false;
+                    }
+                    published |= public_roots.contains(scope);
+                    let Some((parent, _)) = scope.rsplit_once("::") else {
+                        break;
+                    };
+                    scope = parent;
+                }
+                published
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        declarations.sort_by(|left, right| {
+            (&left.span.path, left.span.start, left.span.end).cmp(&(
+                &right.span.path,
+                right.span.start,
+                right.span.end,
+            ))
+        });
+        for declaration in &mut declarations {
+            declaration.fields.retain_mut(|field| {
+                let public = field
+                    .get("visibility")
+                    .and_then(serde_json::Value::as_str)
+                    .is_none_or(|visibility| visibility == "public");
+                if !public || field.get("secret").and_then(serde_json::Value::as_bool) == Some(true)
+                {
+                    if let Some(object) = field.as_object_mut() {
+                        object.insert("default".to_owned(), serde_json::Value::Null);
+                        object.insert("default_value".to_owned(), serde_json::Value::Null);
+                    }
+                }
+                public
+            });
+        }
+        let sources = self
+            .units
+            .iter()
+            .map(|unit| (unit.source.id(), unit.source_path.clone()))
+            .collect::<BTreeMap<_, _>>();
+        DeclarationInterface::new(self.identity.clone(), declarations, sources)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1634,6 +1731,170 @@ pub(crate) struct ProjectedCallSpecialization {
     pub value_type: ValueType,
 }
 
+/// Immutable compile-time data admitted as declaration annotation payload.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum CompileTimeValue {
+    None,
+    Boolean(bool),
+    Integer(String),
+    Float(String),
+    String(String),
+    Bytes(Vec<u8>),
+    Tuple(Vec<Self>),
+    List(Vec<Self>),
+    Map(Vec<(Self, Self)>),
+    Set(Vec<Self>),
+    Descriptor(String),
+    Kind(AnnotationTarget),
+}
+
+#[derive(
+    Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AnnotationTarget {
+    Class,
+    Callable,
+    Parameter,
+    Field,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MetadataSpan {
+    pub file: u32,
+    pub path: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+impl From<Span> for MetadataSpan {
+    fn from(span: Span) -> Self {
+        Self {
+            file: span.file,
+            path: String::new(),
+            start: span.start,
+            end: span.end,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ResolvedAnnotation {
+    pub identity: String,
+    pub span: MetadataSpan,
+    pub payload: CompileTimeValue,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeclarationKind {
+    Class,
+    Callable,
+    Parameter,
+    Field,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DeclarationMetadata {
+    pub identity: String,
+    pub span: MetadataSpan,
+    pub origin: MetadataSpan,
+    pub visibility: String,
+    pub kind: DeclarationKind,
+    pub documentation: Option<String>,
+    pub annotations: Vec<ResolvedAnnotation>,
+    pub signature: Option<serde_json::Value>,
+    pub fields: Vec<serde_json::Value>,
+    pub contracts: serde_json::Value,
+}
+
+/// Versioned, source-independent exported declaration metadata.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DeclarationInterface {
+    pub format: u32,
+    pub package: String,
+    pub fingerprint: String,
+    pub sources: BTreeMap<u32, String>,
+    pub declarations: Vec<DeclarationMetadata>,
+}
+
+impl DeclarationInterface {
+    pub const FORMAT: u32 = 1;
+
+    fn calculated_fingerprint(&self) -> String {
+        use sha2::Digest as _;
+        #[derive(serde::Serialize)]
+        struct Canonical<'a> {
+            format: u32,
+            package: &'a str,
+            fingerprint: &'a str,
+            sources: &'a BTreeMap<u32, String>,
+            declarations: &'a [DeclarationMetadata],
+        }
+        let canonical = Canonical {
+            format: self.format,
+            package: &self.package,
+            fingerprint: "",
+            sources: &self.sources,
+            declarations: &self.declarations,
+        };
+        let serialized =
+            serde_json::to_vec(&canonical).expect("canonical declaration metadata is serializable");
+        format!("{:x}", sha2::Sha256::digest(serialized))
+    }
+
+    fn new(
+        package: String,
+        declarations: Vec<DeclarationMetadata>,
+        sources: BTreeMap<u32, String>,
+    ) -> Self {
+        let mut interface = Self {
+            format: Self::FORMAT,
+            package,
+            fingerprint: String::new(),
+            sources,
+            declarations,
+        };
+        interface.fingerprint = interface.calculated_fingerprint();
+        interface
+    }
+
+    pub fn to_json(&self) -> Result<String, String> {
+        self.validate()?;
+        serde_json::to_string(self).map_err(|error| error.to_string())
+    }
+
+    pub fn from_json(source: &str) -> Result<Self, String> {
+        let interface: Self = serde_json::from_str(source).map_err(|error| error.to_string())?;
+        interface.validate()?;
+        Ok(interface)
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.format != Self::FORMAT {
+            return Err(format!(
+                "unsupported declaration interface format {}",
+                self.format
+            ));
+        }
+        for declaration in &self.declarations {
+            for span in [&declaration.span, &declaration.origin] {
+                if span.start > span.end || self.sources.get(&span.file) != Some(&span.path) {
+                    return Err(format!(
+                        "declaration source path mismatch for file {}",
+                        span.file
+                    ));
+                }
+            }
+        }
+        if self.fingerprint != self.calculated_fingerprint() {
+            return Err("declaration interface fingerprint mismatch".to_owned());
+        }
+        Ok(())
+    }
+}
+
 type CallableApplications = BTreeMap<(u32, usize, usize), BTreeMap<(u32, usize, usize), ValueType>>;
 
 #[derive(Clone, Debug)]
@@ -1645,6 +1906,8 @@ pub struct SemanticUnit {
     pub(super) prelude: bool,
     pub role: crate::SourceRole,
     pub(crate) bundled: bool,
+    pub declaration_metadata: Vec<DeclarationMetadata>,
+
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
     /// Proven owners and projections for non-owning reference expressions and bindings.

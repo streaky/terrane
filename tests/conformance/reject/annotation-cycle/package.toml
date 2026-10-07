@@ -1,0 +1,6 @@
+package = "annotation-cycle"
+[namespaces]
+annotation-cycle = "src"
+[consumers.must-not-run]
+command = "false"
+declarations = ["/annotation-cycle::subject"]

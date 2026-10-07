@@ -1,0 +1,75 @@
+namespace declaration-annotations
+
+from /core/annotations import annotation as metadata, annotation-target, descriptor as metadata-type
+from /core/collections import list, tuple, map, set, entry
+from /core/output import print
+
+constant shared-text string = 'shared'
+
+@[metadata; targets = (list; (instance annotation-target::class;), (instance annotation-target::callable;), (instance annotation-target::parameter;), (instance annotation-target::field;)), repeatable = true]
+class tag
+    value string = ''
+
+    function construct;
+        print; 'ANNOTATION CONSTRUCTOR MUST NOT RUN'
+
+@[metadata; targets = (list; (instance annotation-target::class;))]
+class data-tag
+    values list of string
+    keys set of int
+    pairs map of string, int
+    raw bytes = b''
+    pair tuple of int = (tuple; 3, 4)
+    scale float32 = 0.0
+    enabled bool = false
+    target metadata-type
+
+    function construct; target metadata-type
+        this.target = target
+
+/**
+ * Parent documentation.
+ *
+ *     An indented example.
+ */
+@[tag; shared-text]
+@[tag; value = 'second']
+@[data-tag; (list; 'first', 'second'), keys = (set; 1, 1, 2), pairs = (map; (entry; 'a', 3)), raw = b'AB', pair = (tuple; 5, 6), scale = 0.5, enabled = true, target = int]
+class parent
+    @[tag; 'field annotation']
+    field string = 'field'
+    private secret string = 'private initializer'
+    credential string = 'secret initializer' metadata (secret = true)
+
+    @[tag; 'method annotation']
+    function inherited int; value int = 3
+        return value + 1
+
+    private function hidden int; value int = 5
+        return value
+
+class child extends parent
+
+class override-child extends parent
+    function inherited int; value int = 3
+        return value + 2
+
+@[data-tag; (list; 'callable'), keys = (set;), pairs = (map;), target = helper]
+class callable-target
+
+@[data-tag; (list; 'none'), keys = (set;), pairs = (map;), target = none]
+class none-target
+
+@[tag; 'UNIQUE_COMPILE_TIME_ANNOTATION_PAYLOAD']
+function helper int; (
+    /**
+     * Parameter documentation.
+     */
+    @[tag; 'parameter annotation'] value int,
+)
+    return value * 2
+
+function main;
+    item = instance child;
+    override-item = instance override-child;
+    print; (helper; 4), ':', (item.inherited;), ':', (override-item.inherited;)

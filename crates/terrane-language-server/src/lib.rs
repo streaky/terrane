@@ -952,6 +952,20 @@ fn semantic_hover(
     if let terrane_compiler::tooling::Availability::Known(identity) = object.symbol_identity {
         let _ = write!(content, "\n\nSymbol: `{identity}`");
     }
+    if let terrane_compiler::tooling::Availability::Known(metadata) = object.declaration_metadata {
+        if let Some(documentation) = metadata.documentation {
+            let _ = write!(content, "\n\n{documentation}");
+        }
+        if !metadata.annotations.is_empty() {
+            content.push_str("\n\nAnnotations: ");
+            for (index, annotation) in metadata.annotations.iter().enumerate() {
+                if index != 0 {
+                    content.push_str(", ");
+                }
+                let _ = write!(content, "`{}`", annotation.identity);
+            }
+        }
+    }
     Some(Hover {
         contents: HoverContents::Scalar(MarkedString::String(content)),
         range: Some(range_for_public_span(text, &object.span, encoding)),
