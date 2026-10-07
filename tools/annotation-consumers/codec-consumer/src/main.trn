@@ -120,12 +120,9 @@ function generate codec-source throws consumer-error; request document-value
             class-path = class-path.concat; '/'
         class-path = class-path.concat; path-pieces[index]
     generated-namespace = 'generated/annotation-codec/'.concat; class-path
-    source-identity = 'typed-codec-'
-    for byte in identity.bytes
-        encoded = byte.radix; 16
-        if encoded.length == 1
-            source-identity = source-identity.concat; '0'
-        source-identity = source-identity.concat; encoded
+    # Escape underscores first so separator escapes cannot collide with authored names.
+    escaped-identity = ((identity.replace; '_', '_5f').replace; '/', '_2f').replace; ':', '_3a'
+    source-identity = 'typed-codec-'.concat; escaped-identity
     include-schema = flag; '--include-schema'
     schema-only = flag; '--schema-only'
     description-override = option; '--description'
