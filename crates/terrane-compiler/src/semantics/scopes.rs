@@ -408,8 +408,15 @@ pub(super) fn populate_binding(
         .any(|child| child.kind == SyntaxKind::TypeExpression)
         && scopes[index].symbols.contains_key(&declaration.name);
     if typed_replacement
-        && visible_local_symbol(scopes, index, &declaration.name)
-            .is_some_and(|symbol| symbol.kind == SymbolKind::Function)
+        && visible_local_symbol(scopes, index, &declaration.name).is_some_and(|symbol| {
+            symbol.kind == SymbolKind::Function
+                && symbol.declaration_span.is_some_and(|span| {
+                    let scope = &scopes[index];
+                    span.file == scope.span.file
+                        && scope.span.start <= span.start
+                        && span.end <= scope.span.end
+                })
+        })
     {
         return Err(failure(
             &unit.source,
