@@ -1,0 +1,8 @@
+package = "annotation-codec-constraint"
+[namespaces]
+annotation-codec-constraint = "src/app"
+annotation-codec = "src/schema"
+[consumers.codec]
+command = "python3"
+args = ["tools/codec.py"]
+declarations = ["/annotation-codec-constraint::payload", "/annotation-codec-constraint::payload::value"]

@@ -1,0 +1,11 @@
+package = "annotation-codec-consumer"
+
+[namespaces]
+annotation-codec-consumer = "src/app"
+codec-model = "src/model"
+annotation-codec = "src/codec-schema"
+
+[consumers.codec]
+command = "python3"
+args = ["tools/annotation-codec/consumer.py"]
+declarations = ["/codec-model::account", "/codec-model::account::account-id", "/codec-model::account::display-name", "/codec-model::account::active", "/codec-model::account::age", "/codec-model::account::nickname", "/codec-model::account::secret-note", "/codec-model::account::credential"]

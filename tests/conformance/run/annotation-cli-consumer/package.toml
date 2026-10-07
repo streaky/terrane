@@ -1,0 +1,10 @@
+package = "annotation-cli-consumer"
+
+[namespaces]
+annotation-cli-consumer = "src/app"
+annotation-cli = "src/cli-schema"
+
+[consumers.cli]
+command = "python3"
+args = ["tools/annotation-cli/consumer.py", "--summary", "Configured command summary"]
+declarations = ["/annotation-cli-consumer::greet", "/annotation-cli-consumer::greet::name", "/annotation-cli-consumer::greet::limit"]

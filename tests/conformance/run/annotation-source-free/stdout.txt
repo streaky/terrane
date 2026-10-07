@@ -1,0 +1,1 @@
+{"description":"Configured schema description","fields":{"field":{"description":null,"nullable":false,"required":false,"type":"string"}}}

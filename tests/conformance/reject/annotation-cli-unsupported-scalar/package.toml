@@ -1,0 +1,8 @@
+package = "annotation-cli-unsupported-scalar"
+[namespaces]
+annotation-cli-unsupported-scalar = "src/app"
+annotation-cli = "src/schema"
+[consumers.cli]
+command = "python3"
+args = ["tools/cli.py"]
+declarations = ["/annotation-cli-unsupported-scalar::entrypoint", "/annotation-cli-unsupported-scalar::entrypoint::value"]

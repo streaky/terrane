@@ -1,0 +1,7 @@
+namespace annotation-cli-unsupported-scalar
+from /annotation-cli import command as cli-command, command-option
+@[cli-command;]
+function entrypoint int; (
+    @[command-option; '--value'] value bytes,
+)
+    return 0

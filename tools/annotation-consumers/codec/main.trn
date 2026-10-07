@@ -1,0 +1,26 @@
+namespace annotation-codec
+
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::field;))]
+class external-name
+    value string
+
+@[annotation; targets = (list; (instance annotation-target::field;))]
+class required
+
+@[annotation; targets = (list; (instance annotation-target::field;))]
+class secret
+
+@[annotation; targets = (list; (instance annotation-target::field;))]
+class minimum
+    value int
+
+@[annotation; targets = (list; (instance annotation-target::field;))]
+class maximum
+    value int
+
+@[annotation; targets = (list; (instance annotation-target::class;), (instance annotation-target::field;))]
+class description
+    value string

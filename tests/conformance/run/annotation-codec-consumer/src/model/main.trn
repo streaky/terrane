@@ -1,0 +1,24 @@
+namespace codec-model
+
+from /annotation-codec import external-name, required, minimum, maximum, description
+
+/**
+ * An account document.
+ */
+class account
+    /**
+     * The account identifier.
+     */
+    @[external-name; 'accountId']
+    @[required;]
+    @[minimum; 1]
+    @[maximum; 100]
+    account-id int16
+    @[external-name; 'label']
+    @[description; 'Explicit label description']
+    display-name string = 'defaulted'
+    active bool = true
+    age int8|none = none
+    nickname string|none = 'fallback'
+    private secret-note string = 'do not serialize'
+    credential string = 'do not leak' metadata (secret = true)

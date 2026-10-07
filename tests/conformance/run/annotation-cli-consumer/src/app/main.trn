@@ -1,0 +1,22 @@
+namespace annotation-cli-consumer
+
+from /annotation-cli import command, command-option
+from /core/output import print
+
+/**
+ * Declaration summary.
+ */
+@[command; summary = 'Annotation summary']
+function greet int; (
+    @[command-option; long-name = '--name', help = 'Name to greet'] name string,
+    @[command-option; long-name = '--limit', help = 'Greeting limit'] limit int = 10,
+)
+    print; name, (limit * 2)
+    return 0
+
+from /generated/annotation-cli import run-command
+from /core/errors import coercion-error
+function main throws coercion-error;
+    status = run-command;
+    if status != 0
+        throw coercion-error

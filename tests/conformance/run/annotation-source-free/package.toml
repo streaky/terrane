@@ -1,0 +1,10 @@
+package = "annotation-source-free"
+
+[namespaces]
+annotation-source-free = "src"
+
+[consumers.schema]
+command = "python3"
+args = ["tools/codec.py", "--schema-only", "--description", "Configured schema description"]
+interfaces = ["library.interface.json"]
+declarations = ["/declaration-annotations::parent", "/declaration-annotations::parent::field"]
