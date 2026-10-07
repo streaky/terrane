@@ -1,0 +1,221 @@
+namespace annotation-consumer-protocol
+
+from /core/collections import list
+from /core/documents import document-value, document-map-entries, make-document-none, make-document-string, make-document-integer, make-document-decimal, make-document-list, make-document-map
+from /core/documents/json import parse-json, default-json-options
+from /core/errors import throwable, decode-error
+from /core/encodings import utf8
+from /core/streams import stdin
+from /core/process import arguments
+from /core/output import print
+
+# A consumer handles one synchronous request per process. Catch bindings expose
+# the throwable interface, so preserve the diagnostic record beside the error.
+
+function error-origin document-value;
+    return consumer-error::origin
+
+class consumer-error implements throwable
+    message string = ''
+    static origin document-value = make-document-none;
+
+    function construct; declaration document-value, message string
+        consumer-error::origin = declaration
+        this.message = message
+
+    function render string;
+        return this.message
+
+function get document-value; value document-value, name string
+    result = value.field; name
+    if result.failed
+        return make-document-none;
+    return result.value
+
+function at document-value; value document-value, index int
+    result = value.item; index
+    if result.failed
+        return make-document-none;
+    return result.value
+
+function text string; value document-value
+    return value.scalar
+
+function truth bool; value document-value
+    return value.kind == 'bool' and value.scalar == 'true'
+
+function has bool; value document-value, name string
+    result = value.field; name
+    return not result.failed
+
+function scalar document-value throws consumer-error; value document-value
+    if value.kind == 'none'
+        return value
+    kind = text; (get; value, 'kind')
+    if kind != 'none' and kind != 'boolean' and kind != 'integer' and kind != 'float' and kind != 'string'
+        throw (instance consumer-error; (make-document-none;), 'metadata value is not a supported scalar')
+    raw = get; value, 'value'
+    if kind == 'integer'
+        number = make-document-integer; raw.scalar
+        if number.failed
+            throw (instance consumer-error; (make-document-none;), number.message)
+        return number.value
+    if kind == 'float'
+        number = make-document-decimal; raw.scalar
+        if number.failed
+            throw (instance consumer-error; (make-document-none;), number.message)
+        return number.value
+    return get; value, 'value'
+
+function annotation document-value throws consumer-error; declaration document-value, suffix string, namespace string
+    annotations = get; declaration, 'annotations'
+    found bool = false
+    result = make-document-none;
+    index int = 0
+    while index < (annotations.length;)
+        application = at; annotations, index
+        if (text; (get; application, 'identity')) == (namespace.concat; '::', suffix)
+            if found
+                throw (instance consumer-error; declaration, ('declaration has repeated '.concat; suffix, ' metadata'))
+            found = true
+            payload = get; application, 'payload'
+            if (text; (get; payload, 'kind')) != 'map'
+                throw (instance consumer-error; declaration, 'annotation payload is not a map')
+            pairs = get; payload, 'value'
+            if pairs.kind != 'list'
+                throw (instance consumer-error; declaration, 'annotation payload is not a map')
+            entries = instance document-map-entries;
+            keys list of string = list;
+            pair-index int = 0
+            while pair-index < (pairs.length;)
+                pair = at; pairs, pair-index
+                if pair.kind != 'list' or (pair.length;) != 2
+                    throw (instance consumer-error; declaration, 'malformed annotation payload entry')
+                key-value = at; pair, 0
+                if (text; (get; key-value, 'kind')) != 'string'
+                    throw (instance consumer-error; declaration, 'annotation payload key must be text')
+                key = text; (get; key-value, 'value')
+                for previous in keys
+                    if previous == key
+                        throw (instance consumer-error; declaration, 'duplicate annotation payload key')
+                keys.append; key
+                entries.append; key, (at; pair, 1)
+                pair-index = pair-index + 1
+            mapped = make-document-map; entries
+            result = mapped.value
+        index = index + 1
+    return result
+
+function quote string; value string
+    escaped = value.replace; '\\', '\\\\'
+    escaped = escaped.replace; '\'', '\\\''
+    escaped = escaped.replace; '\n', '\\n'
+    escaped = escaped.replace; '\r', '\\r'
+    escaped = escaped.replace; '\t', '\\t'
+    return '\''.concat; escaped, '\''
+
+function selected document-value throws consumer-error; request document-value, kind string
+    declarations = get; request, 'declarations'
+    result = make-document-none;
+    count int = 0
+    index int = 0
+    while index < (declarations.length;)
+        declaration = at; declarations, index
+        if (text; (get; declaration, 'kind')) == kind
+            result = declaration
+            count = count + 1
+        index = index + 1
+    if count != 1
+        throw (instance consumer-error; result, ('consumer requires exactly one selected '.concat; kind))
+    return result
+
+function option string|none throws consumer-error; name string
+    args = arguments;
+    result string|none = none
+    index int = 0
+    while index < args.length
+        argument = args[index].text
+        if argument == name
+            if index + 1 >= args.length
+                throw (instance consumer-error; (make-document-none;), ('missing value for '.concat; name))
+            result = args[index + 1].text
+            index = index + 1
+        else
+            parts = argument.split; '='
+            if parts.length > 1 and parts[0] == name
+                value = parts[1]
+                part-index int = 2
+                while part-index < parts.length
+                    value = value.concat; '=', parts[part-index]
+                    part-index = part-index + 1
+                result = value
+        index = index + 1
+    return result
+
+function flag bool; name string
+    args = arguments;
+    for argument in args
+        if argument.text == name
+            return true
+    return false
+
+function json-quote string; value string
+    encoded = make-document-string; value
+    return encoded.encoded
+
+function read-request document-value throws consumer-error;
+    input = stdin;
+    data = input.read-all; 16777217
+    if data.failed or data.completed > 16777216
+        throw (instance consumer-error; (make-document-none;), 'cannot read bounded declaration-consumer input')
+    try
+        source = data.data.decode; utf8
+        parsed = parse-json; source, (default-json-options;)
+        if parsed.failed
+            throw (instance consumer-error; (make-document-none;), parsed.message)
+        request = parsed.value
+        if (get; request, 'format').kind != 'integer' or (text; (get; request, 'format')) != '1' or (get; request, 'declarations').kind != 'list'
+            throw (instance consumer-error; (make-document-none;), 'expected declaration-consumer protocol format 1')
+        return request
+    catch decode-error
+        throw (instance consumer-error; (make-document-none;), 'declaration-consumer input is not UTF-8')
+
+function emit-source; identity string, source string
+    entry = instance document-map-entries;
+    entry.append; 'identity', (make-document-string; identity)
+    entry.append; 'source', (make-document-string; source)
+    mapped = make-document-map; entry
+    sources list of document-value = list; mapped.value
+    source-list = make-document-list; sources
+    empty list of document-value = list;
+    diagnostics = make-document-list; empty
+    response = instance document-map-entries;
+    format = make-document-integer; '1'
+    response.append; 'format', format.value
+    response.append; 'generated_sources', source-list.value
+    response.append; 'diagnostics', diagnostics.value
+    encoded = make-document-map; response
+    print; encoded.value.encoded
+
+function emit-error; declaration document-value, message string
+    span = get; declaration, 'origin'
+    if span.kind == 'none'
+        span = get; declaration, 'span'
+    if span.kind == 'none'
+        fallback = parse-json; '{"file":0,"start":0,"end":0}', (default-json-options;)
+        span = fallback.value
+    diagnostic = instance document-map-entries;
+    diagnostic.append; 'declaration', span
+    diagnostic.append; 'message', (make-document-string; message)
+    mapped = make-document-map; diagnostic
+    errors list of document-value = list; mapped.value
+    diagnostics = make-document-list; errors
+    empty list of document-value = list;
+    sources = make-document-list; empty
+    response = instance document-map-entries;
+    format = make-document-integer; '1'
+    response.append; 'format', format.value
+    response.append; 'generated_sources', sources.value
+    response.append; 'diagnostics', diagnostics.value
+    encoded = make-document-map; response
+    print; encoded.value.encoded

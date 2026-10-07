@@ -1,4 +1,5 @@
-use std::collections::BTreeSet;
+use parking_lot::Mutex as ToolMutex;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
@@ -10,6 +11,8 @@ use std::sync::{Mutex, mpsc};
 const MAX_CONFORMANCE_JOBS: usize = 8;
 static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
 static NEXT_BUILD_ID: AtomicUsize = AtomicUsize::new(0);
+static NATIVE_TOOL_ARTIFACTS: ToolMutex<BTreeMap<PathBuf, PathBuf>> =
+    ToolMutex::new(BTreeMap::new());
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
@@ -288,6 +291,7 @@ fn case_source_path(
         fs::remove_dir_all(&staged).unwrap();
     }
     copy_package_fixture(case, &staged);
+    stage_native_tools(case, &staged);
     let fixture_registry = staged.join("fixture-registry");
     if fixture_registry.is_dir() {
         let dependency_workspace = staged.join(".trn/dependencies");
@@ -298,6 +302,69 @@ fn case_source_path(
         copy_package_fixture(&staged.join(".cargo"), &dependency_workspace.join(".cargo"));
     }
     staged.join(entrypoint)
+}
+
+fn stage_native_tools(case: &Path, staged: &Path) {
+    let manifest = fs::read_to_string(case.join("case.toml")).unwrap();
+    let Some(tools) = field(&manifest, "native-tools") else {
+        return;
+    };
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for specification in tools.split(',') {
+        let (name, source) = specification
+            .split_once('=')
+            .expect("native tool name=manifest");
+        let source = repository.join(source).canonicalize().unwrap();
+        let mut artifacts = NATIVE_TOOL_ARTIFACTS.lock();
+        let artifact = artifacts.entry(source.clone()).or_insert_with(|| {
+            // Compile full tool packages with the same stack headroom as the CLI,
+            // rather than the small default stack of a conformance worker.
+            let compilation = std::thread::scope(|scope| {
+                std::thread::Builder::new()
+                    .name("native-tool-compiler".into())
+                    .stack_size(8 * 1024 * 1024)
+                    .spawn_scoped(scope, || {
+                        let package = terrane_compiler::Package::load(&source).unwrap();
+                        terrane_compiler::compile_package(&package).unwrap()
+                    })
+                    .unwrap()
+                    .join()
+                    .unwrap()
+            });
+            assert!(
+                compilation.warnings.is_empty(),
+                "{} warnings: {:?}",
+                source.display(),
+                compilation.warnings
+            );
+            let build = ConformanceBuild::new();
+            let name = format!("native_tool_{}", NEXT_BUILD_ID.load(Ordering::Relaxed));
+            stage_generated_binary(
+                &name,
+                case,
+                "",
+                &compilation.rust,
+                compilation.requires_unsafe_code,
+                &build,
+            );
+            let output = build_generated_binaries(
+                &[&name],
+                &compilation.rust_dependencies,
+                compilation.requires_unsafe_code,
+                &build,
+            );
+            assert!(
+                output.status.success(),
+                "{}: {}",
+                source.display(),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            binary_path(&name, &build)
+        });
+        let destination = staged.join(".trn/consumers").join(name);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(artifact, destination).unwrap();
+    }
 }
 
 fn reports(

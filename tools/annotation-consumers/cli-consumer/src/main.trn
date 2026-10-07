@@ -1,0 +1,229 @@
+namespace annotation-cli-consumer
+
+from /annotation-consumer-protocol import get, at, text, truth, scalar, annotation, quote, option, read-request, emit-source, emit-error, error-origin, consumer-error
+from /core/documents import document-value, make-document-none
+from /core/collections import range
+
+function raise; declaration document-value, message string
+    throw (instance consumer-error; declaration, message)
+
+
+function parameter-record document-value throws consumer-error; declarations document-value, function-identity string, parameter-name string, fallback document-value
+    identity = function-identity.concat; '::', parameter-name
+    count int = 0
+    index int = 0
+    result = make-document-none;
+    declaration-count = (declarations.length;)
+    while index < declaration-count
+        item = at; declarations, index
+        if (text; (get; item, 'kind')) == 'parameter' and (text; (get; item, 'identity')) == identity
+            count = count + 1
+            result = item
+        index = index + 1
+    if count != 1
+        raise; fallback, ('selected command parameter '.concat; (quote; identity), ' must have exactly one selected metadata record')
+    return result
+
+function parameter-kind string throws consumer-error; parameter document-value, record document-value
+    type-name = text; (get; parameter, 'type')
+    if (text; (get; parameter, 'type_kind')) != 'scalar'
+        raise; record, 'CLI parameter must have a canonical scalar type'
+    normalized = type-name
+    if normalized == 'string' or normalized == 'str'
+        return 'string'
+    if normalized == 'int'
+        return 'int'
+    throw (instance consumer-error; record, ('unsupported CLI parameter type '.concat; (quote; type-name), '; supported types are string and int'))
+
+function default-source string throws consumer-error; value document-value, kind string, type-name string, declaration document-value
+    if value.kind == 'none'
+        raise; declaration, ('optional parameter of type '.concat; (quote; type-name), ' requires a compile-time default')
+    actual = text; (get; value, 'kind')
+    raw = scalar; value
+    if (kind == 'string' and actual != 'string') or (kind == 'int' and actual != 'integer')
+        raise; declaration, ('default value does not match parameter type '.concat; (quote; type-name))
+    if kind == 'string'
+        return quote; (text; raw)
+    return text; raw
+
+function validate-flag string throws consumer-error; record document-value, parameter-name string, flag string
+    if not (flag.contains.start; '--') or flag.length < 3 or (flag.contains; '=')
+        raise; record, ('option for '.concat; parameter-name, ' must use a --long-name')
+    return flag
+
+function selected-flag string throws consumer-error; record document-value, parameter-name string
+    metadata = annotation; record, 'command-option', '/annotation-cli'
+    raw = scalar; (get; metadata, 'long-name')
+    if raw.kind == 'none'
+        return validate-flag; record, parameter-name, ('--'.concat; (parameter-name.replace; '_', '-'))
+    if raw.kind != 'string'
+        raise; record, ('option for '.concat; parameter-name, ' must use a --long-name')
+    return validate-flag; record, parameter-name, (text; raw)
+
+function parameter-help string throws consumer-error; record document-value, name string, declaration document-value
+    metadata = annotation; record, 'command-option', '/annotation-cli'
+    raw = scalar; (get; metadata, 'help')
+    if raw.kind != 'none'
+        if raw.kind != 'string'
+            raise; declaration, ('help for '.concat; name, ' must be text')
+        return text; raw
+    documentation = get; record, 'documentation'
+    if documentation.kind != 'none'
+        return text; documentation
+    return name
+
+function initial-source string throws consumer-error; optional bool, value document-value, kind string, name string, declaration document-value
+    if optional
+        return default-source; value, kind, name, declaration
+    if kind == 'string'
+        return quote; ''
+    return '0'
+
+function generate string throws consumer-error; request document-value
+    declarations = get; request, 'declarations'
+    declaration-count = (declarations.length;)
+    callable-count int = 0
+    declaration-index int = 0
+    function-declaration = make-document-none;
+    command = make-document-none;
+    while declaration-index < declaration-count
+        candidate = at; declarations, declaration-index
+        if (text; (get; candidate, 'kind')) == 'callable'
+            candidate-command = annotation; candidate, 'command', '/annotation-cli'
+            if candidate-command.kind != 'none'
+                if callable-count == 0
+                    function-declaration = candidate
+                    command = candidate-command
+                callable-count = callable-count + 1
+        declaration-index = declaration-index + 1
+    if callable-count != 1
+        raise; function-declaration, 'CLI consumer requires exactly one selected callable annotated as a command'
+    signature = get; function-declaration, 'signature'
+    if signature.kind != 'map'
+        raise; function-declaration, 'selected command has no callable signature'
+    if (truth; (get; signature, 'async')) or (truth; (get; signature, 'throws')) or (truth; (get; signature, 'unsafe'))
+        raise; function-declaration, 'CLI command must be synchronous, non-throwing, and safe'
+    if (truth; (get; function-declaration, 'receiver')) or (truth; (get; signature, 'receiver'))
+        raise; function-declaration, 'CLI command receiver methods are unsupported'
+    parameters = get; signature, 'parameters'
+    if parameters.kind != 'list'
+        raise; function-declaration, 'selected command signature has no parameter list'
+    if (text; (get; signature, 'result')) != 'int'
+        raise; function-declaration, 'CLI command must return an integer exit status'
+    identity = text; (get; function-declaration, 'identity')
+    pieces = identity.split; '::'
+    command-name = pieces[pieces.length - 1]
+    name-value = get; command, 'name'
+    if name-value.kind != 'none'
+        named = scalar; name-value
+        if named.kind != 'string' and named.kind != 'none'
+            raise; function-declaration, 'command name must be text'
+        if named.kind == 'string'
+            command-name = text; named
+    summary string = ''
+    summary-override = option; '--summary'
+    summary-value = get; command, 'summary'
+    if summary-override != none
+        summary = summary-override
+    else
+        raw-summary = scalar; summary-value
+        if raw-summary.kind == 'none'
+            documentation = get; function-declaration, 'documentation'
+            if documentation.kind == 'none'
+                summary = ''
+            else
+                summary = text; documentation
+        else if raw-summary.kind != 'string'
+            raise; function-declaration, 'command summary must be text'
+        else
+            summary = text; raw-summary
+    parameter-count = (parameters.length;)
+    for index in (range; 0, parameter-count)
+        parameter = at; parameters, index
+        parameter-name = text; (get; parameter, 'name')
+        record = parameter-record; declarations, identity, parameter-name, function-declaration
+        if (truth; (get; parameter, 'variadic')) or (truth; (get; parameter, 'mutable'))
+            raise; function-declaration, 'variadic or mutable CLI command parameters are unsupported'
+        parameter-kind; parameter, record
+        flag = selected-flag; record, parameter-name
+        if flag == '--help'
+            raise; record, ('duplicate or reserved CLI option '.concat; (quote; flag))
+        for previous in (range; 0, index)
+            prior = at; parameters, previous
+            prior-name = text; (get; prior, 'name')
+            prior-record = parameter-record; declarations, identity, prior-name, function-declaration
+            prior-flag = selected-flag; prior-record, prior-name
+            if prior-flag == flag
+                raise; record, ('duplicate or reserved CLI option '.concat; (quote; flag))
+    generated = 'namespace generated/annotation-cli\nfrom /core/output import print\nfrom /core/process import arguments, native-string, cli-schema, parse-command-line\nfrom /core/collections import list\nfrom /core/errors import coercion-error\n'
+    generated = generated.concat; 'from ', pieces[0], ' import ', pieces[pieces.length - 1], ' as selected-command\n\nfunction run-command int;\n    user-arguments = arguments;\n    schema-entries list of string = (list; \'flag:--help\')\n'
+    for index in (range; 0, parameter-count)
+        parameter = at; parameters, index
+        parameter-name = text; (get; parameter, 'name')
+        record = parameter-record; declarations, identity, parameter-name, function-declaration
+        flag = selected-flag; record, parameter-name
+        generated = generated.concat; '    schema-entries.append; ', (quote; ('value:'.concat; flag)), '\n'
+    generated = generated.concat; '    schema = instance cli-schema; schema-entries\n    parsed = parse-command-line; schema, user-arguments\n    if parsed.diagnostic-messages.length > 0\n        index int = 0\n        while index < parsed.diagnostic-messages.length\n            print; parsed.diagnostic-messages[index]\n            index = index + 1\n        return 2\n    if parsed.flags.length > 0\n        print; ', (quote; ('Usage: '.concat; command-name, ' [options]')), '\n        print; ', (quote; summary), '\n'
+    for index in (range; 0, parameter-count)
+        parameter = at; parameters, index
+        pname = text; (get; parameter, 'name')
+        record = parameter-record; declarations, identity, pname, function-declaration
+        kind = parameter-kind; parameter, record
+        flag = selected-flag; record, pname
+        help-text = parameter-help; record, pname, function-declaration
+        default-value = get; parameter, 'default'
+        optional = (truth; (get; parameter, 'optional')) or default-value.kind != 'none'
+        shown-default = ''
+        if optional and default-value.kind != 'none'
+            shown-default = ' (default: '.concat; (text; (get; default-value, 'value')), ')'
+        generated = generated.concat; '        print; ', (quote; ('  '.concat; flag, ' <', kind, '>', shown-default, '  ', help-text)), '\n'
+    generated = generated.concat; '        print; \'  --help  Show this help\'\n        return 0\n'
+    for index in (range; 0, parameter-count)
+        parameter = at; parameters, index
+        pname = text; (get; parameter, 'name')
+        type-name = text; (get; parameter, 'type')
+        record = parameter-record; declarations, identity, pname, function-declaration
+        kind = parameter-kind; parameter, record
+        default-value = get; parameter, 'default'
+        optional = (truth; (get; parameter, 'optional')) or default-value.kind != 'none'
+        initial = initial-source; optional, default-value, kind, type-name, function-declaration
+        generated = generated.concat; '    ', pname, ' ', type-name, ' = ', initial, '\n'
+        if not optional
+            generated = generated.concat; '    seen-', pname, ' bool = false\n'
+    generated = generated.concat; '    option-index int = 0\n    while option-index < parsed.option-names.length\n        option-name = parsed.option-names[option-index]\n        option-value = parsed.option-values[option-index]\n'
+    for index in (range; 0, parameter-count)
+        parameter = at; parameters, index
+        pname = text; (get; parameter, 'name')
+        record = parameter-record; declarations, identity, pname, function-declaration
+        kind = parameter-kind; parameter, record
+        flag = selected-flag; record, pname
+        generated = generated.concat; '        if option-name == ', (quote; flag), '\n'
+        if kind == 'string'
+            generated = generated.concat; '            ', pname, ' = option-value.text\n'
+        else
+            generated = generated.concat; '            try\n                ', pname, ' = option-value.text.radix; 10\n            catch coercion-error\n                print; ', (quote; ('invalid integer value for '.concat; flag)), '\n                return 2\n'
+        optional = (truth; (get; parameter, 'optional')) or (get; parameter, 'default').kind != 'none'
+        if not optional
+            generated = generated.concat; '            seen-', pname, ' = true\n'
+    generated = generated.concat; '        option-index = option-index + 1\n'
+    call-arguments = ''
+    for index in (range; 0, parameter-count)
+        parameter = at; parameters, index
+        pname = text; (get; parameter, 'name')
+        if index > 0
+            call-arguments = call-arguments.concat; ', '
+        call-arguments = call-arguments.concat; pname
+        optional = (truth; (get; parameter, 'optional')) or (get; parameter, 'default').kind != 'none'
+        if not optional
+            record = parameter-record; declarations, identity, pname, function-declaration
+            flag = selected-flag; record, pname
+            generated = generated.concat; '    if not seen-', pname, '\n        print; ', (quote; ('missing required option '.concat; flag)), '\n        return 2\n'
+    generated = generated.concat; '    return selected-command; ', call-arguments, '\n'
+    return generated
+
+function main;
+    try
+        request = read-request;
+        emit-source; 'cli-binder', (generate; request)
+    catch consumer-error as error
+        emit-error; (error-origin;), error.message

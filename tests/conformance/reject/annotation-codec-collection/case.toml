@@ -4,3 +4,4 @@ code = "S2060"
 entrypoint = "package.toml"
 source = "src/main.trn"
 line = 3
+native-tools = "codec=tools/annotation-consumers/codec-consumer/package.toml"

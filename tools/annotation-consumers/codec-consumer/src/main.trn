@@ -1,0 +1,323 @@
+namespace annotation-codec-consumer
+
+from /annotation-consumer-protocol import get, at, text, truth, scalar, annotation, quote, json-quote, selected, option, flag, read-request, emit-source, emit-error, error-origin, consumer-error
+from /core/collections import list, range
+from /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-integer
+from /core/errors import coercion-error, integer-conversion-overflow
+from /core/documents/json import parse-json, default-json-options, canonical-json
+
+function raise; declaration document-value, message string
+    throw (instance consumer-error; declaration, message)
+
+function annotation-of document-value throws consumer-error; declaration document-value, suffix string
+    return annotation; declaration, suffix, '/annotation-codec'
+
+function field-record document-value throws consumer-error; declarations document-value, field document-value
+    origin = get; field, 'origin'
+    count int = 0
+    index int = 0
+    result = make-document-none;
+    while index < (declarations.length;)
+        record = at; declarations, index
+        span = get; record, 'span'
+        if (text; (get; record, 'kind')) == 'field' and (text; (get; span, 'file')) == (text; (get; origin, 'file')) and (text; (get; span, 'start')) == (text; (get; origin, 'start')) and (text; (get; span, 'end')) == (text; (get; origin, 'end'))
+            count = count + 1
+            result = record
+        index = index + 1
+    if count != 1
+        raise; result, 'canonical field declaration metadata must be supplied with the selected class'
+    return result
+
+function integer-type bool; name string
+    return (name.contains.start; 'int') or (name.contains.start; 'uint')
+
+function supported-type bool; name string
+    return name == 'string' or name == 'bool' or name == 'int' or name == 'int8' or name == 'int16' or name == 'int32' or name == 'int64' or name == 'int128' or name == 'uint8' or name == 'uint16' or name == 'uint32' or name == 'uint64' or name == 'uint128'
+
+function bounded-integer bool; name string
+    return name != 'int' and (integer-type; name)
+
+function lower-boundary int; name string
+    bits = name.replace; 'uint', ''
+    bits = bits.replace; 'int', ''
+    if (name.contains.start; 'uint')
+        return 0
+    if bits == '8'
+        return -(1 << 7)
+    if bits == '16'
+        return -(1 << 15)
+    if bits == '32'
+        return -(1 << 31)
+    if bits == '64'
+        return -(1 << 63)
+    return -(1 << 127)
+
+function upper-boundary int; name string
+    bits = name.replace; 'uint', ''
+    bits = bits.replace; 'int', ''
+    if (name.contains.start; 'uint')
+        if bits == '8'
+            return (1 << 8) - 1
+        if bits == '16'
+            return (1 << 16) - 1
+        if bits == '32'
+            return (1 << 32) - 1
+        if bits == '64'
+            return (1 << 64) - 1
+        return (1 << 128) - 1
+    if bits == '8'
+        return (1 << 7) - 1
+    if bits == '16'
+        return (1 << 15) - 1
+    if bits == '32'
+        return (1 << 31) - 1
+    if bits == '64'
+        return (1 << 63) - 1
+    return (1 << 127) - 1
+
+function integer-value int throws consumer-error; value document-value
+    try
+        return value.scalar.radix; 10
+    catch coercion-error
+        throw (instance consumer-error; value, 'invalid integer metadata')
+
+
+function prose string|none throws consumer-error; declaration document-value
+    explicit = annotation-of; declaration, 'description'
+    if explicit.kind != 'none'
+        value = scalar; (get; explicit, 'value')
+        if value.kind != 'string'
+            raise; declaration, 'description metadata must be text'
+        return text; value
+    documentation = get; declaration, 'documentation'
+    if documentation.kind == 'none'
+        return none
+    return text; documentation
+
+function generate string throws consumer-error; request document-value
+    cls = selected; request, 'class'
+    declarations = get; request, 'declarations'
+    contracts = get; cls, 'contracts'
+    constructor = get; contracts, 'constructor'
+    base-class = get; contracts, 'base'
+    if (text; (get; cls, 'visibility')) != 'public' or constructor.kind != 'none' or base-class.kind != 'none'
+        raise; cls, 'codec requires a public non-derived class with its canonical default constructor'
+    identity = text; (get; cls, 'identity')
+    pieces = identity.split; '::'
+    name = pieces[pieces.length - 1]
+    namespace-name = pieces[0]
+    include-schema = flag; '--include-schema'
+    schema-only = flag; '--schema-only'
+    description-override = option; '--description'
+    field-list = get; cls, 'fields'
+    field-count = field-list.length;
+    wires list of string = list;
+    source-fields list of document-value = list;
+    wire-names list of string = list;
+    base-names list of string = list;
+    nullable-values list of bool = list;
+    required-values list of bool = list;
+    min-values list of document-value = list;
+    max-values list of document-value = list;
+    records list of document-value = list;
+    for index in (range; 0, field-count)
+        field = at; field-list, index
+        visible = text; (get; field, 'visibility')
+        if not (truth; (get; field, 'static')) and visible == 'public' and not (truth; (get; field, 'secret'))
+            record = field-record; declarations, field
+            secret = annotation-of; record, 'secret'
+            if secret.kind == 'none'
+                spelling = text; (get; field, 'type')
+                spelling = spelling.replace; ' ', ''
+                nullable = spelling.contains.end; '|none'
+                base = spelling
+                if nullable
+                    base = spelling.replace; '|none', ''
+                kind = text; (get; field, 'type_kind')
+                if (kind != 'scalar' and kind != 'optional-scalar') or not (supported-type; base)
+                    raise; record, ('codec does not support this canonical field type: '.concat; (text; (get; field, 'type')))
+                alias = annotation-of; record, 'external-name'
+                wire = text; (get; field, 'external_name')
+                if alias.kind != 'none'
+                    alias-value = scalar; (get; alias, 'value')
+                    if alias-value.kind != 'string'
+                        raise; record, 'codec wire name must be text and unique'
+                    wire = text; alias-value
+                for previous in wires
+                    if previous == wire
+                        raise; record, 'codec wire name must be text and unique'
+                wires.append; wire
+                required-metadata = annotation-of; record, 'required'
+                required = (truth; (get; field, 'required')) or required-metadata.kind != 'none'
+                defaulted = truth; (get; field, 'defaulted')
+                default = get; field, 'default'
+                if defaulted and default.kind == 'none'
+                    raise; record, 'codec requires an immutable representable field default'
+                minimum = annotation-of; record, 'minimum'
+                maximum = annotation-of; record, 'maximum'
+                if (minimum.kind != 'none' or maximum.kind != 'none') and not (integer-type; base)
+                    raise; record, 'numeric validation requires a canonical integer field'
+                low = make-document-none;
+                high = make-document-none;
+                if minimum.kind != 'none'
+                    minimum-raw = scalar; (get; minimum, 'value')
+                    if minimum-raw.kind != 'integer'
+                        raise; record, 'minimum metadata must be an integer'
+                    low = minimum-raw
+                if maximum.kind != 'none'
+                    maximum-raw = scalar; (get; maximum, 'value')
+                    if maximum-raw.kind != 'integer'
+                        raise; record, 'maximum metadata must be an integer'
+                    high = maximum-raw
+                if low.kind != 'none' and high.kind != 'none' and (integer-value; low) > (integer-value; high)
+                    raise; record, 'minimum exceeds maximum'
+                if bounded-integer; base
+                    floor = lower-boundary; base
+                    ceiling = upper-boundary; base
+                    if low.kind != 'none' and (integer-value; low) > ceiling or high.kind != 'none' and (integer-value; high) < floor
+                        raise; record, 'numeric constraints have no representable value'
+                    if low.kind != 'none' and (integer-value; low) <= floor
+                        low = make-document-none;
+                    if high.kind != 'none' and (integer-value; high) >= ceiling
+                        high = make-document-none;
+                source-fields.append; field
+                records.append; record
+                wire-names.append; wire
+                base-names.append; base
+                nullable-values.append; nullable
+                required-values.append; required
+                min-values.append; low
+                max-values.append; high
+
+    schema-description = description-override
+    if schema-description == none
+        schema-description = prose; cls
+    schema-json = '{"description":'
+    if schema-description != none
+        schema-json = schema-json.concat; (json-quote; schema-description)
+    else
+        schema-json = schema-json.concat; 'null'
+    schema-json = schema-json.concat; ',"fields":{'
+    for index in (range; 0, source-fields.length)
+        if index > 0
+            schema-json = schema-json.concat; ','
+        wire = wire-names[index]
+        base = base-names[index]
+        nullable = nullable-values[index]
+        required = required-values[index]
+        field-description = prose; records[index]
+        schema-json = schema-json.concat; (json-quote; wire), ': {"description":'
+        if field-description != none
+            schema-json = schema-json.concat; (json-quote; field-description)
+        else
+            schema-json = schema-json.concat; 'null'
+        schema-json = schema-json.concat; ',"nullable":'
+        if nullable
+            schema-json = schema-json.concat; 'true'
+        else
+            schema-json = schema-json.concat; 'false'
+        schema-json = schema-json.concat; ',"required":'
+        if required
+            schema-json = schema-json.concat; 'true'
+        else
+            schema-json = schema-json.concat; 'false'
+        schema-json = schema-json.concat; ',"type":', (json-quote; base), '}'
+    schema-json = schema-json.concat; '}}'
+    parsed-schema = parse-json; schema-json, (default-json-options;)
+    if parsed-schema.failed
+        raise; cls, parsed-schema.message
+    canonical-schema = canonical-json; parsed-schema.value
+    schema-json = canonical-schema.value.encoded
+    schema-source = 'namespace generated/annotation-codec\nfunction describe-'.concat; name, ' string;\n    return ', (quote; schema-json), '\n'
+    if schema-only
+        return schema-source
+    lines = 'namespace generated/annotation-codec\nfrom '.concat; namespace-name, ' import ', name, '\nfrom /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-string, make-document-integer, make-document-map\nfrom /core/errors import coercion-error, integer-conversion-overflow\n\n'
+    lines = lines.concat; 'class ', name, '-decoded\n    failed bool = false\n    message string = \'\'\n    value ', name, '|none = none\n\nclass ', name, '-encoded\n    failed bool = false\n    message string = \'\'\n    value document-value|none = none\n\n'
+    if include-schema
+        lines = lines.concat; 'function describe-', name, ' string;\n    return ', (quote; schema-json), '\n\n'
+    lines = lines.concat; 'function fail-decoded ', name, '-decoded; message string\n    result = instance ', name, '-decoded;\n    result.failed = true\n    result.message = message\n    return result\n\nfunction fail-encoded ', name, '-encoded; message string\n    result = instance ', name, '-encoded;\n    result.failed = true\n    result.message = message\n    return result\n\nfunction decode-', name, ' ', name, '-decoded; document document-value\n    if document.kind != \'map\'\n        return fail-decoded; \'codec expects an object\'\n    key-count = document.length;\n    index int = 0\n    while index < key-count\n        key = document.key; index\n'
+    condition = 'true'
+    if wire-names.length > 0
+        condition = ''
+        for index in (range; 0, wire-names.length)
+            if index > 0
+                condition = condition.concat; ' and '
+            condition = condition.concat; 'key != ', (quote; wire-names[index])
+    lines = lines.concat; '        if ', condition, '\n            return fail-decoded; (\'unknown or inaccessible field: \'.concat; key)\n        index = index + 1\n    value = instance ', name, ';\n'
+    for index in (range; 0, source-fields.length)
+        field = source-fields[index]
+        wire = wire-names[index]
+        base = base-names[index]
+        nullable = nullable-values[index]
+        required = required-values[index]
+        defaulted = truth; (get; field, 'defaulted')
+        member = text; (get; field, 'name')
+        slot = 'field-slot'.concat; index
+        lines = lines.concat; '    ', slot, ' = document.field; ', (quote; wire), '\n'
+        if required or not defaulted and not nullable
+            lines = lines.concat; '    if ', slot, '.failed\n        return fail-decoded; ', (quote; ('missing required field: '.concat; wire)), '\n'
+        lines = lines.concat; '    if not ', slot, '.failed\n'
+        indent = '        '
+        if nullable
+            lines = lines.concat; '        if ', slot, '.value.kind == \'none\'\n            value.', member, ' = none\n        else\n'
+            indent = '            '
+        kind = 'integer'
+        if not (integer-type; base)
+            kind = base
+        lines = lines.concat; indent, 'if ', slot, '.value.kind != ', (quote; kind), '\n', indent, '    return fail-decoded; ', (quote; ('wrong document type for '.concat; wire)), '\n'
+        expression = slot.concat; '.value.scalar'
+        if base == 'bool'
+            expression = '('.concat; slot, '.value.scalar == \'true\')'
+        if integer-type; base
+            conversion = slot.concat; '.value.scalar.radix; 10'
+            if base != 'int'
+                conversion = '('.concat; conversion, ').coerce; ', base
+            lines = lines.concat; indent, 'try\n', indent, '    parsed-value', index, ' ', base, ' = ', conversion, '\n'
+            expression = 'parsed-value'.concat; index
+            low = min-values[index]
+            high = max-values[index]
+            if low.kind != 'none'
+                lines = lines.concat; indent, '    if ', expression, ' < ', low.scalar, '\n', indent, '        return fail-decoded; ', (quote; (wire.concat; ' violates minimum')), '\n'
+            if high.kind != 'none'
+                lines = lines.concat; indent, '    if ', expression, ' > ', high.scalar, '\n', indent, '        return fail-decoded; ', (quote; (wire.concat; ' violates maximum')), '\n'
+            lines = lines.concat; indent, '    value.', member, ' = ', expression, '\n', indent, 'catch coercion-error\n', indent, '    return fail-decoded; ', (quote; ('integer out of range for '.concat; wire)), '\n'
+            if base != 'int'
+                lines = lines.concat; indent, 'catch integer-conversion-overflow\n', indent, '    return fail-decoded; ', (quote; ('integer out of range for '.concat; wire)), '\n'
+        else
+            lines = lines.concat; indent, 'value.', member, ' = ', expression, '\n'
+    lines = lines.concat; '    result = instance ', name, '-decoded;\n    result.value = value\n    return result\n\nfunction encode-', name, ' ', name, '-encoded; value ', name, '\n    entries = instance document-map-entries;\n'
+    for index in (range; 0, source-fields.length)
+        field = source-fields[index]
+        wire = wire-names[index]
+        base = base-names[index]
+        nullable = nullable-values[index]
+        member = text; (get; field, 'name')
+        expression = 'value.'.concat; member
+        indent = '    '
+        if nullable
+            lines = lines.concat; '    value-field', index, ' = ', expression, '\n    if value-field', index, ' != none\n'
+            expression = 'value-field'.concat; index
+            indent = '        '
+        if integer-type; base
+            low = min-values[index]
+            high = max-values[index]
+            if low.kind != 'none'
+                lines = lines.concat; indent, 'if ', expression, ' < ', low.scalar, '\n', indent, '    return fail-encoded; ', (quote; (wire.concat; ' violates minimum')), '\n'
+            if high.kind != 'none'
+                lines = lines.concat; indent, 'if ', expression, ' > ', high.scalar, '\n', indent, '    return fail-encoded; ', (quote; (wire.concat; ' violates maximum')), '\n'
+            lines = lines.concat; indent, 'encoded-value', index, ' = make-document-integer; (\'\'.concat; ', expression, ')\n', indent, 'if encoded-value', index, '.failed\n', indent, '    return fail-encoded; encoded-value', index, '.message\n', indent, 'entries.append; ', (quote; wire), ', encoded-value', index, '.value\n'
+        else
+            factory = 'make-document-'.concat; base
+            lines = lines.concat; indent, 'entries.append; ', (quote; wire), ', (', factory, '; ', expression, ')\n'
+        if nullable
+            lines = lines.concat; '    else\n        entries.append; ', (quote; wire), ', (make-document-none;)\n'
+    lines = lines.concat; '    document = make-document-map; entries\n    if document.failed\n        return fail-encoded; document.message\n    result = instance ', name, '-encoded;\n    result.value = document.value\n    return result\n'
+    return lines
+
+function main;
+    try
+        request = read-request;
+        generated = generate; request
+        emit-source; 'typed-codec', generated
+    catch consumer-error as error
+        emit-error; (error-origin;), error.message

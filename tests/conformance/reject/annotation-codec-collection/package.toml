@@ -2,6 +2,5 @@ package = "annotation-codec-collection"
 [namespaces]
 annotation-codec-collection = "src"
 [consumers.codec]
-command = "python3"
-args = ["tools/codec.py"]
+command = ".trn/consumers/codec"
 declarations = ["/annotation-codec-collection::payload", "/annotation-codec-collection::payload::values"]

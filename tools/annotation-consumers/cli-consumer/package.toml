@@ -1,0 +1,8 @@
+package = "annotation-cli-consumer"
+artifact = "executable"
+
+[namespaces]
+annotation-cli-consumer = "src"
+
+[terrane-dependencies]
+annotation-consumer-protocol = { path = "../protocol" }

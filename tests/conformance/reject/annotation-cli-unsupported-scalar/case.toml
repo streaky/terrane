@@ -4,3 +4,4 @@ code = "S2060"
 entrypoint = "package.toml"
 source = "src/app/main.trn"
 line = 5
+native-tools = "cli=tools/annotation-consumers/cli-consumer/package.toml"
