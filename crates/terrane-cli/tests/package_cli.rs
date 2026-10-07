@@ -184,6 +184,87 @@ fn test_discovery_prepares_native_consumer_generated_imports() {
 }
 
 #[test]
+fn implicit_source_does_not_reconcile_manifest_consumer_outputs() {
+    let package = TempPackage::new();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../");
+    for tool in ["cli-consumer", "protocol"] {
+        for relative in ["package.toml", "src/main.trn"] {
+            let destination = package.0.join("consumer-src").join(tool).join(relative);
+            fs::create_dir_all(destination.parent().unwrap()).unwrap();
+            fs::copy(
+                root.join("tools/annotation-consumers")
+                    .join(tool)
+                    .join(relative),
+                destination,
+            )
+            .unwrap();
+        }
+    }
+    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("build")
+        .arg(package.0.join("consumer-src/cli-consumer/package.toml"))
+        .output()
+        .unwrap();
+    assert!(
+        build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let consumer = String::from_utf8(build.stdout).unwrap().trim().to_owned();
+    fs::create_dir_all(package.0.join("schema")).unwrap();
+    fs::copy(
+        root.join("tools/annotation-consumers/cli/main.trn"),
+        package.0.join("schema/main.trn"),
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("package.toml"),
+        format!(
+            "package = \"cli-package\"\n[namespaces]\n\"cli/app\" = \"app\"\nannotation-cli = \"schema\"\n[consumers.cli]\ncommand = {consumer:?}\ndeclarations = [\"/cli/app::command\"]\n"
+        ),
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("app/main.trn"),
+        "namespace cli/app\nfrom /annotation-cli import command as cli-command\n@[cli-command;]\nfunction command int;\n  return 0\nfunction main;\n  return\n",
+    )
+    .unwrap();
+    let invoke = |path: &Path| {
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("check")
+            .arg(path)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+    invoke(&package.0.join("package.toml"));
+    let generated_dir = package.0.join(".trn/generated/cli");
+    let generated = fs::read_dir(&generated_dir)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let contents = fs::read(&generated).unwrap();
+    let scratch = package.0.join("scratch.trn");
+    fs::write(&scratch, "namespace scratch\nfunction main;\n").unwrap();
+    invoke(&scratch);
+    assert_eq!(fs::read(&generated).unwrap(), contents);
+
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"cli-package\"\n[namespaces]\n\"cli/app\" = \"app\"\nannotation-cli = \"schema\"\n",
+    )
+    .unwrap();
+    invoke(&package.0.join("package.toml"));
+    assert!(!generated_dir.exists());
+}
+
+#[test]
 fn projected_iced_scoped_macro_token_mismatch_is_rejected_by_check() {
     let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
     // Contained native Cargo commands hide /tmp outside their bound workspaces.

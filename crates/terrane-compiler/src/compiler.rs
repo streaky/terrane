@@ -486,7 +486,9 @@ fn semantic_requires_unsafe_code(semantic: &crate::SemanticPackage) -> bool {
 /// Prepares consumers and analyzes declarations shared by compilation and test discovery.
 fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, CompilationFailure> {
     if package.consumer_configs.is_empty() {
-        crate::consumers::reconcile_generated_sources(package)?;
+        if !package.dependency_manifests.is_empty() {
+            crate::consumers::reconcile_generated_sources(package)?;
+        }
         return Ok(None);
     }
     let semantic =
