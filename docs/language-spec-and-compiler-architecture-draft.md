@@ -200,6 +200,139 @@ The initial language is not intended to be:
 
 ---
 
+## General declaration annotations (planned)
+
+**Planned for milestone 31.0, not implemented syntax.** General declaration annotations attach typed immutable metadata to declarations for explicit compile-time consumers. They are not executable decorators, HTTP-specific compiler hooks, or the separately deferred `with` declaration-realization protocol. The canonical design is [General declaration annotations](../manual/reference/records/internals/future/annotations.yaml); the [compiler plan](compiler-plan.md) specifies the generic mechanism and independent proving consumers.
+
+### Annotation types and applications
+
+The candidate application spelling is `@[name; arguments]`. Resolve the annotation type through ordinary imports, supply positional arguments before ordinary `name = value` arguments, and retain the explicit semicolon even when the argument list is empty. Brackets delimit the metadata arguments rather than introducing another function-parameter grammar.
+
+Packages define annotation types using a proposed intrinsic marker under `/core/annotations`. The marker declares legal attachment targets and repeatability; it does not execute a decorator or make a runtime registry. The following is illustrative future Terrane. The target enum and definition marker are proposed APIs, not supported imports:
+
+```terrane
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::callable;)), repeatable = false]
+class command
+    name string
+    summary string
+
+    function construct; name string, summary string
+        this.name = name
+        this.summary = summary
+```
+
+The typed metadata constructor schema determines application arguments, but admission evaluates only the specified immutable data-initialization subset. It never runs arbitrary class constructors, I/O, runtime state, or annotation callbacks. Scalars, immutable aggregates/constants, and explicit typed declaration/type-descriptor slots need precise admissibility and cycle rules before implementation. Annotation payloads are not a loophole for treating type names as unrestricted runtime values.
+
+Annotation targets initially include classes, functions/methods, parameters, and fields. Declaration annotations precede their declaration at the same indentation. Parameter annotations precede the individual parameter inside the existing parameter list, including parenthesized multiline headers. Duplicate non-repeatable applications, inappropriate targets, unknown names, incompatible argument types, and inadmissible values are source diagnostics. Repeatable annotations retain source order without creating hidden behavior precedence.
+
+### Declaration documentation and reflection
+
+Proposed `///` line comments and `/** ... */` block comments form declaration documentation. Consecutive `///` lines form one block; leading `*` decoration on interior block-comment lines is optional and stripped. A contiguous documentation block attaches to the next declaration across its annotation block; empty `///` lines and blank lines inside block documentation preserve paragraphs and meaningful indentation is retained. A plain blank source line outside the comment, ordinary comment, or unrelated declaration ends the attachment opportunity; dangling blocks are diagnosed. Ordinary `#` (including `##`), `//`, and `/* ... */` implementation comments are not exported as documentation.
+
+Star-prefixed block documentation is the canonical example style; undecorated blocks are equally accepted without warnings. Extraction removes delimiters and surrounding blank lines, strips common source-layout indentation, then removes each decorative leading `*` and at most one following space. Preserve paragraph breaks and meaningful indentation after decoration. Normalize extracted documentation only, leaving the original lossless syntax-tree comment unchanged.
+
+Declaration descriptors retain annotation type identity/payloads, documentation, origin, and source spans alongside parameter names/types/defaults, fields/visibility, results, and existing callable contracts. Public metadata survives dependency export even when source and bodies are unavailable. An arbitrary callable value does not necessarily identify one declaration; aliases, re-exports, inheritance, and overrides do not silently copy metadata or manufacture a new origin.
+
+Annotations and prose do not change nominal type/callable identity or compatibility. Artifact/interface fingerprints must nevertheless account for metadata and documentation edits that affect consumers. Compile-time inspection is independent of runtime reflection retention: only explicit runtime consumers require metadata to be embedded in a binary, never on every ordinary value.
+
+### Generic consumers and possible uses
+
+The compiler owns parsing, ordinary resolution, typed immutable construction, targets/repeatability, source diagnostics, canonical declaration reflection, and dependency retention. Packages/tools explicitly select declarations, interpret their metadata, validate domain promises, and generate ordinary code through one generic compile-time consumer mechanism. Invocation/configuration/output of that mechanism remains to be specified; these examples are consumer inputs, not claims of released package APIs.
+
+The signature remains the source of structural type facts. Metadata supplies what signatures cannot infer, such as external names, binding sources, prose, constraints, examples, or tags. Descriptive metadata does not itself implement authentication, validation, storage, or registration. Consumers that promise executable behavior must enforce it and preserve visibility, ownership, receiver authority, effects, throwable bounds, and capability policy. Importing an annotation never globally registers the annotated declaration.
+
+| Possible consumer | Metadata beyond declared types |
+| --- | --- |
+| Serialization and validation | External field names, omitted fields, bounds, lengths, documentation and examples |
+| Command-line interfaces | Command/flag names, environment bindings, help text |
+| Tests and benchmarks | Explicit discovery, tags, parameter sets |
+| Database/persistence mapping | Table/column names, keys, mapping policy |
+| RPC/message dispatch | Operation names, topics, wire versions |
+| Documentation and tooling | Examples, grouping, deprecation explanations |
+| HTTP endpoints | Method/path, parameter source, response documentation; not a special compiler facility |
+
+#### Command-line metadata
+
+The following illustrative packages define `command`, `option`, and `minimum`; their specific APIs are not standardized here. The CLI consumer derives an integer option with default 10 from the signature, uses annotations for spelling/help, and enforces the declared minimum through its validation consumer:
+
+```terrane
+from /example-cli import command, option
+from /example-validation import minimum
+
+/// Summarize the requested number of rows.
+@[command; name = 'report', summary = 'Summarize rows']
+function report int; (
+    @[option; long-name = 'limit', short-name = 'n', help = 'Maximum rows']
+    @[minimum; 1] limit int = 10
+)
+    return limit
+```
+
+The declared result remains `int`; a CLI adapter must define its own output/exit-status policy rather than silently reinterpret the return type. Explicit consumer configuration selects this declaration; no process-argument parser runs merely because the function is annotated.
+
+#### Serialization and validation metadata
+
+An independent codec consumer takes field types from the model, uses the same external name for encoding/decoding/schema output, and enforces admitted constraints. Descriptions enrich the derived representation without restating the field type:
+
+```terrane
+from /example-codec import wire-name, description
+from /example-validation import minimum, length
+
+class account
+    /// Stable public account identifier.
+    @[wire-name; 'account_id']
+    @[minimum; 1]
+    id int
+
+    @[description; 'Name displayed to clients.']
+    @[length; minimum = 1, maximum = 120]
+    name string
+
+    note string|none = none
+
+    function construct; id int, name string, note string|none
+        this.id = id
+        this.name = name
+        this.note = note
+```
+
+The consumer must specify optional/default/null and field-selection/secrecy rules, supported wire types, constraint units, and invariant-preserving construction. It cannot bypass private fields, assign arbitrary model state, advertise unsupported encodings, or silently reinterpret a field's type. Metadata constraints are enforced by that admitted consumer, not by every ordinary Terrane assignment.
+
+#### Test and RPC metadata
+
+These illustrative declarations show two other independent domains without requiring new compiler keywords. The test example belongs in a test source unit where `/core/testing` is admitted; an annotation does not grant a production source access to test-only namespaces.
+
+```terrane
+from /example-tests import test, tag
+from /core/testing import assert-equal-int
+
+@[test;]
+@[tag; 'arithmetic']
+function addition-example;
+    assert-equal-int; (2 + 3), 5
+```
+
+```terrane
+from /example-rpc import operation
+
+@[operation; name = 'sum', version = 1]
+function sum int; left int, right int
+    return left + right
+```
+
+Test discovery must be explicitly activated; RPC dispatch/encoding must implement the declared signature and wire contract. Neither annotation changes direct invocation of the function.
+
+### Implementation boundary
+
+Milestone 31.0 must prove CLI and serialization/validation consumers through the same canonical metadata path, including real generated behavior, rejected contradictory declarations, dependency metadata without source, and metadata-only cache invalidation. Do not add compiler branches keyed to an HTTP framework or one annotation type.
+
+Final delimiters, intrinsic target representation, immutable construction rules, generic consumer invocation/inspection APIs, and runtime metadata materialization need implementation evidence. The examples here remain illustrative until that end-to-end support exists. The separately deferred realization/construct-replacement designs remain deferred; this planned metadata capability does not activate them.
+
+---
+
 ## 42. Deferred language additions
 
 This section records directions that the current design should leave room for but does not make part of the version-one language contract. Entries here are neither reserved syntax nor permission for implementations to introduce incompatible private variants. Each requires a later specification change, grammar and tooling work, lowering rules, diagnostics, reflection behaviour, and conformance tests.
@@ -226,9 +359,11 @@ Declaration modifiers are the version-one local customization mechanism. A futur
 
 ### 42.2 Other deferred candidates
 
-The following already-motivated features may be specified later when implementation experience justifies them:
+
 
 - source-declared generics, including constraints, inference, dispatch, reflection, and monomorphisation or erasure rules;
+
+
 - compact map literals consistent with the punctuation and computed-key model;
 - stateful hot-code replacement with explicit object migration semantics;
 - arbitrary C++ ABI integration beyond C-compatible shims and Rust bridges;

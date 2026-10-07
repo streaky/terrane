@@ -4,7 +4,7 @@ Terrane is an experimental programming language for high-level native software. 
 
 Everything is an object in Terrane's semantics, but not everything becomes a heap object. Integers can use machine scalars, calls can lower directly to Rust, and independent values can share copy-on-write storage until mutation. Native representation is the compiler's responsibility, not an extra object model the programmer must manage.
 
-> **Status:** actively developed and built from source. The language, CLI, and generated-code contracts are not yet stable, and there is no finalized release distribution. See the [language scoreboard](docs/language-scoreboard.html) for implemented features and their evidence.
+> **Status:** actively developed and built from source. The language, CLI, and generated-code contracts are not yet stable, and there is no finalized release distribution. See the [language scoreboard](docs/published/scoreboards/language.html) for implemented features and their evidence.
 
 > **Platforms:** development and testing currently target Linux. Windows and macOS are untested and likely do not work yet; neither is currently a supported platform. The quick start below assumes Linux.
 
@@ -138,7 +138,7 @@ See the [active compiler roadmap](docs/compiler-plan.md#7-active-milestone-roadm
 The [Terrane manual](https://github.com/streaky/terrane-manual) is maintained in a separate repository. It contains **The Terrane Book** (guided application development) and the **Terrane Reference** (current language, standard-library, package, tooling, and compiler contracts). An optional checkout at `manual/` is ignored by this compiler repository.
 
 - [Concise language reference](docs/language-spec-concise.md) — compact syntax and contract lookup.
-- [Language scoreboard](docs/language-scoreboard.html) — implementation status and evidence.
+- [Language scoreboard](docs/published/scoreboards/language.html) — implementation status and evidence.
 - [Compiler plan](docs/compiler-plan.md) — active work and completed milestone records.
 - [Implemented object surface](docs/surface-today.md) — the current compiler-owned surface.
 - [Proposed version-one surface](docs/surface-v1.md) — destination design, not implementation status.

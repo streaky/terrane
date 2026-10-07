@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output", type=Path, default=script_dir / "test-scoreboard.yaml")
     parser.add_argument(
-        "--no-html", action="store_true", help="update YAML without regenerating test-scoreboard.html"
+        "--no-html", action="store_true", help="update YAML without regenerating published/scoreboards/tests.html"
     )
     parser.add_argument(
         "cargo_args",

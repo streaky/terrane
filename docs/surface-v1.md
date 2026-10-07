@@ -1422,6 +1422,23 @@ Descriptors are semantic objects with canonical identity, not ordinary values. A
 
 Debugging, tracing, profiling, and generated Rust all preserve stable source identities. Physical Rust representations are supplementary and never redefine source semantics.
 
+### 15.1 General declaration annotations
+
+**Planned for milestone 31.0; not supported by the current compiler.** See the [general annotation design](../manual/reference/records/internals/future/annotations.yaml) and [milestone 31.0](compiler-plan.md). This is declaration metadata, not a claim that current reflection exposes comments or annotations.
+
+Candidate applications use `@[name; arguments]`, including `;` with zero arguments and ordinary `name = value` named arguments. Package-defined annotation types use a proposed intrinsic `/core/annotations` marker, typed attachment targets, and repeatability. Initial targets are classes, functions/methods, parameters, and fields; parameter metadata precedes that parameter within the ordinary parameter-list grammar.
+
+The proposed descriptor surface comprises declaration origin and spans, attached typed immutable annotation values, and `///` or `/** ... */` declaration documentation, alongside existing field/parameter/signature contracts. Ordinary `#` (including `##`), `//`, and `/* ... */` comments are not exported. Documentation attaches across annotation blocks; a blank source line outside the comment or an intervening ordinary comment breaks attachment. Empty documentation lines preserve paragraphs; optional leading `*` decoration in block documentation is stripped without losing meaningful indentation. Aliases and inheritance do not silently copy annotations onto new declarations. Public metadata survives dependency export without requiring source.
+
+Block documentation examples canonically use leading `*`; undecorated blocks are equally accepted without warnings. Extraction removes delimiters and surrounding blank lines, strips common source-layout indentation, then strips decorative leading `*` and at most one following space. Paragraph breaks and meaningful indentation after decoration survive in the descriptor text; the original lossless syntax-tree comment is unchanged.
+
+Annotations do not change canonical type/callable identity, signature compatibility, visibility, ownership, receiver authority, effects, or safety. Relevant annotation/documentation edits do change interface/artifact fingerprints for dependent consumers. Compile-time metadata inspection does not depend on a runtime reflection profile; runtime embedding is demand-driven and need not allocate metadata on ordinary values.
+
+The compiler constructs only admitted immutable compile-time data and checks resolution, arguments, targets, and duplicates. Packages/tools explicitly select and consume declarations through a generic metadata mechanism; there is no arbitrary decorator execution, hidden middleware ordering, or global registration. CLI and serialization/validation are independent milestone proving consumers; tests, RPC, persistence, documentation, and HTTP are possible additional uses. A consumer must enforce any executable promise and generate code that preserves ordinary semantic contracts.
+
+The precise marker/target API, constant-construction subset, generic consumer interface, and final delimiters remain design details. This is separate from the deferred `with` realization protocol, not a new way to select storage layout or native ABI.
+
+
 ## 16. Explicitly later than v1
 
 ```text

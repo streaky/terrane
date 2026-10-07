@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     script_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description="Generate the Terrane language scoreboard HTML.")
     parser.add_argument("--input", type=Path, default=script_dir / "language-scoreboard.yaml")
-    parser.add_argument("--output", type=Path, default=script_dir / "language-scoreboard.html")
+    parser.add_argument("--output", type=Path, default=script_dir / "published/scoreboards/language.html")
     parser.add_argument("--check", action="store_true", help="fail if --output differs instead of writing it")
     return parser.parse_args()
 
@@ -143,7 +143,7 @@ def render(data: dict[str, Any]) -> str:
 <script id="scoreboard-data" type="application/json">{payload}</script>
 <script>
 const data=JSON.parse(document.getElementById('scoreboard-data').textContent),byCategory=new Map(data.categories.map((x,i)=>[x.id,{{...x,index:i}}])),statusOrder=new Map(['partial','planned','potential','deferred','excluded','done'].map((x,i)=>[x,i])),tones={{done:'var(--done)',partial:'var(--partial)',planned:'var(--planned)',potential:'var(--potential)',deferred:'var(--deferred)',excluded:'var(--excluded)'}},controls=Object.fromEntries(['search','category','status','milestone','reference','sort'].map(id=>[id,document.getElementById(id)]));
-const repoHref=p=>'../'+p.split('#')[0]+(p.includes('#')?'#'+encodeURIComponent(p.split('#').slice(1).join('#')):''),average=a=>a.length?Math.round(a.reduce((s,x)=>s+x.completion,0)/a.length):0,fill=(s,l,v,f=x=>x)=>s.innerHTML=`<option value="">All ${{l}}</option>`+v.map(x=>`<option value="${{x}}">${{f(x)}}</option>`).join('');
+const repoHref=p=>'../../../'+p.split('#')[0]+(p.includes('#')?'#'+encodeURIComponent(p.split('#').slice(1).join('#')):''),average=a=>a.length?Math.round(a.reduce((s,x)=>s+x.completion,0)/a.length):0,fill=(s,l,v,f=x=>x)=>s.innerHTML=`<option value="">All ${{l}}</option>`+v.map(x=>`<option value="${{x}}">${{f(x)}}</option>`).join('');
 fill(controls.category,'categories',data.categories.map(x=>x.id),x=>byCategory.get(x).label); fill(controls.status,'statuses',Object.keys(data.statuses),x=>data.statuses[x].label); fill(controls.milestone,'milestones',[...new Set(data.features.map(x=>x.milestone).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{{numeric:true}})),x=>`Milestone ${{x}}`); fill(controls.reference,'reference states',Object.keys(data.reference_states),x=>x.replace('-',' '));
 document.getElementById('legend').innerHTML=Object.entries(data.statuses).map(([id,s])=>`<span class="chip" style="--tone:${{tones[id]}}" title="${{s.description}}">${{s.label}}</span>`).join('');
 function matches(x){{const q=controls.search.value.trim().toLowerCase(),hay=[x.id,x.name,x.notes,x.milestone||'',...x.reference.paths,...x.sources].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!controls.category.value||x.category===controls.category.value)&&(!controls.status.value||x.status===controls.status.value)&&(!controls.milestone.value||x.milestone===controls.milestone.value)&&(!controls.reference.value||x.reference.state===controls.reference.value)}}

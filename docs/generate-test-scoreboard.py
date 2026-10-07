@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     script_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(description="Generate the Terrane test timing scoreboard HTML.")
     parser.add_argument("--input", type=Path, default=script_dir / "test-scoreboard.yaml")
-    parser.add_argument("--output", type=Path, default=script_dir / "test-scoreboard.html")
+    parser.add_argument("--output", type=Path, default=script_dir / "published/scoreboards/tests.html")
     parser.add_argument("--check", action="store_true", help="fail if --output differs instead of writing it")
     return parser.parse_args()
 
@@ -90,6 +90,7 @@ def main() -> int:
             return 1
         print(f"scoreboard is current: {args.output}")
         return 0
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(rendered, encoding="utf-8")
     print(f"wrote {args.output} ({len(data['tests'])} tests)")
     return 0

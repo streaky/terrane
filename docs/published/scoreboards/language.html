@@ -20,7 +20,7 @@
 </head>
 <body>
 <main class="shell">
-<header class="hero"><div><p class="eyebrow">Terrane progress atlas</p><h1>Terrane language scoreboard</h1><p class="lede">Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.</p></div><div class="asof">Status as of 2026-10-04</div></header>
+<header class="hero"><div><p class="eyebrow">Terrane progress atlas</p><h1>Terrane language scoreboard</h1><p class="lede">Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.</p></div><div class="asof">Status as of 2026-10-07</div></header>
 <section class="metrics" id="metrics" aria-label="Scoreboard summary"></section>
 <div class="layout"><aside class="filters"><h2>Explore</h2><div class="field"><label for="search">Search</label><input id="search" type="search" placeholder="Feature, note, source…"></div><div class="field"><label for="category">Category</label><select id="category"></select></div><div class="field"><label for="status">Status</label><select id="status"></select></div><div class="field"><label for="milestone">Milestone</label><select id="milestone"></select></div><div class="field"><label for="reference">Reference</label><select id="reference"></select></div><button class="reset" id="reset" type="button">Reset filters</button><div class="legend" id="legend"></div></aside>
 <section class="content"><div class="overview"><h2>Category completion</h2><div class="category-grid" id="category-grid"></div></div><div class="toolbar"><span id="result-count"></span><label>Sort <select id="sort"><option value="roadmap">Roadmap priority</option><option value="category">Category</option><option value="name">Name</option><option value="completion">Completion</option></select></label></div><div class="table-wrap"><table><thead><tr><th>Feature</th><th>Status</th><th>Progress</th><th>Milestone</th><th>Reference</th><th>Notes</th><th>Sources</th></tr></thead><tbody id="rows"></tbody></table><div class="empty" id="empty" hidden>No features match these filters.</div></div></section></div>
@@ -29,7 +29,7 @@
   "format": 1,
   "title": "Terrane language scoreboard",
   "metadata": {
-    "as_of": "2026-10-04",
+    "as_of": "2026-10-07",
     "description": "Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded Terrane language work.",
     "completion_rule": "Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded are 0; partial entries use a conservative editorial estimate backed by their notes.",
     "authority": [
@@ -40,7 +40,7 @@
       "manual/reference/manual.yaml"
     ],
     "generator": "docs/generate-language-scoreboard.py",
-    "output": "docs/language-scoreboard.html"
+    "output": "docs/published/scoreboards/language.html"
   },
   "statuses": {
     "done": {
@@ -244,6 +244,27 @@
       "sources": [
         "docs/language-spec-concise.md#DECL",
         "docs/compiler-plan.md#Milestone 2"
+      ]
+    },
+    {
+      "id": "declaration-annotations",
+      "name": "General declaration annotations and documentation reflection",
+      "category": "syntax",
+      "status": "planned",
+      "completion": 0,
+      "milestone": "31.0",
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/internals/future/annotations.yaml"
+        ]
+      },
+      "notes": "Planned package-defined typed immutable metadata on classes, callables, parameters and fields, with compile-time declaration/documentation reflection and exported dependency metadata. Candidate @[name; arguments] syntax is not implemented. Independent CLI and serialization/validation consumers must prove the generic mechanism; HTTP is only a possible use. Deferred with-realization modifiers remain separate.",
+      "sources": [
+        "docs/language-spec-concise.md#ANNOTATIONS",
+        "docs/language-spec-and-compiler-architecture-draft.md",
+        "docs/surface-v1.md#15.1 General declaration annotations",
+        "docs/compiler-plan.md#Milestone 31.0"
       ]
     },
     {
@@ -2923,7 +2944,7 @@
 }</script>
 <script>
 const data=JSON.parse(document.getElementById('scoreboard-data').textContent),byCategory=new Map(data.categories.map((x,i)=>[x.id,{...x,index:i}])),statusOrder=new Map(['partial','planned','potential','deferred','excluded','done'].map((x,i)=>[x,i])),tones={done:'var(--done)',partial:'var(--partial)',planned:'var(--planned)',potential:'var(--potential)',deferred:'var(--deferred)',excluded:'var(--excluded)'},controls=Object.fromEntries(['search','category','status','milestone','reference','sort'].map(id=>[id,document.getElementById(id)]));
-const repoHref=p=>'../'+p.split('#')[0]+(p.includes('#')?'#'+encodeURIComponent(p.split('#').slice(1).join('#')):''),average=a=>a.length?Math.round(a.reduce((s,x)=>s+x.completion,0)/a.length):0,fill=(s,l,v,f=x=>x)=>s.innerHTML=`<option value="">All ${l}</option>`+v.map(x=>`<option value="${x}">${f(x)}</option>`).join('');
+const repoHref=p=>'../../../'+p.split('#')[0]+(p.includes('#')?'#'+encodeURIComponent(p.split('#').slice(1).join('#')):''),average=a=>a.length?Math.round(a.reduce((s,x)=>s+x.completion,0)/a.length):0,fill=(s,l,v,f=x=>x)=>s.innerHTML=`<option value="">All ${l}</option>`+v.map(x=>`<option value="${x}">${f(x)}</option>`).join('');
 fill(controls.category,'categories',data.categories.map(x=>x.id),x=>byCategory.get(x).label); fill(controls.status,'statuses',Object.keys(data.statuses),x=>data.statuses[x].label); fill(controls.milestone,'milestones',[...new Set(data.features.map(x=>x.milestone).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})),x=>`Milestone ${x}`); fill(controls.reference,'reference states',Object.keys(data.reference_states),x=>x.replace('-',' '));
 document.getElementById('legend').innerHTML=Object.entries(data.statuses).map(([id,s])=>`<span class="chip" style="--tone:${tones[id]}" title="${s.description}">${s.label}</span>`).join('');
 function matches(x){const q=controls.search.value.trim().toLowerCase(),hay=[x.id,x.name,x.notes,x.milestone||'',...x.reference.paths,...x.sources].join(' ').toLowerCase();return(!q||hay.includes(q))&&(!controls.category.value||x.category===controls.category.value)&&(!controls.status.value||x.status===controls.status.value)&&(!controls.milestone.value||x.milestone===controls.milestone.value)&&(!controls.reference.value||x.reference.state===controls.reference.value)}

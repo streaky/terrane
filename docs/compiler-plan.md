@@ -1041,6 +1041,50 @@ honest declines at approved exceptional boundaries; the named applications passi
 ordinary supported Rust capabilities still requiring package-by-package compiler intervention.
 New Rust language/toolchain capabilities may require engine work; new package names must not.
 
+### Milestone 31.0 — General declaration annotations and documentation reflection
+
+**Status:** planned; no annotation syntax, documentation-comment reflection, or package annotation consumer is implemented by this milestone record. The canonical design is [General declaration annotations](../manual/reference/records/internals/future/annotations.yaml); the language draft and proposed object surface describe the same contract.
+
+**Outcome:** Terrane packages can define typed immutable declaration metadata, attach it without executing decorators, and consume it through compiler-owned declaration reflection to validate declarations or generate ordinary Terrane/Rust code. The mechanism is general-purpose: serialization, validation, CLI commands, tests/benchmarks, persistence, RPC/message dispatch, and documentation tooling are possible consumers. HTTP is one possible use, not a compiler subsystem or required dependency.
+
+#### Source and metadata contract
+
+- Adopt the proposed annotation application spelling `@[name; arguments]`, with ordinary imported-name resolution, positional arguments followed by `name = value`, and an explicit semicolon for zero arguments. Freeze delimiters and ambiguity rules through lexer/parser evidence before admitting the syntax.
+- Support annotations on classes, functions/methods, parameters, and fields. Declaration annotations precede the declaration at its indentation; parameter annotations precede their parameter within the existing parameter-list grammar, including parenthesized multiline lists.
+- Provide a compiler-owned annotation-definition marker under `/core/annotations`, with typed attachment targets and a repeatability contract. Packages own annotation types and their domain meanings; unknown names, inappropriate targets, invalid construction, and duplicate non-repeatable applications diagnose at source.
+- Evaluate only admitted immutable compile-time metadata construction, not arbitrary annotation constructors, runtime state, I/O, or decorator execution. Specify admissible aggregates, constant dependencies/cycles, and explicit descriptor-valued metadata slots without making type constructs unrestricted runtime values.
+- Preserve source application order for inspection without granting it hidden execution precedence. Annotation metadata must not redefine visibility, name resolution, invocation authority, ownership, effects, safety, or throwable contracts.
+- Distinguish declaration metadata from the separately deferred `with` decorative realization protocol. Neither facility implicitly activates the other.
+
+#### Documentation and declaration reflection
+
+Define proposed `///` line documentation and `/** ... */` block documentation separately from ordinary `#` (including `##`), `//`, and `/* ... */` implementation comments. Consecutive documentation lines form one block; optional leading `*` decoration inside block documentation is stripped. Specify attachment across annotation blocks, paragraph and meaningful-indentation preservation, attachment broken by blank source lines outside comments or intervening ordinary comments, unattached-block diagnostics, and deterministic explicit prose overrides in consumers. Ordinary comments are not exported as declaration documentation.
+
+Use star-prefixed block documentation as the canonical example style while accepting undecorated blocks without warnings. Define extraction to remove delimiters and surrounding blank lines, strip common source-layout indentation, then strip decorative leading `*` and at most one following space, preserving paragraphs and meaningful indentation after decoration. Keep original comments unchanged in the lossless syntax tree. Evidence must show both spellings return identical documentation and retain intentional indentation.
+
+Expose canonical declaration identity, source spans, attached typed metadata and documentation, parameter names/types/defaults, fields/visibility, declared results, and existing callable contracts. Annotations belong to declaration descriptors; arbitrary callable values and aliases must not invent a unique originating declaration or inherit metadata silently. Inheritance queries retain origin rather than copying annotations onto overrides.
+
+Retain metadata in exported dependency interfaces when bodies/source are unavailable. Keep nominal type/callable identity and compatibility independent of annotations, while interface/cache fingerprints include relevant metadata/documentation edits so generated consumers cannot reuse stale output. Runtime embedding is explicit and demand-driven; compile-time consumption must not require runtime reflection storage.
+
+#### Consumer boundary and independent vertical slices
+
+Define one generic, explicit compiler/tooling consumer mechanism using the canonical metadata model. Specify invocation/configuration, deterministic inputs/output, diagnostics with originating spans, dependency invalidation, and integration into the ordinary compile/check/lower pipeline before claiming consumer support. Metadata does not implicitly discover/register every annotated declaration or require package-specific compiler branches.
+
+Prove at least two independent consumers on the same mechanism:
+
+1. A command-line package derives typed argument binding and help text from function/parameter signatures plus command/flag metadata. Exercise required, optional/defaulted, named, and invalid input behavior without bypassing the signature.
+2. A serialization/validation package derives field mapping and a typed codec/validator from field types plus external-name/constraint metadata. Exercise wire names, secrecy/visibility, optional/default/null behavior, enforced constraints, and unsupported types.
+
+Consumers must distinguish descriptive metadata from executable promises and enforce the latter. Generated calls preserve ownership, lifetimes, receiver authority, async/error behavior, and capability requirements. Do not invent runtime fallbacks or schemas for unsupported representations.
+
+#### Evidence and exit criterion
+
+Keep deterministic accepted/rejected fixtures for placement and multiline parsing, import aliases, positional/named arguments, constant construction, wrong targets/types, duplicate/non-repeatable applications, illegal side effects and cycles, documentation attachment, declaration origins, and dependency metadata surviving stripped source. Exercise metadata-only dependency edits invalidating generated consumers without changing nominal type identity. Include absence of runtime metadata allocation when only compile-time inspection is demanded.
+
+The milestone is complete only when both independent consumers run through the real source-to-generated-Rust-to-Cargo pipeline, their generated behavior agrees with their metadata, malformed declarations fail with Terrane source diagnostics, public dependency metadata works without reopening source, and tooling/manual/concise/scoreboard contracts are synchronized. CLI and codec examples in the design remain illustrative until that evidence exists. Arbitrary executable decorators, HTTP/OpenAPI implementation, database drivers, test-discovery migration, and the deferred `with` protocol are outside this milestone.
+
+This is a distinct general language capability alongside milestone 31's native integration work. It may reuse its canonical exported metadata machinery, but must not require completion of unrelated native-package cohorts or establish a second semantic interface model.
+
 ### Milestone 32 — First-version hardening and release gate
 
 Deliver:
@@ -1282,6 +1326,7 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - add compiler-attributed native CPU profiling over representative optimized artifacts and the
   shared profile artifact/presentation model (milestone 30.4);
 - add allocation/retention and process-memory evidence to the unified profiler (milestone 30.5);
+- add general typed declaration annotations, documentation reflection, and independent CLI/serialization consumers (milestone 31.0);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).

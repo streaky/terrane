@@ -22,6 +22,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
 | async/targets | `ASYNC`, `TARGET` | §§21–22 |
 | application testing | `TESTING` | §31.5 |
+| declaration annotations/documentation metadata | `ANNOTATIONS` | General declaration annotations (planned); manual `internals.future.annotations`, milestone 31.0 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
 | unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
 | constitutional rules | `INVARIANT` | §41 |
@@ -1352,6 +1353,20 @@ Priority: these override examples/lowering sketches/plans. Condensed from full s
 19. Source/generated/native names independent.
 20. Destruction is deterministic only for lexical ownership and acyclic final shared-owner release.
 21. `int` exact arbitrary precision with adaptive promotion/normalization; fixed widths expose arithmetic bounds/overflow policy; numeric destination conversion is exact-or-throw.
+
+## ANNOTATIONS
+
+Planned general language design, milestone **31.0**; not current compiler support. Canonical design: `manual/reference/records/internals/future/annotations.yaml`. Declaration annotations are typed immutable metadata, not executable decorators or the separately deferred `with` realization modifiers.
+
+- Candidate application: `@[name; positional, named = value]`, including explicit `;` with zero arguments. Resolve package-defined annotation types through ordinary imports; check their metadata constructor schema, typed targets, and repeatability.
+- Targets: classes, functions/methods, parameters, and fields. Declaration annotations precede the declaration; parameter annotations precede that parameter within ordinary `; (...)` multiline signatures. Source order is retained for inspection, not hidden execution precedence.
+- Candidate `/core/annotations` definition marker and typed `annotation-target` enum identify annotation types. The exact intrinsic API and admitted immutable construction subset must be frozen through implementation evidence. No arbitrary constructor execution, I/O, mutable state, or callable wrapping.
+- Proposed `///` line and `/** ... */` block declaration documentation attaches across annotation blocks; ordinary `#` (including `##`), `//`, and `/* ... */` comments are not exported. Consecutive `///` lines form one block; empty documentation lines preserve paragraphs, optional leading `*` block decoration is stripped, and meaningful indentation is retained. Blank source lines outside comments or intervening ordinary comments break attachment; dangling documentation is diagnosed. Reflect documentation, typed annotation values, stable origin/span, parameter names/types/defaults, and existing field/callable contracts through declaration descriptors.
+- Block documentation examples canonically use leading `*`; undecorated blocks are equally accepted without warnings. Extraction removes delimiters and surrounding blank lines, strips common source-layout indentation, then strips decorative leading `*` and at most one following space. Preserve paragraphs and meaningful indentation after decoration; leave the original lossless syntax-tree comment unchanged.
+- Export public declaration metadata across dependencies even without source/bodies. Do not infer a unique declaration from arbitrary callable values or silently copy annotations through aliases/inheritance. Metadata does not change nominal identity, signature compatibility, effects, visibility, ownership, or safety; relevant annotation/documentation edits invalidate consumer artifact fingerprints.
+- Package/tool consumers explicitly select declarations and validate/generate ordinary code through one generic compile-time metadata mechanism. Consumer schemas/behavior derive types from signatures and fields, with metadata supplying wire names, binding sources, constraints, help/prose, examples, or tags. Executable promises must be enforced; descriptive metadata alone cannot enable security or validation.
+- CLI command/flag/help generation and serialization/validation are independent required milestone consumers. Tests/benchmarks, database mapping, RPC/message handling, and documentation/tooling are possible additional uses; HTTP is not a special compiler facility. Consumer execution/inspection APIs remain design details, not implemented package contracts.
+- Compile-time consumption does not require runtime reflection embedding or global registration. Documentation/runtime metadata is emitted only when explicitly demanded.
 
 ## OPEN
 

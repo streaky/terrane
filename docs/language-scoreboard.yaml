@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-10-04'
+  as_of: '2026-10-07'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -13,7 +13,7 @@ metadata:
   - docs/language-spec-concise.md
   - manual/reference/manual.yaml
   generator: docs/generate-language-scoreboard.py
-  output: docs/language-scoreboard.html
+  output: docs/published/scoreboards/language.html
 statuses:
   done:
     label: Done
@@ -158,6 +158,22 @@ features:
   sources:
   - docs/language-spec-concise.md#DECL
   - docs/compiler-plan.md#Milestone 2
+- id: declaration-annotations
+  name: General declaration annotations and documentation reflection
+  category: syntax
+  status: planned
+  completion: 0
+  milestone: '31.0'
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/internals/future/annotations.yaml
+  notes: Planned package-defined typed immutable metadata on classes, callables, parameters and fields, with compile-time declaration/documentation reflection and exported dependency metadata. Candidate @[name; arguments] syntax is not implemented. Independent CLI and serialization/validation consumers must prove the generic mechanism; HTTP is only a possible use. Deferred with-realization modifiers remain separate.
+  sources:
+  - docs/language-spec-concise.md#ANNOTATIONS
+  - docs/language-spec-and-compiler-architecture-draft.md
+  - docs/surface-v1.md#15.1 General declaration annotations
+  - docs/compiler-plan.md#Milestone 31.0
 - id: decorative-modifiers
   name: Open decorative with-modifiers
   category: future
