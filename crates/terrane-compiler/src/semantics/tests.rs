@@ -55,6 +55,19 @@ fn ambiguous_projection() -> Projection {
 }
 
 #[test]
+fn ambiguous_projected_import_names_every_rust_identity() {
+    let package = Package::implicit(
+        "main.trn",
+        "namespace app\nfrom /deps/shared import Generic\n".to_owned(),
+    );
+    let failure = analyze_with_projection(&package, ambiguous_projection()).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "S2056");
+    for identity in ["one::Generic<A>", "two::Generic<B>"] {
+        assert!(failure.diagnostics[0].message.contains(identity));
+    }
+}
+
+#[test]
 fn local_function_value_preserves_callable_result_type() {
     let package = Package::implicit(
         "main.trn",

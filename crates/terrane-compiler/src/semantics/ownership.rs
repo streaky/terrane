@@ -1431,6 +1431,41 @@ pub(super) fn validate_shared_ownership_cycles(
     Ok(())
 }
 
+fn validate_named_function_capture(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    function: Option<Span>,
+    symbol: Option<&Symbol>,
+) -> Result<(), SemanticFailure> {
+    let (Some(function), Some(symbol)) = (function, symbol) else {
+        return Ok(());
+    };
+    if symbol.kind != SymbolKind::Binding || symbol.global {
+        return Ok(());
+    }
+    let Some(origin) = symbol.declaration_span else {
+        return Ok(());
+    };
+    if origin.file != function.file
+        || (function.start <= origin.start && origin.end <= function.end)
+        || !unit
+            .scopes
+            .iter()
+            .any(|scope| scope.span.start <= origin.start && origin.end <= scope.span.end)
+    {
+        return Ok(());
+    }
+    Err(failure(
+        &unit.source,
+        "S2062",
+        format!(
+            "named local function cannot capture enclosing binding `{}`; use an anonymous closure",
+            symbol.name
+        ),
+        node.span,
+    ))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "reference validation keeps ownership forms in one ordered syntax traversal"
@@ -1440,12 +1475,21 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
-        _callable_position: bool,
+        named_function: Option<Span>,
     ) -> Result<(), SemanticFailure> {
+        let named_function = if node.kind == SyntaxKind::FunctionDeclaration {
+            unit.scopes
+                .iter()
+                .find(|scope| scope.span == node.span && scope.parent.is_some())
+                .map(|_| node.span)
+        } else {
+            named_function
+        };
         match node.kind {
             SyntaxKind::Name => {
                 let name = node_text(&unit.source, node);
                 let resolved = package.resolve_name_at(unit, node.span.start, name);
+                validate_named_function_capture(unit, node, named_function, resolved)?;
                 let unsafe_name = format!("unsafe::{name}");
                 let unsafe_resolved = package.resolve_name_at(unit, node.span.start, &unsafe_name);
                 let implicit_receiver = is_implicit_object_receiver(unit, node.span.start, name);
@@ -1502,19 +1546,36 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
                 for child in &node.children {
                     if !declaration_name_skipped && child.kind == SyntaxKind::Name {
                         declaration_name_skipped = true;
+                        if node.kind == SyntaxKind::Assignment
+                            && !node
+                                .children
+                                .iter()
+                                .any(|part| part.kind == SyntaxKind::TypeExpression)
+                        {
+                            validate_named_function_capture(
+                                unit,
+                                child,
+                                named_function,
+                                package.resolve_name_at(
+                                    unit,
+                                    child.span.start,
+                                    node_text(&unit.source, child),
+                                ),
+                            )?;
+                        }
                         continue;
                     }
-                    visit(package, unit, child, false)?;
+                    visit(package, unit, child, named_function)?;
                 }
             }
             SyntaxKind::CatchClause => {
                 if let Some(descriptor) = node.children.first() {
-                    visit(package, unit, descriptor, false)?;
+                    visit(package, unit, descriptor, named_function)?;
                 }
                 if let Some(block) = node.children.last()
                     && block.kind == SyntaxKind::Block
                 {
-                    visit(package, unit, block, false)?;
+                    visit(package, unit, block, named_function)?;
                 }
             }
             SyntaxKind::Argument => {
@@ -1522,24 +1583,19 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
                     if index == 0 && node.children.len() > 1 && child.kind == SyntaxKind::Name {
                         continue;
                     }
-                    visit(package, unit, child, false)?;
+                    visit(package, unit, child, named_function)?;
                 }
             }
             SyntaxKind::MemberExpression
             | SyntaxKind::StaticMemberExpression
             | SyntaxKind::ConstructionExpression => {
                 if let Some(receiver) = node.children.first() {
-                    visit(package, unit, receiver, false)?;
-                }
-            }
-            SyntaxKind::CallExpression => {
-                for (index, child) in node.children.iter().enumerate() {
-                    visit(package, unit, child, index == 0)?;
+                    visit(package, unit, receiver, named_function)?;
                 }
             }
             _ => {
                 for child in &node.children {
-                    visit(package, unit, child, false)?;
+                    visit(package, unit, child, named_function)?;
                 }
             }
         }
@@ -1548,7 +1604,7 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
 
     for unit in &package.units {
         for node in &unit.tree.root.children {
-            visit(package, unit, node, false)?;
+            visit(package, unit, node, None)?;
         }
     }
     Ok(())

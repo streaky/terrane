@@ -1,0 +1,7 @@
+namespace local-function-parameter-capture
+function outer int; value int
+    function helper int; own int
+        return value + own
+    return (helper; 1)
+function main;
+    print; (outer; 7)

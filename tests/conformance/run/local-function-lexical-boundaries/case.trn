@@ -1,0 +1,27 @@
+namespace local-function-lexical-boundaries
+constant shared int = 10
+function helper int;
+    return 1
+function outer string;
+    function helper string;
+        return 'local'
+    value = helper;
+    return value
+function factorial int;
+    function fact int; n int
+        if n <= 1
+            return 1
+        return n * (fact; n - 1)
+    return (fact; 5)
+function own-closure int;
+    function nested int; value int
+        local int = value + shared
+        callback = function int;
+            return local + (helper;)
+        return (callback;)
+    return (nested; 1)
+function main;
+    print; (helper;)
+    print; (outer;)
+    print; (factorial;)
+    print; (own-closure;)

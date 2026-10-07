@@ -83,11 +83,14 @@ pub(super) fn add_lexical_scope(
             }
         }
     }
-    if node.kind == SyntaxKind::Block {
+    if !is_function_node(node) {
         populate_scope(unit, context, scopes, index, node)?;
         return Ok(index);
     }
-    if is_function_node(node) && object_name_containing(unit, node.span).is_some() {
+    if is_function_node(node)
+        && parent.is_none()
+        && object_name_containing(unit, node.span).is_some()
+    {
         insert_local(
             unit,
             scopes,
@@ -197,23 +200,37 @@ pub(super) fn populate_node(
         }
         SyntaxKind::FunctionDeclaration => {
             if let Some(name) = declaration_name(node, &unit.source) {
-                let existing = scopes[index].symbols.get_mut(&name).and_then(|symbols| {
-                    symbols
-                        .iter_mut()
-                        .find(|symbol| symbol.declaration_span == Some(node.span))
-                });
-                if let Some(symbol) = existing {
-                    symbol.kind = SymbolKind::Function;
-                } else {
-                    insert_local(unit, scopes, index, name, node.span)?;
-                    let symbol = scopes[index]
-                        .symbols
-                        .values_mut()
-                        .flatten()
-                        .find(|symbol| symbol.declaration_span == Some(node.span))
-                        .expect("the local declaration was just inserted");
-                    symbol.kind = SymbolKind::Function;
+                let scope = &scopes[index];
+                if scope.symbols.get(&name).is_some_and(|symbols| {
+                    symbols.iter().any(|symbol| {
+                        symbol.binding_span.is_some_and(|span| {
+                            span.file == scope.span.file
+                                && scope.span.start <= span.start
+                                && span.end <= scope.span.end
+                        })
+                    })
+                }) {
+                    return Err(failure(
+                        &unit.source,
+                        "S2012",
+                        format!("duplicate binding `{name}` in the same lexical scope"),
+                        node.span,
+                    ));
                 }
+                insert_local_replacement(unit, scopes, index, name.clone(), node.span);
+                let symbol = scopes[index]
+                    .symbols
+                    .get_mut(&name)
+                    .unwrap()
+                    .last_mut()
+                    .unwrap();
+                symbol.kind = SymbolKind::Function;
+                // Keep the full declaration origin, but expose the name in its own body.
+                symbol.binding_span = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                    .map(|child| child.span);
             }
             add_lexical_scope(unit, context, scopes, node, Some(index), true)?;
         }
