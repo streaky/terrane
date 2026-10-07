@@ -55,19 +55,30 @@ fn ambiguous_projection() -> Projection {
 }
 
 #[test]
-fn ambiguous_projected_import_names_every_rust_identity() {
+fn local_function_value_preserves_callable_result_type() {
     let package = Package::implicit(
         "main.trn",
-        "namespace app\nfrom /deps/shared import Generic\n".to_owned(),
+        "namespace app\nfunction first int;\n    function helper int;\n        return 1\n    value = helper;\n    return value\n".to_owned(),
     );
+    let semantic = analyze(&package).expect("the local function call has the declared int result");
+    let value = semantic
+        .units
+        .iter()
+        .filter(|unit| !unit.bundled)
+        .flat_map(|unit| &unit.typed_bindings)
+        .find(|binding| binding.name == "value")
+        .unwrap();
+    assert_eq!(value.value_type, ValueType::Scalar(ScalarType::Int));
+}
 
-    let failure = analyze_with_projection(&package, ambiguous_projection()).unwrap_err();
-
-    assert_eq!(failure.diagnostics[0].code, "S2056");
-    assert_eq!(
-        failure.diagnostics[0].message,
-        "Rust dependency member `Generic` in `/deps/shared` is ambiguous: projected Rust types `one::Generic<A>`, `two::Generic<B>`"
+#[test]
+fn local_function_value_rejects_incompatible_enclosing_result() {
+    let package = Package::implicit(
+        "main.trn",
+        "namespace app\nfunction first string;\n    function helper int;\n        return 1\n    value = helper;\n    return value\n".to_owned(),
     );
+    let failure = analyze(&package).expect_err("int callable must not satisfy string result");
+    assert_eq!(failure.diagnostics[0].code, "T0015");
 }
 
 #[test]

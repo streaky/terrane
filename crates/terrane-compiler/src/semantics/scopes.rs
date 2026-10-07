@@ -197,7 +197,23 @@ pub(super) fn populate_node(
         }
         SyntaxKind::FunctionDeclaration => {
             if let Some(name) = declaration_name(node, &unit.source) {
-                insert_local(unit, scopes, index, name, node.span)?;
+                let existing = scopes[index].symbols.get_mut(&name).and_then(|symbols| {
+                    symbols
+                        .iter_mut()
+                        .find(|symbol| symbol.declaration_span == Some(node.span))
+                });
+                if let Some(symbol) = existing {
+                    symbol.kind = SymbolKind::Function;
+                } else {
+                    insert_local(unit, scopes, index, name, node.span)?;
+                    let symbol = scopes[index]
+                        .symbols
+                        .values_mut()
+                        .flatten()
+                        .find(|symbol| symbol.declaration_span == Some(node.span))
+                        .expect("the local declaration was just inserted");
+                    symbol.kind = SymbolKind::Function;
+                }
             }
             add_lexical_scope(unit, context, scopes, node, Some(index), true)?;
         }

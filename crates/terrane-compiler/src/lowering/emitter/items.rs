@@ -1834,6 +1834,30 @@ impl<'a> Emitter<'a> {
         self.emit_function(node, None);
     }
 
+    pub(super) fn local_function(&mut self, node: &SyntaxNode) {
+        let outer_completion = std::mem::replace(&mut self.try_completion, false);
+        let outer_loop = std::mem::replace(&mut self.in_loop, false);
+        let outer_continue = self.continue_label.take();
+        let outer_break = self.break_label.take();
+        let outer_error = self.current_error.take();
+        let outer_closure_depth = std::mem::replace(&mut self.closure_depth, 0);
+        let outer_ranges = std::mem::take(&mut self.bounded_integer_ranges);
+        let outer_list_borrows = std::mem::take(&mut self.list_append_borrows);
+        let outer_captures = std::mem::take(&mut self.async_mutable_captures);
+        let outer_fresh_lists = std::mem::take(&mut self.fresh_empty_lists);
+        self.function(node);
+        self.try_completion = outer_completion;
+        self.in_loop = outer_loop;
+        self.continue_label = outer_continue;
+        self.break_label = outer_break;
+        self.current_error = outer_error;
+        self.closure_depth = outer_closure_depth;
+        self.bounded_integer_ranges = outer_ranges;
+        self.list_append_borrows = outer_list_borrows;
+        self.async_mutable_captures = outer_captures;
+        self.fresh_empty_lists = outer_fresh_lists;
+    }
+
     fn consuming_method_needs_mutable_self(&self, node: &SyntaxNode) -> bool {
         fn rooted_in_this(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
             if node.kind == SyntaxKind::Name {
@@ -2615,7 +2639,11 @@ impl<'a> Emitter<'a> {
 
     pub(super) fn block(&mut self, block: &SyntaxNode) {
         for statement in &block.children {
-            self.statement(statement);
+            if statement.kind == SyntaxKind::FunctionDeclaration {
+                self.local_function(statement);
+            } else {
+                self.statement(statement);
+            }
         }
     }
 
