@@ -150,7 +150,7 @@ use types::{
 const PROJECTION_SCHEMA: &str = "259";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
-pub const GENERATED_PROJECTION_FILE: &str = "terrane-projection.generated.trn";
+pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {

@@ -64,7 +64,7 @@ hello = "src"
 
 Run `terrane check hello`, `terrane run hello`, or `terrane build hello`. Commands accept a package directory, its manifest, or a standalone source file.
 
-Generated state lives in `.trn/`; add `**/.trn/` to your repository's `.gitignore`. For projected dependencies, also ignore `terrane-projection.generated.trn`, but commit `terrane-dependencies.lock` and `terrane-projection.lock`.
+Generated state lives in `.trn/`; add `**/.trn/` to your repository's `.gitignore`. The generated projection inventory is at `<package>/.trn/terrane-projection.generated.trn`; commit `terrane-dependencies.lock` and `terrane-projection.lock` at the package root.
 
 A standalone source file can be run as `terrane hello.trn`. Adding `#!/usr/bin/env terrane` and making it executable enables direct script invocation; only shebang-bearing standalone files may omit `namespace`. Scripts still compile through the native pipeline.
 
@@ -72,7 +72,7 @@ A standalone source file can be run as `terrane hello.trn`. Adding `#!/usr/bin/e
 
 Declare an exact crate version, reviewed features, and required effects in `[rust-dependencies.<alias>]` in `package.toml`. Import its admitted declarations from `/deps/<alias>/...`, then use ordinary package commands to resolve and project the dependency.
 
-Projection is driven by source demand. Review `terrane-projection.generated.trn` for Terrane signatures and unavailable operations, `terrane-dependencies.lock` for the resolved Cargo graph, and `terrane-projection.lock` for admitted/declined API history. Unavailable demanded operations report explicit gaps rather than silently substituting an adapter.
+Projection is driven by source demand. Review `.trn/terrane-projection.generated.trn` for Terrane signatures and unavailable operations, `terrane-dependencies.lock` for the resolved Cargo graph, and `terrane-projection.lock` for admitted/declined API history. Unavailable demanded operations report explicit gaps rather than silently substituting an adapter.
 
 The compiler preserves exact native types and obligations through calls, generic selections, callbacks, moves, and borrows. It can specialize operations from ordinary arguments, receiver types, callable contracts, explicit selections, and result destinations. This does not imply unrestricted projection of arbitrary Rust traits, lifetimes, macros, or host registration APIs. Executable integration evidence lives in the compiler's conformance and CLI integration suites.
 

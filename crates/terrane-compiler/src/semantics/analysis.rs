@@ -476,17 +476,19 @@ fn persist_projection_inventory(
     if std::fs::read_to_string(&path).ok().as_deref() == Some(&inventory) {
         return Ok(());
     }
-    std::fs::write(&path, inventory).map_err(|error| {
-        failure(
-            &package.units[0].source,
-            "S2028",
-            format!(
-                "cannot write complete dependency projection inventory `{}`: {error}",
-                path.display()
-            ),
-            Span::new(package.units[0].source.id(), 0, 0),
-        )
-    })
+    std::fs::create_dir_all(path.parent().expect("projection inventory has a parent"))
+        .and_then(|()| std::fs::write(&path, inventory))
+        .map_err(|error| {
+            failure(
+                &package.units[0].source,
+                "S2028",
+                format!(
+                    "cannot write complete dependency projection inventory `{}`: {error}",
+                    path.display()
+                ),
+                Span::new(package.units[0].source.id(), 0, 0),
+            )
+        })
 }
 
 #[expect(

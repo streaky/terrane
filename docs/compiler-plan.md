@@ -333,8 +333,10 @@ next work units before committing to a new core representation.
   reproduces Iced's direct `application` decline at the unresolved `BootFn` callback context.
   The maintained-Rust GUI remains explicitly context-only rather than being counted as direct
   admission evidence.
-- `terrane-projection.generated.trn` materializes the otherwise ephemeral projection beside each
-  package manifest. It orders currently required unavailable declarations and the required-admitted
+- `terrane-projection.generated.trn` materializes the otherwise ephemeral projection at
+  `.trn/terrane-projection.generated.trn` under each package root, while the manifest and
+  dependency/projection locks remain at package root. It orders currently required unavailable
+  declarations and the required-admitted
   index first, active projected Terrane source second, and unreachable unavailable declarations
   last. Report comments retain every exact decline, demand site, partial function/callback contract,
   and transitive requirement. Deterministic `Generated source unit` markers split the physical

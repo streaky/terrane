@@ -1015,7 +1015,7 @@ fn render_unavailable_members_for_item(
 pub(super) fn inventory_member_syntax_gap(function: &ProjectedFunction) -> Option<String> {
     let mut text = "namespace projection-inventory\n\nclass Inventory\n".to_owned();
     render_function(&mut text, function, false, 4, &BTreeMap::new(), None);
-    let source = crate::SourceFile::new(0, PathBuf::from("terrane-projection.generated.trn"), text);
+    let source = crate::SourceFile::new(0, PathBuf::from(super::GENERATED_PROJECTION_FILE), text);
     let lexed = match crate::lexer::lex(&source) {
         Ok(lexed) => lexed,
         Err(diagnostics) => {

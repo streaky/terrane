@@ -10,7 +10,6 @@ docs/MEMORY.md
 # Rust and Terrane build artifacts
 /target/
 **/.trn/
-**/terrane-projection.generated.trn
 **/target/
 
 # Generated projection-census application surfaces
