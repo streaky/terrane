@@ -486,6 +486,7 @@ fn semantic_requires_unsafe_code(semantic: &crate::SemanticPackage) -> bool {
 /// Prepares consumers and analyzes declarations shared by compilation and test discovery.
 fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, CompilationFailure> {
     if package.consumer_configs.is_empty() {
+        crate::consumers::reconcile_generated_sources(package)?;
         return Ok(None);
     }
     let semantic =
@@ -494,11 +495,11 @@ fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, Co
             diagnostics: failure.diagnostics,
         })?;
     let generated = crate::consumers::run(package, &semantic)?;
-    if generated.is_empty() {
-        return Ok(None);
-    }
     let mut expanded = package.clone();
     crate::consumers::add_generated_sources(&mut expanded, generated)?;
+    if expanded.units.len() == package.units.len() {
+        return Ok(None);
+    }
     Ok(Some(expanded))
 }
 

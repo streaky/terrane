@@ -171,15 +171,16 @@ fn execute_consumer(
         .wait_with_input(input, config, package, fallback)?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(failure(
-            package,
-            fallback,
+        let detail = stderr.trim();
+        let message = if detail.is_empty() {
             format!(
-                "consumer `{}` exited unsuccessfully: {}",
-                config.name,
-                stderr.trim()
-            ),
-        ));
+                "consumer `{}` exited unsuccessfully ({})",
+                config.name, output.status
+            )
+        } else {
+            format!("consumer `{}` exited unsuccessfully: {detail}", config.name)
+        };
+        return Err(failure(package, fallback, message));
     }
     let response: ConsumerOutput = serde_json::from_slice(&output.stdout).map_err(|error| {
         failure(
@@ -603,6 +604,15 @@ fn prepare_generated_root(
     package: &Package,
 ) -> Result<std::path::PathBuf, crate::CompilationFailure> {
     let generated_root = package.root.join(".trn/generated");
+    if std::fs::symlink_metadata(&generated_root)
+        .is_ok_and(|metadata| metadata.file_type().is_symlink())
+    {
+        return Err(failure(
+            package,
+            fallback_span(package),
+            "generated source directory is a symbolic link".to_owned(),
+        ));
+    }
     std::fs::create_dir_all(&generated_root).map_err(|error| {
         failure(
             package,
@@ -646,14 +656,58 @@ fn prepare_generated_root(
     Ok(canonical_root)
 }
 
+pub(crate) fn reconcile_generated_sources(
+    package: &Package,
+) -> Result<(), crate::CompilationFailure> {
+    let generated_root = package.root.join(".trn/generated");
+    let metadata = match std::fs::symlink_metadata(&generated_root) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(failure(
+                package,
+                fallback_span(package),
+                format!("cannot inspect generated source directory: {error}"),
+            ));
+        }
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(failure(
+            package,
+            fallback_span(package),
+            "generated source directory is not an owned directory".to_owned(),
+        ));
+    }
+    let root = std::fs::canonicalize(&generated_root).map_err(|error| {
+        failure(
+            package,
+            fallback_span(package),
+            format!("cannot resolve generated source directory: {error}"),
+        )
+    })?;
+    let package_root = std::fs::canonicalize(&package.root).map_err(|error| {
+        failure(
+            package,
+            fallback_span(package),
+            format!("cannot resolve package root: {error}"),
+        )
+    })?;
+    if !root.starts_with(package_root) {
+        return Err(failure(
+            package,
+            fallback_span(package),
+            "generated source directory escapes package root".to_owned(),
+        ));
+    }
+    remove_stale_generated_sources(package, &root, &std::collections::BTreeSet::new())
+}
+
 pub(crate) fn add_generated_sources(
     package: &mut Package,
     sources: Vec<(String, String)>,
 ) -> Result<(), crate::CompilationFailure> {
-    if sources.is_empty() {
-        return Ok(());
-    }
     let canonical_root = prepare_generated_root(package)?;
+    let mut expected = std::collections::BTreeSet::new();
     for (identity, text) in sources {
         let Some((consumer, source_identity)) = identity.split_once("::") else {
             return Err(failure(
@@ -669,9 +723,10 @@ pub(crate) fn add_generated_sources(
                 format!("invalid generated source identity `{identity}`"),
             ));
         }
-        let mut relative_path = std::path::PathBuf::from(".trn/generated");
-        relative_path.push(consumer);
-        relative_path.push(format!("{source_identity}.trn"));
+        let relative_path = std::path::PathBuf::from(".trn/generated")
+            .join(consumer)
+            .join(format!("{source_identity}.trn"));
+        expected.insert(relative_path.clone());
         let absolute_path = package.root.join(&relative_path);
         let parent = absolute_path
             .parent()
@@ -737,7 +792,122 @@ pub(crate) fn add_generated_sources(
             role: SourceRole::Production,
         });
     }
+    remove_stale_generated_sources(package, &canonical_root, &expected)?;
     Ok(())
+}
+
+fn remove_stale_generated_sources(
+    package: &Package,
+    root: &std::path::Path,
+    expected: &std::collections::BTreeSet<std::path::PathBuf>,
+) -> Result<(), crate::CompilationFailure> {
+    if root.exists() {
+        visit_generated_directory(
+            package,
+            root,
+            root,
+            std::path::Path::new(".trn/generated"),
+            expected,
+        )?;
+    }
+    Ok(())
+}
+fn visit_generated_directory(
+    package: &Package,
+    root: &std::path::Path,
+    directory: &std::path::Path,
+    relative: &std::path::Path,
+    expected: &std::collections::BTreeSet<std::path::PathBuf>,
+) -> Result<bool, crate::CompilationFailure> {
+    let entries = std::fs::read_dir(directory).map_err(|error| {
+        failure(
+            package,
+            fallback_span(package),
+            format!(
+                "cannot read generated source directory `{}`: {error}",
+                directory.display()
+            ),
+        )
+    })?;
+    let mut empty = true;
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            failure(
+                package,
+                fallback_span(package),
+                format!("cannot read generated source entry: {error}"),
+            )
+        })?;
+        let path = entry.path();
+        let child_relative = relative.join(entry.file_name());
+        let metadata = std::fs::symlink_metadata(&path).map_err(|error| {
+            failure(
+                package,
+                fallback_span(package),
+                format!(
+                    "cannot inspect generated source `{}`: {error}",
+                    path.display()
+                ),
+            )
+        })?;
+        let kind = metadata.file_type();
+        if kind.is_symlink() {
+            empty = false;
+        } else if kind.is_dir() {
+            let canonical = std::fs::canonicalize(&path).map_err(|error| {
+                failure(
+                    package,
+                    fallback_span(package),
+                    format!(
+                        "cannot resolve generated directory `{}`: {error}",
+                        path.display()
+                    ),
+                )
+            })?;
+            if !canonical.starts_with(root) {
+                return Err(failure(
+                    package,
+                    fallback_span(package),
+                    format!(
+                        "generated source directory `{}` escapes `.trn/generated`",
+                        path.display()
+                    ),
+                ));
+            }
+            if visit_generated_directory(package, root, &path, &child_relative, expected)? {
+                std::fs::remove_dir(&path).map_err(|error| {
+                    failure(
+                        package,
+                        fallback_span(package),
+                        format!(
+                            "cannot remove stale generated directory `{}`: {error}",
+                            path.display()
+                        ),
+                    )
+                })?;
+            } else {
+                empty = false;
+            }
+        } else if kind.is_file() && path.extension().is_some_and(|extension| extension == "trn") {
+            if expected.contains(&child_relative) {
+                empty = false;
+            } else {
+                std::fs::remove_file(&path).map_err(|error| {
+                    failure(
+                        package,
+                        fallback_span(package),
+                        format!(
+                            "cannot remove stale generated source `{}`: {error}",
+                            path.display()
+                        ),
+                    )
+                })?;
+            }
+        } else {
+            empty = false;
+        }
+    }
+    Ok(empty)
 }
 
 fn failure(package: &Package, span: Span, message: String) -> crate::CompilationFailure {
@@ -842,6 +1012,24 @@ mod tests {
                 .all(|diagnostic| diagnostic.code == "S2061")
         );
     }
+    #[cfg(unix)]
+    #[test]
+    fn failed_consumer_without_stderr_reports_exit_status() {
+        let (package, root) = temporary_package();
+        let config = crate::package::ConsumerConfig {
+            name: "failing".to_owned(),
+            executable: "sh".into(),
+            arguments: vec!["-c".to_owned(), "exit 47".to_owned()],
+            declarations: Vec::new(),
+            interfaces: Vec::new(),
+        };
+        let error = execute_consumer(&package, &config, b"", fallback_span(&package))
+            .err()
+            .expect("the consumer exits unsuccessfully");
+        assert_eq!(error.diagnostics[0].code, "S2060");
+        assert!(error.diagnostics[0].message.contains("47"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn generated_sources_use_stable_identity_paths_and_reject_traversal() {
@@ -864,6 +1052,38 @@ mod tests {
         );
         assert!(traversal.is_err());
         assert!(!root.parent().unwrap().join("outside/source.trn").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stale_generated_sources_are_removed_without_following_symlinks() {
+        let (mut package, root) = temporary_package();
+        let generated = root.join(".trn/generated");
+        let outside = root.join("outside");
+        std::fs::create_dir_all(generated.join("codec")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(generated.join("codec/renamed.trn"), "old").unwrap();
+        std::fs::write(generated.join("codec/removed.trn"), "old").unwrap();
+        std::fs::write(outside.join("keep.trn"), "outside").unwrap();
+        std::os::unix::fs::symlink(&outside, generated.join("linked")).unwrap();
+        add_generated_sources(
+            &mut package,
+            vec![("codec::renamed-now".to_owned(), "new".to_owned())],
+        )
+        .unwrap();
+        assert!(!generated.join("codec/renamed.trn").exists());
+        assert!(!generated.join("codec/removed.trn").exists());
+        assert_eq!(
+            std::fs::read_to_string(outside.join("keep.trn")).unwrap(),
+            "outside"
+        );
+        add_generated_sources(&mut package, Vec::new()).unwrap();
+        assert!(!generated.join("codec/renamed-now.trn").exists());
+        assert_eq!(
+            std::fs::read_to_string(outside.join("keep.trn")).unwrap(),
+            "outside"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
