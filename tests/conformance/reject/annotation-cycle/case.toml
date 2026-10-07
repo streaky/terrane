@@ -1,4 +1,4 @@
 phase = "check"
 status = "reject"
-code = "S2110"
+code = "S2112"
 entrypoint = "package.toml"

@@ -2,5 +2,6 @@ package = "annotation-cycle"
 [namespaces]
 annotation-cycle = "src"
 [consumers.must-not-run]
+# Metadata cycles must fail during declaration preparation, before this consumer runs.
 command = "false"
 declarations = ["/annotation-cycle::subject"]

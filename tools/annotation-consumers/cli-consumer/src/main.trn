@@ -39,6 +39,8 @@ function default-source string throws consumer-error; value document-value, kind
     if value.kind == 'none'
         raise; declaration, ('optional parameter of type '.concat; (quote; type-name), ' requires a compile-time default')
     actual = text; (get; value, 'kind')
+    if actual == 'unsupported'
+        raise; declaration, 'CLI parameter requires a compile-time default; runtime default expressions are unsupported'
     raw = scalar; value
     if (kind == 'string' and actual != 'string') or (kind == 'int' and actual != 'integer')
         raise; declaration, ('default value does not match parameter type '.concat; (quote; type-name))
@@ -172,6 +174,8 @@ function generate string throws consumer-error; request document-value
         flag = selected-flag; record, pname
         help-text = parameter-help; record, pname, function-declaration
         default-value = get; parameter, 'default'
+        if (text; (get; default-value, 'kind')) == 'unsupported'
+            raise; record, 'CLI parameter requires a compile-time default; runtime default expressions are unsupported'
         optional = (truth; (get; parameter, 'optional')) or default-value.kind != 'none'
         shown-default = ''
         if optional and default-value.kind != 'none'

@@ -22,3 +22,6 @@ class account
     nickname string|none = 'fallback'
     private secret-note string = 'do not serialize'
     credential string = 'do not leak' metadata (secret = true)
+ 
+class profile
+    handle string

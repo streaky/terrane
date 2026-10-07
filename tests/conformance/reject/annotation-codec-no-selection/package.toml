@@ -1,0 +1,8 @@
+package = "annotation-codec-no-selection"
+
+[namespaces]
+annotation-codec-no-selection = "src"
+
+[consumers.codec]
+command = ".trn/consumers/codec"
+declarations = ["/annotation-codec-no-selection::main"]

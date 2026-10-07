@@ -6,6 +6,14 @@ from /core/documents import document-value, document-map-entries, make-document-
 from /core/errors import coercion-error, integer-conversion-overflow
 from /core/documents/json import parse-json, default-json-options, canonical-json
 
+class codec-source
+    identity string
+    source string
+
+    function construct; source-identity string, generated-source string
+        this.identity = source-identity
+        this.source = generated-source
+
 function raise; declaration document-value, message string
     throw (instance consumer-error; declaration, message)
 
@@ -94,7 +102,7 @@ function prose string|none throws consumer-error; declaration document-value
         return none
     return text; documentation
 
-function generate string throws consumer-error; request document-value
+function generate codec-source throws consumer-error; request document-value
     cls = selected; request, 'class'
     declarations = get; request, 'declarations'
     contracts = get; cls, 'contracts'
@@ -105,7 +113,19 @@ function generate string throws consumer-error; request document-value
     identity = text; (get; cls, 'identity')
     pieces = identity.split; '::'
     name = pieces[pieces.length - 1]
-    namespace-name = pieces[0]
+    path-pieces = (identity.replace; '::', '/').split; '/'
+    class-path = ''
+    for index in (range; 1, path-pieces.length)
+        if index > 1
+            class-path = class-path.concat; '/'
+        class-path = class-path.concat; path-pieces[index]
+    generated-namespace = 'generated/annotation-codec/'.concat; class-path
+    source-identity = 'typed-codec-'
+    for byte in identity.bytes
+        encoded = byte.radix; 16
+        if encoded.length == 1
+            source-identity = source-identity.concat; '0'
+        source-identity = source-identity.concat; encoded
     include-schema = flag; '--include-schema'
     schema-only = flag; '--schema-only'
     description-override = option; '--description'
@@ -151,6 +171,8 @@ function generate string throws consumer-error; request document-value
                 required = (truth; (get; field, 'required')) or required-metadata.kind != 'none'
                 defaulted = truth; (get; field, 'defaulted')
                 default = get; field, 'default'
+                if defaulted and default.kind == 'unsupported'
+                    raise; record, 'codec requires an immutable representable field default'
                 if defaulted and default.kind == 'none'
                     raise; record, 'codec requires an immutable representable field default'
                 minimum = annotation-of; record, 'minimum'
@@ -228,10 +250,10 @@ function generate string throws consumer-error; request document-value
         raise; cls, parsed-schema.message
     canonical-schema = canonical-json; parsed-schema.value
     schema-json = canonical-schema.value.encoded
-    schema-source = 'namespace generated/annotation-codec\nfunction describe-'.concat; name, ' string;\n    return ', (quote; schema-json), '\n'
+    schema-source = 'namespace '.concat; generated-namespace, '\nfunction describe-', name, ' string;\n    return ', (quote; schema-json), '\n'
     if schema-only
-        return schema-source
-    lines = 'namespace generated/annotation-codec\nfrom '.concat; namespace-name, ' import ', name, '\nfrom /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-string, make-document-integer, make-document-map\nfrom /core/errors import coercion-error, integer-conversion-overflow\n\n'
+        return (instance codec-source; source-identity, schema-source)
+    lines = 'namespace '.concat; generated-namespace, '\nfrom ', pieces[0], ' import ', name, '\nfrom /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-string, make-document-integer, make-document-map\nfrom /core/errors import coercion-error, integer-conversion-overflow\n\n'
     lines = lines.concat; 'class ', name, '-decoded\n    failed bool = false\n    message string = \'\'\n    value ', name, '|none = none\n\nclass ', name, '-encoded\n    failed bool = false\n    message string = \'\'\n    value document-value|none = none\n\n'
     if include-schema
         lines = lines.concat; 'function describe-', name, ' string;\n    return ', (quote; schema-json), '\n\n'
@@ -312,12 +334,12 @@ function generate string throws consumer-error; request document-value
         if nullable
             lines = lines.concat; '    else\n        entries.append; ', (quote; wire), ', (make-document-none;)\n'
     lines = lines.concat; '    document = make-document-map; entries\n    if document.failed\n        return fail-encoded; document.message\n    result = instance ', name, '-encoded;\n    result.value = document.value\n    return result\n'
-    return lines
+    return (instance codec-source; source-identity, lines)
 
 function main;
     try
         request = read-request;
         generated = generate; request
-        emit-source; 'typed-codec', generated
+        emit-source; generated.identity, generated.source
     catch consumer-error as error
         emit-error; (error-origin;), error.message

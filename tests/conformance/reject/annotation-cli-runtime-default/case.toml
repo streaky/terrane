@@ -3,5 +3,5 @@ status = "reject"
 code = "S2061"
 entrypoint = "package.toml"
 source = "src/app/main.trn"
-line = 5
-native-tools = "codec=tools/annotation-consumers/codec-consumer/package.toml"
+line = 4
+native-tools = "cli=tools/annotation-consumers/cli-consumer/package.toml"

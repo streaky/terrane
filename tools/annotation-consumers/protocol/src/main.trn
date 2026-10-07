@@ -201,11 +201,9 @@ function emit-error; declaration document-value, message string
     span = get; declaration, 'origin'
     if span.kind == 'none'
         span = get; declaration, 'span'
-    if span.kind == 'none'
-        fallback = parse-json; '{"file":0,"start":0,"end":0}', (default-json-options;)
-        span = fallback.value
     diagnostic = instance document-map-entries;
-    diagnostic.append; 'declaration', span
+    if span.kind != 'none'
+        diagnostic.append; 'declaration', span
     diagnostic.append; 'message', (make-document-string; message)
     mapped = make-document-map; diagnostic
     errors list of document-value = list; mapped.value

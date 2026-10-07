@@ -8,3 +8,7 @@ annotation-codec = "src/codec-schema"
 [consumers.codec]
 command = ".trn/consumers/codec"
 declarations = ["/codec-model::account", "/codec-model::account::account-id", "/codec-model::account::display-name", "/codec-model::account::active", "/codec-model::account::age", "/codec-model::account::nickname", "/codec-model::account::secret-note", "/codec-model::account::credential"]
+
+[consumers.profile]
+command = ".trn/consumers/codec"
+declarations = ["/codec-model::profile", "/codec-model::profile::handle"]

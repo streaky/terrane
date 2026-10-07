@@ -3,8 +3,9 @@ namespace annotation-codec-consumer
 from /core/output import print
 from /core/errors import coercion-error
 from /core/documents/json import parse-json, default-json-options, canonical-json
-from /codec-model import account
-from /generated/annotation-codec import decode-account, encode-account
+from /codec-model import account, profile
+from /generated/annotation-codec/codec-model/account import decode-account, encode-account
+from /generated/annotation-codec/codec-model/profile import decode-profile, encode-profile
 
 function expect-invalid throws coercion-error; input string
     parsed = parse-json; input, (default-json-options;)
@@ -63,3 +64,20 @@ function main throws coercion-error;
     if not invalid-encoded.failed
         throw coercion-error
     print; 'invalid inputs rejected'
+    profile-value = instance profile;
+    profile-value.handle = 'works'
+    profile-encoded = encode-profile; profile-value
+    if profile-encoded.failed
+        throw coercion-error
+    profile-document = profile-encoded.value
+    if profile-document != none
+        profile-decoded = decode-profile; profile-document
+        if profile-decoded.failed
+            throw coercion-error
+        profile-roundtrip = profile-decoded.value
+        if profile-roundtrip != none
+            print; profile-roundtrip.handle
+        else
+            throw coercion-error
+    else
+        throw coercion-error
