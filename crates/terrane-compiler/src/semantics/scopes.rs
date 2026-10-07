@@ -413,7 +413,7 @@ pub(super) fn populate_binding(
                 && symbol.declaration_span.is_some_and(|span| {
                     let scope = &scopes[index];
                     span.file == scope.span.file
-                        && scope.span.start <= span.start
+                        && scope.span.start < span.start
                         && span.end <= scope.span.end
                 })
         })
@@ -434,6 +434,27 @@ pub(super) fn populate_binding(
     } else {
         insert_local(unit, scopes, index, declaration.name, node.span)
     }
+}
+
+fn is_lexically_owned_function(symbol: &Symbol, scopes: &[LexicalScope], index: usize) -> bool {
+    if symbol.kind != SymbolKind::Function {
+        return false;
+    }
+    let Some(origin) = symbol.declaration_span else {
+        return false;
+    };
+    let mut current = Some(index);
+    while let Some(owner) = current {
+        let scope = &scopes[owner];
+        if origin.file == scope.span.file
+            && scope.span.start < origin.start
+            && origin.end <= scope.span.end
+        {
+            return true;
+        }
+        current = scope.parent;
+    }
+    false
 }
 
 pub(super) fn populate_assignment(
@@ -462,8 +483,12 @@ pub(super) fn populate_assignment(
         return Ok(());
     }
     if local_binding_exists(scopes, index, &declaration.name) {
-        if visible_local_symbol(scopes, index, &declaration.name)
-            .is_some_and(|symbol| symbol.kind == SymbolKind::Function)
+        if node
+            .children
+            .first()
+            .is_some_and(|child| child.kind == SyntaxKind::Name)
+            && visible_local_symbol(scopes, index, &declaration.name)
+                .is_some_and(|symbol| is_lexically_owned_function(symbol, scopes, index))
         {
             let name = node
                 .children
