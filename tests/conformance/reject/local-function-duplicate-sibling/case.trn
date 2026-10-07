@@ -1,0 +1,6 @@
+namespace local-function-duplicate-sibling
+function main;
+    function helper int;
+        return 1
+    function helper int;
+        return 2

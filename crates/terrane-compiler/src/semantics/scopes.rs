@@ -149,9 +149,65 @@ pub(super) fn populate_scope(
     index: usize,
     block: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
+    // Local functions are block declarations, not statements with source-order
+    // visibility. Install all headers before resolving any body so sibling
+    // calls, including mutual recursion, see the same canonical symbols.
     for node in &block.children {
-        populate_node(unit, context, scopes, index, node)?;
+        if node.kind == SyntaxKind::FunctionDeclaration {
+            populate_local_function(unit, scopes, index, node)?;
+        }
     }
+    for node in &block.children {
+        if node.kind != SyntaxKind::FunctionDeclaration {
+            populate_node(unit, context, scopes, index, node)?;
+        }
+    }
+    for node in &block.children {
+        if node.kind == SyntaxKind::FunctionDeclaration {
+            add_lexical_scope(unit, context, scopes, node, Some(index), true)?;
+        }
+    }
+    Ok(())
+}
+
+fn populate_local_function(
+    unit: &SemanticUnit,
+    scopes: &mut [LexicalScope],
+    index: usize,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let Some(name) = declaration_name(node, &unit.source) else {
+        return Ok(());
+    };
+    let scope = &scopes[index];
+    if scope.symbols.get(&name).is_some_and(|symbols| {
+        symbols.iter().any(|symbol| {
+            symbol.declaration_span.is_some_and(|span| {
+                span.file == scope.span.file
+                    && scope.span.start <= span.start
+                    && span.end <= scope.span.end
+            })
+        })
+    }) {
+        return Err(failure(
+            &unit.source,
+            "S2012",
+            format!("duplicate binding `{name}` in the same lexical scope"),
+            node.span,
+        ));
+    }
+    insert_local_replacement(unit, scopes, index, name.clone(), node.span);
+    let symbol = scopes[index]
+        .symbols
+        .get_mut(&name)
+        .unwrap()
+        .last_mut()
+        .unwrap();
+    symbol.kind = SymbolKind::Function;
+    symbol.constant = true;
+    // Retain declaration provenance; no binding-position gate applies to
+    // block-visible named declarations.
+    symbol.binding_span = None;
     Ok(())
 }
 
@@ -199,39 +255,7 @@ pub(super) fn populate_node(
             )?;
         }
         SyntaxKind::FunctionDeclaration => {
-            if let Some(name) = declaration_name(node, &unit.source) {
-                let scope = &scopes[index];
-                if scope.symbols.get(&name).is_some_and(|symbols| {
-                    symbols.iter().any(|symbol| {
-                        symbol.binding_span.is_some_and(|span| {
-                            span.file == scope.span.file
-                                && scope.span.start <= span.start
-                                && span.end <= scope.span.end
-                        })
-                    })
-                }) {
-                    return Err(failure(
-                        &unit.source,
-                        "S2012",
-                        format!("duplicate binding `{name}` in the same lexical scope"),
-                        node.span,
-                    ));
-                }
-                insert_local_replacement(unit, scopes, index, name.clone(), node.span);
-                let symbol = scopes[index]
-                    .symbols
-                    .get_mut(&name)
-                    .unwrap()
-                    .last_mut()
-                    .unwrap();
-                symbol.kind = SymbolKind::Function;
-                // Keep the full declaration origin, but expose the name in its own body.
-                symbol.binding_span = node
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Name)
-                    .map(|child| child.span);
-            }
+            // populate_scope predeclares every sibling in this block.
             add_lexical_scope(unit, context, scopes, node, Some(index), true)?;
         }
         SyntaxKind::AnonymousFunction => {
@@ -383,6 +407,20 @@ pub(super) fn populate_binding(
         .iter()
         .any(|child| child.kind == SyntaxKind::TypeExpression)
         && scopes[index].symbols.contains_key(&declaration.name);
+    if typed_replacement
+        && visible_local_symbol(scopes, index, &declaration.name)
+            .is_some_and(|symbol| symbol.kind == SymbolKind::Function)
+    {
+        return Err(failure(
+            &unit.source,
+            "S2012",
+            format!(
+                "duplicate binding `{}` in the same lexical scope",
+                declaration.name
+            ),
+            node.span,
+        ));
+    }
     if typed_replacement {
         insert_local_replacement(unit, scopes, index, declaration.name, node.span);
         Ok(())
@@ -417,6 +455,21 @@ pub(super) fn populate_assignment(
         return Ok(());
     }
     if local_binding_exists(scopes, index, &declaration.name) {
+        if visible_local_symbol(scopes, index, &declaration.name)
+            .is_some_and(|symbol| symbol.kind == SymbolKind::Function)
+        {
+            let name = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+                .expect("ordinary assignment has a name");
+            return Err(failure(
+                &unit.source,
+                "S2022",
+                format!("function `{}` cannot be reassigned", declaration.name),
+                name.span,
+            ));
+        }
         return Ok(());
     }
     let namespace_binding = globals
@@ -1415,6 +1468,23 @@ pub(super) fn namespace_chain(namespace: &str) -> impl Iterator<Item = String> {
         }
         Some(result)
     })
+}
+
+fn visible_local_symbol<'a>(
+    scopes: &'a [LexicalScope],
+    mut index: usize,
+    name: &str,
+) -> Option<&'a Symbol> {
+    loop {
+        if let Some(symbol) = scopes[index]
+            .symbols
+            .get(name)
+            .and_then(|symbols| symbols.last())
+        {
+            return Some(symbol);
+        }
+        index = scopes[index].parent?;
+    }
 }
 
 pub(super) fn visible_from(symbol: &Symbol, namespace: &str) -> bool {

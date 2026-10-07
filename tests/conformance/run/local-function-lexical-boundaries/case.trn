@@ -13,6 +13,23 @@ function factorial int;
             return 1
         return n * (fact; n - 1)
     return (fact; 5)
+function forward int;
+    value = (later;)
+    function later int;
+        return 2
+    return value
+function parity int; value int
+    function even bool; n int
+        if n == 0
+            return true
+        return (odd; n - 1)
+    function odd bool; n int
+        if n == 0
+            return false
+        return (even; n - 1)
+    if (even; value)
+        return 1
+    return 0
 function own-closure int;
     function nested int; value int
         local int = value + shared
@@ -25,3 +42,6 @@ function main;
     print; (outer;)
     print; (factorial;)
     print; (own-closure;)
+    print; (parity; 8)
+    print; (parity; 7)
+    print; (forward;)
