@@ -363,6 +363,12 @@ fn stage_native_tools(case: &Path, staged: &Path) {
         });
         let destination = staged.join(".trn/consumers").join(name);
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        // Copying opens an executable for writing; concurrent Unix forks can
+        // inherit that descriptor until exec and cause ETXTBSY in another worker.
+        // Cached tool binaries are immutable and outlive every staged fixture.
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(artifact, destination).unwrap();
+        #[cfg(not(unix))]
         fs::copy(artifact, destination).unwrap();
     }
 }
