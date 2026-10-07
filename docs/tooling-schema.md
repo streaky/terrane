@@ -156,6 +156,8 @@ The Rust `DeclarationInterface` format 1 API provides `to_json` and `from_json`,
 
 The response is one JSON object on stdout with `format: 1`, `generated_sources`, and `diagnostics`. Each generated source has a relative safe `identity` and Terrane `source` text; the compiler namespaces its identity by consumer and writes it beneath `.trn/generated/<consumer>/<identity>.trn`. Each diagnostic has a `message` and an optional declaration source span; selected source spans report at their source location, unavailable dependency text is reported as an origin diagnostic, and omitted spans use the package fallback. All diagnostics are reported. Consumer-reported errors use `S2061`; failed processes, malformed responses, invalid identities, duplicate generated identities, or invalid diagnostic spans use `S2060`.
 
+Successful consumer preparation reconciles the persisted generated `.trn` files with the current response, removing obsolete outputs even when a consumer returns no source or is removed from the manifest. Failed execution or invalid responses preserve the previous inventory. Cleanup stays within the compiler-owned generated-source tree and does not traverse symbolic links to outside paths.
+
 Consumer input, stdout and stderr, and imported declaration-interface files are capped at 16 MiB. Generated sources are added after declaration preparation and before ordinary whole-package checking, including test discovery, then parsed and checked with authored source through the normal pipeline. Consumer execution itself is synchronous, with no wall-clock timeout in the current contract.
 
 Editor and language-server snapshots do not execute trusted consumer programs. Generated

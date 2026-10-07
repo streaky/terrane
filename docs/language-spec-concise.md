@@ -226,6 +226,7 @@ receiver: evaluated before selection
 and_or: short-circuit
 other_binary: both operands evaluated
 default_args: call site, after supplied args, parameter order
+local_functions: local calls retain their own parameter/result contract, including inferred bindings; each return is checked against its current callable, not a nested or enclosing callable
 ```
 
 ## GRAMMAR
@@ -1365,10 +1366,11 @@ General declaration annotations and documentation metadata are implemented and v
 - `///` (not `////`) and `/** ... */` (not `/*** ... */` or `/**/`) declaration docs attach across annotations; ordinary comments and decorative banners do not export. Blank source lines outside comments and intervening ordinary comments break attachment. Normalization changes extracted text, not original lossless comment trivia.
 - `DeclarationInterface` format 1 provides `to_json`/`from_json`, package identity, metadata fingerprint, referenced-file-ID-to-path `sources`, and declarations without source bodies. Public interfaces omit bundled roots and private descendants, and redact non-public or secret defaults. Fingerprints include byte spans so moved origins invalidate them. Runtime-only defaults have tagged `kind: "unsupported"`, not an absent value. Aliases/overrides do not copy metadata; compile-time use needs no runtime reflection storage.
 - Consumers are explicit trusted executables under `[consumers.<id>]` with `command`, string-array `args`, canonical `declarations`, and optional `interfaces`. JSON format 1 goes to stdin; stdout returns `generated_sources` (`identity`, `source`) and all reported diagnostics with optional declaration spans. Generated files persist under `.trn/generated/<consumer>/<identity>.trn`. Reported errors use `S2061`, while protocol/process failures use `S2060`. Inputs/outputs/interfaces are capped at 16 MiB. Execution is synchronous, with no wall-clock timeout.
+- Successful consumer preparation removes obsolete generated `.trn` files, including outputs of removed consumers and consumers returning no source. Failed execution or response validation preserves the previous inventory; cleanup never follows links outside the generated-source tree.
 - Consumers run after declaration preparation and before ordinary full-package checking, including test discovery; generated source undergoes the full pipeline. Editor snapshots do not execute trusted consumers. CLI accepts standalone safe, synchronous, non-throwing, non-variadic commands returning `int` with immutable `string`/`int` parameters. Explicit `--summary`, including `''`, overrides annotation summary and declaration docs. Codec accepts public non-derived classes with canonical default constructors; supported fields include string, bool, integer, nullable scalar, defaults, constraints, and unknown-field rejection; static/private/secret fields are skipped. Codec namespaces derive from full canonical class identities so multiple class consumers coexist.
 - Reference CLI/codec consumers and shared protocol helpers are Terrane packages under `tools/annotation-consumers/`. Build the compiler first, then `sh tools/annotation-consumers/build.sh`; no Python consumer runtime is required. Conformance `native-tools` declarations build/stage the required executables from source without prebuilt artifacts.
 
-Verification: `cargo test --test annotations` passed 5 tests; `TERRANE_CONFORMANCE_FILTER=annotation cargo test --test conformance` passed 12 test functions, including CLI, codec, declaration, and source-free interface cases.
+Verification: `cargo test -p terrane-compiler --test annotations` passed 10 tests; `TERRANE_CONFORMANCE_FILTER=annotation cargo test -p terrane-compiler --test conformance` passed 12 harness test functions through generated Rust/Cargo. The clean full-workspace record at `a7c257c9` passed 1,572 recorded tests with no failures or ignored tests; workspace Clippy with `-D warnings` passed.
 
 ## OPEN
 
