@@ -657,11 +657,12 @@ pub(super) fn validate_assignment_block(
                             .find(|child| child.kind == SyntaxKind::Block)
                     };
                     if let Some(branch_block) = branch_block {
+                        let mut branch_declared = declared.clone();
                         let mut branch_assigned = incoming.clone();
                         validate_assignment_block(
                             unit,
                             branch_block,
-                            declared,
+                            &mut branch_declared,
                             &mut branch_assigned,
                         )?;
                         branch_results.push(branch_assigned);
