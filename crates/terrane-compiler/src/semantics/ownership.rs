@@ -1589,7 +1589,10 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             SyntaxKind::MemberExpression
             | SyntaxKind::StaticMemberExpression
             | SyntaxKind::ConstructionExpression => {
-                if let Some(receiver) = node.children.first() {
+                if let Some(receiver) = node.children.first()
+                    && !(node.kind == SyntaxKind::StaticMemberExpression
+                        && node_text(&unit.source, receiver) == "self")
+                {
                     visit(package, unit, receiver, named_function)?;
                 }
             }
