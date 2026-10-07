@@ -1,3 +1,6 @@
+# Regenerate library.interface.json from the repository root after building terrane:
+# target/debug/terrane declaration-interface tests/conformance/run/declaration-annotations/case.trn --output tests/conformance/run/annotation-source-free/library.interface.json
+# The consumer loads only this exported interface, not the tracked producer source.
 phase = "run"
 status = "accept"
 entrypoint = "package.toml"
