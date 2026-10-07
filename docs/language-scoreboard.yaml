@@ -1610,17 +1610,19 @@ features:
 - id: terrane-testing-framework
   name: Terrane-native testing framework
   category: stdlib
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '30.1'
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/standard-library/testing.yaml
-  notes: Will provide Terrane-authored unit, integration, and end-to-end testing with typed assertions, deterministic discovery/reporting, and process-isolated execution through terrane test rather than Rust libtest.
+    - manual/reference/records/packages/testing.yaml
+  notes: Terrane-authored unit, integration, and end-to-end testing provides typed assertions, deterministic discovery and schema-1.2.0 reporting, controlled fixtures, and process-isolated execution through terrane test rather than Rust libtest. Failure, timeout, and crash isolation preserve later cases.
   sources:
   - docs/language-spec-concise.md#TESTING
   - docs/compiler-plan.md#Milestone 30.1
+  - tests/native-testing/tests/unit/assertions.trn
+  - tests/conformance/check/native-testing-surface/case.toml
 - id: lldb-source-debugging
   name: LLDB-backed Terrane source debugging
   category: interop
@@ -1724,8 +1726,8 @@ features:
 - id: scalable-native-binding-synthesis
   name: Scoped Rust binding synthesis and generated host integration
   category: interop
-  status: planned
-  completion: 0
+  status: partial
+  completion: 25
   milestone: '31'
   reference:
     state: partial
@@ -1733,13 +1735,16 @@ features:
     - manual/reference/records/packages/rust-dependencies.yaml
     - manual/reference/records/internals/projection-resolution.yaml
     - manual/reference/records/rust-package-integrations/godot.yaml
-  notes: Planned extension of existing projection, not delivered support. Unifies higher-ranked callbacks and
-    scoped native composition, consuming iterator/stream/sink protocols, typed host registration, and optional
-    declarative integration profiles. Requires Iced and Godot applications without authored Rust adapters.
+  notes: Bounded higher-ranked callbacks, invocation-scoped callback results, nested native composition,
+    and borrowed-interior graphs are implemented with canonical executable witnesses. General consuming
+    iterator/stream/sink protocols, typed host registration, declarative integration profiles, and adapter-free
+    Iced and Godot application gates remain unfinished. Completion is a conservative editorial estimate.
   sources:
   - docs/compiler-plan.md#Milestone 31
   - docs/dump/adapt-crate.md#13.2 S1
   - docs/dump/adapt-crate.md#13.3 H1
+  - tests/conformance/run/projected-invocation-scoped-callback/case.toml
+  - tests/conformance/run/projected-borrowed-interior-graphs/case.toml
 - id: projection-namespace-overlays
   name: Direct dependency namespace overlays
   category: interop
@@ -1819,7 +1824,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Verified cache, published lookup, format-3 lock provenance including injected bound-owner edges, and local-rustdoc fallback work; bundled and vendored offline distribution remain.
+  notes: Exact artifact envelope/hash verification, cache and published lookup, format-3 lock provenance including injected bound-owner edges, and local-rustdoc fallback work. Release-owned bundles, relocatable vendored stores, and explicit offline distribution remain separate unfinished work.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Completed portion of Milestone 32.1
@@ -1916,12 +1921,13 @@ features:
   completion: 20
   milestone: '32'
   reference:
-    state: planned
+    state: partial
     paths:
-    - manual/reference/records/tooling/compiler-cli.yaml
-    - manual/reference/records/internals/release/subset-manifest.yaml
-  notes: Core CLI and deterministic pipeline exist; release gate still needs complete help/exit contracts, cross-platform
-    cleanup, fuzzing, baselines, examples, and subset manifest.
+    - manual/reference/records/packages/command-line.yaml
+  notes: Core CLI and deterministic pipeline exist; the release gate still requires complete help/exit contracts,
+    cache and checkout identity, interruption/subprocess cleanup, cross-platform paths, seeded fuzzing,
+    cold/warm/build/run baselines, actionable opt-in backend bug reports, compile-time build selection,
+    an implemented-subset manifest, runnable examples, and clean-checkout packaging/install proof.
   sources:
   - docs/compiler-plan.md#Milestone 32
 - id: call-shorthand
@@ -1992,18 +1998,22 @@ features:
   - docs/language-spec-concise.md#OPEN
 - id: async-contract-refinements
   name: Async surface contract refinements
-  category: future
-  status: potential
-  completion: 0
+  category: async
+  status: done
+  completion: 100
   milestone: null
   reference:
     state: documented
     paths:
     - manual/reference/records/language/functions/asynchronous.yaml
-  notes: Task identity, disposal, sibling failure, cancellation-point, and executor-boundary details remain open to refinement without negating the implemented async core.
+  notes: Linear task consumption and unconsumed-task rejection, sibling cancellation with retained outcomes, shielded asynchronous finalization, cancellation/deadline points, and runtime-neutral executor/profile boundaries are specified and implemented. Deadlines request cancellation rather than hard-killing cleanup.
   sources:
-  - docs/language-spec-concise.md#OPEN
   - docs/language-spec-concise.md#ASYNC
+  - tests/conformance/reject/unconsumed-task/case.toml
+  - tests/conformance/reject/unjoined-scoped-task/case.toml
+  - tests/conformance/run/failing-task-cancels-sibling/case.toml
+  - tests/conformance/run/cancelled-nested-finally-order/case.toml
+  - tests/conformance/run/cancelled-finally-error-wins/case.toml
 - id: dynamic-union-representation
   name: Dynamic finite-union representation
   category: future
