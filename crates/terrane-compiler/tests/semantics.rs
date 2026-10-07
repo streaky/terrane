@@ -21,6 +21,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
             CapabilityProfile::unrestricted(),
         ),
         build_toolchain: BuildToolchain::Pinned,
+        consumer_configs: Vec::new(),
         units: sources
             .iter()
             .enumerate()

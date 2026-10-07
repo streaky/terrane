@@ -98,6 +98,7 @@ impl SemanticPackage {
     }
 
     /// Finds metadata by either the declaration's full span or its declared-name span.
+    #[must_use]
     pub fn declaration_at(&self, span: Span) -> Option<&DeclarationMetadata> {
         self.declarations().find(|declaration| {
             (declaration.origin.file == span.file
@@ -110,6 +111,7 @@ impl SemanticPackage {
     }
 
     /// Builds the public source-independent declaration interface.
+    #[must_use]
     pub fn declaration_interface(&self) -> DeclarationInterface {
         let authored_files = self
             .units
@@ -166,21 +168,44 @@ impl SemanticPackage {
                     .get("visibility")
                     .and_then(serde_json::Value::as_str)
                     .is_none_or(|visibility| visibility == "public");
-                if !public || field.get("secret").and_then(serde_json::Value::as_bool) == Some(true)
+                if (!public
+                    || field.get("secret").and_then(serde_json::Value::as_bool) == Some(true))
+                    && let Some(object) = field.as_object_mut()
                 {
-                    if let Some(object) = field.as_object_mut() {
-                        object.insert("default".to_owned(), serde_json::Value::Null);
-                        object.insert("default_value".to_owned(), serde_json::Value::Null);
-                    }
+                    object.insert("default".to_owned(), serde_json::Value::Null);
+                    object.insert("default_value".to_owned(), serde_json::Value::Null);
                 }
                 public
             });
         }
-        let sources = self
-            .units
-            .iter()
-            .map(|unit| (unit.source.id(), unit.source_path.clone()))
-            .collect::<BTreeMap<_, _>>();
+        let mut sources = BTreeMap::new();
+        for declaration in &declarations {
+            let mut include = |span: &MetadataSpan| {
+                if let Some(unit) = self.units.iter().find(|unit| unit.source.id() == span.file) {
+                    sources.insert(span.file, unit.source_path.clone());
+                }
+            };
+            include(&declaration.span);
+            include(&declaration.origin);
+            for annotation in &declaration.annotations {
+                include(&annotation.span);
+            }
+            if let Some(signature) = &declaration.signature {
+                for origin in signature["parameters"].as_array().into_iter().flatten() {
+                    if let Ok(origin) =
+                        serde_json::from_value::<MetadataSpan>(origin["origin"].clone())
+                    {
+                        include(&origin);
+                    }
+                }
+            }
+            for field in &declaration.fields {
+                if let Ok(origin) = serde_json::from_value::<MetadataSpan>(field["origin"].clone())
+                {
+                    include(&origin);
+                }
+            }
+        }
         DeclarationInterface::new(self.identity.clone(), declarations, sources)
     }
 }
@@ -1860,17 +1885,29 @@ impl DeclarationInterface {
         interface
     }
 
+    /// Serializes this interface after validating its fingerprint and source spans.
+    ///
+    /// # Errors
+    /// Returns an error if the interface is invalid or JSON serialization fails.
     pub fn to_json(&self) -> Result<String, String> {
         self.validate()?;
         serde_json::to_string(self).map_err(|error| error.to_string())
     }
 
+    /// Parses and validates a serialized declaration interface.
+    ///
+    /// # Errors
+    /// Returns an error if parsing or interface validation fails.
     pub fn from_json(source: &str) -> Result<Self, String> {
         let interface: Self = serde_json::from_str(source).map_err(|error| error.to_string())?;
         interface.validate()?;
         Ok(interface)
     }
 
+    /// Validates the interface format, origin paths, and canonical fingerprint.
+    ///
+    /// # Errors
+    /// Returns an error for an unsupported format, inconsistent source map, or stale fingerprint.
     pub fn validate(&self) -> Result<(), String> {
         if self.format != Self::FORMAT {
             return Err(format!(

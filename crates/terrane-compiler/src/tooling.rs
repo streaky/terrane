@@ -2020,14 +2020,7 @@ fn semantic_object(
             .and_then(|target| declaration_location(snapshot, target))
             .map_or_else(|| semantic_fact_unavailable(snapshot), Availability::Known)
     };
-    let declaration_metadata = snapshot.semantic.as_ref().and_then(|semantic| {
-        target.as_ref().and_then(|target| {
-            target
-                .declaration_span
-                .and_then(|span| semantic.declaration_at(span))
-                .cloned()
-        })
-    });
+    let declaration_metadata = semantic_declaration_metadata(snapshot, target.as_ref());
     SemanticObject {
         source_uri: uri.unwrap_or(&document.identity.uri).to_owned(),
         span: node.span.into(),
@@ -2062,6 +2055,20 @@ fn semantic_object(
             value_type.as_ref().and_then(type_argument_facts),
         ),
     }
+}
+
+fn semantic_declaration_metadata(
+    snapshot: &Snapshot,
+    target: Option<&SemanticTarget>,
+) -> Option<crate::DeclarationMetadata> {
+    snapshot.semantic.as_ref().and_then(|semantic| {
+        target.and_then(|target| {
+            target
+                .declaration_span
+                .and_then(|span| semantic.declaration_at(span))
+                .cloned()
+        })
+    })
 }
 
 fn semantic_target_and_type(
@@ -3730,13 +3737,7 @@ mod tests {
             .locate(&snapshot.snapshot_id, uri, source.rfind("alias;").unwrap())
             .unwrap()
             .unwrap();
-        if let Availability::Known(alias_metadata) = alias.declaration_metadata {
-            assert_ne!(alias_metadata.origin, metadata.origin);
-            assert_ne!(
-                alias_metadata.documentation.as_deref(),
-                metadata.documentation.as_deref()
-            );
-        }
+        assert_eq!(alias.declaration_metadata, Availability::Unsupported);
     }
 
     #[test]

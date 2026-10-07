@@ -206,6 +206,45 @@ fn collect_unused_top_level_function_warnings(
     }
 }
 
+fn collect_intentionally_unused_read_warning(
+    package: &SemanticPackage,
+    binding: &TypedBinding,
+    events: &[BindingEvent],
+    warnings: &mut Vec<Diagnostic>,
+) {
+    if binding.name.starts_with('_')
+        && binding.name != "_"
+        && let Some(span) = events
+            .iter()
+            .find_map(|event| {
+                if let BindingEvent::Read { span, .. } = event {
+                    Some(span)
+                } else {
+                    None
+                }
+            })
+            .or_else(|| package.metadata_constant_reads.get(&span_key(binding.span)))
+    {
+        let suggested = binding.name.trim_start_matches('_');
+        let help = if suggested.is_empty() {
+            "rename the binding without a leading underscore".to_owned()
+        } else {
+            format!("rename the binding to `{suggested}`")
+        };
+        warnings.push(
+            Diagnostic::warning(
+                "W4006",
+                format!(
+                    "binding `{}` is marked intentionally unused but is read",
+                    binding.name
+                ),
+                *span,
+            )
+            .with_help(help),
+        );
+    }
+}
+
 pub(crate) fn warnings(
     package: &SemanticPackage,
     lint_name_style: bool,
@@ -242,37 +281,7 @@ pub(crate) fn warnings(
             let Some(events) = package.binding_events.get(&span_key(binding.span)) else {
                 continue;
             };
-            if binding.name.starts_with('_')
-                && binding.name != "_"
-                && let Some(span) = events
-                    .iter()
-                    .find_map(|event| {
-                        if let BindingEvent::Read { span, .. } = event {
-                            Some(span)
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| package.metadata_constant_reads.get(&span_key(binding.span)))
-            {
-                let suggested = binding.name.trim_start_matches('_');
-                let help = if suggested.is_empty() {
-                    "rename the binding without a leading underscore".to_owned()
-                } else {
-                    format!("rename the binding to `{suggested}`")
-                };
-                warnings.push(
-                    Diagnostic::warning(
-                        "W4006",
-                        format!(
-                            "binding `{}` is marked intentionally unused but is read",
-                            binding.name
-                        ),
-                        *span,
-                    )
-                    .with_help(help),
-                );
-            }
+            collect_intentionally_unused_read_warning(package, binding, events, &mut warnings);
             if binding.name == "_" {
                 continue;
             }

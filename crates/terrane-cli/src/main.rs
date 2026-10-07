@@ -88,8 +88,9 @@ enum CliCommand {
     Run,
     Debug,
     Profile,
-    DebugAdapter,
     Test,
+    DeclarationInterface,
+    DebugAdapter,
     Tooling,
     Query,
     Format,
@@ -107,6 +108,7 @@ impl CliCommand {
             "rust" => Some(Self::Rust),
             "build" => Some(Self::Build),
             "test" => Some(Self::Test),
+            "declaration-interface" => Some(Self::DeclarationInterface),
             "run" => Some(Self::Run),
             "debug" => Some(Self::Debug),
             "profile" => Some(Self::Profile),
@@ -189,6 +191,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             println!("{}", usage());
             return Ok(ExitCode::SUCCESS);
         }
+        CliCommand::DeclarationInterface => return run_declaration_interface(arguments),
         CliCommand::Tooling => return run_tooling(arguments),
         CliCommand::Query => return run_query(arguments),
         CliCommand::Format => return run_format(arguments),
@@ -208,6 +211,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         | CliCommand::Debug
         | CliCommand::Profile => {}
     }
+
     let profile_options = (command == CliCommand::Profile)
         .then(|| profile_command::parse_record(arguments))
         .transpose()?;
@@ -441,6 +445,45 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
 }
+
+fn run_declaration_interface(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    if arguments.len() != 4 || arguments[2] != "--output" {
+        return Err(CliFailure::usage_with(
+            "usage: terrane declaration-interface <package-or-source> --output <interface.json>",
+        ));
+    }
+    let input = PathBuf::from(&arguments[1]);
+    let package = if input.is_dir()
+        || input
+            .extension()
+            .is_some_and(|extension| extension == "toml")
+    {
+        terrane_compiler::Package::load(&input).map_err(|errors| CliFailure {
+            code: 3,
+            message: errors
+                .into_iter()
+                .map(|error| error.diagnostic.render(&error.source))
+                .collect(),
+        })?
+    } else {
+        let source = fs::read_to_string(&input).map_err(|error| {
+            CliFailure::diagnostic(input.clone(), "S0000", error.to_string(), 3)
+        })?;
+        terrane_compiler::Package::implicit(&input, source)
+    };
+    let interface =
+        terrane_compiler::declaration_interface(&package).map_err(CliFailure::compilation)?;
+    let json = interface.to_json().map_err(CliFailure::package)?;
+    let output = PathBuf::from(&arguments[3]);
+    fs::write(&output, json).map_err(|error| {
+        CliFailure::package(format!(
+            "cannot write declaration interface `{}`: {error}",
+            output.display()
+        ))
+    })?;
+    Ok(ExitCode::SUCCESS)
+}
+
 fn rust_build_identity(
     crate_dir: &Path,
     artifact_profile: terrane_compiler::provenance::ArtifactProfile,
@@ -2082,6 +2125,7 @@ fn usage() -> String {
      terrane test [--list] [--filter <text>|--exact <identity>|--glob <pattern>|--regex <pattern>] \
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] <package-or-manifest>\n\
+     terrane declaration-interface <package-or-source> --output <interface.json>\n\
      terrane <file-or-manifest> [program arguments]\n\
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\

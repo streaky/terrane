@@ -184,7 +184,9 @@ impl SyntaxKind {
         match (self, child, index) {
             (_, Self::AnnotationApplication, _) => "annotation",
             (Self::AnnotationApplication, Self::Name, _) => "annotation-type",
-            (Self::AnnotationApplication, Self::ArgumentList, _) => "arguments",
+            (Self::AnnotationApplication, Self::ArgumentList, _) | (Self::CallExpression, _, 1) => {
+                "arguments"
+            }
             (Self::TypeParameterList, Self::TypeParameter, _) => "parameter",
             (Self::TypeParameter, Self::TypeExpression, _) => "bound",
             (Self::EnumDeclaration, Self::Block, _) => "variants",
@@ -214,7 +216,6 @@ impl SyntaxKind {
             (Self::FunctionDeclaration, Self::DeclarationQualifier, _) => "qualifier",
             (Self::Assignment, _, 0) => "target",
             (Self::CallExpression, _, 0) => "callee",
-            (Self::CallExpression, _, 1) => "arguments",
             (Self::MemberExpression | Self::StaticMemberExpression, _, 0) => "receiver",
             (Self::MemberExpression | Self::StaticMemberExpression, _, 1) => "member",
             (Self::IfStatement | Self::WhileStatement, _, 0) => "condition",
@@ -262,7 +263,6 @@ impl SyntaxNode {
         }
     }
 
-    #[must_use]
     pub fn annotations(&self) -> impl Iterator<Item = &SyntaxNode> {
         self.annotation_applications.iter()
     }

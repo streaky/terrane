@@ -220,8 +220,97 @@ fn nullable_schema_defaults_and_explicit_empty_prose_are_distinct() {
             )]),
             &CompileTimeValue::Map(vec![(
                 CompileTimeValue::String("value".into()),
-                CompileTimeValue::String("".into())
+                CompileTimeValue::String(String::new())
             )])
         ]
     );
+}
+
+#[test]
+fn metadata_identities_scope_local_and_interface_callables() {
+    let source = "namespace metadata-identities\ninterface shape\n    function area int;\ntrait measurement\n    function unit-count int;\nfunction first;\n    function helper int;\n        return 1\n    return\nfunction second;\n    function helper int;\n        return 2\n    return\n";
+    let semantic = analyze(&Package::implicit("case.trn", source.to_owned())).unwrap();
+    let identities = semantic
+        .declarations()
+        .map(|record| record.identity.as_str())
+        .collect::<Vec<_>>();
+    assert!(identities.contains(&"/metadata-identities::shape::area"));
+    assert!(identities.contains(&"/metadata-identities::first::helper"));
+    assert!(identities.contains(&"/metadata-identities::second::helper"));
+    assert!(identities.contains(&"/metadata-identities::measurement::unit-count"));
+}
+
+#[test]
+fn metadata_parameter_defaults_distinguish_unsupported_from_missing() {
+    let source = "namespace default-metadata\nfunction consume string; missing string, runtime string = ('seed'.concat; 'value')\n    return runtime\n";
+    let semantic = analyze(&Package::implicit("case.trn", source.to_owned())).unwrap();
+    let record = semantic
+        .declarations()
+        .find(|record| record.identity == "/default-metadata::consume")
+        .unwrap();
+    let parameters = record.signature.as_ref().unwrap()["parameters"]
+        .as_array()
+        .unwrap();
+    assert!(parameters[0]["default"].is_null());
+    assert_eq!(
+        parameters[1]["default"],
+        serde_json::json!({"kind": "unsupported"})
+    );
+}
+
+#[test]
+fn declaration_interface_sources_only_include_referenced_authored_files() {
+    let interface = metadata(SOURCE).declaration_interface();
+    assert!(
+        interface
+            .sources
+            .values()
+            .all(|path| !path.starts_with("/core/"))
+    );
+    assert!(interface.sources.values().any(|path| path == "case.trn"));
+}
+
+#[test]
+fn enum_descriptor_is_prepared_for_semantic_analysis() {
+    let semantic = analyze(&Package::implicit(
+        "enum.trn",
+        "namespace enum-metadata\nenum choice\n    ready\n    failed; reason string\n".to_owned(),
+    ))
+    .unwrap();
+    let descriptor = semantic
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|descriptor| {
+            descriptor.identity.namespace == "/enum-metadata"
+                && descriptor.identity.name == "choice"
+        })
+        .unwrap();
+    assert_eq!(
+        descriptor.kind,
+        terrane_compiler::semantics::ObjectKind::Enum
+    );
+}
+
+#[test]
+fn duplicate_map_and_set_metadata_entries_are_rejected() {
+    for source in [
+        SOURCE.replace("(set; 1, 2)", "(set; 1, 1)"),
+        SOURCE.replace(
+            "(map; (entry; 'a', 3))",
+            "(map; (entry; 'a', 3), (entry; 'a', 4))",
+        ),
+        SOURCE
+            .replace("keys set of int", "keys set of float")
+            .replace("(set; 1, 2)", "(set; 1, 1.0)"),
+        SOURCE
+            .replace("pairs map of string, int", "pairs map of float, int")
+            .replace(
+                "(map; (entry; 'a', 3))",
+                "(map; (entry; 1, 3), (entry; 1.0, 4))",
+            ),
+    ] {
+        let failure = analyze(&Package::implicit("case.trn", source)).unwrap_err();
+        assert_eq!(failure.diagnostics[0].code, "S2110");
+    }
 }

@@ -39,7 +39,6 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut rust_block: Option<(usize, Option<usize>)> = None;
     let mut block_terminator: Option<(usize, usize)> = None;
     let mut block_comment_start = None;
-    let mut block_comment_documentation = false;
     let mut indent_style = None;
     let mut indent_stack = vec![0];
     let mut parenthesis_depth = 0usize;
@@ -164,7 +163,6 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 &mut trivia,
                 &mut diagnostics,
                 &mut block_comment_start,
-                &mut block_comment_documentation,
             );
             for token in &tokens[token_count..] {
                 match token.kind {
@@ -223,7 +221,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             Attachment::Detached,
         );
     }
-    if let Some(start) = block_comment_start {
+    if let Some((start, _)) = block_comment_start {
         diagnostics.push(Diagnostic::error(
             "L0002",
             "unterminated block comment",
@@ -282,17 +280,16 @@ fn lex_line(
     tokens: &mut Vec<Token>,
     trivia: &mut Vec<Trivia>,
     diagnostics: &mut Vec<Diagnostic>,
-    block_comment_start: &mut Option<usize>,
-    block_comment_documentation: &mut bool,
+    block_comment_start: &mut Option<(usize, bool)>,
 ) {
     let bytes = line.as_bytes();
     let mut index = 0;
     while index < bytes.len() {
-        if block_comment_start.is_some() {
+        if let Some((_, documentation)) = *block_comment_start {
             if let Some(relative_end) = line[index..].find("*/") {
                 let end = index + relative_end + 2;
                 trivia.push(Trivia {
-                    kind: if *block_comment_documentation {
+                    kind: if documentation {
                         TriviaKind::DocumentationBlock
                     } else {
                         TriviaKind::BlockComment
@@ -301,12 +298,11 @@ fn lex_line(
                     text: line[index..end].to_owned(),
                 });
                 *block_comment_start = None;
-                *block_comment_documentation = false;
                 index = end;
                 continue;
             }
             trivia.push(Trivia {
-                kind: if *block_comment_documentation {
+                kind: if documentation {
                     TriviaKind::DocumentationBlock
                 } else {
                     TriviaKind::BlockComment
@@ -351,7 +347,8 @@ fn lex_line(
                         Span::new(source.id(), base + start, base + start + 2),
                     ));
                 }
-                let documentation = bytes.get(index + 2) == Some(&b'/');
+                let documentation =
+                    bytes.get(index + 2) == Some(&b'/') && bytes.get(index + 3) != Some(&b'/');
                 trivia.push(Trivia {
                     kind: if documentation {
                         TriviaKind::DocumentationLine
@@ -364,8 +361,8 @@ fn lex_line(
                 break;
             }
             b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                let documentation = bytes.get(index + 2) == Some(&b'*');
-                *block_comment_documentation = documentation;
+                let documentation = bytes.get(index + 2) == Some(&b'*')
+                    && !matches!(bytes.get(index + 3), Some(b'*' | b'/'));
                 if let Some(relative_end) = line[index + 2..].find("*/") {
                     index += relative_end + 4;
                     trivia.push(Trivia {
@@ -377,7 +374,6 @@ fn lex_line(
                         span: Span::new(source.id(), base + start, base + index),
                         text: line[start..index].to_owned(),
                     });
-                    *block_comment_documentation = false;
                 } else {
                     trivia.push(Trivia {
                         kind: if documentation {
@@ -388,7 +384,7 @@ fn lex_line(
                         span: Span::new(source.id(), base + start, base + line.len()),
                         text: line[start..].to_owned(),
                     });
-                    *block_comment_start = Some(base + start);
+                    *block_comment_start = Some((base + start, documentation));
                     break;
                 }
             }

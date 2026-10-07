@@ -79,13 +79,12 @@ impl Parser<'_> {
             self.skip_newlines();
         }
         let mut declaration = self.parse_unannotated_statement();
-        if !annotations.is_empty()
-            && !matches!(
+        if !(annotations.is_empty()
+            || matches!(
                 declaration.kind,
                 SyntaxKind::ClassDeclaration | SyntaxKind::FunctionDeclaration
             )
-            && !(declaration.kind == SyntaxKind::Binding
-                && self.block_depth == self.class_body_depth)
+            || declaration.kind == SyntaxKind::Binding && self.block_depth == self.class_body_depth)
         {
             self.error_at(
                 declaration.token_range.start,
@@ -107,7 +106,7 @@ impl Parser<'_> {
             "S1100",
             "annotation applications require `;`, including without arguments",
         );
-        let arguments_start = self.position;
+        let list_start = self.position;
         let mut arguments = Vec::new();
         let mut named = false;
         while !self.at(TokenKind::CloseBracket) && !self.at_line_end() {
@@ -131,7 +130,7 @@ impl Parser<'_> {
         }
         let arguments = self.node(
             SyntaxKind::ArgumentList,
-            arguments_start,
+            list_start,
             self.position,
             arguments,
         );

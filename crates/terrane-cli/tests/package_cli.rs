@@ -82,6 +82,108 @@ fn wait_for_test_runner(process: u32, timeout: Duration) -> Option<u32> {
 }
 
 #[test]
+fn declaration_interface_export_survives_removal_of_original_source() {
+    let package = TempPackage::new();
+    fs::write(package.0.join("app/main.trn"), "namespace cli/app\n/// Public command documentation.\npublic function command int; count int = 7\n  return count\n").unwrap();
+    let interface_path = package.0.join("library.interface.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("declaration-interface")
+        .arg(&package.0)
+        .arg("--output")
+        .arg(&interface_path)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    fs::remove_dir_all(package.0.join("app")).unwrap();
+    let interface = terrane_compiler::DeclarationInterface::from_json(
+        &fs::read_to_string(interface_path).unwrap(),
+    )
+    .unwrap();
+    let declaration = interface
+        .declarations
+        .iter()
+        .find(|record| record.identity == "/cli/app::command")
+        .unwrap();
+    assert_eq!(
+        declaration.documentation.as_deref(),
+        Some("Public command documentation.")
+    );
+    assert_eq!(
+        declaration.signature.as_ref().unwrap()["parameters"][0]["default"]["value"],
+        "7"
+    );
+    assert!(
+        package
+            .0
+            .join(".trn/terrane-projection.generated.trn")
+            .is_file()
+    );
+    assert!(!package.0.join("terrane-projection.generated.trn").exists());
+}
+
+#[test]
+fn test_discovery_prepares_native_consumer_generated_imports() {
+    let package = TempPackage::new();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../");
+    for tool in ["cli-consumer", "protocol"] {
+        for relative in ["package.toml", "src/main.trn"] {
+            let destination = package.0.join("consumer-src").join(tool).join(relative);
+            fs::create_dir_all(destination.parent().unwrap()).unwrap();
+            fs::copy(
+                root.join("tools/annotation-consumers")
+                    .join(tool)
+                    .join(relative),
+                destination,
+            )
+            .unwrap();
+        }
+    }
+    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("build")
+        .arg(package.0.join("consumer-src/cli-consumer/package.toml"))
+        .output()
+        .unwrap();
+    assert!(
+        build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&build.stderr)
+    );
+    let consumer = String::from_utf8(build.stdout).unwrap();
+    let consumer = consumer.trim();
+    fs::create_dir_all(package.0.join("schema")).unwrap();
+    fs::copy(
+        root.join("tools/annotation-consumers/cli/main.trn"),
+        package.0.join("schema/main.trn"),
+    )
+    .unwrap();
+    fs::write(package.0.join("package.toml"), format!(
+        "package = \"cli-package\"\n[namespaces]\n\"cli/app\" = \"app\"\nannotation-cli = \"schema\"\n[consumers.cli]\ncommand = {consumer:?}\ndeclarations = [\"/cli/app::command\"]\n",
+    )).unwrap();
+    fs::write(package.0.join("app/main.trn"), "namespace cli/app\nfrom /annotation-cli import command as cli-command\n@[cli-command;]\nfunction command int;\n  return 0\nfunction main;\n  return\n").unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::write(package.0.join("tests/unit/generated.trn"), "namespace cli/app\nfrom /generated/annotation-cli import run-command\nfunction test-generated;\n  result = run-command;\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["test", "--list"])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .contains("/cli/app::test-generated")
+    );
+}
+
+#[test]
 fn projected_iced_scoped_macro_token_mismatch_is_rejected_by_check() {
     let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
     // Contained native Cargo commands hide /tmp outside their bound workspaces.

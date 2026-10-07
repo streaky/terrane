@@ -811,7 +811,6 @@ fn dependency_projection(
 ///
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
-
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
     let demands = dependency_demands_from_units(&units)?;

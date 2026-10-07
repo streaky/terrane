@@ -195,6 +195,24 @@ mod tests {
     }
 
     #[test]
+    fn decorative_comment_delimiters_remain_ordinary_comments() {
+        for banner in [
+            "//// separator",
+            "/***** banner *****/",
+            "/**/",
+            "/***\n * banner\n */",
+        ] {
+            let parsed = parse_text(&format!("{banner}\n\nfunction main;\n    return\n"));
+            assert!(
+                parsed.diagnostics.is_empty(),
+                "{banner}: {:?}",
+                parsed.diagnostics
+            );
+            assert_eq!(parsed.tree.root.children[0].documentation(), None);
+        }
+    }
+
+    #[test]
     fn blank_lines_and_ordinary_comments_break_documentation_attachment() {
         for separator in [
             "\n",

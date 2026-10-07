@@ -2575,10 +2575,6 @@ fn analyze_source_enums(
     Ok((result, descriptors))
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Type-analysis phase ordering is explicit because constructor, binding, and projection selections depend on prior phases"
-)]
 pub(super) fn prepare_type_declarations(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {

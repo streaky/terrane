@@ -25,7 +25,8 @@ pub mod types;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, DebugBuild, RustArtifactError, compile,
     compile_discovered_test_tier, compile_package, compile_package_with_options,
-    compile_test_package, compile_test_package_tiers, compile_with_options, discover_test_package,
+    compile_test_package, compile_test_package_tiers, compile_with_options, declaration_interface,
+    discover_test_package,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;
