@@ -290,3 +290,8 @@ after its cancellation frame, not as thread preemption of a response already bei
 Clients should reopen and retry after `expired-snapshot`, `expired-continuation`, or
 `stale-continuation` when `retry_fresh_query` is true. They must not reinterpret `canceled`, a partial
 page, or unavailable facts as a successful empty query.
+
+Consumer-generated source reconciliation is scoped to manifest-loaded packages. An implicit
+single-file compilation in the same directory does not reconcile or delete a neighboring
+manifest package's generated sources; preparing the manifest package still removes obsolete
+outputs, including when its last consumer is removed.
