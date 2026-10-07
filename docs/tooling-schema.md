@@ -142,8 +142,8 @@ Package manifests may explicitly configure trusted compile-time metadata consume
 
 ```toml
 [consumers.cli]
-command = "python3"
-args = ["tools/cli.py"]
+command = ".trn/consumers/cli"
+args = []
 declarations = ["/example::run", "/example::run::name"]
 interfaces = ["metadata/library-interface.json"]
 ```
@@ -152,11 +152,17 @@ interfaces = ["metadata/library-interface.json"]
 
 The compiler sends one UTF-8 JSON request on stdin with protocol `format: 1`, the package identity, and selected declarations. A declaration record contains `identity`, `span`, `origin`, `visibility`, `kind`, nullable `documentation`, ordered `annotations`, and signature, fields, and contracts snapshots. Annotation records contain canonical `identity`, their own `span`, and a tagged immutable `payload` (`kind` plus `value` where applicable). Metadata spans use source-file IDs, paths, and half-open byte offsets. Consumer tools should use canonical identities and spans, not infer declaration origins from names.
 
-The Rust `DeclarationInterface` format 1 API provides `to_json` and `from_json`, validating the metadata fingerprint and source/span mappings. Its JSON contains package identity, fingerprint, file-ID-to-path `sources`, and declaration records; it contains no source bodies. Export omits bundled roots and private descendants/fields and redacts defaults for non-public or secret fields. Annotation schemas require public data fields. Annotation payloads use tagged immutable values: `none`, `boolean`, `integer`, `float`, `string`, `bytes`, `tuple`, `list`, `map`, `set`, `descriptor`, and `kind`.
+The Rust `DeclarationInterface` format 1 API provides `to_json` and `from_json`, validating the metadata fingerprint and source/span mappings. Its JSON contains package identity, fingerprint, file-ID-to-path `sources`, and declaration records; it contains no source bodies. Export omits bundled roots and private descendants/fields and redacts defaults for non-public or secret fields. The source map retains only files referenced by exported records. Fingerprints include origin byte spans, deliberately invalidating on whitespace changes that move source locations. Defaults requiring runtime evaluation have tagged `kind: "unsupported"` instead of silently appearing absent. Annotation schemas require public data fields. Annotation payloads use tagged immutable values: `none`, `boolean`, `integer`, `float`, `string`, `bytes`, `tuple`, `list`, `map`, `set`, `descriptor`, and `kind`.
 
-The response is one JSON object on stdout with `format: 1`, `generated_sources`, and `diagnostics`. Each generated source has a relative safe `identity` and Terrane `source` text; the compiler namespaces its identity by consumer. Each diagnostic has a declaration source span and `message`; selected source spans report at their source location, while unavailable dependency text is reported as an origin diagnostic. A failed process, malformed response, invalid identity, duplicate generated identity, or invalid diagnostic span is a compilation error.
+The response is one JSON object on stdout with `format: 1`, `generated_sources`, and `diagnostics`. Each generated source has a relative safe `identity` and Terrane `source` text; the compiler namespaces its identity by consumer and writes it beneath `.trn/generated/<consumer>/<identity>.trn`. Each diagnostic has a `message` and an optional declaration source span; selected source spans report at their source location, unavailable dependency text is reported as an origin diagnostic, and omitted spans use the package fallback. All diagnostics are reported. Consumer-reported errors use `S2061`; failed processes, malformed responses, invalid identities, duplicate generated identities, or invalid diagnostic spans use `S2060`.
 
-Consumer input, stdout and stderr, and imported declaration-interface files are capped at 16 MiB. Generated sources are added after declaration preparation and before ordinary whole-package checking, then parsed and checked with authored source through the normal pipeline. Consumer execution itself is synchronous, with no wall-clock timeout in the current contract.
+Consumer input, stdout and stderr, and imported declaration-interface files are capped at 16 MiB. Generated sources are added after declaration preparation and before ordinary whole-package checking, including test discovery, then parsed and checked with authored source through the normal pipeline. Consumer execution itself is synchronous, with no wall-clock timeout in the current contract.
+
+Editor and language-server snapshots do not execute trusted consumer programs. Generated
+namespaces may therefore be unresolved in a snapshot even when package `check`, `build`,
+`run`, and `test` succeed; do not interpret this editor-only limitation as a package error.
+Build the native reference consumers after the compiler with
+`sh tools/annotation-consumers/build.sh`.
 
 ### `locate`, `definition`, `references`, and `implementations`
 
