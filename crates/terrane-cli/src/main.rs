@@ -198,7 +198,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         CliCommand::Package => return run_package(arguments),
         CliCommand::ProjectionCensus => return census_command::run(arguments),
         CliCommand::Test => return test_command::run_tests(arguments),
-        CliCommand::DebugAdapter => return debug_command::run_adapter(arguments),
+        CliCommand::DebugAdapter => return debug_command::adapter::run_adapter(arguments),
         CliCommand::Profile
             if arguments.get(1).and_then(|argument| argument.to_str()) == Some("show") =>
         {
