@@ -1,6 +1,7 @@
 pub use crate::invocation::InvocationMode;
 // Compiler-owned semantic data and the ordered package analysis pipeline.
 mod analysis;
+mod annotations;
 mod enums;
 mod generic_recursion;
 mod generics;
@@ -11,8 +12,11 @@ mod model;
 // Namespace, import, bootstrap-surface, and lexical name resolution.
 mod bootstrap;
 mod namespaces;
+mod scope_flow;
+mod scope_validation;
 mod scopes;
 
+pub(crate) use scope_flow::constant_boolean;
 // Type contracts and expression-family inference.
 mod calls;
 mod capabilities;
@@ -73,15 +77,18 @@ mod prelude {
     pub(super) use super::numeric::*;
     pub(super) use super::objects::*;
     pub(super) use super::ownership::*;
+    pub(super) use super::scope_flow::*;
+    pub(super) use super::scope_validation::*;
     pub(super) use super::scopes::*;
     pub(super) use super::selection::*;
     pub(super) use super::types::*;
 }
 
+pub(crate) use analysis::analyze_declarations;
 pub use analysis::{analyze, dependency_projection_demands};
 pub(crate) use bindings::{
-    binding_read_value_is_reused, binding_requires_mutable_storage, binding_store_value_is_read,
-    callback_contract, descriptor_binding_is_materialized,
+    binding_read_value_is_reused, binding_requires_mutable_storage, binding_storage_is_replaced,
+    binding_store_value_is_read, callback_contract, descriptor_binding_is_materialized,
 };
 pub(crate) use calls::selected_callable_contract;
 pub(crate) use collections::collection_member_call;
@@ -94,12 +101,14 @@ pub(crate) use enums::projected_enum_payload_type;
 pub(crate) use generics::{bind_generic_type, substitute_value_type};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
-    ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects, CallableModes,
-    CallableParameterType, DescriptorContract, ElementType, EvaluationKind, EvaluationStep,
-    FunctionContract, GenericParameterContract, MemberFamily, Namespace, ObjectField,
-    ObjectFieldMetadata, ObjectIdentity, ObjectKind, ParameterContract, SelectionOperationKind,
-    SemanticFailure, SemanticPackage, SemanticSelection, SemanticSelectionCase, SemanticUnit,
-    Symbol, SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    AnnotationTarget, ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects,
+    CallableModes, CallableParameterType, CompileTimeValue, DeclarationInterface, DeclarationKind,
+    DeclarationMetadata, DescriptorContract, ElementType, EvaluationKind, EvaluationStep,
+    FlowAvailability, FunctionContract, GenericParameterContract, MemberFamily, MetadataSpan,
+    Namespace, ObjectField, ObjectIdentity, ObjectKind, ParameterContract, ResolvedAnnotation,
+    SelectionOperationKind, SemanticFailure, SemanticPackage, SemanticSelection,
+    SemanticSelectionCase, SemanticUnit, Symbol, SymbolKind, TaskTransferability, TextUnit,
+    TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,

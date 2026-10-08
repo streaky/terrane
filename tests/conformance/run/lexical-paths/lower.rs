@@ -465,35 +465,48 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: conformance/lexical-paths
 fn main() {
-    let relative: Path = Path::terrane_construct(
+    let relative: Path;
+    let rooted: Path;
+    let base: Path;
+    let child: Path;
+    let relative_normal: Path;
+    let rooted_normal: Path;
+    let relative_text: String;
+    let rooted_text: String;
+    let rooted_name: String;
+    let rooted_stem: String;
+    let rooted_extension: String;
+    let rooted_parent: Path;
+    let rooted_parent_text: String;
+    let resolved: Path;
+    let resolved_text: String;
+    let components: terrane_collection_support::List<String>;
+    let hidden: Path;
+    relative = Path::terrane_construct(
         String::from("alpha/./beta/../gamma/../../delta"),
     );
-    let rooted: Path = Path::terrane_construct(
-        String::from("/alpha/../../beta/file.tar.gz"),
-    );
-    let base: Path = Path::terrane_construct(String::from("work/root"));
-    let child: Path = Path::terrane_construct(String::from("../next"));
-    let relative_normal: Path = normalise_path(relative);
-    let rooted_normal: Path = normalise_path(rooted);
-    let relative_text: String = relative_normal.text.clone();
-    let rooted_text: String = rooted_normal.text.clone();
-    let rooted_name: String = path_name(rooted_normal.clone());
-    let rooted_stem: String = path_stem(rooted_normal.clone());
-    let rooted_extension: String = path_extension(rooted_normal.clone());
-    let rooted_parent: Path = path_parent(rooted_normal.clone());
-    let rooted_parent_text: String = rooted_parent.text.clone();
+    rooted = Path::terrane_construct(String::from("/alpha/../../beta/file.tar.gz"));
+    base = Path::terrane_construct(String::from("work/root"));
+    child = Path::terrane_construct(String::from("../next"));
+    relative_normal = normalise_path(relative);
+    rooted_normal = normalise_path(rooted);
+    relative_text = relative_normal.text.clone();
+    rooted_text = rooted_normal.text.clone();
+    rooted_name = path_name(rooted_normal.clone());
+    rooted_stem = path_stem(rooted_normal.clone());
+    rooted_extension = path_extension(rooted_normal.clone());
+    rooted_parent = path_parent(rooted_normal.clone());
+    rooted_parent_text = rooted_parent.text.clone();
     println!("{}", terrane_scalar_support::scalar_text(&relative_text));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_text));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_name));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_stem));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_extension));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_parent_text));
-    let resolved: Path = join_path(base, child);
-    let resolved_text: String = resolved.text.clone();
+    resolved = join_path(base, child);
+    resolved_text = resolved.text.clone();
     println!("{}", terrane_scalar_support::scalar_text(&resolved_text));
-    let components: terrane_collection_support::List<String> = path_components(
-        rooted_normal.clone(),
-    );
+    components = path_components(rooted_normal.clone());
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(components
@@ -501,7 +514,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&path_is_absolute(rooted_normal)),
         terrane_scalar_support::scalar_text(&path_is_absolute(relative_normal))
     );
-    let hidden: Path = Path::terrane_construct(String::from(".profile"));
+    hidden = Path::terrane_construct(String::from(".profile"));
     println!("{}", terrane_scalar_support::scalar_text(&path_stem(hidden.clone())));
     println!("{}", terrane_scalar_support::scalar_text(&path_extension(hidden)));
     println!(
@@ -527,18 +540,17 @@ impl Path {
     }
 }
 pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
-    let parts: Vec<String> = terrane_string_support::split(
-        &subject.text,
-        &String::from("/"),
-    );
-    let mut result: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let parts: Vec<String>;
+    let mut result: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut part: String;
+    parts = terrane_string_support::split(&subject.text, &String::from("/"));
+    result = terrane_collection_support::List::<String>::new(vec![]);
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = result.make_unique();
         while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-            let part: String = __terrane_raised(
+            part = __terrane_raised(
                 {
                     let __terrane_receiver = &parts;
                     let __terrane_index = __terrane_raised(
@@ -554,7 +566,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 },
                 0 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
-            if part != String::from("") {
+            if part.as_str() != "" {
                 __terrane_list_append_0.push(part);
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -566,20 +578,21 @@ pub fn path_is_absolute(subject: Path) -> bool {
     return subject.text.starts_with(&String::from("/"));
 }
 pub fn normalise_path(subject: Path) -> Path {
-    let parts: Vec<String> = terrane_string_support::split(
-        &subject.text,
-        &String::from("/"),
-    );
-    let absolute: bool = path_is_absolute(subject);
-    let mut kept: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut count: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    let mut part_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    let parts: Vec<String>;
+    let absolute: bool;
+    let mut kept: terrane_collection_support::List<String>;
+    let mut count: terrane_int_support::Int;
+    let mut part_index: terrane_int_support::Int;
+    let mut part: String;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    parts = terrane_string_support::split(&subject.text, &String::from("/"));
+    absolute = path_is_absolute(subject);
+    kept = terrane_collection_support::List::<String>::new(vec![]);
+    count = terrane_int_support::Int::from(0_i128);
+    part_index = terrane_int_support::Int::from(0_i128);
     while part_index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-        let part: String = __terrane_raised(
+        part = __terrane_raised(
             {
                 let __terrane_receiver = &parts;
                 let __terrane_index = __terrane_raised(
@@ -595,21 +608,22 @@ pub fn normalise_path(subject: Path) -> Path {
             },
             1 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
-        if part != String::from("") && part != String::from(".") {
-            if part == String::from("..") {
+        if part.as_str() != "" && part.as_str() != "." {
+            if part.as_str() == ".." {
                 if count.clone() > terrane_int_support::Int::from(0_i128)
                     && __terrane_raised(
-                        kept
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                            kept
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(
+                                            &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                                        ),
+                                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                     ),
-                                    2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                 ),
-                            ),
-                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
-                    ) != String::from("..")
+                            2 /* terrane-site: core/paths.trn:35:34-35:49 */,
+                        )
+                        .as_str() != ".."
                 {
                     count = count.clone() - terrane_int_support::Int::from(1_i128);
                 } else {
@@ -661,10 +675,10 @@ pub fn normalise_path(subject: Path) -> Path {
         }
         part_index = part_index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone() < count.clone() {
-        if result != String::from("") {
+        if result.as_str() != "" {
             result = format!(
                 "{}{}", terrane_scalar_support::scalar_text(&result),
                 terrane_scalar_support::scalar_text(&String::from("/"))
@@ -685,14 +699,16 @@ pub fn normalise_path(subject: Path) -> Path {
             terrane_scalar_support::scalar_text(&result)
         );
     }
-    if result == String::from("") && absolute {
+    if result.as_str() == "" && absolute {
         result = String::from("/");
     }
     return Path::terrane_construct(result);
 }
 pub fn path_name(subject: Path) -> String {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(normal);
+    let normal: Path;
+    let parts: terrane_collection_support::List<String>;
+    normal = normalise_path(subject);
+    parts = path_components(normal);
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
     {
@@ -714,10 +730,13 @@ pub fn path_name(subject: Path) -> String {
     );
 }
 pub fn path_parent(subject: Path) -> Path {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(
-        normal.clone(),
-    );
+    let normal: Path;
+    let parts: terrane_collection_support::List<String>;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    let absolute: bool;
+    normal = normalise_path(subject);
+    parts = path_components(normal.clone());
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
     {
@@ -728,13 +747,13 @@ pub fn path_parent(subject: Path) -> Path {
     {
         return Path::terrane_construct(String::from("."));
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone()
         < terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
             - terrane_int_support::Int::from(1_i128)
     {
-        if result != String::from("") {
+        if result.as_str() != "" {
             result = format!(
                 "{}{}", terrane_scalar_support::scalar_text(&result),
                 terrane_scalar_support::scalar_text(&String::from("/"))
@@ -749,7 +768,7 @@ pub fn path_parent(subject: Path) -> Path {
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let absolute: bool = path_is_absolute(normal);
+    absolute = path_is_absolute(normal);
     if absolute {
         result = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
@@ -759,11 +778,12 @@ pub fn path_parent(subject: Path) -> Path {
     return Path::terrane_construct(result);
 }
 pub fn path_stem(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
-        &String::from("."),
-    );
+    let current: String;
+    let pieces: Vec<String>;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    current = path_name(subject);
+    pieces = terrane_string_support::split(&current, &String::from("."));
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
@@ -772,28 +792,29 @@ pub fn path_stem(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    8 /* terrane-site: core/paths.trn:95:31-95:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            8 /* terrane-site: core/paths.trn:95:31-95:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        8 /* terrane-site: core/paths.trn:95:31-95:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                8 /* terrane-site: core/paths.trn:95:31-95:40 */,
+            )
+            .as_str() == ""
     {
         return current;
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone()
         < terrane_int_support::Int::from(pieces.len() as i128)
             - terrane_int_support::Int::from(1_i128)
@@ -819,11 +840,10 @@ pub fn path_stem(subject: Path) -> String {
     return result;
 }
 pub fn path_extension(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
-        &String::from("."),
-    );
+    let current: String;
+    let pieces: Vec<String>;
+    current = path_name(subject);
+    pieces = terrane_string_support::split(&current, &String::from("."));
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
@@ -832,23 +852,24 @@ pub fn path_extension(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    10 /* terrane-site: core/paths.trn:111:31-111:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            10 /* terrane-site: core/paths.trn:111:31-111:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        10 /* terrane-site: core/paths.trn:111:31-111:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                10 /* terrane-site: core/paths.trn:111:31-111:40 */,
+            )
+            .as_str() == ""
     {
         return String::from("");
     }
@@ -873,12 +894,15 @@ pub fn path_extension(subject: Path) -> String {
     );
 }
 pub fn join_path(base: Path, child: Path) -> Path {
-    let absolute: bool = path_is_absolute(child.clone());
+    let absolute: bool;
+    let mut joined: String;
+    let combined: Path;
+    absolute = path_is_absolute(child.clone());
     if absolute {
         return normalise_path(child.clone());
     }
-    let mut joined: String = base.text.clone();
-    if joined != String::from("") && !joined.ends_with(&String::from("/")) {
+    joined = base.text.clone();
+    if joined.as_str() != "" && !joined.ends_with(&String::from("/")) {
         joined = format!(
             "{}{}", terrane_scalar_support::scalar_text(&joined),
             terrane_scalar_support::scalar_text(&String::from("/"))
@@ -888,6 +912,6 @@ pub fn join_path(base: Path, child: Path) -> Path {
         "{}{}", terrane_scalar_support::scalar_text(&joined),
         terrane_scalar_support::scalar_text(&child.text)
     );
-    let combined: Path = Path::terrane_construct(joined);
+    combined = Path::terrane_construct(joined);
     return normalise_path(combined);
 }

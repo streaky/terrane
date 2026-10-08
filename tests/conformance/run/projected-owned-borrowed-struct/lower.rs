@@ -493,7 +493,14 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let mut descriptor: Descriptor = Descriptor::terrane_construct(
+    let mut descriptor: Descriptor;
+    let owned: Owned;
+    let first: String;
+    let defaults: Descriptor;
+    let indexed: Owned;
+    let noted: Owned;
+    let zero: Owned;
+    descriptor = Descriptor::terrane_construct(
         String::from("main"),
         terrane_collection_support::List::<
             String,
@@ -502,13 +509,13 @@ fn main() {
         String::from("ready"),
         terrane_collection_support::List::<String>::new(vec![String::from("five")]),
     );
-    let owned: Owned = terrane_borrowed_struct_witness::Owned {
+    owned = terrane_borrowed_struct_witness::Owned {
         label: String::from("owned"),
         count: 7,
         note: None::<String>,
         index: None::<i64>,
     };
-    let first: String = __terrane_raised(
+    first = __terrane_raised(
         summarize(&descriptor),
         0 /* terrane-site: src/main.trn:10:20-10:41 */,
     );
@@ -524,7 +531,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(consume(descriptor),
         2 /* terrane-site: src/main.trn:12:74-12:93 */))
     );
-    let defaults: Descriptor = Descriptor::terrane_construct(
+    defaults = Descriptor::terrane_construct(
         String::from("defaults"),
         terrane_collection_support::List::<String>::new(vec![String::from("x")]),
         1,
@@ -535,7 +542,7 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(summarize(&defaults),
         3 /* terrane-site: src/main.trn:14:13-14:32 */))
     );
-    let indexed: Owned = terrane_borrowed_struct_witness::Owned {
+    indexed = terrane_borrowed_struct_witness::Owned {
         label: String::from("indexed"),
         count: 8,
         note: None::<String>,
@@ -546,7 +553,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&indexed),
         4 /* terrane-site: src/main.trn:16:13-16:37 */))
     );
-    let noted: Owned = terrane_borrowed_struct_witness::Owned {
+    noted = terrane_borrowed_struct_witness::Owned {
         label: String::from("noted"),
         count: 9,
         note: String::from("retained").into(),
@@ -557,7 +564,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&noted),
         5 /* terrane-site: src/main.trn:18:13-18:35 */))
     );
-    let zero: Owned = terrane_borrowed_struct_witness::Owned {
+    zero = terrane_borrowed_struct_witness::Owned {
         label: String::from("zero"),
         count: 10,
         note: String::from("both").into(),

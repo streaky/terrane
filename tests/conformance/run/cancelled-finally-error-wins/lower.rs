@@ -554,12 +554,16 @@ async fn blocked() -> Result<String, TerraneError> {
 }
 fn main() {
     __terrane_run(async move {
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<String>;
+        let started: bool;
+        let outcome: TerraneTaskOutcome<String>;
         __terrane_raised(
             reset_operation_state(),
             2 /* terrane-site: src/main.trn:13:5-13:27 */,
         );
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<String> = {
+        scope = TerraneTaskScope::new(None);
+        child = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -579,7 +583,7 @@ fn main() {
                 }
             })
         };
-        let started: bool = __terrane_traced(
+        started = __terrane_traced(
             __terrane_await({
                     let __terrane_future = wait_until_operation_started();
                     async move {
@@ -593,8 +597,7 @@ fn main() {
             3 /* terrane-site: src/main.trn:16:26-16:55 */,
         );
         scope.cancel();
-        let outcome: TerraneTaskOutcome<String> = __terrane_await(scope.join(child))
-            .await;
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&started),
             terrane_scalar_support::scalar_text(&outcome.cancelled)

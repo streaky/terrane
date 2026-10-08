@@ -1,0 +1,5 @@
+namespace local-function-reassignment
+function main;
+    function helper int;
+        return 1
+    helper = 3

@@ -224,8 +224,17 @@ pub struct Package {
     pub rust_dependencies: Vec<RustDependency>,
     pub authored_rust_modules: Vec<AuthoredRustModule>,
     pub terrane_dependencies: Vec<TerraneDependency>,
+    pub consumer_configs: Vec<ConsumerConfig>,
     pub dependency_manifests: Vec<PathBuf>,
     pub library_source_ids: BTreeSet<u32>,
+}
+#[derive(Clone, Debug)]
+pub struct ConsumerConfig {
+    pub name: String,
+    pub executable: PathBuf,
+    pub arguments: Vec<String>,
+    pub declarations: Vec<String>,
+    pub interfaces: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -282,6 +291,7 @@ impl Package {
             rust_dependencies: Vec::new(),
             authored_rust_modules: Vec::new(),
             terrane_dependencies: Vec::new(),
+            consumer_configs: Vec::new(),
             dependency_manifests: Vec::new(),
             library_source_ids: BTreeSet::new(),
         }
@@ -395,8 +405,9 @@ impl Package {
             rust_dependencies: manifest.rust_dependencies,
             authored_rust_modules,
             terrane_dependencies: manifest.terrane_dependencies,
-            library_source_ids: BTreeSet::new(),
+            consumer_configs: manifest.consumer_configs,
             dependency_manifests: vec![manifest_path.to_path_buf()],
+            library_source_ids: BTreeSet::new(),
         };
         compose_package_dependencies(manifest_path, &mut package)?;
         overlay_tooling_sources(&mut package, external_units)?;
@@ -518,8 +529,9 @@ fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadErr
         rust_dependencies: manifest.rust_dependencies,
         authored_rust_modules,
         terrane_dependencies: manifest.terrane_dependencies,
-        library_source_ids: BTreeSet::new(),
+        consumer_configs: manifest.consumer_configs,
         dependency_manifests: vec![manifest_path.to_path_buf()],
+        library_source_ids: BTreeSet::new(),
     })
 }
 
@@ -968,6 +980,7 @@ struct ParsedManifest {
     rust_dependencies: Vec<RustDependency>,
     authored_rust_modules: Vec<(String, PathBuf)>,
     terrane_dependencies: Vec<TerraneDependency>,
+    consumer_configs: Vec<ConsumerConfig>,
 }
 
 #[derive(Clone, Debug)]
@@ -1011,6 +1024,7 @@ fn parse_manifest(
                 | "terrane-dependencies"
                 | "rust-dependencies"
                 | "rust-modules"
+                | "consumers"
         ) {
             errors.push(manifest_error(
                 manifest_path,
@@ -1146,6 +1160,7 @@ fn parse_manifest(
             }
         }
     }
+    let consumer_configs = parse_consumers(manifest_path, text, &table, &mut errors);
     let testing = match crate::testing::parse_configuration(manifest_path, text, &table, &profile) {
         Ok(configuration) => Some(configuration),
         Err(mut testing_errors) => {
@@ -1166,11 +1181,149 @@ fn parse_manifest(
             rust_dependencies,
             authored_rust_modules,
             terrane_dependencies,
+            consumer_configs,
             testing: testing.expect("validated testing configuration"),
         })
     } else {
         Err(errors)
     }
+}
+
+fn parse_consumers(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> Vec<ConsumerConfig> {
+    let Some(toml::Value::Table(consumers)) = table.get("consumers") else {
+        if table.contains_key("consumers") {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`consumers` must be a table of explicitly configured consumers",
+                Some("consumers"),
+            ));
+        }
+        return Vec::new();
+    };
+    let mut configs = Vec::new();
+    for (name, value) in consumers {
+        let Some(fields) = value.as_table() else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("consumer `{name}` must be a table"),
+                Some(name),
+            ));
+            continue;
+        };
+        let executable = fields
+            .get("command")
+            .and_then(toml::Value::as_str)
+            .filter(|value| !value.trim().is_empty());
+        let arguments = consumer_string_array(
+            manifest_path,
+            text,
+            name,
+            "args",
+            fields.get("args"),
+            errors,
+        );
+        let declarations = consumer_string_array(
+            manifest_path,
+            text,
+            name,
+            "declarations",
+            fields.get("declarations"),
+            errors,
+        );
+        let interfaces = consumer_string_array(
+            manifest_path,
+            text,
+            name,
+            "interfaces",
+            fields.get("interfaces"),
+            errors,
+        )
+        .into_iter()
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+        if executable.is_none()
+            || declarations.is_empty()
+            || declarations
+                .iter()
+                .any(|identity| identity.trim().is_empty())
+        {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!(
+                    "consumer `{name}` requires a command and non-empty declaration identities"
+                ),
+                Some(name),
+            ));
+            continue;
+        }
+        if fields.keys().any(|key| {
+            !matches!(
+                key.as_str(),
+                "command" | "args" | "declarations" | "interfaces"
+            )
+        }) {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("consumer `{name}` has unknown configuration fields"),
+                Some(name),
+            ));
+            continue;
+        }
+        configs.push(ConsumerConfig {
+            name: name.clone(),
+            executable: PathBuf::from(executable.expect("validated command")),
+            arguments,
+            declarations,
+            interfaces,
+        });
+    }
+    configs.sort_by(|left, right| left.name.cmp(&right.name));
+    configs
+}
+
+fn consumer_string_array(
+    manifest_path: &Path,
+    text: &str,
+    consumer: &str,
+    field: &str,
+    value: Option<&toml::Value>,
+    errors: &mut Vec<PackageLoadError>,
+) -> Vec<String> {
+    let Some(value) = value else {
+        return Vec::new();
+    };
+    let Some(values) = value.as_array() else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            format!("consumer `{consumer}` field `{field}` must be an array of strings"),
+            Some(consumer),
+        ));
+        return Vec::new();
+    };
+    if values.iter().any(|value| value.as_str().is_none()) {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            format!("consumer `{consumer}` field `{field}` must contain only strings"),
+            Some(consumer),
+        ));
+        return Vec::new();
+    }
+    values
+        .iter()
+        .filter_map(toml::Value::as_str)
+        .map(str::to_owned)
+        .collect()
 }
 
 #[expect(
@@ -2075,5 +2228,23 @@ adapters = "../escape.rs"
             errors[0].diagnostic.message,
             "authored Rust module `adapters` must name a relative `.rs` path"
         );
+    }
+
+    #[test]
+    fn consumer_config_rejects_malformed_arrays_and_unknown_fields() {
+        for manifest in [
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \"tool\"\nargs = \"--help\"\ndeclarations = [\"/app/main\"]\n",
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \"tool\"\nargs = [\"--help\", 1]\ndeclarations = [\"/app/main\"]\n",
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \"tool\"\nargs = []\ndeclarations = \" /app/main\"\n",
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \"tool\"\ndeclarations = [\"/app/main\"]\nextra = true\n",
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \"tool\"\ndeclarations = [\"/app/main\"]\ninterfaces = [1]\n",
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \" \"\ndeclarations = [\"/app/main\"]\n",
+            "package = \"example\"\n[namespaces]\napp = \"src\"\n[consumers.cli]\ncommand = \"tool\"\ndeclarations = [\" \"]\n",
+        ] {
+            assert!(
+                parse_manifest(Path::new("package.toml"), manifest).is_err(),
+                "malformed consumer configuration accepted: {manifest}"
+            );
+        }
     }
 }

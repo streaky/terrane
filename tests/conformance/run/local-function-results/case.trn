@@ -1,0 +1,21 @@
+namespace local-function-results
+function first int;
+    function helper int;
+        return 1
+    value = helper;
+    return value
+function second string;
+    function helper string;
+        return 'second'
+    value = helper;
+    return value
+function guarded int;
+    try
+        function helper int;
+            return 3
+        value = helper;
+        return value
+    finally
+        print; 'F'
+function main;
+    print; (first;), (second;), (guarded;)

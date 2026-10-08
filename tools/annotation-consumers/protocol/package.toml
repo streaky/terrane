@@ -1,0 +1,5 @@
+package = "annotation-consumer-protocol"
+artifact = "library"
+
+[namespaces]
+annotation-consumer-protocol = "src"

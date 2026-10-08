@@ -54,6 +54,13 @@ pub(super) fn analyze_binding_node(
     bindings: &mut Vec<TypedBinding>,
     scope: Option<Span>,
 ) -> Result<(), SemanticFailure> {
+    let scope = if node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "global"
+    }) {
+        None
+    } else {
+        scope
+    };
     if node.kind == SyntaxKind::Assignment
         && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::MemberExpression
@@ -1507,6 +1514,12 @@ pub(super) fn value_types_compatible(
     actual: &ValueType,
 ) -> bool {
     match (expected, actual) {
+        (_, ValueType::Union(actual)) => actual
+            .iter()
+            .all(|actual| value_types_compatible(objects, expected, actual)),
+        (ValueType::Union(expected), actual) => expected
+            .iter()
+            .any(|expected| value_types_compatible(objects, expected, actual)),
         (ValueType::Optional(expected), ValueType::Optional(actual)) => {
             value_types_compatible(objects, expected, actual)
         }
@@ -1831,6 +1844,14 @@ pub(crate) fn narrowed_value_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Option<ValueType> {
+    // Reaching-path facts already account for guards and subsequent replacements.
+    // A lexical guard must not narrow a newly assigned nullable value again.
+    if unit
+        .flow_types
+        .contains_key(&(node.span.file, node.span.start, node.span.end))
+    {
+        return None;
+    }
     let name = node_text(&unit.source, node);
     let function_span = unit
         .enclosing_function_spans
@@ -1850,7 +1871,37 @@ pub(crate) fn narrowed_value_type(
                     == function_span
         })
         .max_by_key(|binding| binding.visible_from)?;
-    narrowed_optional_type(unit, node, binding.value_type.clone())
+    let value_type = unit
+        .flow_types
+        .get(&(node.span.file, node.span.start, node.span.end))
+        .cloned()
+        .unwrap_or_else(|| binding.value_type.clone());
+    if is_presence_test_occurrence(&unit.source, &unit.tree.root, node.span.start, name)
+        || !enclosed_by_present_guard(&unit.source, &unit.tree.root, node.span.start, name)
+    {
+        return None;
+    }
+    match value_type {
+        ValueType::Optional(inner) => Some(*inner),
+        ValueType::Union(arms) => {
+            let mut narrowed = arms
+                .into_iter()
+                .filter_map(|arm| match arm {
+                    ValueType::Optional(inner) => Some(*inner),
+                    ValueType::Scalar(ScalarType::None) => None,
+                    arm => Some(arm),
+                })
+                .collect::<Vec<_>>();
+            narrowed.sort_by_key(|arm| format!("{arm:?}"));
+            narrowed.dedup();
+            match narrowed.len() {
+                0 => None,
+                1 => narrowed.pop(),
+                _ => Some(ValueType::Union(narrowed)),
+            }
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]

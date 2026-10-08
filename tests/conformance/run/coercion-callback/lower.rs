@@ -480,23 +480,24 @@ fn wrap() -> Result<String, TerraneError> {
     );
 }
 fn main() {
+    let closure: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
+    >;
+    let service: Renderer;
+    let bound: std::sync::Arc<dyn Fn(terrane_int_support::Int) -> String + Send + Sync>;
     println!(
         "{}", terrane_scalar_support::scalar_text(&std::sync::Arc::new(render)
         (source()))
     );
-    let closure: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
-    > = {
+    closure = {
         std::sync::Arc::new(move |
             __trn_5f76616c7565: terrane_int_support::Int,
         | -> String {
             return String::from("closure");
         })
     };
-    let service: Renderer = Renderer::terrane_construct();
-    let bound: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
-    > = {
+    service = Renderer::terrane_construct();
+    bound = {
         let receiver = service;
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
             receiver.render(argument_0)

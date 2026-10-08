@@ -447,19 +447,27 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: text-writer-contracts
 fn main() {
-    let output: ByteWriter = stdout();
-    let prefix: WriteResult = output.write(Vec::from([97]));
-    let writer: TextWriter = output.text(terrane_string_support::Encoding::Utf8);
-    let partial: WriteResult = WriteResult::terrane_construct(
+    let output: ByteWriter;
+    let prefix: WriteResult;
+    let writer: TextWriter;
+    let partial: WriteResult;
+    let resumed: WriteResult;
+    let line: WriteResult;
+    let data_sync: StreamOperationResult;
+    let all_sync: StreamOperationResult;
+    output = stdout();
+    prefix = output.write(Vec::from([97]));
+    writer = output.text(terrane_string_support::Encoding::Utf8);
+    partial = WriteResult::terrane_construct(
         Vec::from([97, 98, 99]),
         terrane_int_support::Int::from(1_i128),
         false,
         String::from(""),
     );
-    let resumed: WriteResult = writer.resume(partial);
-    let line: WriteResult = writer.line(String::from("x"));
-    let data_sync: StreamOperationResult = writer.sync_data();
-    let all_sync: StreamOperationResult = writer.sync_all();
+    resumed = writer.resume(partial);
+    line = writer.line(String::from("x"));
+    data_sync = writer.sync_data();
+    all_sync = writer.sync_all();
     println!("{}", terrane_scalar_support::scalar_text(&prefix.completed));
     println!("{}", terrane_scalar_support::scalar_text(&resumed.completed));
     println!("{}", terrane_scalar_support::scalar_text(&line.completed));
@@ -630,7 +638,8 @@ impl ByteReader {
         self.handle = Some(handle);
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
-        let raw: TerranePlatformReadResult = terrane_platform_read(
+        let raw: TerranePlatformReadResult;
+        raw = terrane_platform_read(
             &self.handle.as_ref().expect("required field initialized"),
             count,
         );
@@ -643,15 +652,19 @@ impl ByteReader {
         );
     }
     pub fn read_exact(&self, count: terrane_int_support::Int) -> ReadResult {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        data = Vec::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
         while completed.clone() < count.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+            part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
             );
@@ -695,15 +708,19 @@ impl ByteReader {
         );
     }
     pub fn read_all(&self, limit: terrane_int_support::Int) -> ReadResult {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        data = Vec::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
         while completed.clone() < limit.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+            part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
             );
@@ -743,7 +760,8 @@ impl ByteReader {
         );
     }
     pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
-        let raw: TerranePlatformReadResult = __terrane_await(
+        let raw: TerranePlatformReadResult;
+        raw = __terrane_await(
                 terrane_platform_read_async(
                     &self.handle.as_ref().expect("required field initialized"),
                     count,
@@ -765,7 +783,8 @@ impl ByteReader {
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -805,8 +824,10 @@ impl ByteWriter {
         self.handle = Some(handle);
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
-        let offset: i64 = 0;
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        let offset: i64;
+        let raw: TerranePlatformWriteResult;
+        offset = 0;
+        raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &data,
             terrane_int_support::Int::from(offset.clone()),
@@ -819,15 +840,17 @@ impl ByteWriter {
         );
     }
     pub fn write_all(&self, data: Vec<u8>) -> WriteResult {
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
+        let mut completed: terrane_int_support::Int;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformWriteResult;
+        completed = terrane_int_support::Int::from(0_i128);
+        failed = false;
+        message = String::from("");
         while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
             && !failed
         {
-            let part: TerranePlatformWriteResult = terrane_platform_write(
+            part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
                 terrane_int_support::Int::from(completed.clone()),
@@ -845,12 +868,13 @@ impl ByteWriter {
         return WriteResult::terrane_construct(data, completed.clone(), failed, message);
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        let raw: TerranePlatformWriteResult;
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
             return prior.clone();
         }
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &prior.data,
             terrane_int_support::Int::from(prior.completed.clone()),
@@ -872,7 +896,8 @@ impl ByteWriter {
         );
     }
     pub fn flush(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_flush(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_flush(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -881,7 +906,8 @@ impl ByteWriter {
         );
     }
     pub fn sync_data(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_data(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -890,7 +916,8 @@ impl ByteWriter {
         );
     }
     pub fn sync_all(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_all(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -899,7 +926,8 @@ impl ByteWriter {
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -952,11 +980,13 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let raw: TerranePlatformReadResult = terrane_platform_read(
+        let raw: TerranePlatformReadResult;
+        let text: String;
+        raw = terrane_platform_read(
             &self.handle.as_ref().expect("required field initialized"),
             count,
         );
-        let text: String = __terrane_raised_err(
+        text = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
             0 /* terrane-site: core/streams.trn:188:23-188:50 */,
         )?;
@@ -974,15 +1004,20 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        let text: String;
+        data = Vec::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
         while completed.clone() < count.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+            part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
             );
@@ -1017,7 +1052,7 @@ impl TextReader {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
-        let text: String = __terrane_raised_err(
+        text = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
             1 /* terrane-site: core/streams.trn:210:23-210:46 */,
         )?;
@@ -1035,15 +1070,20 @@ impl TextReader {
         &self,
         limit: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
+        let mut data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut end: bool;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformReadResult;
+        let text: String;
+        data = Vec::from([]);
+        completed = terrane_int_support::Int::from(0_i128);
+        end = false;
+        failed = false;
+        message = String::from("");
         while completed.clone() < limit.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+            part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
             );
@@ -1074,7 +1114,7 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        let text: String = __terrane_raised_err(
+        text = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
             2 /* terrane-site: core/streams.trn:229:23-229:46 */,
         )?;
@@ -1092,14 +1132,16 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let raw: TerranePlatformReadResult = __terrane_await(
+        let raw: TerranePlatformReadResult;
+        let text: String;
+        raw = __terrane_await(
                 terrane_platform_read_async(
                     &self.handle.as_ref().expect("required field initialized"),
                     count,
                 ),
             )
             .await;
-        let text: String = __terrane_raised_err(
+        text = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
             3 /* terrane-site: core/streams.trn:234:23-234:50 */,
         )?;
@@ -1114,7 +1156,8 @@ impl TextReader {
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -1164,9 +1207,12 @@ impl TextWriter {
         self.codec = codec;
     }
     pub fn write(&self, text: String) -> WriteResult {
-        let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
-        let offset: i64 = 0;
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        let data: Vec<u8>;
+        let offset: i64;
+        let raw: TerranePlatformWriteResult;
+        data = terrane_string_support::encode(&text, self.codec);
+        offset = 0;
+        raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &data,
             terrane_int_support::Int::from(offset.clone()),
@@ -1179,16 +1225,19 @@ impl TextWriter {
         );
     }
     pub fn write_all(&self, text: String) -> WriteResult {
-        let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
+        let data: Vec<u8>;
+        let mut completed: terrane_int_support::Int;
+        let mut failed: bool;
+        let mut message: String;
+        let mut part: TerranePlatformWriteResult;
+        data = terrane_string_support::encode(&text, self.codec);
+        completed = terrane_int_support::Int::from(0_i128);
+        failed = false;
+        message = String::from("");
         while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
             && !failed
         {
-            let part: TerranePlatformWriteResult = terrane_platform_write(
+            part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
                 terrane_int_support::Int::from(completed.clone()),
@@ -1206,12 +1255,13 @@ impl TextWriter {
         return WriteResult::terrane_construct(data, completed.clone(), failed, message);
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        let raw: TerranePlatformWriteResult;
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
             return prior.clone();
         }
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &prior.data,
             terrane_int_support::Int::from(prior.completed.clone()),
@@ -1236,7 +1286,8 @@ impl TextWriter {
         return self.write(text);
     }
     pub fn flush(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_flush(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_flush(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -1245,7 +1296,8 @@ impl TextWriter {
         );
     }
     pub fn sync_data(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_data(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -1254,7 +1306,8 @@ impl TextWriter {
         );
     }
     pub fn sync_all(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_sync_all(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
@@ -1263,7 +1316,8 @@ impl TextWriter {
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw: TerranePlatformUnitResult;
+        raw = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(

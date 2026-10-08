@@ -1,0 +1,10 @@
+namespace local-function-receiver-capture
+class counter
+    value int = 7
+    function outer int;
+        function helper int;
+            return this.value
+        return (helper;)
+function main;
+    item = instance counter;
+    print; (item.outer;)

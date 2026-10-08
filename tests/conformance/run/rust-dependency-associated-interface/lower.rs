@@ -998,9 +998,21 @@ impl terrane_associated_witness::Sequence for Lists {
 fn interface_length(
     value: TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
-    return value.length();
+    return (&value).length();
 }
 fn main() {
+    let applied: TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+        terrane_int_support::Int,
+    >;
+    let applied_named: TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
+        terrane_int_support::Int,
+    >;
+    let applied_items: terrane_collection_support::List<
+        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
+    >;
+    let maybe_applied: Option<
+        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
+    >;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(Ints::terrane_construct()),
@@ -1026,9 +1038,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(NamedInts::terrane_construct()),
         4 /* terrane-site: src/main.trn:51:13-51:49 */))
     );
-    let applied: TerraneNs4Deps26TerraneAssociatedWitnessSequence<
-        terrane_int_support::Int,
-    > = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
+    applied = <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
         terrane_int_support::Int,
     >>::from(Ints::terrane_construct());
     println!(
@@ -1036,9 +1046,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied),
         5 /* terrane-site: src/main.trn:53:13-53:34 */))
     );
-    let applied_named: TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
-        terrane_int_support::Int,
-    > = <TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
+    applied_named = <TerraneNs4Deps26TerraneAssociatedWitnessNamedSequence<
         terrane_int_support::Int,
     >>::from(NamedInts::terrane_construct());
     println!(
@@ -1056,9 +1064,7 @@ fn main() {
         TerraneNs4Deps26TerraneAssociatedWitnessSequence < terrane_int_support::Int > >
         ::from(NamedInts::terrane_construct())))
     );
-    let applied_items: terrane_collection_support::List<
-        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
-    > = terrane_collection_support::List::<
+    applied_items = terrane_collection_support::List::<
         TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
     >::new(
         vec![
@@ -1071,9 +1077,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(applied_items
         .length()))
     );
-    let maybe_applied: Option<
-        TerraneNs4Deps26TerraneAssociatedWitnessSequence<terrane_int_support::Int>,
-    > = Some(
+    maybe_applied = Some(
         <TerraneNs4Deps26TerraneAssociatedWitnessSequence<
             terrane_int_support::Int,
         >>::from(Ints::terrane_construct()),

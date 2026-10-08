@@ -486,17 +486,19 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let marker: Marker = __terrane_raised(
-            make_marker(terrane_int_support::Int::from(2_i128)),
-            0 /* terrane-site: src/main.trn:4:14-4:28 */,
-        );
+        let marker: Marker;
         let callback: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> std::pin::Pin<
                     Box<dyn Future<Output = terrane_int_support::Int> + Send>,
                 > + Send + Sync,
-        > = {
+        >;
+        marker = __terrane_raised(
+            make_marker(terrane_int_support::Int::from(2_i128)),
+            0 /* terrane-site: src/main.trn:4:14-4:28 */,
+        );
+        callback = {
             let marker = marker.clone();
             std::sync::Arc::new(move |
                 input: terrane_int_support::Int,
@@ -505,9 +507,10 @@ fn main() {
             > {
                 let marker = marker.clone();
                 Box::pin(async move {
-                    let observed: terrane_int_support::Int = __terrane_raised(
+                    let observed: terrane_int_support::Int;
+                    observed = __terrane_raised(
                         match std::panic::catch_unwind(
-                            std::panic::AssertUnwindSafe(|| marker.value()),
+                            std::panic::AssertUnwindSafe(|| (&marker).value()),
                         ) {
                             Ok(value) => {
                                 Ok(terrane_int_support::Int::from(i128::from(value)))

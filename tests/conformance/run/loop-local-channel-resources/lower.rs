@@ -5,35 +5,35 @@
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+        let mut index: terrane_int_support::Int;
+        let mut pair: TerraneChannelPair<terrane_int_support::Int>;
+        let mut sender: TerraneChannelSender<terrane_int_support::Int>;
+        let mut receiver: TerraneChannelReceiver<terrane_int_support::Int>;
+        let mut sent: TerraneChannelSendOutcome<terrane_int_support::Int>;
+        let mut received: TerraneChannelReceiveOutcome<terrane_int_support::Int>;
+        let mut value: Option<terrane_int_support::Int>;
+        let mut remaining: terrane_collection_support::List<terrane_int_support::Int>;
+        index = terrane_int_support::Int::from(0_i128);
         while index.clone() < terrane_int_support::Int::from(2_i128) {
-            let pair: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+            pair = TerraneChannelPair::new(
                 terrane_collection_support::index_from_int(
                         &terrane_int_support::Int::from(1_i128),
                     )
                     .expect("semantic channel capacity"),
                 TerraneChannelOverflow::Block,
             );
-            let sender: TerraneChannelSender<terrane_int_support::Int> = pair.sender;
-            let receiver: TerraneChannelReceiver<terrane_int_support::Int> = pair
-                .receiver;
-            let sent: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
-                    Box::pin(sender.send(index.clone())),
-                )
-                .await;
+            sender = pair.sender;
+            receiver = pair.receiver;
+            sent = __terrane_await(Box::pin(sender.send(index.clone()))).await;
             sender.close();
-            let received: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
-                    Box::pin(receiver.receive()),
-                )
-                .await;
-            let value: Option<terrane_int_support::Int> = received.value;
-            let remaining: terrane_collection_support::List<terrane_int_support::Int> = receiver
-                .close();
+            received = __terrane_await(Box::pin(receiver.receive())).await;
+            value = received.value;
+            remaining = receiver.close();
             if value.is_some() {
                 println!(
                     "{}{}{}", terrane_scalar_support::scalar_text(&sent.accepted),
-                    terrane_scalar_support::scalar_text(&value.as_ref()
-                    .expect("semantic optional narrowing").clone()),
+                    terrane_scalar_support::scalar_text(&match &value { Some(value) =>
+                    value, _ => unreachable!("flow-proven storage refinement") }),
                     terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(remaining
                     .length()))
                 );
@@ -134,13 +134,15 @@ impl IntMutex {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_load(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_load(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -150,10 +152,8 @@ impl IntMutex {
         );
     }
     pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_store(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_store(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -164,10 +164,8 @@ impl IntMutex {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
-            &self.handle,
-            amount,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_add(&self.handle, amount);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -194,13 +192,15 @@ impl IntReadWriteLock {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn read(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_read(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_read(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -210,10 +210,8 @@ impl IntReadWriteLock {
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_write(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_write(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -269,16 +267,15 @@ impl AtomicInt64 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_load(
-            &self.handle,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_load(&self.handle, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -292,11 +289,8 @@ impl AtomicInt64 {
         value: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_store(
-            &self.handle,
-            value,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_store(&self.handle, value, ordering.name);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -308,11 +302,8 @@ impl AtomicInt64 {
         amount: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
-            &self.handle,
-            amount,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_add(&self.handle, amount, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -339,15 +330,15 @@ impl ThreadLocalInt {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn get(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_get(
-            &self.handle,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_get(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -357,10 +348,8 @@ impl ThreadLocalInt {
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_set(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_set(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),

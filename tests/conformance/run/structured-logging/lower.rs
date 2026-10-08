@@ -508,6 +508,17 @@ struct TerraneDescriptor {
     inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: structured-logging
 #[derive(Clone)]
@@ -563,14 +574,66 @@ impl From<CountedValue> for LogValue {
 }
 fn main() {
     __terrane_run(async move {
-        let sink_result: LogSinkResult = memory_sink(
+        let sink_result: LogSinkResult;
+        let mut writer: Logger;
+        let lazy: CountedValue;
+        let mut token_field: LogField;
+        let descriptor: TerraneDescriptor;
+        let additions: terrane_collection_support::List<LogField>;
+        let filtered: LogOutcome;
+        let written: LogOutcome;
+        let records: terrane_collection_support::List<String>;
+        let other_sink: LogSinkResult;
+        let other: Logger;
+        let target_filtered: LogOutcome;
+        let empty_fields: terrane_collection_support::List<LogField>;
+        let mut caught: Option<TerraneError> = None;
+        let mut error_fields: Option<terrane_collection_support::List<LogField>> = None;
+        let mut error_write: Option<LogOutcome> = None;
+        let mut error_records: Option<terrane_collection_support::List<String>> = None;
+        let failed_sink: LogSinkResult;
+        let failed_target: LogSink;
+        let failed_logger: Logger;
+        let failed_write: LogOutcome;
+        let fallback: terrane_collection_support::List<String>;
+        let console_result: LogSinkResult;
+        let console: Logger;
+        let console_write: LogOutcome;
+        let adapter_pair: TerraneChannelPair<LogEvent>;
+        let adapter_producer: TerraneChannelSender<LogEvent>;
+        let adapter_receiver: TerraneChannelReceiver<LogEvent>;
+        let adapter_sent: bool;
+        let adapter_received: TerraneChannelReceiveOutcome<LogEvent>;
+        let async_sink: LogSinkResult;
+        let async_target: LogSink;
+        let async_writer: Logger;
+        let pair: TerraneChannelPair<LogEvent>;
+        let producer: TerraneChannelSender<LogEvent>;
+        let receiver: TerraneChannelReceiver<LogEvent>;
+        let consumer_scope: TerraneTaskScope;
+        let consumer: TerraneScopedTask<bool>;
+        let first_sent: TerraneChannelSendOutcome<LogEvent>;
+        let second_sent: TerraneChannelSendOutcome<LogEvent>;
+        let consumed: TerraneTaskOutcome<bool>;
+        let consumed_value: Option<bool>;
+        let transported_records: terrane_collection_support::List<String>;
+        let failing_pair: TerraneChannelPair<LogEvent>;
+        let failing_producer: TerraneChannelSender<LogEvent>;
+        let failing_receiver: TerraneChannelReceiver<LogEvent>;
+        let failing_scope: TerraneTaskScope;
+        let failing_consumer: TerraneScopedTask<bool>;
+        let failing_sent: TerraneChannelSendOutcome<LogEvent>;
+        let failing_consumed: TerraneTaskOutcome<bool>;
+        let failing_consumed_value: Option<bool>;
+        let async_fallback: terrane_collection_support::List<String>;
+        sink_result = memory_sink(
             terrane_int_support::Int::from(4_i128),
             String::from("drop-oldest"),
             terrane_int_support::Int::from(1000_i128),
             terrane_int_support::Int::from(5_i128),
             false,
         );
-        let mut writer: Logger = make_logger(
+        writer = make_logger(
             sink_result.value,
             make_logger_options(
                 info_level(),
@@ -590,10 +653,8 @@ fn main() {
             ),
         );
         writer = with_span(writer, String::from("serve"));
-        let lazy: CountedValue = CountedValue::terrane_construct(
-            String::from("rendered"),
-        );
-        let mut token_field: LogField = field_at(
+        lazy = CountedValue::terrane_construct(String::from("rendered"));
+        token_field = field_at(
             String::from("token").clone(),
             <LogValue>::from(
                 CountedValue::terrane_construct(String::from("raw-secret")),
@@ -601,7 +662,7 @@ fn main() {
             false,
             "case.trn:35:19".to_owned(),
         );
-        let descriptor: TerraneDescriptor = TerraneDescriptor {
+        descriptor = TerraneDescriptor {
             identity: "/structured-logging::request-data",
             name: "request-data",
             kind: "class",
@@ -643,7 +704,7 @@ fn main() {
                 "case.trn:38:23".to_owned(),
             );
         }
-        let additions: terrane_collection_support::List<LogField> = terrane_collection_support::List::<
+        additions = terrane_collection_support::List::<
             LogField,
         >::new(
             vec![
@@ -651,7 +712,7 @@ fn main() {
                 "case.trn:39:24".to_owned()), token_field
             ],
         );
-        let filtered: LogOutcome = emit_at(
+        filtered = emit_at(
             writer.clone(),
             debug_level().clone(),
             String::from("filtered").clone(),
@@ -662,7 +723,7 @@ fn main() {
             "{}{}", terrane_scalar_support::scalar_text(&filtered.filtered),
             terrane_scalar_support::scalar_text(&filtered.failed)
         );
-        let written: LogOutcome = emit_at(
+        written = emit_at(
             writer.clone(),
             info_level(),
             String::from("handled").clone(),
@@ -673,9 +734,7 @@ fn main() {
             "{}{}", terrane_scalar_support::scalar_text(&written.filtered),
             terrane_scalar_support::scalar_text(&written.failed)
         );
-        let records: terrane_collection_support::List<String> = drain_memory(
-            writer.clone(),
-        );
+        records = drain_memory(writer.clone());
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(records
@@ -723,14 +782,14 @@ fn main() {
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             11 /* terrane-site: case.trn:51:48-51:58 */)), 11 /* terrane-site: case.trn:51:48-51:58 */).contains(&String::from("\"origin\":\"terrane\"")))
         );
-        let other_sink: LogSinkResult = memory_sink(
+        other_sink = memory_sink(
             terrane_int_support::Int::from(2_i128),
             String::from("drop-oldest"),
             terrane_int_support::Int::from(2000_i128),
             terrane_int_support::Int::from(1_i128),
             false,
         );
-        let other: Logger = make_logger(
+        other = make_logger(
             other_sink.value,
             make_logger_options(
                 info_level(),
@@ -740,7 +799,7 @@ fn main() {
                 terrane_int_support::Int::from(4096_i128),
             ),
         );
-        let target_filtered: LogOutcome = emit_at(
+        target_filtered = emit_at(
             other.clone(),
             info_level().clone(),
             String::from("not-written").clone(),
@@ -748,9 +807,7 @@ fn main() {
             additions.clone(),
         );
         println!("{}", terrane_scalar_support::scalar_text(&target_filtered.filtered));
-        let empty_fields: terrane_collection_support::List<LogField> = terrane_collection_support::List::<
-            LogField,
-        >::new(vec![]);
+        empty_fields = terrane_collection_support::List::<LogField>::new(vec![]);
         let __terrane_completion_0: TerraneCompletion<()> = (|| {
             let __terrane_try_0: TerraneCompletion<()> = (|| {
                 return TerraneCompletion::Error(
@@ -773,32 +830,44 @@ fn main() {
                         && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_0 = true;
-                        let caught = __terrane_error_0.clone();
-                        let error_fields: terrane_collection_support::List<LogField> = terrane_collection_support::List::<
-                            LogField,
-                        >::new(
-                            vec![
-                                field_at(String::from("failure").clone(),
-                                terrane_log_error(caught.clone()), false, "case.trn:63:31"
-                                .to_owned())
-                            ],
-                        );
-                        let error_write: LogOutcome = emit_at(
-                            writer.clone(),
-                            info_level(),
-                            String::from("failed-operation").clone(),
-                            "case.trn:64:23".to_owned(),
-                            error_fields.clone(),
-                        );
-                        let error_records: terrane_collection_support::List<String> = drain_memory(
-                            writer,
-                        );
+                        let _ = caught.insert(__terrane_error_0.clone());
+                        let _ = error_fields
+                            .insert(
+                                terrane_collection_support::List::<
+                                    LogField,
+                                >::new(
+                                    vec![
+                                        field_at(String::from("failure").clone(),
+                                        terrane_log_error(caught.as_ref()
+                                        .expect("flow-proven available binding").clone().clone()),
+                                        false, "case.trn:63:31".to_owned())
+                                    ],
+                                ),
+                            );
+                        let _ = error_write
+                            .insert(
+                                emit_at(
+                                    writer.clone(),
+                                    info_level(),
+                                    String::from("failed-operation").clone(),
+                                    "case.trn:64:23".to_owned(),
+                                    error_fields
+                                        .as_ref()
+                                        .expect("flow-proven available binding")
+                                        .clone()
+                                        .clone(),
+                                ),
+                            );
+                        let _ = error_records.insert(drain_memory(writer));
                         println!(
                             "{}{}{}", terrane_scalar_support::scalar_text(&error_write
+                            .as_ref().expect("flow-proven available binding").clone()
                             .failed),
                             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(error_records
+                            .as_ref().expect("flow-proven available binding").clone()
                             .length())),
                             terrane_scalar_support::scalar_text(&__terrane_raised_completion!(error_records
+                            .as_ref().expect("flow-proven available binding").clone()
                             .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
                             13 /* terrane-site: case.trn:66:59-66:75 */)),
                             13 /* terrane-site: case.trn:66:59-66:75 */)
@@ -820,17 +889,17 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        let failed_sink: LogSinkResult = failing_sink();
-        let failed_target: LogSink = failed_sink.value;
-        let failed_logger: Logger = default_logger(failed_target.clone());
-        let failed_write: LogOutcome = emit_at(
+        failed_sink = failing_sink();
+        failed_target = failed_sink.value;
+        failed_logger = default_logger(failed_target.clone());
+        failed_write = emit_at(
             failed_logger.clone(),
             info_level(),
             String::from("cannot-write").clone(),
             "case.trn:70:20".to_owned(),
             empty_fields.clone(),
         );
-        let fallback: terrane_collection_support::List<String> = drain_fallback();
+        fallback = drain_fallback();
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&failed_write.failed),
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(fallback
@@ -838,9 +907,9 @@ fn main() {
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             14 /* terrane-site: case.trn:72:51-72:62 */)), 14 /* terrane-site: case.trn:72:51-72:62 */).contains(&String::from("event rejected")))
         );
-        let console_result: LogSinkResult = console_sink(false);
-        let console: Logger = default_logger(console_result.value);
-        let console_write: LogOutcome = emit_at(
+        console_result = console_sink(false);
+        console = default_logger(console_result.value);
+        console_write = emit_at(
             console.clone(),
             info_level(),
             String::from("visible").clone(),
@@ -848,16 +917,16 @@ fn main() {
             empty_fields.clone(),
         );
         println!("{}", terrane_scalar_support::scalar_text(&console_write.failed));
-        let adapter_pair: TerraneChannelPair<LogEvent> = TerraneChannelPair::new(
+        adapter_pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let adapter_producer: TerraneChannelSender<LogEvent> = adapter_pair.sender;
-        let adapter_receiver: TerraneChannelReceiver<LogEvent> = adapter_pair.receiver;
-        let adapter_sent: bool = __terrane_await(
+        adapter_producer = adapter_pair.sender;
+        adapter_receiver = adapter_pair.receiver;
+        adapter_sent = __terrane_await(
                 send_event(
                     adapter_producer,
                     make_event_at(
@@ -869,34 +938,31 @@ fn main() {
                 ),
             )
             .await;
-        let adapter_received: TerraneChannelReceiveOutcome<LogEvent> = __terrane_await(
-                Box::pin(adapter_receiver.receive()),
-            )
-            .await;
+        adapter_received = __terrane_await(Box::pin(adapter_receiver.receive())).await;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&adapter_sent),
             terrane_scalar_support::scalar_text(&adapter_received.available)
         );
-        let async_sink: LogSinkResult = memory_sink(
+        async_sink = memory_sink(
             terrane_int_support::Int::from(4_i128),
             String::from("reject"),
             terrane_int_support::Int::from(3000_i128),
             terrane_int_support::Int::from(1_i128),
             false,
         );
-        let async_target: LogSink = async_sink.value;
-        let async_writer: Logger = default_logger(async_target.clone());
-        let pair: TerraneChannelPair<LogEvent> = TerraneChannelPair::new(
+        async_target = async_sink.value;
+        async_writer = default_logger(async_target.clone());
+        pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let producer: TerraneChannelSender<LogEvent> = pair.sender;
-        let receiver: TerraneChannelReceiver<LogEvent> = pair.receiver;
-        let consumer_scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let consumer: TerraneScopedTask<bool> = {
+        producer = pair.sender;
+        receiver = pair.receiver;
+        consumer_scope = TerraneTaskScope::new(None);
+        consumer = {
             let __terrane_scope = consumer_scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -914,7 +980,7 @@ fn main() {
                 }
             })
         };
-        let first_sent: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
+        first_sent = __terrane_await(
                 Box::pin(
                     producer
                         .send(
@@ -928,7 +994,7 @@ fn main() {
                 ),
             )
             .await;
-        let second_sent: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
+        second_sent = __terrane_await(
                 Box::pin(
                     producer
                         .send(
@@ -943,23 +1009,19 @@ fn main() {
             )
             .await;
         producer.close();
-        let consumed: TerraneTaskOutcome<bool> = __terrane_await(
-                consumer_scope.join(consumer),
-            )
-            .await;
-        let consumed_value: Option<bool> = consumed.value.clone();
+        consumed = __terrane_await(consumer_scope.join(consumer)).await;
+        consumed_value = consumed.value.clone();
         if consumed_value.is_some() {
             println!(
                 "{}{}{}{}", terrane_scalar_support::scalar_text(&first_sent.accepted),
                 terrane_scalar_support::scalar_text(&second_sent.accepted),
                 terrane_scalar_support::scalar_text(&consumed.completed),
-                terrane_scalar_support::scalar_text(&* consumed_value.as_ref()
-                .expect("semantic optional narrowing"))
+                terrane_scalar_support::scalar_text(&* match &consumed_value {
+                Some(value) => value, _ => unreachable!("flow-proven storage refinement")
+                })
             );
         }
-        let transported_records: terrane_collection_support::List<String> = drain_memory(
-            async_writer,
-        );
+        transported_records = drain_memory(async_writer);
         println!(
             "{}{}{}",
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(transported_records
@@ -973,17 +1035,17 @@ fn main() {
             16 /* terrane-site: case.trn:102:107-102:129 */)), 16 /* terrane-site: case.trn:102:107-102:129 */)
             .contains(&String::from("\"message\":\"transported-two\"")))
         );
-        let failing_pair: TerraneChannelPair<LogEvent> = TerraneChannelPair::new(
+        failing_pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let failing_producer: TerraneChannelSender<LogEvent> = failing_pair.sender;
-        let failing_receiver: TerraneChannelReceiver<LogEvent> = failing_pair.receiver;
-        let failing_scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let failing_consumer: TerraneScopedTask<bool> = {
+        failing_producer = failing_pair.sender;
+        failing_receiver = failing_pair.receiver;
+        failing_scope = TerraneTaskScope::new(None);
+        failing_consumer = {
             let __terrane_scope = failing_scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -1001,7 +1063,7 @@ fn main() {
                 }
             })
         };
-        let failing_sent: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
+        failing_sent = __terrane_await(
                 Box::pin(
                     failing_producer
                         .send(
@@ -1016,20 +1078,18 @@ fn main() {
             )
             .await;
         failing_producer.close();
-        let failing_consumed: TerraneTaskOutcome<bool> = __terrane_await(
-                failing_scope.join(failing_consumer),
-            )
-            .await;
-        let failing_consumed_value: Option<bool> = failing_consumed.value.clone();
+        failing_consumed = __terrane_await(failing_scope.join(failing_consumer)).await;
+        failing_consumed_value = failing_consumed.value.clone();
         if failing_consumed_value.is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&failing_sent.accepted),
                 terrane_scalar_support::scalar_text(&failing_consumed.completed),
-                terrane_scalar_support::scalar_text(&* failing_consumed_value.as_ref()
-                .expect("semantic optional narrowing"))
+                terrane_scalar_support::scalar_text(&* match &failing_consumed_value {
+                Some(value) => value, _ => unreachable!("flow-proven storage refinement")
+                })
             );
         }
-        let async_fallback: terrane_collection_support::List<String> = drain_fallback();
+        async_fallback = drain_fallback();
         println!(
             "{}{}",
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(async_fallback
@@ -1132,13 +1192,15 @@ impl IntMutex {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_load(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_load(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1148,10 +1210,8 @@ impl IntMutex {
         );
     }
     pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_store(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_store(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1162,10 +1222,8 @@ impl IntMutex {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
-            &self.handle,
-            amount,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_add(&self.handle, amount);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1192,13 +1250,15 @@ impl IntReadWriteLock {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn read(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_read(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_read(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1208,10 +1268,8 @@ impl IntReadWriteLock {
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_write(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_write(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1267,16 +1325,15 @@ impl AtomicInt64 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_load(
-            &self.handle,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_load(&self.handle, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1290,11 +1347,8 @@ impl AtomicInt64 {
         value: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_store(
-            &self.handle,
-            value,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_store(&self.handle, value, ordering.name);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1306,11 +1360,8 @@ impl AtomicInt64 {
         amount: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
-            &self.handle,
-            amount,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_add(&self.handle, amount, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1337,15 +1388,15 @@ impl ThreadLocalInt {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn get(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_get(
-            &self.handle,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_get(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1355,10 +1406,8 @@ impl ThreadLocalInt {
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_set(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_set(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1526,10 +1575,10 @@ impl DocumentValue {
         self.kind = terrane_document_kind(&raw);
         self.scalar = terrane_document_text(&raw);
         self.encoded = terrane_data_encoded(&raw);
-        if self.kind == String::from("integer") {
+        if self.kind.as_str() == "integer" {
             self.integer = DocumentInteger::terrane_construct(self.scalar.clone());
         }
-        if self.kind == String::from("decimal") {
+        if self.kind.as_str() == "decimal" {
             self.decimal = DocumentDecimal::terrane_construct(
                 terrane_document_coefficient(&raw),
                 terrane_document_exponent(&raw),
@@ -1545,20 +1594,16 @@ impl DocumentValue {
         return self.clone();
     }
     pub fn item(&self, index: terrane_int_support::Int) -> DocumentResult {
-        let raw: terrane_document_support::DataResult = terrane_document_item(
-            &self.raw,
-            index.clone(),
-        );
+        let raw: terrane_document_support::DataResult;
+        raw = terrane_document_item(&self.raw, index.clone());
         return make_document_result(raw);
     }
     pub fn key(&self, index: terrane_int_support::Int) -> String {
         return terrane_document_key(&self.raw, index.clone());
     }
     pub fn field(&self, name: String) -> DocumentResult {
-        let raw: terrane_document_support::DataResult = terrane_document_field(
-            &self.raw,
-            name,
-        );
+        let raw: terrane_document_support::DataResult;
+        raw = terrane_document_field(&self.raw, name);
         return make_document_result(raw);
     }
 }
@@ -1751,8 +1796,10 @@ pub fn append_document_map_entry(
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
 ) -> DocumentResult {
-    let mut raw: terrane_document_support::DataResult = terrane_make_document_list();
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let mut raw: terrane_document_support::DataResult;
+    let mut index: terrane_int_support::Int;
+    raw = terrane_make_document_list();
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone()
         < terrane_int_support::Int::from(terrane_int_support::Int::from(values.length()))
     {
@@ -1780,17 +1827,21 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields: terrane_collection_support::List<String> = mapping.field_names.clone();
-    let optional_fields: terrane_collection_support::List<String> = mapping
-        .optional_fields
-        .clone();
-    let default_fields: terrane_collection_support::List<String> = mapping
-        .default_fields
-        .clone();
-    let mut required: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let fields: terrane_collection_support::List<String>;
+    let optional_fields: terrane_collection_support::List<String>;
+    let default_fields: terrane_collection_support::List<String>;
+    let mut required: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut field: String;
+    let mut optional: bool;
+    let mut optional_index: terrane_int_support::Int;
+    let mut defaulted: bool;
+    let mut default_index: terrane_int_support::Int;
+    fields = mapping.field_names.clone();
+    optional_fields = mapping.optional_fields.clone();
+    default_fields = mapping.default_fields.clone();
+    required = terrane_collection_support::List::<String>::new(vec![]);
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = required.make_unique();
         while index.clone()
@@ -1798,7 +1849,7 @@ pub fn mapping_required_fields(
                 terrane_int_support::Int::from(fields.length()),
             )
         {
-            let field: String = __terrane_raised(
+            field = __terrane_raised(
                 fields
                     .get_or_error(
                         __terrane_raised(
@@ -1808,61 +1859,59 @@ pub fn mapping_required_fields(
                     ),
                 19 /* terrane-site: core/documents.trn:153:17-153:30 */,
             );
-            let mut optional: bool = false;
-            let mut optional_index: terrane_int_support::Int = terrane_int_support::Int::from(
-                0_i128,
-            );
+            optional = false;
+            optional_index = terrane_int_support::Int::from(0_i128);
             while optional_index.clone()
                 < terrane_int_support::Int::from(
                     terrane_int_support::Int::from(optional_fields.length()),
                 )
             {
                 if __terrane_raised(
-                    optional_fields
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &optional_index.clone(),
+                        optional_fields
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &optional_index.clone(),
+                                    ),
+                                    20 /* terrane-site: core/documents.trn:157:16-157:47 */,
                                 ),
-                                20 /* terrane-site: core/documents.trn:157:16-157:47 */,
                             ),
-                        ),
-                    20 /* terrane-site: core/documents.trn:157:16-157:47 */,
-                ) == field
+                        20 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                    )
+                    .as_str() == field.as_str()
                 {
                     optional = true;
                 }
                 optional_index = optional_index.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            let mut defaulted: bool = false;
-            let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-                0_i128,
-            );
+            defaulted = false;
+            default_index = terrane_int_support::Int::from(0_i128);
             while default_index.clone()
                 < terrane_int_support::Int::from(
                     terrane_int_support::Int::from(default_fields.length()),
                 )
             {
                 if __terrane_raised(
-                    default_fields
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &default_index.clone(),
+                        default_fields
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &default_index.clone(),
+                                    ),
+                                    21 /* terrane-site: core/documents.trn:163:16-163:45 */,
                                 ),
-                                21 /* terrane-site: core/documents.trn:163:16-163:45 */,
                             ),
-                        ),
-                    21 /* terrane-site: core/documents.trn:163:16-163:45 */,
-                ) == field
+                        21 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                    )
+                    .as_str() == field.as_str()
                 {
                     defaulted = true;
                 }
                 default_index = default_index.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            if field != String::from("") && !optional && !defaulted {
+            if field.as_str() != "" && !optional && !defaulted {
                 __terrane_list_append_0.push(field);
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -1874,15 +1923,17 @@ pub fn decode_document(
     value: DocumentValue,
     mapping: DocumentMapping,
 ) -> DocumentResult {
-    let required: terrane_collection_support::List<String> = mapping_required_fields(
-        mapping.clone(),
-    );
-    let mut declared_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut field_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    let required: terrane_collection_support::List<String>;
+    let mut declared_fields: terrane_collection_support::List<String>;
+    let mut field_index: terrane_int_support::Int;
+    let mut default_fields: terrane_collection_support::List<String>;
+    let mut default_values: terrane_collection_support::List<String>;
+    let mut default_index: terrane_int_support::Int;
+    let raw: terrane_document_support::DataResult;
+    let mut result: DocumentResult;
+    required = mapping_required_fields(mapping.clone());
+    declared_fields = terrane_collection_support::List::<String>::new(vec![]);
+    field_index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_1 = declared_fields.make_unique();
         while field_index.clone()
@@ -1891,18 +1942,19 @@ pub fn decode_document(
             )
         {
             if __terrane_raised(
-                mapping
-                    .field_names
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &field_index.clone(),
+                    mapping
+                        .field_names
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &field_index.clone(),
+                                ),
+                                22 /* terrane-site: core/documents.trn:176:12-176:44 */,
                             ),
-                            22 /* terrane-site: core/documents.trn:176:12-176:44 */,
                         ),
-                    ),
-                22 /* terrane-site: core/documents.trn:176:12-176:44 */,
-            ) != String::from("")
+                    22 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                )
+                .as_str() != ""
             {
                 __terrane_list_append_1
                     .push(
@@ -1924,15 +1976,9 @@ pub fn decode_document(
             field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut default_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut default_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    default_fields = terrane_collection_support::List::<String>::new(vec![]);
+    default_values = terrane_collection_support::List::<String>::new(vec![]);
+    default_index = terrane_int_support::Int::from(0_i128);
     while default_index.clone()
         < terrane_int_support::Int::from(
             terrane_int_support::Int::from(mapping.default_fields.length()),
@@ -1943,18 +1989,19 @@ pub fn decode_document(
             )
     {
         if __terrane_raised(
-            mapping
-                .default_fields
-                .get_or_error(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(
-                            &default_index.clone(),
+                mapping
+                    .default_fields
+                    .get_or_error(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(
+                                &default_index.clone(),
+                            ),
+                            24 /* terrane-site: core/documents.trn:183:12-183:49 */,
                         ),
-                        24 /* terrane-site: core/documents.trn:183:12-183:49 */,
                     ),
-                ),
-            24 /* terrane-site: core/documents.trn:183:12-183:49 */,
-        ) != String::from("")
+                24 /* terrane-site: core/documents.trn:183:12-183:49 */,
+            )
+            .as_str() != ""
         {
             default_fields
                 .append(
@@ -1991,7 +2038,7 @@ pub fn decode_document(
         }
         default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let raw: terrane_document_support::DataResult = terrane_validate_mapping(
+    raw = terrane_validate_mapping(
         &value.raw,
         mapping.expected_kind,
         required,
@@ -2000,7 +2047,7 @@ pub fn decode_document(
         default_values,
         mapping.allow_unknown,
     );
-    let mut result: DocumentResult = make_document_result(raw);
+    result = make_document_result(raw);
     if result.failed {
         result.expected = mapping.descriptor_name.clone();
     }
@@ -2008,6 +2055,42 @@ pub fn decode_document(
 }
 // Source: core/logging.trn
 // Namespace: core/logging
+#[allow(dead_code)]
+#[derive(Clone)]
+enum TerraneUnionF3S5342 {
+    Arm0(LogField),
+    Arm1(String),
+}
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF3S5342 {
+    fn write_scalar(&self, output: &mut String) {
+        match self {
+            Self::Arm0(_) => {
+                unreachable!("semantic display refinement excludes this union arm")
+            }
+            Self::Arm1(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+        }
+    }
+}
+#[allow(dead_code)]
+#[derive(Clone)]
+enum TerraneUnionF3S5641 {
+    Arm0(LogField),
+    Arm1(String),
+}
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF3S5641 {
+    fn write_scalar(&self, output: &mut String) {
+        match self {
+            Self::Arm0(_) => {
+                unreachable!("semantic display refinement excludes this union arm")
+            }
+            Self::Arm1(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+        }
+    }
+}
 #[derive(Clone)]
 pub struct LogLevel {
     pub name: String,
@@ -2294,16 +2377,16 @@ pub fn memory_sink(
     step: terrane_int_support::Int,
     reveal: bool,
 ) -> LogSinkResult {
-    let raw: TerranePlatformResult = terrane_platform_support::logging_memory_sink(
+    let raw: TerranePlatformResult;
+    let sink: LogSink;
+    raw = terrane_platform_support::logging_memory_sink(
         terrane_int_support::checked_coerce::<i128>(&capacity.clone()),
         &overflow,
         terrane_int_support::checked_coerce::<i128>(&start.clone()),
         terrane_int_support::checked_coerce::<i128>(&step.clone()),
         reveal,
     );
-    let sink: LogSink = LogSink::terrane_construct(
-        terrane_platform_result_capability(&raw),
-    );
+    sink = LogSink::terrane_construct(terrane_platform_result_capability(&raw));
     return LogSinkResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -2311,12 +2394,10 @@ pub fn memory_sink(
     );
 }
 pub fn console_sink(reveal: bool) -> LogSinkResult {
-    let raw: TerranePlatformResult = terrane_platform_support::logging_console_sink(
-        reveal,
-    );
-    let sink: LogSink = LogSink::terrane_construct(
-        terrane_platform_result_capability(&raw),
-    );
+    let raw: TerranePlatformResult;
+    let sink: LogSink;
+    raw = terrane_platform_support::logging_console_sink(reveal);
+    sink = LogSink::terrane_construct(terrane_platform_result_capability(&raw));
     return LogSinkResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -2324,10 +2405,10 @@ pub fn console_sink(reveal: bool) -> LogSinkResult {
     );
 }
 pub fn failing_sink() -> LogSinkResult {
-    let raw: TerranePlatformResult = terrane_platform_support::logging_failing_sink();
-    let sink: LogSink = LogSink::terrane_construct(
-        terrane_platform_result_capability(&raw),
-    );
+    let raw: TerranePlatformResult;
+    let sink: LogSink;
+    raw = terrane_platform_support::logging_failing_sink();
+    sink = LogSink::terrane_construct(terrane_platform_result_capability(&raw));
     return LogSinkResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -2404,9 +2485,9 @@ impl LogContext {
         }
     }
     pub fn append_field(&mut self, item: LogField) {
-        let mut updated: terrane_collection_support::List<LogField> = terrane_collection_support::List::new(
-            Vec::new(),
-        );
+        let mut updated: terrane_collection_support::List<LogField>;
+        let mut existing: LogField;
+        updated = terrane_collection_support::List::new(Vec::new());
         let __terrane_iterable_0 = self.fields.clone();
         let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_0,
@@ -2414,7 +2495,7 @@ impl LogContext {
         {
             let __terrane_list_append_0 = updated.make_unique();
             loop {
-                let existing = match __terrane_iterator_0.next() {
+                existing = match __terrane_iterator_0.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
@@ -2425,9 +2506,9 @@ impl LogContext {
         self.fields = updated;
     }
     pub fn append_span(&mut self, item: String) {
-        let mut updated: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(Vec::new());
+        let mut updated: terrane_collection_support::List<String>;
+        let mut existing: String;
+        updated = terrane_collection_support::List::<String>::new(Vec::new());
         let __terrane_iterable_1 = self.spans.clone();
         let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_1,
@@ -2435,7 +2516,7 @@ impl LogContext {
         {
             let __terrane_list_append_1 = updated.make_unique();
             loop {
-                let existing = match __terrane_iterator_1.next() {
+                existing = match __terrane_iterator_1.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
@@ -2446,17 +2527,27 @@ impl LogContext {
         self.spans = updated;
     }
     pub fn adding_field(&self, addition: LogField) -> LogContext {
-        let mut value: LogContext = LogContext::terrane_construct();
+        let mut value: LogContext;
+        let mut existing: TerraneUnionF3S5342;
+        value = LogContext::terrane_construct();
         let __terrane_iterable_2 = self.fields.clone();
         let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_2,
         );
         loop {
-            let existing = match __terrane_iterator_2.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            };
-            value.append_field(existing);
+            existing = TerraneUnionF3S5342::Arm0(
+                match __terrane_iterator_2.next() {
+                    terrane_collection_support::IterationStep::Item(item) => item,
+                    terrane_collection_support::IterationStep::End => break,
+                },
+            );
+            value
+                .append_field(
+                    match existing {
+                        TerraneUnionF3S5342::Arm0(value) => value,
+                        _ => unreachable!("flow-proven storage refinement"),
+                    },
+                );
         }
         value.append_field(addition);
         let __terrane_iterable_3 = self.spans.clone();
@@ -2464,37 +2555,67 @@ impl LogContext {
             &__terrane_iterable_3,
         );
         loop {
-            let existing = match __terrane_iterator_3.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            };
-            value.append_span(existing);
+            existing = TerraneUnionF3S5342::Arm1(
+                match __terrane_iterator_3.next() {
+                    terrane_collection_support::IterationStep::Item(item) => item,
+                    terrane_collection_support::IterationStep::End => break,
+                },
+            );
+            let _ = &existing;
+            value
+                .append_span(
+                    match &existing {
+                        TerraneUnionF3S5342::Arm1(value) => value,
+                        _ => unreachable!("flow-proven storage refinement"),
+                    }
+                        .clone(),
+                );
         }
         return value;
     }
     pub fn adding_span(&self, span: String) -> LogContext {
-        let mut value: LogContext = LogContext::terrane_construct();
+        let mut value: LogContext;
+        let mut existing: TerraneUnionF3S5641;
+        value = LogContext::terrane_construct();
         let __terrane_iterable_4 = self.fields.clone();
         let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_4,
         );
         loop {
-            let existing = match __terrane_iterator_4.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            };
-            value.append_field(existing);
+            existing = TerraneUnionF3S5641::Arm0(
+                match __terrane_iterator_4.next() {
+                    terrane_collection_support::IterationStep::Item(item) => item,
+                    terrane_collection_support::IterationStep::End => break,
+                },
+            );
+            value
+                .append_field(
+                    match existing {
+                        TerraneUnionF3S5641::Arm0(value) => value,
+                        _ => unreachable!("flow-proven storage refinement"),
+                    },
+                );
         }
         let __terrane_iterable_5 = self.spans.clone();
         let mut __terrane_iterator_5 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_5,
         );
         loop {
-            let existing = match __terrane_iterator_5.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            };
-            value.append_span(existing);
+            existing = TerraneUnionF3S5641::Arm1(
+                match __terrane_iterator_5.next() {
+                    terrane_collection_support::IterationStep::Item(item) => item,
+                    terrane_collection_support::IterationStep::End => break,
+                },
+            );
+            let _ = &existing;
+            value
+                .append_span(
+                    match &existing {
+                        TerraneUnionF3S5641::Arm1(value) => value,
+                        _ => unreachable!("flow-proven storage refinement"),
+                    }
+                        .clone(),
+                );
         }
         value.append_span(span);
         return value;
@@ -2665,17 +2786,19 @@ pub fn emit_at(
     source: String,
     f: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
+    let mut combined: terrane_collection_support::List<LogField>;
+    let mut item: LogField;
+    let options: LoggerOptions;
+    let raw: TerranePlatformResult;
     if l.rank.clone() < v.options.minimum.rank.clone() {
         return LogOutcome::terrane_construct(true, false, String::from(""));
     }
-    if v.options.target_prefix != String::from("")
+    if v.options.target_prefix.as_str() != ""
         && !v.options.target.starts_with(&v.options.target_prefix)
     {
         return LogOutcome::terrane_construct(true, false, String::from(""));
     }
-    let mut combined: terrane_collection_support::List<LogField> = terrane_collection_support::List::new(
-        Vec::new(),
-    );
+    combined = terrane_collection_support::List::new(Vec::new());
     let __terrane_iterable_6 = v.context.fields.clone();
     let mut __terrane_iterator_6 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_6,
@@ -2683,7 +2806,7 @@ pub fn emit_at(
     {
         let __terrane_list_append_2 = combined.make_unique();
         loop {
-            let item = match __terrane_iterator_6.next() {
+            item = match __terrane_iterator_6.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
@@ -2697,15 +2820,16 @@ pub fn emit_at(
     {
         let __terrane_list_append_3 = combined.make_unique();
         loop {
-            let item = match __terrane_iterator_7.next() {
+            item = match __terrane_iterator_7.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            __terrane_list_append_3.push(item);
+            let _ = &item;
+            __terrane_list_append_3.push(item.clone());
         }
     }
-    let options: LoggerOptions = v.options;
-    let raw: TerranePlatformResult = {
+    options = v.options;
+    raw = {
         let sink = v.sink.handle;
         let severity = l.name;
         let target = options.target;
@@ -2810,7 +2934,8 @@ pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
     );
 }
 pub fn install_dependency_bridge(value: Logger) -> LogOutcome {
-    let raw: TerranePlatformResult = terrane_platform_support::logging_install_dependency_bridge(
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_support::logging_install_dependency_bridge(
         &value.sink.handle,
     );
     return LogOutcome::terrane_construct(
@@ -2880,28 +3005,31 @@ pub fn drain_fallback() -> terrane_collection_support::List<String> {
 // Source: core/logging_async.trn
 // Namespace: core/logging/async
 pub async fn send_event(sink: TerraneChannelSender<LogEvent>, value: LogEvent) -> bool {
-    let outcome: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
-            Box::pin(sink.send(value)),
-        )
-        .await;
+    let outcome: TerraneChannelSendOutcome<LogEvent>;
+    outcome = __terrane_await(Box::pin(sink.send(value))).await;
     return outcome.accepted;
 }
 pub async fn consume_events(
     target: LogSink,
     source: TerraneChannelReceiver<LogEvent>,
 ) -> bool {
-    let mut open: bool = true;
-    let mut succeeded: bool = true;
+    let mut open: bool;
+    let mut succeeded: bool;
+    let mut received: TerraneChannelReceiveOutcome<LogEvent>;
+    let mut event: Option<LogEvent>;
+    let mut written: LogOutcome;
+    open = true;
+    succeeded = true;
     while open {
-        let received: TerraneChannelReceiveOutcome<LogEvent> = __terrane_await(
-                Box::pin(source.receive()),
-            )
-            .await;
-        let event: Option<LogEvent> = received.value;
+        received = __terrane_await(Box::pin(source.receive())).await;
+        event = received.value;
         if event.is_some() {
-            let written: LogOutcome = write_event(
+            written = write_event(
                 default_logger(target.clone()),
-                event.as_ref().expect("semantic optional narrowing").clone(),
+                match event {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                },
             );
             if written.failed {
                 succeeded = false;

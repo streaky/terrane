@@ -440,8 +440,37 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: select-terminal-cursor
+#[allow(dead_code)]
+#[derive(Clone)]
+enum TerraneUnionF0S291 {
+    Arm0(terrane_int_support::Int),
+    Arm1(String),
+}
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S291 {
+    fn write_scalar(&self, output: &mut String) {
+        match self {
+            Self::Arm0(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+            Self::Arm1(value) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(value, output)
+            }
+        }
+    }
+}
 async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
     return Err(
         TerraneError::raised(
@@ -455,10 +484,10 @@ async fn ready() -> String {
 }
 fn main() {
     __terrane_run(async move {
+        let mut iteration: terrane_int_support::Int;
+        let mut value: Option<TerraneUnionF0S291> = None;
         let mut __terrane_select_cursor_271 = 0usize;
-        let mut iteration: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
+        iteration = terrane_int_support::Int::from(0_i128);
         while iteration.clone() < terrane_int_support::Int::from(2_i128) {
             let __terrane_completion_0: TerraneCompletion<()> = async {
                 let __terrane_try_0: TerraneCompletion<()> = async {
@@ -596,18 +625,38 @@ fn main() {
                         }
                         match __terrane_select_winner_271 {
                             0 => {
-                                let value: terrane_int_support::Int = __terrane_traced_completion!(
-                                    __terrane_select_result_271_0.take()
-                                    .expect("selected case owns its ready result"),
-                                    2 /* terrane-site: case.trn:15:28-15:35 */
+                                let _ = value
+                                    .insert(
+                                        TerraneUnionF0S291::Arm0(
+                                            __terrane_traced_completion!(
+                                                __terrane_select_result_271_0.take()
+                                                .expect("selected case owns its ready result"),
+                                                2 /* terrane-site: case.trn:15:28-15:35 */
+                                            ),
+                                        ),
+                                    );
+                                println!(
+                                    "{}", terrane_scalar_support::scalar_text(&match value
+                                    .as_ref().expect("flow-proven available binding") {
+                                    TerraneUnionF0S291::Arm0(value) => value, _ =>
+                                    unreachable!("flow-proven storage refinement") })
                                 );
-                                println!("{}", terrane_scalar_support::scalar_text(&value));
                             }
                             1 => {
-                                let value: String = __terrane_select_result_271_1
-                                    .take()
-                                    .expect("selected case owns its ready result");
-                                println!("{}", terrane_scalar_support::scalar_text(&value));
+                                let _ = value
+                                    .insert(
+                                        TerraneUnionF0S291::Arm1(
+                                            __terrane_select_result_271_1
+                                                .take()
+                                                .expect("selected case owns its ready result"),
+                                        ),
+                                    );
+                                println!(
+                                    "{}", terrane_scalar_support::scalar_text(&match value
+                                    .as_ref().expect("flow-proven available binding") {
+                                    TerraneUnionF0S291::Arm1(value) => value, _ =>
+                                    unreachable!("flow-proven storage refinement") })
+                                );
                             }
                             _ => unreachable!("selected winner is within the case count"),
                         }

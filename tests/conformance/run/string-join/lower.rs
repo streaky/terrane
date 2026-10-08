@@ -8,13 +8,16 @@ fn separator() -> String {
     return String::from("--");
 }
 fn main() {
-    let empty: String = {
+    let empty: String;
+    let single: String;
+    let many: String;
+    empty = {
         let _ = separator();
         String::new()
     };
-    let single: String = vec![terrane_scalar_support::scalar_text(&String::from("one"))]
+    single = vec![terrane_scalar_support::scalar_text(&String::from("one"))]
         .join(&String::from("--"));
-    let many: String = vec![
+    many = vec![
         terrane_scalar_support::scalar_text(&String::from("one")),
         terrane_scalar_support::scalar_text(&2),
         terrane_scalar_support::scalar_text(&true)

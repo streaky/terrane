@@ -442,17 +442,53 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: foundational-float-math
 fn main() {
-    let zero32: f32 = 0.0_f32;
-    let one32: f32 = 1.0_f32;
-    let nine32: f32 = 9.0_f32;
-    let root32: std::sync::Arc<dyn Fn() -> f32 + Send + Sync> = {
+    let zero32: f32;
+    let one32: f32;
+    let nine32: f32;
+    let root32: std::sync::Arc<dyn Fn() -> f32 + Send + Sync>;
+    let pair32: terrane_collection_support::Tuple<f32>;
+    let zero64: f64;
+    let one64: f64;
+    let nine64: f64;
+    let pair64: terrane_collection_support::Tuple<f64>;
+    let negative: f64;
+    let not_a_number: f64;
+    let negative_zero: f64;
+    let reciprocal: f64;
+    let negative_infinity: f64;
+    let negative32: f32;
+    let low32: f32;
+    let high32: f32;
+    let not_a_number32: f32;
+    let infinity32: f32;
+    let low64: f64;
+    let high64: f64;
+    let minimum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync>;
+    let maximum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync>;
+    let multiply_add64: std::sync::Arc<dyn Fn(f64, f64) -> f64 + Send + Sync>;
+    let minimum_zero: f64;
+    let maximum_zero: f64;
+    let multiplicand: f64;
+    let multiplier: f64;
+    let addend: f64;
+    let fused: f64;
+    let unfused: f64;
+    let multiplicand32: f32;
+    let multiplier32: f32;
+    let addend32: f32;
+    let fused32: f32;
+    let unfused32: f32;
+    zero32 = 0.0_f32;
+    one32 = 1.0_f32;
+    nine32 = 9.0_f32;
+    root32 = {
         let receiver = nine32;
         std::sync::Arc::new(move || receiver.sqrt())
     };
     println!("{}", terrane_scalar_support::scalar_text(&(root32() == 3.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.sin() == 0.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.cos() == 1.0_f32)));
-    let pair32: terrane_collection_support::Tuple<f32> = {
+    pair32 = {
         let terrane_sine_cosine = zero32.sin_cos();
         terrane_collection_support::Tuple::new(
             vec![terrane_sine_cosine.0, terrane_sine_cosine.1],
@@ -471,13 +507,13 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&(one32.ln() == 0.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.exp() == 1.0_f32)));
-    let zero64: f64 = 0.0;
-    let one64: f64 = 1.0;
-    let nine64: f64 = 9.0;
+    zero64 = 0.0;
+    one64 = 1.0;
+    nine64 = 9.0;
     println!("{}", terrane_scalar_support::scalar_text(&(nine64.sqrt() == 3.0)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero64.sin() == 0.0)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero64.cos() == 1.0)));
-    let pair64: terrane_collection_support::Tuple<f64> = {
+    pair64 = {
         let terrane_sine_cosine = zero64.sin_cos();
         terrane_collection_support::Tuple::new(
             vec![terrane_sine_cosine.0, terrane_sine_cosine.1],
@@ -496,17 +532,17 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&(one64.ln() == 0.0)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero64.exp() == 1.0)));
-    let negative: f64 = -1.0_f64;
-    let not_a_number: f64 = negative.sqrt();
+    negative = -1.0_f64;
+    not_a_number = negative.sqrt();
     println!("{}", terrane_scalar_support::scalar_text(&(not_a_number != not_a_number)));
-    let negative_zero: f64 = -0.0_f64;
-    let reciprocal: f64 = 1.0 / negative_zero.sqrt();
+    negative_zero = -0.0_f64;
+    reciprocal = 1.0 / negative_zero.sqrt();
     println!("{}", terrane_scalar_support::scalar_text(&(reciprocal < 0.0)));
-    let negative_infinity: f64 = zero64.ln();
+    negative_infinity = zero64.ln();
     println!("{}", terrane_scalar_support::scalar_text(&(negative_infinity < 0.0)));
-    let negative32: f32 = -3.0_f32;
-    let low32: f32 = 2.0_f32;
-    let high32: f32 = 5.0_f32;
+    negative32 = -3.0_f32;
+    low32 = 2.0_f32;
+    high32 = 5.0_f32;
     println!("{}", terrane_scalar_support::scalar_text(&(negative32.abs() == 3.0_f32)));
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 = low32;
@@ -527,12 +563,12 @@ fn main() {
         11.0_f32))
     );
     println!("{}", terrane_scalar_support::scalar_text(&low32.is_finite()));
-    let not_a_number32: f32 = negative32.sqrt();
-    let infinity32: f32 = 1.0_f32 / zero32;
+    not_a_number32 = negative32.sqrt();
+    infinity32 = 1.0_f32 / zero32;
     println!("{}", terrane_scalar_support::scalar_text(&not_a_number32.is_nan()));
     println!("{}", terrane_scalar_support::scalar_text(&infinity32.is_infinite()));
-    let low64: f64 = 2.0;
-    let high64: f64 = 5.0;
+    low64 = 2.0;
+    high64 = 5.0;
     println!("{}", terrane_scalar_support::scalar_text(&(negative.abs() == 1.0)));
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 = low64;
@@ -551,7 +587,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&(low64.mul_add(high64, 1.0) == 11.0))
     );
-    let minimum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync> = {
+    minimum64 = {
         let receiver = low64;
         std::sync::Arc::new(move |argument_0: f64| {
             let terrane_receiver: f64 = receiver;
@@ -569,7 +605,7 @@ fn main() {
             }
         })
     };
-    let maximum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync> = {
+    maximum64 = {
         let receiver = low64;
         std::sync::Arc::new(move |argument_0: f64| {
             let terrane_receiver: f64 = receiver;
@@ -587,7 +623,7 @@ fn main() {
             }
         })
     };
-    let multiply_add64: std::sync::Arc<dyn Fn(f64, f64) -> f64 + Send + Sync> = {
+    multiply_add64 = {
         let receiver = low64;
         std::sync::Arc::new(move |argument_0: f64, argument_1: f64| {
             receiver.mul_add(argument_0, argument_1)
@@ -617,7 +653,7 @@ fn main() {
         terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
         terrane_receiver.max(terrane_argument) } } == high64))
     );
-    let minimum_zero: f64 = {
+    minimum_zero = {
         let terrane_receiver: f64 = negative_zero;
         let terrane_argument: f64 = zero64;
         if terrane_receiver == 0.0 && terrane_argument == 0.0 {
@@ -631,7 +667,7 @@ fn main() {
             terrane_receiver.min(terrane_argument)
         }
     };
-    let maximum_zero: f64 = {
+    maximum_zero = {
         let terrane_receiver: f64 = negative_zero;
         let terrane_argument: f64 = zero64;
         if terrane_receiver == 0.0 && terrane_argument == 0.0 {
@@ -647,21 +683,21 @@ fn main() {
     };
     println!("{}", terrane_scalar_support::scalar_text(&(1.0 / minimum_zero < 0.0)));
     println!("{}", terrane_scalar_support::scalar_text(&(1.0 / maximum_zero > 0.0)));
-    let multiplicand: f64 = 1.0000000000000002;
-    let multiplier: f64 = 1.0000000000000002;
-    let addend: f64 = -1.0000000000000004_f64;
-    let fused: f64 = multiplicand.mul_add(multiplier, addend);
-    let unfused: f64 = multiplicand * multiplier + addend;
+    multiplicand = 1.0000000000000002;
+    multiplier = 1.0000000000000002;
+    addend = -1.0000000000000004_f64;
+    fused = multiplicand.mul_add(multiplier, addend);
+    unfused = multiplicand * multiplier + addend;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(fused ==
         0.00000000000000000000000000000004930380657631323784))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(unfused == 0.0)));
-    let multiplicand32: f32 = 1.0000001_f32;
-    let multiplier32: f32 = 1.0000001_f32;
-    let addend32: f32 = -1.0000002_f32;
-    let fused32: f32 = multiplicand32.mul_add(multiplier32, addend32);
-    let unfused32: f32 = multiplicand32 * multiplier32 + addend32;
+    multiplicand32 = 1.0000001_f32;
+    multiplier32 = 1.0000001_f32;
+    addend32 = -1.0000002_f32;
+    fused32 = multiplicand32.mul_add(multiplier32, addend32);
+    unfused32 = multiplicand32 * multiplier32 + addend32;
     println!("{}", terrane_scalar_support::scalar_text(&(fused32 == 1.4210855e-14_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(unfused32 == 0.0_f32)));
     println!(

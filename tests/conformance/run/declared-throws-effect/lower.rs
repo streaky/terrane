@@ -10,6 +10,7 @@ fn middle() -> terrane_int_support::Int {
     return declared();
 }
 fn main() {
-    let value: terrane_int_support::Int = middle();
+    let value: terrane_int_support::Int;
+    value = middle();
     println!("{}", terrane_scalar_support::scalar_text(&value));
 }

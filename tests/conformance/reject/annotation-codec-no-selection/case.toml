@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+code = "S2061"
+entrypoint = "package.toml"
+native-tools = "codec=tools/annotation-consumers/codec-consumer/package.toml"

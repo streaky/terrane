@@ -43,8 +43,10 @@ impl Holder {
     }
 }
 fn main() {
-    let value: Leaf = Leaf::terrane_construct(terrane_int_support::Int::from(1_i128));
-    let mut container: Holder = Holder::terrane_construct(value);
+    let value: Leaf;
+    let mut container: Holder;
+    value = Leaf::terrane_construct(terrane_int_support::Int::from(1_i128));
+    container = Holder::terrane_construct(value);
     println!(
         "{}", terrane_scalar_support::scalar_text(&container
         .replace(terrane_int_support::Int::from(42_i128)))

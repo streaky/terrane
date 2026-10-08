@@ -480,13 +480,15 @@ impl User {
     }
 }
 fn main() {
-    let value: User = User::terrane_construct();
+    let value: User;
+    let descriptor: TerraneDescriptor;
+    value = User::terrane_construct();
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&value.slot),
         terrane_scalar_support::scalar_text(&String::from(":")),
         terrane_scalar_support::scalar_text(&value.payload.value)
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor = TerraneDescriptor {
         identity: "/trait-field-defaults::user",
         name: "user",
         kind: "class",

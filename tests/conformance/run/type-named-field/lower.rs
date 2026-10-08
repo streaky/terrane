@@ -33,6 +33,7 @@ impl Sample {
     }
 }
 fn main() {
-    let value: Sample = Sample::terrane_construct();
+    let value: Sample;
+    value = Sample::terrane_construct();
     println!("{}", terrane_scalar_support::scalar_text(&value.__trn_74797065));
 }

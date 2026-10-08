@@ -11,8 +11,9 @@ async fn two() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let mut __terrane_select_cursor_148 = 0usize;
         let selected: terrane_int_support::Int;
+        let value: terrane_int_support::Int;
+        let mut __terrane_select_cursor_148 = 0usize;
         {
             let mut __terrane_select_guard_148 = __terrane_finally_guard();
             let __terrane_select_control_148_0 = __terrane_select_control();
@@ -107,13 +108,13 @@ fn main() {
             __terrane_select_guard_148.finish();
             match __terrane_select_winner_148 {
                 0 => {
-                    let value: terrane_int_support::Int = __terrane_select_result_148_0
+                    value = __terrane_select_result_148_0
                         .take()
                         .expect("selected case owns its ready result");
                     selected = value.clone();
                 }
                 1 => {
-                    let value: terrane_int_support::Int = __terrane_select_result_148_1
+                    value = __terrane_select_result_148_1
                         .take()
                         .expect("selected case owns its ready result");
                     selected = value.clone();

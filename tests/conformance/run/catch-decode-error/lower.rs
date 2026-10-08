@@ -433,17 +433,36 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: catch-decode-error
 fn main() {
-    let raw: Vec<u8> = Vec::from([255]);
+    let raw: Vec<u8>;
+    let mut decoded: Option<String> = None;
+    raw = Vec::from([255]);
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let decoded: String = __terrane_raised_completion!(
-                terrane_string_support::decode(&raw,
-                terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:6:15-6:31 */
+            let _ = decoded
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_string_support::decode(&raw,
+                        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:6:15-6:31 */
+                    ),
+                );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&decoded.as_ref()
+                .expect("flow-proven available binding").clone())
             );
-            println!("{}", terrane_scalar_support::scalar_text(&decoded));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {

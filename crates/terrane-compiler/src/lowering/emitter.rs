@@ -12,7 +12,7 @@ mod statements;
 
 use std::{
     cell::{Cell, RefCell},
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
 };
 
 use num_bigint::BigInt;
@@ -126,6 +126,8 @@ pub(super) struct ListAppendBorrow {
 pub(super) struct IteratorListBuilder {
     pub(super) binding: crate::Span,
     pub(super) index: String,
+    pub(super) index_read: String,
+    pub(super) index_optional: bool,
     pub(super) end: String,
     pub(super) prefix: Vec<crate::syntax::SyntaxNode>,
     pub(super) append: crate::syntax::SyntaxNode,
@@ -166,6 +168,8 @@ pub(super) struct Emitter<'a> {
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
     fresh_empty_lists: Vec<crate::Span>,
+    active_function_bindings: HashSet<crate::Span>,
+    active_local_functions: std::collections::BTreeSet<crate::Span>,
     debug_information: bool,
 }
 
@@ -206,6 +210,8 @@ impl<'a> Emitter<'a> {
             bounded_integer_ranges: Vec::new(),
             list_append_borrows: Vec::new(),
             fresh_empty_lists: Vec::new(),
+            active_function_bindings: HashSet::new(),
+            active_local_functions: std::collections::BTreeSet::new(),
             debug_information,
         }
     }

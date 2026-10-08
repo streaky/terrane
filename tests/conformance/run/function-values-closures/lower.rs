@@ -441,10 +441,13 @@ fn apply(
     return callback(value.clone());
 }
 fn main() {
-    let base: i64 = 10;
+    let base: i64;
     let add: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = {
+    >;
+    let result: terrane_int_support::Int;
+    base = 10;
+    add = {
         let base = base.clone();
         std::sync::Arc::new(move |
             value: terrane_int_support::Int,
@@ -452,10 +455,7 @@ fn main() {
             return terrane_int_support::Int::from(base as i128) + value.clone();
         })
     };
-    let result: terrane_int_support::Int = apply(
-        add.clone(),
-        terrane_int_support::Int::from(5_i128),
-    );
+    result = apply(add.clone(), terrane_int_support::Int::from(5_i128));
     println!("{}", terrane_scalar_support::scalar_text(&base));
     println!("{}", terrane_scalar_support::scalar_text(&result));
 }

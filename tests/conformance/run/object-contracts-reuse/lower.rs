@@ -110,9 +110,12 @@ impl From<Child> for Describable {
     }
 }
 fn main() {
-    let value: Child = Child::terrane_construct();
-    let view: Describable = <Describable>::from(value.clone());
-    let base_view: Base = Base::Child(value.clone());
+    let value: Child;
+    let view: Describable;
+    let base_view: Base;
+    value = Child::terrane_construct();
+    view = <Describable>::from(value.clone());
+    base_view = Base::Child(value.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&view.describe(String::from("a-")))
     );

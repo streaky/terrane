@@ -520,7 +520,39 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: stable-list-sorting
 fn main() {
-    let mut adaptive: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    let mut adaptive: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut int8s: terrane_collection_support::List<i8>;
+    let mut int16s: terrane_collection_support::List<i16>;
+    let mut int32s: terrane_collection_support::List<i32>;
+    let mut int64s: terrane_collection_support::List<i64>;
+    let mut int128s: terrane_collection_support::List<i128>;
+    let mut uint8s: terrane_collection_support::List<u8>;
+    let mut uint16s: terrane_collection_support::List<u16>;
+    let mut uint32s: terrane_collection_support::List<u32>;
+    let mut uint64s: terrane_collection_support::List<u64>;
+    let mut uint128s: terrane_collection_support::List<u128>;
+    let mut words: terrane_collection_support::List<String>;
+    let zero: f64;
+    let negative_zero: f64;
+    let one: f64;
+    let negative_one: f64;
+    let infinity: f64;
+    let negative_infinity: f64;
+    let first_nan: f64;
+    let second_nan: f64;
+    let mut floats: terrane_collection_support::List<f64>;
+    let mut narrow: terrane_collection_support::List<f32>;
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let preserved: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut returned: terrane_collection_support::List<terrane_int_support::Int>;
+    let indexed: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let mut keys: terrane_collection_support::List<String>;
+    let ascending: terrane_collection_support::List<String>;
+    let mut key: String;
+    let descending: terrane_collection_support::List<String>;
+    let mut empty: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut single: terrane_collection_support::List<terrane_int_support::Int>;
+    adaptive = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -548,36 +580,16 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
         3 /* terrane-site: case.trn:9:23-9:34 */)), 3 /* terrane-site: case.trn:9:23-9:34 */))
     );
-    let mut int8s: terrane_collection_support::List<i8> = terrane_collection_support::List::<
-        i8,
-    >::new(vec![2, - 1]);
-    let mut int16s: terrane_collection_support::List<i16> = terrane_collection_support::List::<
-        i16,
-    >::new(vec![2, - 1]);
-    let mut int32s: terrane_collection_support::List<i32> = terrane_collection_support::List::<
-        i32,
-    >::new(vec![2, - 1]);
-    let mut int64s: terrane_collection_support::List<i64> = terrane_collection_support::List::<
-        i64,
-    >::new(vec![2, - 1]);
-    let mut int128s: terrane_collection_support::List<i128> = terrane_collection_support::List::<
-        i128,
-    >::new(vec![2, - 1]);
-    let mut uint8s: terrane_collection_support::List<u8> = terrane_collection_support::List::<
-        u8,
-    >::new(vec![2, 1]);
-    let mut uint16s: terrane_collection_support::List<u16> = terrane_collection_support::List::<
-        u16,
-    >::new(vec![2, 1]);
-    let mut uint32s: terrane_collection_support::List<u32> = terrane_collection_support::List::<
-        u32,
-    >::new(vec![2, 1]);
-    let mut uint64s: terrane_collection_support::List<u64> = terrane_collection_support::List::<
-        u64,
-    >::new(vec![2, 1]);
-    let mut uint128s: terrane_collection_support::List<u128> = terrane_collection_support::List::<
-        u128,
-    >::new(vec![2, 1]);
+    int8s = terrane_collection_support::List::<i8>::new(vec![2, - 1]);
+    int16s = terrane_collection_support::List::<i16>::new(vec![2, - 1]);
+    int32s = terrane_collection_support::List::<i32>::new(vec![2, - 1]);
+    int64s = terrane_collection_support::List::<i64>::new(vec![2, - 1]);
+    int128s = terrane_collection_support::List::<i128>::new(vec![2, - 1]);
+    uint8s = terrane_collection_support::List::<u8>::new(vec![2, 1]);
+    uint16s = terrane_collection_support::List::<u16>::new(vec![2, 1]);
+    uint32s = terrane_collection_support::List::<u32>::new(vec![2, 1]);
+    uint64s = terrane_collection_support::List::<u64>::new(vec![2, 1]);
+    uint128s = terrane_collection_support::List::<u128>::new(vec![2, 1]);
     int8s.sort_by(|left, right| left.cmp(right));
     int16s.sort_by(|left, right| left.cmp(right));
     int32s.sort_by(|left, right| left.cmp(right));
@@ -622,7 +634,7 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         13 /* terrane-site: case.trn:32:57-32:68 */)), 13 /* terrane-site: case.trn:32:57-32:68 */))
     );
-    let mut words: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    words = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("é"), String::from("e"), String::from("z")]);
     words.sort_by(|left, right| left.cmp(right));
@@ -649,15 +661,15 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         19 /* terrane-site: case.trn:38:30-38:38 */)), 19 /* terrane-site: case.trn:38:30-38:38 */))
     );
-    let zero: f64 = 0.0;
-    let negative_zero: f64 = -0.0_f64;
-    let one: f64 = 1.0;
-    let negative_one: f64 = -1.0_f64;
-    let infinity: f64 = one / zero;
-    let negative_infinity: f64 = negative_one / zero;
-    let first_nan: f64 = zero / zero;
-    let second_nan: f64 = negative_zero / zero;
-    let mut floats: terrane_collection_support::List<f64> = terrane_collection_support::List::<
+    zero = 0.0;
+    negative_zero = -0.0_f64;
+    one = 1.0;
+    negative_one = -1.0_f64;
+    infinity = one / zero;
+    negative_infinity = negative_one / zero;
+    first_nan = zero / zero;
+    second_nan = negative_zero / zero;
+    floats = terrane_collection_support::List::<
         f64,
     >::new(
         vec![first_nan, negative_zero, infinity, zero, negative_infinity, second_nan],
@@ -713,9 +725,7 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
         34 /* terrane-site: case.trn:52:174-52:183 */)), 34 /* terrane-site: case.trn:52:174-52:183 */).is_nan())
     );
-    let mut narrow: terrane_collection_support::List<f32> = terrane_collection_support::List::<
-        f32,
-    >::new(vec![2.0_f32, - 1.0_f32]);
+    narrow = terrane_collection_support::List::<f32>::new(vec![2.0_f32, - 1.0_f32]);
     narrow.sort_by(terrane_collection_support::compare_float32_ascending);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(narrow
@@ -725,7 +735,7 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         36 /* terrane-site: case.trn:56:21-56:30 */)), 36 /* terrane-site: case.trn:56:21-56:30 */))
     );
-    let mut values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    values = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -734,9 +744,8 @@ fn main() {
             terrane_int_support::Int::from(2_i128)
         ],
     );
-    let preserved: terrane_collection_support::List<terrane_int_support::Int> = values
-        .clone();
-    let mut returned: terrane_collection_support::List<terrane_int_support::Int> = {
+    preserved = values.clone();
+    returned = {
         let collection = &mut values;
         collection.sort_by(|left, right| left.cmp(right));
         collection.clone()
@@ -760,7 +769,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned
         .length()))
     );
-    let indexed: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+    indexed = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -773,8 +782,8 @@ fn main() {
             terrane_int_support::Int::from(2_i128))
         ],
     );
-    let mut keys: terrane_collection_support::List<String> = indexed.keys();
-    let ascending: terrane_collection_support::List<String> = {
+    keys = indexed.keys();
+    ascending = {
         let collection = &mut keys;
         collection.sort_by(|left, right| left.cmp(right));
         collection.clone()
@@ -784,7 +793,7 @@ fn main() {
         &__terrane_iterable_0,
     );
     loop {
-        let key = match __terrane_iterator_0.next() {
+        key = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -794,7 +803,7 @@ fn main() {
             .get_or_error(&key), 40 /* terrane-site: case.trn:69:17-69:29 */))
         );
     }
-    let descending: terrane_collection_support::List<String> = {
+    descending = {
         let collection = &mut keys;
         collection.sort_by(|left, right| right.cmp(left));
         collection.clone()
@@ -804,21 +813,22 @@ fn main() {
         &__terrane_iterable_1,
     );
     loop {
-        let key = match __terrane_iterator_1.next() {
+        key = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &key;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&__terrane_raised(indexed
-            .get_or_error(&key), 41 /* terrane-site: case.trn:72:17-72:29 */))
+            .get_or_error(&key.clone()), 41 /* terrane-site: case.trn:72:17-72:29 */))
         );
     }
-    let mut empty: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    empty = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(Vec::new());
     empty.sort_by(|left, right| left.cmp(right));
-    let mut single: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    single = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
     single.sort_by(|left, right| right.cmp(left));

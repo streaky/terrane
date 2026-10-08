@@ -1,0 +1,33 @@
+namespace local-function-self-static-member
+
+class counter
+    static total int = 0
+    function increment int;
+        function read int;
+            return self::total
+        counter::total = counter::total + 1
+        return (read;)
+
+class static-counter
+    static total int = 7
+    static function read int;
+        function nested int;
+            return self::total
+        return (nested;)
+
+class inherited-counter
+    static total int = 2
+    static function read int;
+        function nested int;
+            return self::total
+        return (nested;)
+
+class derived-counter extends inherited-counter
+
+function main;
+    item = instance counter;
+    print; (item.increment;)
+    print; (static-counter::read;)
+    derived-counter::total = 9
+    print; (inherited-counter::read;)
+    print; (derived-counter::read;)

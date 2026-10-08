@@ -481,11 +481,13 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let total: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let total: terrane_int_support::Int;
     let callback: TerraneMutableCallable<
         (terrane_int_support::Int,),
         terrane_int_support::Int,
-    > = {
+    >;
+    total = terrane_int_support::Int::from(0_i128);
+    callback = {
         let mut total = total.clone();
         TerraneMutableCallable::new(move |
             (value,): (terrane_int_support::Int,),

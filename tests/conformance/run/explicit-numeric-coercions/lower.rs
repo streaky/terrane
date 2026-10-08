@@ -454,63 +454,98 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: explicit-numeric-coercions
 fn divide(numerator: f64, denominator: f64) -> f64 {
     return numerator / denominator;
 }
 fn main() {
-    let quantity: i64 = 9007199254740993;
-    let rounded64: f64 = __terrane_raised(
+    let quantity: i64;
+    let rounded64: f64;
+    let rounded32: f32;
+    let signed: i8;
+    let signed_float: f32;
+    let maximum: u128;
+    let maximum_float: f64;
+    let precise: f64;
+    let narrowed: f32;
+    let widened: f64;
+    let infinity64: f64;
+    let infinity32: f32;
+    let nan64: f64;
+    let nan32: f32;
+    let checked_integer: Option<f32>;
+    let base: f64;
+    let too_large: f64;
+    let checked_float: Option<f32>;
+    let mut impossible: Option<f32> = None;
+    quantity = 9007199254740993;
+    rounded64 = __terrane_raised(
         terrane_int_support::coerce_to_f64(&quantity),
         0 /* terrane-site: case.trn:11:23-11:38 */,
     );
-    let rounded32: f32 = __terrane_raised(
+    rounded32 = __terrane_raised(
         terrane_int_support::coerce_to_f32(&quantity),
         1 /* terrane-site: case.trn:12:23-12:38 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&rounded64));
     println!("{}", terrane_scalar_support::scalar_text(&rounded32));
-    let signed: i8 = -7;
-    let signed_float: f32 = signed as f32;
-    let maximum: u128 = 340282366920938463463374607431768211455;
-    let maximum_float: f64 = maximum as f64;
+    signed = -7;
+    signed_float = signed as f32;
+    maximum = 340282366920938463463374607431768211455;
+    maximum_float = maximum as f64;
     println!("{}", terrane_scalar_support::scalar_text(&signed_float));
     println!("{}", terrane_scalar_support::scalar_text(&maximum_float));
-    let precise: f64 = 16777217.0;
-    let narrowed: f32 = __terrane_raised(
+    precise = 16777217.0;
+    narrowed = __terrane_raised(
         terrane_int_support::coerce_f64_to_f32(precise),
         2 /* terrane-site: case.trn:24:22-24:36 */,
     );
-    let widened: f64 = narrowed as f64;
+    widened = narrowed as f64;
     println!("{}", terrane_scalar_support::scalar_text(&narrowed));
     println!("{}", terrane_scalar_support::scalar_text(&widened));
-    let infinity64: f64 = divide(1.0, 0.0);
-    let infinity32: f32 = __terrane_raised(
+    infinity64 = divide(1.0, 0.0);
+    infinity32 = __terrane_raised(
         terrane_int_support::coerce_f64_to_f32(infinity64),
         3 /* terrane-site: case.trn:30:24-30:41 */,
     );
-    let nan64: f64 = divide(0.0, 0.0);
-    let nan32: f32 = __terrane_raised(
+    nan64 = divide(0.0, 0.0);
+    nan32 = __terrane_raised(
         terrane_int_support::coerce_f64_to_f32(nan64),
         4 /* terrane-site: case.trn:32:19-32:31 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&infinity32.is_infinite()));
     println!("{}", terrane_scalar_support::scalar_text(&nan32.is_nan()));
-    let checked_integer: Option<f32> = terrane_int_support::coerce_fixed_to_f32(maximum)
-        .ok();
+    checked_integer = terrane_int_support::coerce_fixed_to_f32(maximum).ok();
     println!("{}", terrane_scalar_support::scalar_text(&checked_integer.is_none()));
-    let base: f64 = 65536.0;
-    let too_large: f64 = base * base * base * base * base * base * base * base;
-    let checked_float: Option<f32> = terrane_int_support::coerce_f64_to_f32(too_large)
-        .ok();
+    base = 65536.0;
+    too_large = base * base * base * base * base * base * base * base;
+    checked_float = terrane_int_support::coerce_f64_to_f32(too_large).ok();
     println!("{}", terrane_scalar_support::scalar_text(&checked_float.is_none()));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let impossible: f32 = __terrane_raised_completion!(
-                terrane_int_support::coerce_fixed_to_f32(maximum), 5 /* terrane-site: case.trn:45:26-45:40 */
+            let _ = impossible
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_int_support::coerce_fixed_to_f32(maximum),
+                        5 /* terrane-site: case.trn:45:26-45:40 */
+                    ),
+                );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* impossible.as_ref()
+                .expect("flow-proven available binding"))
             );
-            println!("{}", terrane_scalar_support::scalar_text(&impossible));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -546,10 +581,17 @@ fn main() {
     }
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
-            let impossible: f32 = __terrane_raised_completion!(
-                terrane_int_support::coerce_f64_to_f32(too_large), 6 /* terrane-site: case.trn:51:26-51:42 */
+            let _ = impossible
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_int_support::coerce_f64_to_f32(too_large),
+                        6 /* terrane-site: case.trn:51:26-51:42 */
+                    ),
+                );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* impossible.as_ref()
+                .expect("flow-proven available binding"))
             );
-            println!("{}", terrane_scalar_support::scalar_text(&impossible));
             TerraneCompletion::Normal
         })();
         match __terrane_try_1 {

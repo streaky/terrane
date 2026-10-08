@@ -1,0 +1,9 @@
+namespace conformance/loop-body-assignment-only-on-break
+
+function main;
+    for index = 0; index < 2; index++
+        print; item
+        if index == 0
+            item = 'a'
+            break
+        continue

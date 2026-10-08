@@ -484,7 +484,8 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: task-scope-typed-deadline
 async fn work() -> terrane_int_support::Int {
-    let ignored: () = __terrane_await(
+    let ignored: ();
+    ignored = __terrane_await(
             terrane_time_sleep_after(
                 __terrane_traced(
                         Duration::terrane_static_seconds(
@@ -502,7 +503,11 @@ async fn work() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let parent: TerraneTaskScope = TerraneTaskScope::new(
+        let parent: TerraneTaskScope;
+        let child: TerraneTaskScope;
+        let task: TerraneScopedTask<terrane_int_support::Int>;
+        let outcome: TerraneTaskOutcome<terrane_int_support::Int>;
+        parent = TerraneTaskScope::new(
             Some(
                 Clock::terrane_static_deadline(
                         __terrane_traced(
@@ -517,7 +522,7 @@ fn main() {
                     .clone(),
             ),
         );
-        let child: TerraneTaskScope = parent
+        child = parent
             .child_scope(
                 &Clock::terrane_static_deadline(
                         __terrane_traced(
@@ -530,7 +535,7 @@ fn main() {
                     .expires_at
                     .elapsed_nanoseconds,
             );
-        let task: TerraneScopedTask<terrane_int_support::Int> = {
+        task = {
             let __terrane_scope = child.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -549,10 +554,7 @@ fn main() {
                 }
             })
         };
-        let outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                child.join(task),
-            )
-            .await;
+        outcome = __terrane_await(child.join(task)).await;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
             terrane_scalar_support::scalar_text(&outcome.cancelled)
@@ -591,11 +593,11 @@ impl DurationSubtraction {
         self.total_nanoseconds = total.clone();
     }
     pub fn checked(&self, other: Duration) -> Option<Duration> {
+        let difference: terrane_int_support::Int;
         if self.total_nanoseconds.clone() < other.total_nanoseconds.clone() {
             return None;
         }
-        let difference: terrane_int_support::Int = self.total_nanoseconds.clone()
-            - other.total_nanoseconds.clone();
+        difference = self.total_nanoseconds.clone() - other.total_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
                 terrane_platform_time_div(&difference, 1000000000.clone()),
@@ -642,8 +644,8 @@ impl Duration {
         );
     }
     pub fn add(&self, other: Duration) -> Duration {
-        let fractional: terrane_int_support::Int = self.nanoseconds.clone()
-            + other.nanoseconds.clone();
+        let fractional: terrane_int_support::Int;
+        fractional = self.nanoseconds.clone() + other.nanoseconds.clone();
         return Duration::terrane_construct(
             self.seconds.clone() + other.seconds.clone()
                 + terrane_platform_time_div(&fractional, 1000000000.clone()),
@@ -654,6 +656,7 @@ impl Duration {
         &self,
         multiplier: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
+        let total: terrane_int_support::Int;
         if multiplier.clone() < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
@@ -664,8 +667,7 @@ impl Duration {
                 )
             });
         }
-        let total: terrane_int_support::Int = self.total_nanoseconds.clone()
-            * multiplier.clone();
+        total = self.total_nanoseconds.clone() * multiplier.clone();
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&total, 1000000000.clone()),
@@ -785,6 +787,7 @@ impl MonotonicInstant {
         &self,
         later: &MonotonicInstant,
     ) -> Result<Duration, TerraneError> {
+        let elapsed: terrane_int_support::Int;
         if self.domain.clone() != later.domain.clone().clone()
             || later.elapsed_nanoseconds.clone().clone()
                 < self.elapsed_nanoseconds.clone()
@@ -798,7 +801,7 @@ impl MonotonicInstant {
                 )
             });
         }
-        let elapsed: terrane_int_support::Int = later.elapsed_nanoseconds.clone().clone()
+        elapsed = later.elapsed_nanoseconds.clone().clone()
             - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
@@ -853,15 +856,15 @@ impl Deadline {
         self.expires_at = target;
     }
     pub fn remaining(&self) -> Option<Duration> {
-        let now: MonotonicInstant = Clock::terrane_static_monotonic();
+        let now: MonotonicInstant;
+        let elapsed: terrane_int_support::Int;
+        now = Clock::terrane_static_monotonic();
         if self.expires_at.elapsed_nanoseconds.clone() <= now.elapsed_nanoseconds.clone()
         {
             return None;
         }
-        let elapsed: terrane_int_support::Int = self
-            .expires_at
-            .elapsed_nanoseconds
-            .clone() - now.elapsed_nanoseconds.clone();
+        elapsed = self.expires_at.elapsed_nanoseconds.clone()
+            - now.elapsed_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
                 terrane_platform_time_div(&elapsed, 1000000000.clone()),
@@ -963,31 +966,30 @@ impl Ticker {
         self.period = interval;
     }
     pub async fn next(&mut self) -> Tick {
-        let period_total: terrane_int_support::Int = self
-            .period
-            .total_nanoseconds
-            .clone();
-        let scheduled_nanoseconds: terrane_int_support::Int = self
-            .anchor
-            .elapsed_nanoseconds
-            .clone() + period_total.clone() * self.next_index.clone();
+        let period_total: terrane_int_support::Int;
+        let scheduled_nanoseconds: terrane_int_support::Int;
+        let observed: MonotonicInstant;
+        let elapsed: terrane_int_support::Int;
+        let mut observed_index: terrane_int_support::Int;
+        let count: terrane_int_support::Int;
+        let delivered: MonotonicInstant;
+        period_total = self.period.total_nanoseconds.clone();
+        scheduled_nanoseconds = self.anchor.elapsed_nanoseconds.clone()
+            + period_total.clone() * self.next_index.clone();
         discard_none(
             __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
                 .await,
         );
-        let observed: MonotonicInstant = Clock::terrane_static_monotonic();
-        let elapsed: terrane_int_support::Int = observed.elapsed_nanoseconds.clone()
+        observed = Clock::terrane_static_monotonic();
+        elapsed = observed.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
-        let mut observed_index: terrane_int_support::Int = terrane_platform_time_div(
-            &elapsed,
-            period_total.clone(),
-        );
+        observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
         if observed_index.clone() < self.next_index.clone() {
             observed_index = self.next_index.clone();
         }
-        let count: terrane_int_support::Int = observed_index.clone()
-            - self.next_index.clone() + terrane_int_support::Int::from(1_i128);
-        let delivered: MonotonicInstant = MonotonicInstant::terrane_construct(
+        count = observed_index.clone() - self.next_index.clone()
+            + terrane_int_support::Int::from(1_i128);
+        delivered = MonotonicInstant::terrane_construct(
             self.anchor.domain.clone(),
             self.anchor.elapsed_nanoseconds.clone()
                 + period_total.clone() * observed_index.clone(),
@@ -1015,7 +1017,8 @@ impl Clock {
         Self {}
     }
     pub fn terrane_static_wall() -> Instant {
-        let raw: TerranePlatformResult = terrane_platform_time_wall();
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_time_wall();
         return Instant::terrane_construct(
             terrane_platform_time_wall_seconds(&raw),
             terrane_platform_time_wall_nanoseconds(&raw),
@@ -1028,8 +1031,8 @@ impl Clock {
         );
     }
     pub async fn terrane_static_sleep(elapsed: Duration) {
-        let target: terrane_int_support::Int = terrane_platform_time_monotonic()
-            + elapsed.total_nanoseconds.clone();
+        let target: terrane_int_support::Int;
+        target = terrane_platform_time_monotonic() + elapsed.total_nanoseconds.clone();
         return __terrane_await(terrane_platform_time_sleep_until(target)).await;
     }
     pub async fn terrane_static_sleep_until(
@@ -1053,8 +1056,10 @@ impl Clock {
         );
     }
     pub fn terrane_static_deadline(elapsed: Duration) -> Deadline {
-        let now: MonotonicInstant = Clock::terrane_static_monotonic();
-        let target: MonotonicInstant = MonotonicInstant::terrane_construct(
+        let now: MonotonicInstant;
+        let target: MonotonicInstant;
+        now = Clock::terrane_static_monotonic();
+        target = MonotonicInstant::terrane_construct(
             now.domain.clone(),
             now.elapsed_nanoseconds.clone() + elapsed.total_nanoseconds.clone(),
         );

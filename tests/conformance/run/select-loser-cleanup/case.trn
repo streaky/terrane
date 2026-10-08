@@ -32,6 +32,6 @@ async function main;
       print; winner
   sent = await waiter-tx.send; 9
   received = await waiter-rx.receive;
-  value = received.value
+  value int|none = received.value
   if value != none
     print; sent.accepted, value

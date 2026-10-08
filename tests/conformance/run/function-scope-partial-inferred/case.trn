@@ -1,0 +1,7 @@
+namespace function-scope-partial-inferred
+function value int; choose bool
+    if choose
+        x = 3
+    return x
+function main;
+    print; (value; true)

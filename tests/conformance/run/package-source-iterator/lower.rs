@@ -4,11 +4,13 @@
 // Source: app/main.trn
 // Namespace: app
 fn main() {
-    let values: Counter = Counter::terrane_construct();
+    let values: Counter;
+    let mut value: terrane_int_support::Int;
+    values = Counter::terrane_construct();
     let __terrane_iterable_0 = values;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
-        let value = match __terrane_iterator_0.next() {
+        value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -33,10 +35,11 @@ impl Counter {
     pub fn next(
         &mut self,
     ) -> terrane_collection_support::IterationStep<terrane_int_support::Int> {
+        let value: terrane_int_support::Int;
         if self.current.clone() >= terrane_int_support::Int::from(2_i128) {
             return terrane_collection_support::IterationStep::End;
         }
-        let value: terrane_int_support::Int = self.current.clone();
+        value = self.current.clone();
         self.current = self.current.clone() + terrane_int_support::Int::from(1_i128);
         return terrane_collection_support::IterationStep::<
             terrane_int_support::Int,

@@ -1,0 +1,6 @@
+namespace local-function-capture
+function main;
+    outer = 7
+    function helper int;
+        return outer
+    print; (helper;)

@@ -22,12 +22,16 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: builtin-descriptor-contracts
 fn main() {
-    let number: i8 = 7;
-    let text: String = String::from("terrane");
-    let numbers: terrane_collection_support::List<i8> = terrane_collection_support::List::<
-        i8,
-    >::new(vec![number]);
-    let number_descriptor: TerraneDescriptor = {
+    let number: i8;
+    let text: String;
+    let numbers: terrane_collection_support::List<i8>;
+    let number_descriptor: TerraneDescriptor;
+    let text_descriptor: TerraneDescriptor;
+    let list_descriptor: TerraneDescriptor;
+    number = 7;
+    text = String::from("terrane");
+    numbers = terrane_collection_support::List::<i8>::new(vec![number]);
+    number_descriptor = {
         let _ = &number;
         TerraneDescriptor {
             identity: "/core/types::int8",
@@ -37,7 +41,7 @@ fn main() {
             fields: &[],
         }
     };
-    let text_descriptor: TerraneDescriptor = {
+    text_descriptor = {
         let _ = &text;
         TerraneDescriptor {
             identity: "/core/types::string",
@@ -47,7 +51,7 @@ fn main() {
             fields: &[],
         }
     };
-    let list_descriptor: TerraneDescriptor = {
+    list_descriptor = {
         let _ = &numbers;
         TerraneDescriptor {
             identity: "/core/collections::list of int8",

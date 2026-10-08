@@ -19,11 +19,16 @@ impl Counter {
     }
 }
 fn main() {
-    let mut first: Counter = Counter::terrane_construct();
-    let mut second: Counter = Counter::terrane_construct();
-    let first_value: terrane_int_support::Int = first.increase();
-    let second_value: terrane_int_support::Int = second.increase();
-    let next_first: terrane_int_support::Int = first.increase();
+    let mut first: Counter;
+    let mut second: Counter;
+    let first_value: terrane_int_support::Int;
+    let second_value: terrane_int_support::Int;
+    let next_first: terrane_int_support::Int;
+    first = Counter::terrane_construct();
+    second = Counter::terrane_construct();
+    first_value = first.increase();
+    second_value = second.increase();
+    next_first = first.increase();
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&first_value),
         terrane_scalar_support::scalar_text(&second_value),

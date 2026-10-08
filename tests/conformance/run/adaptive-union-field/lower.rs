@@ -20,32 +20,37 @@ impl WorkItem {
         return self.estimate.clone();
     }
     pub fn next_estimate(&self) -> Option<terrane_int_support::Int> {
-        let current: Option<terrane_int_support::Int> = self.estimate.clone();
+        let current: Option<terrane_int_support::Int>;
+        current = self.estimate.clone();
         if current.is_some() {
             return Some(
-                current.as_ref().expect("semantic optional narrowing").clone().clone()
-                    + terrane_int_support::Int::from(1_i128),
+                match &current {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .clone() + terrane_int_support::Int::from(1_i128),
             );
         }
         return None;
     }
 }
 fn main() {
-    let item: WorkItem = WorkItem::terrane_construct(
-        Some(terrane_int_support::Int::from(4_i128)),
-    );
-    let estimate: Option<terrane_int_support::Int> = item.estimate_units();
+    let item: WorkItem;
+    let estimate: Option<terrane_int_support::Int>;
+    let next: Option<terrane_int_support::Int>;
+    item = WorkItem::terrane_construct(Some(terrane_int_support::Int::from(4_i128)));
+    estimate = item.estimate_units();
     if estimate.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&estimate.as_ref()
-            .expect("semantic optional narrowing").clone())
+            "{}", terrane_scalar_support::scalar_text(&match &estimate { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    let next: Option<terrane_int_support::Int> = item.next_estimate();
+    next = item.next_estimate();
     if next.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&next.as_ref()
-            .expect("semantic optional narrowing").clone())
+            "{}", terrane_scalar_support::scalar_text(&match &next { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
 }

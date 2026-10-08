@@ -171,11 +171,27 @@ fn is_destination_directed_projected_call(
     Ok(identity.is_some_and(|identity| unit.projected_destination_functions.contains(&identity)))
 }
 
+pub(super) fn infer_value_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    // Keep operator recursion outside the large non-operator inference frame.
+    match node.kind {
+        SyntaxKind::BinaryExpression => infer_binary_type(unit, node, bindings),
+        SyntaxKind::GroupExpression => match node.children.first() {
+            Some(child) => infer_value_type(unit, child, bindings),
+            None => Ok(None),
+        },
+        _ => infer_nonbinary_value_type(unit, node, bindings),
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "value inference centralizes the precedence among syntax forms and typed member families"
 )]
-pub(super) fn infer_value_type(
+fn infer_nonbinary_value_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
@@ -222,17 +238,8 @@ pub(super) fn infer_value_type(
             ValueType::Function(parameters, result, effects)
         }));
     }
-    if node.kind == SyntaxKind::GroupExpression {
-        return match node.children.first() {
-            Some(child) => infer_value_type(unit, child, bindings),
-            None => Ok(None),
-        };
-    }
     if node.kind == SyntaxKind::UnaryExpression {
         return infer_unary_type(unit, node, bindings).map(Some);
-    }
-    if node.kind == SyntaxKind::BinaryExpression {
-        return infer_binary_type(unit, node, bindings).map(Some);
     }
     if node.kind == SyntaxKind::TypeMembershipExpression {
         return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
@@ -356,6 +363,14 @@ pub(super) fn infer_value_type(
                 .copied()
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
+        }
+        if let Some(value_type) =
+            unit.flow_types
+                .get(&(node.span.file, node.span.start, node.span.end))
+        {
+            return Ok(Some(
+                narrowed_value_type(unit, node, bindings).unwrap_or_else(|| value_type.clone()),
+            ));
         }
         if let Some(binding) = bindings
             .iter()

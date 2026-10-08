@@ -443,7 +443,14 @@ fn main() {
     let values: terrane_collection_support::Map<
         String,
         terrane_collection_support::List<terrane_int_support::Int>,
-    > = terrane_collection_support::Map::<
+    >;
+    let mut pair: terrane_collection_support::Entry<
+        String,
+        terrane_collection_support::List<terrane_int_support::Int>,
+    >;
+    let mut appended: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut sorted: terrane_collection_support::List<terrane_int_support::Int>;
+    values = terrane_collection_support::Map::<
         String,
         terrane_collection_support::List<terrane_int_support::Int>,
     >::new(
@@ -459,16 +466,16 @@ fn main() {
         &__terrane_iterable_0,
     );
     loop {
-        let pair = match __terrane_iterator_0.next() {
+        pair = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let appended: terrane_collection_support::List<terrane_int_support::Int> = {
+        appended = {
             let collection = &mut pair.value.clone();
             collection.append(terrane_int_support::Int::from(2_i128));
             collection.clone()
         };
-        let sorted: terrane_collection_support::List<terrane_int_support::Int> = {
+        sorted = {
             let collection = &mut pair.value.clone();
             collection.sort_by(|left, right| left.cmp(right));
             collection.clone()

@@ -290,12 +290,26 @@ fn infer_member_type(
     if let Some(ValueType::Descriptor(identity)) = &receiver_type {
         let descriptor = descriptor_contract_by_identity(unit, identity)
             .expect("descriptor value types always retain a canonical contract");
-        if let Some(field) = descriptor
-            .fields
-            .iter()
-            .find(|field| field.is_static && field.name == member_name)
+        if descriptor.builtin.is_some()
+            && let Some(field) = descriptor
+                .fields
+                .iter()
+                .find(|field| field.is_static && field.name == member_name)
         {
             return Ok(Some(field.value_type.clone()));
+        }
+        if descriptor.builtin.is_none()
+            && object_field_type(unit, &descriptor.identity, member_name, true).is_some()
+        {
+            return Err(failure(
+                &unit.source,
+                "T0055",
+                format!(
+                    "`{}` has no instance member `{member_name}`",
+                    descriptor.name
+                ),
+                member.span,
+            ));
         }
         return match member_name {
             "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),

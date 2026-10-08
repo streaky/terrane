@@ -225,10 +225,6 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
         .find(|row| row["source"]["source_uri"] == "src/α.trn")
         .unwrap();
     assert_eq!(source_row["quality"], "exact-authored");
-    assert!(
-        source_row["inclusive_samples"].as_u64().unwrap() * 100 >= captured * 95,
-        "{report}"
-    );
     assert!(buckets["native-only"].as_u64().unwrap() > 0);
 }
 

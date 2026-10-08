@@ -4,11 +4,14 @@
 // Source: case.trn
 // Namespace: entry-destructuring-binding-events
 fn main() {
-    let second: i64 = 3;
-    let _ = &second;
+    let mut second: terrane_int_support::Int;
     let entries: terrane_collection_support::List<
         terrane_collection_support::Entry<String, terrane_int_support::Int>,
-    > = terrane_collection_support::List::<
+    >;
+    let mut key: String;
+    second = terrane_int_support::Int::from(3_i128);
+    let _ = &mut second;
+    entries = terrane_collection_support::List::<
         terrane_collection_support::Entry<String, terrane_int_support::Int>,
     >::new(
         vec![
@@ -25,8 +28,8 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let key = __terrane_item_0.key;
-        let mut second = __terrane_item_0.value;
+        key = __terrane_item_0.key;
+        second = __terrane_item_0.value;
         let _ = &second;
         second = terrane_int_support::Int::from(9_i128);
         println!(

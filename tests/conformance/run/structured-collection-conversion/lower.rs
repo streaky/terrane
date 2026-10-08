@@ -467,9 +467,8 @@ fn build(wide: i16) -> Result<terrane_collection_support::List<i8>, TerraneError
 fn append_value(
     wide: i16,
 ) -> Result<terrane_collection_support::List<i8>, TerraneError> {
-    let mut values: terrane_collection_support::List<i8> = terrane_collection_support::List::<
-        i8,
-    >::new(vec![1]);
+    let mut values: terrane_collection_support::List<i8>;
+    values = terrane_collection_support::List::<i8>::new(vec![1]);
     return Ok({
         let collection = &mut values;
         collection
@@ -490,7 +489,8 @@ fn append_value(
     });
 }
 fn main() {
-    let wide: i16 = 300;
+    let wide: i16;
+    wide = 300;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(

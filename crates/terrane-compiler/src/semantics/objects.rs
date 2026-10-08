@@ -515,6 +515,9 @@ pub(super) fn value_type_owns_resource(
         }
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
+        ValueType::Union(arms) => arms
+            .iter()
+            .any(|arm| value_type_owns_resource(arm, resource_identities)),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::List(item)
@@ -777,6 +780,9 @@ pub(crate) fn application_is_resource_owning(
                 visiting.remove(&key);
                 result
             }
+            ValueType::Union(arms) => arms
+                .iter()
+                .any(|arm| owns(package, arm, resources, parameters, visiting)),
             ValueType::Optional(inner) => owns(package, inner, resources, parameters, visiting),
             ValueType::List(inner)
             | ValueType::Set(inner)
@@ -2575,11 +2581,9 @@ fn analyze_source_enums(
     Ok((result, descriptors))
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Type-analysis phase ordering is explicit because constructor, binding, and projection selections depend on prior phases"
-)]
-pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+pub(super) fn prepare_type_declarations(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let descriptors = {
             let unit = &package.units[index];
@@ -2592,7 +2596,10 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                 .filter(|(_, symbol)| {
                     matches!(
                         symbol.kind,
-                        SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                        SymbolKind::Class
+                            | SymbolKind::Enum
+                            | SymbolKind::Interface
+                            | SymbolKind::Trait
                     )
                 })
                 .map(|(visible_name, symbol)| {
@@ -2676,6 +2683,11 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
     refresh_source_descriptor_members(&mut package.units);
+    Ok(())
+}
+
+pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    prepare_type_declarations(package)?;
     validate_closed_projected_types(package)?;
     validate_descriptor_value_uses(package)?;
 
@@ -2708,45 +2720,44 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 }
 
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
-    fn payload_spans(node: &SyntaxNode, spans: &mut BTreeSet<(usize, usize)>) {
-        if node.kind == SyntaxKind::MatchCase
-            && let Some(parameters) = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::ParameterList)
-        {
-            spans.extend(
-                parameters
-                    .children
-                    .iter()
-                    .map(|parameter| (parameter.span.start, parameter.span.end)),
-            );
-        }
-        for child in &node.children {
-            payload_spans(child, spans);
-        }
+    let enums = super::enums::resolve_enums(package);
+    // Discard provisional projected results once. Subsequent passes consume only
+    // the newly computed canonical reaching facts, not the previous analysis.
+    for unit in &mut package.units {
+        unit.flow_types.clear();
+        unit.rust_storage_names.take();
     }
-    for index in 0..package.units.len() {
-        let unit = &package.units[index];
-        let mut spans = BTreeSet::new();
-        payload_spans(&unit.tree.root, &mut spans);
-        let mut bindings = unit
-            .typed_bindings
-            .iter()
-            .filter(|binding| spans.contains(&(binding.span.start, binding.span.end)))
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut visible_bindings = bindings.clone();
-        collect_typed_bindings(
-            unit,
-            &unit.tree.root,
-            &mut visible_bindings,
-            &mut bindings,
-            None,
-        )?;
-        package.units[index].typed_bindings = bindings;
+    let mut first_pass = true;
+    loop {
+        let mut changed = false;
+        for index in 0..package.units.len() {
+            let unit = &package.units[index];
+            let matches = super::enums::MatchContext::new(package, unit, &enums);
+            let mut bindings = Vec::new();
+            let mut visible_bindings = Vec::new();
+            collect_typed_bindings(
+                unit,
+                &matches,
+                &unit.tree.root,
+                &mut visible_bindings,
+                &mut bindings,
+                None,
+            )?;
+            if bindings != unit.typed_bindings {
+                package.units[index].rust_storage_names.take();
+                package.units[index].typed_bindings = bindings;
+                changed = true;
+            }
+        }
+        if !changed && !first_pass {
+            return Ok(());
+        }
+        // A loop-carried RHS may discover an earlier inferred declaration.
+        // Declaration identities are source-owned; their finite reaching-type
+        // alternatives grow through the same joins as the loop fixed point.
+        super::scope_flow::validate_definite_assignment(package)?;
+        first_pass = false;
     }
-    Ok(())
 }
 fn populate_projected_call_result_types(
     package: &mut SemanticPackage,

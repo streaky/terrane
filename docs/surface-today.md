@@ -747,7 +747,9 @@ Namespaces form a package-wide tree assembled before reference resolution. Paths
 
 A top-level plain assignment creates a namespace variable. Functions cannot read or write namespace variables across that boundary; mutable state must cross as an explicit `global`, parameter, or return value. Namespace variables cannot be `public`.
 
-`constant` declarations are non-rebindable at every supported identity tier. In one lexical scope, an ordinary assignment to an already initialized local creates a replacement binding; its initializer sees the earlier binding, and its inferred type may change. Assignment to an uninitialized local, an enclosing-scope binding, a parameter, or a `for` target remains mutation. Generated Rust marks only genuinely mutated storage mutable.
+`constant` declarations are non-rebindable at every supported identity tier. In one lexical scope, an ordinary assignment to an already initialized local creates a replacement binding; its initializer sees the earlier binding, and its inferred type may change. Assignment to an uninitialized local, an enclosing-scope binding, or a parameter remains mutation. Generated Rust marks only genuinely mutated storage mutable.
+
+Only named and anonymous functions introduce lexical scopes. `if`/`else`, `select`, `while`, and `for` share their function's variables and replacement rules; loop targets remain visible afterward. Flow joins form ordinary finite unions of reaching types. Only uncertain variables represent uncertainty, checked at uncertain uses. Proven uses need no source-level availability check, though native lowering may safely assert the compiler invariant when that variable needs uncertainty storage elsewhere. Owned values are released on replacement or function exit, not control-block exit.
 
 ## Classes, interfaces, traits, and references
 

@@ -521,15 +521,11 @@ pub(super) fn obsolete_integer_coercion_member<'a>(
         })
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "binary inference keeps operator precedence, optional equality, and numeric promotion auditable"
-)]
 pub(super) fn infer_binary_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
-) -> Result<ValueType, SemanticFailure> {
+) -> Result<Option<ValueType>, SemanticFailure> {
     let [left_node, right_node] = node.children.as_slice() else {
         return Err(operator_failure(
             unit,
@@ -552,34 +548,84 @@ pub(super) fn infer_binary_type(
         ));
     }
     if operator == "is" {
-        return Ok(ValueType::Scalar(ScalarType::Bool));
+        return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
     }
+    // Unknown operands are unresolved inference inputs, not invalid scalar types.
+    // Binding collection revisits these expressions after reaching types converge.
+    if left.is_none() || right.is_none() {
+        return Ok(None);
+    }
+    infer_binary_result_type(
+        unit,
+        node,
+        bindings,
+        (left_node, right_node),
+        operator,
+        left.as_ref(),
+        right.as_ref(),
+    )
+    .map(Some)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "binary result validation keeps optional equality and numeric promotion auditable"
+)]
+fn infer_binary_result_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    (left_node, right_node): (&SyntaxNode, &SyntaxNode),
+    operator: &str,
+    left: Option<&ValueType>,
+    right: Option<&ValueType>,
+) -> Result<ValueType, SemanticFailure> {
     // Bootstrap bindings precede concrete native constructor selection. Preserve the
     // placeholder until the normal postselection binding rebuild validates operands.
-    if let Some(generic) = [&left, &right]
+    if let Some(generic) = [left, right]
         .into_iter()
         .flatten()
         .find(|value| matches!(value, ValueType::ProjectedGeneric(_)))
     {
         return Ok(generic.clone());
     }
+    let optional_origin = |mut operand: &SyntaxNode| {
+        while operand.kind == SyntaxKind::GroupExpression
+            && let Some(inner) = operand.children.first()
+        {
+            operand = inner;
+        }
+        let key = (operand.span.file, operand.span.start, operand.span.end);
+        let Some(identity) = unit.flow_binding_ids.get(&key) else {
+            return false;
+        };
+        matches!(
+            unit.flow_binding_types.get(identity).or_else(|| {
+                bindings
+                    .iter()
+                    .find(|binding| binding.span == *identity)
+                    .map(|binding| &binding.value_type)
+            }),
+            Some(ValueType::Optional(_))
+        )
+    };
     if matches!(operator, "==" | "!=")
-        && ((matches!(left, Some(ValueType::Optional(_)))
+        && (((matches!(left, Some(ValueType::Optional(_))) || optional_origin(left_node))
             && node_text(&unit.source, right_node).trim() == "none")
-            || (matches!(right, Some(ValueType::Optional(_)))
+            || ((matches!(right, Some(ValueType::Optional(_))) || optional_origin(right_node))
                 && node_text(&unit.source, left_node).trim() == "none"))
     {
         return Ok(ValueType::Scalar(ScalarType::Bool));
     }
     if matches!(operator, "==" | "!=")
-        && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (&left, &right)
+        && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (left, right)
         && left == right
         && unit.comparable_foreign_objects.contains(left)
     {
         return Ok(ValueType::Scalar(ScalarType::Bool));
     }
     if matches!(operator, "==" | "!=" | "<" | "<=" | ">" | ">=")
-        && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (&left, &right)
+        && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (left, right)
         && left == right
         && (left.namespace == "/core/time"
             && matches!(
@@ -597,28 +643,28 @@ pub(super) fn infer_binary_type(
     );
     if contextual_numeric
         && let Some(ValueType::Scalar(left_type)) = left
-        && is_numeric(left_type)
-        && contextual_constant(&unit.source, right_node, left_type)
+        && is_numeric(*left_type)
+        && contextual_constant(&unit.source, right_node, *left_type)
             .transpose()?
             .is_some()
     {
         return Ok(ValueType::Scalar(if comparison {
             ScalarType::Bool
         } else {
-            left_type
+            *left_type
         }));
     }
     if contextual_numeric
         && let Some(ValueType::Scalar(right_type)) = right
-        && is_numeric(right_type)
-        && contextual_constant(&unit.source, left_node, right_type)
+        && is_numeric(*right_type)
+        && contextual_constant(&unit.source, left_node, *right_type)
             .transpose()?
             .is_some()
     {
         return Ok(ValueType::Scalar(if comparison {
             ScalarType::Bool
         } else {
-            right_type
+            *right_type
         }));
     }
     let (Some(ValueType::Scalar(left)), Some(ValueType::Scalar(right))) = (left, right) else {
@@ -628,6 +674,7 @@ pub(super) fn infer_binary_type(
             "operator requires scalar operands",
         ));
     };
+    let (left, right) = (*left, *right);
     let same = left == right;
     if contextual_numeric && left != right && left.is_integer() && right.is_integer() {
         if contextual_constant(&unit.source, right_node, right).is_some() {

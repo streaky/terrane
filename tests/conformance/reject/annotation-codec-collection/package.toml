@@ -1,0 +1,6 @@
+package = "annotation-codec-collection"
+[namespaces]
+annotation-codec-collection = "src"
+[consumers.codec]
+command = ".trn/consumers/codec"
+declarations = ["/annotation-codec-collection::payload", "/annotation-codec-collection::payload::values"]

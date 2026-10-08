@@ -448,8 +448,13 @@ async fn survive() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let failing: TerraneScopedTask<terrane_int_support::Int> = {
+        let scope: TerraneTaskScope;
+        let failing: TerraneScopedTask<terrane_int_support::Int>;
+        let sibling: TerraneScopedTask<terrane_int_support::Int>;
+        let failed: TerraneTaskOutcome<terrane_int_support::Int>;
+        let survived: TerraneTaskOutcome<terrane_int_support::Int>;
+        scope = TerraneTaskScope::new(None);
+        failing = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -469,7 +474,7 @@ fn main() {
                 }
             })
         };
-        let sibling: TerraneScopedTask<terrane_int_support::Int> = {
+        sibling = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -488,14 +493,8 @@ fn main() {
                 }
             })
         };
-        let failed: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(failing),
-            )
-            .await;
-        let survived: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(sibling),
-            )
-            .await;
+        failed = __terrane_await(scope.join(failing)).await;
+        survived = __terrane_await(scope.join(sibling)).await;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&failed.completed),
             terrane_scalar_support::scalar_text(&failed.cancelled)

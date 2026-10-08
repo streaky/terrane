@@ -528,7 +528,7 @@ mod __terrane_trace {
 }
 static __TERRANE_GLOBAL_PARITY: std::sync::LazyLock<std::sync::Mutex<Option<i8>>> = std::sync::LazyLock::new(||
 std::sync::Mutex::new(Some(0)));
-fn __terrane_uninitialized_global(
+fn __terrane_uninitialized_binding(
     name: &str,
     path: &str,
     line: usize,
@@ -542,7 +542,8 @@ fn __terrane_uninitialized_global(
 // Source: case.trn
 // Namespace: guarded-checked-arithmetic
 fn transition(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     value = if value as u8 <= 42_u8 {
         let __terrane_guarded_then = value / 2_i8;
         let __terrane_guarded_else = 3_i8 * value as i8 + 1_i8;
@@ -569,7 +570,8 @@ fn transition(input: i8) -> i8 {
     return value;
 }
 fn transition_uint8(input: u8) -> u8 {
-    let mut value: u8 = input;
+    let mut value: u8;
+    value = input;
     value = if value <= 84_u8 {
         let __terrane_guarded_then = value / 2_u8;
         let __terrane_guarded_else = 3_u8 * value as u8 + 1_u8;
@@ -596,7 +598,8 @@ fn transition_uint8(input: u8) -> u8 {
     return value;
 }
 fn transition_then(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     value = if value as u8 <= 42_u8 {
         let __terrane_guarded_then = 3_i8 * value as i8 + 1_i8;
         let __terrane_guarded_else = value / 2_i8;
@@ -623,7 +626,8 @@ fn transition_then(input: i8) -> i8 {
     return value;
 }
 fn transition_remainder(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     value = if value as u8 <= 42_u8 {
         let __terrane_guarded_then = value % 5_i8;
         let __terrane_guarded_else = 3_i8 * value as i8 + 1_i8;
@@ -647,7 +651,8 @@ fn transition_remainder(input: i8) -> i8 {
     return value;
 }
 fn transition_negative_coefficient(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     value = if value as u8 <= 127_u8 {
         let __terrane_guarded_then = value / 2_i8;
         let __terrane_guarded_else = 100_i8 - value as i8;
@@ -668,7 +673,8 @@ fn transition_negative_coefficient(input: i8) -> i8 {
     return value;
 }
 fn transition_int64(input: i64) -> i64 {
-    let mut value: i64 = input;
+    let mut value: i64;
+    value = input;
     value = if value as u64 <= 3074457345618258602_u64 {
         let __terrane_guarded_then = value / 2_i64;
         let __terrane_guarded_else = 3_i64 * value as i64 + 1_i64;
@@ -696,7 +702,8 @@ fn transition_int64(input: i64) -> i64 {
     return value;
 }
 fn transition_int128(input: i128) -> i128 {
-    let mut value: i128 = input;
+    let mut value: i128;
+    value = input;
     value = if value as u128 <= 56713727820156410577229101238628035242_u128 {
         let __terrane_guarded_then = value / 2_i128;
         let __terrane_guarded_else = 3_i128 * value as i128 + 1_i128;
@@ -724,7 +731,8 @@ fn transition_int128(input: i128) -> i128 {
     return value;
 }
 fn both_affine(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     if value > 0 {
         value = __terrane_raised(
             terrane_int_support::fixed_addition(value, 1),
@@ -745,7 +753,8 @@ fn both_affine(input: i8) -> i8 {
     return value;
 }
 fn nested_conditional(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     if value < 0 {
         value = __terrane_raised(
             terrane_int_support::fixed_division(value, 2),
@@ -771,7 +780,8 @@ fn nested_conditional(input: i8) -> i8 {
     return value;
 }
 fn positive_lower_bound(input: i8) {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             value = if value >= 72_i8 {
@@ -829,12 +839,13 @@ fn positive_lower_bound(input: i8) {
     }
 }
 fn global_condition(input: i8) -> i8 {
-    let mut value: i8 = input;
+    let mut value: i8;
+    value = input;
     if __TERRANE_GLOBAL_PARITY
         .lock()
         .expect("program-global lock poisoned")
         .clone()
-        .unwrap_or_else(|| __terrane_uninitialized_global("parity", "case.trn", 94, 6))
+        .unwrap_or_else(|| __terrane_uninitialized_binding("parity", "case.trn", 94, 6))
         == 0
     {
         value = __terrane_raised(
@@ -856,12 +867,16 @@ fn global_condition(input: i8) -> i8 {
     return value;
 }
 fn main() {
+    let mut upper: i8;
+    let mut intermediate: i8;
+    let shared_value: std::sync::Arc<std::sync::Mutex<i8>>;
+    let observer: std::sync::Arc<std::sync::Mutex<i8>>;
     println!("{}", terrane_scalar_support::scalar_text(&transition(42)));
     println!("{}", terrane_scalar_support::scalar_text(&transition(41)));
     positive_lower_bound(72);
     positive_lower_bound(10);
     println!("{}", terrane_scalar_support::scalar_text(&global_condition(41)));
-    let mut upper: i8 = 43;
+    upper = 43;
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             upper = if upper as u8 <= 42_u8 {
@@ -917,7 +932,7 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    let mut intermediate: i8 = -43;
+    intermediate = -43;
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             intermediate = if intermediate as u8 <= 42_u8 {
@@ -984,10 +999,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&transition_int128(41)));
     println!("{}", terrane_scalar_support::scalar_text(&both_affine(41)));
     println!("{}", terrane_scalar_support::scalar_text(&nested_conditional(41)));
-    let shared_value: std::sync::Arc<std::sync::Mutex<i8>> = std::sync::Arc::new(
-        std::sync::Mutex::new(41),
-    );
-    let observer: std::sync::Arc<std::sync::Mutex<i8>> = shared_value.clone();
+    shared_value = std::sync::Arc::new(std::sync::Mutex::new(41));
+    observer = shared_value.clone();
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = observer
         .lock().expect("shared reference lock poisoned").clone(); __terrane_value })

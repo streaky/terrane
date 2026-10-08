@@ -129,8 +129,10 @@ impl From<NestedComposite> for Readable {
     }
 }
 fn main() {
-    let direct: Readable = <Readable>::from(DirectComposite::terrane_construct());
-    let nested: Readable = <Readable>::from(NestedComposite::terrane_construct());
+    let direct: Readable;
+    let nested: Readable;
+    direct = <Readable>::from(DirectComposite::terrane_construct());
+    nested = <Readable>::from(NestedComposite::terrane_construct());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&direct.read()),
         terrane_scalar_support::scalar_text(&nested.read())

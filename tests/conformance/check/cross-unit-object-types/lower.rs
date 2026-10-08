@@ -7,8 +7,10 @@ fn identity(value: Item) -> Item {
     return value;
 }
 fn main() {
-    let original: Item = Item::terrane_construct();
-    let copied: Item = identity(original);
+    let original: Item;
+    let copied: Item;
+    original = Item::terrane_construct();
+    copied = identity(original);
     let _ = &copied;
 }
 // Source: models/item.trn

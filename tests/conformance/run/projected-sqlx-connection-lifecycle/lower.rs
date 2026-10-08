@@ -499,15 +499,31 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/main.trn
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let path: String = __terrane_raised(
+        let path: String;
+        let mut missing_options: SqliteConnectOptions;
+        let mut missing_connection: Option<SqliteConnection> = None;
+        let mut create_options: SqliteConnectOptions;
+        let connection: SqliteConnection;
+        path = __terrane_raised(
             prepare_missing_path(),
             0 /* terrane-site: src/main.trn:9:10-9:31 */,
         );
-        let mut missing_options: SqliteConnectOptions = __terrane_raised(
+        missing_options = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
             1 /* terrane-site: src/main.trn:10:21-10:47 */,
         );
@@ -547,21 +563,25 @@ fn main() {
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
-                let missing_connection: SqliteConnection = __terrane_traced_completion!(
-                    __terrane_await({ let __terrane_future = { let __terrane_call = <
-                    sqlx_sqlite::SqliteConnectOptions as
-                    sqlx_core::connection::ConnectOptions >::connect(&missing_options);
-                    async move { match crate
-                    ::__terrane_dependency_await_unwind(__terrane_call). await {
-                    Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                    ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
-                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-                    "sqlx_sqlite", "sqlx_sqlite::SqliteConnectOptions::connect")) } } };
-                    async move { __terrane_raised_err(__terrane_future. await,
-                    4 /* terrane-site: src/main.trn:14:32-14:56 */) } }). await,
-                    4 /* terrane-site: src/main.trn:14:32-14:56 */
-                );
+                let _ = missing_connection
+                    .insert(
+                        __terrane_traced_completion!(
+                            __terrane_await({ let __terrane_future = { let __terrane_call
+                            = < sqlx_sqlite::SqliteConnectOptions as
+                            sqlx_core::connection::ConnectOptions
+                            >::connect(&missing_options); async move { match crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await {
+                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                            ::TerraneForeignError(crate
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                            Err(crate ::__terrane_dependency_panic(payload,
+                            "sqlx_sqlite", "sqlx_sqlite::SqliteConnectOptions::connect"))
+                            } } }; async move { __terrane_raised_err(__terrane_future.
+                            await, 4 /* terrane-site: src/main.trn:14:32-14:56 */) }
+                            }). await, 4 /* terrane-site: src/main.trn:14:32-14:56 */
+                        ),
+                    );
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&String::from("unexpected-open"))
@@ -569,7 +589,8 @@ fn main() {
                 __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future = { let __terrane_call = <
                     sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection
-                    >::close(missing_connection); async move { match crate
+                    >::close(missing_connection.take()
+                    .expect("flow-proven availability")); async move { match crate
                     ::__terrane_dependency_await_unwind(__terrane_call). await {
                     Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
@@ -618,7 +639,7 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        let mut create_options: SqliteConnectOptions = __terrane_raised(
+        create_options = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
             6 /* terrane-site: src/main.trn:19:20-19:46 */,
         );
@@ -656,7 +677,7 @@ fn main() {
             },
             8 /* terrane-site: src/main.trn:21:20-21:58 */,
         );
-        let connection: SqliteConnection = __terrane_traced(
+        connection = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = <sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect(

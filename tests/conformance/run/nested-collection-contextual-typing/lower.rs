@@ -438,7 +438,8 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: nested-collection-contextual-typing
 fn main() {
-    let outer: terrane_collection_support::List<terrane_collection_support::List<i8>> = terrane_collection_support::List::<
+    let outer: terrane_collection_support::List<terrane_collection_support::List<i8>>;
+    outer = terrane_collection_support::List::<
         terrane_collection_support::List<i8>,
     >::new(vec![terrane_collection_support::List::< i8 >::new(vec![5, 6])]);
     println!(

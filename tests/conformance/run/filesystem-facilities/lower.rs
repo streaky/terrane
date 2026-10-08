@@ -465,37 +465,72 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: conformance/filesystem-facilities
 fn sync_file(capability: Filesystem, output: &FileHandle) -> bool {
-    let flushed: FilesystemOperationResult = file_flush(capability.clone(), output);
-    let data: FilesystemOperationResult = file_sync_data(capability.clone(), output);
-    let all: FilesystemOperationResult = file_sync_all(capability, output);
+    let flushed: FilesystemOperationResult;
+    let data: FilesystemOperationResult;
+    let all: FilesystemOperationResult;
+    flushed = file_flush(capability.clone(), output);
+    data = file_sync_data(capability.clone(), output);
+    all = file_sync_all(capability, output);
     return flushed.failed || data.failed || all.failed;
 }
 fn main() {
-    let fs: Filesystem = filesystem_capability();
-    let target: Path = Path::terrane_construct(
-        String::from("terrane-filesystem-case.txt"),
-    );
-    let written: FilesystemOperationResult = filesystem_write_atomic(
+    let fs: Filesystem;
+    let target: Path;
+    let written: FilesystemOperationResult;
+    let exists: ExistenceResult;
+    let metadata: FileMetadata;
+    let data: FileData;
+    let opened: FileHandle;
+    let streamed: FileData;
+    let closing: FileHandle;
+    let closed: FilesystemOperationResult;
+    let lexical_input: Path;
+    let lexical: Path;
+    let canonical: PathResult;
+    let real: PathResult;
+    let link: Path;
+    let link_metadata: FileMetadata;
+    let linked: PathResult;
+    let renamed_target: Path;
+    let renamed: FilesystemOperationResult;
+    let restored: FilesystemOperationResult;
+    let base: Path;
+    let escape: Path;
+    let escaped: DirectoryHandle;
+    let current: Path;
+    let root: DirectoryHandle;
+    let manifest: Path;
+    let relative_file: FileHandle;
+    let relative_data: FileData;
+    let partial_target: FileHandle;
+    let partial: FileData;
+    let partial_read: FileData;
+    let durable_target: FileHandle;
+    let sync_failed: bool;
+    let link_removed: FilesystemOperationResult;
+    let removed: FilesystemOperationResult;
+    fs = filesystem_capability();
+    target = Path::terrane_construct(String::from("terrane-filesystem-case.txt"));
+    written = filesystem_write_atomic(
         fs.clone(),
         target.clone(),
         Vec::from([99, 111, 110, 116, 101, 110, 116]),
     );
     println!("{}", terrane_scalar_support::scalar_text(&written.failed));
-    let exists: ExistenceResult = filesystem_exists(fs.clone(), target.clone());
+    exists = filesystem_exists(fs.clone(), target.clone());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&exists.exists),
         terrane_scalar_support::scalar_text(&exists.failed)
     );
-    let metadata: FileMetadata = filesystem_metadata(fs.clone(), target.clone());
+    metadata = filesystem_metadata(fs.clone(), target.clone());
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&metadata.failed),
         terrane_scalar_support::scalar_text(&metadata.kind),
         terrane_scalar_support::scalar_text(&metadata.size),
         terrane_scalar_support::scalar_text(&metadata.readonly),
-        terrane_scalar_support::scalar_text(&(metadata.permission_detail ==
-        String::from("")))
+        terrane_scalar_support::scalar_text(&(metadata.permission_detail.as_str() == ""))
     );
-    let data: FileData = filesystem_read_bounded(
+    data = filesystem_read_bounded(
         fs.clone(),
         target.clone(),
         terrane_int_support::Int::from(7_i128),
@@ -504,55 +539,32 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&data.failed),
         terrane_scalar_support::scalar_text(&data.completed)
     );
-    let opened: FileHandle = open_file(
-        fs.clone(),
-        target.clone(),
-        true,
-        false,
-        false,
-        false,
-    );
-    let streamed: FileData = file_read(
-        fs.clone(),
-        &opened,
-        terrane_int_support::Int::from(16_i128),
-    );
+    opened = open_file(fs.clone(), target.clone(), true, false, false, false);
+    streamed = file_read(fs.clone(), &opened, terrane_int_support::Int::from(16_i128));
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&streamed.failed),
         terrane_scalar_support::scalar_text(&streamed.completed),
         terrane_scalar_support::scalar_text(&streamed.end)
     );
-    let closing: FileHandle = open_file(
-        fs.clone(),
-        target.clone(),
-        true,
-        false,
-        false,
-        false,
-    );
-    let closed: FilesystemOperationResult = file_close(fs.clone(), closing);
+    closing = open_file(fs.clone(), target.clone(), true, false, false, false);
+    closed = file_close(fs.clone(), closing);
     println!("{}", terrane_scalar_support::scalar_text(&closed.failed));
-    let lexical_input: Path = Path::terrane_construct(
+    lexical_input = Path::terrane_construct(
         String::from("missing/../terrane-filesystem-case.txt"),
     );
-    let lexical: Path = normalise_path(lexical_input);
-    let canonical: PathResult = filesystem_canonical(fs.clone(), target.clone());
-    let real: PathResult = filesystem_realpath(fs.clone(), target.clone());
+    lexical = normalise_path(lexical_input);
+    canonical = filesystem_canonical(fs.clone(), target.clone());
+    real = filesystem_realpath(fs.clone(), target.clone());
     println!("{}", terrane_scalar_support::scalar_text(&lexical.text));
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&canonical.failed),
-        terrane_scalar_support::scalar_text(&(canonical.resolved.text == lexical.text)),
-        terrane_scalar_support::scalar_text(&(real.resolved.text == canonical.resolved
-        .text))
+        terrane_scalar_support::scalar_text(&(canonical.resolved.text.as_str() == lexical
+        .text.as_str())), terrane_scalar_support::scalar_text(&(real.resolved.text
+        .as_str() == canonical.resolved.text.as_str()))
     );
-    let link: Path = Path::terrane_construct(
-        String::from("terrane-filesystem-case-link.txt"),
-    );
-    let link_metadata: FileMetadata = filesystem_symlink_metadata(
-        fs.clone(),
-        link.clone(),
-    );
-    let linked: PathResult = filesystem_read_link(fs.clone(), link.clone());
+    link = Path::terrane_construct(String::from("terrane-filesystem-case-link.txt"));
+    link_metadata = filesystem_symlink_metadata(fs.clone(), link.clone());
+    linked = filesystem_read_link(fs.clone(), link.clone());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&link_metadata.failed),
         terrane_scalar_support::scalar_text(&link_metadata.kind)
@@ -561,43 +573,23 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&linked.failed),
         terrane_scalar_support::scalar_text(&linked.resolved.text)
     );
-    let renamed_target: Path = Path::terrane_construct(
+    renamed_target = Path::terrane_construct(
         String::from("terrane-filesystem-case-renamed.txt"),
     );
-    let renamed: FilesystemOperationResult = filesystem_rename(
-        fs.clone(),
-        target.clone(),
-        renamed_target.clone(),
-    );
-    let restored: FilesystemOperationResult = filesystem_rename(
-        fs.clone(),
-        renamed_target,
-        target.clone(),
-    );
+    renamed = filesystem_rename(fs.clone(), target.clone(), renamed_target.clone());
+    restored = filesystem_rename(fs.clone(), renamed_target, target.clone());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&renamed.failed),
         terrane_scalar_support::scalar_text(&restored.failed)
     );
-    let base: Path = Path::terrane_construct(String::from("."));
-    let escape: Path = Path::terrane_construct(String::from("../Cargo.toml"));
-    let escaped: DirectoryHandle = filesystem_open_beneath(
-        fs.clone(),
-        base.clone(),
-        escape,
-        false,
-    );
+    base = Path::terrane_construct(String::from("."));
+    escape = Path::terrane_construct(String::from("../Cargo.toml"));
+    escaped = filesystem_open_beneath(fs.clone(), base.clone(), escape, false);
     println!("{}", terrane_scalar_support::scalar_text(&escaped.failed));
-    let current: Path = Path::terrane_construct(String::from("."));
-    let root: DirectoryHandle = filesystem_open_beneath(
-        fs.clone(),
-        base,
-        current,
-        false,
-    );
-    let manifest: Path = Path::terrane_construct(
-        String::from("terrane-filesystem-case.txt"),
-    );
-    let relative_file: FileHandle = open_file_beneath(
+    current = Path::terrane_construct(String::from("."));
+    root = filesystem_open_beneath(fs.clone(), base, current, false);
+    manifest = Path::terrane_construct(String::from("terrane-filesystem-case.txt"));
+    relative_file = open_file_beneath(
         fs.clone(),
         &root,
         manifest,
@@ -606,7 +598,7 @@ fn main() {
         false,
         false,
     );
-    let relative_data: FileData = file_read(
+    relative_data = file_read(
         fs.clone(),
         &relative_file,
         terrane_int_support::Int::from(8_i128),
@@ -615,15 +607,8 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&relative_data.failed),
         terrane_scalar_support::scalar_text(&relative_data.completed)
     );
-    let partial_target: FileHandle = open_file(
-        fs.clone(),
-        target.clone(),
-        false,
-        true,
-        false,
-        true,
-    );
-    let partial: FileData = file_write(
+    partial_target = open_file(fs.clone(), target.clone(), false, true, false, true);
+    partial = file_write(
         fs.clone(),
         &partial_target,
         Vec::from([97, 98, 99]),
@@ -633,7 +618,7 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&partial.failed),
         terrane_scalar_support::scalar_text(&partial.completed)
     );
-    let partial_read: FileData = filesystem_read_bounded(
+    partial_read = filesystem_read_bounded(
         fs.clone(),
         target.clone(),
         terrane_int_support::Int::from(3_i128),
@@ -642,19 +627,12 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&partial_read.failed),
         terrane_scalar_support::scalar_text(&partial_read.completed)
     );
-    let durable_target: FileHandle = open_file(
-        fs.clone(),
-        target.clone(),
-        false,
-        true,
-        false,
-        false,
-    );
-    let sync_failed: bool = sync_file(fs.clone(), &durable_target);
+    durable_target = open_file(fs.clone(), target.clone(), false, true, false, false);
+    sync_failed = sync_file(fs.clone(), &durable_target);
     println!("{}", terrane_scalar_support::scalar_text(&sync_failed));
-    let link_removed: FilesystemOperationResult = filesystem_remove(fs.clone(), link);
+    link_removed = filesystem_remove(fs.clone(), link);
     println!("{}", terrane_scalar_support::scalar_text(&link_removed.failed));
-    let removed: FilesystemOperationResult = filesystem_remove(fs, target);
+    removed = filesystem_remove(fs, target);
     println!("{}", terrane_scalar_support::scalar_text(&removed.failed));
 }
 // Source: core/filesystem.trn
@@ -910,17 +888,15 @@ pub fn open_file(
     create: bool,
     truncate: bool,
 ) -> FileHandle {
+    let raw: TerranePlatformOpenResult;
+    let failure: bool;
+    let detail: String;
+    let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
-    let raw: TerranePlatformOpenResult = terrane_platform_open_file(
-        target.text,
-        readable,
-        writable,
-        create,
-        truncate,
-    );
-    let failure: bool = raw.failed;
-    let detail: String = raw.message.clone().clone();
-    let acquired: TerranePlatformStreamHandle = raw.handle.clone().clone();
+    raw = terrane_platform_open_file(target.text, readable, writable, create, truncate);
+    failure = raw.failed;
+    detail = raw.message.clone().clone();
+    acquired = raw.handle.clone().clone();
     return FileHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn file_read(
@@ -928,8 +904,9 @@ pub fn file_read(
     file: &FileHandle,
     limit: terrane_int_support::Int,
 ) -> FileData {
+    let raw: TerranePlatformReadResult;
     let _ = &capability;
-    let raw: TerranePlatformReadResult = terrane_platform_read(
+    raw = terrane_platform_read(
         &file.handle.as_ref().expect("required field initialized"),
         limit,
     );
@@ -947,8 +924,9 @@ pub fn file_write(
     data: Vec<u8>,
     offset: terrane_int_support::Int,
 ) -> FileData {
+    let raw: TerranePlatformWriteResult;
     let _ = &capability;
-    let raw: TerranePlatformWriteResult = terrane_platform_write(
+    raw = terrane_platform_write(
         &file.handle.as_ref().expect("required field initialized"),
         &data,
         terrane_int_support::Int::from(offset.clone()),
@@ -965,8 +943,9 @@ pub fn file_flush(
     capability: Filesystem,
     file: &FileHandle,
 ) -> FilesystemOperationResult {
+    let raw: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_flush(
+    raw = terrane_platform_flush(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
@@ -978,8 +957,9 @@ pub fn file_sync_data(
     capability: Filesystem,
     file: &FileHandle,
 ) -> FilesystemOperationResult {
+    let raw: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+    raw = terrane_platform_sync_data(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
@@ -991,8 +971,9 @@ pub fn file_sync_all(
     capability: Filesystem,
     file: &FileHandle,
 ) -> FilesystemOperationResult {
+    let raw: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+    raw = terrane_platform_sync_all(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
@@ -1004,8 +985,9 @@ pub fn file_close(
     capability: Filesystem,
     file: FileHandle,
 ) -> FilesystemOperationResult {
+    let raw: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_close(
+    raw = terrane_platform_close(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
@@ -1028,12 +1010,14 @@ impl Filesystem {
     }
 }
 pub fn filesystem_capability() -> Filesystem {
-    let authority: TerraneFilesystemAuthority = terrane_acquire_filesystem_authority();
+    let authority: TerraneFilesystemAuthority;
+    authority = terrane_acquire_filesystem_authority();
     return Filesystem::terrane_construct(authority);
 }
 pub fn filesystem_exists(capability: Filesystem, target: Path) -> ExistenceResult {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_exists(target.text);
+    record = terrane_filesystem_exists(target.text);
     return ExistenceResult::terrane_construct(
         terrane_filesystem_result_bool(&record),
         terrane_filesystem_result_failed(&record),
@@ -1041,8 +1025,9 @@ pub fn filesystem_exists(capability: Filesystem, target: Path) -> ExistenceResul
     );
 }
 pub fn filesystem_metadata(capability: Filesystem, target: Path) -> FileMetadata {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_metadata(target.text, true);
+    record = terrane_filesystem_metadata(target.text, true);
     return FileMetadata::terrane_construct(
         terrane_filesystem_result_text(&record),
         terrane_filesystem_result_int(&record),
@@ -1056,11 +1041,9 @@ pub fn filesystem_symlink_metadata(
     capability: Filesystem,
     target: Path,
 ) -> FileMetadata {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_metadata(
-        target.text,
-        false,
-    );
+    record = terrane_filesystem_metadata(target.text, false);
     return FileMetadata::terrane_construct(
         terrane_filesystem_result_text(&record),
         terrane_filesystem_result_int(&record),
@@ -1071,11 +1054,11 @@ pub fn filesystem_symlink_metadata(
     );
 }
 pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult {
+    let record: TerraneFilesystemResult;
+    let resolved: Path;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_realpath(target.text);
-    let resolved: Path = Path::terrane_construct(
-        terrane_filesystem_result_text(&record),
-    );
+    record = terrane_filesystem_realpath(target.text);
+    resolved = Path::terrane_construct(terrane_filesystem_result_text(&record));
     return PathResult::terrane_construct(
         resolved,
         terrane_filesystem_result_failed(&record),
@@ -1086,9 +1069,11 @@ pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
     return filesystem_canonical(capability, target);
 }
 pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult {
+    let record: TerraneFilesystemResult;
+    let linked: Path;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_read_link(target.text);
-    let linked: Path = Path::terrane_construct(terrane_filesystem_result_text(&record));
+    record = terrane_filesystem_read_link(target.text);
+    linked = Path::terrane_construct(terrane_filesystem_result_text(&record));
     return PathResult::terrane_construct(
         linked,
         terrane_filesystem_result_failed(&record),
@@ -1101,15 +1086,19 @@ pub fn filesystem_open_beneath(
     relative: Path,
     cross_filesystem: bool,
 ) -> DirectoryHandle {
+    let raw: TerranePlatformOpenResult;
+    let failure: bool;
+    let detail: String;
+    let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
-    let raw: TerranePlatformOpenResult = terrane_platform_open_directory_beneath(
+    raw = terrane_platform_open_directory_beneath(
         directory.text,
         relative.text,
         cross_filesystem,
     );
-    let failure: bool = raw.failed;
-    let detail: String = raw.message.clone().clone();
-    let acquired: TerranePlatformStreamHandle = raw.handle.clone().clone();
+    failure = raw.failed;
+    detail = raw.message.clone().clone();
+    acquired = raw.handle.clone().clone();
     return DirectoryHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn open_file_beneath(
@@ -1121,8 +1110,12 @@ pub fn open_file_beneath(
     create: bool,
     truncate: bool,
 ) -> FileHandle {
+    let raw: TerranePlatformOpenResult;
+    let failure: bool;
+    let detail: String;
+    let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
-    let raw: TerranePlatformOpenResult = terrane_platform_open_file_beneath(
+    raw = terrane_platform_open_file_beneath(
         &directory.handle.as_ref().expect("required field initialized"),
         relative.text,
         readable,
@@ -1130,9 +1123,9 @@ pub fn open_file_beneath(
         create,
         truncate,
     );
-    let failure: bool = raw.failed;
-    let detail: String = raw.message.clone().clone();
-    let acquired: TerranePlatformStreamHandle = raw.handle.clone().clone();
+    failure = raw.failed;
+    detail = raw.message.clone().clone();
+    acquired = raw.handle.clone().clone();
     return FileHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn filesystem_read_bounded(
@@ -1140,11 +1133,9 @@ pub fn filesystem_read_bounded(
     target: Path,
     limit: terrane_int_support::Int,
 ) -> FileData {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_read_bounded(
-        target.text,
-        limit,
-    );
+    record = terrane_filesystem_read_bounded(target.text, limit);
     return FileData::terrane_construct(
         terrane_filesystem_result_bytes(&record),
         terrane_filesystem_result_int(&record),
@@ -1158,11 +1149,9 @@ pub fn filesystem_write_atomic(
     target: Path,
     data: Vec<u8>,
 ) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_write_atomic(
-        target.text,
-        data,
-    );
+    record = terrane_filesystem_write_atomic(target.text, data);
     return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
@@ -1173,11 +1162,9 @@ pub fn filesystem_rename(
     source: Path,
     destination: Path,
 ) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_rename(
-        source.text,
-        destination.text,
-    );
+    record = terrane_filesystem_rename(source.text, destination.text);
     return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
@@ -1187,8 +1174,9 @@ pub fn filesystem_remove(
     capability: Filesystem,
     target: Path,
 ) -> FilesystemOperationResult {
+    let record: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_remove(target.text);
+    record = terrane_filesystem_remove(target.text);
     return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
@@ -1211,18 +1199,17 @@ impl Path {
     }
 }
 pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
-    let parts: Vec<String> = terrane_string_support::split(
-        &subject.text,
-        &String::from("/"),
-    );
-    let mut result: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let parts: Vec<String>;
+    let mut result: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut part: String;
+    parts = terrane_string_support::split(&subject.text, &String::from("/"));
+    result = terrane_collection_support::List::<String>::new(vec![]);
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = result.make_unique();
         while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-            let part: String = __terrane_raised(
+            part = __terrane_raised(
                 {
                     let __terrane_receiver = &parts;
                     let __terrane_index = __terrane_raised(
@@ -1238,7 +1225,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 },
                 0 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
-            if part != String::from("") {
+            if part.as_str() != "" {
                 __terrane_list_append_0.push(part);
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -1250,20 +1237,21 @@ pub fn path_is_absolute(subject: Path) -> bool {
     return subject.text.starts_with(&String::from("/"));
 }
 pub fn normalise_path(subject: Path) -> Path {
-    let parts: Vec<String> = terrane_string_support::split(
-        &subject.text,
-        &String::from("/"),
-    );
-    let absolute: bool = path_is_absolute(subject);
-    let mut kept: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut count: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    let mut part_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    let parts: Vec<String>;
+    let absolute: bool;
+    let mut kept: terrane_collection_support::List<String>;
+    let mut count: terrane_int_support::Int;
+    let mut part_index: terrane_int_support::Int;
+    let mut part: String;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    parts = terrane_string_support::split(&subject.text, &String::from("/"));
+    absolute = path_is_absolute(subject);
+    kept = terrane_collection_support::List::<String>::new(vec![]);
+    count = terrane_int_support::Int::from(0_i128);
+    part_index = terrane_int_support::Int::from(0_i128);
     while part_index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-        let part: String = __terrane_raised(
+        part = __terrane_raised(
             {
                 let __terrane_receiver = &parts;
                 let __terrane_index = __terrane_raised(
@@ -1279,21 +1267,22 @@ pub fn normalise_path(subject: Path) -> Path {
             },
             1 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
-        if part != String::from("") && part != String::from(".") {
-            if part == String::from("..") {
+        if part.as_str() != "" && part.as_str() != "." {
+            if part.as_str() == ".." {
                 if count.clone() > terrane_int_support::Int::from(0_i128)
                     && __terrane_raised(
-                        kept
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                            kept
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(
+                                            &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                                        ),
+                                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                     ),
-                                    2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                 ),
-                            ),
-                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
-                    ) != String::from("..")
+                            2 /* terrane-site: core/paths.trn:35:34-35:49 */,
+                        )
+                        .as_str() != ".."
                 {
                     count = count.clone() - terrane_int_support::Int::from(1_i128);
                 } else {
@@ -1345,10 +1334,10 @@ pub fn normalise_path(subject: Path) -> Path {
         }
         part_index = part_index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone() < count.clone() {
-        if result != String::from("") {
+        if result.as_str() != "" {
             result = format!(
                 "{}{}", terrane_scalar_support::scalar_text(&result),
                 terrane_scalar_support::scalar_text(&String::from("/"))
@@ -1369,14 +1358,16 @@ pub fn normalise_path(subject: Path) -> Path {
             terrane_scalar_support::scalar_text(&result)
         );
     }
-    if result == String::from("") && absolute {
+    if result.as_str() == "" && absolute {
         result = String::from("/");
     }
     return Path::terrane_construct(result);
 }
 pub fn path_name(subject: Path) -> String {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(normal);
+    let normal: Path;
+    let parts: terrane_collection_support::List<String>;
+    normal = normalise_path(subject);
+    parts = path_components(normal);
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
     {
@@ -1398,10 +1389,13 @@ pub fn path_name(subject: Path) -> String {
     );
 }
 pub fn path_parent(subject: Path) -> Path {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(
-        normal.clone(),
-    );
+    let normal: Path;
+    let parts: terrane_collection_support::List<String>;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    let absolute: bool;
+    normal = normalise_path(subject);
+    parts = path_components(normal.clone());
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
     {
@@ -1412,13 +1406,13 @@ pub fn path_parent(subject: Path) -> Path {
     {
         return Path::terrane_construct(String::from("."));
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone()
         < terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
             - terrane_int_support::Int::from(1_i128)
     {
-        if result != String::from("") {
+        if result.as_str() != "" {
             result = format!(
                 "{}{}", terrane_scalar_support::scalar_text(&result),
                 terrane_scalar_support::scalar_text(&String::from("/"))
@@ -1433,7 +1427,7 @@ pub fn path_parent(subject: Path) -> Path {
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let absolute: bool = path_is_absolute(normal);
+    absolute = path_is_absolute(normal);
     if absolute {
         result = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
@@ -1443,11 +1437,12 @@ pub fn path_parent(subject: Path) -> Path {
     return Path::terrane_construct(result);
 }
 pub fn path_stem(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
-        &String::from("."),
-    );
+    let current: String;
+    let pieces: Vec<String>;
+    let mut result: String;
+    let mut index: terrane_int_support::Int;
+    current = path_name(subject);
+    pieces = terrane_string_support::split(&current, &String::from("."));
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
@@ -1456,28 +1451,29 @@ pub fn path_stem(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    8 /* terrane-site: core/paths.trn:95:31-95:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            8 /* terrane-site: core/paths.trn:95:31-95:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        8 /* terrane-site: core/paths.trn:95:31-95:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                8 /* terrane-site: core/paths.trn:95:31-95:40 */,
+            )
+            .as_str() == ""
     {
         return current;
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result = String::from("");
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone()
         < terrane_int_support::Int::from(pieces.len() as i128)
             - terrane_int_support::Int::from(1_i128)
@@ -1503,11 +1499,10 @@ pub fn path_stem(subject: Path) -> String {
     return result;
 }
 pub fn path_extension(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
-        &String::from("."),
-    );
+    let current: String;
+    let pieces: Vec<String>;
+    current = path_name(subject);
+    pieces = terrane_string_support::split(&current, &String::from("."));
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
@@ -1516,23 +1511,24 @@ pub fn path_extension(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    10 /* terrane-site: core/paths.trn:111:31-111:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            10 /* terrane-site: core/paths.trn:111:31-111:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        10 /* terrane-site: core/paths.trn:111:31-111:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                10 /* terrane-site: core/paths.trn:111:31-111:40 */,
+            )
+            .as_str() == ""
     {
         return String::from("");
     }
@@ -1557,12 +1553,15 @@ pub fn path_extension(subject: Path) -> String {
     );
 }
 pub fn join_path(base: Path, child: Path) -> Path {
-    let absolute: bool = path_is_absolute(child.clone());
+    let absolute: bool;
+    let mut joined: String;
+    let combined: Path;
+    absolute = path_is_absolute(child.clone());
     if absolute {
         return normalise_path(child.clone());
     }
-    let mut joined: String = base.text.clone();
-    if joined != String::from("") && !joined.ends_with(&String::from("/")) {
+    joined = base.text.clone();
+    if joined.as_str() != "" && !joined.ends_with(&String::from("/")) {
         joined = format!(
             "{}{}", terrane_scalar_support::scalar_text(&joined),
             terrane_scalar_support::scalar_text(&String::from("/"))
@@ -1572,6 +1571,6 @@ pub fn join_path(base: Path, child: Path) -> Path {
         "{}{}", terrane_scalar_support::scalar_text(&joined),
         terrane_scalar_support::scalar_text(&child.text)
     );
-    let combined: Path = Path::terrane_construct(joined);
+    combined = Path::terrane_construct(joined);
     return normalise_path(combined);
 }

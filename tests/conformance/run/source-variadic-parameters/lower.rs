@@ -469,15 +469,15 @@ impl Calculator {
         &self,
         values: terrane_collection_support::List<terrane_int_support::Int>,
     ) -> terrane_int_support::Int {
-        let mut result: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
+        let mut result: terrane_int_support::Int;
+        let mut value: terrane_int_support::Int;
+        result = terrane_int_support::Int::from(0_i128);
         let __terrane_iterable_0 = values;
         let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_0,
         );
         loop {
-            let value = match __terrane_iterator_0.next() {
+            value = match __terrane_iterator_0.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
@@ -508,13 +508,15 @@ impl From<Calculator> for Summer {
 fn total(
     values: terrane_collection_support::List<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
-    let mut result: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let mut result: terrane_int_support::Int;
+    let mut value: terrane_int_support::Int;
+    result = terrane_int_support::Int::from(0_i128);
     let __terrane_iterable_1 = values;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
     );
     loop {
-        let value = match __terrane_iterator_1.next() {
+        value = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -526,13 +528,15 @@ fn offset_total(
     offset: terrane_int_support::Int,
     values: terrane_collection_support::List<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
-    let mut result: terrane_int_support::Int = offset.clone();
+    let mut result: terrane_int_support::Int;
+    let mut value: terrane_int_support::Int;
+    result = offset.clone();
     let __terrane_iterable_2 = values;
     let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_2,
     );
     loop {
-        let value = match __terrane_iterator_2.next() {
+        value = match __terrane_iterator_2.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -541,6 +545,23 @@ fn offset_total(
     return result.clone();
 }
 fn main() {
+    let closure: std::sync::Arc<
+        dyn Fn(
+            terrane_collection_support::List<terrane_int_support::Int>,
+        ) -> terrane_int_support::Int + Send + Sync,
+    >;
+    let typed: std::sync::Arc<
+        dyn Fn(
+            terrane_collection_support::List<terrane_int_support::Int>,
+        ) -> terrane_int_support::Int + Send + Sync,
+    >;
+    let concrete: Calculator;
+    let __trn_6162737472616374: Summer;
+    let bound: std::sync::Arc<
+        dyn Fn(
+            terrane_collection_support::List<terrane_int_support::Int>,
+        ) -> terrane_int_support::Int + Send + Sync,
+    >;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&total(terrane_collection_support::List::new(vec![])))
@@ -557,11 +578,7 @@ fn main() {
         terrane_collection_support::List::new(vec![terrane_int_support::Int::from(2_i128),
         terrane_int_support::Int::from(3_i128)])))
     );
-    let closure: std::sync::Arc<
-        dyn Fn(
-            terrane_collection_support::List<terrane_int_support::Int>,
-        ) -> terrane_int_support::Int + Send + Sync,
-    > = {
+    closure = {
         std::sync::Arc::new(move |
             values: terrane_collection_support::List<terrane_int_support::Int>,
         | -> terrane_int_support::Int {
@@ -576,28 +593,20 @@ fn main() {
         terrane_int_support::Int::from(3_i128),
         terrane_int_support::Int::from(4_i128)])))
     );
-    let typed: std::sync::Arc<
-        dyn Fn(
-            terrane_collection_support::List<terrane_int_support::Int>,
-        ) -> terrane_int_support::Int + Send + Sync,
-    > = std::sync::Arc::new(total);
+    typed = std::sync::Arc::new(total);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&typed(terrane_collection_support::List::new(vec![terrane_int_support::Int::from(4_i128),
         terrane_int_support::Int::from(5_i128)])))
     );
-    let concrete: Calculator = Calculator::terrane_construct();
-    let __trn_6162737472616374: Summer = <Summer>::from(concrete.clone());
+    concrete = Calculator::terrane_construct();
+    __trn_6162737472616374 = <Summer>::from(concrete.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&__trn_6162737472616374
         .sum(terrane_collection_support::List::new(vec![terrane_int_support::Int::from(6_i128),
         terrane_int_support::Int::from(7_i128)])))
     );
-    let bound: std::sync::Arc<
-        dyn Fn(
-            terrane_collection_support::List<terrane_int_support::Int>,
-        ) -> terrane_int_support::Int + Send + Sync,
-    > = {
+    bound = {
         let receiver = concrete;
         std::sync::Arc::new(move |
             argument_0: terrane_collection_support::List<terrane_int_support::Int>|

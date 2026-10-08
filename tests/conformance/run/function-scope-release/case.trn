@@ -1,0 +1,26 @@
+namespace function-scope-release
+class marker
+    name string
+    function construct; name string
+        this.name = name
+    consuming function destruct;
+        print; 'released ', this.name
+function main;
+    if true
+        value marker = instance marker; name = 'first'
+    else
+        value marker = instance marker; name = 'unused'
+    print; value.name
+    print; 'after-if'
+    count = 0
+    while count < 2
+        value marker = instance marker; name = 'loop'
+        print; value.name
+        count++
+    print; 'after-loop'
+    value string = 'done'
+    print; value
+    if true
+        retained marker = instance marker; name = 'retained'
+        print; retained.name
+    print; 'function-end'

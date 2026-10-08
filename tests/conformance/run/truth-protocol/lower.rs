@@ -21,8 +21,10 @@ impl Gate {
     }
 }
 fn main() {
-    let enabled: Gate = Gate::terrane_construct(true);
-    let disabled: Gate = Gate::terrane_construct(false);
+    let enabled: Gate;
+    let disabled: Gate;
+    enabled = Gate::terrane_construct(true);
+    disabled = Gate::terrane_construct(false);
     if enabled.truth() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("enabled")));
     }

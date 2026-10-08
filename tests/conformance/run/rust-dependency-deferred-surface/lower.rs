@@ -489,13 +489,18 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let buffer: BytesMut = __terrane_raised(
+    let buffer: BytesMut;
+    let remaining: terrane_int_support::Int;
+    let candidate: Option<Number>;
+    let data: Category;
+    let io: Category;
+    buffer = __terrane_raised(
         terrane_static_trn_42797465734d7574_with_capacity(
             terrane_int_support::Int::from(8_i128),
         ),
         0 /* terrane-site: src/main.trn:6:14-6:40 */,
     );
-    let remaining: terrane_int_support::Int = __terrane_raised(
+    remaining = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
                 &buffer,
@@ -514,13 +519,13 @@ fn main() {
         },
         1 /* terrane-site: src/main.trn:7:17-7:38 */,
     );
-    let candidate: Option<Number> = __terrane_raised(
+    candidate = __terrane_raised(
         terrane_static_trn_4e756d626572_from_u128(
             terrane_int_support::Int::from(42_i128),
         ),
         2 /* terrane-site: src/main.trn:8:17-8:38 */,
     );
-    let data: Category = __terrane_raised(
+    data = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| serde_json::error::Category::Data),
         ) {
@@ -537,7 +542,7 @@ fn main() {
         },
         3 /* terrane-site: src/main.trn:9:12-9:27 */,
     );
-    let io: Category = __terrane_raised(
+    io = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| serde_json::error::Category::Io),
         ) {

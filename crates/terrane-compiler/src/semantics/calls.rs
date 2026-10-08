@@ -208,9 +208,9 @@ pub(super) fn validate_call_nodes<'a>(
             )?;
             let value_type =
                 transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
-            if !matches!(
-                value_type,
-                Some(
+            let printable = |value_type: &ValueType| {
+                matches!(
+                    value_type,
                     ValueType::Scalar(
                         ScalarType::Bool
                             | ScalarType::Int
@@ -230,7 +230,14 @@ pub(super) fn validate_call_nodes<'a>(
                             | ScalarType::None
                     ) | ValueType::Descriptor(_)
                 )
-            ) {
+            };
+            if !value_type
+                .as_ref()
+                .is_some_and(|value_type| match value_type {
+                    ValueType::Union(arms) => arms.iter().all(printable),
+                    _ => printable(value_type),
+                })
+            {
                 return Err(failure(
                     &unit.source,
                     "T0035",
@@ -979,11 +986,7 @@ fn substitute_callable_parameter_generics(
     bindings: &BTreeMap<String, ValueType>,
 ) -> CallableParameterType {
     let value_type = substitute_projected_value_generics(parameter.value_type_ref(), bindings);
-    if parameter.is_variadic() {
-        CallableParameterType::variadic(ElementType::new(value_type))
-    } else {
-        CallableParameterType::fixed(ElementType::new(value_type))
-    }
+    parameter.with_element_type(ElementType::new(value_type))
 }
 
 pub(super) fn substitute_projected_value_generics(

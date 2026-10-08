@@ -4,14 +4,15 @@
 // Source: case.trn
 // Namespace: optional-value-narrowing
 fn helper() {
-    let found: String = String::from("shadow");
+    let found: String;
+    found = String::from("shadow");
     println!("{}", terrane_scalar_support::scalar_text(&found));
 }
 fn show(value: Option<i8>) {
     if value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &value { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
 }
@@ -22,63 +23,73 @@ fn missing() -> Option<i8> {
     return None;
 }
 fn main() {
-    let mut value: Option<i8> = Some(7);
+    let mut value: Option<i8>;
+    let other: Option<i8>;
+    let returned: Option<i8>;
+    let called: Option<i8>;
+    let missingvalue: Option<i8>;
+    let found: Option<terrane_string_support::TextRange>;
+    value = Some(7);
     if value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &value { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
         value = None;
         println!("{}", terrane_scalar_support::scalar_text(&true));
     }
     if value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &value { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    let other: Option<i8> = Some(8);
+    other = Some(8);
     if other.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* other.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &other { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     show(Some(9));
     show(None);
-    let returned: Option<i8> = maybe();
+    returned = maybe();
     if returned.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* returned.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &returned { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    let called: Option<i8> = maybe();
+    called = maybe();
     if called.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* called.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &called { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    let missingvalue: Option<i8> = None;
+    missingvalue = None;
     if missingvalue.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* missingvalue.as_ref()
-            .expect("semantic optional narrowing"))
+            "{}", terrane_scalar_support::scalar_text(&* match &missingvalue {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     missing();
     println!("{}", terrane_scalar_support::scalar_text(&true));
     helper();
-    let found: Option<terrane_string_support::TextRange> = terrane_string_support::find(
-        &String::from("banana"),
-        &String::from("ana"),
-    );
+    found = terrane_string_support::find(&String::from("banana"), &String::from("ana"));
     if found.is_some() {
-        if found.is_some() {
+        if {
+            let _ = &match &found {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            };
+            true
+        } {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&found.as_ref()
-                .expect("semantic optional narrowing").clone().text().to_owned())
+                "{}", terrane_scalar_support::scalar_text(&match &found { Some(value) =>
+                value, _ => unreachable!("flow-proven storage refinement") } .text()
+                .to_owned())
             );
         }
     }

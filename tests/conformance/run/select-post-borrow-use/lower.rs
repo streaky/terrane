@@ -43,9 +43,14 @@ async fn text() -> String {
 }
 fn main() {
     __terrane_run(async move {
+        let mut acc: Accumulator;
+        let first: terrane_int_support::Int;
+        let mut ignored: String;
+        let mut r: Reader;
+        let peeked: terrane_int_support::Int;
         let mut __terrane_select_cursor_368 = 0usize;
         let mut __terrane_select_cursor_562 = 0usize;
-        let mut acc: Accumulator = Accumulator::terrane_construct();
+        acc = Accumulator::terrane_construct();
         {
             let mut __terrane_select_guard_368 = __terrane_finally_guard();
             let __terrane_select_control_368_0 = __terrane_select_control();
@@ -142,13 +147,13 @@ fn main() {
             __terrane_select_guard_368.finish();
             match __terrane_select_winner_368 {
                 0 => {
-                    let first: terrane_int_support::Int = __terrane_select_result_368_0
+                    first = __terrane_select_result_368_0
                         .take()
                         .expect("selected case owns its ready result");
                     println!("{}", terrane_scalar_support::scalar_text(&first));
                 }
                 1 => {
-                    let ignored: String = __terrane_select_result_368_1
+                    ignored = __terrane_select_result_368_1
                         .take()
                         .expect("selected case owns its ready result");
                     println!("{}", terrane_scalar_support::scalar_text(&ignored));
@@ -159,7 +164,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
         acc.total = terrane_int_support::Int::from(9_i128);
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
-        let mut r: Reader = Reader::terrane_construct();
+        r = Reader::terrane_construct();
         {
             let mut __terrane_select_guard_562 = __terrane_finally_guard();
             let __terrane_select_control_562_0 = __terrane_select_control();
@@ -256,13 +261,13 @@ fn main() {
             __terrane_select_guard_562.finish();
             match __terrane_select_winner_562 {
                 0 => {
-                    let peeked: terrane_int_support::Int = __terrane_select_result_562_0
+                    peeked = __terrane_select_result_562_0
                         .take()
                         .expect("selected case owns its ready result");
                     println!("{}", terrane_scalar_support::scalar_text(&peeked));
                 }
                 1 => {
-                    let ignored: String = __terrane_select_result_562_1
+                    ignored = __terrane_select_result_562_1
                         .take()
                         .expect("selected case owns its ready result");
                     println!("{}", terrane_scalar_support::scalar_text(&ignored));

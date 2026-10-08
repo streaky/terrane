@@ -1,0 +1,36 @@
+namespace function-scope-assignment-destination
+from /core/errors import coercion-error
+function optional-result string|none; choose bool
+    result string|none = none
+    count int = 0
+    while count < 2
+        if choose
+            result = 'found'
+        count++
+    return result
+function fixed-width-result uint8; choose bool
+    result uint8 = 1
+    if choose
+        result = 2
+    return result
+function create-value string throws coercion-error; fail bool
+    if fail
+        throw coercion-error; 'failed'
+    return 'created'
+function fallible-initialization none; fail bool
+    try
+        value = create-value; fail
+        print; value
+    catch coercion-error
+        print; 'failed'
+    return none
+function main;
+    absent = optional-result; false
+    if absent == none
+        print; 'absent'
+    present = optional-result; true
+    if present != none
+        print; present
+    print; (fixed-width-result; true)
+    fallible-initialization; false
+    fallible-initialization; true

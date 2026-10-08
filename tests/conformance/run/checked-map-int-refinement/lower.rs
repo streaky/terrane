@@ -436,7 +436,9 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: checked-map-int-refinement
 fn main() {
-    let mut counts: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+    let mut counts: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let current: Option<terrane_int_support::Int>;
+    counts = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -445,15 +447,16 @@ fn main() {
             terrane_int_support::Int::from(1_i128))
         ],
     );
-    let current: Option<terrane_int_support::Int> = counts
-        .get(&String::from("apple"))
-        .cloned();
+    current = counts.get(&String::from("apple")).cloned();
     if current.is_some() {
         let _ = counts
             .set(
                 String::from("apple"),
-                current.as_ref().expect("semantic optional narrowing").clone().clone()
-                    + terrane_int_support::Int::from(1_i128),
+                match &current {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .clone() + terrane_int_support::Int::from(1_i128),
             );
     }
     println!(

@@ -541,11 +541,15 @@ fn take_map_list(
     );
 }
 fn main() {
-    let pair: terrane_collection_support::Entry<String, i8> = terrane_collection_support::Entry::<
+    let pair: terrane_collection_support::Entry<String, i8>;
+    let keyed: terrane_collection_support::Map<i8, String>;
+    let made: terrane_collection_support::List<i8>;
+    let made_entries: terrane_collection_support::Map<
         String,
-        i8,
-    >::new(String::from("a"), 6);
-    let keyed: terrane_collection_support::Map<i8, String> = terrane_collection_support::Map::<
+        terrane_collection_support::Entry<String, i8>,
+    >;
+    pair = terrane_collection_support::Entry::<String, i8>::new(String::from("a"), 6);
+    keyed = terrane_collection_support::Map::<
         i8,
         String,
     >::new(
@@ -595,11 +599,8 @@ fn main() {
             ],
         ),
     );
-    let made: terrane_collection_support::List<i8> = make();
-    let made_entries: terrane_collection_support::Map<
-        String,
-        terrane_collection_support::Entry<String, i8>,
-    > = make_entry_map();
+    made = make();
+    made_entries = make_entry_map();
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair.value),
         terrane_scalar_support::scalar_text(&__terrane_raised(keyed.get_or_error(&5),

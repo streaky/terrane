@@ -272,31 +272,39 @@ impl From<InterfaceCollisionSource> for InterfaceCollision {
 }
 #[allow(unsafe_code)]
 fn main() {
-    let overridden: PairedBase = PairedBase::SafeOverride(
-        SafeOverride::terrane_construct(),
-    );
+    let overridden: PairedBase;
+    let extended: UnsafeAddition;
+    let concrete: Source;
+    let class_operation: std::sync::Arc<
+        dyn Fn() -> terrane_int_support::Int + Send + Sync,
+    >;
+    let __trn_6162737472616374: PairedSource;
+    let interface_operation: std::sync::Arc<
+        dyn Fn() -> terrane_int_support::Int + Send + Sync,
+    >;
+    let same_owner: SameOwnerCollision;
+    let inherited: InheritedCollision;
+    let interface_concrete: InterfaceCollisionSource;
+    let interface_value: InterfaceCollision;
+    overridden = PairedBase::SafeOverride(SafeOverride::terrane_construct());
     println!("{}", terrane_scalar_support::scalar_text(&overridden.raw()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&unsafe { overridden
         ._terrane_unsafe_726177() })
     );
-    let extended: UnsafeAddition = UnsafeAddition::terrane_construct();
+    extended = UnsafeAddition::terrane_construct();
     println!("{}", terrane_scalar_support::scalar_text(&extended.raw()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&unsafe { extended
         ._terrane_unsafe_726177() })
     );
-    let concrete: Source = Source::terrane_construct();
-    let class_operation: std::sync::Arc<
-        dyn Fn() -> terrane_int_support::Int + Send + Sync,
-    > = {
+    concrete = Source::terrane_construct();
+    class_operation = {
         let receiver = concrete.clone();
         std::sync::Arc::new(move || receiver.raw())
     };
-    let __trn_6162737472616374: PairedSource = <PairedSource>::from(concrete);
-    let interface_operation: std::sync::Arc<
-        dyn Fn() -> terrane_int_support::Int + Send + Sync,
-    > = {
+    __trn_6162737472616374 = <PairedSource>::from(concrete);
+    interface_operation = {
         let receiver = __trn_6162737472616374;
         std::sync::Arc::new(move || receiver.raw())
     };
@@ -304,22 +312,20 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&class_operation()),
         terrane_scalar_support::scalar_text(&interface_operation())
     );
-    let same_owner: SameOwnerCollision = SameOwnerCollision::terrane_construct();
+    same_owner = SameOwnerCollision::terrane_construct();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&same_owner.raw_unsafe()),
         terrane_scalar_support::scalar_text(&unsafe { same_owner._terrane_unsafe_726177()
         })
     );
-    let inherited: InheritedCollision = InheritedCollision::terrane_construct();
+    inherited = InheritedCollision::terrane_construct();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&inherited.raw_unsafe()),
         terrane_scalar_support::scalar_text(&unsafe { inherited._terrane_unsafe_726177()
         })
     );
-    let interface_concrete: InterfaceCollisionSource = InterfaceCollisionSource::terrane_construct();
-    let interface_value: InterfaceCollision = <InterfaceCollision>::from(
-        interface_concrete,
-    );
+    interface_concrete = InterfaceCollisionSource::terrane_construct();
+    interface_value = <InterfaceCollision>::from(interface_concrete);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&interface_value.raw_unsafe()),
         terrane_scalar_support::scalar_text(&unsafe { interface_value

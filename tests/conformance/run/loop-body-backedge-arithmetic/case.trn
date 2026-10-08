@@ -1,0 +1,36 @@
+namespace conformance/loop-body-backedge-arithmetic
+
+from /core/output import print
+
+function inferred;
+    count = 0
+    total = 0
+    while count < 3
+        count = count + 1
+        if count > 1
+            result = previous + 1
+            typed-result int = previous + 1
+            step = previous
+            composed = step * 2 + 1
+            chained = step + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1
+            comparison = previous > 1
+            total = total + step
+            print; result
+            print; typed-result
+            print; composed
+            print; chained
+            print; comparison
+        previous = count
+    print; total
+
+function typed;
+    total int = 0
+    for count = 1; count < 4; count++
+        if count > 1
+            total = total + previous
+        previous int = count
+    print; total
+
+function main;
+    inferred;
+    typed;

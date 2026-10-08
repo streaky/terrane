@@ -436,9 +436,12 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: nan-float-narrowing
 fn main() {
-    let zero: f64 = 0.0;
-    let source: f64 = zero / zero;
-    let target: f32 = {
+    let zero: f64;
+    let source: f64;
+    let target: f32;
+    zero = 0.0;
+    source = zero / zero;
+    target = {
         let source_value = source;
         let converted = source_value as f32;
         if converted as f64 == source_value {

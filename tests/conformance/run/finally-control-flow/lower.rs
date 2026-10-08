@@ -529,11 +529,14 @@ fn caught() -> terrane_int_support::Int {
     }
 }
 fn main() {
-    let value: terrane_int_support::Int = early();
+    let value: terrane_int_support::Int;
+    let caught_value: terrane_int_support::Int;
+    let mut counter: terrane_int_support::Int;
+    value = early();
     println!("{}", terrane_scalar_support::scalar_text(&value));
-    let caught_value: terrane_int_support::Int = caught();
+    caught_value = caught();
     println!("{}", terrane_scalar_support::scalar_text(&caught_value));
-    let mut counter: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    counter = terrane_int_support::Int::from(0_i128);
     while counter.clone() < terrane_int_support::Int::from(3_i128) {
         counter = counter.clone() + terrane_int_support::Int::from(1_i128);
         let mut __terrane_completion_2: TerraneCompletion<()> = (|| {

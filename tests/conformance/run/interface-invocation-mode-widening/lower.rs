@@ -150,13 +150,12 @@ impl From<MutableSample> for ConsumingCounter {
     }
 }
 fn main() {
-    let mut mutable_view: MutableCounter = <MutableCounter>::from(
-        Sample::terrane_construct(),
-    );
-    let consuming_view: ConsumingLabel = <ConsumingLabel>::from(
-        Sample::terrane_construct(),
-    );
-    let mutable_consuming_view: ConsumingCounter = <ConsumingCounter>::from(
+    let mut mutable_view: MutableCounter;
+    let consuming_view: ConsumingLabel;
+    let mutable_consuming_view: ConsumingCounter;
+    mutable_view = <MutableCounter>::from(Sample::terrane_construct());
+    consuming_view = <ConsumingLabel>::from(Sample::terrane_construct());
+    mutable_consuming_view = <ConsumingCounter>::from(
         MutableSample::terrane_construct(),
     );
     println!(

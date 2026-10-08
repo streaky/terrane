@@ -38,7 +38,8 @@ impl Drop for Resource {
 }
 fn main() {
     __terrane_run(async move {
-        let value: Resource = Resource::terrane_construct();
+        let value: Resource;
+        value = Resource::terrane_construct();
         let _ = &value;
         println!("{}", terrane_scalar_support::scalar_text(&String::from("body")));
     });

@@ -442,12 +442,16 @@ fn main() {
     __terrane_run(async move {
         let inner: std::sync::Arc<
             dyn Fn() -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
-        > = {
+        >;
+        let finished: ();
+        inner = {
             std::sync::Arc::new(move || -> std::pin::Pin<
                 Box<dyn Future<Output = ()> + Send>,
             > {
                 Box::pin(async move {
                     let mut __terrane_select_cursor_162 = 0usize;
+                    let value: terrane_int_support::Int;
+                    let text: String;
                     {
                         let mut __terrane_select_guard_162 = __terrane_finally_guard();
                         let __terrane_select_control_162_0 = __terrane_select_control();
@@ -545,13 +549,13 @@ fn main() {
                         __terrane_select_guard_162.finish();
                         match __terrane_select_winner_162 {
                             0 => {
-                                let value: terrane_int_support::Int = __terrane_select_result_162_0
+                                value = __terrane_select_result_162_0
                                     .take()
                                     .expect("selected case owns its ready result");
                                 println!("{}", terrane_scalar_support::scalar_text(&value));
                             }
                             1 => {
-                                let text: String = __terrane_select_result_162_1
+                                text = __terrane_select_result_162_1
                                     .take()
                                     .expect("selected case owns its ready result");
                                 println!("{}", terrane_scalar_support::scalar_text(&text));
@@ -563,7 +567,7 @@ fn main() {
                 })
             })
         };
-        let finished: () = __terrane_await(inner()).await;
+        finished = __terrane_await(inner()).await;
         if finished == () {
             return ();
         }

@@ -529,7 +529,10 @@ impl Plain {
     }
 }
 fn main() {
-    let value: Defaults = Defaults::terrane_construct(String::from("ready"));
+    let value: Defaults;
+    let descriptor: TerraneDescriptor;
+    let plain_value: Plain;
+    value = Defaults::terrane_construct(String::from("ready"));
     println!(
         "{}{}{}{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&value.message),
         terrane_scalar_support::scalar_text(&String::from(":")),
@@ -566,7 +569,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&TERRANE_STATIC_DEFAULTS_SHARED.lock()
         .expect("static field lock poisoned").clone())
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor = TerraneDescriptor {
         identity: "/implicit-class-field-defaults::defaults",
         name: "defaults",
         kind: "class",
@@ -672,7 +675,7 @@ fn main() {
             },
         ],
     };
-    let plain_value: Plain = Plain::terrane_construct();
+    plain_value = Plain::terrane_construct();
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&plain_value.count),
         terrane_scalar_support::scalar_text(&String::from(":")),

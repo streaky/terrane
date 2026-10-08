@@ -1,6 +1,17 @@
 // Generated deterministically by Terrane <version>.
 // Runtime support: async.rs, async_select.rs, executor_parallel.rs
 // Vendored support crates: terrane-int-support, terrane-scalar-support
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: heterogeneous-select
 fn mark(value: String) -> String {
@@ -17,8 +28,11 @@ async fn text_task(marker: String) -> String {
 }
 fn main() {
     __terrane_run(async move {
+        let mut count: terrane_int_support::Int;
+        let mut number: Option<terrane_int_support::Int> = None;
+        let mut text: String;
         let mut __terrane_select_cursor_275 = 0usize;
-        let mut count: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+        count = terrane_int_support::Int::from(0_i128);
         while count.clone() < terrane_int_support::Int::from(4_i128) {
             {
                 let mut __terrane_select_guard_275 = __terrane_finally_guard();
@@ -116,13 +130,19 @@ fn main() {
                 __terrane_select_guard_275.finish();
                 match __terrane_select_winner_275 {
                     0 => {
-                        let number: terrane_int_support::Int = __terrane_select_result_275_0
-                            .take()
-                            .expect("selected case owns its ready result");
-                        println!("{}", terrane_scalar_support::scalar_text(&number));
+                        let _ = number
+                            .insert(
+                                __terrane_select_result_275_0
+                                    .take()
+                                    .expect("selected case owns its ready result"),
+                            );
+                        println!(
+                            "{}", terrane_scalar_support::scalar_text(&number.as_ref()
+                            .expect("flow-proven available binding").clone())
+                        );
                     }
                     1 => {
-                        let text: String = __terrane_select_result_275_1
+                        text = __terrane_select_result_275_1
                             .take()
                             .expect("selected case owns its ready result");
                         println!("{}", terrane_scalar_support::scalar_text(&text));

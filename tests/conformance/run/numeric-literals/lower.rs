@@ -4,14 +4,22 @@
 // Source: case.trn
 // Namespace: numeric-literals
 fn main() {
-    let adaptive: i64 = 16;
-    let single: f32 = 1.5_f32;
-    let double: f64 = 2.25;
-    let inferred: f64 = 3.5;
-    let signed_value: i8 = 127;
-    let unsigned_value: u8 = 255;
-    let minimum: i8 = -128;
-    let negative_hex: i8 = -16;
+    let adaptive: i64;
+    let single: f32;
+    let double: f64;
+    let inferred: f64;
+    let signed_value: i8;
+    let unsigned_value: u8;
+    let minimum: i8;
+    let negative_hex: i8;
+    adaptive = 16;
+    single = 1.5_f32;
+    double = 2.25;
+    inferred = 3.5;
+    signed_value = 127;
+    unsigned_value = 255;
+    minimum = -128;
+    negative_hex = -16;
     println!("{}", terrane_scalar_support::scalar_text(&adaptive));
     println!("{}", terrane_scalar_support::scalar_text(&single));
     println!("{}", terrane_scalar_support::scalar_text(&double));

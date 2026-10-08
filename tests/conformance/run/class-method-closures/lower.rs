@@ -458,10 +458,13 @@ impl Maker {
     }
 }
 fn main() {
-    let value: Maker = Maker::terrane_construct();
+    let value: Maker;
     let add: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = value.offset();
-    let result: terrane_int_support::Int = add(terrane_int_support::Int::from(5_i128));
+    >;
+    let result: terrane_int_support::Int;
+    value = Maker::terrane_construct();
+    add = value.offset();
+    result = add(terrane_int_support::Int::from(5_i128));
     println!("{}", terrane_scalar_support::scalar_text(&result));
 }

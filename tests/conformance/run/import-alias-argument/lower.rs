@@ -436,7 +436,8 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: later-coercion-alias-argument
 fn main() {
-    let value: i64 = 100;
+    let value: i64;
+    value = 100;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::coerce::

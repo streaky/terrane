@@ -472,7 +472,8 @@ fn apply(
 fn main() {
     let operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(render);
+    >;
+    operation = std::sync::Arc::new(render);
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "throws"
         .to_owned() })

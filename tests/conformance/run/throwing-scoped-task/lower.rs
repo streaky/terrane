@@ -445,8 +445,11 @@ async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
 }
 fn main() {
     __terrane_run(async move {
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<terrane_int_support::Int> = {
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<terrane_int_support::Int>;
+        let outcome: TerraneTaskOutcome<terrane_int_support::Int>;
+        scope = TerraneTaskScope::new(None);
+        child = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -466,10 +469,7 @@ fn main() {
                 }
             })
         };
-        let outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(child),
-            )
-            .await;
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
             terrane_scalar_support::scalar_text(&outcome.cancelled),

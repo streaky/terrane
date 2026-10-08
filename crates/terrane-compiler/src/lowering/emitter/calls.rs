@@ -58,6 +58,11 @@ impl Emitter<'_> {
                 .last()
                 .filter(|_| node.kind == SyntaxKind::UnaryExpression)
                 .unwrap_or(node);
+            if let Some(value) =
+                self.narrowed_storage_name(operand, false, parameter.mutable_borrow)
+            {
+                return value;
+            }
             let value = self.native_receiver_expression(operand, parameter.mutable_borrow);
             return format!(
                 "&{}({value})",
@@ -1867,7 +1872,13 @@ impl Emitter<'_> {
                     )
                 {
                     if let Some(operand) = explicit_reference {
-                        if self.narrowed_optional_name(operand).is_some() {
+                        if let Some(reference) = self.narrowed_storage_name(operand, false, true) {
+                            reference
+                        } else if let Some(binding) = self.local_typed_binding(operand)
+                            && self.binding_may_be_unassigned(binding)
+                        {
+                            self.available_storage_reference(binding, operand, true)
+                        } else if self.narrowed_optional_name(operand).is_some() {
                             format!(
                                 "&mut *{}.as_mut().expect(\"semantic optional narrowing\")",
                                 self.raw_storage_name(operand)
@@ -2247,10 +2258,18 @@ impl Emitter<'_> {
         {
             let receiver = match projected.receiver {
                 Some(crate::rust_interop::projection::Receiver::Borrow) => {
-                    format!("&{}", self.native_receiver_expression(receiver, false))
+                    if let Some(narrowed) = self.narrowed_storage_name(receiver, false, false) {
+                        narrowed
+                    } else {
+                        format!("&{}", self.native_receiver_expression(receiver, false))
+                    }
                 }
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
-                    format!("&mut {}", self.native_receiver_expression(receiver, true))
+                    if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true) {
+                        narrowed
+                    } else {
+                        format!("&mut {}", self.native_receiver_expression(receiver, true))
+                    }
                 }
                 Some(crate::rust_interop::projection::Receiver::Move) => {
                     self.consuming_native_receiver_expression(receiver)
@@ -2307,15 +2326,22 @@ impl Emitter<'_> {
                             | crate::rust_interop::projection::Receiver::MutableBorrow
                     )
                 ) {
-                self.native_receiver_expression(
-                    receiver,
-                    matches!(
-                        projected_receiver,
-                        Some(crate::rust_interop::projection::Receiver::MutableBorrow)
-                    ),
-                )
+                let mutable = projected_receiver
+                    == Some(crate::rust_interop::projection::Receiver::MutableBorrow);
+                if let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable) {
+                    narrowed
+                } else {
+                    let native = self.native_receiver_expression(receiver, mutable);
+                    if mutable {
+                        native
+                    } else {
+                        format!("&{native}")
+                    }
+                }
             } else if projected_receiver == Some(crate::rust_interop::projection::Receiver::Move) {
                 self.consuming_native_receiver_expression(receiver)
+            } else if contract.written_invocation_mode == InvocationMode::Mutable {
+                self.native_receiver_expression(receiver, true)
             } else {
                 self.receiver_expression(receiver)
             };
@@ -2669,10 +2695,6 @@ impl Emitter<'_> {
         } else {
             format!("{name}({})", values.join(", "))
         };
-        let projected_enum_receiver = callee
-            .children
-            .first()
-            .map(|receiver| self.receiver_expression(receiver));
         let foreign_method =
             if specialization.is_some_and(|specialization| specialization.direct_projected_call) {
                 projected_function.as_ref()
@@ -2732,10 +2754,21 @@ impl Emitter<'_> {
                         .map(str::to_owned)
                 })?;
                 let owner = owner.replacen('<', "::<", 1);
-                let receiver = (!contract.as_ref().is_some_and(|contract| contract.is_static))
-                    .then_some(projected_enum_receiver.as_deref())
-                    .flatten();
-                Some(projected_enum_call(operation, &owner, receiver, &values))
+                let receiver = if contract.as_ref().is_some_and(|contract| contract.is_static) {
+                    None
+                } else if foreign_method.is_some_and(|method| {
+                    method.receiver == Some(crate::rust_interop::projection::Receiver::Move)
+                }) {
+                    Some(self.consuming_native_receiver_expression(receiver))
+                } else {
+                    Some(self.receiver_expression(receiver))
+                };
+                Some(projected_enum_call(
+                    operation,
+                    &owner,
+                    receiver.as_deref(),
+                    &values,
+                ))
             })
             .unwrap_or(call);
         let chain_role = foreign_method

@@ -1,0 +1,12 @@
+namespace function-scope-select-join
+async function integer-result int;
+    return 3
+async function string-result string;
+    return 'cat'
+async function main;
+    select
+        case result int = await (integer-result;)
+            print; 'integer'
+        case result string = await (string-result;)
+            print; 'string'
+    print; result

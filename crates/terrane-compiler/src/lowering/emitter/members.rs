@@ -217,6 +217,14 @@ impl Emitter<'_> {
     }
 
     pub(super) fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if self.assignment_target
+            && receiver.kind == SyntaxKind::Name
+            && let Some(binding) = self.local_typed_binding(receiver)
+            && self.binding_may_be_unassigned(binding)
+            && !self.reference_backed(binding)
+        {
+            return self.available_storage_reference(binding, receiver, true);
+        }
         match self.value_type(receiver) {
             Some(ValueType::SharedReference(_)) => format!(
                 "({{ let __terrane_value = {}.lock().expect(\"shared reference lock poisoned\").clone(); __terrane_value }})",
@@ -234,6 +242,18 @@ impl Emitter<'_> {
     }
 
     pub(super) fn consuming_native_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if receiver.kind == SyntaxKind::GroupExpression
+            && let [grouped] = receiver.children.as_slice()
+        {
+            return self.consuming_native_receiver_expression(grouped);
+        }
+        if receiver.kind == SyntaxKind::Name
+            && self
+                .value_type(receiver)
+                .is_some_and(|value_type| self.value_type_owns_resource(&value_type))
+        {
+            return self.moved_name(receiver);
+        }
         match self.value_type(receiver) {
             Some(value_type @ ValueType::Object(_)) => self.expression_as(receiver, value_type),
             _ => self.receiver_expression(receiver),
@@ -261,16 +281,19 @@ impl Emitter<'_> {
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
+        if matches!(self.value_type(receiver), Some(ValueType::Object(_)))
+            && let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable)
+        {
+            return narrowed;
+        }
         if receiver.kind == SyntaxKind::Name
             && matches!(self.value_type(receiver), Some(ValueType::Object(_)))
             && self.reference_backed_name(receiver).is_none()
         {
-            if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
-                let access = if mutable { "as_mut" } else { "as_ref" };
-                return format!(
-                    "{}.{access}().expect(\"semantic optional narrowing\")",
-                    self.raw_storage_name(receiver)
-                );
+            if let Some(binding) = self.local_typed_binding(receiver)
+                && self.binding_may_be_unassigned(binding)
+            {
+                return self.available_storage_reference(binding, receiver, mutable);
             }
             return self.raw_storage_name(receiver);
         }
@@ -278,16 +301,27 @@ impl Emitter<'_> {
     }
 
     pub(super) fn mutable_receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
-        if narrowed_value_type(self.unit, receiver, &self.unit.typed_bindings).is_some() {
-            return format!(
-                "{}.as_mut().expect(\"semantic optional narrowing\")",
-                self.raw_storage_name(receiver)
-            );
+        if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true) {
+            return narrowed;
+        }
+        if receiver.kind == SyntaxKind::Name
+            && let Some(binding) = self.local_typed_binding(receiver)
+            && self.binding_may_be_unassigned(binding)
+            && !self.reference_backed(binding)
+        {
+            return self.available_storage_reference(binding, receiver, true);
         }
         format!("&mut {}", self.receiver_expression(receiver))
     }
 
     pub(super) fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if receiver.kind == SyntaxKind::Name
+            && let Some(binding) = self.local_typed_binding(receiver)
+            && self.binding_may_be_unassigned(binding)
+            && !self.reference_backed(binding)
+        {
+            return self.available_storage_reference(binding, receiver, true);
+        }
         match self.value_type(receiver) {
             Some(ValueType::SharedReference(_)) => format!(
                 "{}.lock().expect(\"shared reference lock poisoned\")",

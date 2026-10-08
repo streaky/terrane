@@ -1,0 +1,14 @@
+namespace annotation-cli
+
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::callable;))]
+class command
+    name string|none = none
+    summary string|none = none
+
+@[annotation; targets = (list; (instance annotation-target::parameter;))]
+class command-option
+    long-name string
+    help string|none = none

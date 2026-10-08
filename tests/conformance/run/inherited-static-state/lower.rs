@@ -64,9 +64,12 @@ impl Dog {
     }
 }
 fn main() {
-    let animal_first: terrane_int_support::Int = Animal::terrane_static_increase();
-    let dog_first: terrane_int_support::Int = Dog::terrane_static_increase();
-    let animal_second: terrane_int_support::Int = Animal::terrane_static_increase();
+    let animal_first: terrane_int_support::Int;
+    let dog_first: terrane_int_support::Int;
+    let animal_second: terrane_int_support::Int;
+    animal_first = Animal::terrane_static_increase();
+    dog_first = Dog::terrane_static_increase();
+    animal_second = Animal::terrane_static_increase();
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&animal_first),
         terrane_scalar_support::scalar_text(&dog_first),

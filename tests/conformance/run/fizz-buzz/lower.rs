@@ -440,7 +440,8 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: fizz-buzz
 fn main() {
-    let mut number: terrane_int_support::Int = terrane_int_support::Int::from(1_i128);
+    let mut number: terrane_int_support::Int;
+    number = terrane_int_support::Int::from(1_i128);
     while number.clone() <= terrane_int_support::Int::from(15_i128) {
         if __terrane_raised(
             number.clone().modulo(&terrane_int_support::Int::from(15_i128)),

@@ -430,6 +430,17 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: select-cleanup-shield
 async fn loser(
@@ -438,23 +449,31 @@ async fn loser(
     cleanup_release: TerraneChannelReceiver<terrane_int_support::Int>,
     work: TerraneChannelReceiver<terrane_int_support::Int>,
 ) {
+    let mut signalled: Option<TerraneChannelSendOutcome<terrane_int_support::Int>> = None;
+    let mut received: Option<TerraneChannelReceiveOutcome<terrane_int_support::Int>> = None;
+    let mut cleaning: Option<TerraneChannelSendOutcome<terrane_int_support::Int>> = None;
+    let mut released: Option<TerraneChannelReceiveOutcome<terrane_int_support::Int>> = None;
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
             &__terrane_finally_guard_0,
             async {
                 let __terrane_try_0: TerraneCompletion<()> = async {
-                    let signalled: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
-                            Box::pin(
-                                started.send(terrane_int_support::Int::from(1_i128)),
-                            ),
-                        )
-                        .await;
-                    let received: TerraneChannelReceiveOutcome<
-                        terrane_int_support::Int,
-                    > = __terrane_await(Box::pin(work.receive())).await;
+                    let _ = signalled
+                        .insert(
+                            __terrane_await(
+                                    Box::pin(
+                                        started.send(terrane_int_support::Int::from(1_i128)),
+                                    ),
+                                )
+                                .await,
+                        );
+                    let _ = received
+                        .insert(__terrane_await(Box::pin(work.receive())).await);
                     println!(
-                        "{}{}", terrane_scalar_support::scalar_text(&signalled.accepted),
-                        terrane_scalar_support::scalar_text(&received.available)
+                        "{}{}", terrane_scalar_support::scalar_text(&signalled.as_ref()
+                        .expect("flow-proven available binding").clone().accepted),
+                        terrane_scalar_support::scalar_text(&received.as_ref()
+                        .expect("flow-proven available binding").clone().available)
                     );
                     TerraneCompletion::Normal
                 }
@@ -481,19 +500,24 @@ async fn loser(
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<()> = async {
-        let cleaning: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
-                Box::pin(cleanup_started.send(terrane_int_support::Int::from(1_i128))),
-            )
-            .await;
-        let released: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
-                Box::pin(cleanup_release.receive()),
-            )
-            .await;
+        let _ = cleaning
+            .insert(
+                __terrane_await(
+                        Box::pin(
+                            cleanup_started.send(terrane_int_support::Int::from(1_i128)),
+                        ),
+                    )
+                    .await,
+            );
+        let _ = released
+            .insert(__terrane_await(Box::pin(cleanup_release.receive())).await);
         println!(
             "{}{}{}",
             terrane_scalar_support::scalar_text(&String::from("cleanup-finished")),
-            terrane_scalar_support::scalar_text(&cleaning.accepted),
-            terrane_scalar_support::scalar_text(&released.available)
+            terrane_scalar_support::scalar_text(&cleaning.as_ref()
+            .expect("flow-proven available binding").clone().accepted),
+            terrane_scalar_support::scalar_text(&released.as_ref()
+            .expect("flow-proven available binding").clone().available)
         );
         TerraneCompletion::Normal
     }
@@ -518,10 +542,8 @@ async fn loser(
     }
 }
 async fn winner(started: TerraneChannelReceiver<terrane_int_support::Int>) {
-    let observed: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
-            Box::pin(started.receive()),
-        )
-        .await;
+    let observed: TerraneChannelReceiveOutcome<terrane_int_support::Int>;
+    observed = __terrane_await(Box::pin(started.receive())).await;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&String::from("winner-ready")),
         terrane_scalar_support::scalar_text(&observed.available)
@@ -651,36 +673,45 @@ async fn selecting(
 }
 fn main() {
     __terrane_run(async move {
-        let started: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+        let started: TerraneChannelPair<terrane_int_support::Int>;
+        let cleanup_started: TerraneChannelPair<terrane_int_support::Int>;
+        let cleanup_release: TerraneChannelPair<terrane_int_support::Int>;
+        let work: TerraneChannelPair<terrane_int_support::Int>;
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<()>;
+        let cleaning: TerraneChannelReceiveOutcome<terrane_int_support::Int>;
+        let release: TerraneChannelSendOutcome<terrane_int_support::Int>;
+        let outcome: TerraneTaskOutcome<()>;
+        started = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let cleanup_started: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+        cleanup_started = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let cleanup_release: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+        cleanup_release = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let work: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+        work = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(0_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<()> = {
+        scope = TerraneTaskScope::new(None);
+        child = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -704,16 +735,13 @@ fn main() {
                 }
             })
         };
-        let cleaning: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
-                cleanup_started.receiver.receive(),
-            )
-            .await;
+        cleaning = __terrane_await(cleanup_started.receiver.receive()).await;
         scope.cancel();
-        let release: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
+        release = __terrane_await(
                 cleanup_release.sender.send(terrane_int_support::Int::from(1_i128)),
             )
             .await;
-        let outcome: TerraneTaskOutcome<()> = __terrane_await(scope.join(child)).await;
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
             "{}{}{}{}", terrane_scalar_support::scalar_text(&cleaning.available),
             terrane_scalar_support::scalar_text(&release.accepted),
@@ -814,13 +842,15 @@ impl IntMutex {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_load(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_load(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -830,10 +860,8 @@ impl IntMutex {
         );
     }
     pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_store(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_store(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -844,10 +872,8 @@ impl IntMutex {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
-            &self.handle,
-            amount,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_add(&self.handle, amount);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -874,13 +900,15 @@ impl IntReadWriteLock {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn read(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_read(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_read(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -890,10 +918,8 @@ impl IntReadWriteLock {
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_write(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_write(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -949,16 +975,15 @@ impl AtomicInt64 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_load(
-            &self.handle,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_load(&self.handle, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -972,11 +997,8 @@ impl AtomicInt64 {
         value: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_store(
-            &self.handle,
-            value,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_store(&self.handle, value, ordering.name);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -988,11 +1010,8 @@ impl AtomicInt64 {
         amount: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
-            &self.handle,
-            amount,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_add(&self.handle, amount, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1019,15 +1038,15 @@ impl ThreadLocalInt {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int(initial);
         self.failed = terrane_platform_result_failed(&raw);
         self.message = terrane_platform_result_message(&raw);
         self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn get(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_get(
-            &self.handle,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_get(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1037,10 +1056,8 @@ impl ThreadLocalInt {
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_set(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_set(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),

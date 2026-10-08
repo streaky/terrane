@@ -344,6 +344,7 @@ pub(super) fn parse_unit(
         bundled,
         role,
         scopes: Vec::new(),
+        declaration_metadata: Vec::new(),
         typed_bindings: Vec::new(),
         functions: Vec::new(),
         source_enums: Vec::new(),
@@ -363,6 +364,13 @@ pub(super) fn parse_unit(
         projected_call_specializations: BTreeMap::new(),
         selected_expression_types: BTreeMap::new(),
         projected_callable_applications: BTreeMap::new(),
+        flow_types: BTreeMap::new(),
+        rust_storage_names: std::sync::OnceLock::new(),
+        flow_binding_ids: BTreeMap::new(),
+        flow_binding_types: BTreeMap::new(),
+        flow_replacements: BTreeMap::new(),
+        flow_availability: BTreeMap::new(),
+        flow_read_bindings: BTreeMap::new(),
         invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
@@ -814,7 +822,16 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
     let demands = dependency_demands_from_units(&units)?;
     let projection = dependency_projection(package, &demands)?;
-    analyze_parsed_with_projection(package, projection, units, true)
+    analyze_parsed_with_projection(package, projection, units, true, false)
+}
+
+/// Prepares canonical declared signatures and metadata before generated bodies exist.
+/// The completed program always passes through the full analysis afterward.
+pub(crate) fn analyze_declarations(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
+    let units = parse_authored_units(package)?;
+    let demands = dependency_demands_from_units(&units)?;
+    let projection = dependency_projection(package, &demands)?;
+    analyze_parsed_with_projection(package, projection, units, true, true)
 }
 
 #[cfg(test)]
@@ -823,7 +840,7 @@ pub(super) fn analyze_with_projection(
     projection: crate::rust_interop::projection::Projection,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    analyze_parsed_with_projection(package, projection, units, false)
+    analyze_parsed_with_projection(package, projection, units, false, false)
 }
 
 #[expect(
@@ -835,6 +852,7 @@ fn analyze_parsed_with_projection(
     projection: crate::rust_interop::projection::Projection,
     units: Vec<SemanticUnit>,
     persist_inventory: bool,
+    declarations_only: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
     for unit in &mut units {
@@ -1125,6 +1143,15 @@ fn analyze_parsed_with_projection(
         bootstrap_prelude()
     };
     materialize_projected_public_aliases(&imports, &mut namespaces, &projection)?;
+    if declarations_only {
+        // Generated imports have no bindings yet; no placeholder declarations are invented.
+        // Every authored import is resolved again in the mandatory final analysis.
+        imports.retain(|import| {
+            namespaces.get(&import.target).is_some_and(|namespace| {
+                import.namespace_wide || namespace.symbols.contains_key(&import.object)
+            })
+        });
+    }
     let mut import_warnings = resolve_imports(
         imports,
         &mut namespaces,
@@ -1161,14 +1188,21 @@ fn analyze_parsed_with_projection(
         projection,
         native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
+        metadata_constant_reads: BTreeMap::new(),
         referenced_functions: BTreeSet::new(),
         import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
+    if declarations_only {
+        super::objects::prepare_type_declarations(&mut semantic)?;
+        super::annotations::populate_declaration_metadata(&mut semantic)?;
+        return Ok(semantic);
+    }
     validate_initializer_dependencies(&semantic)?;
-    validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    // Reaching facts resolve loop-carried locals before source-order name checks.
+    validate_references(&semantic)?;
     super::enums::validate_enum_matches(&mut semantic)?;
     if semantic.execution_strategy == crate::execution::ExecutionStrategy::Local {
         for unit in &semantic.units {
@@ -1202,10 +1236,10 @@ fn analyze_parsed_with_projection(
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
+    validate_definite_assignment(&mut semantic)?;
     validate_calls(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
-    validate_definite_assignment(&semantic)?;
     super::initialization::validate(&mut semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
@@ -1219,6 +1253,7 @@ fn analyze_parsed_with_projection(
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
     record_function_references(&mut semantic);
+    super::annotations::populate_declaration_metadata(&mut semantic)?;
     Ok(semantic)
 }
 
@@ -1561,6 +1596,11 @@ fn enqueue_value_type_object_dependencies(value_type: &ValueType, queue: &mut Ve
             family: identity, ..
         } => enqueue_object_identity_dependencies(identity, queue),
         ValueType::Optional(inner) => enqueue_value_type_object_dependencies(inner, queue),
+        ValueType::Union(arms) => {
+            for arm in arms {
+                enqueue_value_type_object_dependencies(arm, queue);
+            }
+        }
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::AsyncIterationStep(item)
@@ -1766,6 +1806,13 @@ impl SemanticPackage {
         offset: usize,
         name: &str,
     ) -> Option<&'a Symbol> {
+        let reaching_identity = (unit.source.text().get(offset..offset + name.len()) == Some(name))
+            .then(|| {
+                unit.flow_binding_ids
+                    .get(&(unit.source.id(), offset, offset + name.len()))
+                    .copied()
+            })
+            .flatten();
         let mut scopes = lexical_scope_chain(unit, offset).peekable();
         let inside_lexical_scope = scopes.peek().is_some();
         scopes
@@ -1775,7 +1822,10 @@ impl SemanticPackage {
                     .get(name)?
                     .iter()
                     .rev()
-                    .find(|symbol| symbol.binding_span.is_none_or(|span| span.end <= offset))
+                    .find(|symbol| match reaching_identity {
+                        Some(identity) => symbol.declaration_span == Some(identity),
+                        None => symbol.binding_span.is_none_or(|span| span.end <= offset),
+                    })
             })
             .or_else(|| {
                 self.resolve_name_with_prelude(&unit.namespace, name, unit.prelude)

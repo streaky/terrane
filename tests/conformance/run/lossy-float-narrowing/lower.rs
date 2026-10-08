@@ -25,10 +25,19 @@ fn divide(numerator: f64, denominator: f64) -> f64 {
     return numerator / denominator;
 }
 fn main() {
-    let rounded: f32 = 16777217.0 as f32;
-    let negative_zero: f64 = -0.0_f64;
-    let narrowed_negative_zero: f32 = negative_zero as f32;
-    let overflow_input: f64 = terrane_scalar_support::scale_binary_f32(
+    let rounded: f32;
+    let negative_zero: f64;
+    let narrowed_negative_zero: f32;
+    let overflow_input: f64;
+    let overflow: f32;
+    let underflow_input: f64;
+    let underflow: f32;
+    let nan_input: f64;
+    let nan: f32;
+    rounded = 16777217.0 as f32;
+    negative_zero = -0.0_f64;
+    narrowed_negative_zero = negative_zero as f32;
+    overflow_input = terrane_scalar_support::scale_binary_f32(
         {
             let _ = &TerraneDescriptor {
                 identity: "float32",
@@ -41,8 +50,8 @@ fn main() {
         },
         1,
     ) as f64;
-    let overflow: f32 = overflow_input as f32;
-    let underflow_input: f64 = {
+    overflow = overflow_input as f32;
+    underflow_input = {
         let _ = &TerraneDescriptor {
             identity: "float64",
             name: "float64",
@@ -52,9 +61,9 @@ fn main() {
         };
         f64::from_bits(1)
     };
-    let underflow: f32 = underflow_input as f32;
-    let nan_input: f64 = divide(0.0, 0.0);
-    let nan: f32 = nan_input as f32;
+    underflow = underflow_input as f32;
+    nan_input = divide(0.0, 0.0);
+    nan = nan_input as f32;
     println!("{}", terrane_scalar_support::scalar_text(&rounded));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(narrowed_negative_zero == 0.0)),

@@ -435,6 +435,17 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: throwable-value-flow
 fn describe(failure: TerraneError) -> String {
@@ -444,6 +455,11 @@ fn relay(failure: TerraneError) -> TerraneError {
     return failure;
 }
 fn main() {
+    let mut caught: Option<TerraneError> = None;
+    let mut again: Option<TerraneError> = None;
+    let mut outer: Option<TerraneError> = None;
+    let mut origin: Option<Option<TerraneError>> = None;
+    let mut returned: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let __terrane_completion_1: TerraneCompletion<()> = (|| {
@@ -468,10 +484,19 @@ fn main() {
                             && __terrane_error_1.kind == TerraneErrorKind::CoercionError
                         {
                             __terrane_handled_1 = true;
-                            let caught = __terrane_error_1.clone();
-                            let again: TerraneError = relay(caught);
+                            let _ = caught.insert(__terrane_error_1.clone());
+                            let _ = again
+                                .insert(
+                                    relay(
+                                        caught
+                                            .as_ref()
+                                            .expect("flow-proven available binding")
+                                            .clone(),
+                                    ),
+                                );
                             println!(
-                                "{}", terrane_scalar_support::scalar_text(&describe(again))
+                                "{}", terrane_scalar_support::scalar_text(&describe(again
+                                .as_ref().expect("flow-proven available binding").clone()))
                             );
                             return TerraneCompletion::Error(
                                 TerraneError::raised(
@@ -512,19 +537,36 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    let outer = __terrane_error_0.clone();
-                    let origin: Option<TerraneError> = outer
-                        .detail
-                        .as_ref()
-                        .and_then(|detail| detail.cause.as_deref())
-                        .cloned();
-                    if origin.is_some() {
-                        let returned: TerraneError = relay(
-                            origin.as_ref().expect("semantic optional narrowing").clone(),
+                    let _ = outer.insert(__terrane_error_0.clone());
+                    let _ = origin
+                        .insert(
+                            outer
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .clone()
+                                .detail
+                                .as_ref()
+                                .and_then(|detail| detail.cause.as_deref())
+                                .cloned(),
                         );
+                    if origin
+                        .as_ref()
+                        .expect("flow-proven available binding")
+                        .clone()
+                        .is_some()
+                    {
+                        let _ = returned
+                            .insert(
+                                relay(
+                                    match origin.take().expect("flow-proven availability") {
+                                        Some(value) => value,
+                                        _ => unreachable!("flow-proven storage refinement"),
+                                    },
+                                ),
+                            );
                         println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&describe(returned))
+                            "{}", terrane_scalar_support::scalar_text(&describe(returned
+                            .as_ref().expect("flow-proven available binding").clone()))
                         );
                     }
                 }

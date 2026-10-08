@@ -470,13 +470,19 @@ fn second() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(23_i128);
 }
 fn main() {
-    let empty: Slot<String> = Slot::<String>::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&empty.value.is_none()));
-    let missing: Option<terrane_int_support::Int> = absent();
-    println!("{}", terrane_scalar_support::scalar_text(&missing.is_none()));
+    let empty: Slot<String>;
+    let missing: Option<terrane_int_support::Int>;
     let keep: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = std::sync::Arc::new(identity);
+    >;
+    let state: Pair;
+    let left: terrane_int_support::Int;
+    let right: terrane_int_support::Int;
+    empty = Slot::<String>::terrane_construct();
+    println!("{}", terrane_scalar_support::scalar_text(&empty.value.is_none()));
+    missing = absent();
+    println!("{}", terrane_scalar_support::scalar_text(&missing.is_none()));
+    keep = std::sync::Arc::new(identity);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&keep(terrane_int_support::Int::from(44_i128)))
@@ -486,14 +492,16 @@ fn main() {
         terrane_scalar_support::scalar_text(&apply(terrane_int_support::Int::from(4_i128),
         std::sync::Arc::new(render)))
     );
-    let state: Pair = {
+    state = {
         let __terrane_enum_payload_0 = second();
         let __terrane_enum_payload_1 = first();
         Pair::Values(__terrane_enum_payload_1, __terrane_enum_payload_0)
     };
     let __terrane_match_value_844 = state.clone();
     match __terrane_match_value_844 {
-        Pair::Values(left, right) => {
+        Pair::Values(__terrane_pattern_864_left, __terrane_pattern_864_right) => {
+            left = __terrane_pattern_864_left;
+            right = __terrane_pattern_864_right;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&(left.clone() + right
                 .clone()))

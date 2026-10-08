@@ -11,23 +11,31 @@ pub enum OperationState<TerraneType54> {
     Failed(String),
 }
 fn report(state: OperationState<String>) -> String {
+    let progress: &terrane_int_support::Int;
+    let result: &String;
+    let error: &String;
     match &state {
         OperationState::Pending => {
             return String::from("pending");
         }
-        OperationState::Running(progress) => {
+        OperationState::Running(__terrane_pattern_338_progress) => {
+            progress = __terrane_pattern_338_progress;
             println!("{}", terrane_scalar_support::scalar_text(&progress.clone()));
             return String::from("running");
         }
-        OperationState::Completed(result) => {
+        OperationState::Completed(__terrane_pattern_443_result) => {
+            result = __terrane_pattern_443_result;
             return result.clone();
         }
-        OperationState::Failed(error) => {
+        OperationState::Failed(__terrane_pattern_517_error) => {
+            error = __terrane_pattern_517_error;
             return error.clone();
         }
     }
 }
 fn optional_report(state: Option<OperationState<String>>) -> String {
+    let result: &String;
+    let error: &String;
     match &state {
         Some(OperationState::Pending) => {
             return String::from("pending");
@@ -35,10 +43,12 @@ fn optional_report(state: Option<OperationState<String>>) -> String {
         Some(OperationState::Running(_)) => {
             return String::from("running");
         }
-        Some(OperationState::Completed(result)) => {
+        Some(OperationState::Completed(__terrane_pattern_816_result)) => {
+            result = __terrane_pattern_816_result;
             return result.clone();
         }
-        Some(OperationState::Failed(error)) => {
+        Some(OperationState::Failed(__terrane_pattern_890_error)) => {
+            error = __terrane_pattern_890_error;
             return error.clone();
         }
         None => {
@@ -52,27 +62,37 @@ pub enum Decision {
     Rejected(String),
 }
 fn explain(choice: Decision) -> String {
+    let explanation: String;
+    let explanation_2: String;
     let __terrane_match_value_1124 = choice.clone();
     match __terrane_match_value_1124 {
-        Decision::Accepted(explanation) => {
+        Decision::Accepted(__terrane_pattern_1145_explanation) => {
+            explanation = __terrane_pattern_1145_explanation;
             return explanation;
         }
-        Decision::Rejected(explanation) => {
-            return explanation;
+        Decision::Rejected(__terrane_pattern_1221_explanation) => {
+            explanation_2 = __terrane_pattern_1221_explanation;
+            return explanation_2;
         }
     }
 }
 fn main() {
-    let pending: OperationState<String> = OperationState::<String>::Pending;
-    let running: OperationState<String> = {
+    let pending: OperationState<String>;
+    let running: OperationState<String>;
+    let completed: OperationState<String>;
+    let failed: OperationState<String>;
+    let accepted: Decision;
+    let rejected: Decision;
+    pending = OperationState::<String>::Pending;
+    running = {
         let __terrane_enum_payload_0 = terrane_int_support::Int::from(7_i128);
         OperationState::<String>::Running(__terrane_enum_payload_0)
     };
-    let completed: OperationState<String> = {
+    completed = {
         let __terrane_enum_payload_0 = String::from("done");
         OperationState::<String>::Completed(__terrane_enum_payload_0)
     };
-    let failed: OperationState<String> = {
+    failed = {
         let __terrane_enum_payload_0 = String::from("failed");
         OperationState::<String>::Failed(__terrane_enum_payload_0)
     };
@@ -81,11 +101,11 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&report(completed)));
     println!("{}", terrane_scalar_support::scalar_text(&report(failed)));
     println!("{}", terrane_scalar_support::scalar_text(&optional_report(None)));
-    let accepted: Decision = {
+    accepted = {
         let __terrane_enum_payload_0 = String::from("accepted");
         Decision::Accepted(__terrane_enum_payload_0)
     };
-    let rejected: Decision = {
+    rejected = {
         let __terrane_enum_payload_0 = String::from("rejected");
         Decision::Rejected(__terrane_enum_payload_0)
     };

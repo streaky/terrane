@@ -1,0 +1,7 @@
+package = "annotation-cli-runtime-default"
+[namespaces]
+annotation-cli-runtime-default = "src/app"
+annotation-cli = "src/schema"
+[consumers.cli]
+command = ".trn/consumers/cli"
+declarations = ["/annotation-cli-runtime-default::entrypoint", "/annotation-cli-runtime-default::entrypoint::value"]

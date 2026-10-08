@@ -492,7 +492,8 @@ fn view<'view>(state: &'view String) -> witness::ScopedView<'view> {
 }
 #[allow(unsafe_code)]
 fn main() {
-    let state: String = String::from("unsafe");
+    let state: String;
+    state = String::from("unsafe");
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(unsafe {
         unchecked_add(terrane_int_support::Int::from(20_i128),

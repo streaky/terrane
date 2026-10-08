@@ -433,16 +433,36 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: catch-coercion-error
 fn main() {
-    let value: i64 = 300;
+    let value: i64;
+    let mut narrow: Option<i8> = None;
+    value = 300;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let narrow: i8 = __terrane_raised_completion!(
-                terrane_int_support::coerce:: < i8 > (&value), 0 /* terrane-site: case.trn:6:19-6:24 */
+            let _ = narrow
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_int_support::coerce:: < i8 > (&value),
+                        0 /* terrane-site: case.trn:6:19-6:24 */
+                    ),
+                );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* narrow.as_ref()
+                .expect("flow-proven available binding"))
             );
-            println!("{}", terrane_scalar_support::scalar_text(&narrow));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {

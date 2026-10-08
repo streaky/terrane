@@ -1,5 +1,6 @@
 mod bundled;
 mod compiler;
+mod consumers;
 pub mod debugging;
 pub mod diagnostic;
 mod execution;
@@ -24,7 +25,8 @@ pub mod types;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, DebugBuild, RustArtifactError, compile,
     compile_discovered_test_tier, compile_package, compile_package_with_options,
-    compile_test_package, compile_test_package_tiers, compile_with_options, discover_test_package,
+    compile_test_package, compile_test_package_tiers, compile_with_options, declaration_interface,
+    discover_test_package,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;
@@ -36,9 +38,11 @@ pub use package::{
     with_tokio_runtime,
 };
 pub use semantics::{
-    BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, EvaluationKind, EvaluationStep,
-    FunctionContract, MemberFamily, Namespace, ParameterContract, SemanticFailure, SemanticPackage,
-    SemanticUnit, Symbol, TypedBinding, ValueType, Visibility, analyze,
+    AnnotationTarget, BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, CompileTimeValue,
+    DeclarationInterface, DeclarationKind, DeclarationMetadata, EvaluationKind, EvaluationStep,
+    FunctionContract, MemberFamily, MetadataSpan, Namespace, ParameterContract, ResolvedAnnotation,
+    SemanticFailure, SemanticPackage, SemanticUnit, Symbol, TypedBinding, ValueType, Visibility,
+    analyze,
 };
 pub use source::{SourceFile, Span};
 pub use terrane_rust_analysis::RUSTDOC_TOOLCHAIN;

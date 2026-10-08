@@ -436,8 +436,12 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: loop-carried-store-reads
 fn main() {
-    let mut while_value: i8 = 0;
-    let mut limit: i8 = 0;
+    let mut while_value: i8;
+    let mut limit: i8;
+    let mut for_value: i8;
+    let mut character: String;
+    while_value = 0;
+    limit = 0;
     while limit < 2 {
         println!("{}", terrane_scalar_support::scalar_text(&while_value));
         while_value = 5;
@@ -446,13 +450,13 @@ fn main() {
             0 /* terrane-site: case.trn:8:13-8:22 */,
         );
     }
-    let mut for_value: i8 = 0;
+    for_value = 0;
     let __terrane_iterable_0 = String::from("ab");
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let character = match __terrane_iterator_0.next() {
+        character = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

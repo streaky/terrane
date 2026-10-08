@@ -93,6 +93,7 @@ pub enum SyntaxKind {
     Visibility,
     DeclarationQualifier,
     EffectClause,
+    AnnotationApplication,
     Binding,
     FieldMetadata,
     FieldMetadataEntry,
@@ -181,6 +182,11 @@ impl SyntaxKind {
             };
         }
         match (self, child, index) {
+            (_, Self::AnnotationApplication, _) => "annotation",
+            (Self::AnnotationApplication, Self::Name, _) => "annotation-type",
+            (Self::AnnotationApplication, Self::ArgumentList, _) | (Self::CallExpression, _, 1) => {
+                "arguments"
+            }
             (Self::TypeParameterList, Self::TypeParameter, _) => "parameter",
             (Self::TypeParameter, Self::TypeExpression, _) => "bound",
             (Self::EnumDeclaration, Self::Block, _) => "variants",
@@ -210,7 +216,6 @@ impl SyntaxKind {
             (Self::FunctionDeclaration, Self::DeclarationQualifier, _) => "qualifier",
             (Self::Assignment, _, 0) => "target",
             (Self::CallExpression, _, 0) => "callee",
-            (Self::CallExpression, _, 1) => "arguments",
             (Self::MemberExpression | Self::StaticMemberExpression, _, 0) => "receiver",
             (Self::MemberExpression | Self::StaticMemberExpression, _, 1) => "member",
             (Self::IfStatement | Self::WhileStatement, _, 0) => "condition",
@@ -234,6 +239,9 @@ pub struct SyntaxNode {
     pub span: Span,
     pub token_range: std::ops::Range<usize>,
     pub children: Vec<SyntaxNode>,
+    /// Metadata syntax is separate from executable declaration children.
+    pub annotation_applications: Vec<SyntaxNode>,
+    pub documentation: Option<String>,
     pub(crate) is_unsafe_call: bool,
 }
 
@@ -249,8 +257,26 @@ impl SyntaxNode {
             span,
             token_range,
             children,
+            annotation_applications: Vec::new(),
+            documentation: None,
             is_unsafe_call: false,
         }
+    }
+
+    pub fn annotations(&self) -> impl Iterator<Item = &SyntaxNode> {
+        self.annotation_applications.iter()
+    }
+
+    /// All syntax children, including non-executable metadata applications.
+    pub fn syntax_children(&self) -> impl Iterator<Item = &SyntaxNode> + Clone {
+        self.children
+            .iter()
+            .chain(self.annotation_applications.iter())
+    }
+
+    #[must_use]
+    pub fn documentation(&self) -> Option<&str> {
+        self.documentation.as_deref()
     }
 }
 
@@ -302,7 +328,7 @@ impl SyntaxTree {
             node.span.start,
             node.span.end
         );
-        for child in &node.children {
+        for child in node.syntax_children() {
             Self::write_node(child, depth + 1, output);
         }
     }

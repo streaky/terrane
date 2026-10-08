@@ -76,8 +76,10 @@ impl Drop for Counter {
     }
 }
 fn main() {
-    let original: Readable = <Readable>::from(Counter::terrane_construct());
-    let copied: Readable = original.terrane_separate();
+    let original: Readable;
+    let copied: Readable;
+    original = <Readable>::from(Counter::terrane_construct());
+    copied = original.terrane_separate();
     println!("{}", terrane_scalar_support::scalar_text(&original.read()));
     println!("{}", terrane_scalar_support::scalar_text(&copied.read()));
 }

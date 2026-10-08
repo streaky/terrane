@@ -54,6 +54,7 @@ pub(super) fn value_type_uses_parameter(value_type: &ValueType, name: &str) -> b
     match value_type {
         ValueType::TypeParameter(parameter) => parameter == name,
         ValueType::Optional(inner) => value_type_uses_parameter(inner, name),
+        ValueType::Union(arms) => arms.iter().any(|arm| value_type_uses_parameter(arm, name)),
         ValueType::Object(identity) => identity
             .type_arguments
             .iter()
@@ -596,6 +597,7 @@ impl<'a> Emitter<'a> {
         optional: bool,
         value_type: Option<&ValueType>,
     ) {
+        let unit = self.unit;
         self.indent += 1;
         for case in node.children.iter().skip(1) {
             let Some(selector) = case.children.first() else {
@@ -605,19 +607,29 @@ impl<'a> Emitter<'a> {
                 .children
                 .iter()
                 .find(|child| child.kind == SyntaxKind::ParameterList);
-            let bindings = payload
-                .into_iter()
-                .flat_map(|list| &list.children)
-                .map(|binding| {
-                    let name = self.text(binding);
-                    let used = case
-                        .children
-                        .iter()
-                        .filter(|child| child.kind == SyntaxKind::Block)
-                        .any(|body| match_binding_used(body, &self.unit.source, name));
-                    if used { name } else { "_" }
-                })
-                .collect::<Vec<_>>();
+            let bindings =
+                payload
+                    .into_iter()
+                    .flat_map(|list| &list.children)
+                    .map(|binding| {
+                        let name = &unit.source.text()[binding.span.start..binding.span.end];
+                        let identity = self
+                            .unit
+                            .flow_binding_ids
+                            .get(&(binding.span.file, binding.span.start, binding.span.end))
+                            .copied()
+                            .unwrap_or(binding.span);
+                        let used =
+                            case.children
+                                .iter()
+                                .filter(|child| child.kind == SyntaxKind::Block)
+                                .any(|body| match_binding_used(body, &self.unit.source, name))
+                                || self.unit.flow_availability.keys().any(|key| {
+                                    self.unit.flow_binding_ids.get(key) == Some(&identity)
+                                });
+                        if used { name } else { "_" }
+                    })
+                    .collect::<Vec<_>>();
             let mut native_payload_conversions = Vec::new();
             let mut none_pattern = false;
             let variant_pattern = if selector.kind == SyntaxKind::MatchCatchAll {
@@ -677,7 +689,7 @@ impl<'a> Emitter<'a> {
                             if *name == "_" {
                                 "_".to_owned()
                             } else {
-                                rust_name(name)
+                                format!("__terrane_pattern_{}_{}", case.span.start, rust_name(name))
                             }
                         })
                         .collect::<Vec<_>>();
@@ -736,14 +748,17 @@ impl<'a> Emitter<'a> {
                                 }
                                 let projected =
                                     substitute_projected_generic(&field.ty, &selected_types);
+                                // Fixed-width payloads retain their native borrowed
+                                // representation. Unbounded integers require a value conversion.
                                 if matches!(
                                     projected,
                                     crate::rust_interop::projection::ProjectedType::Int
-                                        | crate::rust_interop::projection::ProjectedType::RustInt(
-                                            _
-                                        )
                                 ) {
-                                    let name = rust_name(binding);
+                                    let name = format!(
+                                        "__terrane_pattern_{}_{}",
+                                        case.span.start,
+                                        rust_name(binding)
+                                    );
                                     let converted = projected_result_expression(
                                         &format!("*{name}"),
                                         &projected,
@@ -768,7 +783,11 @@ impl<'a> Emitter<'a> {
                                         .map(|name| if *name == "_" {
                                             "_".to_owned()
                                         } else {
-                                            rust_name(name)
+                                            format!(
+                                                "__terrane_pattern_{}_{}",
+                                                case.span.start,
+                                                rust_name(name)
+                                            )
                                         })
                                         .collect::<Vec<_>>()
                                         .join(", ")
@@ -783,7 +802,11 @@ impl<'a> Emitter<'a> {
                                         let name = if *binding == "_" {
                                             "_".to_owned()
                                         } else {
-                                            rust_name(binding)
+                                            format!(
+                                                "__terrane_pattern_{}_{}",
+                                                case.span.start,
+                                                rust_name(binding)
+                                            )
                                         };
                                         if name == field.rust_name {
                                             name
@@ -816,6 +839,62 @@ impl<'a> Emitter<'a> {
             self.indent += 1;
             for conversion in native_payload_conversions {
                 self.line(&conversion);
+            }
+            for (parameter, name) in payload
+                .into_iter()
+                .flat_map(|list| &list.children)
+                .zip(&bindings)
+            {
+                if *name == "_" {
+                    continue;
+                }
+                let Some(binding) = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == parameter.span)
+                else {
+                    continue;
+                };
+                let identity = self
+                    .unit
+                    .flow_binding_ids
+                    .get(&(
+                        parameter.span.file,
+                        parameter.span.start,
+                        parameter.span.end,
+                    ))
+                    .copied()
+                    .unwrap_or(binding.span);
+                let storage = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|candidate| candidate.span == identity)
+                    .unwrap_or(binding);
+                if !self.active_function_bindings.contains(&storage.span) {
+                    continue;
+                }
+                let mut value =
+                    format!("__terrane_pattern_{}_{}", case.span.start, rust_name(name));
+                if let ValueType::Union(arms) = self.flow_binding_type(storage) {
+                    let index = arms
+                        .iter()
+                        .position(|arm| arm == &binding.value_type)
+                        .expect("pattern payload belongs to its flow carrier");
+                    value = format!("{}::Arm{index}({value})", union_type_name(storage));
+                }
+                if self.binding_may_be_unassigned(storage) {
+                    self.line(&format!(
+                        "let _ = {}.insert({value});",
+                        self.binding_storage_name(storage)
+                    ));
+                } else {
+                    self.line(&format!(
+                        "{} = {value};",
+                        self.binding_storage_name(storage)
+                    ));
+                }
             }
             if let Some(body) = case
                 .children

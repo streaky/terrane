@@ -1,0 +1,15 @@
+5
+6
+borrowed
+8
+moved
+40
+9
+9
+true
+7
+3
+3
+7
+true
+true

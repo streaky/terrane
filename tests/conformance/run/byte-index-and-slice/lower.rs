@@ -469,10 +469,27 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: byte-index-and-slice
 fn main() {
-    let data: Vec<u8> = terrane_string_support::encode(
+    let data: Vec<u8>;
+    let middle: Vec<u8>;
+    let stepped: Vec<u8>;
+    let empty: Vec<u8>;
+    let __trn_66696e616c: Vec<u8>;
+    let mut failure: Option<TerraneError> = None;
+    data = terrane_string_support::encode(
         &String::from("A👍"),
         terrane_string_support::Encoding::Utf8,
     );
@@ -485,7 +502,7 @@ fn main() {
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         1 /* terrane-site: case.trn:9:19-9:26 */)), 1 /* terrane-site: case.trn:9:19-9:26 */))
     );
-    let middle: Vec<u8> = __terrane_raised(
+    middle = __terrane_raised(
         terrane_collection_support::byte_slice(
             &data,
             &__terrane_raised(
@@ -504,7 +521,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&middle,
         terrane_string_support::Encoding::Utf8), 4 /* terrane-site: case.trn:11:11-11:30 */))
     );
-    let stepped: Vec<u8> = __terrane_raised(
+    stepped = __terrane_raised(
         terrane_collection_support::byte_slice(
             &data,
             &__terrane_raised(
@@ -530,7 +547,7 @@ fn main() {
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         9 /* terrane-site: case.trn:13:34-13:44 */)), 9 /* terrane-site: case.trn:13:34-13:44 */))
     );
-    let empty: Vec<u8> = __terrane_raised(
+    empty = __terrane_raised(
         terrane_collection_support::byte_slice(
             &data,
             &__terrane_raised(
@@ -545,7 +562,7 @@ fn main() {
         11 /* terrane-site: case.trn:14:17-14:54 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(empty.len() as i128)));
-    let __trn_66696e616c: Vec<u8> = __terrane_raised(
+    __trn_66696e616c = __terrane_raised(
         terrane_collection_support::byte_slice(
             &data,
             &__terrane_raised(
@@ -669,9 +686,10 @@ fn main() {
                     && __terrane_error_2.kind == TerraneErrorKind::IndexError
                 {
                     __terrane_handled_2 = true;
-                    let failure = __terrane_error_2.clone();
+                    let _ = failure.insert(__terrane_error_2.clone());
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.message()
+                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
+                        .expect("flow-proven available binding").clone().message()
                         .to_owned())
                     );
                 }

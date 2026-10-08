@@ -4,7 +4,10 @@
 // Source: case.trn
 // Namespace: text-families
 fn main() {
-    let text: String = String::from("  Straße  ");
+    let text: String;
+    let decomposed: String;
+    let rtl: String;
+    text = String::from("  Straße  ");
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_string_support::trim(&text))
     );
@@ -28,7 +31,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::lower_first(&String::from("Hello")))
     );
-    let decomposed: String = String::from("e\u{301}");
+    decomposed = String::from("e\u{301}");
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::normalise(&decomposed,
@@ -46,7 +49,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(terrane_string_support::find_all(&String::from("banana"),
         &String::from("")).len() as i128))
     );
-    let rtl: String = String::from("שלום");
+    rtl = String::from("שלום");
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&rtl
         .starts_with(&String::from("ש"))), terrane_scalar_support::scalar_text(&rtl

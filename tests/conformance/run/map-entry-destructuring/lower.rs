@@ -438,7 +438,14 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: map-entry-destructuring
 fn main() {
-    let ordered: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+    let ordered: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let mut key: String;
+    let mut value: terrane_int_support::Int;
+    let deterministic: terrane_collection_support::UnorderedMap<
+        String,
+        terrane_int_support::Int,
+    >;
+    ordered = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -458,8 +465,8 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let mut key = __terrane_item_0.key;
-        let mut value = __terrane_item_0.value;
+        key = __terrane_item_0.key;
+        value = __terrane_item_0.value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&value)
@@ -477,10 +484,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(ordered
         .get_or_error(&String::from("second")), 1 /* terrane-site: case.trn:11:28-11:45 */))
     );
-    let deterministic: terrane_collection_support::UnorderedMap<
-        String,
-        terrane_int_support::Int,
-    > = terrane_collection_support::UnorderedMap::<
+    deterministic = terrane_collection_support::UnorderedMap::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -498,8 +502,10 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let key = __terrane_item_1.key;
-        let value = __terrane_item_1.value;
+        key = __terrane_item_1.key;
+        let _ = &key;
+        value = __terrane_item_1.value;
+        let _ = &value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&value)

@@ -489,8 +489,64 @@ impl From<Note> for Serializable {
     }
 }
 fn main() {
-    let options: JsonOptions = default_json_options();
-    let parsed: DocumentResult = parse_json(
+    let options: JsonOptions;
+    let parsed: DocumentResult;
+    let integer: DocumentResult;
+    let decimal: DocumentResult;
+    let canonical: DocumentResult;
+    let reparsed: DocumentResult;
+    let equivalent: DocumentResult;
+    let stringify_input: DocumentResult;
+    let stringified: DocumentResult;
+    let yaml_input: DocumentResult;
+    let yaml_written: DocumentResult;
+    let list_value: DocumentResult;
+    let list_document: DocumentValue;
+    let first: DocumentResult;
+    let second: DocumentResult;
+    let nested: DocumentResult;
+    let negative_item: DocumentResult;
+    let duplicate: DocumentResult;
+    let fields: terrane_collection_support::List<String>;
+    let optional_fields: terrane_collection_support::List<String>;
+    let default_fields: terrane_collection_support::List<String>;
+    let default_values: terrane_collection_support::List<String>;
+    let mut mapping: DocumentMapping;
+    let mut missing: DocumentResult;
+    let mut unknown: DocumentResult;
+    let mut mapped: DocumentResult;
+    let active: DocumentResult;
+    let constructor_mapping: DocumentMapping;
+    let constructor_input: DocumentResult;
+    let constructor_result: DocumentResult;
+    let encoded_note: DocumentResult;
+    let encoded_yaml_note: DocumentResult;
+    let exact_integer: DocumentResult;
+    let exact_decimal: DocumentResult;
+    let values: terrane_collection_support::List<DocumentValue>;
+    let built_list: DocumentResult;
+    let mut entries: DocumentMapEntries;
+    let count_value: DocumentResult;
+    let built_map: DocumentResult;
+    let mut duplicate_entries: DocumentMapEntries;
+    let duplicate_map: DocumentResult;
+    let canonical_integer: DocumentResult;
+    let decoded_through_interface: DocumentResult;
+    let negative_limits: JsonOptions;
+    let limited: DocumentResult;
+    let excessive_depth: DocumentResult;
+    let trailing_json: DocumentResult;
+    let yaml_limits: YamlOptions;
+    let yaml_value: DocumentResult;
+    let yaml_integer: DocumentResult;
+    let yaml_decimal: DocumentResult;
+    let yaml_decoded: DocumentResult;
+    let ordinary_star: DocumentResult;
+    let bomb: DocumentResult;
+    let yaml_depth: DocumentResult;
+    let excessive_yaml_depth: DocumentResult;
+    options = default_json_options();
+    parsed = parse_json(
         String::from("{\"a\":123456789012345678901234567890,\"z\":1.2300}"),
         options.clone(),
     );
@@ -498,8 +554,8 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&parsed.failed),
         terrane_scalar_support::scalar_text(&parsed.value.kind)
     );
-    let integer: DocumentResult = parsed.value.field(String::from("a"));
-    let decimal: DocumentResult = parsed.value.field(String::from("z"));
+    integer = parsed.value.field(String::from("a"));
+    decimal = parsed.value.field(String::from("z"));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&integer.value.kind),
         terrane_scalar_support::scalar_text(&integer.value.scalar)
@@ -513,48 +569,34 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&decimal.value.decimal.coefficient),
         terrane_scalar_support::scalar_text(&decimal.value.decimal.exponent)
     );
-    let canonical: DocumentResult = canonical_json(parsed.value);
+    canonical = canonical_json(parsed.value);
     println!("{}", terrane_scalar_support::scalar_text(&canonical.value.encoded));
-    let reparsed: DocumentResult = parse_json(
-        canonical.value.encoded.clone(),
-        options.clone(),
-    );
-    let equivalent: DocumentResult = parse_json(
+    reparsed = parse_json(canonical.value.encoded.clone(), options.clone());
+    equivalent = parse_json(
         String::from("{\"a\":1.2345678901234567890123456789e+29,\"z\":1.23}"),
         options.clone(),
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&reparsed.failed),
-        terrane_scalar_support::scalar_text(&(canonical.value.encoded == equivalent.value
-        .encoded))
+        terrane_scalar_support::scalar_text(&(canonical.value.encoded.as_str() ==
+        equivalent.value.encoded.as_str()))
     );
-    let stringify_input: DocumentResult = parse_json(
-        String::from("{\"a\":1,\"z\":1.23}"),
-        options.clone(),
-    );
-    let stringified: DocumentResult = stringify_json(
-        stringify_input.value,
-        options.clone(),
-    );
-    let yaml_input: DocumentResult = parse_json(
-        String::from("{\"a\":1,\"z\":1.23}"),
-        options.clone(),
-    );
-    let yaml_written: DocumentResult = stringify_yaml(yaml_input.value);
+    stringify_input = parse_json(String::from("{\"a\":1,\"z\":1.23}"), options.clone());
+    stringified = stringify_json(stringify_input.value, options.clone());
+    yaml_input = parse_json(String::from("{\"a\":1,\"z\":1.23}"), options.clone());
+    yaml_written = stringify_yaml(yaml_input.value);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&stringified.failed),
         terrane_scalar_support::scalar_text(&yaml_written.failed)
     );
-    let list_value: DocumentResult = parse_json(
+    list_value = parse_json(
         String::from("[\"first\",{\"nested\":true}]"),
         options.clone(),
     );
-    let list_document: DocumentValue = list_value.value;
-    let first: DocumentResult = list_document
-        .item(terrane_int_support::Int::from(0_i128));
-    let second: DocumentResult = list_document
-        .item(terrane_int_support::Int::from(1_i128));
-    let nested: DocumentResult = second.value.field(String::from("nested"));
+    list_document = list_value.value;
+    first = list_document.item(terrane_int_support::Int::from(0_i128));
+    second = list_document.item(terrane_int_support::Int::from(1_i128));
+    nested = second.value.field(String::from("nested"));
     println!(
         "{}{}{}{}", terrane_scalar_support::scalar_text(&list_document.length()),
         terrane_scalar_support::scalar_text(&list_document
@@ -562,31 +604,27 @@ fn main() {
         terrane_scalar_support::scalar_text(&first.value.scalar),
         terrane_scalar_support::scalar_text(&nested.value.scalar)
     );
-    let negative_item: DocumentResult = list_document
-        .item(terrane_int_support::Int::from(-1_i128));
+    negative_item = list_document.item(terrane_int_support::Int::from(-1_i128));
     println!("{}", terrane_scalar_support::scalar_text(&negative_item.failed));
-    let duplicate: DocumentResult = parse_json(
-        String::from("{\"key\":1,\"key\":2}"),
-        options.clone(),
-    );
+    duplicate = parse_json(String::from("{\"key\":1,\"key\":2}"), options.clone());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&duplicate.failed),
         terrane_scalar_support::scalar_text(&duplicate.message
         .contains(&String::from("duplicate key")))
     );
-    let fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    fields = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("name"), String::from("nickname"), String::from("active")]);
-    let optional_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    optional_fields = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("nickname")]);
-    let default_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    default_fields = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("active")]);
-    let default_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    default_values = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("true")]);
-    let mut mapping: DocumentMapping = DocumentMapping::terrane_construct(
+    mapping = DocumentMapping::terrane_construct(
         String::from("person"),
         String::from("map"),
         false,
@@ -595,14 +633,14 @@ fn main() {
     mapping.optional_fields = optional_fields;
     mapping.default_fields = default_fields;
     mapping.default_values = default_values;
-    let mut missing: DocumentResult = parse_json(String::from("{}"), options.clone());
+    missing = parse_json(String::from("{}"), options.clone());
     missing = decode_document(missing.value, mapping.clone());
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&missing.failed),
         terrane_scalar_support::scalar_text(&missing.path),
         terrane_scalar_support::scalar_text(&missing.expected)
     );
-    let mut unknown: DocumentResult = parse_json(
+    unknown = parse_json(
         String::from("{\"name\":\"Ada\",\"extra\":1}"),
         options.clone(),
     );
@@ -612,76 +650,68 @@ fn main() {
         terrane_scalar_support::scalar_text(&unknown.path),
         terrane_scalar_support::scalar_text(&unknown.expected)
     );
-    let mut mapped: DocumentResult = parse_json(
+    mapped = parse_json(
         String::from("{\"name\":\"Ada\",\"nickname\":\"A\"}"),
         options.clone(),
     );
     mapped = decode_document(mapped.value, mapping.clone());
-    let active: DocumentResult = mapped.value.field(String::from("active"));
+    active = mapped.value.field(String::from("active"));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&mapped.failed),
         terrane_scalar_support::scalar_text(&active.value.scalar)
     );
-    let constructor_mapping: DocumentMapping = DocumentMapping::terrane_construct(
+    constructor_mapping = DocumentMapping::terrane_construct(
         String::from("open-map"),
         String::from("map"),
         true,
     );
-    let constructor_input: DocumentResult = parse_json(
-        String::from("{\"a\":1}"),
-        options.clone(),
-    );
-    let constructor_result: DocumentResult = decode_document(
-        constructor_input.value,
-        constructor_mapping,
-    );
+    constructor_input = parse_json(String::from("{\"a\":1}"), options.clone());
+    constructor_result = decode_document(constructor_input.value, constructor_mapping);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&constructor_result.failed),
         terrane_scalar_support::scalar_text(&constructor_result.value.encoded)
     );
-    let encoded_note: DocumentResult = encode_json(
+    encoded_note = encode_json(
         <Serializable>::from(Note::terrane_construct(String::from("hello"))),
         options.clone(),
     );
-    let encoded_yaml_note: DocumentResult = encode_yaml(
+    encoded_yaml_note = encode_yaml(
         <Serializable>::from(Note::terrane_construct(String::from("hello"))),
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&encoded_note.value.encoded),
         terrane_scalar_support::scalar_text(&encoded_yaml_note.value.encoded)
     );
-    let exact_integer: DocumentResult = make_document_integer(
+    exact_integer = make_document_integer(
         String::from("123456789012345678901234567890"),
     );
-    let exact_decimal: DocumentResult = make_document_decimal(String::from("1.2300"));
-    let values: terrane_collection_support::List<DocumentValue> = terrane_collection_support::List::<
+    exact_decimal = make_document_decimal(String::from("1.2300"));
+    values = terrane_collection_support::List::<
         DocumentValue,
     >::new(vec![exact_integer.value, exact_decimal.value, make_document_none()]);
-    let built_list: DocumentResult = make_document_list(values);
+    built_list = make_document_list(values);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&built_list.failed),
         terrane_scalar_support::scalar_text(&built_list.value.encoded)
     );
-    let mut entries: DocumentMapEntries = DocumentMapEntries::terrane_construct();
+    entries = DocumentMapEntries::terrane_construct();
     entries = append_document_map_entry(
         entries,
         String::from("message"),
         make_document_string(String::from("hello")),
     );
-    let count_value: DocumentResult = make_document_integer(
-        String::from("123456789012345678901234567890"),
-    );
+    count_value = make_document_integer(String::from("123456789012345678901234567890"));
     entries = append_document_map_entry(
         entries,
         String::from("count"),
         count_value.value,
     );
-    let built_map: DocumentResult = make_document_map(entries);
+    built_map = make_document_map(entries);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&built_map.failed),
         terrane_scalar_support::scalar_text(&built_map.value.encoded)
     );
-    let mut duplicate_entries: DocumentMapEntries = DocumentMapEntries::terrane_construct();
+    duplicate_entries = DocumentMapEntries::terrane_construct();
     duplicate_entries = append_document_map_entry(
         duplicate_entries,
         String::from("same"),
@@ -692,8 +722,8 @@ fn main() {
         String::from("same"),
         make_document_string(String::from("second")),
     );
-    let duplicate_map: DocumentResult = make_document_map(duplicate_entries);
-    let canonical_integer: DocumentResult = make_document_integer(
+    duplicate_map = make_document_map(duplicate_entries);
+    canonical_integer = make_document_integer(
         String::from("1.2345678901234567890123456789e+29"),
     );
     println!(
@@ -701,7 +731,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&duplicate_map.path),
         terrane_scalar_support::scalar_text(&canonical_integer.failed)
     );
-    let decoded_through_interface: DocumentResult = decode_json(
+    decoded_through_interface = decode_json(
         String::from("{\"name\":\"Ada\"}"),
         <Deserializable>::from(mapping.clone()),
         options.clone(),
@@ -709,17 +739,17 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&decoded_through_interface.failed)
     );
-    let negative_limits: JsonOptions = JsonOptions::terrane_construct(
+    negative_limits = JsonOptions::terrane_construct(
         terrane_int_support::Int::from(-1_i128),
         terrane_int_support::Int::from(-1_i128),
     );
-    let limited: DocumentResult = parse_json(String::from("{}"), negative_limits);
+    limited = parse_json(String::from("{}"), negative_limits);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&limited.failed),
         terrane_scalar_support::scalar_text(&limited.message
         .contains(&String::from("byte limit")))
     );
-    let excessive_depth: DocumentResult = parse_json(
+    excessive_depth = parse_json(
         String::from("[]"),
         JsonOptions::terrane_construct(
             terrane_int_support::Int::from(1000000_i128),
@@ -731,28 +761,25 @@ fn main() {
         terrane_scalar_support::scalar_text(&excessive_depth.message
         .contains(&String::from("cannot exceed")))
     );
-    let trailing_json: DocumentResult = parse_json(
-        String::from("{\"a\":1} garbage"),
-        options,
-    );
+    trailing_json = parse_json(String::from("{\"a\":1} garbage"), options);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&trailing_json.failed),
         terrane_scalar_support::scalar_text(&trailing_json.message
         .contains(&String::from("trailing characters")))
     );
-    let yaml_limits: YamlOptions = make_yaml_options(
+    yaml_limits = make_yaml_options(
         terrane_int_support::Int::from(32_i128),
         terrane_int_support::Int::from(2048_i128),
         terrane_int_support::Int::from(20_i128),
     );
-    let yaml_value: DocumentResult = parse_yaml(
+    yaml_value = parse_yaml(
         String::from(
             "integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279",
         ),
         yaml_limits.clone(),
     );
-    let yaml_integer: DocumentResult = yaml_value.value.field(String::from("integer"));
-    let yaml_decimal: DocumentResult = yaml_value.value.field(String::from("decimal"));
+    yaml_integer = yaml_value.value.field(String::from("integer"));
+    yaml_decimal = yaml_value.value.field(String::from("decimal"));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&yaml_value.failed),
         terrane_scalar_support::scalar_text(&yaml_integer.value.integer.text)
@@ -762,7 +789,7 @@ fn main() {
         .coefficient), terrane_scalar_support::scalar_text(&yaml_decimal.value.decimal
         .exponent)
     );
-    let yaml_decoded: DocumentResult = decode_yaml(
+    yaml_decoded = decode_yaml(
         String::from("name: Ada"),
         <Deserializable>::from(mapping),
         make_yaml_options(
@@ -772,7 +799,7 @@ fn main() {
         ),
     );
     println!("{}", terrane_scalar_support::scalar_text(&yaml_decoded.failed));
-    let ordinary_star: DocumentResult = parse_yaml(
+    ordinary_star = parse_yaml(
         String::from("glob: \"a * b * c\""),
         make_yaml_options(
             terrane_int_support::Int::from(32_i128),
@@ -781,7 +808,7 @@ fn main() {
         ),
     );
     println!("{}", terrane_scalar_support::scalar_text(&ordinary_star.failed));
-    let bomb: DocumentResult = parse_yaml(
+    bomb = parse_yaml(
         String::from(
             "leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]",
         ),
@@ -792,7 +819,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&bomb.message
         .contains(&String::from("alias node limit")))
     );
-    let yaml_depth: DocumentResult = parse_yaml(
+    yaml_depth = parse_yaml(
         String::from("a: [[[[]]]]"),
         make_yaml_options(
             terrane_int_support::Int::from(2_i128),
@@ -805,7 +832,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&yaml_depth.message
         .contains(&String::from("depth limit")))
     );
-    let excessive_yaml_depth: DocumentResult = parse_yaml(
+    excessive_yaml_depth = parse_yaml(
         String::from("[]"),
         make_yaml_options(
             terrane_int_support::Int::from(256_i128),
@@ -979,10 +1006,10 @@ impl DocumentValue {
         self.kind = terrane_document_kind(&raw);
         self.scalar = terrane_document_text(&raw);
         self.encoded = terrane_data_encoded(&raw);
-        if self.kind == String::from("integer") {
+        if self.kind.as_str() == "integer" {
             self.integer = DocumentInteger::terrane_construct(self.scalar.clone());
         }
-        if self.kind == String::from("decimal") {
+        if self.kind.as_str() == "decimal" {
             self.decimal = DocumentDecimal::terrane_construct(
                 terrane_document_coefficient(&raw),
                 terrane_document_exponent(&raw),
@@ -998,20 +1025,16 @@ impl DocumentValue {
         return self.clone();
     }
     pub fn item(&self, index: terrane_int_support::Int) -> DocumentResult {
-        let raw: terrane_document_support::DataResult = terrane_document_item(
-            &self.raw,
-            index.clone(),
-        );
+        let raw: terrane_document_support::DataResult;
+        raw = terrane_document_item(&self.raw, index.clone());
         return make_document_result(raw);
     }
     pub fn key(&self, index: terrane_int_support::Int) -> String {
         return terrane_document_key(&self.raw, index.clone());
     }
     pub fn field(&self, name: String) -> DocumentResult {
-        let raw: terrane_document_support::DataResult = terrane_document_field(
-            &self.raw,
-            name,
-        );
+        let raw: terrane_document_support::DataResult;
+        raw = terrane_document_field(&self.raw, name);
         return make_document_result(raw);
     }
 }
@@ -1204,8 +1227,10 @@ pub fn append_document_map_entry(
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
 ) -> DocumentResult {
-    let mut raw: terrane_document_support::DataResult = terrane_make_document_list();
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let mut raw: terrane_document_support::DataResult;
+    let mut index: terrane_int_support::Int;
+    raw = terrane_make_document_list();
+    index = terrane_int_support::Int::from(0_i128);
     while index.clone()
         < terrane_int_support::Int::from(terrane_int_support::Int::from(values.length()))
     {
@@ -1233,17 +1258,21 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields: terrane_collection_support::List<String> = mapping.field_names.clone();
-    let optional_fields: terrane_collection_support::List<String> = mapping
-        .optional_fields
-        .clone();
-    let default_fields: terrane_collection_support::List<String> = mapping
-        .default_fields
-        .clone();
-    let mut required: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let fields: terrane_collection_support::List<String>;
+    let optional_fields: terrane_collection_support::List<String>;
+    let default_fields: terrane_collection_support::List<String>;
+    let mut required: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut field: String;
+    let mut optional: bool;
+    let mut optional_index: terrane_int_support::Int;
+    let mut defaulted: bool;
+    let mut default_index: terrane_int_support::Int;
+    fields = mapping.field_names.clone();
+    optional_fields = mapping.optional_fields.clone();
+    default_fields = mapping.default_fields.clone();
+    required = terrane_collection_support::List::<String>::new(vec![]);
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = required.make_unique();
         while index.clone()
@@ -1251,7 +1280,7 @@ pub fn mapping_required_fields(
                 terrane_int_support::Int::from(fields.length()),
             )
         {
-            let field: String = __terrane_raised(
+            field = __terrane_raised(
                 fields
                     .get_or_error(
                         __terrane_raised(
@@ -1261,61 +1290,59 @@ pub fn mapping_required_fields(
                     ),
                 1 /* terrane-site: core/documents.trn:153:17-153:30 */,
             );
-            let mut optional: bool = false;
-            let mut optional_index: terrane_int_support::Int = terrane_int_support::Int::from(
-                0_i128,
-            );
+            optional = false;
+            optional_index = terrane_int_support::Int::from(0_i128);
             while optional_index.clone()
                 < terrane_int_support::Int::from(
                     terrane_int_support::Int::from(optional_fields.length()),
                 )
             {
                 if __terrane_raised(
-                    optional_fields
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &optional_index.clone(),
+                        optional_fields
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &optional_index.clone(),
+                                    ),
+                                    2 /* terrane-site: core/documents.trn:157:16-157:47 */,
                                 ),
-                                2 /* terrane-site: core/documents.trn:157:16-157:47 */,
                             ),
-                        ),
-                    2 /* terrane-site: core/documents.trn:157:16-157:47 */,
-                ) == field
+                        2 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                    )
+                    .as_str() == field.as_str()
                 {
                     optional = true;
                 }
                 optional_index = optional_index.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            let mut defaulted: bool = false;
-            let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-                0_i128,
-            );
+            defaulted = false;
+            default_index = terrane_int_support::Int::from(0_i128);
             while default_index.clone()
                 < terrane_int_support::Int::from(
                     terrane_int_support::Int::from(default_fields.length()),
                 )
             {
                 if __terrane_raised(
-                    default_fields
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &default_index.clone(),
+                        default_fields
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &default_index.clone(),
+                                    ),
+                                    3 /* terrane-site: core/documents.trn:163:16-163:45 */,
                                 ),
-                                3 /* terrane-site: core/documents.trn:163:16-163:45 */,
                             ),
-                        ),
-                    3 /* terrane-site: core/documents.trn:163:16-163:45 */,
-                ) == field
+                        3 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                    )
+                    .as_str() == field.as_str()
                 {
                     defaulted = true;
                 }
                 default_index = default_index.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            if field != String::from("") && !optional && !defaulted {
+            if field.as_str() != "" && !optional && !defaulted {
                 __terrane_list_append_0.push(field);
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -1327,15 +1354,17 @@ pub fn decode_document(
     value: DocumentValue,
     mapping: DocumentMapping,
 ) -> DocumentResult {
-    let required: terrane_collection_support::List<String> = mapping_required_fields(
-        mapping.clone(),
-    );
-    let mut declared_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut field_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    let required: terrane_collection_support::List<String>;
+    let mut declared_fields: terrane_collection_support::List<String>;
+    let mut field_index: terrane_int_support::Int;
+    let mut default_fields: terrane_collection_support::List<String>;
+    let mut default_values: terrane_collection_support::List<String>;
+    let mut default_index: terrane_int_support::Int;
+    let raw: terrane_document_support::DataResult;
+    let mut result: DocumentResult;
+    required = mapping_required_fields(mapping.clone());
+    declared_fields = terrane_collection_support::List::<String>::new(vec![]);
+    field_index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_1 = declared_fields.make_unique();
         while field_index.clone()
@@ -1344,18 +1373,19 @@ pub fn decode_document(
             )
         {
             if __terrane_raised(
-                mapping
-                    .field_names
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &field_index.clone(),
+                    mapping
+                        .field_names
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &field_index.clone(),
+                                ),
+                                4 /* terrane-site: core/documents.trn:176:12-176:44 */,
                             ),
-                            4 /* terrane-site: core/documents.trn:176:12-176:44 */,
                         ),
-                    ),
-                4 /* terrane-site: core/documents.trn:176:12-176:44 */,
-            ) != String::from("")
+                    4 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                )
+                .as_str() != ""
             {
                 __terrane_list_append_1
                     .push(
@@ -1377,15 +1407,9 @@ pub fn decode_document(
             field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut default_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut default_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    default_fields = terrane_collection_support::List::<String>::new(vec![]);
+    default_values = terrane_collection_support::List::<String>::new(vec![]);
+    default_index = terrane_int_support::Int::from(0_i128);
     while default_index.clone()
         < terrane_int_support::Int::from(
             terrane_int_support::Int::from(mapping.default_fields.length()),
@@ -1396,18 +1420,19 @@ pub fn decode_document(
             )
     {
         if __terrane_raised(
-            mapping
-                .default_fields
-                .get_or_error(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(
-                            &default_index.clone(),
+                mapping
+                    .default_fields
+                    .get_or_error(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(
+                                &default_index.clone(),
+                            ),
+                            6 /* terrane-site: core/documents.trn:183:12-183:49 */,
                         ),
-                        6 /* terrane-site: core/documents.trn:183:12-183:49 */,
                     ),
-                ),
-            6 /* terrane-site: core/documents.trn:183:12-183:49 */,
-        ) != String::from("")
+                6 /* terrane-site: core/documents.trn:183:12-183:49 */,
+            )
+            .as_str() != ""
         {
             default_fields
                 .append(
@@ -1444,7 +1469,7 @@ pub fn decode_document(
         }
         default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let raw: terrane_document_support::DataResult = terrane_validate_mapping(
+    raw = terrane_validate_mapping(
         &value.raw,
         mapping.expected_kind,
         required,
@@ -1453,7 +1478,7 @@ pub fn decode_document(
         default_values,
         mapping.allow_unknown,
     );
-    let mut result: DocumentResult = make_document_result(raw);
+    result = make_document_result(raw);
     if result.failed {
         result.expected = mapping.descriptor_name.clone();
     }
@@ -1494,7 +1519,8 @@ pub fn default_json_options() -> JsonOptions {
     );
 }
 pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_json_parse(
+    let raw: terrane_document_support::DataResult;
+    raw = terrane_json_parse(
         input,
         options.max_depth.clone(),
         options.max_bytes.clone(),
@@ -1502,12 +1528,14 @@ pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
     return make_document_result(raw);
 }
 pub fn stringify_json(value: DocumentValue, options: JsonOptions) -> DocumentResult {
+    let raw: terrane_document_support::DataResult;
     let _ = &options;
-    let raw: terrane_document_support::DataResult = terrane_json_canonical(&value.raw);
+    raw = terrane_json_canonical(&value.raw);
     return make_document_result(raw);
 }
 pub fn canonical_json(value: DocumentValue) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_json_canonical(&value.raw);
+    let raw: terrane_document_support::DataResult;
+    raw = terrane_json_canonical(&value.raw);
     return make_document_result(raw);
 }
 pub fn decode_json(
@@ -1515,7 +1543,8 @@ pub fn decode_json(
     mapping: Deserializable,
     options: JsonOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_json(input, options);
+    let parsed: DocumentResult;
+    parsed = parse_json(input, options);
     if parsed.failed {
         return parsed.clone();
     }
@@ -1576,7 +1605,8 @@ pub fn make_yaml_options(
     );
 }
 pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_yaml_parse(
+    let raw: terrane_document_support::DataResult;
+    raw = terrane_yaml_parse(
         input,
         options.max_depth.clone(),
         options.max_bytes.clone(),
@@ -1585,7 +1615,8 @@ pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
     return make_document_result(raw);
 }
 pub fn stringify_yaml(value: DocumentValue) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_json_canonical(&value.raw);
+    let raw: terrane_document_support::DataResult;
+    raw = terrane_json_canonical(&value.raw);
     return make_document_result(raw);
 }
 pub fn decode_yaml(
@@ -1593,7 +1624,8 @@ pub fn decode_yaml(
     mapping: Deserializable,
     options: YamlOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_yaml(input, options);
+    let parsed: DocumentResult;
+    parsed = parse_yaml(input, options);
     if parsed.failed {
         return parsed.clone();
     }

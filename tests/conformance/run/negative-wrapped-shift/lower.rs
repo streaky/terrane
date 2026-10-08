@@ -436,7 +436,8 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: negative-wrapped-shift
 fn main() {
-    let value: i8 = 1;
+    let value: i8;
+    value = 1;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(

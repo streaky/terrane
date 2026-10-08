@@ -453,8 +453,12 @@ async fn make() -> Point {
 }
 fn main() {
     __terrane_run(async move {
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<Point> = {
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<Point>;
+        let outcome: TerraneTaskOutcome<Point>;
+        let value: Option<Point>;
+        scope = TerraneTaskScope::new(None);
+        child = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -473,9 +477,8 @@ fn main() {
                 }
             })
         };
-        let outcome: TerraneTaskOutcome<Point> = __terrane_await(scope.join(child))
-            .await;
-        let value: Option<Point> = outcome.value.clone();
+        outcome = __terrane_await(scope.join(child)).await;
+        value = outcome.value.clone();
         if value.is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&String::from("present"))

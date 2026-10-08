@@ -458,11 +458,17 @@ fn consume(__trn_5f76616c7565: &terrane_int_support::Int) {
     let _ = &__trn_5f76616c7565;
 }
 fn main() {
-    let owner: Holder = Holder::terrane_construct(
-        terrane_int_support::Int::from(41_i128),
-    );
-    let field: &terrane_int_support::Int = &owner.value;
-    let show_field: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+    let owner: Holder;
+    let field: &terrane_int_support::Int;
+    let show_field: std::sync::Arc<dyn Fn() -> () + Send + Sync>;
+    let values: terrane_collection_support::List<terrane_int_support::Int>;
+    let element: &terrane_int_support::Int;
+    let returned: &terrane_int_support::Int;
+    let borrowed: &terrane_collection_support::List<terrane_int_support::Int>;
+    let mut item: &terrane_int_support::Int;
+    owner = Holder::terrane_construct(terrane_int_support::Int::from(41_i128));
+    field = &owner.value;
+    show_field = {
         let field = field;
         std::sync::Arc::new(move || -> () {
             consume(field);
@@ -473,7 +479,7 @@ fn main() {
         })
     };
     show_field();
-    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    values = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -481,7 +487,7 @@ fn main() {
             terrane_int_support::Int::from(42_i128)
         ],
     );
-    let element: &terrane_int_support::Int = {
+    element = {
         let __terrane_index = __terrane_raised(
             terrane_collection_support::index_from_int(
                 &terrane_int_support::Int::from(1_i128),
@@ -497,17 +503,17 @@ fn main() {
             0 /* terrane-site: case.trn:23:25-23:34 */,
         )
     };
-    let returned: &terrane_int_support::Int = pass(element);
+    returned = pass(element);
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&field.clone()),
         terrane_scalar_support::scalar_text(&element.clone()),
         terrane_scalar_support::scalar_text(&returned.clone())
     );
-    let borrowed: &terrane_collection_support::List<terrane_int_support::Int> = &values;
+    borrowed = &values;
     let __terrane_iterable_0 = borrowed;
     let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
     loop {
-        let item = match __terrane_iterator_0.next() {
+        item = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

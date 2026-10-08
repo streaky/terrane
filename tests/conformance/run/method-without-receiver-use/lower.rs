@@ -14,6 +14,7 @@ impl Answerer {
     }
 }
 fn main() {
-    let value: Answerer = Answerer::terrane_construct();
+    let value: Answerer;
+    value = Answerer::terrane_construct();
     println!("{}", terrane_scalar_support::scalar_text(&value.answer()));
 }

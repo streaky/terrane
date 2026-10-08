@@ -466,7 +466,8 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: structured-legacy-failures
 fn narrow_fixed() -> Result<i8, TerraneError> {
-    let wide: i16 = 300;
+    let wide: i16;
+    wide = 300;
     return Ok({
         let source_value = wide;
         __terrane_raised_err(
@@ -482,7 +483,8 @@ fn narrow_fixed() -> Result<i8, TerraneError> {
     });
 }
 fn narrow_float() -> Result<f32, TerraneError> {
-    let wide_float: f64 = 340282400000000000000000000000000000000.0;
+    let wide_float: f64;
+    wide_float = 340282400000000000000000000000000000000.0;
     return Ok({
         let source_value = wide_float;
         let converted = source_value as f32;
@@ -504,8 +506,10 @@ fn narrow_float() -> Result<f32, TerraneError> {
     });
 }
 fn divide() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator: i64 = 1;
-    let denominator: i64 = 0;
+    let numerator: i64;
+    let denominator: i64;
+    numerator = 1;
+    denominator = 0;
     return Ok(
         __terrane_raised_err(
             terrane_int_support::Int::from(numerator as i128)
@@ -515,8 +519,10 @@ fn divide() -> Result<terrane_int_support::Int, TerraneError> {
     );
 }
 fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator: i64 = 1;
-    let denominator: i64 = 0;
+    let numerator: i64;
+    let denominator: i64;
+    numerator = 1;
+    denominator = 0;
     return Ok(
         __terrane_raised_err(
             terrane_int_support::Int::from(numerator as i128)
@@ -526,9 +532,12 @@ fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
     );
 }
 fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
-    let one: f64 = 1.0;
-    let zero: f64 = 0.0;
-    let infinite: f64 = one / zero;
+    let one: f64;
+    let zero: f64;
+    let infinite: f64;
+    one = 1.0;
+    zero = 0.0;
+    infinite = one / zero;
     return Ok(
         __terrane_raised_err(
             terrane_int_support::rounded_f64(
@@ -543,7 +552,8 @@ fn accepts_narrow(value: i8) -> terrane_int_support::Int {
     return terrane_int_support::Int::from(value as i128);
 }
 fn narrow_argument() -> Result<terrane_int_support::Int, TerraneError> {
-    let wide: i16 = 300;
+    let wide: i16;
+    wide = 300;
     return Ok(
         accepts_narrow({
             let source_value = wide;

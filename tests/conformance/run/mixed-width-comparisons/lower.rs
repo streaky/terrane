@@ -4,8 +4,10 @@
 // Source: case.trn
 // Namespace: mixed-width-comparisons
 fn main() {
-    let small: i8 = 5;
-    let wide: i32 = 9;
+    let small: i8;
+    let wide: i32;
+    small = 5;
+    wide = 9;
     println!("{}", terrane_scalar_support::scalar_text(&(small as i32 == wide)));
     println!("{}", terrane_scalar_support::scalar_text(&(small as i32 != wide)));
     println!("{}", terrane_scalar_support::scalar_text(&((small as i32) < wide)));

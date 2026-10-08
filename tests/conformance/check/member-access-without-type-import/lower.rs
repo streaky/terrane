@@ -436,8 +436,11 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: example
 fn main() {
-    let frame: FrameState = make_frame();
-    let body: FrameBody = __terrane_raised(
+    let frame: FrameState;
+    let body: FrameBody;
+    let value: f64;
+    frame = make_frame();
+    body = __terrane_raised(
         frame
             .bodies
             .get_or_error(
@@ -450,7 +453,7 @@ fn main() {
             ),
         0 /* terrane-site: src/main.trn:7:12-7:27 */,
     );
-    let value: f64 = body.x;
+    value = body.x;
     let _ = &value;
 }
 // Source: src/model/types.trn
@@ -490,9 +493,8 @@ impl FrameState {
     }
 }
 fn make_frame() -> FrameState {
-    let mut bodies: terrane_collection_support::List<FrameBody> = terrane_collection_support::List::<
-        FrameBody,
-    >::new(Vec::new());
+    let mut bodies: terrane_collection_support::List<FrameBody>;
+    bodies = terrane_collection_support::List::<FrameBody>::new(Vec::new());
     bodies.append(FrameBody::terrane_construct(7.5));
     return FrameState::terrane_construct(bodies);
 }

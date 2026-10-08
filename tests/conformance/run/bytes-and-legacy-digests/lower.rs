@@ -436,32 +436,28 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: bytes-and-legacy-digests
 fn main() {
-    let octets: terrane_collection_support::List<u8> = terrane_collection_support::List::<
-        u8,
-    >::new(vec![65, 66, 67]);
-    let data: Vec<u8> = bytes_from_octets(octets);
+    let octets: terrane_collection_support::List<u8>;
+    let data: Vec<u8>;
+    let empty_octets: terrane_collection_support::List<u8>;
+    let empty: Vec<u8>;
+    let first: DigestResult;
+    let second: DigestResult;
+    octets = terrane_collection_support::List::<u8>::new(vec![65, 66, 67]);
+    data = bytes_from_octets(octets);
     println!(
         "{}{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data,
         terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:12:11-12:28 */)), terrane_scalar_support::scalar_text(&(data.len() as
         i128))
     );
-    let empty_octets: terrane_collection_support::List<u8> = terrane_collection_support::List::<
-        u8,
-    >::new(vec![]);
-    let empty: Vec<u8> = bytes_from_octets(empty_octets);
+    empty_octets = terrane_collection_support::List::<u8>::new(vec![]);
+    empty = bytes_from_octets(empty_octets);
     println!("{}", terrane_scalar_support::scalar_text(&(empty.len() as i128)));
-    let first: DigestResult = digest_bytes_terrane_core_random(
-        sha1(),
-        Vec::from([97, 98, 99]),
-    );
+    first = digest_bytes_terrane_core_random(sha1(), Vec::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(first.value.value.clone()))
     );
-    let second: DigestResult = digest_bytes_terrane_core_random(
-        md5(),
-        Vec::from([97, 98, 99]),
-    );
+    second = digest_bytes_terrane_core_random(md5(), Vec::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(second.value.value
         .clone()))
@@ -501,7 +497,8 @@ impl HexCodec {
         return terrane_platform_hex_encode(data);
     }
     pub fn decode(&self, text: String) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_hex_decode(text);
         return DecodeResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -526,11 +523,8 @@ impl Base64Codec {
         return terrane_platform_base64_encode(data, self.url_safe, padded);
     }
     pub fn decode(&self, text: String, padded: bool) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_base64_decode(
-            text,
-            self.url_safe,
-            padded,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_base64_decode(text, self.url_safe, padded);
         return DecodeResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -554,7 +548,8 @@ pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
 }
 pub fn decode_hex(text: String) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_hex_decode(text);
     return DecodeResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -565,11 +560,8 @@ pub fn encode_base64(data: Vec<u8>, url_safe: bool, padded: bool) -> String {
     return terrane_platform_base64_encode(data, url_safe, padded);
 }
 pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_base64_decode(
-        text,
-        url_safe,
-        padded,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_base64_decode(text, url_safe, padded);
     return DecodeResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -667,7 +659,8 @@ impl SecretBuffer {
     }
 }
 pub fn destroy_secret(secret: SecretBuffer) -> SecretOperationResult {
-    let raw: TerranePlatformResult = terrane_platform_destroy_secret(&secret.handle);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_destroy_secret(&secret.handle);
     return SecretOperationResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -692,10 +685,11 @@ impl DigestValue {
         self.value = data;
     }
     pub fn constant_time_equals(&self, other: DigestValue) -> bool {
-        if self.algorithm != other.algorithm {
+        let left: Vec<u8>;
+        if self.algorithm.as_str() != other.algorithm.as_str() {
             return false;
         }
-        let left: Vec<u8> = self.value.clone();
+        left = self.value.clone();
         return terrane_platform_constant_time_equal(left, other.value);
     }
 }
@@ -744,10 +738,11 @@ impl SignatureValue {
         self.value = data;
     }
     pub fn constant_time_equals(&self, other: SignatureValue) -> bool {
-        if self.algorithm != other.algorithm {
+        let left: Vec<u8>;
+        if self.algorithm.as_str() != other.algorithm.as_str() {
             return false;
         }
-        let left: Vec<u8> = self.value.clone();
+        left = self.value.clone();
         return terrane_platform_constant_time_equal(left, other.value);
     }
 }
@@ -798,10 +793,8 @@ impl SecureRandom {
         self.handle = terrane_platform_secure_random();
     }
     pub fn generate_bytes(&self, count: terrane_int_support::Int) -> ByteResult {
-        let raw: TerranePlatformResult = terrane_platform_random_bytes(
-            &self.handle,
-            count,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bytes(&self.handle, count);
         return ByteResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -812,10 +805,8 @@ impl SecureRandom {
         &self,
         upper_exclusive: terrane_int_support::Int,
     ) -> RandomIntResult {
-        let raw: TerranePlatformResult = terrane_platform_random_bounded(
-            &self.handle,
-            upper_exclusive,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bounded(&self.handle, upper_exclusive);
         return RandomIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -859,10 +850,8 @@ impl PseudoRandom {
         self.handle = terrane_platform_pseudo_random(algorithm.name, seed);
     }
     pub fn generate_bytes(&self, count: terrane_int_support::Int) -> ByteResult {
-        let raw: TerranePlatformResult = terrane_platform_random_bytes(
-            &self.handle,
-            count,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bytes(&self.handle, count);
         return ByteResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -873,10 +862,8 @@ impl PseudoRandom {
         &self,
         upper_exclusive: terrane_int_support::Int,
     ) -> RandomIntResult {
-        let raw: TerranePlatformResult = terrane_platform_random_bounded(
-            &self.handle,
-            upper_exclusive,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bounded(&self.handle, upper_exclusive);
         return RandomIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -884,21 +871,19 @@ impl PseudoRandom {
         );
     }
     pub fn split(self) -> PseudoRandom {
-        let raw: TerranePlatformResult = terrane_platform_random_split(&self.handle);
-        let mut child: PseudoRandom = PseudoRandom::terrane_construct(
-            chacha20(),
-            Vec::from([]),
-        );
+        let raw: TerranePlatformResult;
+        let mut child: PseudoRandom;
+        raw = terrane_platform_random_split(&self.handle);
+        child = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
         child.handle = terrane_platform_result_capability(&raw);
         return child;
     }
 }
 pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
-    let raw: TerranePlatformResult = terrane_platform_random_split(&source.handle);
-    let mut child: PseudoRandom = PseudoRandom::terrane_construct(
-        chacha20(),
-        Vec::from([]),
-    );
+    let raw: TerranePlatformResult;
+    let mut child: PseudoRandom;
+    raw = terrane_platform_random_split(&source.handle);
+    child = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
     child.handle = terrane_platform_result_capability(&raw);
     return child;
 }
@@ -906,10 +891,8 @@ pub fn secure_bytes(
     source: SecureRandom,
     count: terrane_int_support::Int,
 ) -> ByteResult {
-    let raw: TerranePlatformResult = terrane_platform_random_bytes(
-        &source.handle,
-        count,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bytes(&source.handle, count);
     return ByteResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -920,10 +903,8 @@ pub fn pseudo_bytes(
     source: PseudoRandom,
     count: terrane_int_support::Int,
 ) -> ByteResult {
-    let raw: TerranePlatformResult = terrane_platform_random_bytes(
-        &source.handle,
-        count,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bytes(&source.handle, count);
     return ByteResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -934,10 +915,8 @@ pub fn secure_bounded_int(
     source: SecureRandom,
     upper_exclusive: terrane_int_support::Int,
 ) -> RandomIntResult {
-    let raw: TerranePlatformResult = terrane_platform_random_bounded(
-        &source.handle,
-        upper_exclusive,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bounded(&source.handle, upper_exclusive);
     return RandomIntResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -948,10 +927,8 @@ pub fn pseudo_bounded_int(
     source: PseudoRandom,
     upper_exclusive: terrane_int_support::Int,
 ) -> RandomIntResult {
-    let raw: TerranePlatformResult = terrane_platform_random_bounded(
-        &source.handle,
-        upper_exclusive,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bounded(&source.handle, upper_exclusive);
     return RandomIntResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -982,8 +959,10 @@ pub fn digest_bytes_terrane_core_random(
     algorithm: HashAlgorithm,
     data: Vec<u8>,
 ) -> DigestResult {
-    let raw: TerranePlatformResult = terrane_platform_digest(&algorithm.name, data);
-    let value: DigestValue = DigestValue::terrane_construct(
+    let raw: TerranePlatformResult;
+    let value: DigestValue;
+    raw = terrane_platform_digest(&algorithm.name, data);
+    value = DigestValue::terrane_construct(
         algorithm.name.clone(),
         terrane_platform_result_bytes(&raw),
     );
@@ -998,12 +977,10 @@ pub fn sign_hmac(
     key: SecretBuffer,
     data: Vec<u8>,
 ) -> SignatureResult {
-    let raw: TerranePlatformResult = terrane_platform_hmac(
-        &algorithm.name,
-        &key.handle,
-        data,
-    );
-    let value: SignatureValue = SignatureValue::terrane_construct(
+    let raw: TerranePlatformResult;
+    let value: SignatureValue;
+    raw = terrane_platform_hmac(&algorithm.name, &key.handle, data);
+    value = SignatureValue::terrane_construct(
         algorithm.name.clone(),
         terrane_platform_result_bytes(&raw),
     );

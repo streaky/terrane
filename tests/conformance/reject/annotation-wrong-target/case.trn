@@ -1,0 +1,10 @@
+namespace annotation-wrong-target
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::field;))]
+class tag
+    value string = ''
+
+@[tag; value = 'wrong target']
+class subject

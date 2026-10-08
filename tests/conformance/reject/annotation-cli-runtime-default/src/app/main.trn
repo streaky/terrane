@@ -1,0 +1,5 @@
+namespace annotation-cli-runtime-default
+from /annotation-cli import command, command-option
+@[command;]
+function entrypoint int; @[command-option; '--value'] value string = ('seed'.concat; 'value')
+    return 0

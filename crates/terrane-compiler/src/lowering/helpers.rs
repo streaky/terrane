@@ -41,7 +41,7 @@ pub(super) fn literal(text: &str) -> String {
     }
     let value = if let Some(value) = trimmed.strip_prefix('>') {
         if let Some(block) = value.strip_prefix('>') {
-            block_string(block)
+            crate::lexer::block_string(block)
         } else {
             value.to_owned()
         }
@@ -49,7 +49,7 @@ pub(super) fn literal(text: &str) -> String {
         && ((trimmed.starts_with('\'') && trimmed.ends_with('\''))
             || (trimmed.starts_with('"') && trimmed.ends_with('"')))
     {
-        unescape(&trimmed[1..trimmed.len() - 1])
+        crate::lexer::unescape_string(&trimmed[1..trimmed.len() - 1])
     } else {
         trimmed.to_owned()
     };
@@ -131,47 +131,6 @@ pub(super) fn integer_literal(text: &str) -> Option<BigInt> {
             (10, text)
         };
     BigInt::parse_bytes(digits.as_bytes(), radix)
-}
-
-pub(super) fn block_string(text: &str) -> String {
-    let mut lines = text.lines();
-    let first = lines.next().unwrap_or_default();
-    if !first.trim().is_empty() {
-        return first.to_owned();
-    }
-    let collected = lines.collect::<Vec<_>>();
-    let indent = collected
-        .iter()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.len() - line.trim_start().len())
-        .min()
-        .unwrap_or(0);
-    collected
-        .iter()
-        .map(|line| line.get(indent..).unwrap_or_default())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-pub(super) fn unescape(value: &str) -> String {
-    let mut output = String::new();
-    let mut chars = value.chars();
-    while let Some(character) = chars.next() {
-        if character == '\\' {
-            match chars.next() {
-                Some('n') => output.push('\n'),
-                Some('r') => output.push('\r'),
-                Some('t') => output.push('\t'),
-                Some('\\') | None => output.push('\\'),
-                Some('\'') => output.push('\''),
-                Some('"') => output.push('"'),
-                Some(other) => output.push(other),
-            }
-        } else {
-            output.push(character);
-        }
-    }
-    output
 }
 
 pub(super) fn object_descendants<'a>(
@@ -267,6 +226,10 @@ pub(super) fn effective_object_methods<'a>(
 pub(super) fn union_type_name(binding: &TypedBinding) -> String {
     format!("TerraneUnionF{}S{}", binding.span.file, binding.span.start)
 }
+pub(super) fn union_type_name_for_span(span: crate::Span) -> String {
+    format!("TerraneUnionF{}S{}", span.file, span.start)
+}
+
 pub(super) fn find_node_by_span(node: &SyntaxNode, span: crate::Span) -> Option<&SyntaxNode> {
     (node.span == span).then_some(node).or_else(|| {
         node.children
@@ -367,6 +330,11 @@ fn rust_callable_parameter_type(
 ) -> String {
     if parameter.is_variadic() {
         rust_value_type(package, ValueType::List(parameter.element_type()))
+    } else if parameter.requires_mutable_reference() {
+        let ValueType::Reference(item) = parameter.value_type_ref() else {
+            unreachable!("mutable native callback parameter must be a reference")
+        };
+        format!("&mut {}", rust_element_type(package, item.clone()))
     } else {
         rust_element_type(package, parameter.element_type())
     }
@@ -393,6 +361,9 @@ fn rust_callable_arguments(
 )]
 pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
+        ValueType::Union(_) => {
+            unreachable!("control-flow union storage is keyed by its canonical binding")
+        }
         ValueType::TypeParameter(name) => rust_type_parameter_name(&name),
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
         ValueType::Optional(inner) => {

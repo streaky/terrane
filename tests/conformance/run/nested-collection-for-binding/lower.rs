@@ -440,7 +440,17 @@ mod __terrane_trace {
 fn main() {
     let nested: terrane_collection_support::List<
         terrane_collection_support::List<terrane_int_support::Int>,
-    > = terrane_collection_support::List::<
+    >;
+    let mut row: terrane_collection_support::List<terrane_int_support::Int>;
+    let groups: terrane_collection_support::Map<
+        String,
+        terrane_collection_support::List<terrane_int_support::Int>,
+    >;
+    let mut group: terrane_collection_support::Entry<
+        String,
+        terrane_collection_support::List<terrane_int_support::Int>,
+    >;
+    nested = terrane_collection_support::List::<
         terrane_collection_support::List<terrane_int_support::Int>,
     >::new(
         vec![
@@ -455,7 +465,7 @@ fn main() {
         &__terrane_iterable_0,
     );
     loop {
-        let row = match __terrane_iterator_0.next() {
+        row = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -467,10 +477,7 @@ fn main() {
             0 /* terrane-site: case.trn:8:24-8:30 */)), 0 /* terrane-site: case.trn:8:24-8:30 */))
         );
     }
-    let groups: terrane_collection_support::Map<
-        String,
-        terrane_collection_support::List<terrane_int_support::Int>,
-    > = terrane_collection_support::Map::<
+    groups = terrane_collection_support::Map::<
         String,
         terrane_collection_support::List<terrane_int_support::Int>,
     >::new(
@@ -487,7 +494,7 @@ fn main() {
         &__terrane_iterable_1,
     );
     loop {
-        let group = match __terrane_iterator_1.next() {
+        group = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

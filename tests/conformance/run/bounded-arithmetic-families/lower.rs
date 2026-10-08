@@ -476,18 +476,27 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: bounded-arithmetic-families
 fn main() {
-    let small: i8 = 120;
-    let wrapped: i8 = terrane_int_support::fixed_addition_wrap(small, 10);
+    let small: i8;
+    let wrapped: i8;
+    let overflowed: terrane_int_support::OverflowResult<i8>;
+    let pair: terrane_int_support::DivRemResult<terrane_int_support::Int>;
+    let exact: i64;
+    let negated: terrane_int_support::OverflowResult<i8>;
+    let mut count: i8;
+    let sub_overflow: terrane_int_support::OverflowResult<i8>;
+    let mul_overflow: terrane_int_support::OverflowResult<i8>;
+    let minimum: i8;
+    let div_overflow: terrane_int_support::OverflowResult<i8>;
+    let rem_overflow: terrane_int_support::OverflowResult<i8>;
+    small = 120;
+    wrapped = terrane_int_support::fixed_addition_wrap(small, 10);
     println!("{}", terrane_scalar_support::scalar_text(&wrapped));
-    let overflowed: terrane_int_support::OverflowResult<i8> = terrane_int_support::fixed_addition_overflowing(
-        small,
-        10,
-    );
+    overflowed = terrane_int_support::fixed_addition_overflowing(small, 10);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&overflowed.value),
         terrane_scalar_support::scalar_text(&overflowed.overflowed)
     );
-    let pair: terrane_int_support::DivRemResult<terrane_int_support::Int> = __terrane_raised(
+    pair = __terrane_raised(
         terrane_int_support::Int::from(-7_i128)
             .div_rem(&terrane_int_support::Int::from(3_i128)),
         0 /* terrane-site: case.trn:8:10-8:26 */,
@@ -496,7 +505,7 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&pair.quotient),
         terrane_scalar_support::scalar_text(&pair.remainder)
     );
-    let exact: i64 = 5;
+    exact = 5;
     println!(
         "{}", terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(exact
         as i128) * terrane_int_support::Int::from(9_i128)))
@@ -514,9 +523,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder(small,
         7), 2 /* terrane-site: case.trn:14:30-14:48 */))
     );
-    let negated: terrane_int_support::OverflowResult<i8> = terrane_int_support::fixed_negation_overflowing(
-        small,
-    );
+    negated = terrane_int_support::fixed_negation_overflowing(small);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&negated.value),
         terrane_scalar_support::scalar_text(&negated.overflowed)
@@ -530,7 +537,7 @@ fn main() {
         terrane_int_support::fixed_shift_right_checked(small, &2),
         4 /* terrane-site: case.trn:18:3-18:31 */,
     );
-    let mut count: i8 = 1;
+    count = 1;
     count = __terrane_raised(
         terrane_int_support::fixed_addition(count, 1),
         5 /* terrane-site: case.trn:20:3-20:10 */,
@@ -554,10 +561,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_saturate(small,
         - 20))
     );
-    let sub_overflow: terrane_int_support::OverflowResult<i8> = terrane_int_support::fixed_subtraction_overflowing(
-        small,
-        -20,
-    );
+    sub_overflow = terrane_int_support::fixed_subtraction_overflowing(small, -20);
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&sub_overflow.value),
         terrane_scalar_support::scalar_text(&sub_overflow.overflowed),
@@ -571,15 +575,12 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_checked(small,
         2).is_none())
     );
-    let mul_overflow: terrane_int_support::OverflowResult<i8> = terrane_int_support::fixed_multiplication_overflowing(
-        small,
-        2,
-    );
+    mul_overflow = terrane_int_support::fixed_multiplication_overflowing(small, 2);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&mul_overflow.value),
         terrane_scalar_support::scalar_text(&mul_overflow.overflowed)
     );
-    let minimum: i8 = -128;
+    minimum = -128;
     println!(
         "{}{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_wrap(minimum,
@@ -587,7 +588,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_saturate(minimum,
         - 1), 8 /* terrane-site: case.trn:31:38-31:65 */))
     );
-    let div_overflow: terrane_int_support::OverflowResult<i8> = __terrane_raised(
+    div_overflow = __terrane_raised(
         terrane_int_support::fixed_division_overflowing(minimum, -1),
         9 /* terrane-site: case.trn:32:18-32:48 */,
     );
@@ -597,7 +598,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_checked(minimum,
         - 1), 10 /* terrane-site: case.trn:33:56-33:82 */).is_none())
     );
-    let rem_overflow: terrane_int_support::OverflowResult<i8> = __terrane_raised(
+    rem_overflow = __terrane_raised(
         terrane_int_support::fixed_remainder_overflowing(minimum, -1),
         11 /* terrane-site: case.trn:34:18-34:51 */,
     );

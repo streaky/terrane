@@ -1,0 +1,5 @@
+namespace annotation-source-free
+from /core/output import print
+from /generated/annotation-codec/declaration-annotations/parent import describe-parent
+function main;
+    print; (describe-parent;)

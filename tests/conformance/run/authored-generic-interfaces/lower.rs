@@ -135,7 +135,8 @@ impl MessageSource {
         }
     }
     pub fn next(&mut self) -> Option<String> {
-        let result: Option<String> = self.value.clone();
+        let result: Option<String>;
+        result = self.value.clone();
         self.value = None;
         return result;
     }
@@ -160,27 +161,32 @@ fn next_string(mut input: Source<String>) -> Option<String> {
     return input.next();
 }
 fn main() {
-    let message: Message = Message::terrane_construct(String::from("preserved"));
-    let kept: Message = preserve(message.clone());
+    let message: Message;
+    let kept: Message;
+    let mut input: Source<String>;
+    let first: Option<String>;
+    let second: Option<String>;
+    let peer: Address;
+    let erased: Describable;
+    message = Message::terrane_construct(String::from("preserved"));
+    kept = preserve(message.clone());
     println!("{}", terrane_scalar_support::scalar_text(&kept.describe()));
     println!("{}", terrane_scalar_support::scalar_text(&describe_value(kept)));
-    let mut input: Source<String> = <Source<
-        String,
-    >>::from(MessageSource::terrane_construct());
-    let first: Option<String> = next_string(input.clone());
+    input = <Source<String>>::from(MessageSource::terrane_construct());
+    first = next_string(input.clone());
     if first.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&first.as_ref()
-            .expect("semantic optional narrowing").clone())
+            "{}", terrane_scalar_support::scalar_text(&match &first { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     input.next();
-    let second: Option<String> = input.next();
+    second = input.next();
     if second.is_none() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("none")));
     }
-    let peer: Address = Address::terrane_construct();
-    let erased: Describable = choose::<
+    peer = Address::terrane_construct();
+    erased = choose::<
         Describable,
     >(<Describable>::from(message), <Describable>::from(peer), false);
     println!("{}", terrane_scalar_support::scalar_text(&erased.describe()));

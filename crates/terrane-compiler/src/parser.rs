@@ -2,6 +2,9 @@ use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree, is_reserved_declaration_
 use crate::tokens::{Attachment, LexedSource, Token, TokenKind};
 use crate::{Diagnostic, SourceFile, Span};
 
+#[path = "parser/documentation.rs"]
+mod documentation;
+
 /// The recovered syntax tree and any source-oriented syntax diagnostics.
 #[derive(Clone, Debug)]
 pub struct ParseOutput {
@@ -24,8 +27,9 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         semicolon_boundary: false,
         diagnostics: Vec::new(),
     };
-    let root = parser.parse_compilation_unit();
-    let diagnostics = std::mem::take(&mut parser.diagnostics);
+    let mut root = parser.parse_compilation_unit();
+    let mut diagnostics = std::mem::take(&mut parser.diagnostics);
+    documentation::attach(source, &lexed, &mut root, &mut diagnostics);
     ParseOutput {
         tree: SyntaxTree { lexed, root },
         diagnostics,
@@ -63,8 +67,87 @@ impl Parser<'_> {
         }
         self.node(SyntaxKind::CompilationUnit, start, self.position, children)
     }
-
     fn parse_statement(&mut self) -> SyntaxNode {
+        let mut annotations = Vec::new();
+        while self.at_text("@") {
+            annotations.push(self.parse_annotation());
+            self.expect(
+                TokenKind::Newline,
+                "S1100",
+                "declaration annotations require a following declaration on a new line",
+            );
+            self.skip_newlines();
+        }
+        let mut declaration = self.parse_unannotated_statement();
+        if !(annotations.is_empty()
+            || matches!(
+                declaration.kind,
+                SyntaxKind::ClassDeclaration | SyntaxKind::FunctionDeclaration
+            )
+            || declaration.kind == SyntaxKind::Binding && self.block_depth == self.class_body_depth)
+        {
+            self.error_at(
+                declaration.token_range.start,
+                "S1100",
+                "annotations attach only to classes, callables, parameters, and fields",
+            );
+        }
+        declaration.annotation_applications = annotations;
+        declaration
+    }
+
+    fn parse_annotation(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        self.expect(TokenKind::OpenBracket, "S1100", "expected `[` after `@`");
+        let name = self.parse_import_name("S1100", "expected an annotation name");
+        self.expect(
+            TokenKind::Semicolon,
+            "S1100",
+            "annotation applications require `;`, including without arguments",
+        );
+        let list_start = self.position;
+        let mut arguments = Vec::new();
+        let mut named = false;
+        while !self.at(TokenKind::CloseBracket) && !self.at_line_end() {
+            let argument_start = self.position;
+            let mut parts = Vec::new();
+            if self.at(TokenKind::Identifier) && self.peek_kind(1) == Some(TokenKind::Assign) {
+                named = true;
+                parts.push(self.leaf(SyntaxKind::Name));
+                self.bump();
+            } else if named {
+                self.error_here(
+                    "S1100",
+                    "positional annotation arguments must precede named arguments",
+                );
+            }
+            parts.push(self.parse_expression(0, false));
+            arguments.push(self.node(SyntaxKind::Argument, argument_start, self.position, parts));
+            if !self.eat(TokenKind::Comma) {
+                break;
+            }
+        }
+        let arguments = self.node(
+            SyntaxKind::ArgumentList,
+            list_start,
+            self.position,
+            arguments,
+        );
+        self.expect(
+            TokenKind::CloseBracket,
+            "S1100",
+            "expected `]` after annotation arguments",
+        );
+        self.node(
+            SyntaxKind::AnnotationApplication,
+            start,
+            self.position,
+            vec![name, arguments],
+        )
+    }
+
+    fn parse_unannotated_statement(&mut self) -> SyntaxNode {
         match self.text() {
             "namespace" => self.parse_namespace(),
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
@@ -886,6 +969,10 @@ impl Parser<'_> {
         let grouped = self.eat(TokenKind::OpenParen);
         let mut children = Vec::new();
         while !(self.at_line_end() || grouped && self.at(TokenKind::CloseParen)) {
+            let mut annotations = Vec::new();
+            while self.at_text("@") {
+                annotations.push(self.parse_annotation());
+            }
             let parameter_start = self.position;
             if self.at(TokenKind::Identifier) {
                 self.reject_keyword_declaration_name();
@@ -914,12 +1001,10 @@ impl Parser<'_> {
                 if self.eat(TokenKind::Assign) {
                     parts.push(self.parse_expression(0, false));
                 }
-                children.push(self.node(
-                    SyntaxKind::Parameter,
-                    parameter_start,
-                    self.position,
-                    parts,
-                ));
+                let mut parameter =
+                    self.node(SyntaxKind::Parameter, parameter_start, self.position, parts);
+                parameter.annotation_applications = annotations;
+                children.push(parameter);
             } else {
                 self.error_here("S1007", "expected a parameter name");
                 while !(self.at(TokenKind::Comma)

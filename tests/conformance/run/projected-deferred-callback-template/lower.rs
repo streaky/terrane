@@ -491,7 +491,9 @@ fn length(value: String) -> terrane_int_support::Int {
     );
 }
 fn main() {
-    let value: String = __terrane_raised(
+    let value: String;
+    let size: terrane_int_support::Int;
+    value = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| terrane_deferred_callback_witness::produce(
                 match || -> Result<_, crate::TerraneForeignError> {
@@ -526,7 +528,7 @@ fn main() {
         },
         0 /* terrane-site: src/main.trn:13:20-13:36 */,
     );
-    let size: terrane_int_support::Int = __terrane_raised(
+    size = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| terrane_deferred_callback_witness::transform(
                 value.clone(),

@@ -36,15 +36,18 @@ impl Values {
     }
 }
 fn main() {
-    let value: Gate = Gate::terrane_construct();
+    let value: Gate;
+    let source: Values;
+    let mut item: terrane_int_support::Int;
+    value = Gate::terrane_construct();
     if value.truth() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("truth")));
     }
-    let source: Values = Values::terrane_construct();
+    source = Values::terrane_construct();
     let __terrane_iterable_0 = source;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
-        let item = match __terrane_iterator_0.next() {
+        item = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

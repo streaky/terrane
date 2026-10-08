@@ -1,10 +1,10 @@
 # Terrane AI language and compiler reference
 
-SOURCE_OF_TRUTH: `docs/language-spec-and-compiler-architecture-draft.md`
+SOURCE_OF_TRUTH: canonical records under `manual/reference/`; executable conformance defines implemented behavior.
 ROLE: lossy retrieval/index layer for AI agents; not an independent specification.
-SYNC_RULE: any semantic/grammar/architecture change to SOURCE_OF_TRUTH MUST update this file in the same work unit. If they conflict, SOURCE_OF_TRUTH wins.
-IMPLEMENTATION_TRUTH: executable conformance cases define implemented behavior; this file includes planned/unimplemented language.
-SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH resolves the question, update this file with the smallest durable rule/index improvement that prevents recurrence. Prefer compression, replacement, or a retrieval pointer over added prose; preserve fast scanning and bounded size.
+SYNC_RULE: semantic/grammar/architecture changes MUST update this index and their canonical manual records in the same work unit.
+IMPLEMENTATION_TRUTH: executable conformance cases define implemented behavior; explicitly marked planned sections are not current language.
+SELF_HEAL_RULE: when this reference is missing or unclear, consult the canonical manual and update the smallest durable rule/index pointer.
 
 ## Retrieval map
 
@@ -22,7 +22,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
 | async/targets | `ASYNC`, `TARGET` | §§21–22 |
 | application testing | `TESTING` | §31.5 |
-| declaration annotations/documentation metadata | `ANNOTATIONS` | General declaration annotations (planned); manual `internals.future.annotations`, milestone 31.0 |
+| declaration annotations/documentation metadata | `ANNOTATIONS` | Declaration annotations and documentation metadata; manual `lang.declarations.annotations`, milestone 31.0 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
 | unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
 | constitutional rules | `INVARIANT` | §41 |
@@ -43,6 +43,7 @@ encoding: UTF-8
 layout: indentation-delimited; NEWLINE/INDENT/DEDENT
 empty_block: legal; no pass/no-op statement
 comments: ['# line', '// line', '/* first terminator closes */']
+documentation_comments: ['/// declaration documentation', '/** declaration documentation */']
 identifier_case:
   legality: uppercase and underscore are legal; user declarations may use any case
   verbatim_projection: third-party member/type names retain their Rust spelling and are exempt from Terrane naming lint
@@ -225,6 +226,7 @@ receiver: evaluated before selection
 and_or: short-circuit
 other_binary: both operands evaluated
 default_args: call site, after supplied args, parameter order
+local_functions: named declarations are visible throughout their enclosing function scope, supporting later-sibling calls and mutual recursion; their names cannot be reassigned or replaced by same-function bindings, but may shadow outer declarations. Control-flow bodies add no scopes. Calls retain their own parameter/result contracts; returns are checked against the current callable. Enclosing callable bindings and instance receiver state cannot be captured (S2062); use an anonymous closure. Class-level self::member access needs no instance capture
 ```
 
 ## GRAMMAR
@@ -292,20 +294,22 @@ function connect connection; host string, port int, timeout int = 10
 ```
 
 - Type expression follows binding/parameter name.
-- A typed binding may omit its initializer (`name string`); flow-sensitive definite assignment must prove a value before any read, reference, member access, argument pass, or capture.
+- A typed binding may omit its initializer (`name string`). A local variable belongs to its function; control flow determines availability at each read, reference, member access, argument pass, or capture. Only uncertain variables represent uncertainty at runtime, checked at uncertain uses; a provably unavailable use is a source error. Proven uses need no source-level availability check, though native lowering may safely assert the compiler invariant when that variable needs uncertainty storage elsewhere.
+- A later loop-body declaration can reach an earlier body use through a reachable back-edge. The first iteration still requires an availability check when that use executes before assignment. Without an assignment path back to the use, a forward read remains a source error.
 - Bare `_ = expression` and `_ T = expression` are discard bindings. They require an initializer, accept no declaration qualifiers, evaluate the expression exactly once with the optional destination type, create no readable binding, suppress binding/store warnings, and release the result at statement end. A longer name beginning with `_` remains an ordinary lexical binding and retains its value to the normal scope endpoint; it suppresses `W4001`, but its first read emits `W4006`.
 - [binding-initialization-dependencies] An initializer resolves against the scope as it stands immediately BEFORE its declaration, so the declared name is not in scope from its own initializer. Where nothing else binds that name, reading it — directly or through a called function — is a compile-time error naming the absent binding. Namespace initializer dependencies, including later namespace-level assignments folded into initialization, must be statically acyclic and rejected before lowering when they form a cycle.
 - [redeclaration] Where the name is already bound in the SAME LEXICAL scope, the initializer reads the earlier binding and the declaration REPLACES it: `a int8 = 12` then `a int = a`. One name means one thing at each point in a scope, read top to bottom. Lexical only — a namespace top-level declaration may not replace another, because namespace initialization is ordered by dependency, not source position.
 - [redeclaration-identity] after evaluating the initializer, replacement releases the old owned value and installs a new identity; identical type is an assignment with a redundant annotation, not identity preservation. Existing `ref` becomes unusable at release; `shared ref` continues owning the old identity and is never retargeted.
 - [redeclaration-retype] type changes => the binding's type changes. Release remains deterministic and occurs at replacement rather than scope exit, so an unreachable resource is not retained.
-- [block-scope] Function bodies and every indented control-flow body create lexical scopes. A nested declaration is visible through that body and deeper scopes, never in sibling bodies or after exit; its value is released on each exit. A `for` target spans its loop body only. A nearer declaration shadows until exit, while untyped assignment to an enclosing name assigns that existing binding.
+- Plain assignment retains its destination type, including nullable and fixed-width numeric types. A flow refinement changes the type available at a use, not the variable's physical storage type.
+- [function-scope] Only named and anonymous function bodies create lexical scopes. `if`/`else`, `select`, `while`, and `for` share their enclosing function's scope: each executed declaration, identical-type assignment, and new-type replacement behaves exactly as the same lines written straight through. A `for` target is an ordinary function variable, added if absent and visible afterward. Release occurs on replacement or function exit, not control-block exit. At joins, the type is the ordinary union of every reaching type, including loop-entry and back-edge types; the join itself is valid, while each use must accept all alternatives or narrow them. Availability is a separate flow fact: only uncertain variables need runtime uncertainty, and only uncertain uses check it.
 - Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must be the first non-trivia token after the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal.
 - A final `name T ...` parameter captures zero or more remaining positional arguments as an ordinary `list of T`; it cannot have a default or be bound by name. Fixed required and optional parameters may precede it. Calls evaluate and convert arguments left-to-right, and fixed versus variadic arity is part of callable types (`function from T ... to R`), interface/trait conformance, and deterministic identity. An omitted `T` follows ordinary finite inference/defaulting and never creates an unbounded universal value. Rust `Fn` projection remains fixed arity; C ABI variadics require an explicit foreign adapter.
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.
 - Default visibility public; strict visibility mode can require explicit qualifiers.
 - Classes, functions, interfaces, and enums declare lexical type parameters with `of (T, U)`; a binder may require one nominal interface with `T implements describable`. Applications use `of int` or `of (int, string)` and remain invariant. Explicit arguments, ordinary inputs, callable contracts, and the immediate written destination/return select one consistent closed application; later statements, absence alone, or interface/union widening do not select it. Generic bodies are checked against declared bounds, without hidden copying or defaults. See `manual/reference/records/language/types/generics.yaml`.
-- An `enum` declares a closed nominal family of scoped variants, optionally with named payload parameters. Construct with `instance State::variant; field = value`; evaluate arguments once in written order. Exhaustive `match`/`case` handles each variant or a final `case else`; optional enums also require `case none`. `match ref` borrows payloads and `match move` transfers them, including cleanup. See `manual/reference/records/language/types/unions.yaml`.
+- An `enum` declares a closed nominal family of scoped variants, optionally with named payload parameters. Construct with `instance State::variant; field = value`; evaluate arguments once in written order. Exhaustive `match`/`case` handles each variant or a final `case else`; optional enums also require `case none`. `match ref` borrows payloads and `match move` transfers them, including cleanup. A native payload requiring conversion to unbounded `int` becomes an independent value; fixed-width integer payloads retain their native references. See `manual/reference/records/language/types/unions.yaml`.
 
 ## TYPE
 
@@ -858,8 +862,9 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Every async callable/task carries inferred `local` or `transferable` execution metadata from parameters, captures, live-across-suspension values, and invoked async boundaries. Projected Rust futures are local unless their admitted contract or an exact probe proves transfer. Callable compatibility preserves the distinction; a threaded spawn rejects local work.
 - Direct calls, local bindings, and immediate await keep concrete Rust future types. Pin/box erasure appears only at heterogeneous storage or callable ABI boundaries, and only transferable erased futures receive the strategy's transfer bound. A task may move before first poll; after advancement it is pinned in executor-owned state.
 - `select` is an async-only statement with at least two static `case` clauses. Each case header is
-  either `await expression` or one ordinary local binding initialized by exactly one top-level
-  `await`; the binding is scoped to that case body. Case result types need not agree.
+  either `await expression` or one ordinary function-local binding initialized by exactly one
+  top-level `await`; only the winning case assigns its variable. Function visibility, definite
+  assignment, and ordinary finite union joins govern uses afterward. Case result types need not agree.
 - A selection consumes every task named by its headers, constructs each operation exactly once in
   source order, and polls wakefully from a per-statement cursor local to the current callable
   activation. Every invocation (including an async closure, recursion, or concurrent activation)
@@ -1356,17 +1361,19 @@ Priority: these override examples/lowering sketches/plans. Condensed from full s
 
 ## ANNOTATIONS
 
-Planned general language design, milestone **31.0**; not current compiler support. Canonical design: `manual/reference/records/internals/future/annotations.yaml`. Declaration annotations are typed immutable metadata, not executable decorators or the separately deferred `with` realization modifiers.
+General declaration annotations and documentation metadata are implemented and verified in milestone **31.0**. Reference: `manual/reference/records/language/declarations/annotations.yaml`. This is typed immutable metadata, not executable decorators or the separately deferred `with` realization modifiers.
 
-- Candidate application: `@[name; positional, named = value]`, including explicit `;` with zero arguments. Resolve package-defined annotation types through ordinary imports; check their metadata constructor schema, typed targets, and repeatability.
-- Targets: classes, functions/methods, parameters, and fields. Declaration annotations precede the declaration; parameter annotations precede that parameter within ordinary `; (...)` multiline signatures. Source order is retained for inspection, not hidden execution precedence.
-- Candidate `/core/annotations` definition marker and typed `annotation-target` enum identify annotation types. The exact intrinsic API and admitted immutable construction subset must be frozen through implementation evidence. No arbitrary constructor execution, I/O, mutable state, or callable wrapping.
-- Proposed `///` line and `/** ... */` block declaration documentation attaches across annotation blocks; ordinary `#` (including `##`), `//`, and `/* ... */` comments are not exported. Consecutive `///` lines form one block; empty documentation lines preserve paragraphs, optional leading `*` block decoration is stripped, and meaningful indentation is retained. Blank source lines outside comments or intervening ordinary comments break attachment; dangling documentation is diagnosed. Reflect documentation, typed annotation values, stable origin/span, parameter names/types/defaults, and existing field/callable contracts through declaration descriptors.
-- Block documentation examples canonically use leading `*`; undecorated blocks are equally accepted without warnings. Extraction removes delimiters and surrounding blank lines, strips common source-layout indentation, then strips decorative leading `*` and at most one following space. Preserve paragraphs and meaningful indentation after decoration; leave the original lossless syntax-tree comment unchanged.
-- Export public declaration metadata across dependencies even without source/bodies. Do not infer a unique declaration from arbitrary callable values or silently copy annotations through aliases/inheritance. Metadata does not change nominal identity, signature compatibility, effects, visibility, ownership, or safety; relevant annotation/documentation edits invalidate consumer artifact fingerprints.
-- Package/tool consumers explicitly select declarations and validate/generate ordinary code through one generic compile-time metadata mechanism. Consumer schemas/behavior derive types from signatures and fields, with metadata supplying wire names, binding sources, constraints, help/prose, examples, or tags. Executable promises must be enforced; descriptive metadata alone cannot enable security or validation.
-- CLI command/flag/help generation and serialization/validation are independent required milestone consumers. Tests/benchmarks, database mapping, RPC/message handling, and documentation/tooling are possible additional uses; HTTP is not a special compiler facility. Consumer execution/inspection APIs remain design details, not implemented package contracts.
-- Compile-time consumption does not require runtime reflection embedding or global registration. Documentation/runtime metadata is emitted only when explicitly demanded.
+- Application syntax is `@[name; positional, named = value]`; the semicolon is required even with no arguments. Imported identities, schema, targets, and repeatability are checked.
+- Targets are classes, functions/methods, parameters, and fields. Named local functions retain enclosing callable identities; interface/trait methods retain owner identities. Parameter annotations precede parameters inside the parameter list. Source order is retained without execution precedence.
+- Values are immutable compile-time metadata: literals, immutable constants, canonical aggregates, and explicitly typed descriptor/kind slots. Descriptor slots accept canonical descriptors such as builtin `int`, `none`, and named functions; they do not admit arbitrary runtime values or calls. No I/O or user constructors execute.
+- `///` (not `////`) and `/** ... */` (not `/*** ... */` or `/**/`) declaration docs attach across annotations; ordinary comments and decorative banners do not export. Blank source lines outside comments and intervening ordinary comments break attachment. Normalization changes extracted text, not original lossless comment trivia.
+- `DeclarationInterface` format 1 provides `to_json`/`from_json`, package identity, metadata fingerprint, referenced-file-ID-to-path `sources`, and declarations without source bodies. Public interfaces omit bundled roots and private descendants, and redact non-public or secret defaults. Fingerprints include byte spans so moved origins invalidate them. Runtime-only defaults have tagged `kind: "unsupported"`, not an absent value. Aliases/overrides do not copy metadata; compile-time use needs no runtime reflection storage.
+- Consumers are explicit trusted executables under `[consumers.<id>]` with `command`, string-array `args`, canonical `declarations`, and optional `interfaces`. JSON format 1 goes to stdin; stdout returns `generated_sources` (`identity`, `source`) and all reported diagnostics with optional declaration spans. Generated files persist under `.trn/generated/<consumer>/<identity>.trn`. Reported errors use `S2061`, while protocol/process failures use `S2060`. Inputs/outputs/interfaces are capped at 16 MiB. Execution is synchronous, with no wall-clock timeout.
+- Successful manifest-package consumer preparation removes obsolete generated `.trn` files, including outputs of removed consumers and consumers returning no source. Implicit single-file compilation does not reconcile a neighboring package's consumer inventory. Failed execution or response validation preserves the previous inventory; cleanup never follows links outside the generated-source tree.
+- Consumers run after declaration preparation and before ordinary full-package checking, including test discovery; generated source undergoes the full pipeline. Editor snapshots do not execute trusted consumers. CLI accepts standalone safe, synchronous, non-throwing, non-variadic commands returning `int` with immutable `string`/`int` parameters. Explicit `--summary`, including `''`, overrides annotation summary and declaration docs. Codec accepts public non-derived classes with canonical default constructors; supported fields include string, bool, integer, nullable scalar, defaults, constraints, and unknown-field rejection; static/private/secret fields are skipped. Codec namespaces derive from full canonical class identities so multiple class consumers coexist.
+- Reference CLI/codec consumers and shared protocol helpers are Terrane packages under `tools/annotation-consumers/`. Build the compiler first, then `sh tools/annotation-consumers/build.sh`; no Python consumer runtime is required. Conformance `native-tools` declarations build/stage the required executables from source without prebuilt artifacts.
+
+Verification: `cargo test -p terrane-compiler --test annotations` passed 10 tests; `TERRANE_CONFORMANCE_FILTER=annotation cargo test -p terrane-compiler --test conformance` passed 12 harness test functions through generated Rust/Cargo; workspace Clippy with `-D warnings` passed. The latest full-workspace revision and outcome are recorded in the final `runs[]` entry of `docs/test-scoreboard.yaml`.
 
 ## OPEN
 

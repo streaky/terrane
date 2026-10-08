@@ -28,7 +28,11 @@ impl MessageBox {
     }
 }
 fn main() {
-    let entries: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+    let entries: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let mut key: String;
+    let mut value: terrane_int_support::Int;
+    let holder: MessageBox;
+    entries = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -46,8 +50,8 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let key = __terrane_item_0.key;
-        let value = __terrane_item_0.value;
+        key = __terrane_item_0.key;
+        value = __terrane_item_0.value;
         consume(key.clone());
         println!(
             "{}{}{}{}", terrane_scalar_support::scalar_text(&String::from("key:")),
@@ -56,7 +60,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&value)
         );
     }
-    let holder: MessageBox = MessageBox::terrane_construct(String::from("saved"));
+    holder = MessageBox::terrane_construct(String::from("saved"));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&String::from("field:")),
         terrane_scalar_support::scalar_text(&holder.message)

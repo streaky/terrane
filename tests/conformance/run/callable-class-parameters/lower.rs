@@ -588,8 +588,12 @@ impl ChildHolder {
 fn main() {
     let operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = std::sync::Arc::new(increment);
-    let direct: DirectHolder = DirectHolder::terrane_construct(operation.clone());
+    >;
+    let direct: DirectHolder;
+    let base: BaseHolder;
+    let child: ChildHolder;
+    operation = std::sync::Arc::new(increment);
+    direct = DirectHolder::terrane_construct(operation.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&direct.apply(operation.clone(),
         terrane_int_support::Int::from(4_i128)))
@@ -598,12 +602,12 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&direct.ignore(operation.clone(),
         terrane_int_support::Int::from(9_i128)))
     );
-    let base: BaseHolder = BaseHolder::terrane_construct(operation.clone());
+    base = BaseHolder::terrane_construct(operation.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&base.apply(operation.clone(),
         terrane_int_support::Int::from(5_i128)))
     );
-    let child: ChildHolder = ChildHolder::terrane_construct(operation.clone());
+    child = ChildHolder::terrane_construct(operation.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(&child.apply(operation.clone(),
         terrane_int_support::Int::from(6_i128)))

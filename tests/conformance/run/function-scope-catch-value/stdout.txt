@@ -1,0 +1,2 @@
+caught
+coercion has no compatible result

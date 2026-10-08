@@ -1,0 +1,7 @@
+package = "annotation-codec-constraint"
+[namespaces]
+annotation-codec-constraint = "src/app"
+annotation-codec = "src/schema"
+[consumers.codec]
+command = ".trn/consumers/codec"
+declarations = ["/annotation-codec-constraint::payload", "/annotation-codec-constraint::payload::value"]

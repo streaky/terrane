@@ -22,7 +22,8 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: descriptor-reflection
 fn main() {
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    let descriptor: TerraneDescriptor;
+    descriptor = TerraneDescriptor {
         identity: "int",
         name: "int",
         kind: "type",

@@ -438,17 +438,23 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: codec-class-methods
 fn main() {
-    let hexadecimal: HexCodec = hex();
-    let encoded_hex: String = hexadecimal.encode(Vec::from([97, 98, 99]));
-    let decoded_hex: DecodeResult = hexadecimal.decode(encoded_hex);
+    let hexadecimal: HexCodec;
+    let encoded_hex: String;
+    let decoded_hex: DecodeResult;
+    let standard_base64: Base64Codec;
+    let encoded_base64: String;
+    let decoded_base64: DecodeResult;
+    hexadecimal = hex();
+    encoded_hex = hexadecimal.encode(Vec::from([97, 98, 99]));
+    decoded_hex = hexadecimal.decode(encoded_hex);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded_hex
         .value, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:9:13-9:43 */))
     );
-    let standard_base64: Base64Codec = base64();
-    let encoded_base64: String = standard_base64.encode(Vec::from([97, 98, 99]), true);
-    let decoded_base64: DecodeResult = standard_base64.decode(encoded_base64, true);
+    standard_base64 = base64();
+    encoded_base64 = standard_base64.encode(Vec::from([97, 98, 99]), true);
+    decoded_base64 = standard_base64.decode(encoded_base64, true);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded_base64
@@ -489,7 +495,8 @@ impl HexCodec {
         return terrane_platform_hex_encode(data);
     }
     pub fn decode(&self, text: String) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_hex_decode(text);
         return DecodeResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -514,11 +521,8 @@ impl Base64Codec {
         return terrane_platform_base64_encode(data, self.url_safe, padded);
     }
     pub fn decode(&self, text: String, padded: bool) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_base64_decode(
-            text,
-            self.url_safe,
-            padded,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_base64_decode(text, self.url_safe, padded);
         return DecodeResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -542,7 +546,8 @@ pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
 }
 pub fn decode_hex(text: String) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_hex_decode(text);
     return DecodeResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -553,11 +558,8 @@ pub fn encode_base64(data: Vec<u8>, url_safe: bool, padded: bool) -> String {
     return terrane_platform_base64_encode(data, url_safe, padded);
 }
 pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_base64_decode(
-        text,
-        url_safe,
-        padded,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_base64_decode(text, url_safe, padded);
     return DecodeResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),

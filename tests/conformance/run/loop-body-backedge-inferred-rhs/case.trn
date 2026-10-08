@@ -1,0 +1,12 @@
+namespace conformance/loop-body-backedge-inferred-rhs
+
+from /core/output import print
+
+function main;
+    first = true
+    for current in 'abc'
+        if not first
+            observed = item
+            print; observed
+        item = current
+        first = false

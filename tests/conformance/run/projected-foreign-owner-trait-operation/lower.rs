@@ -485,7 +485,8 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let value: Value = __terrane_raised(
+    let value: Value;
+    value = __terrane_raised(
         terrane_static_trn_56616c7565_new(terrane_int_support::Int::from(37_i128)),
         0 /* terrane-site: src/main.trn:7:19-7:33 */,
     );

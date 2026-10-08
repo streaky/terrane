@@ -442,14 +442,25 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: float-narrowing-special-values
 fn main() {
-    let zero: f64 = 0.0;
-    let one: f64 = 1.0;
-    let negative_one: f64 = -1.0_f64;
-    let negative_zero: f64 = -0.0_f64;
-    let maximum: f64 = 340282346638528859811704183484516925440.0;
-    let positive_infinity: f64 = one / zero;
-    let negative_infinity: f64 = negative_one / zero;
-    let narrowed_zero: f32 = {
+    let zero: f64;
+    let one: f64;
+    let negative_one: f64;
+    let negative_zero: f64;
+    let maximum: f64;
+    let positive_infinity: f64;
+    let negative_infinity: f64;
+    let narrowed_zero: f32;
+    let narrowed_positive: f32;
+    let narrowed_negative: f32;
+    let narrowed_maximum: f32;
+    zero = 0.0;
+    one = 1.0;
+    negative_one = -1.0_f64;
+    negative_zero = -0.0_f64;
+    maximum = 340282346638528859811704183484516925440.0;
+    positive_infinity = one / zero;
+    negative_infinity = negative_one / zero;
+    narrowed_zero = {
         let source_value = negative_zero;
         let converted = source_value as f32;
         if converted as f64 == source_value {
@@ -468,7 +479,7 @@ fn main() {
             )
         }
     };
-    let narrowed_positive: f32 = {
+    narrowed_positive = {
         let source_value = positive_infinity;
         let converted = source_value as f32;
         if converted as f64 == source_value {
@@ -487,7 +498,7 @@ fn main() {
             )
         }
     };
-    let narrowed_negative: f32 = {
+    narrowed_negative = {
         let source_value = negative_infinity;
         let converted = source_value as f32;
         if converted as f64 == source_value {
@@ -506,7 +517,7 @@ fn main() {
             )
         }
     };
-    let narrowed_maximum: f32 = {
+    narrowed_maximum = {
         let source_value = maximum;
         let converted = source_value as f32;
         if converted as f64 == source_value {

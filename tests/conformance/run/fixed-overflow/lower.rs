@@ -436,8 +436,10 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: fixed-overflow
 fn main() {
-    let left: i8 = 120;
-    let right: i8 = 10;
+    let left: i8;
+    let right: i8;
+    left = 120;
+    right = 10;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition(left,

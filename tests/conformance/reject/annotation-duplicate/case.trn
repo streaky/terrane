@@ -1,0 +1,11 @@
+namespace annotation-duplicate
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+@[annotation; targets = (list; (instance annotation-target::class;))]
+class tag
+    value string = ''
+
+@[tag; value = 'one']
+@[tag; value = 'two']
+class subject

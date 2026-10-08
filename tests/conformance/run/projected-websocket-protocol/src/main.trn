@@ -27,16 +27,16 @@ async function socket-session; socket WebSocket
           print; 'text', value
           await (socket.send; (Message::text; value))
         else if kind == 'Binary'
-          value = (move message).into_data;
-          print; 'binary', (value.len;)
-          await (socket.send; (Message::Binary; move value))
+          payload = (move message).into_data;
+          print; 'binary', (payload.len;)
+          await (socket.send; (Message::Binary; move payload))
         else if kind == 'Ping'
-          value = (move message).into_data;
-          print; 'ping', (value.len;)
-          await (socket.send; (Message::Pong; move value))
+          payload = (move message).into_data;
+          print; 'ping', (payload.len;)
+          await (socket.send; (Message::Pong; move payload))
         else if kind == 'Pong'
-          value = (move message).into_data;
-          print; 'pong', (value.len;)
+          payload = (move message).into_data;
+          print; 'pong', (payload.len;)
         else if kind == 'Close'
           print; 'close'
       else

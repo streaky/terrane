@@ -36,8 +36,10 @@ pub enum State {
     Held(Resource),
 }
 fn main() {
-    let payload: Resource = Resource::terrane_construct();
-    let value: State = {
+    let payload: Resource;
+    let value: State;
+    payload = Resource::terrane_construct();
+    value = {
         let __terrane_enum_payload_0 = payload;
         State::Held(__terrane_enum_payload_0)
     };

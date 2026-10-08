@@ -1,0 +1,8 @@
+namespace local-function-closure-capture
+function main;
+    outer = 7
+    function helper int;
+        callback = function int;
+            return outer
+        return (callback;)
+    print; (helper;)

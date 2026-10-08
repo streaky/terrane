@@ -1,0 +1,15 @@
+namespace core/annotations
+
+/// Marker applied to package-defined metadata classes.
+class annotation
+    targets list of annotation-target
+    repeatable bool = false
+
+enum annotation-target
+    class
+    callable
+    parameter
+    field
+
+/// Explicit schema slot for canonical descriptors in immutable annotation payloads.
+class descriptor

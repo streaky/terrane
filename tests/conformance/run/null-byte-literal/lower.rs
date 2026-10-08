@@ -436,13 +436,15 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: null-byte-literal
 fn main() {
-    let raw: Vec<u8> = Vec::from([97, 0, 99]);
+    let raw: Vec<u8>;
+    let mut byte: u8;
+    raw = Vec::from([97, 0, 99]);
     let __terrane_iterable_0 = raw.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let byte = match __terrane_iterator_0.next() {
+        byte = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

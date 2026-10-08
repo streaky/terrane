@@ -458,23 +458,39 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: entry-valued-maps
 fn main() {
-    let inner: terrane_collection_support::Entry<String, i8> = terrane_collection_support::Entry::<
-        String,
-        i8,
-    >::new(String::from("b"), 7);
+    let inner: terrane_collection_support::Entry<String, i8>;
     let ordered_bound: terrane_collection_support::Map<
         String,
         terrane_collection_support::Entry<String, i8>,
-    > = terrane_collection_support::Map::<
+    >;
+    let ordered_inline: terrane_collection_support::Map<
+        String,
+        terrane_collection_support::Entry<String, i8>,
+    >;
+    let unordered_bound: terrane_collection_support::UnorderedMap<
+        String,
+        terrane_collection_support::Entry<String, i8>,
+    >;
+    let unordered_inline: terrane_collection_support::UnorderedMap<
+        String,
+        terrane_collection_support::Entry<String, i8>,
+    >;
+    let inferred_ordered: terrane_collection_support::Map<
+        String,
+        terrane_collection_support::Entry<String, terrane_int_support::Int>,
+    >;
+    let inferred_unordered: terrane_collection_support::UnorderedMap<
+        String,
+        terrane_collection_support::Entry<String, terrane_int_support::Int>,
+    >;
+    inner = terrane_collection_support::Entry::<String, i8>::new(String::from("b"), 7);
+    ordered_bound = terrane_collection_support::Map::<
         String,
         terrane_collection_support::Entry<String, i8>,
     >::new(
         vec![terrane_collection_support::Entry::new(String::from("a"), inner.clone())],
     );
-    let ordered_inline: terrane_collection_support::Map<
-        String,
-        terrane_collection_support::Entry<String, i8>,
-    > = terrane_collection_support::Map::<
+    ordered_inline = terrane_collection_support::Map::<
         String,
         terrane_collection_support::Entry<String, i8>,
     >::new(
@@ -483,17 +499,11 @@ fn main() {
             terrane_collection_support::Entry::< String, i8 >::new(String::from("c"), 8))
         ],
     );
-    let unordered_bound: terrane_collection_support::UnorderedMap<
-        String,
-        terrane_collection_support::Entry<String, i8>,
-    > = terrane_collection_support::UnorderedMap::<
+    unordered_bound = terrane_collection_support::UnorderedMap::<
         String,
         terrane_collection_support::Entry<String, i8>,
     >::new(vec![terrane_collection_support::Entry::new(String::from("a"), inner)]);
-    let unordered_inline: terrane_collection_support::UnorderedMap<
-        String,
-        terrane_collection_support::Entry<String, i8>,
-    > = terrane_collection_support::UnorderedMap::<
+    unordered_inline = terrane_collection_support::UnorderedMap::<
         String,
         terrane_collection_support::Entry<String, i8>,
     >::new(
@@ -502,10 +512,7 @@ fn main() {
             terrane_collection_support::Entry::< String, i8 >::new(String::from("d"), 9))
         ],
     );
-    let inferred_ordered: terrane_collection_support::Map<
-        String,
-        terrane_collection_support::Entry<String, terrane_int_support::Int>,
-    > = terrane_collection_support::Map::<
+    inferred_ordered = terrane_collection_support::Map::<
         String,
         terrane_collection_support::Entry<String, terrane_int_support::Int>,
     >::new(
@@ -515,10 +522,7 @@ fn main() {
             >::new(String::from("e"), terrane_int_support::Int::from(6_i128)))
         ],
     );
-    let inferred_unordered: terrane_collection_support::UnorderedMap<
-        String,
-        terrane_collection_support::Entry<String, terrane_int_support::Int>,
-    > = terrane_collection_support::UnorderedMap::<
+    inferred_unordered = terrane_collection_support::UnorderedMap::<
         String,
         terrane_collection_support::Entry<String, terrane_int_support::Int>,
     >::new(

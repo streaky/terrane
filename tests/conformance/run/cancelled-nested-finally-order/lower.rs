@@ -488,9 +488,22 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/main.trn
 // Namespace: app
 async fn blocked() -> String {
+    let mut inner: Option<String> = None;
+    let mut outer: Option<String> = None;
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<TerraneCompletion<String>> = __terrane_cancel_operation(
             &__terrane_finally_guard_0,
@@ -537,14 +550,20 @@ async fn blocked() -> String {
                     let mut __terrane_completion_1 = __terrane_maybe_completion_1
                         .unwrap_or(TerraneCompletion::Normal);
                     let __terrane_finally_1: TerraneCompletion<String> = async {
-                        let inner: String = __terrane_traced_completion!(
-                            __terrane_await({ let __terrane_future =
-                            echo_after_yield(String::from("inner")); async move {
-                            __terrane_raised_err(__terrane_future. await,
-                            1 /* terrane-site: src/main.trn:10:28-10:52 */) } }).
-                            await, 1 /* terrane-site: src/main.trn:10:28-10:52 */
+                        let _ = inner
+                            .insert(
+                                __terrane_traced_completion!(
+                                    __terrane_await({ let __terrane_future =
+                                    echo_after_yield(String::from("inner")); async move {
+                                    __terrane_raised_err(__terrane_future. await,
+                                    1 /* terrane-site: src/main.trn:10:28-10:52 */) } }).
+                                    await, 1 /* terrane-site: src/main.trn:10:28-10:52 */
+                                ),
+                            );
+                        println!(
+                            "{}", terrane_scalar_support::scalar_text(&inner.as_ref()
+                            .expect("flow-proven available binding").clone())
                         );
-                        println!("{}", terrane_scalar_support::scalar_text(&inner));
                         TerraneCompletion::Normal
                     }
                         .await;
@@ -601,12 +620,18 @@ async fn blocked() -> String {
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<String> = async {
-        let outer: String = __terrane_traced_completion!(
-            __terrane_await({ let __terrane_future =
-            echo_after_yield(String::from("outer")); async move {
-            __terrane_raised_err(__terrane_future. await, 2 /* terrane-site: src/main.trn:13:26-13:50 */) } }). await, 2 /* terrane-site: src/main.trn:13:26-13:50 */
+        let _ = outer
+            .insert(
+                __terrane_traced_completion!(
+                    __terrane_await({ let __terrane_future =
+                    echo_after_yield(String::from("outer")); async move {
+                    __terrane_raised_err(__terrane_future. await, 2 /* terrane-site: src/main.trn:13:26-13:50 */) } }). await, 2 /* terrane-site: src/main.trn:13:26-13:50 */
+                ),
+            );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&outer.as_ref()
+            .expect("flow-proven available binding").clone())
         );
-        println!("{}", terrane_scalar_support::scalar_text(&outer));
         TerraneCompletion::Normal
     }
         .await;
@@ -633,12 +658,17 @@ async fn blocked() -> String {
 }
 fn main() {
     __terrane_run(async move {
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<String>;
+        let started: bool;
+        let outcome: TerraneTaskOutcome<String>;
+        let drops: terrane_int_support::Int;
         __terrane_raised(
             reset_operation_state(),
             3 /* terrane-site: src/main.trn:17:3-17:25 */,
         );
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<String> = {
+        scope = TerraneTaskScope::new(None);
+        child = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -657,7 +687,7 @@ fn main() {
                 }
             })
         };
-        let started: bool = __terrane_traced(
+        started = __terrane_traced(
             __terrane_await({
                     let __terrane_future = wait_until_operation_started();
                     async move {
@@ -671,13 +701,12 @@ fn main() {
             4 /* terrane-site: src/main.trn:20:24-20:53 */,
         );
         scope.cancel();
-        let outcome: TerraneTaskOutcome<String> = __terrane_await(scope.join(child))
-            .await;
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&started),
             terrane_scalar_support::scalar_text(&outcome.cancelled)
         );
-        let drops: terrane_int_support::Int = __terrane_raised(
+        drops = __terrane_raised(
             operation_drop_count(),
             5 /* terrane-site: src/main.trn:24:15-24:36 */,
         );

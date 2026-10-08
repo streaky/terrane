@@ -644,8 +644,9 @@ fn make_render(
 ) -> std::sync::Arc<
     dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
 > {
+    let service: Formatter;
     let _ = &value;
-    let service: Formatter = Formatter::terrane_construct();
+    service = Formatter::terrane_construct();
     return {
         let receiver = service;
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
@@ -680,7 +681,8 @@ fn invoke_maker(
 ) -> Result<String, TerraneError> {
     let operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
-    > = __terrane_traced_err(
+    >;
+    operation = __terrane_traced_err(
         maker(value.clone()),
         6 /* terrane-site: case.trn:61:15-61:27 */,
     )?;
@@ -710,22 +712,71 @@ async fn invoke_async(
 }
 fn main() {
     __terrane_run(async move {
-        let service: Formatter = Formatter::terrane_construct();
+        let service: Formatter;
         let bound: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
-        > = {
+        >;
+        let closure: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> Result<String, TerraneError> + Send + Sync,
+        >;
+        let broad_closure: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> Result<String, TerraneError> + Send + Sync,
+        >;
+        let broad_async: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
+                > + Send + Sync,
+        >;
+        let alias: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> Result<String, TerraneError> + Send + Sync,
+        >;
+        let broad: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> Result<String, TerraneError> + Send + Sync,
+        >;
+        let async_operation: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
+                > + Send + Sync,
+        >;
+        let safe_operation: std::sync::Arc<
+            dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
+        >;
+        let async_safe_operation: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> std::pin::Pin<
+                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
+                > + Send + Sync,
+        >;
+        let custom: std::sync::Arc<
+            dyn Fn(
+                terrane_int_support::Int,
+            ) -> Result<String, TerraneError> + Send + Sync,
+        >;
+        let holder: OperationHolder;
+        let mut callable: CallableHolder;
+        service = Formatter::terrane_construct();
+        bound = {
             let receiver = service.clone();
             std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
                 receiver.render(argument_0)
             })
         };
-        let closure: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<String, TerraneError> + Send + Sync,
-        > = {
+        closure = {
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> Result<String, TerraneError> {
@@ -740,11 +791,7 @@ fn main() {
                 return Ok(String::from("closure"));
             })
         };
-        let broad_closure: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<String, TerraneError> + Send + Sync,
-        > = {
+        broad_closure = {
             let callable = {
                 std::sync::Arc::new(move |value: terrane_int_support::Int| -> String {
                     if value.clone() < terrane_int_support::Int::from(0_i128) {
@@ -758,13 +805,7 @@ fn main() {
                 callable(argument_0),
             ))
         };
-        let broad_async: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> std::pin::Pin<
-                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
-                > + Send + Sync,
-        > = {
+        broad_async = {
             let callable = {
                 std::sync::Arc::new(move |
                     value: terrane_int_support::Int,
@@ -787,37 +828,15 @@ fn main() {
                 }
             })
         };
-        let alias: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<String, TerraneError> + Send + Sync,
-        > = bound.clone();
-        let broad: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<String, TerraneError> + Send + Sync,
-        > = bound.clone();
-        let async_operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> std::pin::Pin<
-                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
-                > + Send + Sync,
-        > = std::sync::Arc::new(move |
+        alias = bound.clone();
+        broad = bound.clone();
+        async_operation = std::sync::Arc::new(move |
             argument_0: terrane_int_support::Int,
         | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
             Box::pin(async_render(argument_0))
         });
-        let safe_operation: std::sync::Arc<
-            dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
-        > = std::sync::Arc::new(safe_render);
-        let async_safe_operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> std::pin::Pin<
-                    Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
-                > + Send + Sync,
-        > = std::sync::Arc::new(move |
+        safe_operation = std::sync::Arc::new(safe_render);
+        async_safe_operation = std::sync::Arc::new(move |
             argument_0: terrane_int_support::Int,
         | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
             Box::pin(async move { Ok(async_safe_render(argument_0).await) })
@@ -862,11 +881,7 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&{ let _ = async_operation;
             "coercion-error".to_owned() })
         );
-        let custom: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<String, TerraneError> + Send + Sync,
-        > = std::sync::Arc::new(custom_render);
+        custom = std::sync::Arc::new(custom_render);
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let _ = custom; "local-error"
             .to_owned() })
@@ -973,12 +988,12 @@ fn main() {
             terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(async_safe_operation(terrane_int_support::Int::from(1_i128)))
             . await, 19 /* terrane-site: case.trn:114:16-114:39 */))
         );
-        let holder: OperationHolder = OperationHolder::terrane_construct();
+        holder = OperationHolder::terrane_construct();
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced((holder
             .operation) (terrane_int_support::Int::from(1_i128)), 20 /* terrane-site: case.trn:116:11-116:30 */))
         );
-        let mut callable: CallableHolder = CallableHolder::terrane_construct();
+        callable = CallableHolder::terrane_construct();
         callable.render = std::sync::Arc::new(loud_render);
         println!(
             "{}", terrane_scalar_support::scalar_text(&(callable.render)

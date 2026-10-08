@@ -490,11 +490,25 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/main.trn
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let value: String = __terrane_traced(
+        let value: String;
+        let successful: u32;
+        let mut failure: Option<TerraneError> = None;
+        value = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = terrane_into_future_witness::ready_value(
@@ -530,7 +544,7 @@ fn main() {
             0 /* terrane-site: src/main.trn:8:24-8:53 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&value));
-        let successful: u32 = __terrane_raised(
+        successful = __terrane_raised(
             terrane_int_support::coerce::<
                 u32,
             >(
@@ -581,9 +595,10 @@ fn main() {
                             == TerraneErrorKind::Custom(DescriptorId(0))
                     {
                         __terrane_handled_0 = true;
-                        let failure = __terrane_error_0.clone();
+                        let _ = failure.insert(__terrane_error_0.clone());
                         println!(
-                            "{}", terrane_scalar_support::scalar_text(&failure.message()
+                            "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
+                            .expect("flow-proven available binding").clone().message()
                             .to_owned())
                         );
                     }

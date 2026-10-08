@@ -539,10 +539,12 @@ fn replaced() -> Result<String, TerraneError> {
 fn main() {
     let recovered_operation: std::sync::Arc<
         dyn Fn() -> Result<String, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(move || Ok(recovered()));
+    >;
     let replacement_operation: std::sync::Arc<
         dyn Fn() -> Result<String, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(replaced);
+    >;
+    recovered_operation = std::sync::Arc::new(move || Ok(recovered()));
+    replacement_operation = std::sync::Arc::new(replaced);
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let _ = recovered_operation;
         "arithmetic-overflow".to_owned() })

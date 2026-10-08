@@ -17,10 +17,15 @@ fn relay<'a>(
     return choose(left, right);
 }
 fn main() {
-    let left_value: terrane_int_support::Int = terrane_int_support::Int::from(1_i128);
-    let right_value: terrane_int_support::Int = terrane_int_support::Int::from(2_i128);
-    let left: &terrane_int_support::Int = &left_value;
-    let right: &terrane_int_support::Int = &right_value;
-    let chosen: &terrane_int_support::Int = relay(left, right);
+    let left_value: terrane_int_support::Int;
+    let right_value: terrane_int_support::Int;
+    let left: &terrane_int_support::Int;
+    let right: &terrane_int_support::Int;
+    let chosen: &terrane_int_support::Int;
+    left_value = terrane_int_support::Int::from(1_i128);
+    right_value = terrane_int_support::Int::from(2_i128);
+    left = &left_value;
+    right = &right_value;
+    chosen = relay(left, right);
     println!("{}", terrane_scalar_support::scalar_text(&chosen.clone()));
 }

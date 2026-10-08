@@ -448,7 +448,8 @@ impl Operations {
     }
 }
 fn main() {
-    let value: Operations = Operations::terrane_construct();
+    let value: Operations;
+    value = Operations::terrane_construct();
     value.change.call(());
     println!("{}", terrane_scalar_support::scalar_text(&String::from("changed")));
     value.finish.call(());

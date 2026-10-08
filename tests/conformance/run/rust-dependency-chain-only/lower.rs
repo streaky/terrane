@@ -488,7 +488,11 @@ extern crate __terrane_recursive_tokio as tokio;
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let database: Database = __terrane_traced(
+        let database: Database;
+        let answer: terrane_int_support::Int;
+        let prefix: String;
+        let rendered: String;
+        database = __terrane_traced(
             __terrane_await({
                     let __terrane_future = memory_database();
                     async move {
@@ -501,7 +505,7 @@ fn main() {
                 .await,
             0 /* terrane-site: src/main.trn:6:20-6:36 */,
         );
-        let answer: terrane_int_support::Int = __terrane_traced(
+        answer = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = terrane_chain_witness::query_scalar(
@@ -566,8 +570,8 @@ fn main() {
                 .await,
             1 /* terrane-site: src/main.trn:7:22-7:81 */,
         );
-        let prefix: String = String::from("value=");
-        let rendered: String = __terrane_raised(
+        prefix = String::from("value=");
+        rendered = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| {
                     terrane_chain_witness::line(&prefix)

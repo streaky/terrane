@@ -1737,6 +1737,7 @@ dependencies = [
  "indoc",
  "num-bigint",
  "num-traits",
+ "parking_lot",
  "prettyplease",
  "proc-macro2",
  "quote",

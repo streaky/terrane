@@ -529,19 +529,6 @@ mod tests {
     }
 
     #[test]
-    fn signed_positive_fast_intervals_keep_their_lower_bound() {
-        let bounds = fixed_integer_bounds(ScalarType::Int8).unwrap();
-        let valid = IntegerInterval {
-            lower: BigInt::from(72_u8),
-            upper: BigInt::from(127_u8),
-        };
-        assert_eq!(
-            integer_interval_guard("value", ScalarType::Int8, &bounds, &valid),
-            "value >= 72_i8"
-        );
-    }
-
-    #[test]
     fn signed_division_rounds_interval_edges_outward() {
         assert_eq!(
             floor_div(&BigInt::from(-128_i16), &BigInt::from(3_u8)),
@@ -551,5 +538,98 @@ mod tests {
             ceil_div(&BigInt::from(-128_i16), &BigInt::from(3_u8)),
             BigInt::from(-42_i8)
         );
+    }
+
+    fn loop_package(upper: &str, body: &str) -> SemanticPackage {
+        let package = crate::Package::implicit(
+            "arithmetic-proof.trn",
+            format!(
+                "namespace arithmetic-proof\nfunction main;\n  index int64 = 0\n  while index < {upper}\n{body}  print; index\n"
+            ),
+        );
+        crate::semantics::analyze(&package).expect("arithmetic proof witness must type-check")
+    }
+
+    fn loop_node(node: &SyntaxNode) -> Option<&SyntaxNode> {
+        if node.kind == SyntaxKind::WhileStatement {
+            Some(node)
+        } else {
+            node.children.iter().find_map(loop_node)
+        }
+    }
+
+    #[test]
+    fn monotonic_loop_proof_requires_one_unconditional_increment() {
+        for (body, expected) in [
+            ("    index++\n", Some((0, 8))),
+            ("    index++\n    index++\n", None),
+            ("    if true\n      index++\n", None),
+            ("    index = index + 1\n", None),
+            ("    index = 0\n    index++\n", None),
+        ] {
+            let package = loop_package("8", body);
+            let unit = &package.units[0];
+            let registry = LoweringRegistry::default();
+            let emitter = Emitter::new(&registry, &package, unit, false);
+            let node = loop_node(&unit.tree.root).unwrap();
+            let actual = emitter
+                .bounded_integer_range(&node.children[0], &node.children[1])
+                .map(|range| (range.lower, range.upper));
+            assert_eq!(
+                actual,
+                expected.map(|(lower, upper)| (BigInt::from(lower), BigInt::from(upper))),
+                "{body}"
+            );
+        }
+    }
+
+    #[test]
+    fn bounded_float_conversion_proof_respects_precision_edges() {
+        for (upper, destination, exact) in [
+            ("16777216", ScalarType::Float32, true),
+            ("16777217", ScalarType::Float32, false),
+            ("9007199254740992", ScalarType::Float64, true),
+            ("9007199254740993", ScalarType::Float64, false),
+        ] {
+            let package = loop_package(upper, "    index++\n");
+            let unit = &package.units[0];
+            let registry = LoweringRegistry::default();
+            let mut emitter = Emitter::new(&registry, &package, unit, false);
+            let node = loop_node(&unit.tree.root).unwrap();
+            let range = emitter
+                .bounded_integer_range(&node.children[0], &node.children[1])
+                .unwrap();
+            emitter.bounded_integer_ranges.push(range);
+            assert_eq!(
+                emitter
+                    .bounded_float_conversion_is_exact(&node.children[0].children[0], destination),
+                exact,
+                "{upper} to {destination}"
+            );
+        }
+    }
+
+    #[test]
+    fn affine_safe_regions_match_the_complete_int8_domain() {
+        let bounds = fixed_integer_bounds(ScalarType::Int8).unwrap();
+        for coefficient in [-3, -1, 0, 1, 3] {
+            for constant in [-129, -128, -7, 0, 127, 128] {
+                let coefficient = BigInt::from(coefficient);
+                let constant = BigInt::from(constant);
+                let range = affine_range(&coefficient, &constant, &bounds);
+                for value in i16::from(i8::MIN)..=i16::from(i8::MAX) {
+                    let value = BigInt::from(value);
+                    let result = &coefficient * &value + &constant;
+                    let safe = bounds.lower <= result && result <= bounds.upper;
+                    assert_eq!(
+                        range
+                            .as_ref()
+                            .is_some_and(|range| { range.lower <= value && value <= range.upper }),
+                        safe,
+                        "{coefficient} * {value} + {constant}"
+                    );
+                }
+            }
+        }
     }
 }

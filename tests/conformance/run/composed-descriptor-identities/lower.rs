@@ -456,8 +456,10 @@ fn increment(value: terrane_int_support::Int) -> terrane_int_support::Int {
 fn main() {
     let callback: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = std::sync::Arc::new(increment);
-    let optional: Option<String> = Some(String::from("value"));
+    >;
+    let optional: Option<String>;
+    callback = std::sync::Arc::new(increment);
+    optional = Some(String::from("value"));
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let _ = &callback; TerraneDescriptor
         { identity : "function from int to int", name : "function from int to int", kind

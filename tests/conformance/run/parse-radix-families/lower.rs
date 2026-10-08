@@ -459,15 +459,19 @@ fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
     );
 }
 fn main() {
-    let text: String = String::from("ff");
-    let parsed: terrane_int_support::Int = from_hex(text);
+    let text: String;
+    let parsed: terrane_int_support::Int;
+    let value: i64;
+    let bad: String;
+    text = String::from("ff");
+    parsed = from_hex(text);
     println!("{}", terrane_scalar_support::scalar_text(&parsed));
-    let value: i64 = 255;
+    value = 255;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::format_radix(&value,
         &16), 2 /* terrane-site: case.trn:13:11-13:26 */))
     );
-    let bad: String = String::from("x");
+    bad = String::from("x");
     fail(bad).ok();
 }

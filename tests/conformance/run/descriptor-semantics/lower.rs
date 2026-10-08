@@ -47,16 +47,17 @@ fn different_type(left: terrane_int_support::Int, right: String) -> bool {
     };
 }
 fn main() {
+    let value: f64;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&accepts(terrane_int_support::Int::from(1_i128)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&{ true }));
-    println!("{}", terrane_scalar_support::scalar_text(&{ true }));
-    let value: f64 = 1.0;
+    println!("{}", terrane_scalar_support::scalar_text(&true));
+    println!("{}", terrane_scalar_support::scalar_text(&true));
+    value = 1.0;
     println!("{}", terrane_scalar_support::scalar_text(&{ let _ = &value; true }));
     println!("{}", terrane_scalar_support::scalar_text(&{ let _ = value; true }));
-    println!("{}", terrane_scalar_support::scalar_text(&{ true }));
+    println!("{}", terrane_scalar_support::scalar_text(&true));
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&same_type(terrane_int_support::Int::from(2_i128),

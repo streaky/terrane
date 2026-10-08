@@ -433,16 +433,36 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: catch-arithmetic-overflow
 fn main() {
+    let mut value: Option<i8> = None;
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let mut value: i8 = 127;
-            value = __terrane_raised_completion!(
-                terrane_int_support::fixed_addition(value, 1), 0 /* terrane-site: case.trn:6:13-6:22 */
+            let _ = value.insert(127);
+            let _ = value
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_int_support::fixed_addition(* value.as_ref()
+                        .expect("flow-proven available binding"), 1),
+                        0 /* terrane-site: case.trn:6:13-6:22 */
+                    ),
+                );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
+                .expect("flow-proven available binding"))
             );
-            println!("{}", terrane_scalar_support::scalar_text(&value));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {

@@ -4,8 +4,10 @@
 // Source: app/main.trn
 // Namespace: app
 fn main() {
-    let first: TerraneNs5FirstDuplicate = TerraneNs5FirstDuplicate::terrane_construct();
-    let second: TerraneNs6SecondDuplicate = TerraneNs6SecondDuplicate::terrane_construct();
+    let first: TerraneNs5FirstDuplicate;
+    let second: TerraneNs6SecondDuplicate;
+    first = TerraneNs5FirstDuplicate::terrane_construct();
+    second = TerraneNs6SecondDuplicate::terrane_construct();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&first.value()),
         terrane_scalar_support::scalar_text(&second.value())

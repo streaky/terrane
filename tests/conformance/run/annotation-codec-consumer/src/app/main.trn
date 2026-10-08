@@ -1,0 +1,83 @@
+namespace annotation-codec-consumer
+
+from /core/output import print
+from /core/errors import coercion-error
+from /core/documents/json import parse-json, default-json-options, canonical-json
+from /codec-model import account, profile
+from /generated/annotation-codec/codec-model/account import decode-account, encode-account
+from /generated/annotation-codec/codec-model/profile import decode-profile, encode-profile
+
+function expect-invalid throws coercion-error; input string
+    parsed = parse-json; input, (default-json-options;)
+    if parsed.failed
+        throw coercion-error
+    decoded = decode-account; parsed.value
+    if not decoded.failed
+        throw coercion-error
+
+function main throws coercion-error;
+    parsed = parse-json; '{"accountId":7,"label":"A","active":false,"age":null,"nickname":null}', (default-json-options;)
+    if parsed.failed
+        throw coercion-error
+    decoded = decode-account; parsed.value
+    if decoded.failed
+        print; decoded.message
+        throw coercion-error
+    value = decoded.value
+    if value != none
+        print; value.account-id, value.display-name, value.active, (value.age == none), (value.nickname == none)
+        encoded = encode-account; value
+        if encoded.failed
+            throw coercion-error
+        document = encoded.value
+        if document != none
+            text = canonical-json; document
+            print; text.value.encoded
+        else
+            throw coercion-error
+    else
+        throw coercion-error
+    defaults-input = parse-json; '{"accountId":8}', (default-json-options;)
+    defaults = decode-account; defaults-input.value
+    if defaults.failed
+        throw coercion-error
+    default-value = defaults.value
+    if default-value != none
+        nickname = default-value.nickname
+        if nickname != none
+            print; default-value.display-name, default-value.active, nickname
+        else
+            throw coercion-error
+    else
+        throw coercion-error
+    expect-invalid; '{}'
+    expect-invalid; '{"accountId":"bad"}'
+    expect-invalid; '{"accountId":0}'
+    expect-invalid; '{"accountId":101}'
+    expect-invalid; '{"accountId":999999999999}'
+    expect-invalid; '{"accountId":7,"secret-note":"injected"}'
+    expect-invalid; '{"accountId":7,"credential":"injected"}'
+    expect-invalid; '{"accountId":7,"active":"false"}'
+    invalid-value = instance account;
+    invalid-value.account-id = 0
+    invalid-encoded = encode-account; invalid-value
+    if not invalid-encoded.failed
+        throw coercion-error
+    print; 'invalid inputs rejected'
+    profile-value = instance profile;
+    profile-value.handle = 'works'
+    profile-encoded = encode-profile; profile-value
+    if profile-encoded.failed
+        throw coercion-error
+    profile-document = profile-encoded.value
+    if profile-document != none
+        profile-decoded = decode-profile; profile-document
+        if profile-decoded.failed
+            throw coercion-error
+        profile-roundtrip = profile-decoded.value
+        if profile-roundtrip != none
+            print; profile-roundtrip.handle
+        else
+            throw coercion-error
+    else
+        throw coercion-error

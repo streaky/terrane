@@ -440,19 +440,24 @@ mod __terrane_trace {
 fn main() {
     let values: std::sync::Arc<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::new(
+    >;
+    let owner: std::sync::Arc<
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+    >;
+    let observer: std::sync::Weak<
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+    >;
+    let owned: terrane_collection_support::List<terrane_int_support::Int>;
+    let transferred: terrane_collection_support::List<terrane_int_support::Int>;
+    values = std::sync::Arc::new(
         std::sync::Mutex::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),
         ),
     );
-    let owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = values.clone();
-    let observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::downgrade(&values.clone());
+    owner = values.clone();
+    observer = std::sync::Arc::downgrade(&values.clone());
     owner
         .lock()
         .expect("shared reference lock poisoned")
@@ -468,10 +473,10 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         0 /* terrane-site: case.trn:10:25-10:36 */)), 0 /* terrane-site: case.trn:10:25-10:36 */))
     );
-    let owned: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    owned = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(9_i128)]);
-    let transferred: terrane_collection_support::List<terrane_int_support::Int> = owned;
+    transferred = owned;
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(transferred
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),

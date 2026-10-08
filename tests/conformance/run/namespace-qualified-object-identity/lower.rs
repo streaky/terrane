@@ -4,10 +4,14 @@
 // Source: app/main.trn
 // Namespace: app
 fn main() {
-    let left: TerraneNs4LeftResponse = TerraneNs4LeftResponse::terrane_construct();
-    let right: TerraneNs5RightResponse = TerraneNs5RightResponse::terrane_construct();
-    let left_value: String = left.render();
-    let right_value: String = right.render();
+    let left: TerraneNs4LeftResponse;
+    let right: TerraneNs5RightResponse;
+    let left_value: String;
+    let right_value: String;
+    left = TerraneNs4LeftResponse::terrane_construct();
+    right = TerraneNs5RightResponse::terrane_construct();
+    left_value = left.render();
+    right_value = right.render();
     println!("{}", terrane_scalar_support::scalar_text(&left_value));
     println!("{}", terrane_scalar_support::scalar_text(&right_value));
 }

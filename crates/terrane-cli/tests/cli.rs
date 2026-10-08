@@ -54,6 +54,70 @@ fn structured_error() -> PathBuf {
 }
 
 #[test]
+fn uncertain_function_variables_fail_at_the_unavailable_runtime_use() {
+    for (label, source, binding) in [
+        (
+            "branch",
+            "namespace availability\nfunction value int; choose bool\n    if choose\n        x int = 3\n    return x\nfunction main;\n    print; 'before'\n    print; (value; false)\n    print; 'after'\n",
+            "x",
+        ),
+        (
+            "zero-loop",
+            "namespace availability\nfunction value int; choose bool\n    while choose\n        x int = 3\n        choose = false\n    return x\nfunction main;\n    print; 'before'\n    print; (value; false)\n    print; 'after'\n",
+            "x",
+        ),
+        (
+            "catch",
+            "namespace availability\nfrom /core/errors import coercion-error\nfunction value string; choose bool\n    try\n        if choose\n            throw coercion-error\n    catch coercion-error as caught\n        print; 'caught'\n    return caught.message\nfunction main;\n    print; 'before'\n    print; (value; false)\n    print; 'after'\n",
+            "caught",
+        ),
+        (
+            "loop-body-first-read-for",
+            "namespace availability\nfunction main;\n    print; 'before'\n    for current in 'ab'\n        print; item\n        item = current\n    print; 'after'\n",
+            "item",
+        ),
+        (
+            "loop-body-first-read-while",
+            "namespace availability\nfunction main;\n    print; 'before'\n    choose = true\n    while choose\n        print; item\n        item = 'a'\n        choose = false\n    print; 'after'\n",
+            "item",
+        ),
+        (
+            "loop-body-first-read-rhs",
+            "namespace availability\nfunction main;\n    print; 'before'\n    for current in 'ab'\n        observed = item\n        print; observed\n        item = current\n    print; 'after'\n",
+            "item",
+        ),
+    ] {
+        let directory = TemporaryDirectory::new(label);
+        fs::create_dir_all(directory.path()).unwrap();
+        let path = directory.path().join("case.trn");
+        fs::write(&path, source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .arg("run")
+            .arg(&path)
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert_eq!(output.status.code(), Some(1), "{label}: {stderr}");
+        assert_eq!(output.stdout, b"before\n", "{label}: {stderr}");
+        assert!(stderr.contains("error[T0007]"), "{label}: {stderr}");
+        assert!(
+            stderr.contains(&format!("`{binding}`")),
+            "{label}: {stderr}"
+        );
+        if label.starts_with("loop-body-first-read-") {
+            let offset = source.find(binding).unwrap();
+            let prefix = &source[..offset];
+            let line = prefix.bytes().filter(|byte| *byte == b'\n').count() + 1;
+            let column = prefix.rsplit('\n').next().unwrap().chars().count() + 1;
+            assert!(
+                stderr.contains(&format!(":{line}:{column}: error[T0007]")),
+                "{label}: {stderr}"
+            );
+        }
+    }
+}
+
+#[test]
 fn all_commands_share_the_hello_pipeline() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let directory = staged_hello();

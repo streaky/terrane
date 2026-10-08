@@ -1,0 +1,5 @@
+phase = "run"
+status = "accept"
+entrypoint = "package.toml"
+canonical-rust = true
+native-tools = "codec=tools/annotation-consumers/codec-consumer/package.toml"

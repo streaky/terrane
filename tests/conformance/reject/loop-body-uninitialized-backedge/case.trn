@@ -1,0 +1,6 @@
+namespace conformance/loop-body-uninitialized-backedge
+
+function main;
+    for index = 0; index < 2; index++
+        print; item
+        item string

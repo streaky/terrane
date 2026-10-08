@@ -446,10 +446,8 @@ fn selected_index() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(0_i128);
 }
 fn main() {
-    let fields: Vec<String> = terrane_string_support::split(
-        &String::from("value"),
-        &String::from(","),
-    );
+    let fields: Vec<String>;
+    fields = terrane_string_support::split(&String::from("value"), &String::from(","));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(

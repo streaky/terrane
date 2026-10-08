@@ -533,7 +533,19 @@ fn contextual() -> terrane_int_support::Int {
     );
 }
 fn main() {
-    let empty: terrane_int_support::Int = __terrane_raised(
+    let empty: terrane_int_support::Int;
+    let total: terrane_int_support::Int;
+    let nested: terrane_int_support::Int;
+    let mut record: Packet;
+    let observed: terrane_int_support::Int;
+    let text: String;
+    let sequence: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut value: terrane_int_support::Int;
+    let repeated: terrane_int_support::Int;
+    let chosen: terrane_int_support::Int;
+    let combined: terrane_int_support::Int;
+    let empty_values: terrane_collection_support::List<terrane_int_support::Int>;
+    empty = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -552,7 +564,7 @@ fn main() {
         1 /* terrane-site: src/main.trn:12:17-12:21 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&empty));
-    let total: terrane_int_support::Int = __terrane_raised(
+    total = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -571,7 +583,7 @@ fn main() {
         2 /* terrane-site: src/main.trn:14:17-14:29 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&total));
-    let nested: terrane_int_support::Int = __terrane_raised(
+    nested = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -595,7 +607,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(sum_terrane_deps_witness(),
         4 /* terrane-site: src/main.trn:18:13-18:26 */))
     );
-    let mut record: Packet = __terrane_raised(
+    record = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: witness::Packet = core::convert::Into::into(
@@ -623,7 +635,7 @@ fn main() {
         &record.value)))
     );
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
-    let observed: terrane_int_support::Int = __terrane_raised(
+    observed = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -647,7 +659,7 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&observed));
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
-    let text: String = __terrane_raised(
+    text = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: String = core::convert::Into::into(
@@ -670,7 +682,7 @@ fn main() {
         7 /* terrane-site: src/main.trn:25:19-25:44 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&text));
-    let sequence: terrane_collection_support::List<terrane_int_support::Int> = __terrane_raised(
+    sequence = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: std::vec::Vec<i64> = core::convert::Into::into(
@@ -706,13 +718,13 @@ fn main() {
         &__terrane_iterable_0,
     );
     loop {
-        let value = match __terrane_iterator_0.next() {
+        value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
-    let repeated: terrane_int_support::Int = __terrane_raised(
+    repeated = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -746,7 +758,7 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(evaluations(),
         11 /* terrane-site: src/main.trn:32:13-32:25 */))
     );
-    let chosen: terrane_int_support::Int = __terrane_raised(
+    chosen = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -781,7 +793,7 @@ fn main() {
         14 /* terrane-site: src/main.trn:35:13-35:25 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&contextual()));
-    let combined: terrane_int_support::Int = __terrane_raised(
+    combined = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: i64 = core::convert::Into::into(
@@ -804,7 +816,7 @@ fn main() {
         15 /* terrane-site: src/main.trn:37:20-37:33 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&combined));
-    let empty_values: terrane_collection_support::List<terrane_int_support::Int> = __terrane_raised(
+    empty_values = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
                 let __terrane_macro_result: std::vec::Vec<i64> = core::convert::Into::into(
@@ -840,10 +852,11 @@ fn main() {
         &__terrane_iterable_1,
     );
     loop {
-        let value = match __terrane_iterator_1.next() {
+        value = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
+        let _ = &value;
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
     println!(

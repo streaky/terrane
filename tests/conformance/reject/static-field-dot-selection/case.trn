@@ -1,0 +1,7 @@
+namespace static-field-dot-selection
+
+class counter
+    static total int = 0
+
+function main;
+    print; counter.total

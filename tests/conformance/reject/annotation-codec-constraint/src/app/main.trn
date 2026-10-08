@@ -1,0 +1,5 @@
+namespace annotation-codec-constraint
+from /annotation-codec import minimum
+class payload
+    @[minimum; 1]
+    value string

@@ -442,17 +442,22 @@ fn inspect_bytes(data: Vec<u8>) {
     println!("{}", terrane_scalar_support::scalar_text(&(data.len() as i128)));
 }
 fn branch_name(left: bool) -> String {
+    let selected: String;
+    let selected_2: String;
     if left {
-        let selected: String = String::from("left");
+        selected = String::from("left");
         return selected;
     }
-    let selected: String = String::from("right");
-    return selected;
+    selected_2 = String::from("right");
+    return selected_2;
 }
 fn main() {
     __terrane_run(async move {
+        let data: Vec<u8>;
+        let mut part: String;
+        let mut counter: terrane_int_support::Int;
         __terrane_await(observe(terrane_int_support::Int::from(42_i128))).await;
-        let data: Vec<u8> = Vec::from([97, 98, 99]);
+        data = Vec::from([97, 98, 99]);
         inspect_bytes(data.clone());
         println!("{}", terrane_scalar_support::scalar_text(&(data.len() as i128)));
         println!(
@@ -467,15 +472,13 @@ fn main() {
             &__terrane_iterable_0,
         );
         loop {
-            let part = match __terrane_iterator_0.next() {
+            part = match __terrane_iterator_0.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
             println!("{}", terrane_scalar_support::scalar_text(&part));
         }
-        let mut counter: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
+        counter = terrane_int_support::Int::from(0_i128);
         while counter.clone() < terrane_int_support::Int::from(2_i128) {
             println!("{}", terrane_scalar_support::scalar_text(&counter));
             counter = counter.clone() + terrane_int_support::Int::from(1_i128);

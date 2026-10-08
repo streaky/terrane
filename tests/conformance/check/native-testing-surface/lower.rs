@@ -644,6 +644,17 @@ struct TerraneDescriptor {
     inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/library.trn
 // Namespace: native-testing-surface
 static __TERRANE_F0_AVAILABLE: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
@@ -659,6 +670,7 @@ fn expected_error() -> Result<(), TerraneError> {
     return Ok(());
 }
 fn test_surface() -> Result<(), TerraneError> {
+    let fixture: ProcessFixture;
     __terrane_traced_err(
         assert(true),
         1 /* terrane-site: tests/unit/surface.trn:10:5-10:17 */,
@@ -727,9 +739,7 @@ fn test_surface() -> Result<(), TerraneError> {
         ),
         8 /* terrane-site: tests/unit/surface.trn:17:5-17:57 */,
     )?;
-    let fixture: ProcessFixture = ProcessFixture::terrane_construct(
-        String::from("artifact"),
-    );
+    fixture = ProcessFixture::terrane_construct(String::from("artifact"));
     __terrane_traced_err(
         assert_equal_string(fixture.artifact.clone(), String::from("artifact")),
         9 /* terrane-site: tests/unit/surface.trn:19:5-19:54 */,
@@ -868,9 +878,9 @@ pub fn fail_comparison(
     actual: String,
     expected: String,
 ) -> Result<(), TerraneError> {
-    let mut details: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
+    let mut details: terrane_collection_support::List<String>;
+    let mut failure: TestFailure;
+    details = terrane_collection_support::List::<String>::new(Vec::new());
     details
         .append(
             format!(
@@ -885,7 +895,7 @@ pub fn fail_comparison(
                 terrane_scalar_support::scalar_text(&expected)
             ),
         );
-    let mut failure: TestFailure = TestFailure::terrane_construct(failure_message);
+    failure = TestFailure::terrane_construct(failure_message);
     failure.details = details;
     return Err({
         let value = failure;
@@ -914,9 +924,9 @@ pub fn fail_near(
     expected: f64,
     tolerance: f64,
 ) -> Result<(), TerraneError> {
-    let mut details: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
+    let mut details: terrane_collection_support::List<String>;
+    let mut failure: TestFailure;
+    details = terrane_collection_support::List::<String>::new(Vec::new());
     details
         .append(
             format!(
@@ -939,7 +949,7 @@ pub fn fail_near(
                 terrane_scalar_support::scalar_text(&terrane_test_render_float64(tolerance))
             ),
         );
-    let mut failure: TestFailure = TestFailure::terrane_construct(
+    failure = TestFailure::terrane_construct(
         String::from("floating values differ beyond tolerance"),
     );
     failure.details = details;
@@ -990,7 +1000,7 @@ pub fn assert_equal_string(
     actual: String,
     expected: String,
 ) -> Result<(), TerraneError> {
-    if actual != expected {
+    if actual.as_str() != expected.as_str() {
         __terrane_traced_err(
             fail_comparison(String::from("string values differ"), actual, expected),
             19 /* terrane-site: core/testing.trn:91:9-91:66 */,
@@ -1002,7 +1012,7 @@ pub fn assert_not_equal_string(
     actual: String,
     expected: String,
 ) -> Result<(), TerraneError> {
-    if actual == expected {
+    if actual.as_str() == expected.as_str() {
         __terrane_traced_err(
             fail_comparison(
                 String::from("string values unexpectedly match"),
@@ -1197,6 +1207,7 @@ pub fn assert_near(
     expected: f64,
     tolerance: f64,
 ) -> Result<(), TerraneError> {
+    let mut difference: f64;
     if tolerance < 0.0 {
         __terrane_traced_err(
             fail(
@@ -1209,7 +1220,7 @@ pub fn assert_near(
             37 /* terrane-site: core/testing.trn:181:9-181:111 */,
         )?;
     }
-    let mut difference: f64 = actual - expected;
+    difference = actual - expected;
     if difference < 0.0 {
         difference = 0.0 - difference;
     }
@@ -1225,6 +1236,7 @@ pub fn assert_throws(
     operation: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
     expected_descriptor: String,
 ) -> Result<(), TerraneError> {
+    let mut error: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
@@ -1241,8 +1253,15 @@ pub fn assert_throws(
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0 {
                     __terrane_handled_0 = true;
-                    let error = __terrane_error_0.clone();
-                    if error.descriptor_name().to_owned() == expected_descriptor {
+                    let _ = error.insert(__terrane_error_0.clone());
+                    if error
+                        .as_ref()
+                        .expect("flow-proven available binding")
+                        .clone()
+                        .descriptor_name()
+                        .to_owned()
+                        .as_str() == expected_descriptor.as_str()
+                    {
                         return TerraneCompletion::Return(());
                     }
                     __terrane_traced_completion!(
@@ -1250,8 +1269,9 @@ pub fn assert_throws(
                         terrane_scalar_support::scalar_text(&String::from("expected throwable descriptor ")),
                         terrane_scalar_support::scalar_text(&expected_descriptor),
                         terrane_scalar_support::scalar_text(&String::from(" but received ")),
-                        terrane_scalar_support::scalar_text(&error.descriptor_name()
-                        .to_owned()))), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
+                        terrane_scalar_support::scalar_text(&error.as_ref()
+                        .expect("flow-proven available binding").clone()
+                        .descriptor_name().to_owned()))), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );
                 }
                 if !__terrane_handled_0 {
@@ -1282,27 +1302,31 @@ pub fn assert_throws(
     return Ok(());
 }
 pub fn context_value(name: String) -> Option<String> {
+    let mut entry: EnvironmentEntry;
     let __terrane_iterable_0 = environment();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let entry = match __terrane_iterator_0.next() {
+        entry = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if entry.name.is_text && entry.value.is_text && entry.name.text == name {
+        if entry.name.is_text && entry.value.is_text
+            && entry.name.text.as_str() == name.as_str()
+        {
             return Some(entry.value.text.clone());
         }
     }
     return None;
 }
 pub fn test_arguments() -> terrane_collection_support::List<NativeString> {
-    let supplied: terrane_collection_support::List<NativeString> = arguments();
-    let mut controlled: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
-        NativeString,
-    >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(1_i128);
+    let supplied: terrane_collection_support::List<NativeString>;
+    let mut controlled: terrane_collection_support::List<NativeString>;
+    let mut index: terrane_int_support::Int;
+    supplied = arguments();
+    controlled = terrane_collection_support::List::<NativeString>::new(Vec::new());
+    index = terrane_int_support::Int::from(1_i128);
     {
         let __terrane_list_append_0 = controlled.make_unique();
         while index.clone()
@@ -1453,9 +1477,12 @@ impl ProcessResult {
     }
 }
 pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneError> {
-    let mut encoded_arguments: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
+    let mut encoded_arguments: terrane_collection_support::List<String>;
+    let mut argument: NativeString;
+    let mut encoded_environment: terrane_collection_support::List<String>;
+    let mut entry: EnvironmentEntry;
+    let raw: TerranePlatformResult;
+    encoded_arguments = terrane_collection_support::List::<String>::new(Vec::new());
     let __terrane_iterable_0 = fixture.arguments.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
@@ -1463,16 +1490,14 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
     {
         let __terrane_list_append_0 = encoded_arguments.make_unique();
         loop {
-            let argument = match __terrane_iterator_0.next() {
+            argument = match __terrane_iterator_0.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
             __terrane_list_append_0.push(encode_native_string(argument));
         }
     }
-    let mut encoded_environment: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
+    encoded_environment = terrane_collection_support::List::<String>::new(Vec::new());
     let __terrane_iterable_1 = fixture.environment.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
@@ -1480,7 +1505,7 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
     {
         let __terrane_list_append_1 = encoded_environment.make_unique();
         loop {
-            let entry = match __terrane_iterator_1.next() {
+            entry = match __terrane_iterator_1.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
@@ -1488,7 +1513,7 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
             __terrane_list_append_1.push(encode_native_string(entry.value));
         }
     }
-    let raw: TerranePlatformResult = terrane_test_spawn(
+    raw = terrane_test_spawn(
         fixture.artifact,
         encoded_arguments,
         encoded_environment,
@@ -1600,7 +1625,8 @@ impl ProcessHostNameResult {
     }
 }
 pub fn process_host_name() -> ProcessHostNameResult {
-    let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_support::system_host_name();
     return ProcessHostNameResult::terrane_construct(
         raw.failed,
         raw.flag,
@@ -1609,11 +1635,12 @@ pub fn process_host_name() -> ProcessHostNameResult {
     );
 }
 pub fn arguments() -> terrane_collection_support::List<NativeString> {
-    let encoded: Vec<String> = terrane_process_arguments();
-    let mut values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
-        NativeString,
-    >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let encoded: Vec<String>;
+    let mut values: terrane_collection_support::List<NativeString>;
+    let mut index: terrane_int_support::Int;
+    encoded = terrane_process_arguments();
+    values = terrane_collection_support::List::<NativeString>::new(Vec::new());
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = values.make_unique();
         while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
@@ -1644,17 +1671,20 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
     return values;
 }
 pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
-    let encoded: Vec<String> = terrane_environment_entries();
-    let mut values: terrane_collection_support::List<EnvironmentEntry> = terrane_collection_support::List::<
-        EnvironmentEntry,
-    >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let encoded: Vec<String>;
+    let mut values: terrane_collection_support::List<EnvironmentEntry>;
+    let mut index: terrane_int_support::Int;
+    let mut name: NativeString;
+    let mut value: NativeString;
+    encoded = terrane_environment_entries();
+    values = terrane_collection_support::List::<EnvironmentEntry>::new(Vec::new());
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_1 = values.make_unique();
         while index.clone() + terrane_int_support::Int::from(1_i128)
             < terrane_int_support::Int::from(encoded.len() as i128)
         {
-            let name: NativeString = NativeString::terrane_construct(
+            name = NativeString::terrane_construct(
                 __terrane_raised(
                     {
                         let __terrane_receiver = &encoded;
@@ -1672,7 +1702,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     48 /* terrane-site: core/process.trn:54:40-54:54 */,
                 ),
             );
-            let value: NativeString = NativeString::terrane_construct(
+            value = NativeString::terrane_construct(
                 __terrane_raised(
                     {
                         let __terrane_receiver = &encoded;
@@ -1747,16 +1777,17 @@ impl CommandLine {
     }
 }
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
+    let mut entry: String;
     let __terrane_iterable_0 = schema.entries.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let entry = match __terrane_iterator_0.next() {
+        entry = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if entry == sought {
+        if entry.as_str() == sought.as_str() {
             return true;
         }
     }
@@ -1766,25 +1797,28 @@ pub fn parse_command_line(
     schema: CliSchema,
     supplied: terrane_collection_support::List<NativeString>,
 ) -> CommandLine {
-    let mut flags: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
-    let mut option_names: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
-    let mut option_values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
-        NativeString,
-    >::new(Vec::new());
-    let mut positionals: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
-        NativeString,
-    >::new(Vec::new());
+    let mut flags: terrane_collection_support::List<String>;
+    let mut option_names: terrane_collection_support::List<String>;
+    let mut option_values: terrane_collection_support::List<NativeString>;
+    let mut positionals: terrane_collection_support::List<NativeString>;
     let mut diagnostic_arguments: terrane_collection_support::List<
         terrane_int_support::Int,
-    > = terrane_collection_support::List::<terrane_int_support::Int>::new(Vec::new());
-    let mut diagnostic_messages: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
+    >;
+    let mut diagnostic_messages: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut argument: NativeString;
+    let mut flag_entry: String;
+    let mut value_entry: String;
+    let mut result: CommandLine;
+    flags = terrane_collection_support::List::<String>::new(Vec::new());
+    option_names = terrane_collection_support::List::<String>::new(Vec::new());
+    option_values = terrane_collection_support::List::<NativeString>::new(Vec::new());
+    positionals = terrane_collection_support::List::<NativeString>::new(Vec::new());
+    diagnostic_arguments = terrane_collection_support::List::<
+        terrane_int_support::Int,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    diagnostic_messages = terrane_collection_support::List::<String>::new(Vec::new());
+    index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_2 = diagnostic_arguments.make_unique();
         let __terrane_list_append_3 = diagnostic_messages.make_unique();
@@ -1797,7 +1831,7 @@ pub fn parse_command_line(
                 terrane_int_support::Int::from(supplied.length()),
             )
         {
-            let argument: NativeString = __terrane_raised(
+            argument = __terrane_raised(
                 supplied
                     .get_or_error(
                         __terrane_raised(
@@ -1812,11 +1846,11 @@ pub fn parse_command_line(
                 __terrane_list_append_3
                     .push(String::from("command-line option is not Unicode text"));
             } else {
-                let flag_entry: String = format!(
+                flag_entry = format!(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
                     terrane_scalar_support::scalar_text(&argument.text)
                 );
-                let value_entry: String = format!(
+                value_entry = format!(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
                     terrane_scalar_support::scalar_text(&argument.text)
                 );
@@ -1860,7 +1894,7 @@ pub fn parse_command_line(
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut result: CommandLine = CommandLine::terrane_construct();
+    result = CommandLine::terrane_construct();
     result.flags = flags;
     result.option_names = option_names;
     result.option_values = option_values;
@@ -1883,7 +1917,8 @@ impl ExitStatus {
     }
 }
 pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
-    let mut result: ExitStatus = ExitStatus::terrane_construct();
+    let mut result: ExitStatus;
+    result = ExitStatus::terrane_construct();
     if requested.clone() < terrane_int_support::Int::from(0_i128)
         || requested.clone() > terrane_int_support::Int::from(255_i128)
     {
@@ -1898,11 +1933,13 @@ pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
 }
 pub fn native_text(value: String) -> NativeString {
-    let encoded: String = terrane_platform_value_from_text(&value);
+    let encoded: String;
+    encoded = terrane_platform_value_from_text(&value);
     return NativeString::terrane_construct(encoded);
 }
 pub fn native_raw(value: Vec<u8>) -> NativeString {
-    let encoded: String = terrane_platform_value_from_bytes(&value);
+    let encoded: String;
+    encoded = terrane_platform_value_from_bytes(&value);
     return NativeString::terrane_construct(encoded);
 }
 pub fn native_text_value(value: NativeString) -> Option<String> {
@@ -1955,11 +1992,11 @@ impl DurationSubtraction {
         self.total_nanoseconds = total.clone();
     }
     pub fn checked(&self, other: Duration) -> Option<Duration> {
+        let difference: terrane_int_support::Int;
         if self.total_nanoseconds.clone() < other.total_nanoseconds.clone() {
             return None;
         }
-        let difference: terrane_int_support::Int = self.total_nanoseconds.clone()
-            - other.total_nanoseconds.clone();
+        difference = self.total_nanoseconds.clone() - other.total_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
                 terrane_platform_time_div(&difference, 1000000000.clone()),
@@ -2006,8 +2043,8 @@ impl Duration {
         );
     }
     pub fn add(&self, other: Duration) -> Duration {
-        let fractional: terrane_int_support::Int = self.nanoseconds.clone()
-            + other.nanoseconds.clone();
+        let fractional: terrane_int_support::Int;
+        fractional = self.nanoseconds.clone() + other.nanoseconds.clone();
         return Duration::terrane_construct(
             self.seconds.clone() + other.seconds.clone()
                 + terrane_platform_time_div(&fractional, 1000000000.clone()),
@@ -2018,6 +2055,7 @@ impl Duration {
         &self,
         multiplier: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
+        let total: terrane_int_support::Int;
         if multiplier.clone() < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
@@ -2028,8 +2066,7 @@ impl Duration {
                 )
             });
         }
-        let total: terrane_int_support::Int = self.total_nanoseconds.clone()
-            * multiplier.clone();
+        total = self.total_nanoseconds.clone() * multiplier.clone();
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&total, 1000000000.clone()),
@@ -2149,6 +2186,7 @@ impl MonotonicInstant {
         &self,
         later: &MonotonicInstant,
     ) -> Result<Duration, TerraneError> {
+        let elapsed: terrane_int_support::Int;
         if self.domain.clone() != later.domain.clone().clone()
             || later.elapsed_nanoseconds.clone().clone()
                 < self.elapsed_nanoseconds.clone()
@@ -2162,7 +2200,7 @@ impl MonotonicInstant {
                 )
             });
         }
-        let elapsed: terrane_int_support::Int = later.elapsed_nanoseconds.clone().clone()
+        elapsed = later.elapsed_nanoseconds.clone().clone()
             - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
@@ -2217,15 +2255,15 @@ impl Deadline {
         self.expires_at = target;
     }
     pub fn remaining(&self) -> Option<Duration> {
-        let now: MonotonicInstant = Clock::terrane_static_monotonic();
+        let now: MonotonicInstant;
+        let elapsed: terrane_int_support::Int;
+        now = Clock::terrane_static_monotonic();
         if self.expires_at.elapsed_nanoseconds.clone() <= now.elapsed_nanoseconds.clone()
         {
             return None;
         }
-        let elapsed: terrane_int_support::Int = self
-            .expires_at
-            .elapsed_nanoseconds
-            .clone() - now.elapsed_nanoseconds.clone();
+        elapsed = self.expires_at.elapsed_nanoseconds.clone()
+            - now.elapsed_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
                 terrane_platform_time_div(&elapsed, 1000000000.clone()),
@@ -2327,31 +2365,30 @@ impl Ticker {
         self.period = interval;
     }
     pub async fn next(&mut self) -> Tick {
-        let period_total: terrane_int_support::Int = self
-            .period
-            .total_nanoseconds
-            .clone();
-        let scheduled_nanoseconds: terrane_int_support::Int = self
-            .anchor
-            .elapsed_nanoseconds
-            .clone() + period_total.clone() * self.next_index.clone();
+        let period_total: terrane_int_support::Int;
+        let scheduled_nanoseconds: terrane_int_support::Int;
+        let observed: MonotonicInstant;
+        let elapsed: terrane_int_support::Int;
+        let mut observed_index: terrane_int_support::Int;
+        let count: terrane_int_support::Int;
+        let delivered: MonotonicInstant;
+        period_total = self.period.total_nanoseconds.clone();
+        scheduled_nanoseconds = self.anchor.elapsed_nanoseconds.clone()
+            + period_total.clone() * self.next_index.clone();
         discard_none(
             __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
                 .await,
         );
-        let observed: MonotonicInstant = Clock::terrane_static_monotonic();
-        let elapsed: terrane_int_support::Int = observed.elapsed_nanoseconds.clone()
+        observed = Clock::terrane_static_monotonic();
+        elapsed = observed.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
-        let mut observed_index: terrane_int_support::Int = terrane_platform_time_div(
-            &elapsed,
-            period_total.clone(),
-        );
+        observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
         if observed_index.clone() < self.next_index.clone() {
             observed_index = self.next_index.clone();
         }
-        let count: terrane_int_support::Int = observed_index.clone()
-            - self.next_index.clone() + terrane_int_support::Int::from(1_i128);
-        let delivered: MonotonicInstant = MonotonicInstant::terrane_construct(
+        count = observed_index.clone() - self.next_index.clone()
+            + terrane_int_support::Int::from(1_i128);
+        delivered = MonotonicInstant::terrane_construct(
             self.anchor.domain.clone(),
             self.anchor.elapsed_nanoseconds.clone()
                 + period_total.clone() * observed_index.clone(),
@@ -2379,7 +2416,8 @@ impl Clock {
         Self {}
     }
     pub fn terrane_static_wall() -> Instant {
-        let raw: TerranePlatformResult = terrane_platform_time_wall();
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_time_wall();
         return Instant::terrane_construct(
             terrane_platform_time_wall_seconds(&raw),
             terrane_platform_time_wall_nanoseconds(&raw),
@@ -2392,8 +2430,8 @@ impl Clock {
         );
     }
     pub async fn terrane_static_sleep(elapsed: Duration) {
-        let target: terrane_int_support::Int = terrane_platform_time_monotonic()
-            + elapsed.total_nanoseconds.clone();
+        let target: terrane_int_support::Int;
+        target = terrane_platform_time_monotonic() + elapsed.total_nanoseconds.clone();
         return __terrane_await(terrane_platform_time_sleep_until(target)).await;
     }
     pub async fn terrane_static_sleep_until(
@@ -2417,8 +2455,10 @@ impl Clock {
         );
     }
     pub fn terrane_static_deadline(elapsed: Duration) -> Deadline {
-        let now: MonotonicInstant = Clock::terrane_static_monotonic();
-        let target: MonotonicInstant = MonotonicInstant::terrane_construct(
+        let now: MonotonicInstant;
+        let target: MonotonicInstant;
+        now = Clock::terrane_static_monotonic();
+        target = MonotonicInstant::terrane_construct(
             now.domain.clone(),
             now.elapsed_nanoseconds.clone() + elapsed.total_nanoseconds.clone(),
         );

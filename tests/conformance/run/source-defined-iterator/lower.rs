@@ -30,6 +30,7 @@ impl Counter {
     pub fn next(
         &mut self,
     ) -> terrane_collection_support::IterationStep<terrane_int_support::Int> {
+        let item: terrane_int_support::Int;
         if self.ended {
             return terrane_collection_support::IterationStep::End;
         }
@@ -38,7 +39,7 @@ impl Counter {
             self.ended = true;
             return terrane_collection_support::IterationStep::End;
         }
-        let item: terrane_int_support::Int = self.current.clone();
+        item = self.current.clone();
         self.current = self.current.clone() + terrane_int_support::Int::from(1_i128);
         return terrane_collection_support::IterationStep::<
             terrane_int_support::Int,
@@ -65,28 +66,28 @@ impl NoneOnce {
     }
 }
 fn main() {
-    let values: Counter = Counter::terrane_construct(
-        terrane_int_support::Int::from(3_i128),
-    );
+    let values: Counter;
+    let mut value: terrane_int_support::Int;
+    let mut probe: Counter;
+    let fourth: terrane_collection_support::IterationStep<terrane_int_support::Int>;
+    let fifth: terrane_collection_support::IterationStep<terrane_int_support::Int>;
+    let mut missing: ();
+    values = Counter::terrane_construct(terrane_int_support::Int::from(3_i128));
     let __terrane_iterable_0 = values;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
-        let value = match __terrane_iterator_0.next() {
+        value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
-    let mut probe: Counter = Counter::terrane_construct(
-        terrane_int_support::Int::from(3_i128),
-    );
+    probe = Counter::terrane_construct(terrane_int_support::Int::from(3_i128));
     probe.next();
     probe.next();
     probe.next();
-    let fourth: terrane_collection_support::IterationStep<terrane_int_support::Int> = probe
-        .next();
-    let fifth: terrane_collection_support::IterationStep<terrane_int_support::Int> = probe
-        .next();
+    fourth = probe.next();
+    fifth = probe.next();
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&matches!(&fourth,
         terrane_collection_support::IterationStep::End)),
@@ -97,7 +98,7 @@ fn main() {
     let __terrane_iterable_1 = NoneOnce::terrane_construct();
     let mut __terrane_iterator_1 = __terrane_iterable_1.iterator();
     loop {
-        let missing = match __terrane_iterator_1.next() {
+        missing = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

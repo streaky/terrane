@@ -467,11 +467,13 @@ impl Accumulator {
     }
 }
 fn main() {
-    let value: Accumulator = Accumulator::terrane_construct();
+    let value: Accumulator;
     let operation: TerraneConsumingCallable<
         (terrane_int_support::Int,),
         Result<terrane_int_support::Int, TerraneError>,
-    > = {
+    >;
+    value = Accumulator::terrane_construct();
+    operation = {
         let mut receiver = value;
         TerraneConsumingCallable::new(move |(argument_0,): (terrane_int_support::Int,)| {
             receiver.add(argument_0)

@@ -80,6 +80,7 @@ async function main;
   print; (bound; 5)
   print; (bound; 7)
   value ticket = instance ticket;
+  print; (bound; 1)
   redemption consuming function to string = value.redeem
   print; (redemption;)
   shared = function int; value int

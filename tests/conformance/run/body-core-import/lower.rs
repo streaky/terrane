@@ -43,7 +43,8 @@ impl HexCodec {
         return terrane_platform_hex_encode(data);
     }
     pub fn decode(&self, text: String) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_hex_decode(text);
         return DecodeResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -68,11 +69,8 @@ impl Base64Codec {
         return terrane_platform_base64_encode(data, self.url_safe, padded);
     }
     pub fn decode(&self, text: String, padded: bool) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_base64_decode(
-            text,
-            self.url_safe,
-            padded,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_base64_decode(text, self.url_safe, padded);
         return DecodeResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
@@ -96,7 +94,8 @@ pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
 }
 pub fn decode_hex(text: String) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_hex_decode(text);
     return DecodeResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
@@ -107,11 +106,8 @@ pub fn encode_base64(data: Vec<u8>, url_safe: bool, padded: bool) -> String {
     return terrane_platform_base64_encode(data, url_safe, padded);
 }
 pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_base64_decode(
-        text,
-        url_safe,
-        padded,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_base64_decode(text, url_safe, padded);
     return DecodeResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),

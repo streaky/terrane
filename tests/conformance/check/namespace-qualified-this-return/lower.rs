@@ -52,8 +52,10 @@ impl TerraneNs3AppChild {
     }
 }
 fn main() {
-    let value: TerraneNs3AppChild = TerraneNs3AppChild::terrane_construct();
-    let result: Base = value.copy();
+    let value: TerraneNs3AppChild;
+    let result: Base;
+    value = TerraneNs3AppChild::terrane_construct();
+    result = value.copy();
     result.marker();
     return ();
 }

@@ -483,24 +483,82 @@ fn semantic_requires_unsafe_code(semantic: &crate::SemanticPackage) -> bool {
     })
 }
 
-/// Compiles every manifest-discovered source unit with explicit
-/// compiler-development options.
+/// Prepares consumers and analyzes declarations shared by compilation and test discovery.
+fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, CompilationFailure> {
+    if package.consumer_configs.is_empty() {
+        if !package.dependency_manifests.is_empty() {
+            crate::consumers::reconcile_generated_sources(package)?;
+        }
+        return Ok(None);
+    }
+    let semantic =
+        semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
+            source: failure.source,
+            diagnostics: failure.diagnostics,
+        })?;
+    let generated = crate::consumers::run(package, &semantic)?;
+    let mut expanded = package.clone();
+    crate::consumers::add_generated_sources(&mut expanded, generated)?;
+    if expanded.units.len() == package.units.len() {
+        return Ok(None);
+    }
+    Ok(Some(expanded))
+}
+
+fn analyze_prepared_package(
+    package: &Package,
+) -> Result<semantics::SemanticPackage, CompilationFailure> {
+    semantics::analyze(package).map_err(|failure| CompilationFailure {
+        source: failure.source,
+        diagnostics: failure.diagnostics,
+    })
+}
+
+/// Creates a source-independent declaration interface for a package.
 ///
 /// # Errors
 ///
-/// Returns diagnostics from the first source unit that fails, including
-/// generated-Rust invariant failures requested by `options`.
+/// Returns declaration-analysis failures without executing configured consumers.
+pub fn declaration_interface(
+    package: &Package,
+) -> Result<crate::DeclarationInterface, CompilationFailure> {
+    let semantic =
+        semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
+            source: failure.source,
+            diagnostics: failure.diagnostics,
+        })?;
+    Ok(semantic.declaration_interface())
+}
+
+/// Compiles every manifest-discovered source unit with explicit compiler options.
+///
+/// # Errors
+///
+/// Returns diagnostics from source analysis or generated-Rust invariant checking.
 pub fn compile_package_with_options(
     package: &Package,
     options: CompilerOptions,
 ) -> Result<Compilation, CompilationFailure> {
-    let semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
-        source: failure.source,
-        diagnostics: failure.diagnostics,
-    })?;
-    let (source, entry_span) = package_entry(&semantic, package)?;
-    let sources = compilation_sources(&semantic, package);
-    let warnings = collect_warnings(&semantic, options)
+    let prepared = prepare_package_for_analysis(package)?;
+    compile_package_without_consumers(prepared.as_ref().unwrap_or(package), options)
+}
+
+fn compile_package_without_consumers(
+    package: &Package,
+    options: CompilerOptions,
+) -> Result<Compilation, CompilationFailure> {
+    let semantic = analyze_prepared_package(package)?;
+    compile_analyzed_package(package, &semantic, options)
+}
+
+fn compile_analyzed_package(
+    package: &Package,
+    semantic: &semantics::SemanticPackage,
+    options: CompilerOptions,
+) -> Result<Compilation, CompilationFailure> {
+    let (source, entry_span) = package_entry(semantic, package)?;
+    let sources = compilation_sources(semantic, package);
+    let warnings = collect_warnings(semantic, options)
         .into_iter()
         .filter(|warning| {
             let dependency_warning = warning
@@ -512,8 +570,8 @@ pub fn compile_package_with_options(
         })
         .collect();
     let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
-    let mut rust_ir = crate::lowering::lower(&semantic, options.debug_build.enabled())
-        .map_err(|failure| lowering_failure(&semantic, failure))?;
+    let mut rust_ir = crate::lowering::lower(semantic, options.debug_build.enabled())
+        .map_err(|failure| lowering_failure(semantic, failure))?;
     bind_tokio_runtime_alias(&mut rust_ir, &rust_dependencies, false);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
@@ -535,7 +593,7 @@ pub fn compile_package_with_options(
         rendered_rust,
         debug_symbols: options.debug_build.enabled().then(|| {
             crate::debugging::DebugSymbols::from_semantic(
-                &semantic,
+                semantic,
                 options.debug_build.embeds_sources(),
                 options.debug_build.embeds_generated_sources(),
             )
@@ -546,7 +604,7 @@ pub fn compile_package_with_options(
         requires_async_runtime: rust_ir.requires_async_runtime,
         requires_blocking_runtime: rust_ir.requires_blocking_runtime,
         requires_runtime_sync: rust_ir.requires_runtime_sync,
-        requires_unsafe_code: semantic_requires_unsafe_code(&semantic),
+        requires_unsafe_code: semantic_requires_unsafe_code(semantic),
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
@@ -656,10 +714,9 @@ fn discover_test_tier(
     tier: TestTier,
     options: CompilerOptions,
 ) -> Result<TestTierDiscovery, CompilationFailure> {
-    let mut semantic = semantics::analyze(package).map_err(|failure| CompilationFailure {
-        source: failure.source,
-        diagnostics: failure.diagnostics,
-    })?;
+    let prepared = prepare_package_for_analysis(package)?;
+    let prepared_package = prepared.as_ref().unwrap_or(package);
+    let mut semantic = analyze_prepared_package(prepared_package)?;
     let role = match tier {
         TestTier::Unit => crate::SourceRole::UnitTest,
         TestTier::Integration => crate::SourceRole::IntegrationTest,

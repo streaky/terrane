@@ -50,8 +50,10 @@ impl Child {
     }
 }
 fn main() {
-    let concrete: Child = Child::terrane_construct();
-    let mut view: Base = Base::Child(concrete);
+    let concrete: Child;
+    let mut view: Base;
+    concrete = Child::terrane_construct();
+    view = Base::Child(concrete);
     println!(
         "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
     );

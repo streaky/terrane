@@ -461,21 +461,50 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: complete-float-surface
 fn exercise32() {
-    let zero: f32 = 0.0_f32;
-    let negative_zero: f32 = -0.0_f32;
-    let one: f32 = 1.0_f32;
-    let two: f32 = 2.0_f32;
-    let three: f32 = 3.0_f32;
-    let four: f32 = 4.0_f32;
-    let negative_one: f32 = -1.0_f32;
-    let negative_two: f32 = -2.0_f32;
-    let negative_quarter: f32 = -0.25_f32;
-    let fractional: f32 = -1.25_f32;
-    let twelve: f32 = 12.0_f32;
-    let thousand: f32 = 1000.0_f32;
-    let overflow_input: f32 = 128.0_f32;
-    let underflow_input: f32 = -150.0_f32;
-    let eight: f32 = 8.0_f32;
+    let zero: f32;
+    let negative_zero: f32;
+    let one: f32;
+    let two: f32;
+    let three: f32;
+    let four: f32;
+    let negative_one: f32;
+    let negative_two: f32;
+    let negative_quarter: f32;
+    let fractional: f32;
+    let twelve: f32;
+    let thousand: f32;
+    let overflow_input: f32;
+    let underflow_input: f32;
+    let eight: f32;
+    let decomposition: terrane_scalar_support::FloatDecomposition<f32>;
+    let not_a_number: f32;
+    let infinity: f32;
+    let clamped_zero: f32;
+    let subnormal_decomposition: terrane_scalar_support::FloatDecomposition<f32>;
+    let wide_four: f64;
+    let floating_exponent: f64;
+    let nan_decomposition: terrane_scalar_support::FloatDecomposition<f32>;
+    let infinity_decomposition: terrane_scalar_support::FloatDecomposition<f32>;
+    let negative_zero_decomposition: terrane_scalar_support::FloatDecomposition<f32>;
+    let negative_infinity: f32;
+    let large_exponent: f32;
+    let large: f32;
+    let descriptor: TerraneDescriptor;
+    zero = 0.0_f32;
+    negative_zero = -0.0_f32;
+    one = 1.0_f32;
+    two = 2.0_f32;
+    three = 3.0_f32;
+    four = 4.0_f32;
+    negative_one = -1.0_f32;
+    negative_two = -2.0_f32;
+    negative_quarter = -0.25_f32;
+    fractional = -1.25_f32;
+    twelve = 12.0_f32;
+    thousand = 1000.0_f32;
+    overflow_input = 128.0_f32;
+    underflow_input = -150.0_f32;
+    eight = 8.0_f32;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(eight.cbrt() == two)),
         terrane_scalar_support::scalar_text(&(three.hypot(four) == 5.0_f32))
@@ -544,9 +573,7 @@ fn exercise32() {
         "type", inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1)
         }))
     );
-    let decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        twelve,
-    );
+    decomposition = terrane_scalar_support::decompose_f32(twelve);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(decomposition.mantissa ==
         0.75_f32)), terrane_scalar_support::scalar_text(&(decomposition.exponent == 4))
@@ -595,9 +622,9 @@ fn exercise32() {
         .is_infinite()), terrane_scalar_support::scalar_text(&(underflow_input.exp2() ==
         zero))
     );
-    let not_a_number: f32 = two.asin();
-    let infinity: f32 = one / zero;
-    let clamped_zero: f32 = {
+    not_a_number = two.asin();
+    infinity = one / zero;
+    clamped_zero = {
         let terrane_value: f32 = negative_zero;
         let terrane_lower: f32 = zero;
         let terrane_upper: f32 = one;
@@ -656,7 +683,7 @@ fn exercise32() {
         .is_infinite()), terrane_scalar_support::scalar_text(&infinity.next_up()
         .is_infinite())
     );
-    let subnormal_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32({
+    subnormal_decomposition = terrane_scalar_support::decompose_f32({
         let _ = &TerraneDescriptor {
             identity: "float32",
             name: "float32",
@@ -684,8 +711,8 @@ fn exercise32() {
         "type", inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1) },
         - 1) == zero))
     );
-    let wide_four: f64 = 4.0;
-    let floating_exponent: f64 = 2.0;
+    wide_four = 4.0;
+    floating_exponent = 2.0;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(three.hypot({ let source_value =
         wide_four; let converted = source_value as f32; if converted as f64 ==
@@ -715,15 +742,9 @@ fn exercise32() {
         .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
         .min(terrane_upper) } } } .is_nan())
     );
-    let nan_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        not_a_number,
-    );
-    let infinity_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        infinity,
-    );
-    let negative_zero_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        negative_zero,
-    );
+    nan_decomposition = terrane_scalar_support::decompose_f32(not_a_number);
+    infinity_decomposition = terrane_scalar_support::decompose_f32(infinity);
+    negative_zero_decomposition = terrane_scalar_support::decompose_f32(negative_zero);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&nan_decomposition.mantissa
         .is_nan()), terrane_scalar_support::scalar_text(&(nan_decomposition.exponent ==
@@ -739,7 +760,7 @@ fn exercise32() {
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&(negative_zero_decomposition.exponent == 0))
     );
-    let negative_infinity: f32 = negative_one / zero;
+    negative_infinity = negative_one / zero;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f32 =
         infinity; let terrane_fraction = terrane_receiver.fract(); if terrane_fraction ==
@@ -754,14 +775,14 @@ fn exercise32() {
         .is_infinite()), terrane_scalar_support::scalar_text(&negative_infinity
         .next_down().is_sign_negative())
     );
-    let large_exponent: f32 = 120.0_f32;
-    let large: f32 = large_exponent.exp2();
+    large_exponent = 120.0_f32;
+    large = large_exponent.exp2();
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(large,
         - 250) == terrane_scalar_support::scale_binary_f32(one, - 130)))
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor = TerraneDescriptor {
         identity: "float32",
         name: "float32",
         kind: "type",
@@ -775,25 +796,54 @@ fn exercise32() {
     );
 }
 fn exercise64() {
-    let zero: f64 = 0.0;
-    let negative_zero: f64 = -0.0_f64;
-    let one: f64 = 1.0;
-    let two: f64 = 2.0;
-    let three: f64 = 3.0;
-    let four: f64 = 4.0;
-    let eight: f64 = 8.0;
+    let zero: f64;
+    let negative_zero: f64;
+    let one: f64;
+    let two: f64;
+    let three: f64;
+    let four: f64;
+    let eight: f64;
+    let negative_one: f64;
+    let negative_two: f64;
+    let negative_quarter: f64;
+    let fractional: f64;
+    let twelve: f64;
+    let thousand: f64;
+    let overflow_input: f64;
+    let underflow_input: f64;
+    let decomposition: terrane_scalar_support::FloatDecomposition<f64>;
+    let not_a_number: f64;
+    let infinity: f64;
+    let clamped_zero: f64;
+    let subnormal_decomposition: terrane_scalar_support::FloatDecomposition<f64>;
+    let narrow_four: f32;
+    let floating_exponent: f64;
+    let nan_decomposition: terrane_scalar_support::FloatDecomposition<f64>;
+    let infinity_decomposition: terrane_scalar_support::FloatDecomposition<f64>;
+    let negative_zero_decomposition: terrane_scalar_support::FloatDecomposition<f64>;
+    let negative_infinity: f64;
+    let large_exponent: f64;
+    let large: f64;
+    let descriptor: TerraneDescriptor;
+    zero = 0.0;
+    negative_zero = -0.0_f64;
+    one = 1.0;
+    two = 2.0;
+    three = 3.0;
+    four = 4.0;
+    eight = 8.0;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(eight.cbrt() == two)),
         terrane_scalar_support::scalar_text(&(three.hypot(four) == 5.0))
     );
-    let negative_one: f64 = -1.0_f64;
-    let negative_two: f64 = -2.0_f64;
-    let negative_quarter: f64 = -0.25_f64;
-    let fractional: f64 = -1.25_f64;
-    let twelve: f64 = 12.0;
-    let thousand: f64 = 1000.0;
-    let overflow_input: f64 = 1024.0;
-    let underflow_input: f64 = -1075.0_f64;
+    negative_one = -1.0_f64;
+    negative_two = -2.0_f64;
+    negative_quarter = -0.25_f64;
+    fractional = -1.25_f64;
+    twelve = 12.0;
+    thousand = 1000.0;
+    overflow_input = 1024.0;
+    underflow_input = -1075.0_f64;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(four.powf(0.5) == two)),
         terrane_scalar_support::scalar_text(&(two.powi(10) == 1024.0))
@@ -858,9 +908,7 @@ fn exercise64() {
         "type", inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1)
         }))
     );
-    let decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        twelve,
-    );
+    decomposition = terrane_scalar_support::decompose_f64(twelve);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(decomposition.mantissa == 0.75)),
         terrane_scalar_support::scalar_text(&(decomposition.exponent == 4))
@@ -909,9 +957,9 @@ fn exercise64() {
         .is_infinite()), terrane_scalar_support::scalar_text(&(underflow_input.exp2() ==
         zero))
     );
-    let not_a_number: f64 = two.asin();
-    let infinity: f64 = one / zero;
-    let clamped_zero: f64 = {
+    not_a_number = two.asin();
+    infinity = one / zero;
+    clamped_zero = {
         let terrane_value: f64 = negative_zero;
         let terrane_lower: f64 = zero;
         let terrane_upper: f64 = one;
@@ -970,7 +1018,7 @@ fn exercise64() {
         .is_infinite()), terrane_scalar_support::scalar_text(&infinity.next_up()
         .is_infinite())
     );
-    let subnormal_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64({
+    subnormal_decomposition = terrane_scalar_support::decompose_f64({
         let _ = &TerraneDescriptor {
             identity: "float64",
             name: "float64",
@@ -998,8 +1046,8 @@ fn exercise64() {
         "type", inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1) },
         - 1) == zero))
     );
-    let narrow_four: f32 = 4.0_f32;
-    let floating_exponent: f64 = 2.0;
+    narrow_four = 4.0_f32;
+    floating_exponent = 2.0;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(three.hypot(narrow_four as f64) ==
         5.0)),
@@ -1025,15 +1073,9 @@ fn exercise64() {
         .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
         .min(terrane_upper) } } } .is_nan())
     );
-    let nan_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        not_a_number,
-    );
-    let infinity_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        infinity,
-    );
-    let negative_zero_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        negative_zero,
-    );
+    nan_decomposition = terrane_scalar_support::decompose_f64(not_a_number);
+    infinity_decomposition = terrane_scalar_support::decompose_f64(infinity);
+    negative_zero_decomposition = terrane_scalar_support::decompose_f64(negative_zero);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&nan_decomposition.mantissa
         .is_nan()), terrane_scalar_support::scalar_text(&(nan_decomposition.exponent ==
@@ -1049,7 +1091,7 @@ fn exercise64() {
         .is_sign_negative()),
         terrane_scalar_support::scalar_text(&(negative_zero_decomposition.exponent == 0))
     );
-    let negative_infinity: f64 = negative_one / zero;
+    negative_infinity = negative_one / zero;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
         infinity; let terrane_fraction = terrane_receiver.fract(); if terrane_fraction ==
@@ -1064,14 +1106,14 @@ fn exercise64() {
         .is_infinite()), terrane_scalar_support::scalar_text(&negative_infinity
         .next_down().is_sign_negative())
     );
-    let large_exponent: f64 = 1000.0;
-    let large: f64 = large_exponent.exp2();
+    large_exponent = 1000.0;
+    large = large_exponent.exp2();
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(large,
         - 2000) == terrane_scalar_support::scale_binary_f64(one, - 1000)))
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor = TerraneDescriptor {
         identity: "float64",
         name: "float64",
         kind: "type",

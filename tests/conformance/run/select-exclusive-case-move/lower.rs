@@ -11,8 +11,11 @@ async fn two() -> String {
 }
 fn main() {
     __terrane_run(async move {
+        let pending;
+        let value: terrane_int_support::Int;
+        let text: String;
         let mut __terrane_select_cursor_157 = 0usize;
-        let pending = one();
+        pending = one();
         {
             let mut __terrane_select_guard_157 = __terrane_finally_guard();
             let __terrane_select_control_157_0 = __terrane_select_control();
@@ -107,7 +110,7 @@ fn main() {
             __terrane_select_guard_157.finish();
             match __terrane_select_winner_157 {
                 0 => {
-                    let value: terrane_int_support::Int = __terrane_select_result_157_0
+                    value = __terrane_select_result_157_0
                         .take()
                         .expect("selected case owns its ready result");
                     println!(
@@ -117,7 +120,7 @@ fn main() {
                     );
                 }
                 1 => {
-                    let text: String = __terrane_select_result_157_1
+                    text = __terrane_select_result_157_1
                         .take()
                         .expect("selected case owns its ready result");
                     println!(

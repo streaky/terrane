@@ -442,14 +442,32 @@ mod __terrane_trace {
 fn main() {
     let numbers: std::sync::Arc<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::new(
+    >;
+    let number_snapshot: terrane_collection_support::List<terrane_int_support::Int>;
+    let number_owner: std::sync::Arc<
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+    >;
+    let number_observer: std::sync::Weak<
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+    >;
+    let words: std::sync::Arc<
+        std::sync::Mutex<terrane_collection_support::List<String>>,
+    >;
+    let word_snapshot: terrane_collection_support::List<String>;
+    let word_owner: std::sync::Arc<
+        std::sync::Mutex<terrane_collection_support::List<String>>,
+    >;
+    let word_observer: std::sync::Weak<
+        std::sync::Mutex<terrane_collection_support::List<String>>,
+    >;
+    numbers = std::sync::Arc::new(
         std::sync::Mutex::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),
         ),
     );
-    let number_snapshot: terrane_collection_support::List<terrane_int_support::Int> = {
+    number_snapshot = {
         let __terrane_value = numbers.lock().expect("reference lock poisoned").clone();
         __terrane_value
     }
@@ -458,12 +476,8 @@ fn main() {
         .lock()
         .expect("reference lock poisoned")
         .append(terrane_int_support::Int::from(2_i128));
-    let number_owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = numbers.clone();
-    let number_observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::downgrade(&numbers.clone());
+    number_owner = numbers.clone();
+    number_observer = std::sync::Arc::downgrade(&numbers.clone());
     number_owner
         .lock()
         .expect("shared reference lock poisoned")
@@ -480,25 +494,19 @@ fn main() {
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
         .clone(); __terrane_value } .length()))
     );
-    let words: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<String>>,
-    > = std::sync::Arc::new(
+    words = std::sync::Arc::new(
         std::sync::Mutex::new(
             terrane_collection_support::List::<String>::new(vec![String::from("a")]),
         ),
     );
-    let word_snapshot: terrane_collection_support::List<String> = {
+    word_snapshot = {
         let __terrane_value = words.lock().expect("reference lock poisoned").clone();
         __terrane_value
     }
         .clone();
     words.lock().expect("reference lock poisoned").append(String::from("b"));
-    let word_owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<String>>,
-    > = words.clone();
-    let word_observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<String>>,
-    > = std::sync::Arc::downgrade(&words.clone());
+    word_owner = words.clone();
+    word_observer = std::sync::Arc::downgrade(&words.clone());
     word_owner.lock().expect("shared reference lock poisoned").append(String::from("c"));
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(word_snapshot

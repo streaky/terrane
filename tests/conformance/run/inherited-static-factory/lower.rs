@@ -80,6 +80,7 @@ impl Dog {
     }
 }
 fn main() {
-    let pet: Dog = Dog::terrane_static_create();
+    let pet: Dog;
+    pet = Dog::terrane_static_create();
     println!("{}", terrane_scalar_support::scalar_text(&pet.class_name()));
 }

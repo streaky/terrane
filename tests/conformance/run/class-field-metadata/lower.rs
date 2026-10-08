@@ -479,7 +479,8 @@ impl ServiceOptions {
     }
 }
 fn main() {
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    let descriptor: TerraneDescriptor;
+    descriptor = TerraneDescriptor {
         identity: "/class-field-metadata::service-options",
         name: "service-options",
         kind: "class",

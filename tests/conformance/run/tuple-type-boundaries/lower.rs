@@ -460,7 +460,16 @@ fn nested(
     return values;
 }
 fn main() {
-    let pair: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<
+    let pair: terrane_collection_support::Tuple<terrane_int_support::Int>;
+    let returned: terrane_collection_support::Tuple<terrane_int_support::Int>;
+    let empty: terrane_collection_support::Tuple<terrane_int_support::Int>;
+    let groups: terrane_collection_support::List<
+        terrane_collection_support::Tuple<terrane_int_support::Int>,
+    >;
+    let echoed: terrane_collection_support::List<
+        terrane_collection_support::Tuple<terrane_int_support::Int>,
+    >;
+    pair = terrane_collection_support::Tuple::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -468,9 +477,7 @@ fn main() {
             terrane_int_support::Int::from(2_i128)
         ],
     );
-    let returned: terrane_collection_support::Tuple<terrane_int_support::Int> = echo(
-        pair,
-    );
+    returned = echo(pair);
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned
@@ -481,16 +488,14 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         1 /* terrane-site: case.trn:13:40-13:51 */)), 1 /* terrane-site: case.trn:13:40-13:51 */))
     );
-    let empty: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<
+    empty = terrane_collection_support::Tuple::<
         terrane_int_support::Int,
     >::new(Vec::new());
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(empty
         .length()))
     );
-    let groups: terrane_collection_support::List<
-        terrane_collection_support::Tuple<terrane_int_support::Int>,
-    > = terrane_collection_support::List::<
+    groups = terrane_collection_support::List::<
         terrane_collection_support::Tuple<terrane_int_support::Int>,
     >::new(
         vec![
@@ -501,9 +506,7 @@ fn main() {
             >::new(vec![terrane_int_support::Int::from(5_i128)])
         ],
     );
-    let echoed: terrane_collection_support::List<
-        terrane_collection_support::Tuple<terrane_int_support::Int>,
-    > = nested(groups);
+    echoed = nested(groups);
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(echoed

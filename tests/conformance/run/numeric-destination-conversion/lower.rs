@@ -458,26 +458,39 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S121 {
     }
 }
 fn main() {
-    let small: i8 = 12;
-    let adaptive: i64 = small as i64;
-    let wide: i32 = small as i32;
-    let mut selected: TerraneUnionF0S121 = TerraneUnionF0S121::Arm0(small);
-    let count: i32 = 16777216;
-    let total: f64 = count as f64;
-    let exact: i64 = 18014398509481984;
-    let exact_float: f64 = __terrane_raised(
+    let small: i8;
+    let adaptive: i64;
+    let wide: i32;
+    let mut selected: TerraneUnionF0S121;
+    let count: i32;
+    let total: f64;
+    let exact: i64;
+    let exact_float: f64;
+    let whole: f64;
+    let converted: terrane_int_support::Int;
+    let other: i32;
+    let myvar: i64;
+    let slop: i8;
+    small = 12;
+    adaptive = small as i64;
+    wide = small as i32;
+    selected = TerraneUnionF0S121::Arm0(small);
+    count = 16777216;
+    total = count as f64;
+    exact = 18014398509481984;
+    exact_float = __terrane_raised(
         terrane_int_support::exact_f64(&exact),
         0 /* terrane-site: case.trn:11:23-11:28 */,
     );
-    let whole: f64 = 4.0;
-    let converted: terrane_int_support::Int = __terrane_raised(
+    whole = 4.0;
+    converted = __terrane_raised(
         terrane_int_support::exact_int_f64(whole),
         1 /* terrane-site: case.trn:13:19-13:24 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&adaptive));
     println!("{}", terrane_scalar_support::scalar_text(&wide));
     println!("{}", terrane_scalar_support::scalar_text(&selected));
-    let other: i32 = 13;
+    other = 13;
     selected = TerraneUnionF0S121::Arm1(other);
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
@@ -491,8 +504,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&total));
     println!("{}", terrane_scalar_support::scalar_text(&exact_float));
     println!("{}", terrane_scalar_support::scalar_text(&converted));
-    let myvar: i64 = 12;
-    let slop: i8;
+    myvar = 12;
     slop = {
         let source_value = __terrane_raised(
             terrane_int_support::fixed_addition(myvar, 1),

@@ -436,20 +436,26 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: independent-control-region-reads
 fn main() {
-    let mut across_if: i8 = 0;
+    let mut across_if: i8;
+    let mut across_loop: i8;
+    let mut first: String;
+    let mut second: String;
+    let mut across_catch: i8;
+    let mut exclusive: i8;
+    across_if = 0;
     if 1 == 1 {
         across_if = 1;
     }
     if 1 == 1 {
         println!("{}", terrane_scalar_support::scalar_text(&across_if));
     }
-    let mut across_loop: i8 = 0;
+    across_loop = 0;
     let __terrane_iterable_0 = String::from("ab");
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let first = match __terrane_iterator_0.next() {
+        first = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -461,14 +467,14 @@ fn main() {
         &__terrane_iterable_1,
     );
     loop {
-        let second = match __terrane_iterator_1.next() {
+        second = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
         let _ = &second;
         println!("{}", terrane_scalar_support::scalar_text(&across_loop));
     }
-    let mut across_catch: i8 = 0;
+    across_catch = 0;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             across_catch = 7;
@@ -507,7 +513,7 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    let mut exclusive: i8 = 0;
+    exclusive = 0;
     if 1 == 1 {
         exclusive = 9;
         let _ = &mut exclusive;

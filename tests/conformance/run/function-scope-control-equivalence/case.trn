@@ -1,0 +1,122 @@
+namespace function-scope-control-equivalence
+function straight-replacement;
+    x int = 3
+    x string = 'cat'
+    print; x
+function straight-int;
+    x int = 3
+    print; x
+function straight-string;
+    x string = 'cat'
+    print; x
+function branched-replacement; choose bool
+    if choose
+        x int = 3
+        x string = 'cat'
+    else
+        x string = 'cat'
+    print; x
+function branched-single; choose bool
+    if choose
+        x int = 3
+    else
+        x string = 'cat'
+    print; x
+function loop-replacement; count int
+    x int = 3
+    while count < 1
+        x string = 'cat'
+        count++
+    print; x
+function loop-int; count int
+    x int = 3
+    while count < 1
+        x int = 3
+        count++
+    print; x
+function loop-string; count int
+    x string = 'cat'
+    while count < 1
+        x string = 'cat'
+        count++
+    print; x
+function both-branches int; choose bool
+    x int
+    if choose
+        x int = 3
+    else
+        x int = 4
+    return x
+function for-join; text string
+    last int = 10
+    for last in text
+        print; last
+    print; last
+function control-declared-function int; choose bool
+    if choose
+        function helper int;
+            return 7
+    return (helper;)
+function branch-type-use int; choose bool
+    if choose
+        x int = 3
+        result = x + 1
+    else
+        x string = 'cat'
+        result = x.length
+    return result
+function nested-join; outer bool, inner bool
+    if outer
+        if inner
+            x int = 1
+        else
+            x string = 'two'
+    else
+        x bool = false
+    print; x
+function returned-branch int; choose bool
+    if choose
+        return 9
+    else
+        x int = 3
+    return x
+function loop-backedge;
+    x int = 3
+    count = 0
+    while count < 2
+        print; x
+        x string = 'cat'
+        count++
+    print; x
+function main;
+    straight-replacement;
+    straight-int;
+    straight-string;
+    branched-replacement; true
+    branched-replacement; false
+    branched-single; true
+    branched-single; false
+    loop-replacement; 0
+    loop-replacement; 1
+    loop-int; 0
+    loop-int; 1
+    loop-string; 0
+    loop-string; 1
+    print; (both-branches; true)
+    print; (both-branches; false)
+    last = 'before'
+    for last in 'ab'
+        print; last
+    print; last
+    for-join; ''
+    for-join; 'ab'
+    print; (control-declared-function; false)
+    print; (control-declared-function; true)
+    print; (branch-type-use; true)
+    print; (branch-type-use; false)
+    nested-join; true, true
+    nested-join; true, false
+    nested-join; false, false
+    print; (returned-branch; true)
+    print; (returned-branch; false)
+    loop-backedge;

@@ -497,13 +497,13 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
-    let mut children: terrane_collection_support::List<_> = terrane_collection_support::List::<
-        _,
-    >::new(vec![]);
+    let mut children: terrane_collection_support::List<_>;
+    let mut child: &State;
+    children = terrane_collection_support::List::<_>::new(vec![]);
     let __terrane_iterable_0 = &state.children;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iter();
     loop {
-        let child = match __terrane_iterator_0.next() {
+        child = match __terrane_iterator_0.next() {
             Some(item) => item,
             None => break,
         };
@@ -530,7 +530,7 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
                                                 iced::widget::text:: < _, _ > (match | | -> Result < _,
                                                 crate ::TerraneForeignError > { Ok(__terrane_raised(match
                                                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                                state.get_label())) { Ok(value) => Ok(value.to_owned()),
+                                                (&state).get_label())) { Ok(value) => Ok(value.to_owned()),
                                                 Err(payload) => Err(crate
                                                 ::__terrane_dependency_panic(payload, "witness",
                                                 "witness::State::get_label")) }, 0 /* terrane-site: src/main.trn:11:134-11:150 */)) } () { Ok(value) => value,
@@ -585,9 +585,9 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
     };
 }
 fn main() {
-    let mut children: terrane_collection_support::List<State> = terrane_collection_support::List::<
-        State,
-    >::new(vec![]);
+    let mut children: terrane_collection_support::List<State>;
+    let state: State;
+    children = terrane_collection_support::List::<State>::new(vec![]);
     children
         .append(
             __terrane_raised(
@@ -602,7 +602,7 @@ fn main() {
                 6 /* terrane-site: src/main.trn:15:23-15:57 */,
             ),
         );
-    let state: State = __terrane_raised(
+    state = __terrane_raised(
         terrane_static_trn_5374617465_branch(String::from("borrowed root"), children),
         7 /* terrane-site: src/main.trn:16:13-16:53 */,
     );
