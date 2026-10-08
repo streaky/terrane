@@ -232,7 +232,7 @@ pub(super) fn infer_value_type(
         return infer_unary_type(unit, node, bindings).map(Some);
     }
     if node.kind == SyntaxKind::BinaryExpression {
-        return infer_binary_type(unit, node, bindings).map(Some);
+        return infer_binary_type(unit, node, bindings);
     }
     if node.kind == SyntaxKind::TypeMembershipExpression {
         return Ok(Some(ValueType::Scalar(ScalarType::Bool)));

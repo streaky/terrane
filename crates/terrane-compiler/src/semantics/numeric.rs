@@ -529,7 +529,7 @@ pub(super) fn infer_binary_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
-) -> Result<ValueType, SemanticFailure> {
+) -> Result<Option<ValueType>, SemanticFailure> {
     let [left_node, right_node] = node.children.as_slice() else {
         return Err(operator_failure(
             unit,
@@ -552,7 +552,12 @@ pub(super) fn infer_binary_type(
         ));
     }
     if operator == "is" {
-        return Ok(ValueType::Scalar(ScalarType::Bool));
+        return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
+    }
+    // Unknown operands are unresolved inference inputs, not invalid scalar types.
+    // Binding collection revisits these expressions after reaching types converge.
+    if left.is_none() || right.is_none() {
+        return Ok(None);
     }
     // Bootstrap bindings precede concrete native constructor selection. Preserve the
     // placeholder until the normal postselection binding rebuild validates operands.
@@ -561,7 +566,7 @@ pub(super) fn infer_binary_type(
         .flatten()
         .find(|value| matches!(value, ValueType::ProjectedGeneric(_)))
     {
-        return Ok(generic.clone());
+        return Ok(Some(generic.clone()));
     }
     let optional_origin = |mut operand: &SyntaxNode| {
         while operand.kind == SyntaxKind::GroupExpression
@@ -589,14 +594,14 @@ pub(super) fn infer_binary_type(
             || ((matches!(right, Some(ValueType::Optional(_))) || optional_origin(right_node))
                 && node_text(&unit.source, left_node).trim() == "none"))
     {
-        return Ok(ValueType::Scalar(ScalarType::Bool));
+        return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
     }
     if matches!(operator, "==" | "!=")
         && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (&left, &right)
         && left == right
         && unit.comparable_foreign_objects.contains(left)
     {
-        return Ok(ValueType::Scalar(ScalarType::Bool));
+        return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
     }
     if matches!(operator, "==" | "!=" | "<" | "<=" | ">" | ">=")
         && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (&left, &right)
@@ -608,7 +613,7 @@ pub(super) fn infer_binary_type(
             )
             || left.namespace == "/core/process-signals" && left.name == "process-signal")
     {
-        return Ok(ValueType::Scalar(ScalarType::Bool));
+        return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
     }
     let comparison = matches!(operator, "==" | "!=" | "<" | "<=" | ">" | ">=");
     let contextual_numeric = matches!(
@@ -622,11 +627,11 @@ pub(super) fn infer_binary_type(
             .transpose()?
             .is_some()
     {
-        return Ok(ValueType::Scalar(if comparison {
+        return Ok(Some(ValueType::Scalar(if comparison {
             ScalarType::Bool
         } else {
             left_type
-        }));
+        })));
     }
     if contextual_numeric
         && let Some(ValueType::Scalar(right_type)) = right
@@ -635,11 +640,11 @@ pub(super) fn infer_binary_type(
             .transpose()?
             .is_some()
     {
-        return Ok(ValueType::Scalar(if comparison {
+        return Ok(Some(ValueType::Scalar(if comparison {
             ScalarType::Bool
         } else {
             right_type
-        }));
+        })));
     }
     let (Some(ValueType::Scalar(left)), Some(ValueType::Scalar(right))) = (left, right) else {
         return Err(operator_failure(
@@ -662,11 +667,11 @@ pub(super) fn infer_binary_type(
         }
     }
     if contextual_numeric && left != right && left.is_integer() && right.is_integer() {
-        return Ok(ValueType::Scalar(if comparison {
+        return Ok(Some(ValueType::Scalar(if comparison {
             ScalarType::Bool
         } else {
             promoted_integer_type(left, right)
-        }));
+        })));
     }
     let numeric =
         |ty: ScalarType| ty.is_integer() || matches!(ty, ScalarType::Float32 | ScalarType::Float64);
@@ -687,7 +692,7 @@ pub(super) fn infer_binary_type(
             ));
         }
     };
-    Ok(ValueType::Scalar(result))
+    Ok(Some(ValueType::Scalar(result)))
 }
 
 pub(super) fn operator_failure(
