@@ -1,0 +1,11 @@
+namespace function-scope-catch-value
+from /core/errors import coercion-error
+function caught-value string; choose bool
+    try
+        if choose
+            throw coercion-error
+    catch coercion-error as caught
+        print; 'caught'
+    return caught.message
+function main;
+    print; (caught-value; true)

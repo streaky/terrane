@@ -1,0 +1,10 @@
+namespace inner-binding-function-shadow
+function helper int;
+    return 10
+function local int;
+    function helper int;
+        return 1
+    helper int = 3
+    return helper
+function main;
+    print; (local;)

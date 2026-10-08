@@ -1,0 +1,12 @@
+first
+after-if
+released first
+loop
+released loop
+loop
+after-loop
+released loop
+done
+retained
+function-end
+released retained

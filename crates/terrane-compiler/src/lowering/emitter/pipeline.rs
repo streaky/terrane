@@ -21,7 +21,9 @@ fn value_type_contains_callable(
                 })
                 || value_type_contains_callable(result.value_type_ref(), predicate)
         }
-        ValueType::Optional(value) => value_type_contains_callable(value, predicate),
+        ValueType::Union(arms) => arms
+            .iter()
+            .any(|arm| value_type_contains_callable(arm, predicate)),
         ValueType::Iterator(value)
         | ValueType::IterationStep(value)
         | ValueType::AsyncIterationStep(value)

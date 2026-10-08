@@ -1,0 +1,13 @@
+drop branch
+replaced-without-reading
+drop other-branch
+replaced-without-reading
+drop old
+old-replacement
+drop old-replacement
+moved-once
+drop moved-once
+drop union-resource
+union-replacement
+13
+end

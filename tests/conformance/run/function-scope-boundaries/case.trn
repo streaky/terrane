@@ -1,0 +1,88 @@
+namespace function-scope-boundaries
+
+enum choice
+    number; value int
+    label; value string
+
+function borrow-match int; item choice
+    match ref item
+        case choice::number; value
+            result = (value.coerce; int)
+        case choice::label; value
+            print; value
+            result = value.length
+    return result
+
+function move-match; item choice
+    match move item
+        case choice::number; value
+            result int = value
+        case choice::label; value
+            result string = value
+    print; result
+
+function closure-boundary int;
+    outer = 40
+    hidden = 9
+    read-outer = function int;
+        return outer
+    nested = function int;
+        hidden int = 7
+        return hidden
+    print; (read-outer;)
+    nested;
+    print; hidden
+    return hidden
+
+function finite-unions; choose-first bool, choose-second bool
+    if choose-first
+        value int = 1
+    else
+        value string = 'two'
+    if choose-second
+        if value is a int
+            value bool = true
+        else
+            print; value.length
+    else
+        value int = 3
+    if value is a int
+        print; value + 4
+    else if value is a string
+        print; value.length
+    else
+        print; value
+
+function loop-union; count int
+    value int = 10
+    while count < 3
+        if count == 0
+            value string = 'loop'
+        else
+            value bool = true
+        count++
+        if count == 2
+            break
+    if value is a int
+        print; value + 1
+    else if value is a string
+        print; value.length
+    else
+        print; value
+
+function main;
+    number = instance choice::number; value = 5
+    print; (borrow-match; number)
+    other-number = instance choice::number; value = 6
+    move-match; move other-number
+    other-label = instance choice::label; value = 'borrowed'
+    print; (borrow-match; other-label)
+    movable-label = instance choice::label; value = 'moved'
+    move-match; move movable-label
+    print; (closure-boundary;)
+    finite-unions; true, true
+    finite-unions; true, false
+    finite-unions; false, true
+    finite-unions; false, false
+    loop-union; 0
+    loop-union; 1

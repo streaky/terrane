@@ -1,5 +1,14 @@
 use super::super::prelude::*;
 
+fn collect_local_functions<'a>(node: &'a SyntaxNode, output: &mut Vec<&'a SyntaxNode>) {
+    if node.kind == SyntaxKind::FunctionDeclaration {
+        output.push(node);
+    } else if node.kind != SyntaxKind::AnonymousFunction {
+        for child in &node.children {
+            collect_local_functions(child, output);
+        }
+    }
+}
 fn forwarded_method_return_type(
     package: &SemanticPackage,
     method: &FunctionContract,
@@ -2098,6 +2107,26 @@ impl<'a> Emitter<'a> {
             })
             .collect()
     }
+    fn emit_parameter_union_carriers(&mut self, contract: &FunctionContract) {
+        for parameter in &contract.parameters {
+            let Some(ValueType::Union(arms)) = self.unit.flow_binding_types.get(&parameter.span)
+            else {
+                continue;
+            };
+            let Some(source_type) = parameter.binding_value_type() else {
+                continue;
+            };
+            let Some(index) = arms.iter().position(|arm| arm == &source_type) else {
+                continue;
+            };
+            let name = rust_local_name(&parameter.name, parameter.span);
+            let carrier = union_type_name_for_span(parameter.span);
+            self.line(&format!(
+                "let mut {name}: {carrier} = {carrier}::Arm{index}({});",
+                rust_name(&parameter.name)
+            ));
+        }
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "function lowering preserves one ordered signature and body pipeline"
@@ -2354,7 +2383,44 @@ impl<'a> Emitter<'a> {
                 })
                 .collect(),
         );
+        let previous_active_bindings = std::mem::take(&mut self.active_function_bindings);
+        self.active_function_bindings = self
+            .unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| {
+                binding.scope == Some(contract.span)
+                    && !matches!(binding.name.as_str(), "self" | "this")
+                    && !contract
+                        .parameters
+                        .iter()
+                        .any(|parameter| parameter.span == binding.span)
+            })
+            .map(|binding| binding.span)
+            .collect();
+        for parameter in &contract.parameters {
+            if matches!(
+                self.unit.flow_binding_types.get(&parameter.span),
+                Some(ValueType::Union(_))
+            ) {
+                self.active_function_bindings.insert(parameter.span);
+            }
+        }
+        let previous_local_functions = std::mem::take(&mut self.active_local_functions);
+        let mut local_functions = Vec::new();
+        if let Some(block) = block {
+            collect_local_functions(block, &mut local_functions);
+        }
+        self.active_local_functions = local_functions
+            .iter()
+            .map(|function| function.span)
+            .collect();
         self.indent += 1;
+        for function in &local_functions {
+            self.local_function(function);
+        }
+        self.emit_parameter_union_carriers(contract);
+        self.emit_function_storage(contract);
         let unused_parameters = contract
             .parameters
             .iter()
@@ -2381,6 +2447,8 @@ impl<'a> Emitter<'a> {
         {
             self.line("Ok(())");
         }
+        self.active_function_bindings = previous_active_bindings;
+        self.active_local_functions = previous_local_functions;
         self.return_type = outer_return_type;
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
@@ -2392,6 +2460,51 @@ impl<'a> Emitter<'a> {
             self.indent -= 1;
         }
         self.line("}");
+    }
+
+    fn emit_function_storage(&mut self, contract: &FunctionContract) {
+        let unit = self.unit;
+        for binding in &unit.typed_bindings {
+            let key = (binding.span.file, binding.span.start, binding.span.end);
+            if !self.active_function_bindings.contains(&binding.span)
+                || contract
+                    .parameters
+                    .iter()
+                    .any(|parameter| parameter.span == binding.span)
+                || unit
+                    .flow_binding_ids
+                    .get(&key)
+                    .is_some_and(|identity| *identity != binding.span)
+                || !unit
+                    .flow_binding_ids
+                    .values()
+                    .any(|identity| *identity == binding.span)
+            {
+                continue;
+            }
+            let name = rust_binding_name(binding);
+            let ty = self.binding_rust_type(
+                binding,
+                self.binding_scalar_storage_type(binding),
+                self.reference_backed(binding),
+            );
+            if self.binding_may_be_unassigned(binding) {
+                self.line(&format!("let mut {name}: Option<{ty}> = None;"));
+            } else {
+                let mutable = if binding_requires_mutable_storage(
+                    self.package,
+                    unit,
+                    binding.span,
+                    false,
+                    self.local_binding_closure_writes(),
+                ) {
+                    "mut "
+                } else {
+                    ""
+                };
+                self.line(&format!("let {mutable}{name}: {ty};"));
+            }
+        }
     }
 
     pub(super) fn mutable_native_reference_parameter(
@@ -2510,6 +2623,8 @@ impl<'a> Emitter<'a> {
         );
         let outer_async_mutable_captures = std::mem::take(&mut self.async_mutable_captures);
         let outer_fresh_empty_lists = std::mem::take(&mut self.fresh_empty_lists);
+        let outer_active_bindings = std::mem::take(&mut self.active_function_bindings);
+        let outer_active_local_functions = std::mem::take(&mut self.active_local_functions);
         if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
             self.async_mutable_captures
                 .extend(contract.captures.iter().cloned());
@@ -2522,6 +2637,39 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|child| child.kind == SyntaxKind::Block)
         {
+            self.active_function_bindings = self
+                .unit
+                .typed_bindings
+                .iter()
+                .filter(|binding| {
+                    binding.scope == Some(contract.span)
+                        && !matches!(binding.name.as_str(), "self" | "this")
+                        && !contract
+                            .parameters
+                            .iter()
+                            .any(|parameter| parameter.span == binding.span)
+                })
+                .map(|binding| binding.span)
+                .collect();
+            for parameter in &contract.parameters {
+                if matches!(
+                    self.unit.flow_binding_types.get(&parameter.span),
+                    Some(ValueType::Union(_))
+                ) {
+                    self.active_function_bindings.insert(parameter.span);
+                }
+            }
+            let mut local_functions = Vec::new();
+            collect_local_functions(block, &mut local_functions);
+            self.active_local_functions = local_functions
+                .iter()
+                .map(|function| function.span)
+                .collect();
+            for function in &local_functions {
+                self.local_function(function);
+            }
+            self.emit_parameter_union_carriers(contract);
+            self.emit_function_storage(contract);
             self.block(block);
             if result == ValueType::Scalar(ScalarType::None) && block_may_fall_through(block) {
                 self.line(if contract.throws { "Ok(())" } else { "()" });
@@ -2536,6 +2684,8 @@ impl<'a> Emitter<'a> {
         self.parameter_types = outer_parameter_types;
         self.async_mutable_captures = outer_async_mutable_captures;
         self.fresh_empty_lists = outer_fresh_empty_lists;
+        self.active_function_bindings = outer_active_bindings;
+        self.active_local_functions = outer_active_local_functions;
         let (mut captures, mut invocation_captures) =
             self.anonymous_function_captures(node, contract);
         let invocation_guard =
@@ -2584,16 +2734,30 @@ impl<'a> Emitter<'a> {
         let mut captures = String::new();
         let mut invocation_captures = String::new();
         for capture in &contract.captures {
-            let name = rust_name(capture);
+            let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
+            });
+            let name = binding.map_or_else(
+                || rust_name(capture),
+                |binding| {
+                    if self.unit.functions.iter().any(|function| {
+                        function
+                            .parameters
+                            .iter()
+                            .any(|parameter| parameter.span == binding.span)
+                    }) {
+                        rust_name(capture)
+                    } else {
+                        rust_binding_name(binding)
+                    }
+                },
+            );
             let mutable = if contract.written_invocation_mode == InvocationMode::Mutable {
                 "mut "
             } else {
                 ""
             };
             let source = if capture == "this" { "self" } else { &name };
-            let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
-                binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
-            });
             let transfer =
                 binding.is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
             let borrowed = binding.is_some_and(|binding| {
@@ -2640,112 +2804,148 @@ impl<'a> Emitter<'a> {
     pub(super) fn block(&mut self, block: &SyntaxNode) {
         for statement in &block.children {
             if statement.kind == SyntaxKind::FunctionDeclaration {
-                self.local_function(statement);
+                if !self.active_local_functions.contains(&statement.span) {
+                    self.local_function(statement);
+                }
             } else {
                 self.statement(statement);
             }
         }
     }
 
+    pub(super) fn flow_binding_type(&self, binding: &TypedBinding) -> ValueType {
+        self.unit
+            .flow_binding_types
+            .get(&binding.span)
+            .cloned()
+            .unwrap_or_else(|| binding.value_type.clone())
+    }
+
     pub(super) fn union_binding(&self, node: &SyntaxNode) -> Option<TypedBinding> {
-        (node.kind == SyntaxKind::Name)
-            .then(|| {
-                self.unit
-                    .typed_bindings
-                    .iter()
-                    .rev()
-                    .find(|binding| {
-                        binding.name == self.text(node)
-                            && binding.is_visible_at(self.source.id(), node.span.start)
-                            && !binding.destination_arms.is_empty()
-                    })
-                    .cloned()
+        self.local_typed_binding(node)
+            .filter(|binding| {
+                !binding.destination_arms.is_empty()
+                    || matches!(self.flow_binding_type(binding), ValueType::Union(_))
             })
-            .flatten()
+            .cloned()
+            .map(|mut binding| {
+                binding.value_type = self.flow_binding_type(&binding);
+                binding
+            })
+    }
+
+    pub(super) fn union_arms(&self, binding: &TypedBinding) -> Vec<ValueType> {
+        if let ValueType::Union(arms) = self.flow_binding_type(binding) {
+            arms
+        } else {
+            binding
+                .destination_arms
+                .iter()
+                .copied()
+                .map(ValueType::Scalar)
+                .collect()
+        }
     }
 
     pub(super) fn union_value(&mut self, binding: &TypedBinding, value: &SyntaxNode) -> String {
-        let actual = self
-            .value_type(value)
-            .and_then(|value_type| match value_type {
-                ValueType::Scalar(scalar) => Some(scalar),
-                _ => None,
-            });
-        let constant = binding
-            .destination_arms
-            .iter()
-            .any(|arm| contextual_constant(self.source, value, *arm).is_some());
-        let selected = (!constant)
-            .then_some(actual)
-            .flatten()
-            .filter(|actual| binding.destination_arms.contains(actual))
+        let arms = self.union_arms(binding);
+        let actual = self.value_type(value);
+        let selected = actual
+            .as_ref()
+            .and_then(|actual| arms.iter().find(|arm| *arm == actual))
+            .cloned()
             .or_else(|| {
-                binding.destination_arms.iter().copied().find(|arm| {
-                    contextual_constant(self.source, value, *arm)
-                        .is_some_and(|result| result.is_ok())
-                })
-            })
-            .or_else(|| {
-                actual.and_then(|actual| {
-                    is_numeric(actual).then(|| {
-                        binding
-                            .destination_arms
-                            .iter()
-                            .copied()
-                            .find(|arm| is_numeric(*arm))
-                            .expect("validated numeric union destination")
-                    })
+                let actual_scalar = actual.and_then(|actual| match actual {
+                    ValueType::Scalar(scalar) => Some(scalar),
+                    _ => None,
+                });
+                arms.iter().find_map(|arm| {
+                    let ValueType::Scalar(scalar) = arm else {
+                        return None;
+                    };
+                    (contextual_constant(self.source, value, *scalar).is_some()
+                        || actual_scalar
+                            .is_some_and(|actual| is_numeric(actual) && is_numeric(*scalar)))
+                    .then(|| arm.clone())
                 })
             })
             .expect("validated union destination");
-        let index = binding
-            .destination_arms
+        let index = arms
             .iter()
             .position(|arm| *arm == selected)
             .expect("selected union arm belongs to destination");
         format!(
             "{}::Arm{index}({})",
             union_type_name(binding),
-            self.expression_as(value, ValueType::Scalar(selected))
+            self.expression_as(value, selected)
         )
     }
 
     pub(super) fn emit_union_types(&mut self) {
-        for binding in self
-            .unit
-            .typed_bindings
-            .iter()
-            .filter(|binding| !binding.destination_arms.is_empty())
-        {
+        let mut emitted = std::collections::BTreeSet::new();
+        let unit = self.unit;
+        for binding in &unit.typed_bindings {
+            if binding.destination_arms.is_empty()
+                && !matches!(self.flow_binding_type(binding), ValueType::Union(_))
+            {
+                continue;
+            }
             let name = union_type_name(binding);
+            if !emitted.insert(name.clone()) {
+                continue;
+            }
+            let arms = self.union_arms(binding);
+            let arm_types = arms
+                .iter()
+                .map(|arm| rust_value_type(self.package, arm.clone()))
+                .collect::<Vec<_>>();
+            let borrowed = arm_types.iter().any(|arm| arm.contains('&'));
+            let lifetime = if borrowed { "<'a>" } else { "" };
             self.line("#[allow(dead_code)]");
-            self.line("#[derive(Clone)]");
-            self.line(&format!("enum {name} {{"));
+            if !arms.iter().any(|arm| self.value_type_owns_resource(arm)) {
+                self.line("#[derive(Clone)]");
+            }
+            self.line(&format!("enum {name}{lifetime} {{"));
             self.indent += 1;
-            for (index, arm) in binding.destination_arms.iter().enumerate() {
-                self.line(&format!("Arm{index}({}),", rust_type(*arm)));
+            for (index, arm) in arm_types.iter().enumerate() {
+                let arm = if borrowed {
+                    std::borrow::Cow::Owned(arm.replace('&', "&'a "))
+                } else {
+                    std::borrow::Cow::Borrowed(arm.as_str())
+                };
+                self.line(&format!("Arm{index}({arm}),"));
             }
             self.indent -= 1;
             self.line("}");
-            self.line(&format!(
-                "impl terrane_scalar_support::ScalarDisplay for {name} {{"
-            ));
-            self.indent += 1;
-            self.line("fn write_scalar(&self, output: &mut String) {");
-            self.indent += 1;
-            self.line("match self {");
-            self.indent += 1;
-            for (index, _) in binding.destination_arms.iter().enumerate() {
+            let printable =
+                |arm: &ValueType| matches!(arm, ValueType::Scalar(_) | ValueType::StringView(_));
+            if arms.iter().any(printable) {
                 self.line(&format!(
-                    "Self::Arm{index}(value) => terrane_scalar_support::ScalarDisplay::write_scalar(value, output),"
+                    "impl{lifetime} terrane_scalar_support::ScalarDisplay for {name}{lifetime} {{"
                 ));
+                self.indent += 1;
+                self.line("fn write_scalar(&self, output: &mut String) {");
+                self.indent += 1;
+                self.line("match self {");
+                self.indent += 1;
+                for (index, arm) in arms.iter().enumerate() {
+                    if printable(arm) {
+                        self.line(&format!(
+                            "Self::Arm{index}(value) => terrane_scalar_support::ScalarDisplay::write_scalar(value, output),"
+                        ));
+                    } else {
+                        self.line(&format!(
+                            "Self::Arm{index}(_) => unreachable!(\"semantic display refinement excludes this union arm\"),"
+                        ));
+                    }
+                }
+                self.indent -= 1;
+                self.line("}");
+                self.indent -= 1;
+                self.line("}");
+                self.indent -= 1;
+                self.line("}");
             }
-            self.indent -= 1;
-            self.line("}");
-            self.indent -= 1;
-            self.line("}");
-            self.indent -= 1;
-            self.line("}");
         }
     }
 }

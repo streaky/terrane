@@ -1,0 +1,47 @@
+namespace function-scope-resource-joins
+from /core/output import print
+
+class marker
+    name string
+    function construct; name string
+        this.name = name
+    consuming function destruct;
+        print; 'drop ', this.name
+
+function replace-old;
+    value marker = instance marker; name = 'old'
+    value marker = instance marker; name = (value.name.concat; '-replacement')
+    print; value.name
+
+function moved-replacement;
+    value marker = instance marker; name = 'moved-once'
+    value marker = move value
+    print; value.name
+
+function conditional-resource; choose bool
+    if choose
+        item marker = instance marker; name = 'branch'
+    else
+        item marker = instance marker; name = 'other-branch'
+    item string = 'replaced-without-reading'
+    print; item
+
+function union-resource; choose bool
+    if choose
+        item marker = instance marker; name = 'union-resource'
+    else
+        item int = 12
+    if item is a int
+        item = item + 1
+    else
+        item string = 'union-replacement'
+    print; item
+
+function main;
+    conditional-resource; true
+    conditional-resource; false
+    replace-old;
+    moved-replacement;
+    union-resource; true
+    union-resource; false
+    print; 'end'

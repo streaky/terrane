@@ -66,6 +66,48 @@ pub(crate) fn debug_rust_name(name: &str) -> String {
     helpers::rust_name(name)
 }
 
+pub(crate) fn debug_binding_rust_name(
+    unit: &crate::semantics::SemanticUnit,
+    binding: &crate::semantics::TypedBinding,
+) -> String {
+    let identity = unit
+        .flow_binding_ids
+        .get(&(binding.span.file, binding.span.start, binding.span.end))
+        .copied()
+        .unwrap_or(binding.span);
+    let Some(storage) = unit
+        .typed_bindings
+        .iter()
+        .find(|candidate| candidate.span == identity)
+    else {
+        return debug_rust_name(&binding.name);
+    };
+    if let Some(function) = unit
+        .functions
+        .iter()
+        .find(|function| Some(function.span) == storage.scope)
+    {
+        if let Some(parameter) = function
+            .parameters
+            .iter()
+            .find(|parameter| parameter.span == storage.span)
+        {
+            if matches!(
+                unit.flow_binding_types.get(&storage.span),
+                Some(crate::semantics::ValueType::Union(_))
+            ) {
+                helpers::rust_local_name(&parameter.name, parameter.span)
+            } else {
+                debug_rust_name(&storage.name)
+            }
+        } else {
+            helpers::rust_binding_name(storage)
+        }
+    } else {
+        debug_rust_name(&binding.name)
+    }
+}
+
 pub(crate) fn debug_function_name(
     package: &crate::semantics::SemanticPackage,
     contract: &crate::semantics::FunctionContract,

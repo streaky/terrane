@@ -214,19 +214,8 @@ impl Emitter<'_> {
 
     pub(super) fn assigned_binding(&self, left: &SyntaxNode) -> Option<TypedBinding> {
         (left.kind == SyntaxKind::Name)
-            .then(|| {
-                self.package
-                    .resolve_name_at(self.unit, left.span.start, self.text(left))
-            })
+            .then(|| self.local_typed_binding(left).cloned())
             .flatten()
-            .and_then(|symbol| symbol.declaration_span)
-            .and_then(|span| {
-                self.unit
-                    .typed_bindings
-                    .iter()
-                    .find(|binding| binding.span == span)
-            })
-            .cloned()
     }
 
     pub(super) fn nested_static_assignment_target(&self, node: &SyntaxNode) -> Option<String> {
@@ -326,7 +315,13 @@ impl Emitter<'_> {
             return;
         };
         let assigned_binding = self.assigned_binding(left);
-        let union_binding = self.union_binding(left);
+        let union_binding = assigned_binding
+            .as_ref()
+            .filter(|binding| {
+                !binding.destination_arms.is_empty()
+                    || matches!(self.flow_binding_type(binding), ValueType::Union(_))
+            })
+            .cloned();
         let value_type = assigned_binding
             .as_ref()
             .map(|binding| binding.value_type.clone())
@@ -367,7 +362,7 @@ impl Emitter<'_> {
             return;
         }
         if left.kind == SyntaxKind::Name && self.async_mutable_captures.contains(self.text(left)) {
-            let target = rust_name(self.text(left));
+            let target = self.local_storage_name(left);
             self.line(&format!(
                 "{{ let callable_capture_value = {value}; {target}.replace(callable_capture_value); }}"
             ));
@@ -376,6 +371,14 @@ impl Emitter<'_> {
         if self.assign_static_field(left, &value) {
             return;
         }
+        let value = if assigned_binding
+            .as_ref()
+            .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+        {
+            format!("Some({value})")
+        } else {
+            value
+        };
         let reference_backed = assigned_binding
             .as_ref()
             .is_some_and(|binding| self.reference_backed(binding));
@@ -384,7 +387,7 @@ impl Emitter<'_> {
         let target = if reference_backed {
             format!(
                 "*{}.lock().expect(\"reference lock poisoned\")",
-                rust_name(self.text(left))
+                self.local_storage_name(left)
             )
         } else if let Some(target) = self.nested_static_assignment_target(left) {
             target
@@ -729,26 +732,51 @@ impl Emitter<'_> {
                     .iter()
                     .find(|child| child.kind == SyntaxKind::Name)
                     .expect("parsed select binding has a name");
-                let name = rust_name(self.text(name_node));
                 let binding = self
                     .unit
                     .typed_bindings
                     .iter()
                     .find(|binding| binding.span == header.span)
                     .expect("select binding has semantic type");
-                let mutable = binding.mutable
-                    && binding_span_is_mutated(
-                        self.package,
-                        self.unit,
-                        binding.span,
-                        true,
-                        ClosureWrites::Exclude,
-                    );
-                let mutable = if mutable { "mut " } else { "" };
-                let ty = rust_value_type(self.package, binding.value_type.clone());
-                self.line(&format!("let {mutable}{name}: {ty} = {output};"));
-                if !binding_store_value_is_read(self.package, binding.span, binding.span) {
-                    self.line(&format!("let _ = &{name};"));
+                let identity = self
+                    .unit
+                    .flow_binding_ids
+                    .get(&(header.span.file, header.span.start, header.span.end))
+                    .copied()
+                    .unwrap_or(binding.span);
+                let storage = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|candidate| candidate.span == identity)
+                    .unwrap_or(binding);
+                let carrier = !storage.destination_arms.is_empty()
+                    || matches!(self.flow_binding_type(storage), ValueType::Union(_));
+                let output = if carrier {
+                    let arms = self.union_arms(storage);
+                    let index = arms
+                        .iter()
+                        .position(|arm| *arm == binding.value_type)
+                        .expect("select result type belongs to flow union");
+                    format!("{}::Arm{index}({output})", union_type_name(storage))
+                } else {
+                    output
+                };
+                let output = if self.binding_may_be_unassigned(storage) {
+                    format!("Some({output})")
+                } else {
+                    output
+                };
+                let name = if self.active_function_bindings.contains(&storage.span) {
+                    rust_binding_name(storage)
+                } else {
+                    rust_name(self.text(name_node))
+                };
+                if self.active_function_bindings.contains(&storage.span) {
+                    self.line(&format!("{name} = {output};"));
+                } else {
+                    let ty = self.binding_rust_type(storage, None, false);
+                    self.line(&format!("let {name}: {ty} = {output};"));
                 }
             } else {
                 self.line(&format!("let _ = {output};"));
@@ -920,12 +948,29 @@ impl Emitter<'_> {
                 .children
                 .iter()
                 .find(|child| child.kind == SyntaxKind::CatchBinding)
-                .filter(|alias| binding_store_value_is_read(self.package, alias.span, alias.span))
             {
-                self.line(&format!(
-                    "let {} = __terrane_error_{index}.clone();",
-                    rust_name(self.text(alias))
-                ));
+                let binding = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == alias.span);
+                let name = binding.map_or_else(|| rust_name(self.text(alias)), rust_binding_name);
+                let value = format!("__terrane_error_{index}.clone()");
+                let value = if binding.is_some_and(|binding| {
+                    self.active_function_bindings.contains(&binding.span)
+                        && self.binding_may_be_unassigned(binding)
+                }) {
+                    format!("Some({value})")
+                } else {
+                    value
+                };
+                if binding
+                    .is_some_and(|binding| self.active_function_bindings.contains(&binding.span))
+                {
+                    self.line(&format!("{name} = {value};"));
+                } else {
+                    self.line(&format!("let {name} = {value};"));
+                }
             }
             let outer_error = self
                 .current_error
@@ -1045,7 +1090,7 @@ impl Emitter<'_> {
         self.line("}");
     }
 
-    fn local_binding_closure_writes(&self) -> ClosureWrites {
+    pub(super) fn local_binding_closure_writes(&self) -> ClosureWrites {
         if self.closure_depth == 0 {
             ClosureWrites::Exclude
         } else {
@@ -1067,31 +1112,34 @@ impl Emitter<'_> {
             return;
         };
         let source_name = self.text(name_node);
-        let discard = source_name == "_";
-        let name = if discard {
-            "_".to_owned()
-        } else {
-            rust_name(source_name)
-        };
         let binding = self
             .unit
             .typed_bindings
             .iter()
             .find(|binding| binding.span == node.span);
-        let reference_backed = binding.is_some_and(|binding| self.reference_backed(binding));
-        let storage_type = binding
-            .and_then(|binding| binding.storage_type)
-            .filter(|_| !reference_backed)
-            .filter(|_| binding.is_none_or(|binding| !self.binding_is_reference_owner(binding)))
-            .filter(|_| {
-                !binding_span_is_mutated(
-                    self.package,
-                    self.unit,
-                    node.span,
-                    true,
-                    ClosureWrites::Include,
-                )
-            });
+        let canonical_span = self
+            .unit
+            .flow_binding_ids
+            .get(&(node.span.file, node.span.start, node.span.end))
+            .copied();
+        let storage_binding = canonical_span
+            .and_then(|span| {
+                self.unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == span)
+            })
+            .or(binding);
+        let discard = source_name == "_";
+        let name = if discard {
+            "_".to_owned()
+        } else {
+            storage_binding.map_or_else(|| rust_name(source_name), rust_binding_name)
+        };
+        let reference_backed =
+            storage_binding.is_some_and(|binding| self.reference_backed(binding));
+        let storage_type =
+            storage_binding.and_then(|binding| self.binding_scalar_storage_type(binding));
         let initializer = binding_initializer(node, name_index);
         if initializer.is_some_and(|initializer| initializer.kind == SyntaxKind::AnonymousFunction)
             && binding.is_some_and(|binding| {
@@ -1133,7 +1181,7 @@ impl Emitter<'_> {
                     !self.anonymous_function_captures_borrowed_reference(initializer)
                 })
             })
-            .map(|binding| self.binding_rust_type(binding, storage_type, reference_backed));
+            .map(|_| self.binding_rust_type(storage_binding.expect("binding storage"), storage_type, reference_backed));
         assert!(
             initializer.is_some() || !self.text(node).contains('='),
             "analyzed initialized value binding must have a selected initializer"
@@ -1152,21 +1200,35 @@ impl Emitter<'_> {
                     ValueType::Reference(_) | ValueType::SharedReference(_)
                 )
             });
-        self.line_start();
-        if discard {
-            self.output.push_str("{ ");
+        let deferred = storage_binding
+            .is_some_and(|binding| self.active_function_bindings.contains(&binding.span));
+        let mut release_previous = None;
+        if let Some(previous_identity) = self.unit.flow_replacements.get(&node.span).copied()
+            && storage_binding.is_none_or(|binding| binding.span != previous_identity)
+            && let Some(previous) = self
+                .unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == previous_identity)
+            && !rust_value_is_copy(&self.flow_binding_type(previous))
+            && self
+                .binding_scalar_storage_type(previous)
+                .is_none_or(|scalar| !rust_value_is_copy(&ValueType::Scalar(scalar)))
+            && initializer.is_none_or(|initializer| {
+                !self.initializer_consumes_binding(initializer, previous_identity)
+            })
+        {
+            let previous_name = rust_binding_name(previous);
+            release_previous = Some(if self.binding_may_be_unassigned(previous) {
+                format!("drop({previous_name}.take());")
+            } else {
+                format!("drop({previous_name});")
+            });
         }
-        self.output.push_str("let ");
-        if mutable {
-            self.output.push_str("mut ");
-        }
-        self.output.push_str(&name);
-        if let Some(ty) = ty {
-            write!(self.output, ": {ty}").unwrap();
-        }
-        if let Some(initializer) = initializer {
-            let value = if let Some(binding) = binding
-                && !binding.destination_arms.is_empty()
+        let mut value = initializer.map(|initializer| {
+            let value = if let Some(binding) = storage_binding
+                && (!binding.destination_arms.is_empty()
+                    || matches!(self.flow_binding_type(binding), ValueType::Union(_)))
             {
                 self.union_value(binding, initializer)
             } else if let Some(storage_type) = storage_type {
@@ -1182,6 +1244,39 @@ impl Emitter<'_> {
             } else {
                 value
             };
+            if storage_binding.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+                format!("Some({value})")
+            } else {
+                value
+            }
+        });
+        if let Some(release) = release_previous {
+            if let Some(initialized) = &value {
+                let temporary = rust_local_name("__replacement", node.span);
+                self.line(&format!("let {temporary} = {initialized};"));
+                value = Some(temporary);
+            }
+            self.line(&release);
+        }
+        if deferred && initializer.is_none() {
+            return;
+        }
+        self.line_start();
+        if discard {
+            self.output.push_str("{ ");
+        } else if deferred {
+            write!(self.output, "{name}").unwrap();
+        } else {
+            self.output.push_str("let ");
+            if mutable {
+                self.output.push_str("mut ");
+            }
+            write!(self.output, "{name}").unwrap();
+            if let Some(ty) = ty {
+                write!(self.output, ": {ty}").unwrap();
+            }
+        }
+        if let Some(value) = value {
             write!(self.output, " = {value}").unwrap();
         }
         if discard {
@@ -1203,13 +1298,14 @@ impl Emitter<'_> {
         }
     }
 
-    fn binding_rust_type(
+    pub(super) fn binding_rust_type(
         &self,
         binding: &TypedBinding,
         storage_type: Option<ScalarType>,
         reference_backed: bool,
     ) -> String {
-        let value_type = if let ValueType::Reference(item) = &binding.value_type
+        let flow_type = self.flow_binding_type(binding);
+        let value_type = if let ValueType::Reference(item) = &flow_type
             && self
                 .unit
                 .reference_provenance
@@ -1221,12 +1317,12 @@ impl Emitter<'_> {
                 "std::sync::Weak<std::sync::Mutex<{}>>",
                 rust_element_type(self.package, item.clone())
             )
-        } else if !binding.destination_arms.is_empty() {
+        } else if !binding.destination_arms.is_empty() || matches!(flow_type, ValueType::Union(_)) {
             union_type_name(binding)
         } else if let Some(storage_type) = storage_type {
             rust_type(storage_type).to_owned()
         } else {
-            rust_value_type(self.package, binding.value_type.clone())
+            rust_value_type(self.package, flow_type)
         };
         if reference_backed {
             format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
@@ -1277,7 +1373,7 @@ impl Emitter<'_> {
             self.line(&format!(
                 "let mut value = {storage}.lock().expect(\"program-global lock poisoned\");"
             ));
-            let failure = self.uninitialized_global_failure(value);
+            let failure = self.uninitialized_binding_failure(value);
             let current = format!("value.clone().unwrap_or_else(|| {failure})");
             let updated = self.postfix_updated_value(&current, value_type, addition, node);
             self.line(&format!("*value = Some({updated});"));
@@ -1334,24 +1430,51 @@ impl Emitter<'_> {
         let Some(block) = node.children.get(1) else {
             return;
         };
+        self.if_branches(condition, block, &node.children[2..]);
+    }
+    fn if_branches(&mut self, condition: &SyntaxNode, block: &SyntaxNode, clauses: &[SyntaxNode]) {
+        if let Some(proven) = crate::semantics::constant_boolean(self.unit, condition) {
+            if proven {
+                self.block(block);
+            } else if let Some((clause, rest)) = clauses.split_first() {
+                match clause.children.as_slice() {
+                    [block] => self.block(block),
+                    [condition, block] => self.if_branches(condition, block, rest),
+                    _ => {}
+                }
+            }
+            return;
+        }
         let condition = self.control_condition(condition);
         self.line(&format!("if {condition} {{"));
         self.indent += 1;
         self.block(block);
         self.indent -= 1;
-        for clause in node.children.iter().skip(2) {
-            self.line_start();
-            if clause.children.len() == 1 {
-                self.output.push_str("} else {\n");
-                self.indent += 1;
-                self.block(&clause.children[0]);
-                self.indent -= 1;
-            } else if let [condition, block] = clause.children.as_slice() {
-                let condition = self.control_condition(condition);
-                writeln!(self.output, "}} else if {condition} {{").unwrap();
+        for clause in clauses {
+            if let [block] = clause.children.as_slice() {
+                self.line("} else {");
                 self.indent += 1;
                 self.block(block);
                 self.indent -= 1;
+                break;
+            } else if let [condition, block] = clause.children.as_slice() {
+                match crate::semantics::constant_boolean(self.unit, condition) {
+                    Some(false) => {}
+                    Some(true) => {
+                        self.line("} else {");
+                        self.indent += 1;
+                        self.block(block);
+                        self.indent -= 1;
+                        break;
+                    }
+                    None => {
+                        let condition = self.control_condition(condition);
+                        self.line(&format!("}} else if {condition} {{"));
+                        self.indent += 1;
+                        self.block(block);
+                        self.indent -= 1;
+                    }
+                }
             }
         }
         self.line("}");
@@ -1705,33 +1828,7 @@ impl Emitter<'_> {
     ) {
         match target.children.as_slice() {
             [name] => {
-                let name_span = name.span;
-                let mutable = if binding_span_is_mutated(
-                    self.package,
-                    self.unit,
-                    name.span,
-                    true,
-                    ClosureWrites::Exclude,
-                ) {
-                    "mut "
-                } else {
-                    ""
-                };
-                let name = rust_name(self.text(name));
-                self.line(&format!("let {mutable}{name} = match {iterator}.next() {{"));
-                self.indent += 1;
-                if native_iterator {
-                    self.line("Some(item) => item,");
-                    self.line("None => break,");
-                } else {
-                    self.line("terrane_collection_support::IterationStep::Item(item) => item,");
-                    self.line("terrane_collection_support::IterationStep::End => break,");
-                }
-                self.indent -= 1;
-                self.line("};");
-                if !binding_store_value_is_read(self.package, name_span, name_span) {
-                    self.line(&format!("let _ = &{name};"));
-                }
+                self.iteration_single_target(name, iterator, native_iterator);
             }
             [key, value] => {
                 let item = format!("__terrane_item_{loop_index}");
@@ -1743,25 +1840,155 @@ impl Emitter<'_> {
                 self.line("};");
                 for (target, field) in [(key, "key"), (value, "value")] {
                     let target_span = target.span;
-                    let mutable = if binding_span_is_mutated(
-                        self.package,
-                        self.unit,
-                        target_span,
-                        true,
-                        ClosureWrites::Exclude,
-                    ) {
-                        "mut "
+                    let binding = self
+                        .unit
+                        .typed_bindings
+                        .iter()
+                        .find(|binding| binding.span == target_span);
+                    let identity = self
+                        .unit
+                        .flow_binding_ids
+                        .get(&(target_span.file, target_span.start, target_span.end))
+                        .copied()
+                        .or_else(|| binding.map(|binding| binding.span));
+                    let storage = identity.and_then(|identity| {
+                        self.unit
+                            .typed_bindings
+                            .iter()
+                            .find(|binding| binding.span == identity)
+                    });
+                    let name = storage.map_or_else(
+                        || rust_name(self.text(target)),
+                        |binding| {
+                            if self.active_function_bindings.contains(&binding.span) {
+                                rust_binding_name(binding)
+                            } else {
+                                rust_name(self.text(target))
+                            }
+                        },
+                    );
+                    let active = storage.is_some_and(|binding| {
+                        self.active_function_bindings.contains(&binding.span)
+                    });
+                    let mut assigned = format!("{item}.{field}");
+                    if let (Some(storage), Some(binding)) = (storage, binding)
+                        && matches!(self.flow_binding_type(storage), ValueType::Union(_))
+                    {
+                        let index = self
+                            .union_arms(storage)
+                            .iter()
+                            .position(|arm| *arm == binding.value_type)
+                            .expect("for target type belongs to flow union");
+                        assigned = format!("{}::Arm{index}({assigned})", union_type_name(storage));
+                    }
+                    if storage.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+                        assigned = format!("Some({assigned})");
+                    }
+                    let declaration = if active {
+                        name.clone()
                     } else {
-                        ""
+                        let mutable = if binding_span_is_mutated(
+                            self.package,
+                            self.unit,
+                            target_span,
+                            true,
+                            ClosureWrites::Exclude,
+                        ) {
+                            "mut "
+                        } else {
+                            ""
+                        };
+                        format!("let {mutable}{name}")
                     };
-                    let name = rust_name(self.text(target));
-                    self.line(&format!("let {mutable}{name} = {item}.{field};"));
+                    self.line(&format!("{declaration} = {assigned};"));
                     if !binding_store_value_is_read(self.package, target_span, target_span) {
                         self.line(&format!("let _ = &{name};"));
                     }
                 }
             }
             _ => unreachable!("semantic analysis admitted invalid iteration target arity"),
+        }
+    }
+
+    fn iteration_single_target(
+        &mut self,
+        name: &SyntaxNode,
+        iterator: &str,
+        native_iterator: bool,
+    ) {
+        let name_span = name.span;
+        let mutable = if binding_span_is_mutated(
+            self.package,
+            self.unit,
+            name.span,
+            true,
+            ClosureWrites::Exclude,
+        ) {
+            "mut "
+        } else {
+            ""
+        };
+        let binding = self
+            .unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == name_span);
+        let identity = self
+            .unit
+            .flow_binding_ids
+            .get(&(name_span.file, name_span.start, name_span.end))
+            .copied()
+            .or_else(|| binding.map(|binding| binding.span));
+        let storage = identity.and_then(|identity| {
+            self.unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == identity)
+        });
+        let storage_name = storage.map_or_else(
+            || rust_name(self.text(name)),
+            |binding| {
+                if self.active_function_bindings.contains(&binding.span) {
+                    rust_binding_name(binding)
+                } else {
+                    rust_name(self.text(name))
+                }
+            },
+        );
+        let active =
+            storage.is_some_and(|binding| self.active_function_bindings.contains(&binding.span));
+        let next = if native_iterator {
+            format!("match {iterator}.next() {{ Some(item) => item, None => break }}")
+        } else {
+            format!(
+                "match {iterator}.next() {{ terrane_collection_support::IterationStep::Item(item) => item, terrane_collection_support::IterationStep::End => break }}"
+            )
+        };
+        let next = if let (Some(storage), Some(binding)) = (storage, binding)
+            && matches!(self.flow_binding_type(storage), ValueType::Union(_))
+        {
+            let arms = self.union_arms(storage);
+            let index = arms
+                .iter()
+                .position(|arm| *arm == binding.value_type)
+                .expect("for target type belongs to flow union");
+            format!("{}::Arm{index}({next})", union_type_name(storage))
+        } else {
+            next
+        };
+        let next = if storage.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+            format!("Some({next})")
+        } else {
+            next
+        };
+        let declaration = if active {
+            storage_name.clone()
+        } else {
+            format!("let {mutable}{storage_name}")
+        };
+        self.line(&format!("{declaration} = {next};"));
+        if !binding_store_value_is_read(self.package, name_span, name_span) {
+            self.line(&format!("let _ = &{storage_name};"));
         }
     }
 

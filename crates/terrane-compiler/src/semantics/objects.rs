@@ -515,6 +515,9 @@ pub(super) fn value_type_owns_resource(
         }
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
+        ValueType::Union(arms) => arms
+            .iter()
+            .any(|arm| value_type_owns_resource(arm, resource_identities)),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::List(item)
@@ -777,6 +780,9 @@ pub(crate) fn application_is_resource_owning(
                 visiting.remove(&key);
                 result
             }
+            ValueType::Union(arms) => arms
+                .iter()
+                .any(|arm| owns(package, arm, resources, parameters, visiting)),
             ValueType::Optional(inner) => owns(package, inner, resources, parameters, visiting),
             ValueType::List(inner)
             | ValueType::Set(inner)
@@ -2714,37 +2720,15 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 }
 
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
-    fn payload_spans(node: &SyntaxNode, spans: &mut BTreeSet<(usize, usize)>) {
-        if node.kind == SyntaxKind::MatchCase
-            && let Some(parameters) = node
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::ParameterList)
-        {
-            spans.extend(
-                parameters
-                    .children
-                    .iter()
-                    .map(|parameter| (parameter.span.start, parameter.span.end)),
-            );
-        }
-        for child in &node.children {
-            payload_spans(child, spans);
-        }
-    }
+    let enums = super::enums::resolve_enums(package);
     for index in 0..package.units.len() {
         let unit = &package.units[index];
-        let mut spans = BTreeSet::new();
-        payload_spans(&unit.tree.root, &mut spans);
-        let mut bindings = unit
-            .typed_bindings
-            .iter()
-            .filter(|binding| spans.contains(&(binding.span.start, binding.span.end)))
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut visible_bindings = bindings.clone();
+        let matches = super::enums::MatchContext::new(package, unit, &enums);
+        let mut bindings = Vec::new();
+        let mut visible_bindings = Vec::new();
         collect_typed_bindings(
             unit,
+            &matches,
             &unit.tree.root,
             &mut visible_bindings,
             &mut bindings,

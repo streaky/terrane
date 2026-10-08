@@ -1,0 +1,7 @@
+namespace function-scope-partial-typed
+function value int; choose bool
+    if choose
+        x int = 3
+    return x
+function main;
+    print; (value; true)

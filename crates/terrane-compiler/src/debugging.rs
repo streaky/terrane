@@ -121,6 +121,12 @@ pub struct DebugBinding {
     pub visible_until: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_id: Option<String>,
+    #[serde(default)]
+    pub physical_type_name: String,
+    #[serde(default)]
+    pub storage_may_be_unassigned: bool,
+    #[serde(default)]
+    pub union_object_ids: Vec<Option<String>>,
     pub type_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub object_id: Option<String>,
@@ -310,38 +316,47 @@ fn append_unit_symbols(
             is_async: function.is_async,
         });
     }
-    for (index, scope) in unit.scopes.iter().enumerate() {
+    for scope in &unit.scopes {
         let id = scope_id(scope.span);
         scopes.push(DebugScope {
-            id: id.clone(),
+            id,
             parent_id: scope
                 .parent
                 .map(|parent| scope_id(unit.scopes[parent].span)),
             source: source_span(&unit.source, scope.span),
             function_id: containing_function_id(unit, scope.span.start),
         });
-        debug_assert_eq!(id, scope_id(unit.scopes[index].span));
     }
     for binding in &unit.typed_bindings {
-        let scope_id = binding.scope.and_then(|span| {
-            unit.scopes
-                .iter()
-                .filter(|scope| scope.span.start <= span.start && scope.span.end >= span.end)
-                .min_by_key(|scope| scope.span.end - scope.span.start)
-                .map(|scope| scope_id(scope.span))
-        });
+        let scope_id = binding.scope.map(scope_id);
         bindings.push(DebugBinding {
             id: format!(
                 "binding:{}:{}:{}",
                 binding.span.file, binding.span.start, binding.span.end
             ),
             name: binding.name.clone(),
-            rust_name: crate::lowering::debug_rust_name(&binding.name),
+            rust_name: crate::lowering::debug_binding_rust_name(unit, binding),
             source: source_span(&unit.source, binding.span),
-            visible_from: binding.visible_from,
             scope_id,
+            physical_type_name: format!("{:?}", storage_value_type(unit, binding)),
+            storage_may_be_unassigned: {
+                let identity = unit
+                    .flow_binding_ids
+                    .get(&(binding.span.file, binding.span.start, binding.span.end))
+                    .copied()
+                    .unwrap_or(binding.span);
+                unit.flow_availability.iter().any(|(key, availability)| {
+                    *availability == crate::semantics::FlowAvailability::MayBeUnassigned
+                        && unit.flow_binding_ids.get(key) == Some(&identity)
+                })
+            },
+            union_object_ids: match storage_value_type(unit, binding) {
+                ValueType::Union(arms) => arms.iter().map(value_object_id).collect(),
+                _ => Vec::new(),
+            },
             type_name: format!("{:?}", binding.value_type),
             object_id: value_object_id(&binding.value_type),
+            visible_from: binding.span.end,
             visible_until: binding
                 .scope
                 .map_or(unit.source.text().len(), |scope| scope.end),
@@ -349,6 +364,20 @@ fn append_unit_symbols(
             mutable: binding.mutable,
         });
     }
+}
+
+fn storage_value_type<'a>(
+    unit: &'a SemanticUnit,
+    binding: &'a crate::semantics::TypedBinding,
+) -> &'a ValueType {
+    let span = unit
+        .flow_binding_ids
+        .get(&(binding.span.file, binding.span.start, binding.span.end))
+        .copied()
+        .unwrap_or(binding.span);
+    unit.flow_binding_types
+        .get(&span)
+        .unwrap_or(&binding.value_type)
 }
 
 fn value_object_id(value_type: &ValueType) -> Option<String> {

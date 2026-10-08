@@ -1,0 +1,7 @@
+namespace function-scope-union-return
+function value int; choose bool
+    if choose
+        x int = 3
+    else
+        x string = 'cat'
+    return x

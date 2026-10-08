@@ -14,6 +14,7 @@ mod bootstrap;
 mod namespaces;
 mod scopes;
 
+pub(crate) use scopes::constant_boolean;
 // Type contracts and expression-family inference.
 mod calls;
 mod capabilities;
@@ -99,8 +100,8 @@ pub use model::{
     AnnotationTarget, ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, CallableEffects,
     CallableModes, CallableParameterType, CompileTimeValue, DeclarationInterface, DeclarationKind,
     DeclarationMetadata, DescriptorContract, ElementType, EvaluationKind, EvaluationStep,
-    FunctionContract, GenericParameterContract, MemberFamily, MetadataSpan, Namespace, ObjectField,
-    ObjectFieldMetadata, ObjectIdentity, ObjectKind, ParameterContract, ResolvedAnnotation,
+    FlowAvailability, FunctionContract, GenericParameterContract, MemberFamily, MetadataSpan,
+    Namespace, ObjectField, ObjectIdentity, ObjectKind, ParameterContract, ResolvedAnnotation,
     SelectionOperationKind, SemanticFailure, SemanticPackage, SemanticSelection,
     SemanticSelectionCase, SemanticUnit, Symbol, SymbolKind, TaskTransferability, TextUnit,
     TypedBinding, ValueType, Visibility,

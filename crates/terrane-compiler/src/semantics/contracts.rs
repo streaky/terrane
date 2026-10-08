@@ -119,6 +119,7 @@ pub(super) fn descriptor_alias(
 )]
 pub(super) fn collect_typed_bindings(
     unit: &SemanticUnit,
+    matches: &super::enums::MatchContext<'_>,
     node: &SyntaxNode,
     visible_bindings: &mut Vec<TypedBinding>,
     bindings: &mut Vec<TypedBinding>,
@@ -142,6 +143,7 @@ pub(super) fn collect_typed_bindings(
             {
                 collect_typed_bindings(
                     unit,
+                    matches,
                     method,
                     visible_bindings,
                     bindings,
@@ -227,6 +229,7 @@ pub(super) fn collect_typed_bindings(
         for child in &node.children {
             collect_typed_bindings(
                 unit,
+                matches,
                 child,
                 &mut function_bindings,
                 bindings,
@@ -239,7 +242,7 @@ pub(super) fn collect_typed_bindings(
         && node.kind == SyntaxKind::ForStatement
         && target.kind == SyntaxKind::ForTarget
     {
-        collect_typed_bindings(unit, collection, visible_bindings, bindings, scope)?;
+        collect_typed_bindings(unit, matches, collection, visible_bindings, bindings, scope)?;
         let collection_type =
             infer_value_type(unit, collection, visible_bindings)?.ok_or_else(|| {
                 failure(
@@ -253,18 +256,25 @@ pub(super) fn collect_typed_bindings(
             iterable_item_type(unit, collection_type).map_err(|(code, message, span)| {
                 failure(&unit.source, code, message, span.unwrap_or(collection.span))
             })?;
-        let loop_bindings =
-            iteration_target_bindings(unit, target, collection.span.end, block.span, item_type)?;
-        bindings.extend(loop_bindings.iter().cloned());
-        let mut visible_loop_bindings = visible_bindings.clone();
-        visible_loop_bindings.extend(loop_bindings);
-        collect_typed_bindings(
+        let loop_bindings = iteration_target_bindings(
             unit,
-            block,
-            &mut visible_loop_bindings,
-            bindings,
-            Some(block.span),
+            target,
+            collection.span.end,
+            scope.unwrap_or(block.span),
+            item_type,
         )?;
+        for binding in &loop_bindings {
+            let existing = visible_bindings
+                .iter()
+                .rev()
+                .find(|existing| existing.name == binding.name);
+            if existing.is_some_and(|existing| existing.value_type == binding.value_type) {
+                continue;
+            }
+            visible_bindings.push(binding.clone());
+            bindings.push(binding.clone());
+        }
+        collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
         return Ok(());
     }
     if node.kind == SyntaxKind::SelectCase {
@@ -291,16 +301,24 @@ pub(super) fn collect_typed_bindings(
                 ));
             }
         }
-        let mut case_bindings = visible_bindings.clone();
         if header.kind == SyntaxKind::Binding {
-            let prior_len = case_bindings.len();
-            analyze_binding_node(unit, header, &mut case_bindings, Some(block.span))?;
-            bindings.extend_from_slice(&case_bindings[prior_len..]);
+            analyze_binding_node(unit, header, visible_bindings, scope)?;
+            bindings.extend(
+                visible_bindings
+                    .iter()
+                    .filter(|binding| binding.span == header.span)
+                    .cloned(),
+            );
         } else {
-            infer_value_type(unit, header, &case_bindings)?;
+            infer_value_type(unit, header, visible_bindings)?;
         }
-        collect_typed_bindings(unit, block, &mut case_bindings, bindings, Some(block.span))?;
+        collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
         return Ok(());
+    }
+    if node.kind == SyntaxKind::MatchStatement {
+        let payloads = matches.bindings(unit, node, visible_bindings)?;
+        visible_bindings.extend(payloads.iter().cloned());
+        bindings.extend(payloads);
     }
 
     if node.kind == SyntaxKind::CatchClause {
@@ -310,7 +328,7 @@ pub(super) fn collect_typed_bindings(
             .find(|child| child.kind == SyntaxKind::CatchBinding)
         else {
             for child in &node.children {
-                collect_typed_bindings(unit, child, visible_bindings, bindings, scope)?;
+                collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
             }
             return Ok(());
         };
@@ -323,22 +341,15 @@ pub(super) fn collect_typed_bindings(
             name: node_text(&unit.source, alias).to_owned(),
             span: alias.span,
             visible_from: alias.span.start,
-            scope: Some(block.span),
+            scope,
             value_type: ValueType::Object(ObjectIdentity::new("/core/errors", "throwable")),
             destination_arms: Vec::new(),
             storage_type: None,
             mutable: false,
         };
         bindings.push(catch_binding.clone());
-        let mut visible_catch_bindings = visible_bindings.clone();
-        visible_catch_bindings.push(catch_binding);
-        collect_typed_bindings(
-            unit,
-            block,
-            &mut visible_catch_bindings,
-            bindings,
-            Some(block.span),
-        )?;
+        visible_bindings.push(catch_binding);
+        collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
         return Ok(());
     }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
@@ -347,15 +358,7 @@ pub(super) fn collect_typed_bindings(
         bindings.extend_from_slice(&visible_bindings[prior_len..]);
     }
     for child in &node.children {
-        let child_scope = (child.kind == SyntaxKind::Block)
-            .then_some(child.span)
-            .or(scope);
-        if child.kind == SyntaxKind::Block {
-            let mut child_bindings = visible_bindings.clone();
-            collect_typed_bindings(unit, child, &mut child_bindings, bindings, child_scope)?;
-        } else {
-            collect_typed_bindings(unit, child, visible_bindings, bindings, child_scope)?;
-        }
+        collect_typed_bindings(unit, matches, child, visible_bindings, bindings, scope)?;
     }
     Ok(())
 }

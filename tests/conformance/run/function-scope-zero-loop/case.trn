@@ -1,0 +1,8 @@
+namespace function-scope-zero-loop
+function value int; choose bool
+    while choose
+        x int = 3
+        choose = false
+    return x
+function main;
+    print; (value; true)

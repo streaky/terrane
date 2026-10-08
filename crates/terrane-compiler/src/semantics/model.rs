@@ -282,6 +282,9 @@ pub(crate) fn value_type_contains_nonclone_foreign(
                     })
         }
         ValueType::Optional(inner) => value_type_contains_nonclone_foreign(unit, inner),
+        ValueType::Union(arms) => arms
+            .iter()
+            .any(|arm| value_type_contains_nonclone_foreign(unit, arm)),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::List(item)
@@ -307,12 +310,18 @@ pub(crate) fn value_type_contains_nonclone_foreign(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "One closed iterable inventory maps source types to item types and diagnostics"
+)]
 pub(super) fn iterable_item_type(
     unit: &SemanticUnit,
     value_type: ValueType,
 ) -> Result<ValueType, (&'static str, &'static str, Option<Span>)> {
-    if !matches!(value_type, ValueType::Object(_) | ValueType::Reference(_))
-        && !descriptor_has_member(unit, &value_type, "iterator")
+    if !matches!(
+        value_type,
+        ValueType::Object(_) | ValueType::Reference(_) | ValueType::Union(_)
+    ) && !descriptor_has_member(unit, &value_type, "iterator")
     {
         return Err((
             "T0016",
@@ -321,6 +330,19 @@ pub(super) fn iterable_item_type(
         ));
     }
     match value_type {
+        ValueType::Union(arms) => {
+            let mut items = arms
+                .into_iter()
+                .map(|arm| iterable_item_type(unit, arm))
+                .collect::<Result<Vec<_>, _>>()?;
+            items.sort_by_key(|item| format!("{item:?}"));
+            items.dedup();
+            Ok(if items.len() == 1 {
+                items.pop().expect("one iteration item")
+            } else {
+                ValueType::Union(items)
+            })
+        }
         ValueType::Scalar(ScalarType::String)
         | ValueType::StringList
         | ValueType::StringView(TextUnit::Scalars | TextUnit::Graphemes) => {
@@ -796,6 +818,8 @@ impl CallableParameterType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Scalar(ScalarType),
+    /// Canonically ordered alternatives produced by control-flow joins.
+    Union(Vec<ValueType>),
     Optional(Box<ValueType>),
     OverflowResult(ScalarType),
     DivRemResult(ScalarType),
@@ -913,7 +937,8 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         ValueType::Set(_) => Some(CanonicalDefault::EmptySet),
         ValueType::UnorderedMap(_, _) => Some(CanonicalDefault::EmptyUnorderedMap),
         ValueType::UnorderedSet(_) => Some(CanonicalDefault::EmptyUnorderedSet),
-        ValueType::OverflowResult(_)
+        ValueType::Union(_)
+        | ValueType::OverflowResult(_)
         | ValueType::DivRemResult(_)
         | ValueType::FloatDecomposition(_)
         | ValueType::StringView(_)
@@ -1048,6 +1073,15 @@ impl std::fmt::Display for ValueType {
             Self::Scalar(ty) => ty.fmt(formatter),
             Self::TypeParameter(name) => formatter.write_str(name),
             Self::Optional(inner) => write!(formatter, "{inner}|none"),
+            Self::Union(arms) => {
+                for (index, arm) in arms.iter().enumerate() {
+                    if index > 0 {
+                        formatter.write_str("|")?;
+                    }
+                    arm.fmt(formatter)?;
+                }
+                Ok(())
+            }
             Self::OverflowResult(ty) => write!(formatter, "overflow-result of {ty}"),
             Self::DivRemResult(ty) => write!(formatter, "div-rem-result of {ty}"),
             Self::FloatDecomposition(ty) => {
@@ -1478,6 +1512,11 @@ impl CoercionPolicy {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FlowAvailability {
+    DefinitelyAssigned,
+    MayBeUnassigned,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypedBinding {
     pub name: String,
@@ -1947,7 +1986,12 @@ pub struct SemanticUnit {
 
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
-    /// Proven owners and projections for non-owning reference expressions and bindings.
+    pub flow_types: BTreeMap<(u32, usize, usize), ValueType>,
+    pub flow_binding_ids: BTreeMap<(u32, usize, usize), Span>,
+    pub flow_binding_types: BTreeMap<Span, ValueType>,
+    pub(crate) flow_replacements: BTreeMap<Span, Span>,
+    pub flow_availability: BTreeMap<(u32, usize, usize), FlowAvailability>,
+    pub(crate) flow_read_bindings: BTreeMap<(u32, usize, usize), BTreeSet<Span>>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
     /// Reference-returning callable contract to the exact lender parameter index.
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,

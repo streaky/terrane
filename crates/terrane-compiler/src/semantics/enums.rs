@@ -2,7 +2,7 @@ use super::matching::MatchCoverage;
 use super::prelude::*;
 
 #[derive(Clone)]
-struct ResolvedEnum {
+pub(super) struct ResolvedEnum {
     identity: ObjectIdentity,
     variants: Vec<(String, Vec<ValueType>)>,
     generic_parameters: Vec<GenericParameterContract>,
@@ -13,6 +13,7 @@ struct ResolvedEnum {
 fn match_value_type(
     unit: &SemanticUnit,
     scrutinee: &SyntaxNode,
+    bindings: &[TypedBinding],
 ) -> Result<Option<(ValueType, bool, bool)>, SemanticFailure> {
     let operator = (scrutinee.kind == SyntaxKind::UnaryExpression)
         .then(|| unary_operator_text(unit, scrutinee))
@@ -27,7 +28,7 @@ fn match_value_type(
     let Some(operand) = operand else {
         return Ok(None);
     };
-    let Some(mut value_type) = infer_value_type(unit, operand, &unit.typed_bindings)? else {
+    let Some(mut value_type) = infer_value_type(unit, operand, bindings)? else {
         return Ok(None);
     };
     let borrowed = explicit_borrow
@@ -99,13 +100,18 @@ fn first_name(node: &SyntaxNode) -> Option<&SyntaxNode> {
 fn validate_match(
     enum_names: &BTreeMap<usize, String>,
     enums: &[ResolvedEnum],
-    unit: &mut SemanticUnit,
+    unit: &SemanticUnit,
+    visible_bindings: &[TypedBinding],
+    bindings: &mut Vec<TypedBinding>,
+    provenance: &mut BTreeMap<(usize, usize), ReferenceProvenance>,
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     let Some(scrutinee) = node.children.first() else {
         return Ok(());
     };
-    let Some((value_type, borrowed, consuming)) = match_value_type(unit, scrutinee)? else {
+    let Some((value_type, borrowed, consuming)) =
+        match_value_type(unit, scrutinee, visible_bindings)?
+    else {
         return Ok(());
     };
     if borrowed && consuming {
@@ -152,7 +158,7 @@ fn validate_match(
         };
         first_name(operand)
             .and_then(|name| {
-                unit.typed_bindings.iter().rev().find(|binding| {
+                visible_bindings.iter().rev().find(|binding| {
                     binding.name == node_text(&unit.source, name)
                         && binding.is_visible_at(unit.source.id(), name.span.start)
                 })
@@ -292,7 +298,11 @@ fn validate_match(
                 case.span,
             ));
         }
-        let arm_scope = body.map_or(case.span, |body| body.span);
+        let function_scope = unit
+            .enclosing_function_spans
+            .get(&case.span.start)
+            .copied()
+            .flatten();
         for (name_node, ty) in names.iter().zip(payload) {
             let name = node_text(&unit.source, name_node);
             if name == "_" {
@@ -304,25 +314,25 @@ fn validate_match(
             } else {
                 field_type
             };
-            unit.typed_bindings.push(TypedBinding {
+            bindings.push(TypedBinding {
                 name: name.to_owned(),
                 span: name_node.span,
                 visible_from: body.map_or(case.span.end, |body| body.span.start),
-                scope: Some(arm_scope),
+                scope: function_scope,
                 value_type: binding_type,
                 destination_arms: Vec::new(),
                 storage_type: None,
                 mutable: false,
             });
             if borrowed {
-                unit.reference_provenance.insert(
+                provenance.insert(
                     (name_node.span.start, name_node.span.end),
                     ReferenceProvenance {
                         owner: borrowed_owner,
                         external_lender: false,
                         lender_parameter: None,
                         path: Vec::new(),
-                        lifetime_end: Some(case.span),
+                        lifetime_end: function_scope,
                     },
                 );
             }
@@ -410,11 +420,7 @@ pub(crate) fn projected_enum_payload_type(
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "Source and native enum inventories close into the same match contract before branch validation"
-)]
-pub(crate) fn validate_enum_matches(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+pub(super) fn resolve_enums(package: &SemanticPackage) -> Vec<ResolvedEnum> {
     let mut enums = package
         .units
         .iter()
@@ -489,33 +495,84 @@ pub(crate) fn validate_enum_matches(package: &mut SemanticPackage) -> Result<(),
             });
         }
     }
-    for index in 0..package.units.len() {
-        let names = {
-            let unit = &package.units[index];
-            collect_matches(&unit.tree.root)
-                .into_iter()
-                .flat_map(|node| {
-                    node.children
-                        .iter()
-                        .skip(1)
-                        .filter_map(|case| case.children.first())
-                        .filter(|selector| selector.kind == SyntaxKind::StaticMemberExpression)
-                        .filter_map(|selector| selector.children.first())
-                        .filter_map(|name| {
-                            resolve_enum_name(package, unit, name)
-                                .map(|identity| (name.span.start, identity))
-                        })
-                })
-                .collect::<BTreeMap<_, _>>()
-        };
-        let nodes = collect_matches(&package.units[index].tree.root)
+    enums
+}
+
+pub(super) struct MatchContext<'a> {
+    enums: &'a [ResolvedEnum],
+    names: BTreeMap<usize, String>,
+}
+
+impl<'a> MatchContext<'a> {
+    pub(super) fn new(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        enums: &'a [ResolvedEnum],
+    ) -> Self {
+        let names = collect_matches(&unit.tree.root)
             .into_iter()
-            .cloned()
-            .collect::<Vec<_>>();
-        let unit = &mut package.units[index];
-        for node in &nodes {
-            validate_match(&names, &enums, unit, node)?;
+            .flat_map(|node| node.children.iter().skip(1))
+            .filter_map(|case| case.children.first())
+            .filter(|selector| selector.kind == SyntaxKind::StaticMemberExpression)
+            .filter_map(|selector| selector.children.first())
+            .filter_map(|name| {
+                resolve_enum_name(package, unit, name).map(|identity| (name.span.start, identity))
+            })
+            .collect();
+        Self { enums, names }
+    }
+
+    pub(super) fn bindings(
+        &self,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        visible: &[TypedBinding],
+    ) -> Result<Vec<TypedBinding>, SemanticFailure> {
+        let mut bindings = Vec::new();
+        validate_match(
+            &self.names,
+            self.enums,
+            unit,
+            visible,
+            &mut bindings,
+            &mut BTreeMap::new(),
+            node,
+        )?;
+        Ok(bindings)
+    }
+}
+
+pub(crate) fn validate_enum_matches(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    let enums = resolve_enums(package);
+    for index in 0..package.units.len() {
+        let unit = &package.units[index];
+        let context = MatchContext::new(package, unit, &enums);
+        let mut bindings = Vec::new();
+        let mut provenance = BTreeMap::new();
+        for node in collect_matches(&unit.tree.root) {
+            validate_match(
+                &context.names,
+                context.enums,
+                unit,
+                &unit.typed_bindings,
+                &mut bindings,
+                &mut provenance,
+                node,
+            )?;
         }
+        let unit = &mut package.units[index];
+        for binding in bindings {
+            if let Some(existing) = unit
+                .typed_bindings
+                .iter_mut()
+                .find(|existing| existing.span == binding.span)
+            {
+                *existing = binding;
+            } else {
+                unit.typed_bindings.push(binding);
+            }
+        }
+        unit.reference_provenance.extend(provenance);
     }
     Ok(())
 }

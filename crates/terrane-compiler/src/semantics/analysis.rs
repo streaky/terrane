@@ -364,6 +364,12 @@ pub(super) fn parse_unit(
         projected_call_specializations: BTreeMap::new(),
         selected_expression_types: BTreeMap::new(),
         projected_callable_applications: BTreeMap::new(),
+        flow_types: BTreeMap::new(),
+        flow_binding_ids: BTreeMap::new(),
+        flow_binding_types: BTreeMap::new(),
+        flow_replacements: BTreeMap::new(),
+        flow_availability: BTreeMap::new(),
+        flow_read_bindings: BTreeMap::new(),
         invocation_scoped_function_results: BTreeMap::new(),
         enclosing_function_spans,
         unsafe_rust_spans,
@@ -1228,10 +1234,10 @@ fn analyze_parsed_with_projection(
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
+    validate_definite_assignment(&mut semantic)?;
     validate_calls(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
-    validate_definite_assignment(&semantic)?;
     super::initialization::validate(&mut semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
@@ -1588,6 +1594,11 @@ fn enqueue_value_type_object_dependencies(value_type: &ValueType, queue: &mut Ve
             family: identity, ..
         } => enqueue_object_identity_dependencies(identity, queue),
         ValueType::Optional(inner) => enqueue_value_type_object_dependencies(inner, queue),
+        ValueType::Union(arms) => {
+            for arm in arms {
+                enqueue_value_type_object_dependencies(arm, queue);
+            }
+        }
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::AsyncIterationStep(item)

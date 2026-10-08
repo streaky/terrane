@@ -5,7 +5,7 @@ from /core/collections import list
 function main;
   row list of int = list; 99
   rows list of list of int = list; (list; 1), (list; 2), (list; 3)
-  for row in rows
-    destination list of int = move row
+  for item in rows
+    destination list of int = move item
     print; destination[0]
   print; row[0]

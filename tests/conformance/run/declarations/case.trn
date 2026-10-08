@@ -5,11 +5,11 @@ function main;
   local-value = 16
   print; namespace-value
   print; local-value
-  if true
+  if local-value > 10
     block-value int = 300
-    print; block-value
-  if false
-    print; >no
+  print; block-value
+  if local-value < 0
+    else-value int = 100
   else
     else-value int = 400
-    print; else-value
+  print; else-value

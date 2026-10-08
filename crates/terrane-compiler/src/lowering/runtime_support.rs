@@ -114,6 +114,7 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
             identity.namespace == "/core/errors" && identity.name == "throwable"
         }
         ValueType::Optional(inner) => value_type_contains_throwable(inner),
+        ValueType::Union(arms) => arms.iter().any(value_type_contains_throwable),
         ValueType::Iterator(inner)
         | ValueType::IterationStep(inner)
         | ValueType::List(inner)
@@ -905,9 +906,14 @@ pub(super) fn emit_global_storage(
         .globals
         .values()
         .any(|symbol| symbol.kind == SymbolKind::Binding)
+        || package.units.iter().any(|unit| {
+            unit.flow_availability.values().any(|availability| {
+                *availability == crate::semantics::FlowAvailability::MayBeUnassigned
+            })
+        })
     {
         output.push_str(
-            "fn __terrane_uninitialized_global(name: &str, path: &str, line: usize, column: usize) -> ! {\n    eprintln!(\"{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned\");\n    std::process::exit(1);\n}\n",
+            "fn __terrane_uninitialized_binding(name: &str, path: &str, line: usize, column: usize) -> ! {\n    eprintln!(\"{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned\");\n    std::process::exit(1);\n}\n",
         );
     }
 }

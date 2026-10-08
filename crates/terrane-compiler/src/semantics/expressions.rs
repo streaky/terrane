@@ -357,6 +357,14 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
+        if let Some(value_type) =
+            unit.flow_types
+                .get(&(node.span.file, node.span.start, node.span.end))
+        {
+            return Ok(Some(
+                narrowed_value_type(unit, node, bindings).unwrap_or_else(|| value_type.clone()),
+            ));
+        }
         if let Some(binding) = bindings
             .iter()
             .filter(|binding| {

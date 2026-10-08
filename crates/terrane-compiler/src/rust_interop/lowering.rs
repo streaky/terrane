@@ -16,6 +16,11 @@ fn visit_value_type_objects(value_type: &ValueType, visit: &mut impl FnMut(&Obje
             }
         }
         ValueType::Optional(inner) => visit_value_type_objects(inner, visit),
+        ValueType::Union(arms) => {
+            for arm in arms {
+                visit_value_type_objects(arm, visit);
+            }
+        }
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::AsyncIterationStep(item)

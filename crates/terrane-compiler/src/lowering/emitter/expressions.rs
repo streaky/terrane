@@ -357,16 +357,13 @@ impl Emitter<'_> {
             SyntaxKind::Name => {
                 let name = self.text(node);
                 if self.async_mutable_captures.contains(name) {
-                    let name = rust_name(name);
+                    let name = self.local_storage_name(node);
                     if self.assignment_target {
                         return name;
                     }
                     return format!("{name}.snapshot()");
                 }
-                let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
-                    binding.name == name
-                        && binding.is_visible_at(self.unit.source.id(), node.span.start)
-                });
+                let binding = self.local_typed_binding(node);
                 match self.value_type(node) {
                     Some(value_type @ ValueType::Descriptor(_))
                         if binding.is_none_or(|binding| binding.scope.is_none()) =>
@@ -1493,7 +1490,11 @@ impl Emitter<'_> {
             if let Some(effect) = self.identity_operand_effect(right) {
                 effects.push(effect);
             }
-            return format!("{{ {} {result} }}", effects.join(" "));
+            return if effects.iter().all(String::is_empty) {
+                result.to_string()
+            } else {
+                format!("{{ {} {result} }}", effects.join(" "))
+            };
         }
         if let Some(comparison) = self.optional_none_comparison(left, source_operator, right) {
             return comparison;
@@ -1596,16 +1597,12 @@ impl Emitter<'_> {
         {
             let union_name = union_type_name(&binding);
             let expression = self.expression(value);
-            let matching = binding
-                .destination_arms
+            let matching = self
+                .union_arms(&binding)
                 .iter()
                 .enumerate()
                 .filter(|(_, arm)| {
-                    crate::semantics::descriptor_conforms_to(
-                        self.unit,
-                        &ValueType::Scalar(**arm),
-                        category,
-                    )
+                    crate::semantics::descriptor_conforms_to(self.unit, arm, category)
                 })
                 .map(|(index, _)| format!("{union_name}::Arm{index}(_)"))
                 .collect::<Vec<_>>();
@@ -1617,10 +1614,10 @@ impl Emitter<'_> {
         }
         if let Some(binding) = self.union_binding(value)
             && let Some(descriptor) = descriptor_type
-            && let Some(index) = binding
-                .destination_arms
+            && let Some(index) = self
+                .union_arms(&binding)
                 .iter()
-                .position(|arm| *arm == descriptor)
+                .position(|arm| *arm == ValueType::Scalar(descriptor))
         {
             let union_name = union_type_name(&binding);
             let expression = self.expression(value);
@@ -1755,12 +1752,18 @@ impl Emitter<'_> {
     }
 
     pub(in crate::lowering) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
+        if let Some(value_type) =
+            self.unit
+                .flow_types
+                .get(&(node.span.file, node.span.start, node.span.end))
+        {
+            return Some(value_type.clone());
+        }
         if let Some(value_type) = self.unit.inferred_value_type(node) {
             return Some(value_type);
         }
         match node.kind {
             SyntaxKind::Literal => match self.text(node).trim() {
-                "true" | "false" => Some(ValueType::Scalar(ScalarType::Bool)),
                 text if text.starts_with("b'") => Some(ValueType::Scalar(ScalarType::Bytes)),
                 text if text.starts_with('\'') || text.starts_with('>') => {
                     Some(ValueType::Scalar(ScalarType::String))

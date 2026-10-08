@@ -702,7 +702,6 @@ fn plain_namespace_assignment_cannot_target_a_program_global() {
 fn uninitialized_globals_require_assignment_before_same_function_reads() {
     for source in [
         "namespace app\nglobal counter int\nfunction main;\n  print; counter\n",
-        "namespace app\nglobal counter int\nfunction main;\n  if true\n    global counter = 1\n  print; counter\n",
         "namespace app\nglobal counter int\nfunction main;\n  global counter ++\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
@@ -822,23 +821,19 @@ fn lexical_scopes_resolve_parameters_bindings_and_object_imports() {
 }
 
 #[test]
-fn nested_blocks_record_and_confine_their_own_bindings() {
-    for source in [
-        "namespace app\nfunction main;\n  if true\n    nested int = 1\n    print; nested\n",
-        "namespace app\nfunction main;\n  if false\n    print; >no\n  else\n    nested int = 2\n    print; nested\n",
-        "namespace app\nfunction main;\n  while false\n    nested int = 1\n    print; nested\n",
-        "namespace app\nfunction main;\n  text string = 'a'\n  for character in text\n    nested int = 1\n    print; nested\n",
-    ] {
-        analyze(&package(true, &[("main.trn", source)])).unwrap();
-    }
-
-    for source in [
-        "namespace app\nfunction main;\n  if true\n    nested int = 1\n  print; nested\n",
-        "namespace app\nfunction main;\n  text string = 'a'\n  for character in text\n    block-scoped int = 1\n  print; block-scoped\n",
-    ] {
-        let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
-        assert_eq!(failure.diagnostics[0].code, "S2013");
-    }
+fn names_resolve_to_function_variables_after_control_flow_bodies() {
+    let source = "namespace app\nfunction main;\n  if true\n    nested int = 1\n  print; nested\n";
+    let analyzed = analyze(&package(true, &[("main.trn", source)])).unwrap();
+    let unit = &analyzed.units[0];
+    let declaration = source.find("nested int").unwrap();
+    let use_position = source.rfind("nested").unwrap();
+    let resolved = analyzed
+        .resolve_name_at(unit, use_position, "nested")
+        .unwrap();
+    assert_eq!(
+        resolved.declaration_span.map(|span| span.start),
+        Some(declaration)
+    );
 }
 
 #[test]
@@ -1132,45 +1127,7 @@ fn rejects_reads_before_assignment() {
 }
 
 #[test]
-fn branch_assignment_is_definite_only_when_every_path_assigns() {
-    analyze(&package(
-        true,
-        &[(
-            "main.trn",
-            concat!(
-                "namespace app\n",
-                "function probe; ready bool\n",
-                "  value int\n",
-                "  if ready\n",
-                "    value = 1\n",
-                "  else\n",
-                "    value = 2\n",
-                "  result = value\n",
-            ),
-        )],
-    ))
-    .unwrap();
-
-    let failure = analyze(&package(
-        true,
-        &[(
-            "main.trn",
-            concat!(
-                "namespace app\n",
-                "function probe; ready bool\n",
-                "  value int\n",
-                "  if ready\n",
-                "    value = 1\n",
-                "  result = value\n",
-            ),
-        )],
-    ))
-    .unwrap_err();
-    assert_eq!(failure.diagnostics[0].code, "T0007");
-}
-
-#[test]
-fn collection_for_targets_are_typed_only_inside_the_loop_body() {
+fn collection_for_targets_use_element_types_and_validate_the_input() {
     let wrong_argument = analyze(&package(
         true,
         &[(

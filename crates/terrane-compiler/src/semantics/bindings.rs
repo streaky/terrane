@@ -507,7 +507,10 @@ pub(super) fn binding_event_child_region(
             arm: Some(index),
         });
     }
-    if node.kind == SyntaxKind::SelectStatement && child.kind == SyntaxKind::SelectCase {
+    if (node.kind == SyntaxKind::SelectStatement && child.kind == SyntaxKind::SelectCase)
+        || (node.kind == SyntaxKind::MatchStatement
+            && matches!(child.kind, SyntaxKind::MatchCase | SyntaxKind::ElseClause))
+    {
         return Some(ControlRegion {
             statement: node.span,
             arm: Some(index),
@@ -569,6 +572,47 @@ pub(super) fn record_declared_binding_writes(
     loops: &[Span],
     regions: &[ControlRegion],
 ) -> bool {
+    if node.kind == SyntaxKind::ForTarget {
+        let mut recorded = false;
+        for name in &node.children {
+            let identity = unit
+                .flow_binding_ids
+                .get(&span_key(name.span))
+                .copied()
+                .or_else(|| {
+                    unit.typed_bindings
+                        .iter()
+                        .find(|binding| binding.span == name.span)
+                        .map(|binding| binding.span)
+                })
+                .or_else(|| {
+                    unit.typed_bindings
+                        .iter()
+                        .rev()
+                        .find(|binding| {
+                            binding.name == node_text(&unit.source, name)
+                                && binding.scope
+                                    == lexical_scope_chain(unit, name.span.start)
+                                        .next()
+                                        .map(|scope| scope.span)
+                                && binding.is_visible_at(unit.source.id(), name.span.start)
+                        })
+                        .map(|binding| binding.span)
+                });
+            if let Some(identity) = identity {
+                events
+                    .entry(span_key(identity))
+                    .or_default()
+                    .push(BindingEvent::Write {
+                        span: name.span,
+                        loops: loops.to_vec(),
+                        regions: regions.to_vec(),
+                    });
+                recorded = true;
+            }
+        }
+        return recorded;
+    }
     if !declares_binding {
         return false;
     }
@@ -604,36 +648,15 @@ pub(super) fn collect_binding_events(
     regions: &mut Vec<ControlRegion>,
 ) {
     if node.kind == SyntaxKind::Name {
-        let function_span = unit
-            .enclosing_function_spans
-            .get(&node.span.start)
-            .copied()
-            .flatten();
-        let typed_declaration = unit.typed_bindings.iter().rev().find(|binding| {
-            binding.name == node_text(&unit.source, node)
-                && binding.is_visible_at(unit.source.id(), node.span.start)
-                && unit
-                    .enclosing_function_spans
-                    .get(&binding.span.start)
-                    .copied()
-                    .flatten()
-                    == function_span
-        });
-        let declaration_span = typed_declaration.map(|binding| binding.span).or_else(|| {
-            package
-                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-                .and_then(|symbol| symbol.declaration_span)
-        });
-        if !declaration_name && let Some(declaration_span) = declaration_span {
-            events
-                .entry(span_key(declaration_span))
-                .or_default()
-                .push(BindingEvent::Read {
-                    span: node.span,
-                    loops: loops.clone(),
-                    regions: regions.clone(),
-                });
-        }
+        record_binding_reads(
+            package,
+            unit,
+            node,
+            events,
+            declaration_name,
+            loops,
+            regions,
+        );
         return;
     }
 
@@ -683,18 +706,27 @@ pub(super) fn collect_binding_events(
     }
     if !record_declared_binding_writes(unit, node, declares_binding, events, loops, regions)
         && let Some(target) = assignment_target
-        && let Some(declaration_span) = package
+    {
+        let mut record = |declaration_span| {
+            events
+                .entry(span_key(declaration_span))
+                .or_default()
+                .push(BindingEvent::Write {
+                    span: node.span,
+                    loops: loops.clone(),
+                    regions: regions.clone(),
+                });
+        };
+        if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
+            for origin in origins {
+                record(*origin);
+            }
+        } else if let Some(declaration_span) = package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
             .and_then(|symbol| symbol.declaration_span)
-    {
-        events
-            .entry(span_key(declaration_span))
-            .or_default()
-            .push(BindingEvent::Write {
-                span: node.span,
-                loops: loops.clone(),
-                regions: regions.clone(),
-            });
+        {
+            record(declaration_span);
+        }
     }
 }
 
@@ -739,10 +771,17 @@ pub(crate) fn binding_requires_mutable_storage(
         .get(&declaration_span.start)
         .copied()
         .flatten();
-    let writes = package
-        .binding_events
-        .get(&span_key(declaration_span))
-        .into_iter()
+    let writes = unit
+        .typed_bindings
+        .iter()
+        .filter(|binding| {
+            unit.flow_binding_ids
+                .get(&span_key(binding.span))
+                .copied()
+                .unwrap_or(binding.span)
+                == declaration_span
+        })
+        .filter_map(|binding| package.binding_events.get(&span_key(binding.span)))
         .flatten()
         .filter_map(|event| match event {
             BindingEvent::Write {
@@ -1034,6 +1073,10 @@ pub(super) fn value_type_is_task_transferable(
 ) -> bool {
     match value_type {
         ValueType::Reference(_) => false,
+        ValueType::Optional(inner) => value_type_is_task_transferable(package, inner),
+        ValueType::Union(arms) => arms
+            .iter()
+            .all(|arm| value_type_is_task_transferable(package, arm)),
         ValueType::Object(identity) => {
             if !identity.namespace.starts_with("/deps/") {
                 true
@@ -1045,7 +1088,6 @@ pub(super) fn value_type_is_task_transferable(
                     .projected_type_is_send(&identity.namespace, &identity.name)
             }
         }
-        ValueType::Optional(inner) => value_type_is_task_transferable(package, inner),
         ValueType::Iterator(inner)
         | ValueType::IterationStep(inner)
         | ValueType::List(inner)
@@ -1075,6 +1117,7 @@ pub(super) fn value_type_is_owned_static(value_type: &ValueType) -> bool {
     match value_type {
         ValueType::Reference(_) => false,
         ValueType::Optional(inner) => value_type_is_owned_static(inner),
+        ValueType::Union(arms) => arms.iter().all(value_type_is_owned_static),
         ValueType::Iterator(inner)
         | ValueType::IterationStep(inner)
         | ValueType::List(inner)
@@ -2606,4 +2649,54 @@ pub(super) fn validate_projected_callback_arguments(
         )?;
     }
     Ok(())
+}
+
+fn record_binding_reads(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    events: &mut BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    declaration_name: bool,
+    loops: &[Span],
+    regions: &[ControlRegion],
+) {
+    let function_span = unit
+        .enclosing_function_spans
+        .get(&node.span.start)
+        .copied()
+        .flatten();
+    let typed_declaration = unit.typed_bindings.iter().rev().find(|binding| {
+        binding.name == node_text(&unit.source, node)
+            && binding.is_visible_at(unit.source.id(), node.span.start)
+            && unit
+                .enclosing_function_spans
+                .get(&binding.span.start)
+                .copied()
+                .flatten()
+                == function_span
+    });
+    let declaration_span = typed_declaration.map(|binding| binding.span).or_else(|| {
+        package
+            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+            .and_then(|symbol| symbol.declaration_span)
+    });
+    if !declaration_name {
+        let mut record = |declaration_span| {
+            events
+                .entry(span_key(declaration_span))
+                .or_default()
+                .push(BindingEvent::Read {
+                    span: node.span,
+                    loops: loops.to_vec(),
+                    regions: regions.to_vec(),
+                });
+        };
+        if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
+            for origin in origins {
+                record(*origin);
+            }
+        } else if let Some(declaration_span) = declaration_span {
+            record(declaration_span);
+        }
+    }
 }
