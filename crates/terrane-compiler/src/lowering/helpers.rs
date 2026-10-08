@@ -230,18 +230,6 @@ pub(super) fn union_type_name_for_span(span: crate::Span) -> String {
     format!("TerraneUnionF{}S{}", span.file, span.start)
 }
 
-pub(super) fn rust_local_name(name: &str, span: crate::Span) -> String {
-    format!("{}_terrane_f{}_s{}", rust_name(name), span.file, span.start)
-}
-
-pub(super) fn rust_binding_name(binding: &TypedBinding) -> String {
-    format!(
-        "{}_terrane_f{}_s{}",
-        rust_name(&binding.name),
-        binding.span.file,
-        binding.span.start
-    )
-}
 pub(super) fn find_node_by_span(node: &SyntaxNode, span: crate::Span) -> Option<&SyntaxNode> {
     (node.span == span).then_some(node).or_else(|| {
         node.children

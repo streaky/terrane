@@ -1,0 +1,8 @@
+namespace conformance/loop-body-no-reaching-assignment-while
+
+function main;
+    choose = true
+    while choose
+        print; item
+        item = 'a'
+        break

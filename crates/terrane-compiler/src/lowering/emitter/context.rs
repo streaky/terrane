@@ -24,7 +24,7 @@ fn compiler_singleton_rust_name(symbol: Option<&Symbol>) -> Option<String> {
     Some(format!("TerraneChannelOverflow::{policy}"))
 }
 
-impl Emitter<'_> {
+impl<'unit> Emitter<'unit> {
     pub(super) fn name(&self, node: &SyntaxNode) -> String {
         let source_name = self.text(node);
         if source_name == "none" {
@@ -130,16 +130,7 @@ impl Emitter<'_> {
                     && binding.is_visible_at(self.source.id(), closure.span.start)
             })
         {
-            return if self.unit.functions.iter().any(|function| {
-                function
-                    .parameters
-                    .iter()
-                    .any(|parameter| parameter.span == binding.span)
-            }) {
-                rust_name("this")
-            } else {
-                rust_binding_name(binding)
-            };
+            return self.binding_storage_name(binding).to_owned();
         }
         "this".to_owned()
     }
@@ -187,32 +178,34 @@ impl Emitter<'_> {
         )
     }
 
-    pub(super) fn local_storage_name(&self, node: &SyntaxNode) -> String {
-        let Some(span) = self.local_binding_identity(node) else {
-            return rust_name(self.text(node));
-        };
-        if self.active_function_bindings.contains(&span) {
-            return self
-                .unit
-                .typed_bindings
+    pub(super) fn binding_storage_name(&self, binding: &TypedBinding) -> &'unit str {
+        crate::lowering::binding_storage_rust_name(self.unit, binding)
+    }
+
+    pub(super) fn parameter_source_name(&self, name: &str, span: crate::Span) -> String {
+        let unit = if self.unit.source.id() == span.file {
+            self.unit
+        } else {
+            self.package
+                .units
                 .iter()
-                .find(|binding| binding.span == span)
-                .map_or_else(|| rust_local_name(self.text(node), span), rust_binding_name);
-        }
-        if let Some(parameter) = self
-            .unit
-            .functions
-            .iter()
-            .flat_map(|function| &function.parameters)
-            .find(|parameter| parameter.span == span)
-        {
-            return rust_name(&parameter.name);
-        }
-        self.unit
-            .typed_bindings
-            .iter()
-            .find(|binding| binding.span == span && binding.scope.is_some())
-            .map_or_else(|| rust_name(self.text(node)), rust_binding_name)
+                .find(|unit| unit.source.id() == span.file)
+                .unwrap_or(self.unit)
+        };
+        crate::lowering::parameter_source_rust_name(unit, name, span)
+    }
+
+    pub(super) fn storage_name_at(&self, name: &str, span: crate::Span) -> String {
+        crate::lowering::StorageNames::for_unit(self.unit)
+            .at(span)
+            .map_or_else(|| rust_name(name), str::to_owned)
+    }
+
+    pub(super) fn local_storage_name(&self, node: &SyntaxNode) -> String {
+        self.local_binding_identity(node).map_or_else(
+            || rust_name(self.text(node)),
+            |span| self.storage_name_at(self.text(node), span),
+        )
     }
 
     pub(super) fn local_typed_binding(&self, node: &SyntaxNode) -> Option<&TypedBinding> {
@@ -1336,7 +1329,7 @@ impl Emitter<'_> {
                     && binding.is_visible_at(self.unit.source.id(), node.span.start)
                     && !matches!(binding.value_type, ValueType::Reference(_))
                     && !rust_value_is_copy(&binding.value_type)
-                    && identifiers.contains(&crate::lowering::binding_storage_rust_name(
+                    && identifiers.contains(crate::lowering::binding_storage_rust_name(
                         self.unit, binding,
                     ))
             })

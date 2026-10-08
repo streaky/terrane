@@ -1304,7 +1304,11 @@ pub(super) fn emit_dependency_unit(
                     );
                 format!(
                     "{}: {}{value_type}",
-                    rust_name(&parameter.name),
+                    crate::lowering::parameter_source_rust_name(
+                        unit,
+                        &parameter.name,
+                        parameter.span
+                    ),
                     if preserves_identity {
                         if projected.mutable_borrow {
                             "&mut "
@@ -1320,7 +1324,8 @@ pub(super) fn emit_dependency_unit(
         let mut argument_conversions = Vec::new();
         let mut arguments = Vec::new();
         for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
-            let name = rust_name(&parameter.name);
+            let name =
+                crate::lowering::parameter_source_rust_name(unit, &parameter.name, parameter.span);
             if matches!(
                 &projected.ty,
                 crate::rust_interop::projection::ProjectedType::Callback {

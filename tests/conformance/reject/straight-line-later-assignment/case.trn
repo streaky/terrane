@@ -1,0 +1,5 @@
+namespace conformance/straight-line-later-assignment
+
+function main;
+    print; item
+    item = 'a'

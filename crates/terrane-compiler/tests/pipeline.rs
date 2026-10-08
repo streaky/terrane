@@ -414,4 +414,3 @@ fn unwraps_only_syntactic_condition_groups() {
 
     assert!(compilation.rust.contains("if true {"));
 }
-

@@ -12,9 +12,11 @@ mod model;
 // Namespace, import, bootstrap-surface, and lexical name resolution.
 mod bootstrap;
 mod namespaces;
+mod scope_flow;
+mod scope_validation;
 mod scopes;
 
-pub(crate) use scopes::constant_boolean;
+pub(crate) use scope_flow::constant_boolean;
 // Type contracts and expression-family inference.
 mod calls;
 mod capabilities;
@@ -75,6 +77,8 @@ mod prelude {
     pub(super) use super::numeric::*;
     pub(super) use super::objects::*;
     pub(super) use super::ownership::*;
+    pub(super) use super::scope_flow::*;
+    pub(super) use super::scope_validation::*;
     pub(super) use super::scopes::*;
     pub(super) use super::selection::*;
     pub(super) use super::types::*;

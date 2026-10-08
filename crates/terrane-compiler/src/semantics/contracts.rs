@@ -713,7 +713,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                     && let Some(block) = child.children.last()
                 {
                     let finally_errors = direct_errors(package, unit, block);
-                    if super::scopes::block_may_fall_through(block) {
+                    if super::scope_validation::block_may_fall_through(block) {
                         errors.extend(finally_errors);
                     } else {
                         errors = finally_errors;
@@ -1307,7 +1307,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                     && let Some(block) = child.children.last()
                 {
                     let finally_errors = escaping_errors(package, unit, block, inferred);
-                    if super::scopes::block_may_fall_through(block) {
+                    if super::scope_validation::block_may_fall_through(block) {
                         errors.extend(finally_errors);
                     } else {
                         errors = finally_errors;

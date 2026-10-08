@@ -2721,25 +2721,43 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     let enums = super::enums::resolve_enums(package);
-    for index in 0..package.units.len() {
-        // Earlier reaching facts may contain provisional projected generic results.
-        // Rebuild bindings from the newly selected expression types, then refresh flow.
-        package.units[index].flow_types.clear();
-        let unit = &package.units[index];
-        let matches = super::enums::MatchContext::new(package, unit, &enums);
-        let mut bindings = Vec::new();
-        let mut visible_bindings = Vec::new();
-        collect_typed_bindings(
-            unit,
-            &matches,
-            &unit.tree.root,
-            &mut visible_bindings,
-            &mut bindings,
-            None,
-        )?;
-        package.units[index].typed_bindings = bindings;
+    // Discard provisional projected results once. Subsequent passes consume only
+    // the newly computed canonical reaching facts, not the previous analysis.
+    for unit in &mut package.units {
+        unit.flow_types.clear();
+        unit.rust_storage_names.take();
     }
-    super::scopes::validate_definite_assignment(package)
+    let mut first_pass = true;
+    loop {
+        let mut changed = false;
+        for index in 0..package.units.len() {
+            let unit = &package.units[index];
+            let matches = super::enums::MatchContext::new(package, unit, &enums);
+            let mut bindings = Vec::new();
+            let mut visible_bindings = Vec::new();
+            collect_typed_bindings(
+                unit,
+                &matches,
+                &unit.tree.root,
+                &mut visible_bindings,
+                &mut bindings,
+                None,
+            )?;
+            if bindings != unit.typed_bindings {
+                package.units[index].rust_storage_names.take();
+                package.units[index].typed_bindings = bindings;
+                changed = true;
+            }
+        }
+        if !changed && !first_pass {
+            return Ok(());
+        }
+        // A loop-carried RHS may discover an earlier inferred declaration.
+        // Declaration identities are source-owned; their finite reaching-type
+        // alternatives grow through the same joins as the loop fixed point.
+        super::scope_flow::validate_definite_assignment(package)?;
+        first_pass = false;
+    }
 }
 fn populate_projected_call_result_types(
     package: &mut SemanticPackage,

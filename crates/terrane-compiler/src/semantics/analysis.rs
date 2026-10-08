@@ -365,6 +365,7 @@ pub(super) fn parse_unit(
         selected_expression_types: BTreeMap::new(),
         projected_callable_applications: BTreeMap::new(),
         flow_types: BTreeMap::new(),
+        rust_storage_names: std::sync::OnceLock::new(),
         flow_binding_ids: BTreeMap::new(),
         flow_binding_types: BTreeMap::new(),
         flow_replacements: BTreeMap::new(),
@@ -1198,9 +1199,10 @@ fn analyze_parsed_with_projection(
         return Ok(semantic);
     }
     validate_initializer_dependencies(&semantic)?;
-    validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    // Reaching facts resolve loop-carried locals before source-order name checks.
+    validate_references(&semantic)?;
     super::enums::validate_enum_matches(&mut semantic)?;
     if semantic.execution_strategy == crate::execution::ExecutionStrategy::Local {
         for unit in &semantic.units {
@@ -1804,6 +1806,10 @@ impl SemanticPackage {
         offset: usize,
         name: &str,
     ) -> Option<&'a Symbol> {
+        let reaching_identity = unit
+            .flow_binding_ids
+            .get(&(unit.source.id(), offset, offset + name.len()))
+            .copied();
         let mut scopes = lexical_scope_chain(unit, offset).peekable();
         let inside_lexical_scope = scopes.peek().is_some();
         scopes
@@ -1813,7 +1819,10 @@ impl SemanticPackage {
                     .get(name)?
                     .iter()
                     .rev()
-                    .find(|symbol| symbol.binding_span.is_none_or(|span| span.end <= offset))
+                    .find(|symbol| match reaching_identity {
+                        Some(identity) => symbol.declaration_span == Some(identity),
+                        None => symbol.binding_span.is_none_or(|span| span.end <= offset),
+                    })
             })
             .or_else(|| {
                 self.resolve_name_with_prelude(&unit.namespace, name, unit.prelude)

@@ -8,6 +8,8 @@ mod dependencies;
 pub(crate) mod helpers;
 mod required_init;
 mod runtime_support;
+mod storage_names;
+pub(crate) use storage_names::StorageNames;
 
 #[cfg(test)]
 mod tests;
@@ -24,14 +26,13 @@ mod prelude {
         rust_ir::{GeneratedModule, Item, Module, ModuleDestination, Program},
         semantics::{
             ArithmeticFamily, BuiltinDescriptor, CallableEffects, CallableParameterType,
-            CanonicalDefault, ClosureWrites, CoercionPolicy, ContextualConstant,
-            DescriptorContract, EffectiveObjectField, ElementType, FloatMemberArgument,
-            FloatMemberOperation, FunctionContract, GenericParameterContract, InvocationMode,
-            MemberFamily, ObjectIdentity, ObjectKind, SemanticPackage, SemanticUnit,
-            SourceEnumContract, StringFamily, SymbolKind, TaskTransferability, TypedBinding,
-            ValueType, binding_read_value_is_reused, binding_requires_mutable_storage,
-            binding_span_is_mutated, binding_storage_is_replaced, binding_store_value_is_read,
-            bound_method, canonical_default, collection_member_call, contextual_constant,
+            ClosureWrites, CoercionPolicy, ContextualConstant, DescriptorContract, ElementType,
+            FloatMemberArgument, FloatMemberOperation, FunctionContract, GenericParameterContract,
+            InvocationMode, MemberFamily, ObjectIdentity, ObjectKind, SemanticPackage,
+            SemanticUnit, SourceEnumContract, StringFamily, SymbolKind, TaskTransferability,
+            TypedBinding, ValueType, binding_read_value_is_reused,
+            binding_requires_mutable_storage, binding_span_is_mutated, binding_store_value_is_read,
+            bound_method, collection_member_call, contextual_constant,
             descriptor_binding_is_materialized, descriptor_contract_by_identity,
             effective_object_fields, float_member_contract, is_numeric, narrowed_optional_type,
             narrowed_value_type, object_member_type, promoted_integer_type, string_call_selection,
@@ -43,7 +44,6 @@ mod prelude {
     pub(super) use super::dependencies::*;
     pub(super) use super::emitter::*;
     pub(super) use super::helpers::*;
-    pub(super) use super::required_init::*;
     pub(super) use super::runtime_support::*;
 }
 
@@ -66,46 +66,21 @@ pub(crate) fn debug_rust_name(name: &str) -> String {
     helpers::rust_name(name)
 }
 
-pub(crate) fn binding_storage_rust_name(
-    unit: &crate::semantics::SemanticUnit,
+pub(crate) fn binding_storage_rust_name<'a>(
+    unit: &'a crate::semantics::SemanticUnit,
     binding: &crate::semantics::TypedBinding,
+) -> &'a str {
+    StorageNames::for_unit(unit).binding(binding.span)
+}
+
+pub(crate) fn parameter_source_rust_name(
+    unit: &crate::semantics::SemanticUnit,
+    name: &str,
+    span: crate::Span,
 ) -> String {
-    let identity = unit
-        .flow_binding_ids
-        .get(&(binding.span.file, binding.span.start, binding.span.end))
-        .copied()
-        .unwrap_or(binding.span);
-    let Some(storage) = unit
-        .typed_bindings
-        .iter()
-        .find(|candidate| candidate.span == identity)
-    else {
-        return debug_rust_name(&binding.name);
-    };
-    if let Some(function) = unit
-        .functions
-        .iter()
-        .find(|function| Some(function.span) == storage.scope)
-    {
-        if let Some(parameter) = function
-            .parameters
-            .iter()
-            .find(|parameter| parameter.span == storage.span)
-        {
-            if matches!(
-                unit.flow_binding_types.get(&storage.span),
-                Some(crate::semantics::ValueType::Union(_))
-            ) {
-                helpers::rust_local_name(&parameter.name, parameter.span)
-            } else {
-                debug_rust_name(&storage.name)
-            }
-        } else {
-            helpers::rust_binding_name(storage)
-        }
-    } else {
-        debug_rust_name(&binding.name)
-    }
+    StorageNames::for_unit(unit)
+        .parameter(span)
+        .map_or_else(|| helpers::rust_name(name), str::to_owned)
 }
 
 pub(crate) fn debug_function_name(

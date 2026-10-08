@@ -726,11 +726,6 @@ impl Emitter<'_> {
             );
             let output = self.traced_await_output(output, operand);
             if header.kind == SyntaxKind::Binding {
-                let name_node = header
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::Name)
-                    .expect("parsed select binding has a name");
                 let binding = self
                     .unit
                     .typed_bindings
@@ -761,11 +756,7 @@ impl Emitter<'_> {
                 } else {
                     output
                 };
-                let name = if self.active_function_bindings.contains(&storage.span) {
-                    rust_binding_name(storage)
-                } else {
-                    rust_name(self.text(name_node))
-                };
+                let name = self.binding_storage_name(storage);
                 if rust_value_is_copy(&self.flow_binding_type(storage))
                     && !binding_store_value_is_read(self.package, header.span, header.span)
                 {
@@ -961,7 +952,10 @@ impl Emitter<'_> {
                     .typed_bindings
                     .iter()
                     .find(|binding| binding.span == alias.span);
-                let name = binding.map_or_else(|| rust_name(self.text(alias)), rust_binding_name);
+                let name = binding.map_or_else(
+                    || rust_name(self.text(alias)),
+                    |binding| self.binding_storage_name(binding).to_owned(),
+                );
                 let value = format!("__terrane_error_{index}.clone()");
                 if binding
                     .is_some_and(|binding| self.active_function_bindings.contains(&binding.span))
@@ -1137,7 +1131,10 @@ impl Emitter<'_> {
         let name = if discard {
             "_".to_owned()
         } else {
-            storage_binding.map_or_else(|| rust_name(source_name), rust_binding_name)
+            storage_binding.map_or_else(
+                || rust_name(source_name),
+                |binding| self.binding_storage_name(binding).to_owned(),
+            )
         };
         let reference_backed =
             storage_binding.is_some_and(|binding| self.reference_backed(binding));
@@ -1226,7 +1223,7 @@ impl Emitter<'_> {
                 !self.initializer_consumes_binding(initializer, previous_identity)
             })
         {
-            let previous_name = rust_binding_name(previous);
+            let previous_name = self.binding_storage_name(previous);
             release_previous = Some(if self.binding_may_be_unassigned(previous) {
                 format!("drop({previous_name}.take());")
             } else {
@@ -1267,7 +1264,7 @@ impl Emitter<'_> {
         if (release_previous.is_some() || consumes_destination)
             && let Some(initialized) = &value
         {
-            let temporary = rust_local_name("__replacement", node.span);
+            let temporary = "__terrane_replacement".to_owned();
             self.line(&format!("let {temporary} = {initialized};"));
             value = Some(temporary);
         }
@@ -1565,7 +1562,7 @@ impl Emitter<'_> {
             let storage = if self.binding_may_be_unassigned(binding) {
                 format!("{storage}.as_mut().expect(\"flow-proven available binding\")")
             } else {
-                storage
+                storage.to_owned()
             };
             self.line(&format!("let {vector} = {storage}.make_unique();"));
             if let Some((start, end)) = capacity_hint {
@@ -1912,13 +1909,7 @@ impl Emitter<'_> {
                     });
                     let name = storage.map_or_else(
                         || rust_name(self.text(target)),
-                        |binding| {
-                            if self.active_function_bindings.contains(&binding.span) {
-                                rust_binding_name(binding)
-                            } else {
-                                rust_name(self.text(target))
-                            }
-                        },
+                        |binding| self.binding_storage_name(binding).to_owned(),
                     );
                     let active = storage.is_some_and(|binding| {
                         self.active_function_bindings.contains(&binding.span)
@@ -2008,13 +1999,7 @@ impl Emitter<'_> {
         });
         let storage_name = storage.map_or_else(
             || rust_name(self.text(name)),
-            |binding| {
-                if self.active_function_bindings.contains(&binding.span) {
-                    rust_binding_name(binding)
-                } else {
-                    rust_name(self.text(name))
-                }
-            },
+            |binding| self.binding_storage_name(binding).to_owned(),
         );
         let active =
             storage.is_some_and(|binding| self.active_function_bindings.contains(&binding.span));

@@ -1127,6 +1127,56 @@ fn rejects_reads_before_assignment() {
 }
 
 #[test]
+fn loop_carried_body_names_use_canonical_uncertain_read_facts() {
+    for source in [
+        "namespace app\nfunction main;\n  for current in 'ab'\n    print; item\n    item = current\n",
+        "namespace app\nfunction main;\n  choose = true\n  while choose\n    print; item\n    item = 'a'\n    choose = false\n    continue\n",
+    ] {
+        let analyzed = analyze(&package(true, &[("main.trn", source)])).unwrap();
+        let unit = &analyzed.units[0];
+        let offset = source.find("print; item").unwrap() + "print; ".len();
+        let key = (unit.source.id(), offset, offset + "item".len());
+        assert_eq!(
+            unit.flow_availability.get(&key),
+            Some(&terrane_compiler::semantics::FlowAvailability::MayBeUnassigned)
+        );
+        let binding = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.name == "item")
+            .unwrap();
+        assert_eq!(unit.flow_binding_ids.get(&key), Some(&binding.span));
+        assert_eq!(
+            analyzed
+                .resolve_name_at(unit, offset, "item")
+                .unwrap()
+                .declaration_span,
+            Some(binding.span)
+        );
+    }
+}
+
+#[test]
+fn loop_carried_reads_infer_earlier_rhs_binding_types() {
+    let source = "namespace app\nfunction main;\n  first = true\n  for current in 'abc'\n    if not first\n      observed = item\n      print; observed\n    item = current\n    first = false\n";
+    let analyzed = analyze(&package(true, &[("main.trn", source)])).unwrap();
+    let unit = &analyzed.units[0];
+    let observed = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.name == "observed")
+        .unwrap();
+    assert_eq!(observed.value_type, ValueType::Scalar(ScalarType::String));
+    let offset = source.find("print; observed").unwrap() + "print; ".len();
+    let key = (unit.source.id(), offset, offset + "observed".len());
+    assert_eq!(unit.flow_binding_ids.get(&key), Some(&observed.span));
+    assert_eq!(
+        unit.flow_availability.get(&key),
+        Some(&terrane_compiler::semantics::FlowAvailability::DefinitelyAssigned)
+    );
+}
+
+#[test]
 fn collection_for_targets_use_element_types_and_validate_the_input() {
     let wrong_argument = analyze(&package(
         true,

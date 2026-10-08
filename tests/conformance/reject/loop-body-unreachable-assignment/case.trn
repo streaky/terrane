@@ -1,0 +1,7 @@
+namespace conformance/loop-body-unreachable-assignment
+
+function main;
+    for index = 0; index < 2; index++
+        print; item
+        if false
+            item = 'a'

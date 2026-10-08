@@ -1,0 +1,8 @@
+namespace conformance/loop-body-nested-function-assignment
+
+function main;
+    for index = 0; index < 2; index++
+        print; item
+        function initialize;
+            item = 'a'
+        initialize;

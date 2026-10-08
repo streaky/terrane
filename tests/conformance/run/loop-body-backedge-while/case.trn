@@ -1,0 +1,15 @@
+namespace conformance/loop-body-backedge-while
+
+from /core/output import print
+
+function main;
+    index = 0
+    while index < 3
+        if index > 0
+            print; item
+        if index == 0
+            item = 'a'
+        else
+            item = 'b'
+        index++
+        continue

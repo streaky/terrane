@@ -1,0 +1,6 @@
+namespace conformance/loop-body-known-zero-entry
+
+function main;
+    while false
+        item = 'a'
+    print; item

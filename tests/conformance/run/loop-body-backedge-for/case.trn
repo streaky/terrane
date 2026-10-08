@@ -1,0 +1,11 @@
+namespace conformance/loop-body-backedge-for
+
+from /core/output import print
+
+function main;
+    first = true
+    for item in 'abc'
+        if not first
+            print; previous
+        previous = item
+        first = false

@@ -568,6 +568,7 @@ pub(crate) fn validate_enum_matches(package: &mut SemanticPackage) -> Result<(),
             )?;
         }
         let unit = &mut package.units[index];
+        unit.rust_storage_names.take();
         for binding in bindings {
             if let Some(existing) = unit
                 .typed_bindings

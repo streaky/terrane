@@ -689,7 +689,7 @@ impl<'a> Emitter<'a> {
                             if *name == "_" {
                                 "_".to_owned()
                             } else {
-                                rust_name(name)
+                                format!("__terrane_pattern_{}_{}", case.span.start, rust_name(name))
                             }
                         })
                         .collect::<Vec<_>>();
@@ -754,7 +754,11 @@ impl<'a> Emitter<'a> {
                                     projected,
                                     crate::rust_interop::projection::ProjectedType::Int
                                 ) {
-                                    let name = rust_name(binding);
+                                    let name = format!(
+                                        "__terrane_pattern_{}_{}",
+                                        case.span.start,
+                                        rust_name(binding)
+                                    );
                                     let converted = projected_result_expression(
                                         &format!("*{name}"),
                                         &projected,
@@ -779,7 +783,11 @@ impl<'a> Emitter<'a> {
                                         .map(|name| if *name == "_" {
                                             "_".to_owned()
                                         } else {
-                                            rust_name(name)
+                                            format!(
+                                                "__terrane_pattern_{}_{}",
+                                                case.span.start,
+                                                rust_name(name)
+                                            )
                                         })
                                         .collect::<Vec<_>>()
                                         .join(", ")
@@ -794,7 +802,11 @@ impl<'a> Emitter<'a> {
                                         let name = if *binding == "_" {
                                             "_".to_owned()
                                         } else {
-                                            rust_name(binding)
+                                            format!(
+                                                "__terrane_pattern_{}_{}",
+                                                case.span.start,
+                                                rust_name(binding)
+                                            )
                                         };
                                         if name == field.rust_name {
                                             name
@@ -863,7 +875,8 @@ impl<'a> Emitter<'a> {
                 if !self.active_function_bindings.contains(&storage.span) {
                     continue;
                 }
-                let mut value = rust_name(name);
+                let mut value =
+                    format!("__terrane_pattern_{}_{}", case.span.start, rust_name(name));
                 if let ValueType::Union(arms) = self.flow_binding_type(storage) {
                     let index = arms
                         .iter()
@@ -874,10 +887,13 @@ impl<'a> Emitter<'a> {
                 if self.binding_may_be_unassigned(storage) {
                     self.line(&format!(
                         "let _ = {}.insert({value});",
-                        rust_binding_name(storage)
+                        self.binding_storage_name(storage)
                     ));
                 } else {
-                    self.line(&format!("{} = {value};", rust_binding_name(storage)));
+                    self.line(&format!(
+                        "{} = {value};",
+                        self.binding_storage_name(storage)
+                    ));
                 }
             }
             if let Some(body) = case

@@ -1,0 +1,61 @@
+namespace stable-local-storage
+
+from /core/collections import list
+
+function collisions; source-value int, source_value int, source_value_2 int
+    print; source-value
+    print; source_value
+    print; source_value_2
+    nested = function int;
+        source_value int = 7
+        return source-value + source_value
+    print; (nested;)
+
+function parameter-carrier; value int, value_2 int, replace bool
+    if replace
+        value string = 'carrier'
+    captured = function;
+        print; value
+        print; value_2
+    captured;
+
+function versions;
+    value int = 3
+    value_2 int = 20
+    before = function int;
+        return value
+    value string = 'cat'
+    after = function string;
+        return value
+    print; (before;)
+    print; (after;)
+    print; value_2
+    value bool = true
+    print; value
+
+function builder;
+    values_2 int64 = 9
+    values int64 = 4
+    print; values
+    values list of int64 = list
+    index int64 = 0
+    while index < 3
+        values.append; index
+        index++
+    print; values.length
+    print; values_2
+    print; index
+
+function native-input int; input string
+    length int = rust
+        terrane_int_support::Int::from(input.len() as i64)
+    print; input
+    return length
+
+function main;
+    collisions; 10, 20, 30
+    parameter-carrier; 5, 8, true
+    parameter-carrier; 5, 8, false
+    versions;
+    builder;
+    print; (native-input; 'readable')

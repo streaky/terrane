@@ -136,9 +136,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .find(|(binding_index, binding)| {
                         binding.scope.is_some()
                             && binding.is_visible_at(unit.source.id(), node.span.start)
-                            && identifiers.contains(&crate::lowering::binding_storage_rust_name(
-                                unit, binding,
-                            ))
+                            && identifiers
+                                .contains(crate::lowering::binding_storage_rust_name(unit, binding))
                             && noncopyable_binding(package, unit, *binding_index)
                     })
             {
@@ -560,7 +559,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 )?;
             }
             let mut branches = Vec::new();
-            if try_block.is_some_and(super::scopes::block_may_fall_through) {
+            if try_block.is_some_and(super::scope_validation::block_may_fall_through) {
                 branches.push(try_state.clone());
             }
             for clause in node
@@ -575,7 +574,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 {
                     let mut branch = try_state.clone();
                     visit(package, unit, block, &mut branch, false, resource_objects)?;
-                    if super::scopes::block_may_fall_through(block) {
+                    if super::scope_validation::block_may_fall_through(block) {
                         branches.push(branch);
                     }
                 }
@@ -589,7 +588,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 for branch in &mut branches {
                     visit(package, unit, finally, branch, false, resource_objects)?;
                 }
-                if !super::scopes::block_may_fall_through(finally) {
+                if !super::scope_validation::block_may_fall_through(finally) {
                     branches.clear();
                 }
             }
@@ -644,7 +643,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .find(|child| child.kind == SyntaxKind::Block)
                 {
                     visit(package, unit, body, &mut branch, false, resource_objects)?;
-                    if super::scopes::block_may_fall_through(body) {
+                    if super::scope_validation::block_may_fall_through(body) {
                         branches.push(branch);
                     }
                 }
@@ -687,7 +686,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
                     visit(package, unit, child, &mut branch, false, resource_objects)?;
-                    if super::scopes::block_may_fall_through(child) {
+                    if super::scope_validation::block_may_fall_through(child) {
                         branches.push(branch);
                     }
                 }
@@ -779,7 +778,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             return Ok(());
         }
         for (index, child) in node.children.iter().enumerate() {
-            if !super::scopes::is_flow_value_child(node, index, child) {
+            if !super::scope_flow::is_flow_value_child(node, index, child) {
                 continue;
             }
             visit(package, unit, child, moved, false, resource_objects)?;
@@ -888,15 +887,16 @@ fn first_owner_lifetime_end(
         _ => None,
     };
     if node.span.start > after
-        && target.and_then(root_name).is_some_and(|target| {
-            unit.flow_binding_ids
-                .get(&(target.span.file, target.span.start, target.span.end))
-                .is_some_and(|identity| *identity == owner)
-                || package
-                    .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
-                    .and_then(|symbol| symbol.declaration_span)
-                    == Some(owner)
-        })
+        && (unit.flow_replacements.get(&node.span) == Some(&owner)
+            || target.and_then(root_name).is_some_and(|target| {
+                unit.flow_binding_ids
+                    .get(&(target.span.file, target.span.start, target.span.end))
+                    .is_some_and(|identity| *identity == owner)
+                    || package
+                        .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
+                        .and_then(|symbol| symbol.declaration_span)
+                        == Some(owner)
+            }))
     {
         return Some(node.span);
     }
