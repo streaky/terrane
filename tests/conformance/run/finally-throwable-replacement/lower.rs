@@ -537,37 +537,39 @@ fn replaced() -> Result<String, TerraneError> {
     }
 }
 fn main() {
-    let recovered_operation: std::sync::Arc<
+    let recovered_operation_terrane_f0_s363: std::sync::Arc<
         dyn Fn() -> Result<String, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(move || Ok(recovered()));
-    let replacement_operation: std::sync::Arc<
+    >;
+    let replacement_operation_terrane_f0_s397: std::sync::Arc<
         dyn Fn() -> Result<String, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(replaced);
+    >;
+    recovered_operation_terrane_f0_s363 = std::sync::Arc::new(move || Ok(recovered()));
+    replacement_operation_terrane_f0_s397 = std::sync::Arc::new(replaced);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = recovered_operation;
-        "arithmetic-overflow".to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ =
+        recovered_operation_terrane_f0_s363; "arithmetic-overflow".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = recovered_operation; ""
-        .to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ =
+        recovered_operation_terrane_f0_s363; "".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = replacement_operation;
-        "arithmetic-overflow".to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ =
+        replacement_operation_terrane_f0_s397; "arithmetic-overflow".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = replacement_operation;
-        "arithmetic-overflow".to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ =
+        replacement_operation_terrane_f0_s397; "arithmetic-overflow".to_owned() })
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(recovered_operation(),
+        terrane_scalar_support::scalar_text(&__terrane_traced(recovered_operation_terrane_f0_s363(),
         3 /* terrane-site: case.trn:23:11-23:31 */))
     );
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
-                replacement_operation(), 4 /* terrane-site: case.trn:25:5-25:27 */
+                replacement_operation_terrane_f0_s397(), 4 /* terrane-site: case.trn:25:5-25:27 */
             );
             TerraneCompletion::Normal
         })();

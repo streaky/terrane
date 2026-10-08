@@ -458,22 +458,34 @@ fn consume(__trn_5f76616c7565: &terrane_int_support::Int) {
     let _ = &__trn_5f76616c7565;
 }
 fn main() {
-    let owner: Holder = Holder::terrane_construct(
+    let owner_terrane_f0_s268: Holder;
+    let field_terrane_f0_s298: &terrane_int_support::Int;
+    let show_field_terrane_f0_s332: std::sync::Arc<dyn Fn() -> () + Send + Sync>;
+    let values_terrane_f0_s412: terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let element_terrane_f0_s447: &terrane_int_support::Int;
+    let returned_terrane_f0_s481: &terrane_int_support::Int;
+    let borrowed_terrane_f0_s550: &terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let mut item_terrane_f0_s594: &terrane_int_support::Int;
+    owner_terrane_f0_s268 = Holder::terrane_construct(
         terrane_int_support::Int::from(41_i128),
     );
-    let field: &terrane_int_support::Int = &owner.value;
-    let show_field: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
-        let field = field;
+    field_terrane_f0_s298 = &owner_terrane_f0_s268.value;
+    show_field_terrane_f0_s332 = {
+        let field_terrane_f0_s298 = field_terrane_f0_s298;
         std::sync::Arc::new(move || -> () {
-            consume(field);
+            consume(field_terrane_f0_s298);
             println!(
                 "{}", terrane_scalar_support::scalar_text(&String::from("captured"))
             );
             ()
         })
     };
-    show_field();
-    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    show_field_terrane_f0_s332();
+    values_terrane_f0_s412 = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -481,7 +493,7 @@ fn main() {
             terrane_int_support::Int::from(42_i128)
         ],
     );
-    let element: &terrane_int_support::Int = {
+    element_terrane_f0_s447 = {
         let __terrane_index = __terrane_raised(
             terrane_collection_support::index_from_int(
                 &terrane_int_support::Int::from(1_i128),
@@ -489,7 +501,7 @@ fn main() {
             0 /* terrane-site: case.trn:23:25-23:34 */,
         );
         __terrane_raised(
-            values
+            values_terrane_f0_s412
                 .get(__terrane_index)
                 .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
                     __terrane_index,
@@ -497,20 +509,22 @@ fn main() {
             0 /* terrane-site: case.trn:23:25-23:34 */,
         )
     };
-    let returned: &terrane_int_support::Int = pass(element);
+    returned_terrane_f0_s481 = pass(element_terrane_f0_s447);
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&field.clone()),
-        terrane_scalar_support::scalar_text(&element.clone()),
-        terrane_scalar_support::scalar_text(&returned.clone())
+        "{}{}{}", terrane_scalar_support::scalar_text(&field_terrane_f0_s298.clone()),
+        terrane_scalar_support::scalar_text(&element_terrane_f0_s447.clone()),
+        terrane_scalar_support::scalar_text(&returned_terrane_f0_s481.clone())
     );
-    let borrowed: &terrane_collection_support::List<terrane_int_support::Int> = &values;
-    let __terrane_iterable_0 = borrowed;
+    borrowed_terrane_f0_s550 = &values_terrane_f0_s412;
+    let __terrane_iterable_0 = borrowed_terrane_f0_s550;
     let mut __terrane_iterator_0 = __terrane_iterable_0.terrane_borrowing_iterator();
     loop {
-        let item = match __terrane_iterator_0.next() {
+        item_terrane_f0_s594 = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&item.clone()));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&item_terrane_f0_s594.clone())
+        );
     }
 }

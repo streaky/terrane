@@ -4,8 +4,13 @@
 // Source: case.trn
 // Namespace: duplicate-union-arm-normalization
 fn main() {
-    let value: i8 = 7;
-    let empty: () = ();
-    println!("{}", terrane_scalar_support::scalar_text(&value));
-    println!("{}", terrane_scalar_support::scalar_text(&{ let _ = &empty; true }));
+    let value_terrane_f0_s98: i8;
+    let empty_terrane_f0_s120: ();
+    value_terrane_f0_s98 = 7;
+    empty_terrane_f0_s120 = ();
+    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s98));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = &empty_terrane_f0_s120; true
+        })
+    );
 }

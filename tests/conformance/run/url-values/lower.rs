@@ -442,43 +442,51 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: conformance/url-values
 fn main() {
-    let parsed: UrlResult = parse_url(
+    let parsed_terrane_f0_s118: UrlResult;
+    let value_terrane_f0_s219: Url;
+    let relative_terrane_f0_s604: UrlResult;
+    parsed_terrane_f0_s118 = parse_url(
         String::from("https://user:pass@bücher.example:443/a?x=1&x=2#f"),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&parsed.failed));
-    let value: Url = parsed.value;
+    println!("{}", terrane_scalar_support::scalar_text(&parsed_terrane_f0_s118.failed));
+    value_terrane_f0_s219 = parsed_terrane_f0_s118.value;
     println!(
-        "{}{}{}{}", terrane_scalar_support::scalar_text(&value.scheme),
-        terrane_scalar_support::scalar_text(&value.host),
-        terrane_scalar_support::scalar_text(&value.port),
-        terrane_scalar_support::scalar_text(&value.path)
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.scheme),
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s219.host),
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s219.port),
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s219.path)
     );
-    println!("{}", terrane_scalar_support::scalar_text(&value.string()));
+    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.string()));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&value.username),
-        terrane_scalar_support::scalar_text(&value.password)
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&value.query.count));
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&value.query.get(String::from("x"))),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value.query
-        .get_all(String::from("x")).length()))
+        "{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.username),
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s219.password)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&value.fragment),
-        terrane_scalar_support::scalar_text(&value.origin)
+        "{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.query.count)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&value.serialized
+        "{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.query
+        .get(String::from("x"))),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value_terrane_f0_s219
+        .query.get_all(String::from("x")).length()))
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.fragment),
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s219.origin)
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s219.serialized
         .contains(&String::from("user:pass@"))),
-        terrane_scalar_support::scalar_text(&value.display
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s219.display
         .contains(&String::from("user:pass@")))
     );
-    let relative: UrlResult = value.resolve(String::from("../b?q=hello%20world"));
+    relative_terrane_f0_s604 = value_terrane_f0_s219
+        .resolve(String::from("../b?q=hello%20world"));
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&relative.value.host),
-        terrane_scalar_support::scalar_text(&relative.value.path),
-        terrane_scalar_support::scalar_text(&relative.value.query.get(String::from("q")))
+        "{}{}{}", terrane_scalar_support::scalar_text(&relative_terrane_f0_s604.value
+        .host), terrane_scalar_support::scalar_text(&relative_terrane_f0_s604.value
+        .path), terrane_scalar_support::scalar_text(&relative_terrane_f0_s604.value.query
+        .get(String::from("q")))
     );
 }
 // Source: core/urls.trn
@@ -504,77 +512,85 @@ impl UrlQuery {
         __terrane_constructed_value
     }
     pub fn construct(&mut self) {
-        let keys: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        let values: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        self.keys = keys;
-        self.values = values;
+        let keys_terrane_f1_s196: terrane_collection_support::List<String>;
+        let values_terrane_f1_s232: terrane_collection_support::List<String>;
+        keys_terrane_f1_s196 = terrane_collection_support::List::<String>::new(vec![]);
+        values_terrane_f1_s232 = terrane_collection_support::List::<String>::new(vec![]);
+        self.keys = keys_terrane_f1_s196;
+        self.values = values_terrane_f1_s232;
         self.count = terrane_int_support::Int::from(0_i128);
     }
     pub fn length(&self) -> terrane_int_support::Int {
         return self.count.clone();
     }
     pub fn get(&self, name: String) -> String {
-        let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-        while index.clone()
+        let mut index_terrane_f1_s437: terrane_int_support::Int;
+        index_terrane_f1_s437 = terrane_int_support::Int::from(0_i128);
+        while index_terrane_f1_s437.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(self.keys.length()),
             )
         {
             if __terrane_raised(
-                self
-                    .keys
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            0 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                    self
+                        .keys
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &index_terrane_f1_s437.clone(),
+                                ),
+                                0 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                            ),
                         ),
-                    ),
-                0 /* terrane-site: core/urls.trn:23:16-23:32 */,
-            ) == name
+                    0 /* terrane-site: core/urls.trn:23:16-23:32 */,
+                )
+                .as_str() == name.as_str()
             {
                 return __terrane_raised(
                     self
                         .values
                         .get_or_error(
                             __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
+                                terrane_collection_support::index_from_int(
+                                    &index_terrane_f1_s437.clone(),
+                                ),
                                 1 /* terrane-site: core/urls.trn:24:24-24:42 */,
                             ),
                         ),
                     1 /* terrane-site: core/urls.trn:24:24-24:42 */,
                 );
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f1_s437 = index_terrane_f1_s437.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
         return String::from("");
     }
     pub fn get_all(&self, name: String) -> terrane_collection_support::List<String> {
-        let mut result: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+        let mut result_terrane_f1_s678: terrane_collection_support::List<String>;
+        let mut index_terrane_f1_s716: terrane_int_support::Int;
+        result_terrane_f1_s678 = terrane_collection_support::List::<String>::new(vec![]);
+        index_terrane_f1_s716 = terrane_int_support::Int::from(0_i128);
         {
-            let __terrane_list_append_0 = result.make_unique();
-            while index.clone()
+            let __terrane_list_append_0 = result_terrane_f1_s678.make_unique();
+            while index_terrane_f1_s716.clone()
                 < terrane_int_support::Int::from(
                     terrane_int_support::Int::from(self.keys.length()),
                 )
             {
                 if __terrane_raised(
-                    self
-                        .keys
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
-                                2 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                        self
+                            .keys
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &index_terrane_f1_s716.clone(),
+                                    ),
+                                    2 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                                ),
                             ),
-                        ),
-                    2 /* terrane-site: core/urls.trn:32:16-32:32 */,
-                ) == name
+                        2 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                    )
+                    .as_str() == name.as_str()
                 {
                     __terrane_list_append_0
                         .push(
@@ -583,7 +599,9 @@ impl UrlQuery {
                                     .values
                                     .get_or_error(
                                         __terrane_raised(
-                                            terrane_collection_support::index_from_int(&index.clone()),
+                                            terrane_collection_support::index_from_int(
+                                                &index_terrane_f1_s716.clone(),
+                                            ),
                                             3 /* terrane-site: core/urls.trn:33:32-33:50 */,
                                         ),
                                     ),
@@ -591,10 +609,11 @@ impl UrlQuery {
                             ),
                         );
                 }
-                index = index.clone() + terrane_int_support::Int::from(1_i128);
+                index_terrane_f1_s716 = index_terrane_f1_s716.clone()
+                    + terrane_int_support::Int::from(1_i128);
             }
         }
-        return result;
+        return result_terrane_f1_s678;
     }
 }
 pub fn append_query_entry(mut query: UrlQuery, name: String, value: String) -> UrlQuery {
@@ -728,10 +747,17 @@ impl UrlResult {
     }
 }
 pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult {
-    let failed: bool = terrane_url_failed(&raw);
-    if failed {
-        let empty_query: UrlQuery = UrlQuery::terrane_construct();
-        let empty_url: Url = Url::terrane_construct(
+    let failed_terrane_f1_s2473: bool;
+    let empty_query_terrane_f1_s2525: UrlQuery;
+    let empty_url_terrane_f1_s2567: Url;
+    let mut query_terrane_f1_s2726: UrlQuery;
+    let count_terrane_f1_s2758: terrane_int_support::Int;
+    let mut index_terrane_f1_s2797: terrane_int_support::Int;
+    let value_terrane_f1_s2977: Url;
+    failed_terrane_f1_s2473 = terrane_url_failed(&raw);
+    if failed_terrane_f1_s2473 {
+        empty_query_terrane_f1_s2525 = UrlQuery::terrane_construct();
+        empty_url_terrane_f1_s2567 = Url::terrane_construct(
             String::from(""),
             String::from(""),
             String::from(""),
@@ -740,24 +766,29 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
             String::from(""),
             String::from(""),
             String::from(""),
-            empty_query,
+            empty_query_terrane_f1_s2525,
             String::from(""),
             String::from(""),
         );
-        return UrlResult::terrane_construct(true, terrane_url_message(&raw), empty_url);
-    }
-    let mut query: UrlQuery = UrlQuery::terrane_construct();
-    let count: terrane_int_support::Int = terrane_url_query_length(&raw);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < count.clone() {
-        query = append_query_entry(
-            query,
-            terrane_url_query_key(&raw, index.clone()),
-            terrane_url_query_value(&raw, index.clone()),
+        return UrlResult::terrane_construct(
+            true,
+            terrane_url_message(&raw),
+            empty_url_terrane_f1_s2567,
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    let value: Url = Url::terrane_construct(
+    query_terrane_f1_s2726 = UrlQuery::terrane_construct();
+    count_terrane_f1_s2758 = terrane_url_query_length(&raw);
+    index_terrane_f1_s2797 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f1_s2797.clone() < count_terrane_f1_s2758.clone() {
+        query_terrane_f1_s2726 = append_query_entry(
+            query_terrane_f1_s2726,
+            terrane_url_query_key(&raw, index_terrane_f1_s2797.clone()),
+            terrane_url_query_value(&raw, index_terrane_f1_s2797.clone()),
+        );
+        index_terrane_f1_s2797 = index_terrane_f1_s2797.clone()
+            + terrane_int_support::Int::from(1_i128);
+    }
+    value_terrane_f1_s2977 = Url::terrane_construct(
         terrane_url_serialized(&raw),
         terrane_url_display(&raw),
         terrane_url_scheme(&raw),
@@ -766,23 +797,19 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
         terrane_url_host(&raw),
         terrane_url_port(&raw),
         terrane_url_path(&raw),
-        query,
+        query_terrane_f1_s2726,
         terrane_url_fragment(&raw),
         terrane_url_origin(&raw),
     );
-    return UrlResult::terrane_construct(false, String::from(""), value);
+    return UrlResult::terrane_construct(false, String::from(""), value_terrane_f1_s2977);
 }
 pub fn parse_url(input: String) -> UrlResult {
-    let raw: terrane_document_support::UrlResult = terrane_url_parse(
-        input,
-        String::from(""),
-    );
-    return url_from_platform(raw);
+    let raw_terrane_f1_s3348: terrane_document_support::UrlResult;
+    raw_terrane_f1_s3348 = terrane_url_parse(input, String::from(""));
+    return url_from_platform(raw_terrane_f1_s3348);
 }
 pub fn parse_url_relative(input: String, base: Url) -> UrlResult {
-    let raw: terrane_document_support::UrlResult = terrane_url_parse(
-        input,
-        base.serialized,
-    );
-    return url_from_platform(raw);
+    let raw_terrane_f1_s3482: terrane_document_support::UrlResult;
+    raw_terrane_f1_s3482 = terrane_url_parse(input, base.serialized);
+    return url_from_platform(raw_terrane_f1_s3482);
 }

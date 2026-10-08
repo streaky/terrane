@@ -442,78 +442,91 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: scalar-reference-transparency
 fn main() {
-    let text: String = String::from("abc");
-    let seen: &String = &text;
+    let text_terrane_f0_s91: String;
+    let seen_terrane_f0_s115: &String;
+    let encoded_terrane_f0_s248: Vec<u8>;
+    let decoded_terrane_f0_s286: &Vec<u8>;
+    let number_terrane_f0_s356: std::sync::Arc<std::sync::Mutex<i8>>;
+    let observed_terrane_f0_s376: std::sync::Weak<std::sync::Mutex<i8>>;
+    let owner_terrane_f0_s539: std::sync::Arc<std::sync::Mutex<i8>>;
+    text_terrane_f0_s91 = String::from("abc");
+    seen_terrane_f0_s115 = &text_terrane_f0_s91;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&seen
+        "{}",
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&seen_terrane_f0_s115
         .clone()) as i128))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&seen.clone()));
+    println!("{}", terrane_scalar_support::scalar_text(&seen_terrane_f0_s115.clone()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&format!("{}{}",
-        terrane_scalar_support::scalar_text(&seen.clone()),
+        terrane_scalar_support::scalar_text(&seen_terrane_f0_s115.clone()),
         terrane_scalar_support::scalar_text(&String::from("!"))))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&vec![terrane_scalar_support::scalar_text(&String::from("x")),
-        terrane_scalar_support::scalar_text(&String::from("y"))] .join(&seen.clone()))
+        terrane_scalar_support::scalar_text(&String::from("y"))]
+        .join(&seen_terrane_f0_s115.clone()))
     );
-    let encoded: Vec<u8> = terrane_string_support::encode(
-        &text,
+    encoded_terrane_f0_s248 = terrane_string_support::encode(
+        &text_terrane_f0_s91,
         terrane_string_support::Encoding::Utf8,
     );
-    let decoded: &Vec<u8> = &encoded;
+    decoded_terrane_f0_s286 = &encoded_terrane_f0_s248;
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded_terrane_f0_s286
         .clone(), terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:13:13-13:33 */))
     );
-    let number: std::sync::Arc<std::sync::Mutex<i8>> = std::sync::Arc::new(
-        std::sync::Mutex::new(7),
-    );
-    let observed: std::sync::Weak<std::sync::Mutex<i8>> = std::sync::Arc::downgrade(
-        &number.clone(),
+    number_terrane_f0_s356 = std::sync::Arc::new(std::sync::Mutex::new(7));
+    observed_terrane_f0_s376 = std::sync::Arc::downgrade(
+        &number_terrane_f0_s356.clone(),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed
-        .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner =
+        observed_terrane_f0_s376.upgrade().expect("reference expired"); let
+        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
+        .clone(); __terrane_value })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
-        __terrane_owner = observed.upgrade().expect("reference expired"); let
-        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
+        __terrane_owner = observed_terrane_f0_s376.upgrade().expect("reference expired");
+        let __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
         .clone(); __terrane_value } as i128))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition({
-        let __terrane_owner = observed.upgrade().expect("reference expired"); let
-        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, 2), 1 /* terrane-site: case.trn:18:13-18:28 */))
+        let __terrane_owner = observed_terrane_f0_s376.upgrade()
+        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
+        .expect("reference lock poisoned").clone(); __terrane_value }, 2),
+        1 /* terrane-site: case.trn:18:13-18:28 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition({
-        let __terrane_owner = observed.upgrade().expect("reference expired"); let
+        let __terrane_owner = observed_terrane_f0_s376.upgrade()
+        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
+        .expect("reference lock poisoned").clone(); __terrane_value }, 3),
+        2 /* terrane-site: case.trn:19:12-19:24 */))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&- { let __terrane_owner =
+        observed_terrane_f0_s376.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, 3), 2 /* terrane-site: case.trn:19:12-19:24 */))
+        .clone(); __terrane_value })
     );
+    owner_terrane_f0_s539 = number_terrane_f0_s356.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&- { let __terrane_owner = observed
-        .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })
-    );
-    let owner: std::sync::Arc<std::sync::Mutex<i8>> = number.clone();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = owner.lock()
-        .expect("shared reference lock poisoned").clone(); __terrane_value })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value =
+        owner_terrane_f0_s539.lock().expect("shared reference lock poisoned").clone();
+        __terrane_value })
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_multiplication({
-        let __terrane_value = owner.lock().expect("shared reference lock poisoned")
-        .clone(); __terrane_value }, 2), 3 /* terrane-site: case.trn:23:12-23:21 */))
+        let __terrane_value = owner_terrane_f0_s539.lock()
+        .expect("shared reference lock poisoned").clone(); __terrane_value }, 2),
+        3 /* terrane-site: case.trn:23:12-23:21 */))
     );
 }

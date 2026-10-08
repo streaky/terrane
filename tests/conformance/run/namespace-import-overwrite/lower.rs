@@ -81,11 +81,12 @@ impl HexCodec {
         return terrane_platform_hex_encode(data);
     }
     pub fn decode(&self, text: String) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+        let raw_terrane_f6_s414: TerranePlatformResult;
+        raw_terrane_f6_s414 = terrane_platform_hex_decode(text);
         return DecodeResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_bytes(&raw),
+            terrane_platform_result_failed(&raw_terrane_f6_s414),
+            terrane_platform_result_message(&raw_terrane_f6_s414),
+            terrane_platform_result_bytes(&raw_terrane_f6_s414),
         );
     }
 }
@@ -106,15 +107,16 @@ impl Base64Codec {
         return terrane_platform_base64_encode(data, self.url_safe, padded);
     }
     pub fn decode(&self, text: String, padded: bool) -> DecodeResult {
-        let raw: TerranePlatformResult = terrane_platform_base64_decode(
+        let raw_terrane_f6_s864: TerranePlatformResult;
+        raw_terrane_f6_s864 = terrane_platform_base64_decode(
             text,
             self.url_safe,
             padded,
         );
         return DecodeResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_bytes(&raw),
+            terrane_platform_result_failed(&raw_terrane_f6_s864),
+            terrane_platform_result_message(&raw_terrane_f6_s864),
+            terrane_platform_result_bytes(&raw_terrane_f6_s864),
         );
     }
 }
@@ -134,11 +136,12 @@ pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
 }
 pub fn decode_hex(text: String) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_hex_decode(text);
+    let raw_terrane_f6_s1463: TerranePlatformResult;
+    raw_terrane_f6_s1463 = terrane_platform_hex_decode(text);
     return DecodeResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_message(&raw),
-        terrane_platform_result_bytes(&raw),
+        terrane_platform_result_failed(&raw_terrane_f6_s1463),
+        terrane_platform_result_message(&raw_terrane_f6_s1463),
+        terrane_platform_result_bytes(&raw_terrane_f6_s1463),
     );
 }
 pub fn encode_base64_terrane_core_codecs(
@@ -149,14 +152,11 @@ pub fn encode_base64_terrane_core_codecs(
     return terrane_platform_base64_encode(data, url_safe, padded);
 }
 pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult {
-    let raw: TerranePlatformResult = terrane_platform_base64_decode(
-        text,
-        url_safe,
-        padded,
-    );
+    let raw_terrane_f6_s1814: TerranePlatformResult;
+    raw_terrane_f6_s1814 = terrane_platform_base64_decode(text, url_safe, padded);
     return DecodeResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_message(&raw),
-        terrane_platform_result_bytes(&raw),
+        terrane_platform_result_failed(&raw_terrane_f6_s1814),
+        terrane_platform_result_message(&raw_terrane_f6_s1814),
+        terrane_platform_result_bytes(&raw_terrane_f6_s1814),
     );
 }

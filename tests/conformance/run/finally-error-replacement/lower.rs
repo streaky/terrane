@@ -441,6 +441,17 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: finally-error-replacement
 fn error_then_return() -> terrane_int_support::Int {
@@ -528,14 +539,22 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
     }
 }
 fn main() {
-    let first: terrane_int_support::Int = error_then_return();
-    println!("{}", terrane_scalar_support::scalar_text(&first));
+    let first_terrane_f0_s340: terrane_int_support::Int;
+    let mut second_terrane_f0_s396: Option<terrane_int_support::Int> = None;
+    first_terrane_f0_s340 = error_then_return();
+    println!("{}", terrane_scalar_support::scalar_text(&first_terrane_f0_s340));
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
-            let second: terrane_int_support::Int = __terrane_traced_completion!(
-                return_then_error(), 2 /* terrane-site: case.trn:17:18-17:36 */
+            let _ = second_terrane_f0_s396
+                .insert(
+                    __terrane_traced_completion!(
+                        return_then_error(), 2 /* terrane-site: case.trn:17:18-17:36 */
+                    ),
+                );
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&second_terrane_f0_s396
+                .as_ref().expect("flow-proven available binding").clone())
             );
-            println!("{}", terrane_scalar_support::scalar_text(&second));
             TerraneCompletion::Normal
         })();
         match __terrane_try_2 {

@@ -4,14 +4,16 @@
 // Source: case.trn
 // Namespace: nested-dead-store-warnings
 fn main() {
+    let mut nested_terrane_f0_s68: i8;
+    let mut top_terrane_f0_s119: i8;
     if 1 == 1 {
-        let mut nested: i8 = 1;
-        let _ = &mut nested;
-        nested = 2;
-        println!("{}", terrane_scalar_support::scalar_text(&nested));
+        nested_terrane_f0_s68 = 1;
+        let _ = &mut nested_terrane_f0_s68;
+        nested_terrane_f0_s68 = 2;
+        println!("{}", terrane_scalar_support::scalar_text(&nested_terrane_f0_s68));
     }
-    let mut top: i8 = 3;
-    let _ = &mut top;
-    top = 4;
-    println!("{}", terrane_scalar_support::scalar_text(&top));
+    top_terrane_f0_s119 = 3;
+    let _ = &mut top_terrane_f0_s119;
+    top_terrane_f0_s119 = 4;
+    println!("{}", terrane_scalar_support::scalar_text(&top_terrane_f0_s119));
 }

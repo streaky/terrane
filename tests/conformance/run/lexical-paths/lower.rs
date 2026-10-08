@@ -465,45 +465,72 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: conformance/lexical-paths
 fn main() {
-    let relative: Path = Path::terrane_construct(
+    let relative_terrane_f0_s241: Path;
+    let rooted_terrane_f0_s307: Path;
+    let base_terrane_f0_s367: Path;
+    let child_terrane_f0_s405: Path;
+    let relative_normal_terrane_f0_s442: Path;
+    let rooted_normal_terrane_f0_s489: Path;
+    let relative_text_terrane_f0_s532: String;
+    let rooted_text_terrane_f0_s573: String;
+    let rooted_name_terrane_f0_s610: String;
+    let rooted_stem_terrane_f0_s653: String;
+    let rooted_extension_terrane_f0_s696: String;
+    let rooted_parent_terrane_f0_s749: Path;
+    let rooted_parent_text_terrane_f0_s796: String;
+    let resolved_terrane_f0_s992: Path;
+    let resolved_text_terrane_f0_s1030: String;
+    let components_terrane_f0_s1089: terrane_collection_support::List<String>;
+    let hidden_terrane_f0_s1238: Path;
+    relative_terrane_f0_s241 = Path::terrane_construct(
         String::from("alpha/./beta/../gamma/../../delta"),
     );
-    let rooted: Path = Path::terrane_construct(
+    rooted_terrane_f0_s307 = Path::terrane_construct(
         String::from("/alpha/../../beta/file.tar.gz"),
     );
-    let base: Path = Path::terrane_construct(String::from("work/root"));
-    let child: Path = Path::terrane_construct(String::from("../next"));
-    let relative_normal: Path = normalise_path(relative);
-    let rooted_normal: Path = normalise_path(rooted);
-    let relative_text: String = relative_normal.text.clone();
-    let rooted_text: String = rooted_normal.text.clone();
-    let rooted_name: String = path_name(rooted_normal.clone());
-    let rooted_stem: String = path_stem(rooted_normal.clone());
-    let rooted_extension: String = path_extension(rooted_normal.clone());
-    let rooted_parent: Path = path_parent(rooted_normal.clone());
-    let rooted_parent_text: String = rooted_parent.text.clone();
-    println!("{}", terrane_scalar_support::scalar_text(&relative_text));
-    println!("{}", terrane_scalar_support::scalar_text(&rooted_text));
-    println!("{}", terrane_scalar_support::scalar_text(&rooted_name));
-    println!("{}", terrane_scalar_support::scalar_text(&rooted_stem));
-    println!("{}", terrane_scalar_support::scalar_text(&rooted_extension));
-    println!("{}", terrane_scalar_support::scalar_text(&rooted_parent_text));
-    let resolved: Path = join_path(base, child);
-    let resolved_text: String = resolved.text.clone();
-    println!("{}", terrane_scalar_support::scalar_text(&resolved_text));
-    let components: terrane_collection_support::List<String> = path_components(
-        rooted_normal.clone(),
+    base_terrane_f0_s367 = Path::terrane_construct(String::from("work/root"));
+    child_terrane_f0_s405 = Path::terrane_construct(String::from("../next"));
+    relative_normal_terrane_f0_s442 = normalise_path(relative_terrane_f0_s241);
+    rooted_normal_terrane_f0_s489 = normalise_path(rooted_terrane_f0_s307);
+    relative_text_terrane_f0_s532 = relative_normal_terrane_f0_s442.text.clone();
+    rooted_text_terrane_f0_s573 = rooted_normal_terrane_f0_s489.text.clone();
+    rooted_name_terrane_f0_s610 = path_name(rooted_normal_terrane_f0_s489.clone());
+    rooted_stem_terrane_f0_s653 = path_stem(rooted_normal_terrane_f0_s489.clone());
+    rooted_extension_terrane_f0_s696 = path_extension(
+        rooted_normal_terrane_f0_s489.clone(),
+    );
+    rooted_parent_terrane_f0_s749 = path_parent(rooted_normal_terrane_f0_s489.clone());
+    rooted_parent_text_terrane_f0_s796 = rooted_parent_terrane_f0_s749.text.clone();
+    println!("{}", terrane_scalar_support::scalar_text(&relative_text_terrane_f0_s532));
+    println!("{}", terrane_scalar_support::scalar_text(&rooted_text_terrane_f0_s573));
+    println!("{}", terrane_scalar_support::scalar_text(&rooted_name_terrane_f0_s610));
+    println!("{}", terrane_scalar_support::scalar_text(&rooted_stem_terrane_f0_s653));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&rooted_extension_terrane_f0_s696)
     );
     println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(components
-        .length())),
-        terrane_scalar_support::scalar_text(&path_is_absolute(rooted_normal)),
-        terrane_scalar_support::scalar_text(&path_is_absolute(relative_normal))
+        "{}", terrane_scalar_support::scalar_text(&rooted_parent_text_terrane_f0_s796)
     );
-    let hidden: Path = Path::terrane_construct(String::from(".profile"));
-    println!("{}", terrane_scalar_support::scalar_text(&path_stem(hidden.clone())));
-    println!("{}", terrane_scalar_support::scalar_text(&path_extension(hidden)));
+    resolved_terrane_f0_s992 = join_path(base_terrane_f0_s367, child_terrane_f0_s405);
+    resolved_text_terrane_f0_s1030 = resolved_terrane_f0_s992.text.clone();
+    println!("{}", terrane_scalar_support::scalar_text(&resolved_text_terrane_f0_s1030));
+    components_terrane_f0_s1089 = path_components(rooted_normal_terrane_f0_s489.clone());
+    println!(
+        "{}{}{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(components_terrane_f0_s1089
+        .length())),
+        terrane_scalar_support::scalar_text(&path_is_absolute(rooted_normal_terrane_f0_s489)),
+        terrane_scalar_support::scalar_text(&path_is_absolute(relative_normal_terrane_f0_s442))
+    );
+    hidden_terrane_f0_s1238 = Path::terrane_construct(String::from(".profile"));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&path_stem(hidden_terrane_f0_s1238
+        .clone()))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&path_extension(hidden_terrane_f0_s1238))
+    );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&path_parent(Path::terrane_construct(String::from("child")))
@@ -527,22 +554,28 @@ impl Path {
     }
 }
 pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
-    let parts: Vec<String> = terrane_string_support::split(
+    let parts_terrane_f1_s224: Vec<String>;
+    let mut result_terrane_f1_s260: terrane_collection_support::List<String>;
+    let mut index_terrane_f1_s294: terrane_int_support::Int;
+    let mut part_terrane_f1_s347: String;
+    parts_terrane_f1_s224 = terrane_string_support::split(
         &subject.text,
         &String::from("/"),
     );
-    let mut result: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result_terrane_f1_s260 = terrane_collection_support::List::<String>::new(vec![]);
+    index_terrane_f1_s294 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_0 = result.make_unique();
-        while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-            let part: String = __terrane_raised(
+        let __terrane_list_append_0 = result_terrane_f1_s260.make_unique();
+        while index_terrane_f1_s294.clone()
+            < terrane_int_support::Int::from(parts_terrane_f1_s224.len() as i128)
+        {
+            part_terrane_f1_s347 = __terrane_raised(
                 {
-                    let __terrane_receiver = &parts;
+                    let __terrane_receiver = &parts_terrane_f1_s224;
                     let __terrane_index = __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
+                        terrane_collection_support::index_from_int(
+                            &index_terrane_f1_s294.clone(),
+                        ),
                         0 /* terrane-site: core/paths.trn:16:16-16:28 */,
                     );
                     __terrane_receiver
@@ -554,36 +587,45 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 },
                 0 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
-            if part != String::from("") {
-                __terrane_list_append_0.push(part);
+            if part_terrane_f1_s347.as_str() != "" {
+                __terrane_list_append_0.push(part_terrane_f1_s347);
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f1_s294 = index_terrane_f1_s294.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    return result;
+    return result_terrane_f1_s260;
 }
 pub fn path_is_absolute(subject: Path) -> bool {
     return subject.text.starts_with(&String::from("/"));
 }
 pub fn normalise_path(subject: Path) -> Path {
-    let parts: Vec<String> = terrane_string_support::split(
+    let parts_terrane_f1_s603: Vec<String>;
+    let absolute_terrane_f1_s639: bool;
+    let mut kept_terrane_f1_s680: terrane_collection_support::List<String>;
+    let mut count_terrane_f1_s712: terrane_int_support::Int;
+    let mut part_index_terrane_f1_s730: terrane_int_support::Int;
+    let mut part_terrane_f1_s793: String;
+    let mut result_terrane_f1_s1481: String;
+    let mut index_terrane_f1_s1504: terrane_int_support::Int;
+    parts_terrane_f1_s603 = terrane_string_support::split(
         &subject.text,
         &String::from("/"),
     );
-    let absolute: bool = path_is_absolute(subject);
-    let mut kept: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut count: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    let mut part_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    while part_index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-        let part: String = __terrane_raised(
+    absolute_terrane_f1_s639 = path_is_absolute(subject);
+    kept_terrane_f1_s680 = terrane_collection_support::List::<String>::new(vec![]);
+    count_terrane_f1_s712 = terrane_int_support::Int::from(0_i128);
+    part_index_terrane_f1_s730 = terrane_int_support::Int::from(0_i128);
+    while part_index_terrane_f1_s730.clone()
+        < terrane_int_support::Int::from(parts_terrane_f1_s603.len() as i128)
+    {
+        part_terrane_f1_s793 = __terrane_raised(
             {
-                let __terrane_receiver = &parts;
+                let __terrane_receiver = &parts_terrane_f1_s603;
                 let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(&part_index.clone()),
+                    terrane_collection_support::index_from_int(
+                        &part_index_terrane_f1_s730.clone(),
+                    ),
                     1 /* terrane-site: core/paths.trn:32:16-32:33 */,
                 );
                 __terrane_receiver
@@ -595,116 +637,134 @@ pub fn normalise_path(subject: Path) -> Path {
             },
             1 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
-        if part != String::from("") && part != String::from(".") {
-            if part == String::from("..") {
-                if count.clone() > terrane_int_support::Int::from(0_i128)
+        if part_terrane_f1_s793.as_str() != "" && part_terrane_f1_s793.as_str() != "." {
+            if part_terrane_f1_s793.as_str() == ".." {
+                if count_terrane_f1_s712.clone() > terrane_int_support::Int::from(0_i128)
                     && __terrane_raised(
-                        kept
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                            kept_terrane_f1_s680
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(
+                                            &(count_terrane_f1_s712.clone()
+                                                - terrane_int_support::Int::from(1_i128)),
+                                        ),
+                                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                     ),
-                                    2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                 ),
-                            ),
-                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
-                    ) != String::from("..")
+                            2 /* terrane-site: core/paths.trn:35:34-35:49 */,
+                        )
+                        .as_str() != ".."
                 {
-                    count = count.clone() - terrane_int_support::Int::from(1_i128);
+                    count_terrane_f1_s712 = count_terrane_f1_s712.clone()
+                        - terrane_int_support::Int::from(1_i128);
                 } else {
-                    if !absolute {
-                        if count.clone()
+                    if !absolute_terrane_f1_s639 {
+                        if count_terrane_f1_s712.clone()
                             < terrane_int_support::Int::from(
-                                terrane_int_support::Int::from(kept.length()),
+                                terrane_int_support::Int::from(
+                                    kept_terrane_f1_s680.length(),
+                                ),
                             )
                         {
                             __terrane_raised(
-                                kept
+                                kept_terrane_f1_s680
                                     .set(
                                         __terrane_raised(
-                                            terrane_collection_support::index_from_int(&count.clone()),
+                                            terrane_collection_support::index_from_int(
+                                                &count_terrane_f1_s712.clone(),
+                                            ),
                                             3 /* terrane-site: core/paths.trn:40:29-40:50 */,
                                         ),
-                                        part,
+                                        part_terrane_f1_s793,
                                     ),
                                 3 /* terrane-site: core/paths.trn:40:29-40:50 */,
                             );
                         } else {
-                            kept.append(part);
+                            kept_terrane_f1_s680.append(part_terrane_f1_s793);
                         }
-                        count = count.clone() + terrane_int_support::Int::from(1_i128);
+                        count_terrane_f1_s712 = count_terrane_f1_s712.clone()
+                            + terrane_int_support::Int::from(1_i128);
                     }
                 }
             } else {
-                if count.clone()
+                if count_terrane_f1_s712.clone()
                     < terrane_int_support::Int::from(
-                        terrane_int_support::Int::from(kept.length()),
+                        terrane_int_support::Int::from(kept_terrane_f1_s680.length()),
                     )
                 {
                     __terrane_raised(
-                        kept
+                        kept_terrane_f1_s680
                             .set(
                                 __terrane_raised(
-                                    terrane_collection_support::index_from_int(&count.clone()),
+                                    terrane_collection_support::index_from_int(
+                                        &count_terrane_f1_s712.clone(),
+                                    ),
                                     4 /* terrane-site: core/paths.trn:46:21-46:42 */,
                                 ),
-                                part,
+                                part_terrane_f1_s793,
                             ),
                         4 /* terrane-site: core/paths.trn:46:21-46:42 */,
                     );
                 } else {
-                    kept.append(part);
+                    kept_terrane_f1_s680.append(part_terrane_f1_s793);
                 }
-                count = count.clone() + terrane_int_support::Int::from(1_i128);
+                count_terrane_f1_s712 = count_terrane_f1_s712.clone()
+                    + terrane_int_support::Int::from(1_i128);
             }
         }
-        part_index = part_index.clone() + terrane_int_support::Int::from(1_i128);
+        part_index_terrane_f1_s730 = part_index_terrane_f1_s730.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < count.clone() {
-        if result != String::from("") {
-            result = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&result),
+    result_terrane_f1_s1481 = String::from("");
+    index_terrane_f1_s1504 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f1_s1504.clone() < count_terrane_f1_s712.clone() {
+        if result_terrane_f1_s1481.as_str() != "" {
+            result_terrane_f1_s1481 = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f1_s1481),
                 terrane_scalar_support::scalar_text(&String::from("/"))
             );
         }
-        result = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&result),
-            terrane_scalar_support::scalar_text(&__terrane_raised(kept
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
+        result_terrane_f1_s1481 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f1_s1481),
+            terrane_scalar_support::scalar_text(&__terrane_raised(kept_terrane_f1_s680
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index_terrane_f1_s1504
             .clone()), 5 /* terrane-site: core/paths.trn:56:33-56:44 */)),
             5 /* terrane-site: core/paths.trn:56:33-56:44 */))
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f1_s1504 = index_terrane_f1_s1504.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    if absolute {
-        result = format!(
+    if absolute_terrane_f1_s639 {
+        result_terrane_f1_s1481 = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
-            terrane_scalar_support::scalar_text(&result)
+            terrane_scalar_support::scalar_text(&result_terrane_f1_s1481)
         );
     }
-    if result == String::from("") && absolute {
-        result = String::from("/");
+    if result_terrane_f1_s1481.as_str() == "" && absolute_terrane_f1_s639 {
+        result_terrane_f1_s1481 = String::from("/");
     }
-    return Path::terrane_construct(result);
+    return Path::terrane_construct(result_terrane_f1_s1481);
 }
 pub fn path_name(subject: Path) -> String {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(normal);
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-        == terrane_int_support::Int::from(0_i128)
+    let normal_terrane_f1_s1860: Path;
+    let parts_terrane_f1_s1897: terrane_collection_support::List<String>;
+    normal_terrane_f1_s1860 = normalise_path(subject);
+    parts_terrane_f1_s1897 = path_components(normal_terrane_f1_s1860);
+    if terrane_int_support::Int::from(
+        terrane_int_support::Int::from(parts_terrane_f1_s1897.length()),
+    ) == terrane_int_support::Int::from(0_i128)
     {
         return String::from("");
     }
     return __terrane_raised(
-        parts
+        parts_terrane_f1_s1897
             .get_or_error(
                 __terrane_raised(
                     terrane_collection_support::index_from_int(
                         &(terrane_int_support::Int::from(
-                            terrane_int_support::Int::from(parts.length()),
+                            terrane_int_support::Int::from(
+                                parts_terrane_f1_s1897.length(),
+                            ),
                         ) - terrane_int_support::Int::from(1_i128)),
                     ),
                     6 /* terrane-site: core/paths.trn:69:12-69:35 */,
@@ -714,151 +774,169 @@ pub fn path_name(subject: Path) -> String {
     );
 }
 pub fn path_parent(subject: Path) -> Path {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(
-        normal.clone(),
-    );
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-        == terrane_int_support::Int::from(0_i128)
+    let normal_terrane_f1_s2052: Path;
+    let parts_terrane_f1_s2089: terrane_collection_support::List<String>;
+    let mut result_terrane_f1_s2266: String;
+    let mut index_terrane_f1_s2289: terrane_int_support::Int;
+    let absolute_terrane_f1_s2477: bool;
+    normal_terrane_f1_s2052 = normalise_path(subject);
+    parts_terrane_f1_s2089 = path_components(normal_terrane_f1_s2052.clone());
+    if terrane_int_support::Int::from(
+        terrane_int_support::Int::from(parts_terrane_f1_s2089.length()),
+    ) == terrane_int_support::Int::from(0_i128)
     {
-        return normal.clone();
+        return normal_terrane_f1_s2052.clone();
     }
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-        == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
+    if terrane_int_support::Int::from(
+        terrane_int_support::Int::from(parts_terrane_f1_s2089.length()),
+    ) == terrane_int_support::Int::from(1_i128)
+        && !path_is_absolute(normal_terrane_f1_s2052.clone())
     {
         return Path::terrane_construct(String::from("."));
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-            - terrane_int_support::Int::from(1_i128)
+    result_terrane_f1_s2266 = String::from("");
+    index_terrane_f1_s2289 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f1_s2289.clone()
+        < terrane_int_support::Int::from(
+            terrane_int_support::Int::from(parts_terrane_f1_s2089.length()),
+        ) - terrane_int_support::Int::from(1_i128)
     {
-        if result != String::from("") {
-            result = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&result),
+        if result_terrane_f1_s2266.as_str() != "" {
+            result_terrane_f1_s2266 = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f1_s2266),
                 terrane_scalar_support::scalar_text(&String::from("/"))
             );
         }
-        result = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&result),
-            terrane_scalar_support::scalar_text(&__terrane_raised(parts
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
+        result_terrane_f1_s2266 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f1_s2266),
+            terrane_scalar_support::scalar_text(&__terrane_raised(parts_terrane_f1_s2089
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index_terrane_f1_s2289
             .clone()), 7 /* terrane-site: core/paths.trn:83:33-83:45 */)),
             7 /* terrane-site: core/paths.trn:83:33-83:45 */))
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f1_s2289 = index_terrane_f1_s2289.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    let absolute: bool = path_is_absolute(normal);
-    if absolute {
-        result = format!(
+    absolute_terrane_f1_s2477 = path_is_absolute(normal_terrane_f1_s2052);
+    if absolute_terrane_f1_s2477 {
+        result_terrane_f1_s2266 = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
-            terrane_scalar_support::scalar_text(&result)
+            terrane_scalar_support::scalar_text(&result_terrane_f1_s2266)
         );
     }
-    return Path::terrane_construct(result);
+    return Path::terrane_construct(result_terrane_f1_s2266);
 }
 pub fn path_stem(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
+    let current_terrane_f1_s2643: String;
+    let pieces_terrane_f1_s2676: Vec<String>;
+    let mut result_terrane_f1_s2826: String;
+    let mut index_terrane_f1_s2849: terrane_int_support::Int;
+    current_terrane_f1_s2643 = path_name(subject);
+    pieces_terrane_f1_s2676 = terrane_string_support::split(
+        &current_terrane_f1_s2643,
         &String::from("."),
     );
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f1_s2676.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
-        return current.clone();
+        return current_terrane_f1_s2643.clone();
     }
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f1_s2676.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    8 /* terrane-site: core/paths.trn:95:31-95:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            8 /* terrane-site: core/paths.trn:95:31-95:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces_terrane_f1_s2676;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        8 /* terrane-site: core/paths.trn:95:31-95:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                8 /* terrane-site: core/paths.trn:95:31-95:40 */,
+            )
+            .as_str() == ""
     {
-        return current;
+        return current_terrane_f1_s2643;
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(pieces.len() as i128)
+    result_terrane_f1_s2826 = String::from("");
+    index_terrane_f1_s2849 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f1_s2849.clone()
+        < terrane_int_support::Int::from(pieces_terrane_f1_s2676.len() as i128)
             - terrane_int_support::Int::from(1_i128)
     {
-        if index.clone() > terrane_int_support::Int::from(0_i128) {
-            result = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&result),
+        if index_terrane_f1_s2849.clone() > terrane_int_support::Int::from(0_i128) {
+            result_terrane_f1_s2826 = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f1_s2826),
                 terrane_scalar_support::scalar_text(&String::from("."))
             );
         }
-        result = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&result),
+        result_terrane_f1_s2826 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f1_s2826),
             terrane_scalar_support::scalar_text(&__terrane_raised({ let
-            __terrane_receiver = &pieces; let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&index.clone()),
-            9 /* terrane-site: core/paths.trn:102:33-102:46 */); __terrane_receiver
-            .get(__terrane_index).cloned().ok_or_else(| |
+            __terrane_receiver = &pieces_terrane_f1_s2676; let __terrane_index =
+            __terrane_raised(terrane_collection_support::index_from_int(&index_terrane_f1_s2849
+            .clone()), 9 /* terrane-site: core/paths.trn:102:33-102:46 */);
+            __terrane_receiver.get(__terrane_index).cloned().ok_or_else(| |
             terrane_collection_support::IndexError::from_usize(__terrane_index)) },
             9 /* terrane-site: core/paths.trn:102:33-102:46 */))
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f1_s2849 = index_terrane_f1_s2849.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    return result;
+    return result_terrane_f1_s2826;
 }
 pub fn path_extension(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
+    let current_terrane_f1_s3100: String;
+    let pieces_terrane_f1_s3133: Vec<String>;
+    current_terrane_f1_s3100 = path_name(subject);
+    pieces_terrane_f1_s3133 = terrane_string_support::split(
+        &current_terrane_f1_s3100,
         &String::from("."),
     );
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f1_s3133.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
         return String::from("");
     }
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f1_s3133.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    10 /* terrane-site: core/paths.trn:111:31-111:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            10 /* terrane-site: core/paths.trn:111:31-111:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces_terrane_f1_s3133;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        10 /* terrane-site: core/paths.trn:111:31-111:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                10 /* terrane-site: core/paths.trn:111:31-111:40 */,
+            )
+            .as_str() == ""
     {
         return String::from("");
     }
     return __terrane_raised(
         {
-            let __terrane_receiver = &pieces;
+            let __terrane_receiver = &pieces_terrane_f1_s3133;
             let __terrane_index = __terrane_raised(
                 terrane_collection_support::index_from_int(
-                    &(terrane_int_support::Int::from(pieces.len() as i128)
-                        - terrane_int_support::Int::from(1_i128)),
+                    &(terrane_int_support::Int::from(
+                        pieces_terrane_f1_s3133.len() as i128,
+                    ) - terrane_int_support::Int::from(1_i128)),
                 ),
                 11 /* terrane-site: core/paths.trn:113:12-113:37 */,
             );
@@ -873,21 +951,26 @@ pub fn path_extension(subject: Path) -> String {
     );
 }
 pub fn join_path(base: Path, child: Path) -> Path {
-    let absolute: bool = path_is_absolute(child.clone());
-    if absolute {
+    let absolute_terrane_f1_s3358: bool;
+    let mut joined_terrane_f1_s3450: String;
+    let combined_terrane_f1_s3608: Path;
+    absolute_terrane_f1_s3358 = path_is_absolute(child.clone());
+    if absolute_terrane_f1_s3358 {
         return normalise_path(child.clone());
     }
-    let mut joined: String = base.text.clone();
-    if joined != String::from("") && !joined.ends_with(&String::from("/")) {
-        joined = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&joined),
+    joined_terrane_f1_s3450 = base.text.clone();
+    if joined_terrane_f1_s3450.as_str() != ""
+        && !joined_terrane_f1_s3450.ends_with(&String::from("/"))
+    {
+        joined_terrane_f1_s3450 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&joined_terrane_f1_s3450),
             terrane_scalar_support::scalar_text(&String::from("/"))
         );
     }
-    joined = format!(
-        "{}{}", terrane_scalar_support::scalar_text(&joined),
+    joined_terrane_f1_s3450 = format!(
+        "{}{}", terrane_scalar_support::scalar_text(&joined_terrane_f1_s3450),
         terrane_scalar_support::scalar_text(&child.text)
     );
-    let combined: Path = Path::terrane_construct(joined);
-    return normalise_path(combined);
+    combined_terrane_f1_s3608 = Path::terrane_construct(joined_terrane_f1_s3450);
+    return normalise_path(combined_terrane_f1_s3608);
 }

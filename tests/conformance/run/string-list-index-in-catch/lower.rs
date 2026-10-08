@@ -446,7 +446,8 @@ fn selected_index() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(0_i128);
 }
 fn main() {
-    let fields: Vec<String> = terrane_string_support::split(
+    let fields_terrane_f0_s175: Vec<String>;
+    fields_terrane_f0_s175 = terrane_string_support::split(
         &String::from("value"),
         &String::from(","),
     );
@@ -454,7 +455,7 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!({
-                let __terrane_receiver = &fields; let __terrane_index =
+                let __terrane_receiver = &fields_terrane_f0_s175; let __terrane_index =
                 __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
                 0 /* terrane-site: src/main.trn:13:16-13:25 */); __terrane_receiver
                 .get(__terrane_index).cloned().ok_or_else(| |
@@ -477,7 +478,8 @@ fn main() {
                     println!(
                         "{}",
                         terrane_scalar_support::scalar_text(&__terrane_raised_completion!({
-                        let __terrane_receiver = &fields; let __terrane_index =
+                        let __terrane_receiver = &fields_terrane_f0_s175; let
+                        __terrane_index =
                         __terrane_raised_completion!(terrane_collection_support::index_from_int(&selected_index()),
                         1 /* terrane-site: src/main.trn:15:16-15:41 */);
                         __terrane_receiver.get(__terrane_index).cloned().ok_or_else(| |
@@ -489,7 +491,8 @@ fn main() {
                             println!(
                                 "{}",
                                 terrane_scalar_support::scalar_text(&__terrane_raised_completion!({
-                                let __terrane_receiver = &fields; let __terrane_index =
+                                let __terrane_receiver = &fields_terrane_f0_s175; let
+                                __terrane_index =
                                 __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(-
                                 1_i128)), 2 /* terrane-site: src/main.trn:17:20-17:31 */); __terrane_receiver
                                 .get(__terrane_index).cloned().ok_or_else(| |

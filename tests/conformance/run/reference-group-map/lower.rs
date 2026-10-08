@@ -440,10 +440,24 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: reference-group-map
 fn main() {
-    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    let values_terrane_f0_s103: terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let grouped_terrane_f0_s122: &terrane_int_support::Int;
+    let ordered_terrane_f0_s158: terrane_collection_support::Map<
+        String,
+        terrane_int_support::Int,
+    >;
+    let ordered_value_terrane_f0_s185: &terrane_int_support::Int;
+    let unordered_terrane_f0_s233: terrane_collection_support::UnorderedMap<
+        String,
+        terrane_int_support::Int,
+    >;
+    let unordered_value_terrane_f0_s272: &terrane_int_support::Int;
+    values_terrane_f0_s103 = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(7_i128)]);
-    let grouped: &terrane_int_support::Int = {
+    grouped_terrane_f0_s122 = {
         let __terrane_index = __terrane_raised(
             terrane_collection_support::index_from_int(
                 &terrane_int_support::Int::from(0_i128),
@@ -451,7 +465,7 @@ fn main() {
             0 /* terrane-site: case.trn:6:26-6:35 */,
         );
         __terrane_raised(
-            values
+            values_terrane_f0_s103
                 .get(__terrane_index)
                 .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
                     __terrane_index,
@@ -459,7 +473,7 @@ fn main() {
             0 /* terrane-site: case.trn:6:26-6:35 */,
         )
     };
-    let ordered: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+    ordered_terrane_f0_s158 = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -468,16 +482,13 @@ fn main() {
             terrane_int_support::Int::from(42_i128))
         ],
     );
-    let ordered_value: &terrane_int_support::Int = __terrane_raised(
-        ordered
+    ordered_value_terrane_f0_s185 = __terrane_raised(
+        ordered_terrane_f0_s158
             .get(&String::from("answer"))
             .ok_or(terrane_collection_support::MissingKey),
         1 /* terrane-site: case.trn:8:31-8:48 */,
     );
-    let unordered: terrane_collection_support::UnorderedMap<
-        String,
-        terrane_int_support::Int,
-    > = terrane_collection_support::UnorderedMap::<
+    unordered_terrane_f0_s233 = terrane_collection_support::UnorderedMap::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -486,15 +497,15 @@ fn main() {
             terrane_int_support::Int::from(43_i128))
         ],
     );
-    let unordered_value: &terrane_int_support::Int = __terrane_raised(
-        unordered
+    unordered_value_terrane_f0_s272 = __terrane_raised(
+        unordered_terrane_f0_s233
             .get(&String::from("answer"))
             .ok_or(terrane_collection_support::MissingKey),
         2 /* terrane-site: case.trn:10:33-10:52 */,
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&grouped.clone()),
-        terrane_scalar_support::scalar_text(&ordered_value.clone()),
-        terrane_scalar_support::scalar_text(&unordered_value.clone())
+        "{}{}{}", terrane_scalar_support::scalar_text(&grouped_terrane_f0_s122.clone()),
+        terrane_scalar_support::scalar_text(&ordered_value_terrane_f0_s185.clone()),
+        terrane_scalar_support::scalar_text(&unordered_value_terrane_f0_s272.clone())
     );
 }

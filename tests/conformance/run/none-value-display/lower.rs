@@ -4,7 +4,8 @@
 // Source: case.trn
 // Namespace: none-value-display
 fn main() {
+    let value_terrane_f0_s60: ();
     println!("{}", terrane_scalar_support::scalar_text(&()));
-    let value: () = ();
-    println!("{}", terrane_scalar_support::scalar_text(&value));
+    value_terrane_f0_s60 = ();
+    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s60));
 }

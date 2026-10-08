@@ -470,33 +470,45 @@ fn second() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(23_i128);
 }
 fn main() {
-    let empty: Slot<String> = Slot::<String>::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&empty.value.is_none()));
-    let missing: Option<terrane_int_support::Int> = absent();
-    println!("{}", terrane_scalar_support::scalar_text(&missing.is_none()));
-    let keep: std::sync::Arc<
+    let empty_terrane_f0_s540: Slot<String>;
+    let missing_terrane_f0_s615: Option<terrane_int_support::Int>;
+    let keep_terrane_f0_s675: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = std::sync::Arc::new(identity);
+    >;
+    let state_terrane_f0_s772: Pair;
+    let left_terrane_f0_s883: terrane_int_support::Int;
+    let right_terrane_f0_s889: terrane_int_support::Int;
+    empty_terrane_f0_s540 = Slot::<String>::terrane_construct();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&empty_terrane_f0_s540.value.is_none())
+    );
+    missing_terrane_f0_s615 = absent();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&missing_terrane_f0_s615.is_none())
+    );
+    keep_terrane_f0_s675 = std::sync::Arc::new(identity);
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&keep(terrane_int_support::Int::from(44_i128)))
+        terrane_scalar_support::scalar_text(&keep_terrane_f0_s675(terrane_int_support::Int::from(44_i128)))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&apply(terrane_int_support::Int::from(4_i128),
         std::sync::Arc::new(render)))
     );
-    let state: Pair = {
+    state_terrane_f0_s772 = {
         let __terrane_enum_payload_0 = second();
         let __terrane_enum_payload_1 = first();
         Pair::Values(__terrane_enum_payload_1, __terrane_enum_payload_0)
     };
-    let __terrane_match_value_844 = state.clone();
+    let __terrane_match_value_844 = state_terrane_f0_s772.clone();
     match __terrane_match_value_844 {
         Pair::Values(left, right) => {
+            left_terrane_f0_s883 = left;
+            right_terrane_f0_s889 = right;
             println!(
-                "{}", terrane_scalar_support::scalar_text(&(left.clone() + right
-                .clone()))
+                "{}", terrane_scalar_support::scalar_text(&(left_terrane_f0_s883.clone()
+                + right_terrane_f0_s889.clone()))
             );
         }
     }

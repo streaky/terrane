@@ -438,9 +438,22 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: catch-finally-lexical-scopes
 fn typed_catch() {
+    let mut caught_terrane_f0_s191: Option<i64> = None;
+    let mut completed_terrane_f0_s234: Option<i64> = None;
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -461,8 +474,11 @@ fn typed_catch() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    let caught: i64 = 1;
-                    println!("{}", terrane_scalar_support::scalar_text(&caught));
+                    let _ = caught_terrane_f0_s191.insert(1);
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&caught_terrane_f0_s191
+                        .as_ref().expect("flow-proven available binding").clone())
+                    );
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -472,8 +488,11 @@ fn typed_catch() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        let completed: i64 = 2;
-        println!("{}", terrane_scalar_support::scalar_text(&completed));
+        let _ = completed_terrane_f0_s234.insert(2);
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&completed_terrane_f0_s234.as_ref()
+            .expect("flow-proven available binding").clone())
+        );
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -490,6 +509,7 @@ fn typed_catch() {
     }
 }
 fn catch_all() {
+    let mut caught_terrane_f0_s333: Option<i64> = None;
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -508,8 +528,11 @@ fn catch_all() {
                 let mut __terrane_handled_1 = false;
                 if !__terrane_handled_1 {
                     __terrane_handled_1 = true;
-                    let caught: i64 = 3;
-                    println!("{}", terrane_scalar_support::scalar_text(&caught));
+                    let _ = caught_terrane_f0_s333.insert(3);
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&caught_terrane_f0_s333
+                        .as_ref().expect("flow-proven available binding").clone())
+                    );
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);

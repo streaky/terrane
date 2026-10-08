@@ -150,21 +150,24 @@ impl From<MutableSample> for ConsumingCounter {
     }
 }
 fn main() {
-    let mut mutable_view: MutableCounter = <MutableCounter>::from(
-        Sample::terrane_construct(),
-    );
-    let consuming_view: ConsumingLabel = <ConsumingLabel>::from(
-        Sample::terrane_construct(),
-    );
-    let mutable_consuming_view: ConsumingCounter = <ConsumingCounter>::from(
+    let mut mutable_view_terrane_f0_s585: MutableCounter;
+    let consuming_view_terrane_f0_s635: ConsumingLabel;
+    let mutable_consuming_view_terrane_f0_s687: ConsumingCounter;
+    mutable_view_terrane_f0_s585 = <MutableCounter>::from(Sample::terrane_construct());
+    consuming_view_terrane_f0_s635 = <ConsumingLabel>::from(Sample::terrane_construct());
+    mutable_consuming_view_terrane_f0_s687 = <ConsumingCounter>::from(
         MutableSample::terrane_construct(),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&mutable_view
+        "{}", terrane_scalar_support::scalar_text(&mutable_view_terrane_f0_s585
         .value(terrane_int_support::Int::from(5_i128)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&consuming_view.label()));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&mutable_consuming_view.redeem())
+        "{}", terrane_scalar_support::scalar_text(&consuming_view_terrane_f0_s635
+        .label())
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&mutable_consuming_view_terrane_f0_s687
+        .redeem())
     );
 }

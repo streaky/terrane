@@ -480,13 +480,15 @@ impl User {
     }
 }
 fn main() {
-    let value: User = User::terrane_construct();
+    let value_terrane_f0_s187: User;
+    let descriptor_terrane_f0_s258: TerraneDescriptor;
+    value_terrane_f0_s187 = User::terrane_construct();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&value.slot),
+        "{}{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s187.slot),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value.payload.value)
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s187.payload.value)
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor_terrane_f0_s258 = TerraneDescriptor {
         identity: "/trait-field-defaults::user",
         name: "user",
         kind: "class",
@@ -510,14 +512,14 @@ fn main() {
     };
     println!(
         "{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor_terrane_f0_s258
         .fields.len() as i128)), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor_terrane_f0_s258
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:17:39-17:68 */)), 0 /* terrane-site: case.trn:17:39-17:68 */)),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor_terrane_f0_s258
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         1 /* terrane-site: case.trn:17:75-17:104 */)), 1 /* terrane-site: case.trn:17:75-17:104 */))

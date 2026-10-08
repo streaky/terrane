@@ -501,7 +501,12 @@ impl Drop for Marker {
     }
 }
 fn release_order() {
-    let mut values: terrane_collection_support::List<Marker> = terrane_collection_support::List::<
+    let mut values_terrane_f0_s321: terrane_collection_support::List<Marker>;
+    let removed_terrane_f0_s536: Marker;
+    let mut cleared_terrane_f0_s709: terrane_collection_support::List<Marker>;
+    let original_terrane_f0_s851: terrane_collection_support::List<Marker>;
+    let mut separated_terrane_f0_s919: terrane_collection_support::List<Marker>;
+    values_terrane_f0_s321 = terrane_collection_support::List::<
         Marker,
     >::new(
         vec![
@@ -511,7 +516,7 @@ fn release_order() {
         ],
     );
     __terrane_raised(
-        values
+        values_terrane_f0_s321
             .set(
                 __terrane_raised(
                     terrane_collection_support::index_from_int(
@@ -524,29 +529,27 @@ fn release_order() {
         0 /* terrane-site: case.trn:18:3-18:50 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-set")));
-    if true {
-        let removed: Marker = __terrane_raised(
-            values
-                .remove(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(
-                            &terrane_int_support::Int::from(1_i128),
-                        ),
-                        1 /* terrane-site: case.trn:21:22-21:38 */,
+    removed_terrane_f0_s536 = __terrane_raised(
+        values_terrane_f0_s321
+            .remove(
+                __terrane_raised(
+                    terrane_collection_support::index_from_int(
+                        &terrane_int_support::Int::from(1_i128),
                     ),
+                    1 /* terrane-site: case.trn:21:22-21:38 */,
                 ),
-            1 /* terrane-site: case.trn:21:22-21:38 */,
-        );
-        println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("after-remove-")),
-            terrane_scalar_support::scalar_text(&removed.name)
-        );
-    }
+            ),
+        1 /* terrane-site: case.trn:21:22-21:38 */,
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&String::from("after-remove-")),
+        terrane_scalar_support::scalar_text(&removed_terrane_f0_s536.name)
+    );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-block")));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_raised_completion!(
-                values
+                values_terrane_f0_s321
                 .remove(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(9_i128)),
                 2 /* terrane-site: case.trn:25:5-25:21 */)), 2 /* terrane-site: case.trn:25:5-25:21 */
             );
@@ -583,7 +586,7 @@ fn release_order() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    let mut cleared: terrane_collection_support::List<Marker> = terrane_collection_support::List::<
+    cleared_terrane_f0_s709 = terrane_collection_support::List::<
         Marker,
     >::new(
         vec![
@@ -591,14 +594,14 @@ fn release_order() {
             Marker::terrane_construct(String::from("clear-second"))
         ],
     );
-    cleared.clear();
+    cleared_terrane_f0_s709.clear();
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-clear")));
-    let original: terrane_collection_support::List<Marker> = terrane_collection_support::List::<
+    original_terrane_f0_s851 = terrane_collection_support::List::<
         Marker,
     >::new(vec![Marker::terrane_construct(String::from("cow-original"))]);
-    let mut separated: terrane_collection_support::List<Marker> = original.clone();
+    separated_terrane_f0_s919 = original_terrane_f0_s851.clone();
     __terrane_raised(
-        separated
+        separated_terrane_f0_s919
             .set(
                 __terrane_raised(
                     terrane_collection_support::index_from_int(
@@ -611,24 +614,49 @@ fn release_order() {
         3 /* terrane-site: case.trn:34:3-34:57 */,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(original
+        "{}{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(original_terrane_f0_s851
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         4 /* terrane-site: case.trn:35:10-35:21 */)), 4 /* terrane-site: case.trn:35:10-35:21 */).name),
-        terrane_scalar_support::scalar_text(&__terrane_raised(separated
+        terrane_scalar_support::scalar_text(&__terrane_raised(separated_terrane_f0_s919
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         5 /* terrane-site: case.trn:35:28-35:40 */)), 5 /* terrane-site: case.trn:35:28-35:40 */).name)
     );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-cow")));
 }
 fn main() {
+    let left_terrane_f0_s1114: std::sync::Arc<std::sync::Mutex<Marker>>;
+    let right_terrane_f0_s1147: std::sync::Arc<std::sync::Mutex<Marker>>;
+    let left_reference_terrane_f0_s1207: std::sync::Arc<std::sync::Mutex<Marker>>;
+    let same_reference_terrane_f0_s1260: std::sync::Arc<std::sync::Mutex<Marker>>;
+    let other_reference_terrane_f0_s1312: std::sync::Arc<std::sync::Mutex<Marker>>;
+    let left_weak_terrane_f0_s1444: std::sync::Weak<std::sync::Mutex<Marker>>;
+    let references_terrane_f0_s1526: std::sync::Arc<
+        std::sync::Mutex<
+            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
+        >,
+    >;
+    let collection_reference_terrane_f0_s1638: std::sync::Arc<
+        std::sync::Mutex<
+            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
+        >,
+    >;
+    let collection_alias_terrane_f0_s1722: std::sync::Arc<
+        std::sync::Mutex<
+            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
+        >,
+    >;
+    let marker_type_terrane_f0_s1851: TerraneDescriptor;
+    let reference_type_terrane_f0_s1877: TerraneDescriptor;
+    let collection_type_terrane_f0_s1916: TerraneDescriptor;
     release_order();
-    let left: std::sync::Arc<std::sync::Mutex<Marker>> = std::sync::Arc::new(
+    left_terrane_f0_s1114 = std::sync::Arc::new(
         std::sync::Mutex::new(Marker::terrane_construct(String::from("left"))),
     );
-    let right: std::sync::Arc<std::sync::Mutex<Marker>> = std::sync::Arc::new(
+    right_terrane_f0_s1147 = std::sync::Arc::new(
         std::sync::Mutex::new(
             {
-                let __terrane_value = left
+                let __terrane_value = left_terrane_f0_s1114
                     .lock()
                     .expect("reference lock poisoned")
                     .clone();
@@ -638,63 +666,62 @@ fn main() {
         ),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&{ false }),
-        terrane_scalar_support::scalar_text(&{ false })
+        "{}{}", terrane_scalar_support::scalar_text(&false),
+        terrane_scalar_support::scalar_text(&false)
     );
-    let left_reference: std::sync::Arc<std::sync::Mutex<Marker>> = left.clone();
-    let same_reference: std::sync::Arc<std::sync::Mutex<Marker>> = left_reference
-        .clone();
-    let other_reference: std::sync::Arc<std::sync::Mutex<Marker>> = right.clone();
+    left_reference_terrane_f0_s1207 = left_terrane_f0_s1114.clone();
+    same_reference_terrane_f0_s1260 = left_reference_terrane_f0_s1207.clone();
+    other_reference_terrane_f0_s1312 = right_terrane_f0_s1147.clone();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_identity_left =
-        &left_reference; let __terrane_identity_right = &same_reference;
+        &left_reference_terrane_f0_s1207; let __terrane_identity_right =
+        &same_reference_terrane_f0_s1260;
         std::ptr::eq(std::sync::Arc::as_ptr(__terrane_identity_left),
         std::sync::Arc::as_ptr(__terrane_identity_right)) }),
         terrane_scalar_support::scalar_text(&{ let __terrane_identity_left =
-        &left_reference; let __terrane_identity_right = &other_reference;
+        &left_reference_terrane_f0_s1207; let __terrane_identity_right =
+        &other_reference_terrane_f0_s1312;
         std::ptr::eq(std::sync::Arc::as_ptr(__terrane_identity_left),
         std::sync::Arc::as_ptr(__terrane_identity_right)) })
     );
-    let left_weak: std::sync::Weak<std::sync::Mutex<Marker>> = std::sync::Arc::downgrade(
-        &left_reference,
+    left_weak_terrane_f0_s1444 = std::sync::Arc::downgrade(
+        &left_reference_terrane_f0_s1207,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_identity_left =
-        &left_weak; let __terrane_identity_right = &left_reference;
+        &left_weak_terrane_f0_s1444; let __terrane_identity_right =
+        &left_reference_terrane_f0_s1207;
         std::ptr::eq(std::sync::Weak::as_ptr(__terrane_identity_left),
         std::sync::Arc::as_ptr(__terrane_identity_right)) })
     );
-    let references: std::sync::Arc<
-        std::sync::Mutex<
-            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
-        >,
-    > = std::sync::Arc::new(
+    references_terrane_f0_s1526 = std::sync::Arc::new(
         std::sync::Mutex::new(
             terrane_collection_support::List::<
                 std::sync::Arc<std::sync::Mutex<Marker>>,
-            >::new(vec![left_reference.clone(), same_reference.clone()]),
+            >::new(
+                vec![
+                    left_reference_terrane_f0_s1207.clone(),
+                    same_reference_terrane_f0_s1260.clone()
+                ],
+            ),
         ),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&{ false }));
-    let collection_reference: std::sync::Arc<
-        std::sync::Mutex<
-            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
-        >,
-    > = references.clone();
-    let collection_alias: std::sync::Arc<
-        std::sync::Mutex<
-            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
-        >,
-    > = collection_reference.clone();
+    println!("{}", terrane_scalar_support::scalar_text(&false));
+    collection_reference_terrane_f0_s1638 = references_terrane_f0_s1526.clone();
+    collection_alias_terrane_f0_s1722 = collection_reference_terrane_f0_s1638.clone();
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_identity_left =
-        &collection_reference; let __terrane_identity_right = &collection_alias;
+        &collection_reference_terrane_f0_s1638; let __terrane_identity_right =
+        &collection_alias_terrane_f0_s1722;
         std::ptr::eq(std::sync::Arc::as_ptr(__terrane_identity_left),
         std::sync::Arc::as_ptr(__terrane_identity_right)) })
     );
-    let marker_type: TerraneDescriptor = {
+    marker_type_terrane_f0_s1851 = {
         let _ = &{
-            let __terrane_value = left.lock().expect("reference lock poisoned").clone();
+            let __terrane_value = left_terrane_f0_s1114
+                .lock()
+                .expect("reference lock poisoned")
+                .clone();
             __terrane_value
         };
         TerraneDescriptor {
@@ -713,8 +740,8 @@ fn main() {
             ],
         }
     };
-    let reference_type: TerraneDescriptor = {
-        let _ = &left_reference;
+    reference_type_terrane_f0_s1877 = {
+        let _ = &left_reference_terrane_f0_s1207;
         TerraneDescriptor {
             identity: "shared ref marker",
             name: "shared ref marker",
@@ -723,9 +750,9 @@ fn main() {
             fields: &[],
         }
     };
-    let collection_type: TerraneDescriptor = {
+    collection_type_terrane_f0_s1916 = {
         let _ = &{
-            let __terrane_value = references
+            let __terrane_value = references_terrane_f0_s1526
                 .lock()
                 .expect("reference lock poisoned")
                 .clone();
@@ -740,24 +767,27 @@ fn main() {
         }
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&marker_type.identity.to_owned())
+        "{}", terrane_scalar_support::scalar_text(&marker_type_terrane_f0_s1851.identity
+        .to_owned())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&reference_type.identity.to_owned())
+        "{}", terrane_scalar_support::scalar_text(&reference_type_terrane_f0_s1877
+        .identity.to_owned())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&collection_type.identity.to_owned())
+        "{}", terrane_scalar_support::scalar_text(&collection_type_terrane_f0_s1916
+        .identity.to_owned())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&marker_type
+        "{}", terrane_scalar_support::scalar_text(&marker_type_terrane_f0_s1851
         .inherently_identity_bearing)
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&reference_type
+        "{}", terrane_scalar_support::scalar_text(&reference_type_terrane_f0_s1877
         .inherently_identity_bearing)
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&collection_type
+        "{}", terrane_scalar_support::scalar_text(&collection_type_terrane_f0_s1916
         .inherently_identity_bearing)
     );
 }

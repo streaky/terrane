@@ -490,11 +490,25 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/main.trn
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let value: String = __terrane_traced(
+        let value_terrane_f0_s222: String;
+        let successful_terrane_f0_s290: u32;
+        let mut failure_terrane_f0_s430: Option<TerraneError> = None;
+        value_terrane_f0_s222 = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = terrane_into_future_witness::ready_value(
@@ -529,8 +543,8 @@ fn main() {
                 .await,
             0 /* terrane-site: src/main.trn:8:24-8:53 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&value));
-        let successful: u32 = __terrane_raised(
+        println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s222));
+        successful_terrane_f0_s290 = __terrane_raised(
             terrane_int_support::coerce::<
                 u32,
             >(
@@ -550,7 +564,7 @@ fn main() {
             ),
             2 /* terrane-site: src/main.trn:10:23-10:47 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&successful));
+        println!("{}", terrane_scalar_support::scalar_text(&successful_terrane_f0_s290));
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 {
@@ -581,10 +595,13 @@ fn main() {
                             == TerraneErrorKind::Custom(DescriptorId(0))
                     {
                         __terrane_handled_0 = true;
-                        let failure = __terrane_error_0.clone();
+                        let _ = failure_terrane_f0_s430
+                            .insert(__terrane_error_0.clone());
                         println!(
-                            "{}", terrane_scalar_support::scalar_text(&failure.message()
-                            .to_owned())
+                            "{}",
+                            terrane_scalar_support::scalar_text(&failure_terrane_f0_s430
+                            .as_ref().expect("flow-proven available binding").clone()
+                            .message().to_owned())
                         );
                     }
                     if !__terrane_handled_0 {

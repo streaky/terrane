@@ -430,6 +430,17 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: async-finally-after-await
 async fn step() -> terrane_int_support::Int {
@@ -437,14 +448,19 @@ async fn step() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
+        let mut value_terrane_f0_s105: Option<terrane_int_support::Int> = None;
         let mut __terrane_finally_guard_0 = __terrane_finally_guard();
         let __terrane_maybe_completion_0: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
                 &__terrane_finally_guard_0,
                 async {
                     let __terrane_try_0: TerraneCompletion<()> = async {
-                        let value: terrane_int_support::Int = __terrane_await(step())
-                            .await;
-                        println!("{}", terrane_scalar_support::scalar_text(&value));
+                        let _ = value_terrane_f0_s105
+                            .insert(__terrane_await(step()).await);
+                        println!(
+                            "{}",
+                            terrane_scalar_support::scalar_text(&value_terrane_f0_s105
+                            .as_ref().expect("flow-proven available binding").clone())
+                        );
                         TerraneCompletion::Normal
                     }
                         .await;

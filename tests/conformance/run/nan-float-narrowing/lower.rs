@@ -436,10 +436,13 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: nan-float-narrowing
 fn main() {
-    let zero: f64 = 0.0;
-    let source: f64 = zero / zero;
-    let target: f32 = {
-        let source_value = source;
+    let zero_terrane_f0_s47: f64;
+    let source_terrane_f0_s68: f64;
+    let target_terrane_f0_s99: f32;
+    zero_terrane_f0_s47 = 0.0;
+    source_terrane_f0_s68 = zero_terrane_f0_s47 / zero_terrane_f0_s47;
+    target_terrane_f0_s99 = {
+        let source_value = source_terrane_f0_s68;
         let converted = source_value as f32;
         if converted as f64 == source_value {
             converted
@@ -457,5 +460,5 @@ fn main() {
             )
         }
     };
-    println!("{}", terrane_scalar_support::scalar_text(&target));
+    println!("{}", terrane_scalar_support::scalar_text(&target_terrane_f0_s99));
 }

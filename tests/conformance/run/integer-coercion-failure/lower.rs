@@ -436,10 +436,12 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: integer-coercion-failure
 fn main() {
-    let value: i64 = 128;
-    let narrow: i8 = __terrane_raised(
-        terrane_int_support::coerce::<i8>(&value),
+    let value_terrane_f0_s53: i64;
+    let narrow_terrane_f0_s71: i8;
+    value_terrane_f0_s53 = 128;
+    narrow_terrane_f0_s71 = __terrane_raised(
+        terrane_int_support::coerce::<i8>(&value_terrane_f0_s53),
         0 /* terrane-site: case.trn:5:17-5:22 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&narrow));
+    println!("{}", terrane_scalar_support::scalar_text(&narrow_terrane_f0_s71));
 }

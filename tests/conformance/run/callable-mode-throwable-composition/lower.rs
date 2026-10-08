@@ -467,26 +467,29 @@ impl Accumulator {
     }
 }
 fn main() {
-    let value: Accumulator = Accumulator::terrane_construct();
-    let operation: TerraneConsumingCallable<
+    let value_terrane_f0_s313: Accumulator;
+    let operation_terrane_f0_s357: TerraneConsumingCallable<
         (terrane_int_support::Int,),
         Result<terrane_int_support::Int, TerraneError>,
-    > = {
-        let mut receiver = value;
+    >;
+    value_terrane_f0_s313 = Accumulator::terrane_construct();
+    operation_terrane_f0_s357 = {
+        let mut receiver = value_terrane_f0_s313;
         TerraneConsumingCallable::new(move |(argument_0,): (terrane_int_support::Int,)| {
             receiver.add(argument_0)
         })
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "consuming"
-        .to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation_terrane_f0_s357;
+        "consuming".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "throwable"
-        .to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation_terrane_f0_s357;
+        "throwable".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(operation
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced(operation_terrane_f0_s357
         .call((terrane_int_support::Int::from(4_i128),)), 1 /* terrane-site: case.trn:18:11-18:23 */))
     );
 }

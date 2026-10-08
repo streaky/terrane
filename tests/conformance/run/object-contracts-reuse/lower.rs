@@ -110,19 +110,25 @@ impl From<Child> for Describable {
     }
 }
 fn main() {
-    let value: Child = Child::terrane_construct();
-    let view: Describable = <Describable>::from(value.clone());
-    let base_view: Base = Base::Child(value.clone());
+    let value_terrane_f0_s488: Child;
+    let view_terrane_f0_s516: Describable;
+    let base_view_terrane_f0_s545: Base;
+    value_terrane_f0_s488 = Child::terrane_construct();
+    view_terrane_f0_s516 = <Describable>::from(value_terrane_f0_s488.clone());
+    base_view_terrane_f0_s545 = Base::Child(value_terrane_f0_s488.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&view.describe(String::from("a-")))
+        "{}", terrane_scalar_support::scalar_text(&view_terrane_f0_s516
+        .describe(String::from("a-")))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&base_view
+        "{}", terrane_scalar_support::scalar_text(&base_view_terrane_f0_s545
         .describe(String::from("b-")))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&value.tagged_value()));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(value.value.clone() + value.extra
-        .clone()))
+        "{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s488.tagged_value())
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(value_terrane_f0_s488.value.clone() +
+        value_terrane_f0_s488.extra.clone()))
     );
 }

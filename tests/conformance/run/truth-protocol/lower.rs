@@ -21,12 +21,14 @@ impl Gate {
     }
 }
 fn main() {
-    let enabled: Gate = Gate::terrane_construct(true);
-    let disabled: Gate = Gate::terrane_construct(false);
-    if enabled.truth() {
+    let enabled_terrane_f0_s174: Gate;
+    let disabled_terrane_f0_s206: Gate;
+    enabled_terrane_f0_s174 = Gate::terrane_construct(true);
+    disabled_terrane_f0_s206 = Gate::terrane_construct(false);
+    if enabled_terrane_f0_s174.truth() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("enabled")));
     }
-    if disabled.truth() {
+    if disabled_terrane_f0_s206.truth() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("unexpected")));
     } else {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("disabled")));

@@ -436,11 +436,13 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: fixed-overflow
 fn main() {
-    let left: i8 = 120;
-    let right: i8 = 10;
+    let left_terrane_f0_s42: i8;
+    let right_terrane_f0_s60: i8;
+    left_terrane_f0_s42 = 120;
+    right_terrane_f0_s60 = 10;
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition(left,
-        right), 0 /* terrane-site: case.trn:5:11-5:23 */))
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition(left_terrane_f0_s42,
+        right_terrane_f0_s60), 0 /* terrane-site: case.trn:5:11-5:23 */))
     );
 }

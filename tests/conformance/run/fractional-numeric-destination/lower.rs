@@ -436,10 +436,12 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: fractional-numeric-destination
 fn main() {
-    let ratio: f64 = 4.2;
-    let count: terrane_int_support::Int = __terrane_raised(
-        terrane_int_support::exact_int_f64(ratio),
+    let ratio_terrane_f0_s58: f64;
+    let count_terrane_f0_s78: terrane_int_support::Int;
+    ratio_terrane_f0_s58 = 4.2;
+    count_terrane_f0_s78 = __terrane_raised(
+        terrane_int_support::exact_int_f64(ratio_terrane_f0_s58),
         0 /* terrane-site: case.trn:4:15-4:20 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&count));
+    println!("{}", terrane_scalar_support::scalar_text(&count_terrane_f0_s78));
 }

@@ -17,11 +17,12 @@ impl Fancy {
     }
 }
 fn main() {
-    let value: Fancy = Fancy::terrane_construct();
+    let value_terrane_f0_s99: Fancy;
+    value_terrane_f0_s99 = Fancy::terrane_construct();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&value.value),
+        "{}{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s99.value),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value.extra)
+        terrane_scalar_support::scalar_text(&value_terrane_f0_s99.extra)
     );
 }
 // Source: models/item.trn

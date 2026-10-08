@@ -485,7 +485,10 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let octets: Ipv4Addr = __terrane_raised(
+    let octets_terrane_f0_s119: Ipv4Addr;
+    let address_terrane_f0_s169: IpAddr;
+    let result_terrane_f0_s209: bool;
+    octets_terrane_f0_s119 = __terrane_raised(
         terrane_static_trn_4970763441646472_new(
             terrane_int_support::Int::from(127_i128),
             terrane_int_support::Int::from(0_i128),
@@ -494,9 +497,9 @@ fn main() {
         ),
         0 /* terrane-site: src/main.trn:6:23-6:50 */,
     );
-    let address: IpAddr = __terrane_raised(
+    address_terrane_f0_s169 = __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| std::net::IpAddr::V4(octets)),
+            std::panic::AssertUnwindSafe(|| std::net::IpAddr::V4(octets_terrane_f0_s119)),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -511,11 +514,11 @@ fn main() {
         },
         1 /* terrane-site: src/main.trn:7:22-7:40 */,
     );
-    let result: bool = __terrane_raised(
-        is_loopback(address),
+    result_terrane_f0_s209 = __terrane_raised(
+        is_loopback(address_terrane_f0_s169),
         2 /* terrane-site: src/main.trn:8:19-8:39 */,
     );
-    let _ = &result;
+    let _ = &result_terrane_f0_s209;
 }
 // Source: <terrane>/projected/deps/terrane-core-witness.trn
 // Namespace: deps/terrane-core-witness

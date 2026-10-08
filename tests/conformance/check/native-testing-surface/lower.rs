@@ -644,6 +644,17 @@ struct TerraneDescriptor {
     inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/library.trn
 // Namespace: native-testing-surface
 static __TERRANE_F0_AVAILABLE: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
@@ -659,6 +670,7 @@ fn expected_error() -> Result<(), TerraneError> {
     return Ok(());
 }
 fn test_surface() -> Result<(), TerraneError> {
+    let fixture_terrane_f1_s698: ProcessFixture;
     __terrane_traced_err(
         assert(true),
         1 /* terrane-site: tests/unit/surface.trn:10:5-10:17 */,
@@ -727,11 +739,14 @@ fn test_surface() -> Result<(), TerraneError> {
         ),
         8 /* terrane-site: tests/unit/surface.trn:17:5-17:57 */,
     )?;
-    let fixture: ProcessFixture = ProcessFixture::terrane_construct(
+    fixture_terrane_f1_s698 = ProcessFixture::terrane_construct(
         String::from("artifact"),
     );
     __terrane_traced_err(
-        assert_equal_string(fixture.artifact.clone(), String::from("artifact")),
+        assert_equal_string(
+            fixture_terrane_f1_s698.artifact.clone(),
+            String::from("artifact"),
+        ),
         9 /* terrane-site: tests/unit/surface.trn:19:5-19:54 */,
     )?;
     temporary_directory();
@@ -868,27 +883,29 @@ pub fn fail_comparison(
     actual: String,
     expected: String,
 ) -> Result<(), TerraneError> {
-    let mut details: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    let mut details_terrane_f2_s1599: terrane_collection_support::List<String>;
+    let mut failure_terrane_f2_s1733: TestFailure;
+    details_terrane_f2_s1599 = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
-    details
+    details_terrane_f2_s1599
         .append(
             format!(
                 "{}{}", terrane_scalar_support::scalar_text(&String::from("actual: ")),
                 terrane_scalar_support::scalar_text(&actual)
             ),
         );
-    details
+    details_terrane_f2_s1599
         .append(
             format!(
                 "{}{}", terrane_scalar_support::scalar_text(&String::from("expected: ")),
                 terrane_scalar_support::scalar_text(&expected)
             ),
         );
-    let mut failure: TestFailure = TestFailure::terrane_construct(failure_message);
-    failure.details = details;
+    failure_terrane_f2_s1733 = TestFailure::terrane_construct(failure_message);
+    failure_terrane_f2_s1733.details = details_terrane_f2_s1599;
     return Err({
-        let value = failure;
+        let value = failure_terrane_f2_s1733;
         let details = value.details.clone().into_iter().collect();
         TerraneError::raised_with_message(
                 TerraneErrorKind::Custom(DescriptorId(0)),
@@ -914,24 +931,26 @@ pub fn fail_near(
     expected: f64,
     tolerance: f64,
 ) -> Result<(), TerraneError> {
-    let mut details: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    let mut details_terrane_f2_s2155: terrane_collection_support::List<String>;
+    let mut failure_terrane_f2_s2427: TestFailure;
+    details_terrane_f2_s2155 = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
-    details
+    details_terrane_f2_s2155
         .append(
             format!(
                 "{}{}", terrane_scalar_support::scalar_text(&String::from("actual: ")),
                 terrane_scalar_support::scalar_text(&terrane_test_render_float64(actual))
             ),
         );
-    details
+    details_terrane_f2_s2155
         .append(
             format!(
                 "{}{}", terrane_scalar_support::scalar_text(&String::from("expected: ")),
                 terrane_scalar_support::scalar_text(&terrane_test_render_float64(expected))
             ),
         );
-    details
+    details_terrane_f2_s2155
         .append(
             format!(
                 "{}{}",
@@ -939,12 +958,12 @@ pub fn fail_near(
                 terrane_scalar_support::scalar_text(&terrane_test_render_float64(tolerance))
             ),
         );
-    let mut failure: TestFailure = TestFailure::terrane_construct(
+    failure_terrane_f2_s2427 = TestFailure::terrane_construct(
         String::from("floating values differ beyond tolerance"),
     );
-    failure.details = details;
+    failure_terrane_f2_s2427.details = details_terrane_f2_s2155;
     return Err({
-        let value = failure;
+        let value = failure_terrane_f2_s2427;
         let details = value.details.clone().into_iter().collect();
         TerraneError::raised_with_message(
                 TerraneErrorKind::Custom(DescriptorId(0)),
@@ -990,7 +1009,7 @@ pub fn assert_equal_string(
     actual: String,
     expected: String,
 ) -> Result<(), TerraneError> {
-    if actual != expected {
+    if actual.as_str() != expected.as_str() {
         __terrane_traced_err(
             fail_comparison(String::from("string values differ"), actual, expected),
             19 /* terrane-site: core/testing.trn:91:9-91:66 */,
@@ -1002,7 +1021,7 @@ pub fn assert_not_equal_string(
     actual: String,
     expected: String,
 ) -> Result<(), TerraneError> {
-    if actual == expected {
+    if actual.as_str() == expected.as_str() {
         __terrane_traced_err(
             fail_comparison(
                 String::from("string values unexpectedly match"),
@@ -1197,6 +1216,7 @@ pub fn assert_near(
     expected: f64,
     tolerance: f64,
 ) -> Result<(), TerraneError> {
+    let mut difference_terrane_f2_s6733: f64;
     if tolerance < 0.0 {
         __terrane_traced_err(
             fail(
@@ -1209,11 +1229,11 @@ pub fn assert_near(
             37 /* terrane-site: core/testing.trn:181:9-181:111 */,
         )?;
     }
-    let mut difference: f64 = actual - expected;
-    if difference < 0.0 {
-        difference = 0.0 - difference;
+    difference_terrane_f2_s6733 = actual - expected;
+    if difference_terrane_f2_s6733 < 0.0 {
+        difference_terrane_f2_s6733 = 0.0 - difference_terrane_f2_s6733;
     }
-    if difference > tolerance {
+    if difference_terrane_f2_s6733 > tolerance {
         __terrane_traced_err(
             fail_near(actual, expected, tolerance),
             38 /* terrane-site: core/testing.trn:186:9-186:47 */,
@@ -1225,6 +1245,7 @@ pub fn assert_throws(
     operation: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
     expected_descriptor: String,
 ) -> Result<(), TerraneError> {
+    let mut error_terrane_f2_s7091: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
@@ -1241,8 +1262,15 @@ pub fn assert_throws(
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0 {
                     __terrane_handled_0 = true;
-                    let error = __terrane_error_0.clone();
-                    if error.descriptor_name().to_owned() == expected_descriptor {
+                    let _ = error_terrane_f2_s7091.insert(__terrane_error_0.clone());
+                    if error_terrane_f2_s7091
+                        .as_ref()
+                        .expect("flow-proven available binding")
+                        .clone()
+                        .descriptor_name()
+                        .to_owned()
+                        .as_str() == expected_descriptor.as_str()
+                    {
                         return TerraneCompletion::Return(());
                     }
                     __terrane_traced_completion!(
@@ -1250,8 +1278,9 @@ pub fn assert_throws(
                         terrane_scalar_support::scalar_text(&String::from("expected throwable descriptor ")),
                         terrane_scalar_support::scalar_text(&expected_descriptor),
                         terrane_scalar_support::scalar_text(&String::from(" but received ")),
-                        terrane_scalar_support::scalar_text(&error.descriptor_name()
-                        .to_owned()))), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
+                        terrane_scalar_support::scalar_text(&error_terrane_f2_s7091
+                        .as_ref().expect("flow-proven available binding").clone()
+                        .descriptor_name().to_owned()))), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );
                 }
                 if !__terrane_handled_0 {
@@ -1282,51 +1311,60 @@ pub fn assert_throws(
     return Ok(());
 }
 pub fn context_value(name: String) -> Option<String> {
+    let mut entry_terrane_f2_s7428: EnvironmentEntry;
     let __terrane_iterable_0 = environment();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let entry = match __terrane_iterator_0.next() {
+        entry_terrane_f2_s7428 = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if entry.name.is_text && entry.value.is_text && entry.name.text == name {
-            return Some(entry.value.text.clone());
+        if entry_terrane_f2_s7428.name.is_text && entry_terrane_f2_s7428.value.is_text
+            && entry_terrane_f2_s7428.name.text.as_str() == name.as_str()
+        {
+            return Some(entry_terrane_f2_s7428.value.text.clone());
         }
     }
     return None;
 }
 pub fn test_arguments() -> terrane_collection_support::List<NativeString> {
-    let supplied: terrane_collection_support::List<NativeString> = arguments();
-    let mut controlled: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+    let supplied_terrane_f2_s7636: terrane_collection_support::List<NativeString>;
+    let mut controlled_terrane_f2_s7662: terrane_collection_support::List<NativeString>;
+    let mut index_terrane_f2_s7706: terrane_int_support::Int;
+    supplied_terrane_f2_s7636 = arguments();
+    controlled_terrane_f2_s7662 = terrane_collection_support::List::<
         NativeString,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(1_i128);
+    index_terrane_f2_s7706 = terrane_int_support::Int::from(1_i128);
     {
-        let __terrane_list_append_0 = controlled.make_unique();
-        while index.clone()
+        let __terrane_list_append_0 = controlled_terrane_f2_s7662.make_unique();
+        while index_terrane_f2_s7706.clone()
             < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(supplied.length()),
+                terrane_int_support::Int::from(supplied_terrane_f2_s7636.length()),
             )
         {
             __terrane_list_append_0
                 .push(
                     __terrane_raised(
-                        supplied
+                        supplied_terrane_f2_s7636
                             .get_or_error(
                                 __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    terrane_collection_support::index_from_int(
+                                        &index_terrane_f2_s7706.clone(),
+                                    ),
                                     42 /* terrane-site: core/testing.trn:210:28-210:43 */,
                                 ),
                             ),
                         42 /* terrane-site: core/testing.trn:210:28-210:43 */,
                     ),
                 );
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f2_s7706 = index_terrane_f2_s7706.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    return controlled;
+    return controlled_terrane_f2_s7662;
 }
 pub fn test_deadline() -> Duration {
     return __terrane_traced(
@@ -1453,7 +1491,14 @@ impl ProcessResult {
     }
 }
 pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneError> {
-    let mut encoded_arguments: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    let mut encoded_arguments_terrane_f3_s1216: terrane_collection_support::List<String>;
+    let mut argument_terrane_f3_s1264: NativeString;
+    let mut encoded_environment_terrane_f3_s1365: terrane_collection_support::List<
+        String,
+    >;
+    let mut entry_terrane_f3_s1415: EnvironmentEntry;
+    let raw_terrane_f3_s1591: TerranePlatformResult;
+    encoded_arguments_terrane_f3_s1216 = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
     let __terrane_iterable_0 = fixture.arguments.clone();
@@ -1461,16 +1506,17 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
         &__terrane_iterable_0,
     );
     {
-        let __terrane_list_append_0 = encoded_arguments.make_unique();
+        let __terrane_list_append_0 = encoded_arguments_terrane_f3_s1216.make_unique();
         loop {
-            let argument = match __terrane_iterator_0.next() {
+            argument_terrane_f3_s1264 = match __terrane_iterator_0.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            __terrane_list_append_0.push(encode_native_string(argument));
+            __terrane_list_append_0
+                .push(encode_native_string(argument_terrane_f3_s1264));
         }
     }
-    let mut encoded_environment: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    encoded_environment_terrane_f3_s1365 = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
     let __terrane_iterable_1 = fixture.environment.clone();
@@ -1478,27 +1524,29 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
         &__terrane_iterable_1,
     );
     {
-        let __terrane_list_append_1 = encoded_environment.make_unique();
+        let __terrane_list_append_1 = encoded_environment_terrane_f3_s1365.make_unique();
         loop {
-            let entry = match __terrane_iterator_1.next() {
+            entry_terrane_f3_s1415 = match __terrane_iterator_1.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            __terrane_list_append_1.push(encode_native_string(entry.name));
-            __terrane_list_append_1.push(encode_native_string(entry.value));
+            __terrane_list_append_1
+                .push(encode_native_string(entry_terrane_f3_s1415.name));
+            __terrane_list_append_1
+                .push(encode_native_string(entry_terrane_f3_s1415.value));
         }
     }
-    let raw: TerranePlatformResult = terrane_test_spawn(
+    raw_terrane_f3_s1591 = terrane_test_spawn(
         fixture.artifact,
-        encoded_arguments,
-        encoded_environment,
+        encoded_arguments_terrane_f3_s1216,
+        encoded_environment_terrane_f3_s1365,
         fixture.standard_input,
         fixture.deadline_milliseconds.clone(),
     );
-    if terrane_test_result_failed(&raw) {
+    if terrane_test_result_failed(&raw_terrane_f3_s1591) {
         return Err({
             let value = TestInfrastructureFailure::terrane_construct(
-                terrane_test_result_message(&raw),
+                terrane_test_result_message(&raw_terrane_f3_s1591),
             );
             TerraneError::raised_with_message(
                 TerraneErrorKind::Custom(DescriptorId(2)),
@@ -1509,13 +1557,13 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
     }
     return Ok(
         ProcessResult::terrane_construct(
-            terrane_test_result_exit_code(&raw),
-            terrane_test_result_crashed(&raw),
-            terrane_test_result_deadline_exceeded(&raw),
-            terrane_test_result_stdout(&raw),
-            terrane_test_result_stderr(&raw),
-            terrane_test_result_stdout_truncated(&raw),
-            terrane_test_result_stderr_truncated(&raw),
+            terrane_test_result_exit_code(&raw_terrane_f3_s1591),
+            terrane_test_result_crashed(&raw_terrane_f3_s1591),
+            terrane_test_result_deadline_exceeded(&raw_terrane_f3_s1591),
+            terrane_test_result_stdout(&raw_terrane_f3_s1591),
+            terrane_test_result_stderr(&raw_terrane_f3_s1591),
+            terrane_test_result_stdout_truncated(&raw_terrane_f3_s1591),
+            terrane_test_result_stderr_truncated(&raw_terrane_f3_s1591),
         ),
     );
 }
@@ -1600,31 +1648,39 @@ impl ProcessHostNameResult {
     }
 }
 pub fn process_host_name() -> ProcessHostNameResult {
-    let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
+    let raw_terrane_f4_s1079: TerranePlatformResult;
+    raw_terrane_f4_s1079 = terrane_platform_support::system_host_name();
     return ProcessHostNameResult::terrane_construct(
-        raw.failed,
-        raw.flag,
-        raw.message.clone(),
-        NativeString::terrane_construct(raw.text.clone()),
+        raw_terrane_f4_s1079.failed,
+        raw_terrane_f4_s1079.flag,
+        raw_terrane_f4_s1079.message.clone(),
+        NativeString::terrane_construct(raw_terrane_f4_s1079.text.clone()),
     );
 }
 pub fn arguments() -> terrane_collection_support::List<NativeString> {
-    let encoded: Vec<String> = terrane_process_arguments();
-    let mut values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+    let encoded_terrane_f4_s1332: Vec<String>;
+    let mut values_terrane_f4_s1372: terrane_collection_support::List<NativeString>;
+    let mut index_terrane_f4_s1412: terrane_int_support::Int;
+    encoded_terrane_f4_s1332 = terrane_process_arguments();
+    values_terrane_f4_s1372 = terrane_collection_support::List::<
         NativeString,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    index_terrane_f4_s1412 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_0 = values.make_unique();
-        while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
+        let __terrane_list_append_0 = values_terrane_f4_s1372.make_unique();
+        while index_terrane_f4_s1412.clone()
+            < terrane_int_support::Int::from(encoded_terrane_f4_s1332.len() as i128)
+        {
             __terrane_list_append_0
                 .push(
                     NativeString::terrane_construct(
                         __terrane_raised(
                             {
-                                let __terrane_receiver = &encoded;
+                                let __terrane_receiver = &encoded_terrane_f4_s1332;
                                 let __terrane_index = __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    terrane_collection_support::index_from_int(
+                                        &index_terrane_f4_s1412.clone(),
+                                    ),
                                     47 /* terrane-site: core/process.trn:45:49-45:63 */,
                                 );
                                 __terrane_receiver
@@ -1638,28 +1694,36 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                         ),
                     ),
                 );
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f4_s1412 = index_terrane_f4_s1412.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    return values;
+    return values_terrane_f4_s1372;
 }
 pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
-    let encoded: Vec<String> = terrane_environment_entries();
-    let mut values: terrane_collection_support::List<EnvironmentEntry> = terrane_collection_support::List::<
+    let encoded_terrane_f4_s1620: Vec<String>;
+    let mut values_terrane_f4_s1662: terrane_collection_support::List<EnvironmentEntry>;
+    let mut index_terrane_f4_s1706: terrane_int_support::Int;
+    let mut name_terrane_f4_s1765: NativeString;
+    let mut value_terrane_f4_s1819: NativeString;
+    encoded_terrane_f4_s1620 = terrane_environment_entries();
+    values_terrane_f4_s1662 = terrane_collection_support::List::<
         EnvironmentEntry,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    index_terrane_f4_s1706 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_1 = values.make_unique();
-        while index.clone() + terrane_int_support::Int::from(1_i128)
-            < terrane_int_support::Int::from(encoded.len() as i128)
+        let __terrane_list_append_1 = values_terrane_f4_s1662.make_unique();
+        while index_terrane_f4_s1706.clone() + terrane_int_support::Int::from(1_i128)
+            < terrane_int_support::Int::from(encoded_terrane_f4_s1620.len() as i128)
         {
-            let name: NativeString = NativeString::terrane_construct(
+            name_terrane_f4_s1765 = NativeString::terrane_construct(
                 __terrane_raised(
                     {
-                        let __terrane_receiver = &encoded;
+                        let __terrane_receiver = &encoded_terrane_f4_s1620;
                         let __terrane_index = __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
+                            terrane_collection_support::index_from_int(
+                                &index_terrane_f4_s1706.clone(),
+                            ),
                             48 /* terrane-site: core/process.trn:54:40-54:54 */,
                         );
                         __terrane_receiver
@@ -1672,13 +1736,14 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     48 /* terrane-site: core/process.trn:54:40-54:54 */,
                 ),
             );
-            let value: NativeString = NativeString::terrane_construct(
+            value_terrane_f4_s1819 = NativeString::terrane_construct(
                 __terrane_raised(
                     {
-                        let __terrane_receiver = &encoded;
+                        let __terrane_receiver = &encoded_terrane_f4_s1620;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(
-                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                &(index_terrane_f4_s1706.clone()
+                                    + terrane_int_support::Int::from(1_i128)),
                             ),
                             49 /* terrane-site: core/process.trn:55:41-55:59 */,
                         );
@@ -1693,11 +1758,17 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                 ),
             );
             __terrane_list_append_1
-                .push(EnvironmentEntry::terrane_construct(name, value));
-            index = index.clone() + terrane_int_support::Int::from(2_i128);
+                .push(
+                    EnvironmentEntry::terrane_construct(
+                        name_terrane_f4_s1765,
+                        value_terrane_f4_s1819,
+                    ),
+                );
+            index_terrane_f4_s1706 = index_terrane_f4_s1706.clone()
+                + terrane_int_support::Int::from(2_i128);
         }
     }
-    return values;
+    return values_terrane_f4_s1662;
 }
 #[derive(Clone)]
 pub struct CliSchema {
@@ -1747,16 +1818,17 @@ impl CommandLine {
     }
 }
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
+    let mut entry_terrane_f4_s2454: String;
     let __terrane_iterable_0 = schema.entries.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let entry = match __terrane_iterator_0.next() {
+        entry_terrane_f4_s2454 = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if entry == sought {
+        if entry_terrane_f4_s2454.as_str() == sought.as_str() {
             return true;
         }
     }
@@ -1766,73 +1838,93 @@ pub fn parse_command_line(
     schema: CliSchema,
     supplied: terrane_collection_support::List<NativeString>,
 ) -> CommandLine {
-    let mut flags: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
-    let mut option_names: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
-    let mut option_values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+    let mut flags_terrane_f4_s2643: terrane_collection_support::List<String>;
+    let mut option_names_terrane_f4_s2675: terrane_collection_support::List<String>;
+    let mut option_values_terrane_f4_s2714: terrane_collection_support::List<
         NativeString,
-    >::new(Vec::new());
-    let mut positionals: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
-        NativeString,
-    >::new(Vec::new());
-    let mut diagnostic_arguments: terrane_collection_support::List<
+    >;
+    let mut positionals_terrane_f4_s2761: terrane_collection_support::List<NativeString>;
+    let mut diagnostic_arguments_terrane_f4_s2806: terrane_collection_support::List<
         terrane_int_support::Int,
-    > = terrane_collection_support::List::<terrane_int_support::Int>::new(Vec::new());
-    let mut diagnostic_messages: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    >;
+    let mut diagnostic_messages_terrane_f4_s2850: terrane_collection_support::List<
+        String,
+    >;
+    let mut index_terrane_f4_s2896: terrane_int_support::Int;
+    let mut argument_terrane_f4_s2952: NativeString;
+    let mut flag_entry_terrane_f4_s3165: String;
+    let mut value_entry_terrane_f4_s3220: String;
+    let mut result_terrane_f4_s4025: CommandLine;
+    flags_terrane_f4_s2643 = terrane_collection_support::List::<String>::new(Vec::new());
+    option_names_terrane_f4_s2675 = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    option_values_terrane_f4_s2714 = terrane_collection_support::List::<
+        NativeString,
+    >::new(Vec::new());
+    positionals_terrane_f4_s2761 = terrane_collection_support::List::<
+        NativeString,
+    >::new(Vec::new());
+    diagnostic_arguments_terrane_f4_s2806 = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(Vec::new());
+    diagnostic_messages_terrane_f4_s2850 = terrane_collection_support::List::<
+        String,
+    >::new(Vec::new());
+    index_terrane_f4_s2896 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_2 = diagnostic_arguments.make_unique();
-        let __terrane_list_append_3 = diagnostic_messages.make_unique();
-        let __terrane_list_append_4 = flags.make_unique();
-        let __terrane_list_append_5 = option_names.make_unique();
-        let __terrane_list_append_6 = option_values.make_unique();
-        let __terrane_list_append_7 = positionals.make_unique();
-        while index.clone()
+        let __terrane_list_append_2 = diagnostic_arguments_terrane_f4_s2806
+            .make_unique();
+        let __terrane_list_append_3 = diagnostic_messages_terrane_f4_s2850.make_unique();
+        let __terrane_list_append_4 = flags_terrane_f4_s2643.make_unique();
+        let __terrane_list_append_5 = option_names_terrane_f4_s2675.make_unique();
+        let __terrane_list_append_6 = option_values_terrane_f4_s2714.make_unique();
+        let __terrane_list_append_7 = positionals_terrane_f4_s2761.make_unique();
+        while index_terrane_f4_s2896.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(supplied.length()),
             )
         {
-            let argument: NativeString = __terrane_raised(
+            argument_terrane_f4_s2952 = __terrane_raised(
                 supplied
                     .get_or_error(
                         __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
+                            terrane_collection_support::index_from_int(
+                                &index_terrane_f4_s2896.clone(),
+                            ),
                             50 /* terrane-site: core/process.trn:90:20-90:35 */,
                         ),
                     ),
                 50 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
-            if !argument.is_text {
-                __terrane_list_append_2.push(index.clone());
+            if !argument_terrane_f4_s2952.is_text {
+                __terrane_list_append_2.push(index_terrane_f4_s2896.clone());
                 __terrane_list_append_3
                     .push(String::from("command-line option is not Unicode text"));
             } else {
-                let flag_entry: String = format!(
+                flag_entry_terrane_f4_s3165 = format!(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
+                    terrane_scalar_support::scalar_text(&argument_terrane_f4_s2952.text)
                 );
-                let value_entry: String = format!(
+                value_entry_terrane_f4_s3220 = format!(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
+                    terrane_scalar_support::scalar_text(&argument_terrane_f4_s2952.text)
                 );
-                if schema_has(schema.clone(), flag_entry) {
-                    __terrane_list_append_4.push(argument.text.clone());
-                } else if schema_has(schema.clone(), value_entry) {
-                    if index.clone() + terrane_int_support::Int::from(1_i128)
+                if schema_has(schema.clone(), flag_entry_terrane_f4_s3165) {
+                    __terrane_list_append_4.push(argument_terrane_f4_s2952.text.clone());
+                } else if schema_has(schema.clone(), value_entry_terrane_f4_s3220) {
+                    if index_terrane_f4_s2896.clone()
+                        + terrane_int_support::Int::from(1_i128)
                         >= terrane_int_support::Int::from(
                             terrane_int_support::Int::from(supplied.length()),
                         )
                     {
-                        __terrane_list_append_2.push(index.clone());
+                        __terrane_list_append_2.push(index_terrane_f4_s2896.clone());
                         __terrane_list_append_3
                             .push(String::from("option requires a value"));
                     } else {
-                        __terrane_list_append_5.push(argument.text.clone());
+                        __terrane_list_append_5
+                            .push(argument_terrane_f4_s2952.text.clone());
                         __terrane_list_append_6
                             .push(
                                 __terrane_raised(
@@ -1840,7 +1932,8 @@ pub fn parse_command_line(
                                         .get_or_error(
                                             __terrane_raised(
                                                 terrane_collection_support::index_from_int(
-                                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                                    &(index_terrane_f4_s2896.clone()
+                                                        + terrane_int_support::Int::from(1_i128)),
                                                 ),
                                                 51 /* terrane-site: core/process.trn:105:43-105:62 */,
                                             ),
@@ -1848,26 +1941,29 @@ pub fn parse_command_line(
                                     51 /* terrane-site: core/process.trn:105:43-105:62 */,
                                 ),
                             );
-                        index = index.clone() + terrane_int_support::Int::from(1_i128);
+                        index_terrane_f4_s2896 = index_terrane_f4_s2896.clone()
+                            + terrane_int_support::Int::from(1_i128);
                     }
-                } else if argument.text.starts_with(&String::from("--")) {
-                    __terrane_list_append_2.push(index.clone());
+                } else if argument_terrane_f4_s2952.text.starts_with(&String::from("--"))
+                {
+                    __terrane_list_append_2.push(index_terrane_f4_s2896.clone());
                     __terrane_list_append_3.push(String::from("unknown option"));
                 } else {
-                    __terrane_list_append_7.push(argument);
+                    __terrane_list_append_7.push(argument_terrane_f4_s2952);
                 }
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f4_s2896 = index_terrane_f4_s2896.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut result: CommandLine = CommandLine::terrane_construct();
-    result.flags = flags;
-    result.option_names = option_names;
-    result.option_values = option_values;
-    result.positionals = positionals;
-    result.diagnostic_arguments = diagnostic_arguments;
-    result.diagnostic_messages = diagnostic_messages;
-    return result;
+    result_terrane_f4_s4025 = CommandLine::terrane_construct();
+    result_terrane_f4_s4025.flags = flags_terrane_f4_s2643;
+    result_terrane_f4_s4025.option_names = option_names_terrane_f4_s2675;
+    result_terrane_f4_s4025.option_values = option_values_terrane_f4_s2714;
+    result_terrane_f4_s4025.positionals = positionals_terrane_f4_s2761;
+    result_terrane_f4_s4025.diagnostic_arguments = diagnostic_arguments_terrane_f4_s2806;
+    result_terrane_f4_s4025.diagnostic_messages = diagnostic_messages_terrane_f4_s2850;
+    return result_terrane_f4_s4025;
 }
 #[derive(Clone)]
 pub struct ExitStatus {
@@ -1883,27 +1979,30 @@ impl ExitStatus {
     }
 }
 pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
-    let mut result: ExitStatus = ExitStatus::terrane_construct();
+    let mut result_terrane_f4_s4444: ExitStatus;
+    result_terrane_f4_s4444 = ExitStatus::terrane_construct();
     if requested.clone() < terrane_int_support::Int::from(0_i128)
         || requested.clone() > terrane_int_support::Int::from(255_i128)
     {
-        result.code = terrane_int_support::Int::from(255_i128);
-        result.valid = false;
+        result_terrane_f4_s4444.code = terrane_int_support::Int::from(255_i128);
+        result_terrane_f4_s4444.valid = false;
     } else {
-        result.code = requested.clone();
+        result_terrane_f4_s4444.code = requested.clone();
     }
-    return result;
+    return result_terrane_f4_s4444;
 }
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
 }
 pub fn native_text(value: String) -> NativeString {
-    let encoded: String = terrane_platform_value_from_text(&value);
-    return NativeString::terrane_construct(encoded);
+    let encoded_terrane_f4_s4755: String;
+    encoded_terrane_f4_s4755 = terrane_platform_value_from_text(&value);
+    return NativeString::terrane_construct(encoded_terrane_f4_s4755);
 }
 pub fn native_raw(value: Vec<u8>) -> NativeString {
-    let encoded: String = terrane_platform_value_from_bytes(&value);
-    return NativeString::terrane_construct(encoded);
+    let encoded_terrane_f4_s4897: String;
+    encoded_terrane_f4_s4897 = terrane_platform_value_from_bytes(&value);
+    return NativeString::terrane_construct(encoded_terrane_f4_s4897);
 }
 pub fn native_text_value(value: NativeString) -> Option<String> {
     if value.is_text {
@@ -1955,15 +2054,22 @@ impl DurationSubtraction {
         self.total_nanoseconds = total.clone();
     }
     pub fn checked(&self, other: Duration) -> Option<Duration> {
+        let difference_terrane_f5_s602: terrane_int_support::Int;
         if self.total_nanoseconds.clone() < other.total_nanoseconds.clone() {
             return None;
         }
-        let difference: terrane_int_support::Int = self.total_nanoseconds.clone()
+        difference_terrane_f5_s602 = self.total_nanoseconds.clone()
             - other.total_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
-                terrane_platform_time_div(&difference, 1000000000.clone()),
-                terrane_platform_time_mod(&difference, 1000000000.clone()),
+                terrane_platform_time_div(
+                    &difference_terrane_f5_s602,
+                    1000000000.clone(),
+                ),
+                terrane_platform_time_mod(
+                    &difference_terrane_f5_s602,
+                    1000000000.clone(),
+                ),
             ),
         );
     }
@@ -2006,18 +2112,23 @@ impl Duration {
         );
     }
     pub fn add(&self, other: Duration) -> Duration {
-        let fractional: terrane_int_support::Int = self.nanoseconds.clone()
+        let fractional_terrane_f5_s2245: terrane_int_support::Int;
+        fractional_terrane_f5_s2245 = self.nanoseconds.clone()
             + other.nanoseconds.clone();
         return Duration::terrane_construct(
             self.seconds.clone() + other.seconds.clone()
-                + terrane_platform_time_div(&fractional, 1000000000.clone()),
-            terrane_platform_time_mod(&fractional, 1000000000.clone()),
+                + terrane_platform_time_div(
+                    &fractional_terrane_f5_s2245,
+                    1000000000.clone(),
+                ),
+            terrane_platform_time_mod(&fractional_terrane_f5_s2245, 1000000000.clone()),
         );
     }
     pub fn multiply(
         &self,
         multiplier: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
+        let total_terrane_f5_s2592: terrane_int_support::Int;
         if multiplier.clone() < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
@@ -2028,12 +2139,11 @@ impl Duration {
                 )
             });
         }
-        let total: terrane_int_support::Int = self.total_nanoseconds.clone()
-            * multiplier.clone();
+        total_terrane_f5_s2592 = self.total_nanoseconds.clone() * multiplier.clone();
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&total, 1000000000.clone()),
-                terrane_platform_time_mod(&total, 1000000000.clone()),
+                terrane_platform_time_div(&total_terrane_f5_s2592, 1000000000.clone()),
+                terrane_platform_time_mod(&total_terrane_f5_s2592, 1000000000.clone()),
             ),
         );
     }
@@ -2149,6 +2259,7 @@ impl MonotonicInstant {
         &self,
         later: &MonotonicInstant,
     ) -> Result<Duration, TerraneError> {
+        let elapsed_terrane_f5_s3217: terrane_int_support::Int;
         if self.domain.clone() != later.domain.clone().clone()
             || later.elapsed_nanoseconds.clone().clone()
                 < self.elapsed_nanoseconds.clone()
@@ -2162,12 +2273,12 @@ impl MonotonicInstant {
                 )
             });
         }
-        let elapsed: terrane_int_support::Int = later.elapsed_nanoseconds.clone().clone()
+        elapsed_terrane_f5_s3217 = later.elapsed_nanoseconds.clone().clone()
             - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
-                terrane_platform_time_div(&elapsed, 1000000000.clone()),
-                terrane_platform_time_mod(&elapsed, 1000000000.clone()),
+                terrane_platform_time_div(&elapsed_terrane_f5_s3217, 1000000000.clone()),
+                terrane_platform_time_mod(&elapsed_terrane_f5_s3217, 1000000000.clone()),
             ),
         );
     }
@@ -2217,19 +2328,20 @@ impl Deadline {
         self.expires_at = target;
     }
     pub fn remaining(&self) -> Option<Duration> {
-        let now: MonotonicInstant = Clock::terrane_static_monotonic();
-        if self.expires_at.elapsed_nanoseconds.clone() <= now.elapsed_nanoseconds.clone()
+        let now_terrane_f5_s3834: MonotonicInstant;
+        let elapsed_terrane_f5_s3964: terrane_int_support::Int;
+        now_terrane_f5_s3834 = Clock::terrane_static_monotonic();
+        if self.expires_at.elapsed_nanoseconds.clone()
+            <= now_terrane_f5_s3834.elapsed_nanoseconds.clone()
         {
             return None;
         }
-        let elapsed: terrane_int_support::Int = self
-            .expires_at
-            .elapsed_nanoseconds
-            .clone() - now.elapsed_nanoseconds.clone();
+        elapsed_terrane_f5_s3964 = self.expires_at.elapsed_nanoseconds.clone()
+            - now_terrane_f5_s3834.elapsed_nanoseconds.clone();
         return Some(
             Duration::terrane_construct(
-                terrane_platform_time_div(&elapsed, 1000000000.clone()),
-                terrane_platform_time_mod(&elapsed, 1000000000.clone()),
+                terrane_platform_time_div(&elapsed_terrane_f5_s3964, 1000000000.clone()),
+                terrane_platform_time_mod(&elapsed_terrane_f5_s3964, 1000000000.clone()),
             ),
         );
     }
@@ -2327,38 +2439,49 @@ impl Ticker {
         self.period = interval;
     }
     pub async fn next(&mut self) -> Tick {
-        let period_total: terrane_int_support::Int = self
-            .period
-            .total_nanoseconds
-            .clone();
-        let scheduled_nanoseconds: terrane_int_support::Int = self
-            .anchor
-            .elapsed_nanoseconds
-            .clone() + period_total.clone() * self.next_index.clone();
+        let period_total_terrane_f5_s5216: terrane_int_support::Int;
+        let scheduled_nanoseconds_terrane_f5_s5269: terrane_int_support::Int;
+        let observed_terrane_f5_s5441: MonotonicInstant;
+        let elapsed_terrane_f5_s5478: terrane_int_support::Int;
+        let mut observed_index_terrane_f5_s5559: terrane_int_support::Int;
+        let count_terrane_f5_s5710: terrane_int_support::Int;
+        let delivered_terrane_f5_s5763: MonotonicInstant;
+        period_total_terrane_f5_s5216 = self.period.total_nanoseconds.clone();
+        scheduled_nanoseconds_terrane_f5_s5269 = self.anchor.elapsed_nanoseconds.clone()
+            + period_total_terrane_f5_s5216.clone() * self.next_index.clone();
         discard_none(
-            __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
+            __terrane_await(
+                    terrane_platform_time_sleep_until(
+                        scheduled_nanoseconds_terrane_f5_s5269,
+                    ),
+                )
                 .await,
         );
-        let observed: MonotonicInstant = Clock::terrane_static_monotonic();
-        let elapsed: terrane_int_support::Int = observed.elapsed_nanoseconds.clone()
+        observed_terrane_f5_s5441 = Clock::terrane_static_monotonic();
+        elapsed_terrane_f5_s5478 = observed_terrane_f5_s5441.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
-        let mut observed_index: terrane_int_support::Int = terrane_platform_time_div(
-            &elapsed,
-            period_total.clone(),
+        observed_index_terrane_f5_s5559 = terrane_platform_time_div(
+            &elapsed_terrane_f5_s5478,
+            period_total_terrane_f5_s5216.clone(),
         );
-        if observed_index.clone() < self.next_index.clone() {
-            observed_index = self.next_index.clone();
+        if observed_index_terrane_f5_s5559.clone() < self.next_index.clone() {
+            observed_index_terrane_f5_s5559 = self.next_index.clone();
         }
-        let count: terrane_int_support::Int = observed_index.clone()
+        count_terrane_f5_s5710 = observed_index_terrane_f5_s5559.clone()
             - self.next_index.clone() + terrane_int_support::Int::from(1_i128);
-        let delivered: MonotonicInstant = MonotonicInstant::terrane_construct(
+        delivered_terrane_f5_s5763 = MonotonicInstant::terrane_construct(
             self.anchor.domain.clone(),
             self.anchor.elapsed_nanoseconds.clone()
-                + period_total.clone() * observed_index.clone(),
+                + period_total_terrane_f5_s5216.clone()
+                    * observed_index_terrane_f5_s5559.clone(),
         );
-        self.next_index = observed_index.clone()
+        self.next_index = observed_index_terrane_f5_s5559.clone()
             + terrane_int_support::Int::from(1_i128);
-        return Tick::terrane_construct(delivered, observed, count.clone());
+        return Tick::terrane_construct(
+            delivered_terrane_f5_s5763,
+            observed_terrane_f5_s5441,
+            count_terrane_f5_s5710.clone(),
+        );
     }
     pub fn destruct(&mut self) {
         discard_none(());
@@ -2379,10 +2502,11 @@ impl Clock {
         Self {}
     }
     pub fn terrane_static_wall() -> Instant {
-        let raw: TerranePlatformResult = terrane_platform_time_wall();
+        let raw_terrane_f5_s6105: TerranePlatformResult;
+        raw_terrane_f5_s6105 = terrane_platform_time_wall();
         return Instant::terrane_construct(
-            terrane_platform_time_wall_seconds(&raw),
-            terrane_platform_time_wall_nanoseconds(&raw),
+            terrane_platform_time_wall_seconds(&raw_terrane_f5_s6105),
+            terrane_platform_time_wall_nanoseconds(&raw_terrane_f5_s6105),
         );
     }
     pub fn terrane_static_monotonic() -> MonotonicInstant {
@@ -2392,9 +2516,13 @@ impl Clock {
         );
     }
     pub async fn terrane_static_sleep(elapsed: Duration) {
-        let target: terrane_int_support::Int = terrane_platform_time_monotonic()
+        let target_terrane_f5_s6426: terrane_int_support::Int;
+        target_terrane_f5_s6426 = terrane_platform_time_monotonic()
             + elapsed.total_nanoseconds.clone();
-        return __terrane_await(terrane_platform_time_sleep_until(target)).await;
+        return __terrane_await(
+                terrane_platform_time_sleep_until(target_terrane_f5_s6426),
+            )
+            .await;
     }
     pub async fn terrane_static_sleep_until(
         target: MonotonicInstant,
@@ -2417,12 +2545,15 @@ impl Clock {
         );
     }
     pub fn terrane_static_deadline(elapsed: Duration) -> Deadline {
-        let now: MonotonicInstant = Clock::terrane_static_monotonic();
-        let target: MonotonicInstant = MonotonicInstant::terrane_construct(
-            now.domain.clone(),
-            now.elapsed_nanoseconds.clone() + elapsed.total_nanoseconds.clone(),
+        let now_terrane_f5_s6860: MonotonicInstant;
+        let target_terrane_f5_s6892: MonotonicInstant;
+        now_terrane_f5_s6860 = Clock::terrane_static_monotonic();
+        target_terrane_f5_s6892 = MonotonicInstant::terrane_construct(
+            now_terrane_f5_s6860.domain.clone(),
+            now_terrane_f5_s6860.elapsed_nanoseconds.clone()
+                + elapsed.total_nanoseconds.clone(),
         );
-        return Deadline::terrane_construct(target);
+        return Deadline::terrane_construct(target_terrane_f5_s6892);
     }
     pub fn terrane_static_interval(period: Duration) -> Result<Ticker, TerraneError> {
         if period.total_nanoseconds.clone() == terrane_int_support::Int::from(0_i128) {

@@ -8,19 +8,24 @@ fn separator() -> String {
     return String::from("--");
 }
 fn main() {
-    let empty: String = {
+    let empty_terrane_f0_s105: String;
+    let single_terrane_f0_s134: String;
+    let many_terrane_f0_s162: String;
+    empty_terrane_f0_s105 = {
         let _ = separator();
         String::new()
     };
-    let single: String = vec![terrane_scalar_support::scalar_text(&String::from("one"))]
+    single_terrane_f0_s134 = vec![
+        terrane_scalar_support::scalar_text(&String::from("one"))
+    ]
         .join(&String::from("--"));
-    let many: String = vec![
+    many_terrane_f0_s162 = vec![
         terrane_scalar_support::scalar_text(&String::from("one")),
         terrane_scalar_support::scalar_text(&2),
         terrane_scalar_support::scalar_text(&true)
     ]
         .join(&String::from("--"));
-    println!("{}", terrane_scalar_support::scalar_text(&empty));
-    println!("{}", terrane_scalar_support::scalar_text(&single));
-    println!("{}", terrane_scalar_support::scalar_text(&many));
+    println!("{}", terrane_scalar_support::scalar_text(&empty_terrane_f0_s105));
+    println!("{}", terrane_scalar_support::scalar_text(&single_terrane_f0_s134));
+    println!("{}", terrane_scalar_support::scalar_text(&many_terrane_f0_s162));
 }

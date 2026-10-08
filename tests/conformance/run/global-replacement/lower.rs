@@ -6,7 +6,7 @@ static __TERRANE_GLOBAL_COUNTER: std::sync::LazyLock<
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(
     Some(terrane_int_support::Int::from(0_i128)),
 ));
-fn __terrane_uninitialized_global(
+fn __terrane_uninitialized_binding(
     name: &str,
     path: &str,
     line: usize,
@@ -33,7 +33,7 @@ fn bump() {
             .lock()
             .expect("program-global lock poisoned")
             .clone()
-            .unwrap_or_else(|| __terrane_uninitialized_global(
+            .unwrap_or_else(|| __terrane_uninitialized_binding(
                 "counter",
                 "case.trn",
                 6,
@@ -50,7 +50,7 @@ fn current() -> terrane_int_support::Int {
         .lock()
         .expect("program-global lock poisoned")
         .clone()
-        .unwrap_or_else(|| __terrane_uninitialized_global("counter", "case.trn", 8, 10))
+        .unwrap_or_else(|| __terrane_uninitialized_binding("counter", "case.trn", 8, 10))
         .clone();
 }
 fn main() {
@@ -60,7 +60,7 @@ fn main() {
         .lock()
         .expect("program-global lock poisoned")
         .clone()
-        .unwrap_or_else(|| __terrane_uninitialized_global("counter", "case.trn", 12, 6))
+        .unwrap_or_else(|| __terrane_uninitialized_binding("counter", "case.trn", 12, 6))
         .clone() == terrane_int_support::Int::from(12_i128)
     {
         println!(

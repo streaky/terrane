@@ -444,35 +444,46 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: bytes-views-encoding
 fn main() {
-    let text: String = String::from("e\u{301}");
+    let text_terrane_f0_s48: String;
+    let mut byte_count_terrane_f0_s154: terrane_int_support::Int;
+    let mut byte_terrane_f0_s175: u8;
+    let mut scalar_count_terrane_f0_s250: terrane_int_support::Int;
+    let mut scalar_terrane_f0_s273: String;
+    let mut grapheme_count_terrane_f0_s360: terrane_int_support::Int;
+    let mut grapheme_terrane_f0_s385: String;
+    let encoded_terrane_f0_s534: Vec<u8>;
+    let decoded_terrane_f0_s570: String;
+    let utf16le_text_terrane_f0_s627: String;
+    let utf16be_text_terrane_f0_s692: String;
+    let utf32le_text_terrane_f0_s757: String;
+    let utf32be_text_terrane_f0_s822: String;
+    text_terrane_f0_s48 = String::from("e\u{301}");
     println!(
         "{}{}{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text) as
-        i128)), terrane_scalar_support::scalar_text(&(text.len() as i128)),
-        terrane_scalar_support::scalar_text(&(text.chars().count() as i128)),
-        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text) as
-        i128))
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text_terrane_f0_s48)
+        as i128)), terrane_scalar_support::scalar_text(&(text_terrane_f0_s48.len() as
+        i128)), terrane_scalar_support::scalar_text(&(text_terrane_f0_s48.chars().count()
+        as i128)),
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text_terrane_f0_s48)
+        as i128))
     );
-    let mut byte_count: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    let __terrane_iterable_0 = text.as_bytes().to_vec();
+    byte_count_terrane_f0_s154 = terrane_int_support::Int::from(0_i128);
+    let __terrane_iterable_0 = text_terrane_f0_s48.as_bytes().to_vec();
     let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let byte = match __terrane_iterator_0.next() {
+        byte_terrane_f0_s175 = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if byte == byte {
-            byte_count = byte_count.clone() + terrane_int_support::Int::from(1_i128);
+        if byte_terrane_f0_s175 == byte_terrane_f0_s175 {
+            byte_count_terrane_f0_s154 = byte_count_terrane_f0_s154.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut scalar_count: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    let __terrane_iterable_1 = text
+    scalar_count_terrane_f0_s250 = terrane_int_support::Int::from(0_i128);
+    let __terrane_iterable_1 = text_terrane_f0_s48
         .chars()
         .map(|value| value.to_string())
         .collect::<Vec<_>>();
@@ -480,88 +491,90 @@ fn main() {
         __terrane_iterable_1,
     );
     loop {
-        let scalar = match __terrane_iterator_1.next() {
+        scalar_terrane_f0_s273 = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if scalar == scalar {
-            scalar_count = scalar_count.clone() + terrane_int_support::Int::from(1_i128);
+        if scalar_terrane_f0_s273.as_str() == scalar_terrane_f0_s273.as_str() {
+            scalar_count_terrane_f0_s250 = scalar_count_terrane_f0_s250.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut grapheme_count: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    let __terrane_iterable_2 = terrane_string_support::graphemes(&text)
+    grapheme_count_terrane_f0_s360 = terrane_int_support::Int::from(0_i128);
+    let __terrane_iterable_2 = terrane_string_support::graphemes(&text_terrane_f0_s48)
         .collect::<Vec<_>>();
     let mut __terrane_iterator_2 = terrane_collection_support::Iterator::new(
         __terrane_iterable_2,
     );
     loop {
-        let grapheme = match __terrane_iterator_2.next() {
+        grapheme_terrane_f0_s385 = match __terrane_iterator_2.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if grapheme == grapheme {
-            grapheme_count = grapheme_count.clone()
+        if grapheme_terrane_f0_s385.as_str() == grapheme_terrane_f0_s385.as_str() {
+            grapheme_count_terrane_f0_s360 = grapheme_count_terrane_f0_s360.clone()
                 + terrane_int_support::Int::from(1_i128);
         }
     }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&byte_count),
-        terrane_scalar_support::scalar_text(&scalar_count),
-        terrane_scalar_support::scalar_text(&grapheme_count)
+        "{}{}{}", terrane_scalar_support::scalar_text(&byte_count_terrane_f0_s154),
+        terrane_scalar_support::scalar_text(&scalar_count_terrane_f0_s250),
+        terrane_scalar_support::scalar_text(&grapheme_count_terrane_f0_s360)
     );
-    let encoded: Vec<u8> = terrane_string_support::encode(
-        &text,
+    encoded_terrane_f0_s534 = terrane_string_support::encode(
+        &text_terrane_f0_s48,
         terrane_string_support::Encoding::Utf8,
     );
-    let decoded: String = __terrane_raised(
-        terrane_string_support::decode(&encoded, terrane_string_support::Encoding::Utf8),
+    decoded_terrane_f0_s570 = __terrane_raised(
+        terrane_string_support::decode(
+            &encoded_terrane_f0_s534,
+            terrane_string_support::Encoding::Utf8,
+        ),
         0 /* terrane-site: case.trn:19:20-19:40 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&decoded));
-    let utf16le_text: String = __terrane_raised(
+    println!("{}", terrane_scalar_support::scalar_text(&decoded_terrane_f0_s570));
+    utf16le_text_terrane_f0_s627 = __terrane_raised(
         terrane_string_support::decode(
             &terrane_string_support::encode(
-                &text,
+                &text_terrane_f0_s48,
                 terrane_string_support::Encoding::Utf16Le,
             ),
             terrane_string_support::Encoding::Utf16Le,
         ),
         1 /* terrane-site: case.trn:21:25-21:65 */,
     );
-    let utf16be_text: String = __terrane_raised(
+    utf16be_text_terrane_f0_s692 = __terrane_raised(
         terrane_string_support::decode(
             &terrane_string_support::encode(
-                &text,
+                &text_terrane_f0_s48,
                 terrane_string_support::Encoding::Utf16Be,
             ),
             terrane_string_support::Encoding::Utf16Be,
         ),
         2 /* terrane-site: case.trn:22:25-22:65 */,
     );
-    let utf32le_text: String = __terrane_raised(
+    utf32le_text_terrane_f0_s757 = __terrane_raised(
         terrane_string_support::decode(
             &terrane_string_support::encode(
-                &text,
+                &text_terrane_f0_s48,
                 terrane_string_support::Encoding::Utf32Le,
             ),
             terrane_string_support::Encoding::Utf32Le,
         ),
         3 /* terrane-site: case.trn:23:25-23:65 */,
     );
-    let utf32be_text: String = __terrane_raised(
+    utf32be_text_terrane_f0_s822 = __terrane_raised(
         terrane_string_support::decode(
             &terrane_string_support::encode(
-                &text,
+                &text_terrane_f0_s48,
                 terrane_string_support::Encoding::Utf32Be,
             ),
             terrane_string_support::Encoding::Utf32Be,
         ),
         4 /* terrane-site: case.trn:24:25-24:65 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&utf16le_text));
-    println!("{}", terrane_scalar_support::scalar_text(&utf16be_text));
-    println!("{}", terrane_scalar_support::scalar_text(&utf32le_text));
-    println!("{}", terrane_scalar_support::scalar_text(&utf32be_text));
+    println!("{}", terrane_scalar_support::scalar_text(&utf16le_text_terrane_f0_s627));
+    println!("{}", terrane_scalar_support::scalar_text(&utf16be_text_terrane_f0_s692));
+    println!("{}", terrane_scalar_support::scalar_text(&utf32le_text_terrane_f0_s757));
+    println!("{}", terrane_scalar_support::scalar_text(&utf32be_text_terrane_f0_s822));
 }

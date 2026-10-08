@@ -451,96 +451,119 @@ async fn own_state(
     commands: TerraneChannelReceiver<String>,
     responses: TerraneChannelSender<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
-    let mut state: Counter = Counter::terrane_construct();
-    let mut running: bool = true;
-    while running {
-        let received: TerraneChannelReceiveOutcome<String> = __terrane_await(
-                Box::pin(commands.receive()),
-            )
-            .await;
-        let command: Option<String> = received.value;
-        if command.is_some() {
-            if command.as_ref().expect("semantic optional narrowing").clone()
-                == String::from("increase")
+    let mut state_terrane_f0_s331: Counter;
+    let mut running_terrane_f0_s359: bool;
+    let mut received_terrane_f0_s399: TerraneChannelReceiveOutcome<String>;
+    let mut command_terrane_f0_s438: Option<String>;
+    let mut sent_terrane_f0_s560: TerraneChannelSendOutcome<terrane_int_support::Int>;
+    state_terrane_f0_s331 = Counter::terrane_construct();
+    running_terrane_f0_s359 = true;
+    while running_terrane_f0_s359 {
+        received_terrane_f0_s399 = __terrane_await(Box::pin(commands.receive())).await;
+        command_terrane_f0_s438 = received_terrane_f0_s399.value;
+        if command_terrane_f0_s438.is_some() {
+            if match &command_terrane_f0_s438 {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            }
+                .as_str() == "increase"
             {
-                state.increase();
+                state_terrane_f0_s331.increase();
             } else {
-                let sent: TerraneChannelSendOutcome<terrane_int_support::Int> = __terrane_await(
-                        Box::pin(responses.send(state.value.clone())),
+                sent_terrane_f0_s560 = __terrane_await(
+                        Box::pin(responses.send(state_terrane_f0_s331.value.clone())),
                     )
                     .await;
-                if !sent.accepted {
+                if !sent_terrane_f0_s560.accepted {
                     return terrane_int_support::Int::from(-1_i128);
                 }
-                running = false;
+                running_terrane_f0_s359 = false;
             }
         }
     }
     commands.close();
     responses.close();
-    return state.value.clone();
+    return state_terrane_f0_s331.value.clone();
 }
 async fn use_state(
     commands: TerraneChannelSender<String>,
     responses: TerraneChannelReceiver<terrane_int_support::Int>,
 ) -> terrane_int_support::Int {
-    let first: TerraneChannelSendOutcome<String> = __terrane_await(
+    let first_terrane_f0_s846: TerraneChannelSendOutcome<String>;
+    let second_terrane_f0_s926: TerraneChannelSendOutcome<String>;
+    let requested_terrane_f0_s1008: TerraneChannelSendOutcome<String>;
+    let received_terrane_f0_s1092: TerraneChannelReceiveOutcome<
+        terrane_int_support::Int,
+    >;
+    let value_terrane_f0_s1130: Option<terrane_int_support::Int>;
+    first_terrane_f0_s846 = __terrane_await(
             Box::pin(commands.send(String::from("increase"))),
         )
         .await;
-    if !first.accepted {
+    if !first_terrane_f0_s846.accepted {
         return terrane_int_support::Int::from(-1_i128);
     }
-    let second: TerraneChannelSendOutcome<String> = __terrane_await(
+    second_terrane_f0_s926 = __terrane_await(
             Box::pin(commands.send(String::from("increase"))),
         )
         .await;
-    if !second.accepted {
+    if !second_terrane_f0_s926.accepted {
         return terrane_int_support::Int::from(-1_i128);
     }
-    let requested: TerraneChannelSendOutcome<String> = __terrane_await(
+    requested_terrane_f0_s1008 = __terrane_await(
             Box::pin(commands.send(String::from("read"))),
         )
         .await;
-    if !requested.accepted {
+    if !requested_terrane_f0_s1008.accepted {
         return terrane_int_support::Int::from(-1_i128);
     }
-    let received: TerraneChannelReceiveOutcome<terrane_int_support::Int> = __terrane_await(
-            Box::pin(responses.receive()),
-        )
-        .await;
-    let value: Option<terrane_int_support::Int> = received.value;
+    received_terrane_f0_s1092 = __terrane_await(Box::pin(responses.receive())).await;
+    value_terrane_f0_s1130 = received_terrane_f0_s1092.value;
     commands.close();
     responses.close();
-    if value.is_some() {
-        return value.as_ref().expect("semantic optional narrowing").clone().clone();
+    if value_terrane_f0_s1130.is_some() {
+        return match value_terrane_f0_s1130 {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        };
     }
     return terrane_int_support::Int::from(-1_i128);
 }
 fn main() {
     __terrane_run(async move {
-        let command_pair: TerraneChannelPair<String> = TerraneChannelPair::new(
+        let command_pair_terrane_f0_s1262: TerraneChannelPair<String>;
+        let response_pair_terrane_f0_s1313: TerraneChannelPair<terrane_int_support::Int>;
+        let scope_terrane_f0_s1362: TerraneTaskScope;
+        let owner_terrane_f0_s1384: TerraneScopedTask<terrane_int_support::Int>;
+        let client_terrane_f0_s1464: TerraneScopedTask<terrane_int_support::Int>;
+        let owner_outcome_terrane_f0_s1545: TerraneTaskOutcome<terrane_int_support::Int>;
+        let client_outcome_terrane_f0_s1587: TerraneTaskOutcome<
+            terrane_int_support::Int,
+        >;
+        let owner_value_terrane_f0_s1631: Option<terrane_int_support::Int>;
+        let client_value_terrane_f0_s1667: Option<terrane_int_support::Int>;
+        command_pair_terrane_f0_s1262 = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let response_pair: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
+        response_pair_terrane_f0_s1313 = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let owner: TerraneScopedTask<terrane_int_support::Int> = {
-            let __terrane_scope = scope.clone();
+        scope_terrane_f0_s1362 = TerraneTaskScope::new(None);
+        owner_terrane_f0_s1384 = {
+            let __terrane_scope = scope_terrane_f0_s1362.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             let __terrane_spawned_task = own_state(
-                command_pair.receiver,
-                response_pair.sender,
+                command_pair_terrane_f0_s1262.receiver,
+                response_pair_terrane_f0_s1313.sender,
             );
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
@@ -555,13 +578,13 @@ fn main() {
                 }
             })
         };
-        let client: TerraneScopedTask<terrane_int_support::Int> = {
-            let __terrane_scope = scope.clone();
+        client_terrane_f0_s1464 = {
+            let __terrane_scope = scope_terrane_f0_s1362.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             let __terrane_spawned_task = use_state(
-                command_pair.sender,
-                response_pair.receiver,
+                command_pair_terrane_f0_s1262.sender,
+                response_pair_terrane_f0_s1313.receiver,
             );
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
@@ -576,25 +599,25 @@ fn main() {
                 }
             })
         };
-        let owner_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(owner),
+        owner_outcome_terrane_f0_s1545 = __terrane_await(
+                scope_terrane_f0_s1362.join(owner_terrane_f0_s1384),
             )
             .await;
-        let client_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(client),
+        client_outcome_terrane_f0_s1587 = __terrane_await(
+                scope_terrane_f0_s1362.join(client_terrane_f0_s1464),
             )
             .await;
-        let owner_value: Option<terrane_int_support::Int> = owner_outcome.value.clone();
-        let client_value: Option<terrane_int_support::Int> = client_outcome
-            .value
-            .clone();
-        if owner_value.is_some() {
-            if client_value.is_some() {
+        owner_value_terrane_f0_s1631 = owner_outcome_terrane_f0_s1545.value.clone();
+        client_value_terrane_f0_s1667 = client_outcome_terrane_f0_s1587.value.clone();
+        if owner_value_terrane_f0_s1631.is_some() {
+            if client_value_terrane_f0_s1667.is_some() {
                 println!(
-                    "{}{}", terrane_scalar_support::scalar_text(&owner_value.as_ref()
-                    .expect("semantic optional narrowing").clone()),
-                    terrane_scalar_support::scalar_text(&client_value.as_ref()
-                    .expect("semantic optional narrowing").clone())
+                    "{}{}", terrane_scalar_support::scalar_text(&match
+                    &owner_value_terrane_f0_s1631 { Some(value) => value, _ =>
+                    unreachable!("flow-proven storage refinement") }),
+                    terrane_scalar_support::scalar_text(&match
+                    &client_value_terrane_f0_s1667 { Some(value) => value, _ =>
+                    unreachable!("flow-proven storage refinement") })
                 );
             }
         }
@@ -692,46 +715,44 @@ impl IntMutex {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s966: TerranePlatformResult;
+        raw_terrane_f1_s966 = terrane_platform_int_mutex(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s966);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s966);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s966);
     }
     pub fn load(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_load(&self.handle);
+        let raw_terrane_f1_s1191: TerranePlatformResult;
+        raw_terrane_f1_s1191 = terrane_platform_int_mutex_load(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s1191),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1191),
+            terrane_platform_result_bool(&raw_terrane_f1_s1191),
+            terrane_platform_result_message(&raw_terrane_f1_s1191),
+            terrane_platform_result_int(&raw_terrane_f1_s1191),
         );
     }
     pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_store(
-            &self.handle,
-            value,
-        );
+        let raw_terrane_f1_s1487: TerranePlatformResult;
+        raw_terrane_f1_s1487 = terrane_platform_int_mutex_store(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s1487),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1487),
+            terrane_platform_result_message(&raw_terrane_f1_s1487),
         );
     }
     pub fn increase(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
-            &self.handle,
-            amount,
-        );
+        let raw_terrane_f1_s1754: TerranePlatformResult;
+        raw_terrane_f1_s1754 = terrane_platform_int_mutex_add(&self.handle, amount);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s1754),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1754),
+            terrane_platform_result_bool(&raw_terrane_f1_s1754),
+            terrane_platform_result_message(&raw_terrane_f1_s1754),
+            terrane_platform_result_int(&raw_terrane_f1_s1754),
         );
     }
 }
@@ -752,30 +773,30 @@ impl IntReadWriteLock {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s2175: TerranePlatformResult;
+        raw_terrane_f1_s2175 = terrane_platform_int_rw_lock(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s2175);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s2175);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s2175);
     }
     pub fn read(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_read(&self.handle);
+        let raw_terrane_f1_s2410: TerranePlatformResult;
+        raw_terrane_f1_s2410 = terrane_platform_int_rw_lock_read(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s2410),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s2410),
+            terrane_platform_result_bool(&raw_terrane_f1_s2410),
+            terrane_platform_result_message(&raw_terrane_f1_s2410),
+            terrane_platform_result_int(&raw_terrane_f1_s2410),
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_write(
-            &self.handle,
-            value,
-        );
+        let raw_terrane_f1_s2716: TerranePlatformResult;
+        raw_terrane_f1_s2716 = terrane_platform_int_rw_lock_write(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s2716),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s2716),
+            terrane_platform_result_message(&raw_terrane_f1_s2716),
         );
     }
 }
@@ -827,22 +848,24 @@ impl AtomicInt64 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s3708: TerranePlatformResult;
+        raw_terrane_f1_s3708 = terrane_platform_atomic_int64(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s3708);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s3708);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s3708);
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_load(
+        let raw_terrane_f1_s3958: TerranePlatformResult;
+        raw_terrane_f1_s3958 = terrane_platform_atomic_int64_load(
             &self.handle,
             ordering.name,
         );
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s3958),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s3958),
+            terrane_platform_result_bool(&raw_terrane_f1_s3958),
+            terrane_platform_result_message(&raw_terrane_f1_s3958),
+            terrane_platform_result_int(&raw_terrane_f1_s3958),
         );
     }
     pub fn store(
@@ -850,15 +873,16 @@ impl AtomicInt64 {
         value: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_store(
+        let raw_terrane_f1_s4297: TerranePlatformResult;
+        raw_terrane_f1_s4297 = terrane_platform_atomic_int64_store(
             &self.handle,
             value,
             ordering.name,
         );
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s4297),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s4297),
+            terrane_platform_result_message(&raw_terrane_f1_s4297),
         );
     }
     pub fn increase(
@@ -866,17 +890,18 @@ impl AtomicInt64 {
         amount: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
+        let raw_terrane_f1_s4607: TerranePlatformResult;
+        raw_terrane_f1_s4607 = terrane_platform_atomic_int64_add(
             &self.handle,
             amount,
             ordering.name,
         );
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s4607),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s4607),
+            terrane_platform_result_bool(&raw_terrane_f1_s4607),
+            terrane_platform_result_message(&raw_terrane_f1_s4607),
+            terrane_platform_result_int(&raw_terrane_f1_s4607),
         );
     }
 }
@@ -897,32 +922,33 @@ impl ThreadLocalInt {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s5043: TerranePlatformResult;
+        raw_terrane_f1_s5043 = terrane_platform_thread_local_int(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s5043);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s5043);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s5043);
     }
     pub fn get(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_get(
-            &self.handle,
-        );
+        let raw_terrane_f1_s5274: TerranePlatformResult;
+        raw_terrane_f1_s5274 = terrane_platform_thread_local_int_get(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s5274),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s5274),
+            terrane_platform_result_bool(&raw_terrane_f1_s5274),
+            terrane_platform_result_message(&raw_terrane_f1_s5274),
+            terrane_platform_result_int(&raw_terrane_f1_s5274),
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_set(
+        let raw_terrane_f1_s5576: TerranePlatformResult;
+        raw_terrane_f1_s5576 = terrane_platform_thread_local_int_set(
             &self.handle,
             value,
         );
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s5576),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s5576),
+            terrane_platform_result_message(&raw_terrane_f1_s5576),
         );
     }
 }

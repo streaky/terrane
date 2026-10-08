@@ -8,8 +8,10 @@ async fn answer() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let child = answer();
-        let value: terrane_int_support::Int = __terrane_await(child).await;
-        println!("{}", terrane_scalar_support::scalar_text(&value));
+        let child_terrane_f0_s95;
+        let value_terrane_f0_s115: terrane_int_support::Int;
+        child_terrane_f0_s95 = answer();
+        value_terrane_f0_s115 = __terrane_await(child_terrane_f0_s95).await;
+        println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s115));
     });
 }

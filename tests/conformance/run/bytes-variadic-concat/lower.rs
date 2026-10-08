@@ -438,7 +438,9 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: bytes-variadic-concat
 fn main() {
-    let combined: Vec<u8> = {
+    let combined_terrane_f0_s84: Vec<u8>;
+    let unchanged_terrane_f0_s177: Vec<u8>;
+    combined_terrane_f0_s84 = {
         let mut bytes = Vec::from([97]);
         let part_0: Vec<u8> = Vec::from([]);
         let part_1: Vec<u8> = Vec::from([98, 99]);
@@ -460,11 +462,11 @@ fn main() {
     };
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&combined,
-        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:7:11-7:32 */)), terrane_scalar_support::scalar_text(&(combined.len() as
-        i128))
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&combined_terrane_f0_s84,
+        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:7:11-7:32 */)),
+        terrane_scalar_support::scalar_text(&(combined_terrane_f0_s84.len() as i128))
     );
-    let unchanged: Vec<u8> = {
+    unchanged_terrane_f0_s177 = {
         let mut bytes = Vec::from([122]);
         let additional = match [].into_iter().try_fold(0usize, usize::checked_add) {
             Some(length) => length,
@@ -477,7 +479,7 @@ fn main() {
     };
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unchanged,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unchanged_terrane_f0_s177,
         terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:9:11-9:33 */))
     );
 }

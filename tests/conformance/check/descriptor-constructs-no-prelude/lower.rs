@@ -7,10 +7,12 @@ fn accepts(value: i8) -> i8 {
     return value;
 }
 fn main() {
-    let value: i8 = accepts(1);
-    let result: bool = {
-        let _ = &value;
+    let value_terrane_f0_s146: i8;
+    let result_terrane_f0_s172: bool;
+    value_terrane_f0_s146 = accepts(1);
+    result_terrane_f0_s172 = {
+        let _ = &value_terrane_f0_s146;
         true
     };
-    let _ = &result;
+    let _ = &result_terrane_f0_s172;
 }

@@ -206,6 +206,8 @@ async unsafe fn later() -> terrane_int_support::Int {
 #[allow(unsafe_code)]
 fn main() {
     __terrane_run(async move {
+        let value_terrane_f0_s738: Device;
+        let overloads_terrane_f0_s794: MethodOverloads;
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&choose_terrane_unsafe_declaration_contracts_safe(terrane_int_support::Int::from(1_i128)))
@@ -215,15 +217,18 @@ fn main() {
             choose_terrane_unsafe_declaration_contracts_unsafe(terrane_int_support::Int::from(1_i128))
             })
         );
-        let value: Device = Device::terrane_construct();
+        value_terrane_f0_s738 = Device::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&unsafe { value
+            "{}", terrane_scalar_support::scalar_text(&unsafe { value_terrane_f0_s738
             ._terrane_unsafe_726177() })
         );
-        let overloads: MethodOverloads = MethodOverloads::terrane_construct();
-        println!("{}", terrane_scalar_support::scalar_text(&overloads.choose()));
+        overloads_terrane_f0_s794 = MethodOverloads::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&unsafe { overloads
+            "{}", terrane_scalar_support::scalar_text(&overloads_terrane_f0_s794
+            .choose())
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&unsafe { overloads_terrane_f0_s794
             ._terrane_unsafe_63686f6f7365() })
         );
         println!(

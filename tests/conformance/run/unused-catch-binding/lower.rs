@@ -433,9 +433,21 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: unused-catch-binding
 fn main() {
+    let mut unused_terrane_f0_s175: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -456,6 +468,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
+                    let _ = unused_terrane_f0_s175.insert(__terrane_error_0.clone());
                     println!(
                         "{}",
                         terrane_scalar_support::scalar_text(&String::from("caught"))

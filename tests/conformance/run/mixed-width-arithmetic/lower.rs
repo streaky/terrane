@@ -438,17 +438,28 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: mixed-width-arithmetic
 fn main() {
-    let left: i8 = 100;
-    let right: i32 = 2;
-    let unsigned: u8 = 120;
-    let total: i32 = __terrane_raised(
-        terrane_int_support::fixed_addition(left as i32, right),
+    let left_terrane_f0_s51: i8;
+    let right_terrane_f0_s69: i32;
+    let unsigned_terrane_f0_s87: u8;
+    let total_terrane_f0_s110: i32;
+    let combined_terrane_f0_s139: i16;
+    left_terrane_f0_s51 = 100;
+    right_terrane_f0_s69 = 2;
+    unsigned_terrane_f0_s87 = 120;
+    total_terrane_f0_s110 = __terrane_raised(
+        terrane_int_support::fixed_addition(
+            left_terrane_f0_s51 as i32,
+            right_terrane_f0_s69,
+        ),
         0 /* terrane-site: case.trn:7:17-7:29 */,
     );
-    let combined: i16 = __terrane_raised(
-        terrane_int_support::fixed_addition(left as i16, unsigned as i16),
+    combined_terrane_f0_s139 = __terrane_raised(
+        terrane_int_support::fixed_addition(
+            left_terrane_f0_s51 as i16,
+            unsigned_terrane_f0_s87 as i16,
+        ),
         1 /* terrane-site: case.trn:8:20-8:35 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&total));
-    println!("{}", terrane_scalar_support::scalar_text(&combined));
+    println!("{}", terrane_scalar_support::scalar_text(&total_terrane_f0_s110));
+    println!("{}", terrane_scalar_support::scalar_text(&combined_terrane_f0_s139));
 }

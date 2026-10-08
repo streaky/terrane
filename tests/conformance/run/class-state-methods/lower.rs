@@ -477,28 +477,31 @@ impl Drop for Counter {
     }
 }
 fn main() {
-    let mut first: Counter = Counter::terrane_construct(
+    let mut first_terrane_f0_s392: Counter;
+    let mut second_terrane_f0_s425: Counter;
+    let shift_terrane_f0_s452: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    >;
+    first_terrane_f0_s392 = Counter::terrane_construct(
         terrane_int_support::Int::from(10_i128),
     );
-    let mut second: Counter = first.terrane_separate();
-    let shift: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = {
-        let receiver = first.terrane_separate();
+    second_terrane_f0_s425 = first_terrane_f0_s392.terrane_separate();
+    shift_terrane_f0_s452 = {
+        let receiver = first_terrane_f0_s392.terrane_separate();
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
             receiver.shifted(argument_0)
         })
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&first
+        "{}", terrane_scalar_support::scalar_text(&first_terrane_f0_s392
         .increase(terrane_int_support::Int::from(5_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&second
+        "{}", terrane_scalar_support::scalar_text(&second_terrane_f0_s425
         .increase(terrane_int_support::Int::from(2_i128)))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&shift(terrane_int_support::Int::from(3_i128)))
+        terrane_scalar_support::scalar_text(&shift_terrane_f0_s452(terrane_int_support::Int::from(3_i128)))
     );
 }

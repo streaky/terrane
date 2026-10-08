@@ -453,9 +453,13 @@ async fn make() -> Point {
 }
 fn main() {
     __terrane_run(async move {
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<Point> = {
-            let __terrane_scope = scope.clone();
+        let scope_terrane_f0_s185: TerraneTaskScope;
+        let child_terrane_f0_s207: TerraneScopedTask<Point>;
+        let outcome_terrane_f0_s235: TerraneTaskOutcome<Point>;
+        let value_terrane_f0_s271: Option<Point>;
+        scope_terrane_f0_s185 = TerraneTaskScope::new(None);
+        child_terrane_f0_s207 = {
+            let __terrane_scope = scope_terrane_f0_s185.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -473,15 +477,17 @@ fn main() {
                 }
             })
         };
-        let outcome: TerraneTaskOutcome<Point> = __terrane_await(scope.join(child))
+        outcome_terrane_f0_s235 = __terrane_await(
+                scope_terrane_f0_s185.join(child_terrane_f0_s207),
+            )
             .await;
-        let value: Option<Point> = outcome.value.clone();
-        if value.is_some() {
+        value_terrane_f0_s271 = outcome_terrane_f0_s235.value.clone();
+        if value_terrane_f0_s271.is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&String::from("present"))
             );
         }
-        if value.is_none() {
+        if value_terrane_f0_s271.is_none() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&String::from("missing"))
             );

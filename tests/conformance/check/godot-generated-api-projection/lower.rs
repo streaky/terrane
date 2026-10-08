@@ -488,13 +488,14 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn vector_length(x: f32, y: f32) -> f32 {
-    let position: Vector2 = __terrane_raised(
+    let position_terrane_f0_s152: Vector2;
+    position_terrane_f0_s152 = __terrane_raised(
         terrane_static_trn_566563746f7232_new(x, y),
         0 /* terrane-site: src/main.trn:7:16-7:34 */,
     );
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| position.length()),
+            std::panic::AssertUnwindSafe(|| position_terrane_f0_s152.length()),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -518,7 +519,7 @@ fn accepts_generated_class(node: Node2D) {
 fn generated_position(node: &Node2D) -> Vector2 {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| node.get_position()),
+            std::panic::AssertUnwindSafe(|| (&node).get_position()),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -535,8 +536,9 @@ fn generated_position(node: &Node2D) -> Vector2 {
     );
 }
 fn main() {
-    let length: f64 = vector_length(3.0_f32, 4.0_f32) as f64;
-    let _ = &length;
+    let length_terrane_f0_s361: f64;
+    length_terrane_f0_s361 = vector_length(3.0_f32, 4.0_f32) as f64;
+    let _ = &length_terrane_f0_s361;
 }
 // Source: <terrane>/projected/deps/godot/builtin.trn
 // Namespace: deps/godot/builtin

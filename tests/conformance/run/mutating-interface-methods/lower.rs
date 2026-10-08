@@ -75,10 +75,11 @@ impl From<Counter> for Adjustable {
     }
 }
 fn main() {
-    let mut value: Adjustable = <Adjustable>::from(Counter::terrane_construct());
+    let mut value_terrane_f0_s367: Adjustable;
+    value_terrane_f0_s367 = <Adjustable>::from(Counter::terrane_construct());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&value
+        "{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s367
         .increase(terrane_int_support::Int::from(4_i128)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&value.read()));
+    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s367.read()));
 }

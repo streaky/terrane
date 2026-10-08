@@ -436,9 +436,12 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: example
 fn main() {
-    let frame: FrameState = make_frame();
-    let body: FrameBody = __terrane_raised(
-        frame
+    let frame_terrane_f0_s80: FrameState;
+    let body_terrane_f0_s104: FrameBody;
+    let value_terrane_f0_s131: f64;
+    frame_terrane_f0_s80 = make_frame();
+    body_terrane_f0_s104 = __terrane_raised(
+        frame_terrane_f0_s80
             .bodies
             .get_or_error(
                 __terrane_raised(
@@ -450,8 +453,8 @@ fn main() {
             ),
         0 /* terrane-site: src/main.trn:7:12-7:27 */,
     );
-    let value: f64 = body.x;
-    let _ = &value;
+    value_terrane_f0_s131 = body_terrane_f0_s104.x;
+    let _ = &value_terrane_f0_s131;
 }
 // Source: src/model/types.trn
 // Namespace: example/model
@@ -490,9 +493,10 @@ impl FrameState {
     }
 }
 fn make_frame() -> FrameState {
-    let mut bodies: terrane_collection_support::List<FrameBody> = terrane_collection_support::List::<
+    let mut bodies_terrane_f2_s291: terrane_collection_support::List<FrameBody>;
+    bodies_terrane_f2_s291 = terrane_collection_support::List::<
         FrameBody,
     >::new(Vec::new());
-    bodies.append(FrameBody::terrane_construct(7.5));
-    return FrameState::terrane_construct(bodies);
+    bodies_terrane_f2_s291.append(FrameBody::terrane_construct(7.5));
+    return FrameState::terrane_construct(bodies_terrane_f2_s291);
 }

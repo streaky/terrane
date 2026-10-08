@@ -43,15 +43,20 @@ async fn text() -> String {
 }
 fn main() {
     __terrane_run(async move {
+        let mut acc_terrane_f0_s338: Accumulator;
+        let first_terrane_f0_s384: terrane_int_support::Int;
+        let mut ignored_terrane_f0_s437: String;
+        let mut r_terrane_f0_s539: Reader;
+        let peeked_terrane_f0_s578: terrane_int_support::Int;
         let mut __terrane_select_cursor_368 = 0usize;
         let mut __terrane_select_cursor_562 = 0usize;
-        let mut acc: Accumulator = Accumulator::terrane_construct();
+        acc_terrane_f0_s338 = Accumulator::terrane_construct();
         {
             let mut __terrane_select_guard_368 = __terrane_finally_guard();
             let __terrane_select_control_368_0 = __terrane_select_control();
             let mut __terrane_select_future_368_0 = std::pin::pin!(
                 __terrane_select_operation(__terrane_select_control_368_0.clone(), (&mut
-                acc).add(terrane_int_support::Int::from(1_i128)))
+                acc_terrane_f0_s338).add(terrane_int_support::Int::from(1_i128)))
             );
             let mut __terrane_select_result_368_0 = None;
             let __terrane_select_control_368_1 = __terrane_select_control();
@@ -142,30 +147,35 @@ fn main() {
             __terrane_select_guard_368.finish();
             match __terrane_select_winner_368 {
                 0 => {
-                    let first: terrane_int_support::Int = __terrane_select_result_368_0
+                    first_terrane_f0_s384 = __terrane_select_result_368_0
                         .take()
                         .expect("selected case owns its ready result");
-                    println!("{}", terrane_scalar_support::scalar_text(&first));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&first_terrane_f0_s384)
+                    );
                 }
                 1 => {
-                    let ignored: String = __terrane_select_result_368_1
+                    ignored_terrane_f0_s437 = __terrane_select_result_368_1
                         .take()
                         .expect("selected case owns its ready result");
-                    println!("{}", terrane_scalar_support::scalar_text(&ignored));
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&ignored_terrane_f0_s437)
+                    );
                 }
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        println!("{}", terrane_scalar_support::scalar_text(&acc.total));
-        acc.total = terrane_int_support::Int::from(9_i128);
-        println!("{}", terrane_scalar_support::scalar_text(&acc.total));
-        let mut r: Reader = Reader::terrane_construct();
+        println!("{}", terrane_scalar_support::scalar_text(&acc_terrane_f0_s338.total));
+        acc_terrane_f0_s338.total = terrane_int_support::Int::from(9_i128);
+        println!("{}", terrane_scalar_support::scalar_text(&acc_terrane_f0_s338.total));
+        r_terrane_f0_s539 = Reader::terrane_construct();
         {
             let mut __terrane_select_guard_562 = __terrane_finally_guard();
             let __terrane_select_control_562_0 = __terrane_select_control();
             let mut __terrane_select_future_562_0 = std::pin::pin!(
-                __terrane_select_operation(__terrane_select_control_562_0.clone(), (&r)
-                .peek(terrane_int_support::Int::from(1_i128)))
+                __terrane_select_operation(__terrane_select_control_562_0.clone(),
+                (&r_terrane_f0_s539).peek(terrane_int_support::Int::from(1_i128)))
             );
             let mut __terrane_select_result_562_0 = None;
             let __terrane_select_control_562_1 = __terrane_select_control();
@@ -256,21 +266,27 @@ fn main() {
             __terrane_select_guard_562.finish();
             match __terrane_select_winner_562 {
                 0 => {
-                    let peeked: terrane_int_support::Int = __terrane_select_result_562_0
+                    peeked_terrane_f0_s578 = __terrane_select_result_562_0
                         .take()
                         .expect("selected case owns its ready result");
-                    println!("{}", terrane_scalar_support::scalar_text(&peeked));
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&peeked_terrane_f0_s578)
+                    );
                 }
                 1 => {
-                    let ignored: String = __terrane_select_result_562_1
+                    ignored_terrane_f0_s437 = __terrane_select_result_562_1
                         .take()
                         .expect("selected case owns its ready result");
-                    println!("{}", terrane_scalar_support::scalar_text(&ignored));
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&ignored_terrane_f0_s437)
+                    );
                 }
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        r.total = terrane_int_support::Int::from(8_i128);
-        println!("{}", terrane_scalar_support::scalar_text(&r.total));
+        r_terrane_f0_s539.total = terrane_int_support::Int::from(8_i128);
+        println!("{}", terrane_scalar_support::scalar_text(&r_terrane_f0_s539.total));
     });
 }

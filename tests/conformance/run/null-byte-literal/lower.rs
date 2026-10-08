@@ -436,21 +436,23 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: null-byte-literal
 fn main() {
-    let raw: Vec<u8> = Vec::from([97, 0, 99]);
-    let __terrane_iterable_0 = raw.clone();
+    let raw_terrane_f0_s45: Vec<u8>;
+    let mut byte_terrane_f0_s71: u8;
+    raw_terrane_f0_s45 = Vec::from([97, 0, 99]);
+    let __terrane_iterable_0 = raw_terrane_f0_s45.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let byte = match __terrane_iterator_0.next() {
+        byte_terrane_f0_s71 = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&byte));
+        println!("{}", terrane_scalar_support::scalar_text(&byte_terrane_f0_s71));
     }
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(raw.len() as i128)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&raw,
+        "{}{}", terrane_scalar_support::scalar_text(&(raw_terrane_f0_s45.len() as i128)),
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&raw_terrane_f0_s45,
         terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:6:23-6:39 */))
     );
 }

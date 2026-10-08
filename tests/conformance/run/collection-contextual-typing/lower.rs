@@ -436,26 +436,30 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: collection-contextual-typing
 fn main() {
-    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    let values_terrane_f0_s122: terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let found_terrane_f0_s153: Option<terrane_int_support::Int>;
+    let narrow_terrane_f0_s194: terrane_collection_support::List<i8>;
+    values_terrane_f0_s122 = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
-    let found: Option<terrane_int_support::Int> = terrane_collection_support::index_from_int(
+    found_terrane_f0_s153 = terrane_collection_support::index_from_int(
             &terrane_int_support::Int::from(0_i128),
         )
         .ok()
-        .and_then(|index| values.get(index).cloned());
-    let narrow: terrane_collection_support::List<i8> = terrane_collection_support::List::<
-        i8,
-    >::new(vec![5, 6]);
+        .and_then(|index| values_terrane_f0_s122.get(index).cloned());
+    narrow_terrane_f0_s194 = terrane_collection_support::List::<i8>::new(vec![5, 6]);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(narrow
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(narrow_terrane_f0_s194
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:8:10-8:19 */)), 0 /* terrane-site: case.trn:8:10-8:19 */))
     );
-    if found.is_some() {
+    if found_terrane_f0_s153.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&found.as_ref()
-            .expect("semantic optional narrowing").clone())
+            "{}", terrane_scalar_support::scalar_text(&match &found_terrane_f0_s153 {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
 }

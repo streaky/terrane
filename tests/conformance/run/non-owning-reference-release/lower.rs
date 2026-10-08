@@ -436,15 +436,26 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: non-owning-reference-release
 fn main() {
-    let value: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    let value_terrane_f0_s125: terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let observer_terrane_f0_s158: &terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let value_terrane_f0_s222: String;
+    value_terrane_f0_s125 = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(12_i128)]);
-    let observer: &terrane_collection_support::List<terrane_int_support::Int> = &value;
+    observer_terrane_f0_s158 = &value_terrane_f0_s125;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(observer.clone()
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(observer_terrane_f0_s158
+        .clone()
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:8:12-8:23 */)), 0 /* terrane-site: case.trn:8:12-8:23 */))
     );
-    let value: String = String::from("replacement");
-    println!("{}", terrane_scalar_support::scalar_text(&value));
+    let __trn_5f5f7265706c6163656d656e74_terrane_f0_s222 = String::from("replacement");
+    drop(value_terrane_f0_s125);
+    value_terrane_f0_s222 = __trn_5f5f7265706c6163656d656e74_terrane_f0_s222;
+    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s222));
 }

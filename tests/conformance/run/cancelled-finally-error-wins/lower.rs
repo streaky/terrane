@@ -554,13 +554,17 @@ async fn blocked() -> Result<String, TerraneError> {
 }
 fn main() {
     __terrane_run(async move {
+        let scope_terrane_f0_s350: TerraneTaskScope;
+        let child_terrane_f0_s374: TerraneScopedTask<String>;
+        let started_terrane_f0_s407: bool;
+        let outcome_terrane_f0_s480: TerraneTaskOutcome<String>;
         __terrane_raised(
             reset_operation_state(),
             2 /* terrane-site: src/main.trn:13:5-13:27 */,
         );
-        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<String> = {
-            let __terrane_scope = scope.clone();
+        scope_terrane_f0_s350 = TerraneTaskScope::new(None);
+        child_terrane_f0_s374 = {
+            let __terrane_scope = scope_terrane_f0_s350.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -579,7 +583,7 @@ fn main() {
                 }
             })
         };
-        let started: bool = __terrane_traced(
+        started_terrane_f0_s407 = __terrane_traced(
             __terrane_await({
                     let __terrane_future = wait_until_operation_started();
                     async move {
@@ -592,14 +596,19 @@ fn main() {
                 .await,
             3 /* terrane-site: src/main.trn:16:26-16:55 */,
         );
-        scope.cancel();
-        let outcome: TerraneTaskOutcome<String> = __terrane_await(scope.join(child))
+        scope_terrane_f0_s350.cancel();
+        outcome_terrane_f0_s480 = __terrane_await(
+                scope_terrane_f0_s350.join(child_terrane_f0_s374),
+            )
             .await;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&started),
-            terrane_scalar_support::scalar_text(&outcome.cancelled)
+            "{}{}", terrane_scalar_support::scalar_text(&started_terrane_f0_s407),
+            terrane_scalar_support::scalar_text(&outcome_terrane_f0_s480.cancelled)
         );
-        println!("{}", terrane_scalar_support::scalar_text(&outcome.error.is_some()));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&outcome_terrane_f0_s480.error
+            .is_some())
+        );
     });
 }
 // Source: <terrane>/projected/deps/async-witness.trn

@@ -541,11 +541,18 @@ fn take_map_list(
     );
 }
 fn main() {
-    let pair: terrane_collection_support::Entry<String, i8> = terrane_collection_support::Entry::<
+    let pair_terrane_f0_s716: terrane_collection_support::Entry<String, i8>;
+    let keyed_terrane_f0_s771: terrane_collection_support::Map<i8, String>;
+    let made_terrane_f0_s1012: terrane_collection_support::List<i8>;
+    let made_entries_terrane_f0_s1040: terrane_collection_support::Map<
+        String,
+        terrane_collection_support::Entry<String, i8>,
+    >;
+    pair_terrane_f0_s716 = terrane_collection_support::Entry::<
         String,
         i8,
     >::new(String::from("a"), 6);
-    let keyed: terrane_collection_support::Map<i8, String> = terrane_collection_support::Map::<
+    keyed_terrane_f0_s771 = terrane_collection_support::Map::<
         i8,
         String,
     >::new(
@@ -595,21 +602,18 @@ fn main() {
             ],
         ),
     );
-    let made: terrane_collection_support::List<i8> = make();
-    let made_entries: terrane_collection_support::Map<
-        String,
-        terrane_collection_support::Entry<String, i8>,
-    > = make_entry_map();
+    made_terrane_f0_s1012 = make();
+    made_entries_terrane_f0_s1040 = make_entry_map();
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair.value),
-        terrane_scalar_support::scalar_text(&__terrane_raised(keyed.get_or_error(&5),
-        9 /* terrane-site: case.trn:28:22-28:30 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(made
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair_terrane_f0_s716.value),
+        terrane_scalar_support::scalar_text(&__terrane_raised(keyed_terrane_f0_s771
+        .get_or_error(&5), 9 /* terrane-site: case.trn:28:22-28:30 */)),
+        terrane_scalar_support::scalar_text(&__terrane_raised(made_terrane_f0_s1012
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         10 /* terrane-site: case.trn:28:32-28:39 */)), 10 /* terrane-site: case.trn:28:32-28:39 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(made_entries
+        terrane_scalar_support::scalar_text(&__terrane_raised(made_entries_terrane_f0_s1040
         .get_or_error(&String::from("a")), 11 /* terrane-site: case.trn:28:41-28:58 */).key),
-        terrane_scalar_support::scalar_text(&__terrane_raised(made_entries
+        terrane_scalar_support::scalar_text(&__terrane_raised(made_entries_terrane_f0_s1040
         .get_or_error(&String::from("a")), 12 /* terrane-site: case.trn:28:64-28:81 */).value)
     );
 }

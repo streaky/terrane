@@ -22,9 +22,16 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: descriptor-constructs
 fn main() {
-    let value: i64 = 1;
-    println!("{}", terrane_scalar_support::scalar_text(&{ let _ = &value; true }));
-    println!("{}", terrane_scalar_support::scalar_text(&{ true }));
-    println!("{}", terrane_scalar_support::scalar_text(&{ true }));
-    println!("{}", terrane_scalar_support::scalar_text(&{ let _ = value; true }));
+    let value_terrane_f0_s100: i64;
+    value_terrane_f0_s100 = 1;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = &value_terrane_f0_s100; true
+        })
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&true));
+    println!("{}", terrane_scalar_support::scalar_text(&true));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = value_terrane_f0_s100; true
+        })
+    );
 }

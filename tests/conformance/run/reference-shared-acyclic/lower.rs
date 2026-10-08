@@ -27,9 +27,10 @@ impl Holder {
     }
 }
 fn main() {
-    let owner: Holder = Holder::terrane_construct();
+    let owner_terrane_f0_s206: Holder;
+    owner_terrane_f0_s206 = Holder::terrane_construct();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&owner.child.lock()
+        "{}", terrane_scalar_support::scalar_text(&owner_terrane_f0_s206.child.lock()
         .expect("shared reference lock poisoned").value.clone())
     );
 }

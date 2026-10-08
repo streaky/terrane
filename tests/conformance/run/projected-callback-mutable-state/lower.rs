@@ -481,23 +481,25 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let total: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    let callback: TerraneMutableCallable<
+    let total_terrane_f0_s90: terrane_int_support::Int;
+    let callback_terrane_f0_s108: TerraneMutableCallable<
         (terrane_int_support::Int,),
         terrane_int_support::Int,
-    > = {
-        let mut total = total.clone();
+    >;
+    total_terrane_f0_s90 = terrane_int_support::Int::from(0_i128);
+    callback_terrane_f0_s108 = {
+        let mut total_terrane_f0_s90 = total_terrane_f0_s90.clone();
         TerraneMutableCallable::new(move |
             (value,): (terrane_int_support::Int,),
         | -> terrane_int_support::Int {
-            total = total.clone() + value.clone();
-            return total.clone();
+            total_terrane_f0_s90 = total_terrane_f0_s90.clone() + value.clone();
+            return total_terrane_f0_s90.clone();
         })
     };
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(apply_mutable(terrane_int_support::Int::from(1_i128),
-        callback.clone()), 0 /* terrane-site: src/main.trn:8:13-8:39 */))
+        callback_terrane_f0_s108.clone()), 0 /* terrane-site: src/main.trn:8:13-8:39 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-callback-witness.trn

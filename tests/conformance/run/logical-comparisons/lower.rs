@@ -4,7 +4,12 @@
 // Source: case.trn
 // Namespace: logical-comparisons
 fn main() {
-    let x: i64 = 5;
-    let y: i64 = 9;
-    println!("{}", terrane_scalar_support::scalar_text(&(x > 1 &&y > 2)));
+    let x_terrane_f0_s47: i64;
+    let y_terrane_f0_s59: i64;
+    x_terrane_f0_s47 = 5;
+    y_terrane_f0_s59 = 9;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(x_terrane_f0_s47 > 1
+        &&y_terrane_f0_s59 > 2))
+    );
 }

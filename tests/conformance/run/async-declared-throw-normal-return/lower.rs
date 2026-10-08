@@ -4,14 +4,16 @@
 // Source: case.trn
 // Namespace: sample
 async fn quiet() {
-    let observed: i64 = 42;
-    let _ = &observed;
+    let observed_terrane_f0_s131: i64;
+    observed_terrane_f0_s131 = 42;
+    let _ = &observed_terrane_f0_s131;
     return ();
 }
 fn main() {
     __terrane_run(async move {
-        let ignored: () = __terrane_await(quiet()).await;
-        let _ = &ignored;
+        let ignored_terrane_f0_s187: ();
+        ignored_terrane_f0_s187 = __terrane_await(quiet()).await;
+        let _ = &ignored_terrane_f0_s187;
         println!("{}", terrane_scalar_support::scalar_text(&String::from("completed")));
     });
 }

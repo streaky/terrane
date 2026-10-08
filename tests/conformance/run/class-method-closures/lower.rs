@@ -448,20 +448,23 @@ impl Maker {
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > {
         return {
-            let this = self.clone();
+            let this_terrane_f0_s64 = self.clone();
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> terrane_int_support::Int {
-                return this.base.clone() + value.clone();
+                return this_terrane_f0_s64.base.clone() + value.clone();
             })
         };
     }
 }
 fn main() {
-    let value: Maker = Maker::terrane_construct();
-    let add: std::sync::Arc<
+    let value_terrane_f0_s189: Maker;
+    let add_terrane_f0_s215: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = value.offset();
-    let result: terrane_int_support::Int = add(terrane_int_support::Int::from(5_i128));
-    println!("{}", terrane_scalar_support::scalar_text(&result));
+    >;
+    let result_terrane_f0_s262: terrane_int_support::Int;
+    value_terrane_f0_s189 = Maker::terrane_construct();
+    add_terrane_f0_s215 = value_terrane_f0_s189.offset();
+    result_terrane_f0_s262 = add_terrane_f0_s215(terrane_int_support::Int::from(5_i128));
+    println!("{}", terrane_scalar_support::scalar_text(&result_terrane_f0_s262));
 }

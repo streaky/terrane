@@ -448,13 +448,16 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: restricted-standard-capabilities
 fn main() {
-    let cell: IntMutex = IntMutex::terrane_construct(
+    let cell_terrane_f0_s179: IntMutex;
+    let name_terrane_f0_s235: ProcessHostNameResult;
+    cell_terrane_f0_s179 = IntMutex::terrane_construct(
         terrane_int_support::Int::from(1_i128),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&cell.failed));
-    let name: ProcessHostNameResult = process_host_name();
+    println!("{}", terrane_scalar_support::scalar_text(&cell_terrane_f0_s179.failed));
+    name_terrane_f0_s235 = process_host_name();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(name.failed || name.available))
+        "{}", terrane_scalar_support::scalar_text(&(name_terrane_f0_s235.failed ||
+        name_terrane_f0_s235.available))
     );
 }
 // Source: core/concurrency.trn
@@ -549,46 +552,44 @@ impl IntMutex {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s966: TerranePlatformResult;
+        raw_terrane_f1_s966 = terrane_platform_int_mutex(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s966);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s966);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s966);
     }
     pub fn load(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_load(&self.handle);
+        let raw_terrane_f1_s1191: TerranePlatformResult;
+        raw_terrane_f1_s1191 = terrane_platform_int_mutex_load(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s1191),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1191),
+            terrane_platform_result_bool(&raw_terrane_f1_s1191),
+            terrane_platform_result_message(&raw_terrane_f1_s1191),
+            terrane_platform_result_int(&raw_terrane_f1_s1191),
         );
     }
     pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_store(
-            &self.handle,
-            value,
-        );
+        let raw_terrane_f1_s1487: TerranePlatformResult;
+        raw_terrane_f1_s1487 = terrane_platform_int_mutex_store(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s1487),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1487),
+            terrane_platform_result_message(&raw_terrane_f1_s1487),
         );
     }
     pub fn increase(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_mutex_add(
-            &self.handle,
-            amount,
-        );
+        let raw_terrane_f1_s1754: TerranePlatformResult;
+        raw_terrane_f1_s1754 = terrane_platform_int_mutex_add(&self.handle, amount);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s1754),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1754),
+            terrane_platform_result_bool(&raw_terrane_f1_s1754),
+            terrane_platform_result_message(&raw_terrane_f1_s1754),
+            terrane_platform_result_int(&raw_terrane_f1_s1754),
         );
     }
 }
@@ -609,30 +610,30 @@ impl IntReadWriteLock {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s2175: TerranePlatformResult;
+        raw_terrane_f1_s2175 = terrane_platform_int_rw_lock(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s2175);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s2175);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s2175);
     }
     pub fn read(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_read(&self.handle);
+        let raw_terrane_f1_s2410: TerranePlatformResult;
+        raw_terrane_f1_s2410 = terrane_platform_int_rw_lock_read(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s2410),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s2410),
+            terrane_platform_result_bool(&raw_terrane_f1_s2410),
+            terrane_platform_result_message(&raw_terrane_f1_s2410),
+            terrane_platform_result_int(&raw_terrane_f1_s2410),
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_rw_lock_write(
-            &self.handle,
-            value,
-        );
+        let raw_terrane_f1_s2716: TerranePlatformResult;
+        raw_terrane_f1_s2716 = terrane_platform_int_rw_lock_write(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s2716),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s2716),
+            terrane_platform_result_message(&raw_terrane_f1_s2716),
         );
     }
 }
@@ -684,22 +685,24 @@ impl AtomicInt64 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s3708: TerranePlatformResult;
+        raw_terrane_f1_s3708 = terrane_platform_atomic_int64(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s3708);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s3708);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s3708);
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_load(
+        let raw_terrane_f1_s3958: TerranePlatformResult;
+        raw_terrane_f1_s3958 = terrane_platform_atomic_int64_load(
             &self.handle,
             ordering.name,
         );
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s3958),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s3958),
+            terrane_platform_result_bool(&raw_terrane_f1_s3958),
+            terrane_platform_result_message(&raw_terrane_f1_s3958),
+            terrane_platform_result_int(&raw_terrane_f1_s3958),
         );
     }
     pub fn store(
@@ -707,15 +710,16 @@ impl AtomicInt64 {
         value: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_store(
+        let raw_terrane_f1_s4297: TerranePlatformResult;
+        raw_terrane_f1_s4297 = terrane_platform_atomic_int64_store(
             &self.handle,
             value,
             ordering.name,
         );
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s4297),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s4297),
+            terrane_platform_result_message(&raw_terrane_f1_s4297),
         );
     }
     pub fn increase(
@@ -723,17 +727,18 @@ impl AtomicInt64 {
         amount: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_atomic_int64_add(
+        let raw_terrane_f1_s4607: TerranePlatformResult;
+        raw_terrane_f1_s4607 = terrane_platform_atomic_int64_add(
             &self.handle,
             amount,
             ordering.name,
         );
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s4607),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s4607),
+            terrane_platform_result_bool(&raw_terrane_f1_s4607),
+            terrane_platform_result_message(&raw_terrane_f1_s4607),
+            terrane_platform_result_int(&raw_terrane_f1_s4607),
         );
     }
 }
@@ -754,32 +759,33 @@ impl ThreadLocalInt {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        let raw_terrane_f1_s5043: TerranePlatformResult;
+        raw_terrane_f1_s5043 = terrane_platform_thread_local_int(initial);
+        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s5043);
+        self.message = terrane_platform_result_message(&raw_terrane_f1_s5043);
+        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s5043);
     }
     pub fn get(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_get(
-            &self.handle,
-        );
+        let raw_terrane_f1_s5274: TerranePlatformResult;
+        raw_terrane_f1_s5274 = terrane_platform_thread_local_int_get(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s5274),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s5274),
+            terrane_platform_result_bool(&raw_terrane_f1_s5274),
+            terrane_platform_result_message(&raw_terrane_f1_s5274),
+            terrane_platform_result_int(&raw_terrane_f1_s5274),
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_thread_local_int_set(
+        let raw_terrane_f1_s5576: TerranePlatformResult;
+        raw_terrane_f1_s5576 = terrane_platform_thread_local_int_set(
             &self.handle,
             value,
         );
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
+            terrane_platform_result_failed(&raw_terrane_f1_s5576),
+            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s5576),
+            terrane_platform_result_message(&raw_terrane_f1_s5576),
         );
     }
 }
@@ -864,31 +870,39 @@ impl ProcessHostNameResult {
     }
 }
 pub fn process_host_name() -> ProcessHostNameResult {
-    let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
+    let raw_terrane_f2_s1079: TerranePlatformResult;
+    raw_terrane_f2_s1079 = terrane_platform_support::system_host_name();
     return ProcessHostNameResult::terrane_construct(
-        raw.failed,
-        raw.flag,
-        raw.message.clone(),
-        NativeString::terrane_construct(raw.text.clone()),
+        raw_terrane_f2_s1079.failed,
+        raw_terrane_f2_s1079.flag,
+        raw_terrane_f2_s1079.message.clone(),
+        NativeString::terrane_construct(raw_terrane_f2_s1079.text.clone()),
     );
 }
 pub fn arguments() -> terrane_collection_support::List<NativeString> {
-    let encoded: Vec<String> = terrane_process_arguments();
-    let mut values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+    let encoded_terrane_f2_s1332: Vec<String>;
+    let mut values_terrane_f2_s1372: terrane_collection_support::List<NativeString>;
+    let mut index_terrane_f2_s1412: terrane_int_support::Int;
+    encoded_terrane_f2_s1332 = terrane_process_arguments();
+    values_terrane_f2_s1372 = terrane_collection_support::List::<
         NativeString,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    index_terrane_f2_s1412 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_0 = values.make_unique();
-        while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
+        let __terrane_list_append_0 = values_terrane_f2_s1372.make_unique();
+        while index_terrane_f2_s1412.clone()
+            < terrane_int_support::Int::from(encoded_terrane_f2_s1332.len() as i128)
+        {
             __terrane_list_append_0
                 .push(
                     NativeString::terrane_construct(
                         __terrane_raised(
                             {
-                                let __terrane_receiver = &encoded;
+                                let __terrane_receiver = &encoded_terrane_f2_s1332;
                                 let __terrane_index = __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    terrane_collection_support::index_from_int(
+                                        &index_terrane_f2_s1412.clone(),
+                                    ),
                                     0 /* terrane-site: core/process.trn:45:49-45:63 */,
                                 );
                                 __terrane_receiver
@@ -902,28 +916,36 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                         ),
                     ),
                 );
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f2_s1412 = index_terrane_f2_s1412.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    return values;
+    return values_terrane_f2_s1372;
 }
 pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
-    let encoded: Vec<String> = terrane_environment_entries();
-    let mut values: terrane_collection_support::List<EnvironmentEntry> = terrane_collection_support::List::<
+    let encoded_terrane_f2_s1620: Vec<String>;
+    let mut values_terrane_f2_s1662: terrane_collection_support::List<EnvironmentEntry>;
+    let mut index_terrane_f2_s1706: terrane_int_support::Int;
+    let mut name_terrane_f2_s1765: NativeString;
+    let mut value_terrane_f2_s1819: NativeString;
+    encoded_terrane_f2_s1620 = terrane_environment_entries();
+    values_terrane_f2_s1662 = terrane_collection_support::List::<
         EnvironmentEntry,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    index_terrane_f2_s1706 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_1 = values.make_unique();
-        while index.clone() + terrane_int_support::Int::from(1_i128)
-            < terrane_int_support::Int::from(encoded.len() as i128)
+        let __terrane_list_append_1 = values_terrane_f2_s1662.make_unique();
+        while index_terrane_f2_s1706.clone() + terrane_int_support::Int::from(1_i128)
+            < terrane_int_support::Int::from(encoded_terrane_f2_s1620.len() as i128)
         {
-            let name: NativeString = NativeString::terrane_construct(
+            name_terrane_f2_s1765 = NativeString::terrane_construct(
                 __terrane_raised(
                     {
-                        let __terrane_receiver = &encoded;
+                        let __terrane_receiver = &encoded_terrane_f2_s1620;
                         let __terrane_index = __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
+                            terrane_collection_support::index_from_int(
+                                &index_terrane_f2_s1706.clone(),
+                            ),
                             1 /* terrane-site: core/process.trn:54:40-54:54 */,
                         );
                         __terrane_receiver
@@ -936,13 +958,14 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     1 /* terrane-site: core/process.trn:54:40-54:54 */,
                 ),
             );
-            let value: NativeString = NativeString::terrane_construct(
+            value_terrane_f2_s1819 = NativeString::terrane_construct(
                 __terrane_raised(
                     {
-                        let __terrane_receiver = &encoded;
+                        let __terrane_receiver = &encoded_terrane_f2_s1620;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(
-                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                &(index_terrane_f2_s1706.clone()
+                                    + terrane_int_support::Int::from(1_i128)),
                             ),
                             2 /* terrane-site: core/process.trn:55:41-55:59 */,
                         );
@@ -957,11 +980,17 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                 ),
             );
             __terrane_list_append_1
-                .push(EnvironmentEntry::terrane_construct(name, value));
-            index = index.clone() + terrane_int_support::Int::from(2_i128);
+                .push(
+                    EnvironmentEntry::terrane_construct(
+                        name_terrane_f2_s1765,
+                        value_terrane_f2_s1819,
+                    ),
+                );
+            index_terrane_f2_s1706 = index_terrane_f2_s1706.clone()
+                + terrane_int_support::Int::from(2_i128);
         }
     }
-    return values;
+    return values_terrane_f2_s1662;
 }
 #[derive(Clone)]
 pub struct CliSchema {
@@ -1011,16 +1040,17 @@ impl CommandLine {
     }
 }
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
+    let mut entry_terrane_f2_s2454: String;
     let __terrane_iterable_0 = schema.entries.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        let entry = match __terrane_iterator_0.next() {
+        entry_terrane_f2_s2454 = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if entry == sought {
+        if entry_terrane_f2_s2454.as_str() == sought.as_str() {
             return true;
         }
     }
@@ -1030,73 +1060,93 @@ pub fn parse_command_line(
     schema: CliSchema,
     supplied: terrane_collection_support::List<NativeString>,
 ) -> CommandLine {
-    let mut flags: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
-    let mut option_names: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(Vec::new());
-    let mut option_values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+    let mut flags_terrane_f2_s2643: terrane_collection_support::List<String>;
+    let mut option_names_terrane_f2_s2675: terrane_collection_support::List<String>;
+    let mut option_values_terrane_f2_s2714: terrane_collection_support::List<
         NativeString,
-    >::new(Vec::new());
-    let mut positionals: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
-        NativeString,
-    >::new(Vec::new());
-    let mut diagnostic_arguments: terrane_collection_support::List<
+    >;
+    let mut positionals_terrane_f2_s2761: terrane_collection_support::List<NativeString>;
+    let mut diagnostic_arguments_terrane_f2_s2806: terrane_collection_support::List<
         terrane_int_support::Int,
-    > = terrane_collection_support::List::<terrane_int_support::Int>::new(Vec::new());
-    let mut diagnostic_messages: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    >;
+    let mut diagnostic_messages_terrane_f2_s2850: terrane_collection_support::List<
+        String,
+    >;
+    let mut index_terrane_f2_s2896: terrane_int_support::Int;
+    let mut argument_terrane_f2_s2952: NativeString;
+    let mut flag_entry_terrane_f2_s3165: String;
+    let mut value_entry_terrane_f2_s3220: String;
+    let mut result_terrane_f2_s4025: CommandLine;
+    flags_terrane_f2_s2643 = terrane_collection_support::List::<String>::new(Vec::new());
+    option_names_terrane_f2_s2675 = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    option_values_terrane_f2_s2714 = terrane_collection_support::List::<
+        NativeString,
+    >::new(Vec::new());
+    positionals_terrane_f2_s2761 = terrane_collection_support::List::<
+        NativeString,
+    >::new(Vec::new());
+    diagnostic_arguments_terrane_f2_s2806 = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(Vec::new());
+    diagnostic_messages_terrane_f2_s2850 = terrane_collection_support::List::<
+        String,
+    >::new(Vec::new());
+    index_terrane_f2_s2896 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_2 = diagnostic_arguments.make_unique();
-        let __terrane_list_append_3 = diagnostic_messages.make_unique();
-        let __terrane_list_append_4 = flags.make_unique();
-        let __terrane_list_append_5 = option_names.make_unique();
-        let __terrane_list_append_6 = option_values.make_unique();
-        let __terrane_list_append_7 = positionals.make_unique();
-        while index.clone()
+        let __terrane_list_append_2 = diagnostic_arguments_terrane_f2_s2806
+            .make_unique();
+        let __terrane_list_append_3 = diagnostic_messages_terrane_f2_s2850.make_unique();
+        let __terrane_list_append_4 = flags_terrane_f2_s2643.make_unique();
+        let __terrane_list_append_5 = option_names_terrane_f2_s2675.make_unique();
+        let __terrane_list_append_6 = option_values_terrane_f2_s2714.make_unique();
+        let __terrane_list_append_7 = positionals_terrane_f2_s2761.make_unique();
+        while index_terrane_f2_s2896.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(supplied.length()),
             )
         {
-            let argument: NativeString = __terrane_raised(
+            argument_terrane_f2_s2952 = __terrane_raised(
                 supplied
                     .get_or_error(
                         __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
+                            terrane_collection_support::index_from_int(
+                                &index_terrane_f2_s2896.clone(),
+                            ),
                             3 /* terrane-site: core/process.trn:90:20-90:35 */,
                         ),
                     ),
                 3 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
-            if !argument.is_text {
-                __terrane_list_append_2.push(index.clone());
+            if !argument_terrane_f2_s2952.is_text {
+                __terrane_list_append_2.push(index_terrane_f2_s2896.clone());
                 __terrane_list_append_3
                     .push(String::from("command-line option is not Unicode text"));
             } else {
-                let flag_entry: String = format!(
+                flag_entry_terrane_f2_s3165 = format!(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
+                    terrane_scalar_support::scalar_text(&argument_terrane_f2_s2952.text)
                 );
-                let value_entry: String = format!(
+                value_entry_terrane_f2_s3220 = format!(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
+                    terrane_scalar_support::scalar_text(&argument_terrane_f2_s2952.text)
                 );
-                if schema_has(schema.clone(), flag_entry) {
-                    __terrane_list_append_4.push(argument.text.clone());
-                } else if schema_has(schema.clone(), value_entry) {
-                    if index.clone() + terrane_int_support::Int::from(1_i128)
+                if schema_has(schema.clone(), flag_entry_terrane_f2_s3165) {
+                    __terrane_list_append_4.push(argument_terrane_f2_s2952.text.clone());
+                } else if schema_has(schema.clone(), value_entry_terrane_f2_s3220) {
+                    if index_terrane_f2_s2896.clone()
+                        + terrane_int_support::Int::from(1_i128)
                         >= terrane_int_support::Int::from(
                             terrane_int_support::Int::from(supplied.length()),
                         )
                     {
-                        __terrane_list_append_2.push(index.clone());
+                        __terrane_list_append_2.push(index_terrane_f2_s2896.clone());
                         __terrane_list_append_3
                             .push(String::from("option requires a value"));
                     } else {
-                        __terrane_list_append_5.push(argument.text.clone());
+                        __terrane_list_append_5
+                            .push(argument_terrane_f2_s2952.text.clone());
                         __terrane_list_append_6
                             .push(
                                 __terrane_raised(
@@ -1104,7 +1154,8 @@ pub fn parse_command_line(
                                         .get_or_error(
                                             __terrane_raised(
                                                 terrane_collection_support::index_from_int(
-                                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                                    &(index_terrane_f2_s2896.clone()
+                                                        + terrane_int_support::Int::from(1_i128)),
                                                 ),
                                                 4 /* terrane-site: core/process.trn:105:43-105:62 */,
                                             ),
@@ -1112,26 +1163,29 @@ pub fn parse_command_line(
                                     4 /* terrane-site: core/process.trn:105:43-105:62 */,
                                 ),
                             );
-                        index = index.clone() + terrane_int_support::Int::from(1_i128);
+                        index_terrane_f2_s2896 = index_terrane_f2_s2896.clone()
+                            + terrane_int_support::Int::from(1_i128);
                     }
-                } else if argument.text.starts_with(&String::from("--")) {
-                    __terrane_list_append_2.push(index.clone());
+                } else if argument_terrane_f2_s2952.text.starts_with(&String::from("--"))
+                {
+                    __terrane_list_append_2.push(index_terrane_f2_s2896.clone());
                     __terrane_list_append_3.push(String::from("unknown option"));
                 } else {
-                    __terrane_list_append_7.push(argument);
+                    __terrane_list_append_7.push(argument_terrane_f2_s2952);
                 }
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f2_s2896 = index_terrane_f2_s2896.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut result: CommandLine = CommandLine::terrane_construct();
-    result.flags = flags;
-    result.option_names = option_names;
-    result.option_values = option_values;
-    result.positionals = positionals;
-    result.diagnostic_arguments = diagnostic_arguments;
-    result.diagnostic_messages = diagnostic_messages;
-    return result;
+    result_terrane_f2_s4025 = CommandLine::terrane_construct();
+    result_terrane_f2_s4025.flags = flags_terrane_f2_s2643;
+    result_terrane_f2_s4025.option_names = option_names_terrane_f2_s2675;
+    result_terrane_f2_s4025.option_values = option_values_terrane_f2_s2714;
+    result_terrane_f2_s4025.positionals = positionals_terrane_f2_s2761;
+    result_terrane_f2_s4025.diagnostic_arguments = diagnostic_arguments_terrane_f2_s2806;
+    result_terrane_f2_s4025.diagnostic_messages = diagnostic_messages_terrane_f2_s2850;
+    return result_terrane_f2_s4025;
 }
 #[derive(Clone)]
 pub struct ExitStatus {
@@ -1147,27 +1201,30 @@ impl ExitStatus {
     }
 }
 pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
-    let mut result: ExitStatus = ExitStatus::terrane_construct();
+    let mut result_terrane_f2_s4444: ExitStatus;
+    result_terrane_f2_s4444 = ExitStatus::terrane_construct();
     if requested.clone() < terrane_int_support::Int::from(0_i128)
         || requested.clone() > terrane_int_support::Int::from(255_i128)
     {
-        result.code = terrane_int_support::Int::from(255_i128);
-        result.valid = false;
+        result_terrane_f2_s4444.code = terrane_int_support::Int::from(255_i128);
+        result_terrane_f2_s4444.valid = false;
     } else {
-        result.code = requested.clone();
+        result_terrane_f2_s4444.code = requested.clone();
     }
-    return result;
+    return result_terrane_f2_s4444;
 }
 pub fn exit(status: ExitStatus) {
     terrane_process_exit(status.code.clone());
 }
 pub fn native_text(value: String) -> NativeString {
-    let encoded: String = terrane_platform_value_from_text(&value);
-    return NativeString::terrane_construct(encoded);
+    let encoded_terrane_f2_s4755: String;
+    encoded_terrane_f2_s4755 = terrane_platform_value_from_text(&value);
+    return NativeString::terrane_construct(encoded_terrane_f2_s4755);
 }
 pub fn native_raw(value: Vec<u8>) -> NativeString {
-    let encoded: String = terrane_platform_value_from_bytes(&value);
-    return NativeString::terrane_construct(encoded);
+    let encoded_terrane_f2_s4897: String;
+    encoded_terrane_f2_s4897 = terrane_platform_value_from_bytes(&value);
+    return NativeString::terrane_construct(encoded_terrane_f2_s4897);
 }
 pub fn native_text_value(value: NativeString) -> Option<String> {
     if value.is_text {

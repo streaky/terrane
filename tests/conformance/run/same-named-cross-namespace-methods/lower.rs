@@ -4,11 +4,13 @@
 // Source: app/main.trn
 // Namespace: app
 fn main() {
-    let first: TerraneNs5FirstDuplicate = TerraneNs5FirstDuplicate::terrane_construct();
-    let second: TerraneNs6SecondDuplicate = TerraneNs6SecondDuplicate::terrane_construct();
+    let first_terrane_f0_s129: TerraneNs5FirstDuplicate;
+    let second_terrane_f0_s165: TerraneNs6SecondDuplicate;
+    first_terrane_f0_s129 = TerraneNs5FirstDuplicate::terrane_construct();
+    second_terrane_f0_s165 = TerraneNs6SecondDuplicate::terrane_construct();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&first.value()),
-        terrane_scalar_support::scalar_text(&second.value())
+        "{}{}", terrane_scalar_support::scalar_text(&first_terrane_f0_s129.value()),
+        terrane_scalar_support::scalar_text(&second_terrane_f0_s165.value())
     );
 }
 // Source: first/item.trn

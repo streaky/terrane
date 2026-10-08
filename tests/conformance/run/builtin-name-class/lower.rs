@@ -15,6 +15,7 @@ impl List {
     }
 }
 fn main() {
-    let item: List = List::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&item.value));
+    let item_terrane_f0_s73: List;
+    item_terrane_f0_s73 = List::terrane_construct();
+    println!("{}", terrane_scalar_support::scalar_text(&item_terrane_f0_s73.value));
 }

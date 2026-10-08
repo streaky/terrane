@@ -436,9 +436,11 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: inexact-float-narrowing
 fn main() {
-    let source: f64 = 1.1;
-    let target: f32 = {
-        let source_value = source;
+    let source_terrane_f0_s51: f64;
+    let target_terrane_f0_s74: f32;
+    source_terrane_f0_s51 = 1.1;
+    target_terrane_f0_s74 = {
+        let source_value = source_terrane_f0_s51;
         let converted = source_value as f32;
         if converted as f64 == source_value {
             converted
@@ -456,5 +458,5 @@ fn main() {
             )
         }
     };
-    println!("{}", terrane_scalar_support::scalar_text(&target));
+    println!("{}", terrane_scalar_support::scalar_text(&target_terrane_f0_s74));
 }

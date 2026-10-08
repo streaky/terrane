@@ -447,44 +447,66 @@ mod __terrane_trace {
 static __TERRANE_F0_SHARED: std::sync::LazyLock<terrane_int_support::Int> = std::sync::LazyLock::new(||
 terrane_int_support::Int::from(100_i128));
 fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
-    let mut result: i8 = 0;
+    let mut result_terrane_f0_s126: i8;
+    result_terrane_f0_s126 = 0;
     if item.clone() > terrane_int_support::Int::from(0_i128) {
-        result = __terrane_raised_err(
+        result_terrane_f0_s126 = __terrane_raised_err(
             terrane_int_support::coerce::<i8>(&item),
             0 /* terrane-site: case.trn:9:14-9:18 */,
         )?;
     }
-    return Ok(result);
+    return Ok(result_terrane_f0_s126);
 }
 fn helper() {
     println!("{}", terrane_scalar_support::scalar_text(&String::from("helper")));
 }
 fn main() {
+    let value_terrane_f0_s267: i64;
+    let within_terrane_f0_s285: i64;
+    let coerced_terrane_f0_s304: i8;
+    let renamed_checked_terrane_f0_s336: Option<i8>;
+    let shared_coerced_terrane_f0_s384: i8;
+    let parameter_coerced_terrane_f0_s423: i8;
+    let checked_terrane_f0_s461: Option<i8>;
+    let absent_terrane_f0_s500: bool;
+    let present_terrane_f0_s529: bool;
+    let shadow_safe_terrane_f0_s559: i8;
     helper();
-    let value: i64 = 300;
-    let within: i64 = 100;
-    let coerced: i8 = __terrane_raised(
-        terrane_int_support::coerce::<i8>(&within),
+    value_terrane_f0_s267 = 300;
+    within_terrane_f0_s285 = 100;
+    coerced_terrane_f0_s304 = __terrane_raised(
+        terrane_int_support::coerce::<i8>(&within_terrane_f0_s285),
         1 /* terrane-site: case.trn:19:13-19:19 */,
     );
-    let renamed_checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&within);
-    let shared_coerced: i8 = __terrane_raised(
+    renamed_checked_terrane_f0_s336 = terrane_int_support::checked_coerce::<
+        i8,
+    >(&within_terrane_f0_s285);
+    shared_coerced_terrane_f0_s384 = __terrane_raised(
         terrane_int_support::coerce::<i8>(&*__TERRANE_F0_SHARED),
         2 /* terrane-site: case.trn:21:20-21:33 */,
     );
-    let parameter_coerced: i8 = __terrane_traced(
-        convert(terrane_int_support::Int::from(within as i128)),
+    parameter_coerced_terrane_f0_s423 = __terrane_traced(
+        convert(terrane_int_support::Int::from(within_terrane_f0_s285 as i128)),
         3 /* terrane-site: case.trn:22:23-22:38 */,
     );
-    let checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&value);
-    let absent: bool = checked.is_none();
-    let present: bool = checked.is_some();
-    let shadow_safe: i8 = terrane_int_support::saturating_coerce::<i8>(&value);
-    println!("{}", terrane_scalar_support::scalar_text(&coerced));
-    println!("{}", terrane_scalar_support::scalar_text(&renamed_checked.is_some()));
-    println!("{}", terrane_scalar_support::scalar_text(&shared_coerced));
-    println!("{}", terrane_scalar_support::scalar_text(&parameter_coerced));
-    println!("{}", terrane_scalar_support::scalar_text(&absent));
-    println!("{}", terrane_scalar_support::scalar_text(&present));
-    println!("{}", terrane_scalar_support::scalar_text(&shadow_safe));
+    checked_terrane_f0_s461 = terrane_int_support::checked_coerce::<
+        i8,
+    >(&value_terrane_f0_s267);
+    absent_terrane_f0_s500 = checked_terrane_f0_s461.is_none();
+    present_terrane_f0_s529 = checked_terrane_f0_s461.is_some();
+    shadow_safe_terrane_f0_s559 = terrane_int_support::saturating_coerce::<
+        i8,
+    >(&value_terrane_f0_s267);
+    println!("{}", terrane_scalar_support::scalar_text(&coerced_terrane_f0_s304));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&renamed_checked_terrane_f0_s336
+        .is_some())
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&shared_coerced_terrane_f0_s384));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&parameter_coerced_terrane_f0_s423)
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&absent_terrane_f0_s500));
+    println!("{}", terrane_scalar_support::scalar_text(&present_terrane_f0_s529));
+    println!("{}", terrane_scalar_support::scalar_text(&shadow_safe_terrane_f0_s559));
 }

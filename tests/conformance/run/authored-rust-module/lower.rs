@@ -4,8 +4,9 @@
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let answer: terrane_int_support::Int = { crate::adapters::answer() };
-    println!("{}", terrane_scalar_support::scalar_text(&answer));
+    let answer_terrane_f0_s32: terrane_int_support::Int;
+    answer_terrane_f0_s32 = crate::adapters::answer();
+    println!("{}", terrane_scalar_support::scalar_text(&answer_terrane_f0_s32));
 }
 mod adapters {
     pub fn answer() -> terrane_int_support::Int {

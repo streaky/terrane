@@ -433,17 +433,30 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: throwable-type-annotation
 fn report(failure: Option<TerraneError>) {
     if failure.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
-            .expect("semantic optional narrowing").clone().message().to_owned())
+            "{}", terrane_scalar_support::scalar_text(&match &failure { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") } .message()
+            .to_owned())
         );
     }
 }
 fn main() {
+    let mut failure_terrane_f0_s249: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -464,8 +477,15 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    let failure = __terrane_error_0.clone();
-                    report(Some(failure));
+                    let _ = failure_terrane_f0_s249.insert(__terrane_error_0.clone());
+                    report(
+                        Some(
+                            failure_terrane_f0_s249
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .clone(),
+                        ),
+                    );
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

@@ -436,12 +436,13 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: negative-wrapped-shift
 fn main() {
-    let value: i8 = 1;
+    let value_terrane_f0_s96: i8;
+    value_terrane_f0_s96 = 1;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_int_support::fixed_shift_left_wrap(value,
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_int_support::fixed_shift_left_wrap(value_terrane_f0_s96,
                 &- terrane_int_support::Int::from(1_i128)), 0 /* terrane-site: case.trn:6:13-6:38 */))
             );
             TerraneCompletion::Normal

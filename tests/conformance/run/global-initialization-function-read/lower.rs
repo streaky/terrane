@@ -9,7 +9,7 @@ static __TERRANE_GLOBAL_SEED: std::sync::LazyLock<
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(
     Some(terrane_int_support::Int::from(7_i128)),
 ));
-fn __terrane_uninitialized_global(
+fn __terrane_uninitialized_binding(
     name: &str,
     path: &str,
     line: usize,
@@ -27,13 +27,13 @@ fn add_one() -> terrane_int_support::Int {
         .lock()
         .expect("program-global lock poisoned")
         .clone()
-        .unwrap_or_else(|| __terrane_uninitialized_global("seed", "case.trn", 5, 10))
+        .unwrap_or_else(|| __terrane_uninitialized_binding("seed", "case.trn", 5, 10))
         .clone() + terrane_int_support::Int::from(1_i128);
 }
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__TERRANE_GLOBAL_RESULT.lock()
         .expect("program-global lock poisoned").clone().unwrap_or_else(| |
-        __terrane_uninitialized_global("result", "case.trn", 7, 10)))
+        __terrane_uninitialized_binding("result", "case.trn", 7, 10)))
     );
 }

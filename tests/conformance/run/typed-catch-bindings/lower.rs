@@ -441,9 +441,25 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: case.trn
 // Namespace: typed-catch-bindings
 fn main() {
+    let mut caught_terrane_f0_s177: Option<TerraneError> = None;
+    let mut replacement_terrane_f0_s369: Option<TerraneError> = None;
+    let mut caught_terrane_f0_s492: Option<TerraneError> = None;
+    let mut reraised_terrane_f0_s544: Option<TerraneError> = None;
+    let mut failure_terrane_f0_s629: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let __terrane_completion_1: TerraneCompletion<()> = (|| {
@@ -468,13 +484,19 @@ fn main() {
                             && __terrane_error_1.kind == TerraneErrorKind::CoercionError
                         {
                             __terrane_handled_1 = true;
-                            let caught = __terrane_error_1.clone();
+                            let _ = caught_terrane_f0_s177
+                                .insert(__terrane_error_1.clone());
                             println!(
-                                "{}", terrane_scalar_support::scalar_text(&caught.message()
-                                .to_owned())
+                                "{}",
+                                terrane_scalar_support::scalar_text(&caught_terrane_f0_s177
+                                .as_ref().expect("flow-proven available binding").clone()
+                                .message().to_owned())
                             );
                             println!(
-                                "{}", terrane_scalar_support::scalar_text(&caught.render()
+                                "{}",
+                                terrane_scalar_support::scalar_text(&caught_terrane_f0_s177
+                                .as_ref().expect("flow-proven available binding").clone()
+                                .render()
                                 .contains(&String::from("coercion-error: coercion has no compatible result")))
                             );
                             return TerraneCompletion::Error(
@@ -516,9 +538,12 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    let replacement = __terrane_error_0.clone();
+                    let _ = replacement_terrane_f0_s369
+                        .insert(__terrane_error_0.clone());
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&replacement.detail
+                        "{}",
+                        terrane_scalar_support::scalar_text(&replacement_terrane_f0_s369
+                        .as_ref().expect("flow-proven available binding").clone().detail
                         .as_ref().and_then(| detail | detail.cause.as_deref()).cloned()
                         .is_none())
                     );
@@ -562,9 +587,13 @@ fn main() {
                             && __terrane_error_3.kind == TerraneErrorKind::CoercionError
                         {
                             __terrane_handled_3 = true;
-                            let caught = __terrane_error_3.clone();
+                            let _ = caught_terrane_f0_s492
+                                .insert(__terrane_error_3.clone());
                             return TerraneCompletion::Error(
-                                caught
+                                caught_terrane_f0_s492
+                                    .as_ref()
+                                    .expect("flow-proven available binding")
+                                    .clone()
                                     .clone()
                                     .at(3 /* terrane-site: case.trn:19:7-19:19 */),
                             );
@@ -600,10 +629,12 @@ fn main() {
                     && __terrane_error_2.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_2 = true;
-                    let reraised = __terrane_error_2.clone();
+                    let _ = reraised_terrane_f0_s544.insert(__terrane_error_2.clone());
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&reraised.message()
-                        .to_owned())
+                        "{}",
+                        terrane_scalar_support::scalar_text(&reraised_terrane_f0_s544
+                        .as_ref().expect("flow-proven available binding").clone()
+                        .message().to_owned())
                     );
                 }
                 if !__terrane_handled_2 {
@@ -639,10 +670,12 @@ fn main() {
                 let mut __terrane_handled_4 = false;
                 if !__terrane_handled_4 {
                     __terrane_handled_4 = true;
-                    let failure = __terrane_error_4.clone();
+                    let _ = failure_terrane_f0_s629.insert(__terrane_error_4.clone());
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure.message()
-                        .to_owned())
+                        "{}",
+                        terrane_scalar_support::scalar_text(&failure_terrane_f0_s629
+                        .as_ref().expect("flow-proven available binding").clone()
+                        .message().to_owned())
                     );
                 }
                 if !__terrane_handled_4 {

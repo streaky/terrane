@@ -484,49 +484,58 @@ fn label(value: terrane_int_support::Int) -> String {
     return String::from("other");
 }
 fn main() {
-    let number_envelope: Envelope<terrane_int_support::Int> = Envelope::<
+    let number_envelope_terrane_f0_s661: Envelope<terrane_int_support::Int>;
+    let text_envelope_terrane_f0_s705: Envelope<String>;
+    let selected_terrane_f0_s874: terrane_int_support::Int;
+    let transformed_terrane_f0_s935: String;
+    let keep_int_terrane_f0_s1000: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    >;
+    let mut pending_terrane_f0_s1082: Slot<String>;
+    let value_terrane_f0_s1148: Option<String>;
+    number_envelope_terrane_f0_s661 = Envelope::<
         terrane_int_support::Int,
     >::terrane_construct(terrane_int_support::Int::from(41_i128));
-    let text_envelope: Envelope<String> = Envelope::<
+    text_envelope_terrane_f0_s705 = Envelope::<
         String,
     >::terrane_construct(String::from("hello"));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&number_envelope.payload.as_ref()
-        .expect("required field initialized"))
+        "{}", terrane_scalar_support::scalar_text(&number_envelope_terrane_f0_s661
+        .payload.as_ref().expect("required field initialized"))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&text_envelope.payload.as_ref()
-        .expect("required field initialized"))
+        "{}", terrane_scalar_support::scalar_text(&text_envelope_terrane_f0_s705.payload
+        .as_ref().expect("required field initialized"))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&identity:: < terrane_int_support::Int
         > (terrane_int_support::Int::from(42_i128)))
     );
-    let selected: terrane_int_support::Int = choose(
+    selected_terrane_f0_s874 = choose(
         terrane_int_support::Int::from(11_i128),
         terrane_int_support::Int::from(23_i128),
         false,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&selected));
-    let transformed: String = apply(
+    println!("{}", terrane_scalar_support::scalar_text(&selected_terrane_f0_s874));
+    transformed_terrane_f0_s935 = apply(
         terrane_int_support::Int::from(41_i128),
         std::sync::Arc::new(label),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&transformed));
-    let keep_int: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
-    > = std::sync::Arc::new(identity::<terrane_int_support::Int>);
+    println!("{}", terrane_scalar_support::scalar_text(&transformed_terrane_f0_s935));
+    keep_int_terrane_f0_s1000 = std::sync::Arc::new(
+        identity::<terrane_int_support::Int>,
+    );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&keep_int(terrane_int_support::Int::from(44_i128)))
+        terrane_scalar_support::scalar_text(&keep_int_terrane_f0_s1000(terrane_int_support::Int::from(44_i128)))
     );
-    let mut pending: Slot<String> = Slot::<String>::terrane_construct();
-    pending.set(String::from("ready"));
-    let value: Option<String> = pending.value;
-    if value.is_some() {
+    pending_terrane_f0_s1082 = Slot::<String>::terrane_construct();
+    pending_terrane_f0_s1082.set(String::from("ready"));
+    value_terrane_f0_s1148 = pending_terrane_f0_s1082.value;
+    if value_terrane_f0_s1148.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&value.as_ref()
-            .expect("semantic optional narrowing").clone())
+            "{}", terrane_scalar_support::scalar_text(&match &value_terrane_f0_s1148 {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
 }

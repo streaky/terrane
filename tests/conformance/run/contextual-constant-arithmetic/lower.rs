@@ -444,22 +444,27 @@ fn bounded() -> i32 {
     return 1;
 }
 fn main() {
-    let reduced: i8 = 100;
-    let integral: i64 = 4;
-    let quotient: i64 = 0;
-    let ratio: f32 = 0.33333334_f32;
-    let rounded: terrane_int_support::Int = __terrane_raised(
+    let reduced_terrane_f0_s135: i8;
+    let integral_terrane_f0_s165: i64;
+    let quotient_terrane_f0_s186: i64;
+    let ratio_terrane_f0_s211: f32;
+    let rounded_terrane_f0_s237: terrane_int_support::Int;
+    reduced_terrane_f0_s135 = 100;
+    integral_terrane_f0_s165 = 4;
+    quotient_terrane_f0_s186 = 0;
+    ratio_terrane_f0_s211 = 0.33333334_f32;
+    rounded_terrane_f0_s237 = __terrane_raised(
         terrane_int_support::rounded_f32(
-            ratio,
+            ratio_terrane_f0_s211,
             terrane_int_support::FloatRounding::TiesEven,
         ),
         0 /* terrane-site: case.trn:14:17-14:29 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&reduced));
-    println!("{}", terrane_scalar_support::scalar_text(&integral));
-    println!("{}", terrane_scalar_support::scalar_text(&quotient));
-    println!("{}", terrane_scalar_support::scalar_text(&ratio));
-    println!("{}", terrane_scalar_support::scalar_text(&rounded));
+    println!("{}", terrane_scalar_support::scalar_text(&reduced_terrane_f0_s135));
+    println!("{}", terrane_scalar_support::scalar_text(&integral_terrane_f0_s165));
+    println!("{}", terrane_scalar_support::scalar_text(&quotient_terrane_f0_s186));
+    println!("{}", terrane_scalar_support::scalar_text(&ratio_terrane_f0_s211));
+    println!("{}", terrane_scalar_support::scalar_text(&rounded_terrane_f0_s237));
     println!("{}", terrane_scalar_support::scalar_text(&true));
     println!("{}", terrane_scalar_support::scalar_text(&false));
     println!("{}", terrane_scalar_support::scalar_text(&bounded()));

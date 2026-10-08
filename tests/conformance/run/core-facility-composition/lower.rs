@@ -477,17 +477,19 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: core-facility-composition
 fn main() {
-    let filesystem_result: FilesystemOperationResult = FilesystemOperationResult::terrane_construct(
+    let filesystem_result_terrane_f0_s102: FilesystemOperationResult;
+    let stream_result_terrane_f0_s174: StreamOperationResult;
+    filesystem_result_terrane_f0_s102 = FilesystemOperationResult::terrane_construct(
         false,
         String::from(""),
     );
-    let stream_result: StreamOperationResult = StreamOperationResult::terrane_construct(
+    stream_result_terrane_f0_s174 = StreamOperationResult::terrane_construct(
         false,
         String::from(""),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(! filesystem_result.failed &&!
-        stream_result.failed))
+        "{}", terrane_scalar_support::scalar_text(&(! filesystem_result_terrane_f0_s102
+        .failed &&! stream_result_terrane_f0_s174.failed))
     );
 }
 // Source: core/filesystem.trn
@@ -743,35 +745,44 @@ pub fn open_file(
     create: bool,
     truncate: bool,
 ) -> FileHandle {
+    let raw_terrane_f1_s2468: TerranePlatformOpenResult;
+    let failure_terrane_f1_s2544: bool;
+    let detail_terrane_f1_s2569: String;
+    let acquired_terrane_f1_s2594: TerranePlatformStreamHandle;
     let _ = &capability;
-    let raw: TerranePlatformOpenResult = terrane_platform_open_file(
+    raw_terrane_f1_s2468 = terrane_platform_open_file(
         target.text,
         readable,
         writable,
         create,
         truncate,
     );
-    let failure: bool = raw.failed;
-    let detail: String = raw.message.clone().clone();
-    let acquired: TerranePlatformStreamHandle = raw.handle.clone().clone();
-    return FileHandle::terrane_construct(acquired, failure, detail);
+    failure_terrane_f1_s2544 = raw_terrane_f1_s2468.failed;
+    detail_terrane_f1_s2569 = raw_terrane_f1_s2468.message.clone().clone();
+    acquired_terrane_f1_s2594 = raw_terrane_f1_s2468.handle.clone().clone();
+    return FileHandle::terrane_construct(
+        acquired_terrane_f1_s2594,
+        failure_terrane_f1_s2544,
+        detail_terrane_f1_s2569,
+    );
 }
 pub fn file_read(
     capability: Filesystem,
     file: &FileHandle,
     limit: terrane_int_support::Int,
 ) -> FileData {
+    let raw_terrane_f1_s2786: TerranePlatformReadResult;
     let _ = &capability;
-    let raw: TerranePlatformReadResult = terrane_platform_read(
+    raw_terrane_f1_s2786 = terrane_platform_read(
         &file.handle.as_ref().expect("required field initialized"),
         limit,
     );
     return FileData::terrane_construct(
-        raw.data.clone().clone(),
-        raw.completed.clone(),
-        raw.end,
-        raw.failed,
-        raw.message.clone().clone(),
+        raw_terrane_f1_s2786.data.clone().clone(),
+        raw_terrane_f1_s2786.completed.clone(),
+        raw_terrane_f1_s2786.end,
+        raw_terrane_f1_s2786.failed,
+        raw_terrane_f1_s2786.message.clone().clone(),
     );
 }
 pub fn file_write(
@@ -780,70 +791,75 @@ pub fn file_write(
     data: Vec<u8>,
     offset: terrane_int_support::Int,
 ) -> FileData {
+    let raw_terrane_f1_s3019: TerranePlatformWriteResult;
     let _ = &capability;
-    let raw: TerranePlatformWriteResult = terrane_platform_write(
+    raw_terrane_f1_s3019 = terrane_platform_write(
         &file.handle.as_ref().expect("required field initialized"),
         &data,
         terrane_int_support::Int::from(offset.clone()),
     );
     return FileData::terrane_construct(
         data,
-        raw.completed.clone(),
+        raw_terrane_f1_s3019.completed.clone(),
         false,
-        raw.failed,
-        raw.message.clone().clone(),
+        raw_terrane_f1_s3019.failed,
+        raw_terrane_f1_s3019.message.clone().clone(),
     );
 }
 pub fn file_flush(
     capability: Filesystem,
     file: &FileHandle,
 ) -> FilesystemOperationResult {
+    let raw_terrane_f1_s3244: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_flush(
+    raw_terrane_f1_s3244 = terrane_platform_flush(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
+        raw_terrane_f1_s3244.failed,
+        raw_terrane_f1_s3244.message.clone().clone(),
     );
 }
 pub fn file_sync_data(
     capability: Filesystem,
     file: &FileHandle,
 ) -> FilesystemOperationResult {
+    let raw_terrane_f1_s3449: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+    raw_terrane_f1_s3449 = terrane_platform_sync_data(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
+        raw_terrane_f1_s3449.failed,
+        raw_terrane_f1_s3449.message.clone().clone(),
     );
 }
 pub fn file_sync_all(
     capability: Filesystem,
     file: &FileHandle,
 ) -> FilesystemOperationResult {
+    let raw_terrane_f1_s3657: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+    raw_terrane_f1_s3657 = terrane_platform_sync_all(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
+        raw_terrane_f1_s3657.failed,
+        raw_terrane_f1_s3657.message.clone().clone(),
     );
 }
 pub fn file_close(
     capability: Filesystem,
     file: FileHandle,
 ) -> FilesystemOperationResult {
+    let raw_terrane_f1_s3857: TerranePlatformUnitResult;
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_close(
+    raw_terrane_f1_s3857 = terrane_platform_close(
         &file.handle.as_ref().expect("required field initialized"),
     );
     return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
+        raw_terrane_f1_s3857.failed,
+        raw_terrane_f1_s3857.message.clone().clone(),
     );
 }
 #[derive(Clone)]
@@ -861,71 +877,78 @@ impl Filesystem {
     }
 }
 pub fn filesystem_capability() -> Filesystem {
-    let authority: TerraneFilesystemAuthority = terrane_acquire_filesystem_authority();
-    return Filesystem::terrane_construct(authority);
+    let authority_terrane_f1_s4178: TerraneFilesystemAuthority;
+    authority_terrane_f1_s4178 = terrane_acquire_filesystem_authority();
+    return Filesystem::terrane_construct(authority_terrane_f1_s4178);
 }
 pub fn filesystem_exists(capability: Filesystem, target: Path) -> ExistenceResult {
+    let record_terrane_f1_s4352: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_exists(target.text);
+    record_terrane_f1_s4352 = terrane_filesystem_exists(target.text);
     return ExistenceResult::terrane_construct(
-        terrane_filesystem_result_bool(&record),
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_bool(&record_terrane_f1_s4352),
+        terrane_filesystem_result_failed(&record_terrane_f1_s4352),
+        terrane_filesystem_result_message(&record_terrane_f1_s4352),
     );
 }
 pub fn filesystem_metadata(capability: Filesystem, target: Path) -> FileMetadata {
+    let record_terrane_f1_s4607: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_metadata(target.text, true);
+    record_terrane_f1_s4607 = terrane_filesystem_metadata(target.text, true);
     return FileMetadata::terrane_construct(
-        terrane_filesystem_result_text(&record),
-        terrane_filesystem_result_int(&record),
-        terrane_filesystem_result_bool(&record),
-        terrane_filesystem_result_detail(&record),
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_text(&record_terrane_f1_s4607),
+        terrane_filesystem_result_int(&record_terrane_f1_s4607),
+        terrane_filesystem_result_bool(&record_terrane_f1_s4607),
+        terrane_filesystem_result_detail(&record_terrane_f1_s4607),
+        terrane_filesystem_result_failed(&record_terrane_f1_s4607),
+        terrane_filesystem_result_message(&record_terrane_f1_s4607),
     );
 }
 pub fn filesystem_symlink_metadata(
     capability: Filesystem,
     target: Path,
 ) -> FileMetadata {
+    let record_terrane_f1_s4960: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_metadata(
-        target.text,
-        false,
-    );
+    record_terrane_f1_s4960 = terrane_filesystem_metadata(target.text, false);
     return FileMetadata::terrane_construct(
-        terrane_filesystem_result_text(&record),
-        terrane_filesystem_result_int(&record),
-        terrane_filesystem_result_bool(&record),
-        terrane_filesystem_result_detail(&record),
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_text(&record_terrane_f1_s4960),
+        terrane_filesystem_result_int(&record_terrane_f1_s4960),
+        terrane_filesystem_result_bool(&record_terrane_f1_s4960),
+        terrane_filesystem_result_detail(&record_terrane_f1_s4960),
+        terrane_filesystem_result_failed(&record_terrane_f1_s4960),
+        terrane_filesystem_result_message(&record_terrane_f1_s4960),
     );
 }
 pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult {
+    let record_terrane_f1_s5305: TerraneFilesystemResult;
+    let resolved_terrane_f1_s5356: Path;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_realpath(target.text);
-    let resolved: Path = Path::terrane_construct(
-        terrane_filesystem_result_text(&record),
+    record_terrane_f1_s5305 = terrane_filesystem_realpath(target.text);
+    resolved_terrane_f1_s5356 = Path::terrane_construct(
+        terrane_filesystem_result_text(&record_terrane_f1_s5305),
     );
     return PathResult::terrane_construct(
-        resolved,
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        resolved_terrane_f1_s5356,
+        terrane_filesystem_result_failed(&record_terrane_f1_s5305),
+        terrane_filesystem_result_message(&record_terrane_f1_s5305),
     );
 }
 pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
     return filesystem_canonical(capability, target);
 }
 pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult {
+    let record_terrane_f1_s5725: TerraneFilesystemResult;
+    let linked_terrane_f1_s5777: Path;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_read_link(target.text);
-    let linked: Path = Path::terrane_construct(terrane_filesystem_result_text(&record));
+    record_terrane_f1_s5725 = terrane_filesystem_read_link(target.text);
+    linked_terrane_f1_s5777 = Path::terrane_construct(
+        terrane_filesystem_result_text(&record_terrane_f1_s5725),
+    );
     return PathResult::terrane_construct(
-        linked,
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        linked_terrane_f1_s5777,
+        terrane_filesystem_result_failed(&record_terrane_f1_s5725),
+        terrane_filesystem_result_message(&record_terrane_f1_s5725),
     );
 }
 pub fn filesystem_open_beneath(
@@ -934,16 +957,24 @@ pub fn filesystem_open_beneath(
     relative: Path,
     cross_filesystem: bool,
 ) -> DirectoryHandle {
+    let raw_terrane_f1_s6069: TerranePlatformOpenResult;
+    let failure_terrane_f1_s6156: bool;
+    let detail_terrane_f1_s6181: String;
+    let acquired_terrane_f1_s6206: TerranePlatformStreamHandle;
     let _ = &capability;
-    let raw: TerranePlatformOpenResult = terrane_platform_open_directory_beneath(
+    raw_terrane_f1_s6069 = terrane_platform_open_directory_beneath(
         directory.text,
         relative.text,
         cross_filesystem,
     );
-    let failure: bool = raw.failed;
-    let detail: String = raw.message.clone().clone();
-    let acquired: TerranePlatformStreamHandle = raw.handle.clone().clone();
-    return DirectoryHandle::terrane_construct(acquired, failure, detail);
+    failure_terrane_f1_s6156 = raw_terrane_f1_s6069.failed;
+    detail_terrane_f1_s6181 = raw_terrane_f1_s6069.message.clone().clone();
+    acquired_terrane_f1_s6206 = raw_terrane_f1_s6069.handle.clone().clone();
+    return DirectoryHandle::terrane_construct(
+        acquired_terrane_f1_s6206,
+        failure_terrane_f1_s6156,
+        detail_terrane_f1_s6181,
+    );
 }
 pub fn open_file_beneath(
     capability: Filesystem,
@@ -954,8 +985,12 @@ pub fn open_file_beneath(
     create: bool,
     truncate: bool,
 ) -> FileHandle {
+    let raw_terrane_f1_s6501: TerranePlatformOpenResult;
+    let failure_terrane_f1_s6605: bool;
+    let detail_terrane_f1_s6630: String;
+    let acquired_terrane_f1_s6655: TerranePlatformStreamHandle;
     let _ = &capability;
-    let raw: TerranePlatformOpenResult = terrane_platform_open_file_beneath(
+    raw_terrane_f1_s6501 = terrane_platform_open_file_beneath(
         &directory.handle.as_ref().expect("required field initialized"),
         relative.text,
         readable,
@@ -963,27 +998,29 @@ pub fn open_file_beneath(
         create,
         truncate,
     );
-    let failure: bool = raw.failed;
-    let detail: String = raw.message.clone().clone();
-    let acquired: TerranePlatformStreamHandle = raw.handle.clone().clone();
-    return FileHandle::terrane_construct(acquired, failure, detail);
+    failure_terrane_f1_s6605 = raw_terrane_f1_s6501.failed;
+    detail_terrane_f1_s6630 = raw_terrane_f1_s6501.message.clone().clone();
+    acquired_terrane_f1_s6655 = raw_terrane_f1_s6501.handle.clone().clone();
+    return FileHandle::terrane_construct(
+        acquired_terrane_f1_s6655,
+        failure_terrane_f1_s6605,
+        detail_terrane_f1_s6630,
+    );
 }
 pub fn filesystem_read_bounded(
     capability: Filesystem,
     target: Path,
     limit: terrane_int_support::Int,
 ) -> FileData {
+    let record_terrane_f1_s6852: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_read_bounded(
-        target.text,
-        limit,
-    );
+    record_terrane_f1_s6852 = terrane_filesystem_read_bounded(target.text, limit);
     return FileData::terrane_construct(
-        terrane_filesystem_result_bytes(&record),
-        terrane_filesystem_result_int(&record),
+        terrane_filesystem_result_bytes(&record_terrane_f1_s6852),
+        terrane_filesystem_result_int(&record_terrane_f1_s6852),
         true,
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_failed(&record_terrane_f1_s6852),
+        terrane_filesystem_result_message(&record_terrane_f1_s6852),
     );
 }
 pub fn filesystem_write_atomic(
@@ -991,14 +1028,12 @@ pub fn filesystem_write_atomic(
     target: Path,
     data: Vec<u8>,
 ) -> FilesystemOperationResult {
+    let record_terrane_f1_s7177: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_write_atomic(
-        target.text,
-        data,
-    );
+    record_terrane_f1_s7177 = terrane_filesystem_write_atomic(target.text, data);
     return FilesystemOperationResult::terrane_construct(
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_failed(&record_terrane_f1_s7177),
+        terrane_filesystem_result_message(&record_terrane_f1_s7177),
     );
 }
 pub fn filesystem_rename(
@@ -1006,25 +1041,24 @@ pub fn filesystem_rename(
     source: Path,
     destination: Path,
 ) -> FilesystemOperationResult {
+    let record_terrane_f1_s7457: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_rename(
-        source.text,
-        destination.text,
-    );
+    record_terrane_f1_s7457 = terrane_filesystem_rename(source.text, destination.text);
     return FilesystemOperationResult::terrane_construct(
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_failed(&record_terrane_f1_s7457),
+        terrane_filesystem_result_message(&record_terrane_f1_s7457),
     );
 }
 pub fn filesystem_remove(
     capability: Filesystem,
     target: Path,
 ) -> FilesystemOperationResult {
+    let record_terrane_f1_s7725: TerraneFilesystemResult;
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_remove(target.text);
+    record_terrane_f1_s7725 = terrane_filesystem_remove(target.text);
     return FilesystemOperationResult::terrane_construct(
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
+        terrane_filesystem_result_failed(&record_terrane_f1_s7725),
+        terrane_filesystem_result_message(&record_terrane_f1_s7725),
     );
 }
 // Source: core/streams.trn
@@ -1190,34 +1224,41 @@ impl ByteReader {
         self.handle = Some(handle);
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
-        let raw: TerranePlatformReadResult = terrane_platform_read(
+        let raw_terrane_f2_s1627: TerranePlatformReadResult;
+        raw_terrane_f2_s1627 = terrane_platform_read(
             &self.handle.as_ref().expect("required field initialized"),
             count,
         );
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
-            raw.completed.clone(),
-            raw.end,
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s1627.data.clone().clone(),
+            raw_terrane_f2_s1627.completed.clone(),
+            raw_terrane_f2_s1627.end,
+            raw_terrane_f2_s1627.failed,
+            raw_terrane_f2_s1627.message.clone().clone(),
         );
     }
     pub fn read_exact(&self, count: terrane_int_support::Int) -> ReadResult {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+        let mut data_terrane_f2_s1814: Vec<u8>;
+        let mut completed_terrane_f2_s1839: terrane_int_support::Int;
+        let mut end_terrane_f2_s1865: bool;
+        let mut failed_terrane_f2_s1890: bool;
+        let mut message_terrane_f2_s1918: String;
+        let mut part_terrane_f2_s2009: TerranePlatformReadResult;
+        data_terrane_f2_s1814 = Vec::from([]);
+        completed_terrane_f2_s1839 = terrane_int_support::Int::from(0_i128);
+        end_terrane_f2_s1865 = false;
+        failed_terrane_f2_s1890 = false;
+        message_terrane_f2_s1918 = String::from("");
+        while completed_terrane_f2_s1839.clone() < count.clone() && !end_terrane_f2_s1865
+            && !failed_terrane_f2_s1890
+        {
+            part_terrane_f2_s2009 = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                count.clone() - completed_terrane_f2_s1839.clone(),
             );
-            data = {
-                let mut bytes = data;
-                let part_0: Vec<u8> = part.data.clone();
+            data_terrane_f2_s1814 = {
+                let mut bytes = data_terrane_f2_s1814;
+                let part_0: Vec<u8> = part_terrane_f2_s2009.data.clone();
                 let additional = match [part_0.len()]
                     .into_iter()
                     .try_fold(0usize, usize::checked_add)
@@ -1231,45 +1272,57 @@ impl ByteReader {
                 bytes.extend(part_0);
                 bytes
             };
-            completed = completed.clone() + part.completed.clone();
-            end = part.end;
-            failed = part.failed;
-            message = part.message.clone().clone();
-            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
-                && !part.end && !part.failed
+            completed_terrane_f2_s1839 = completed_terrane_f2_s1839.clone()
+                + part_terrane_f2_s2009.completed.clone();
+            end_terrane_f2_s1865 = part_terrane_f2_s2009.end;
+            failed_terrane_f2_s1890 = part_terrane_f2_s2009.failed;
+            message_terrane_f2_s1918 = part_terrane_f2_s2009.message.clone().clone();
+            if part_terrane_f2_s2009.completed.clone()
+                == terrane_int_support::Int::from(0_i128) && !part_terrane_f2_s2009.end
+                && !part_terrane_f2_s2009.failed
             {
-                failed = true;
-                message = String::from("stream read made no progress");
+                failed_terrane_f2_s1890 = true;
+                message_terrane_f2_s1918 = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
-            failed = true;
-            message = String::from("stream ended before exact byte count");
+        if end_terrane_f2_s1865 && completed_terrane_f2_s1839.clone() < count.clone()
+            && !failed_terrane_f2_s1890
+        {
+            failed_terrane_f2_s1890 = true;
+            message_terrane_f2_s1918 = String::from(
+                "stream ended before exact byte count",
+            );
         }
         return ReadResult::terrane_construct(
-            data,
-            completed.clone(),
-            end,
-            failed,
-            message,
+            data_terrane_f2_s1814,
+            completed_terrane_f2_s1839.clone(),
+            end_terrane_f2_s1865,
+            failed_terrane_f2_s1890,
+            message_terrane_f2_s1918,
         );
     }
     pub fn read_all(&self, limit: terrane_int_support::Int) -> ReadResult {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
-        while completed.clone() < limit.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+        let mut data_terrane_f2_s2673: Vec<u8>;
+        let mut completed_terrane_f2_s2698: terrane_int_support::Int;
+        let mut end_terrane_f2_s2724: bool;
+        let mut failed_terrane_f2_s2749: bool;
+        let mut message_terrane_f2_s2777: String;
+        let mut part_terrane_f2_s2868: TerranePlatformReadResult;
+        data_terrane_f2_s2673 = Vec::from([]);
+        completed_terrane_f2_s2698 = terrane_int_support::Int::from(0_i128);
+        end_terrane_f2_s2724 = false;
+        failed_terrane_f2_s2749 = false;
+        message_terrane_f2_s2777 = String::from("");
+        while completed_terrane_f2_s2698.clone() < limit.clone() && !end_terrane_f2_s2724
+            && !failed_terrane_f2_s2749
+        {
+            part_terrane_f2_s2868 = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                limit.clone() - completed.clone(),
+                limit.clone() - completed_terrane_f2_s2698.clone(),
             );
-            data = {
-                let mut bytes = data;
-                let part_0: Vec<u8> = part.data.clone();
+            data_terrane_f2_s2673 = {
+                let mut bytes = data_terrane_f2_s2673;
+                let part_0: Vec<u8> = part_terrane_f2_s2868.data.clone();
                 let additional = match [part_0.len()]
                     .into_iter()
                     .try_fold(0usize, usize::checked_add)
@@ -1283,27 +1336,30 @@ impl ByteReader {
                 bytes.extend(part_0);
                 bytes
             };
-            completed = completed.clone() + part.completed.clone();
-            end = part.end;
-            failed = part.failed;
-            message = part.message.clone().clone();
-            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
-                && !part.end && !part.failed
+            completed_terrane_f2_s2698 = completed_terrane_f2_s2698.clone()
+                + part_terrane_f2_s2868.completed.clone();
+            end_terrane_f2_s2724 = part_terrane_f2_s2868.end;
+            failed_terrane_f2_s2749 = part_terrane_f2_s2868.failed;
+            message_terrane_f2_s2777 = part_terrane_f2_s2868.message.clone().clone();
+            if part_terrane_f2_s2868.completed.clone()
+                == terrane_int_support::Int::from(0_i128) && !part_terrane_f2_s2868.end
+                && !part_terrane_f2_s2868.failed
             {
-                failed = true;
-                message = String::from("stream read made no progress");
+                failed_terrane_f2_s2749 = true;
+                message_terrane_f2_s2777 = String::from("stream read made no progress");
             }
         }
         return ReadResult::terrane_construct(
-            data,
-            completed.clone(),
-            end,
-            failed,
-            message,
+            data_terrane_f2_s2673,
+            completed_terrane_f2_s2698.clone(),
+            end_terrane_f2_s2724,
+            failed_terrane_f2_s2749,
+            message_terrane_f2_s2777,
         );
     }
     pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
-        let raw: TerranePlatformReadResult = __terrane_await(
+        let raw_terrane_f2_s3401: TerranePlatformReadResult;
+        raw_terrane_f2_s3401 = __terrane_await(
                 terrane_platform_read_async(
                     &self.handle.as_ref().expect("required field initialized"),
                     count,
@@ -1311,11 +1367,11 @@ impl ByteReader {
             )
             .await;
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
-            raw.completed.clone(),
-            raw.end,
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s3401.data.clone().clone(),
+            raw_terrane_f2_s3401.completed.clone(),
+            raw_terrane_f2_s3401.end,
+            raw_terrane_f2_s3401.failed,
+            raw_terrane_f2_s3401.message.clone().clone(),
         );
     }
     pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
@@ -1325,12 +1381,13 @@ impl ByteReader {
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw_terrane_f2_s3710: TerranePlatformUnitResult;
+        raw_terrane_f2_s3710 = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s3710.failed,
+            raw_terrane_f2_s3710.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
@@ -1365,61 +1422,74 @@ impl ByteWriter {
         self.handle = Some(handle);
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
-        let offset: i64 = 0;
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        let offset_terrane_f2_s4175: i64;
+        let raw_terrane_f2_s4198: TerranePlatformWriteResult;
+        offset_terrane_f2_s4175 = 0;
+        raw_terrane_f2_s4198 = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &data,
-            terrane_int_support::Int::from(offset.clone()),
+            terrane_int_support::Int::from(offset_terrane_f2_s4175.clone()),
         );
         return WriteResult::terrane_construct(
             data,
-            raw.completed.clone(),
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s4198.completed.clone(),
+            raw_terrane_f2_s4198.failed,
+            raw_terrane_f2_s4198.message.clone().clone(),
         );
     }
     pub fn write_all(&self, data: Vec<u8>) -> WriteResult {
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
+        let mut completed_terrane_f2_s4382: terrane_int_support::Int;
+        let mut failed_terrane_f2_s4408: bool;
+        let mut message_terrane_f2_s4436: String;
+        let mut part_terrane_f2_s4521: TerranePlatformWriteResult;
+        completed_terrane_f2_s4382 = terrane_int_support::Int::from(0_i128);
+        failed_terrane_f2_s4408 = false;
+        message_terrane_f2_s4436 = String::from("");
+        while completed_terrane_f2_s4382.clone()
+            < terrane_int_support::Int::from(data.len() as i128)
+            && !failed_terrane_f2_s4408
         {
-            let part: TerranePlatformWriteResult = terrane_platform_write(
+            part_terrane_f2_s4521 = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
-                terrane_int_support::Int::from(completed.clone()),
+                terrane_int_support::Int::from(completed_terrane_f2_s4382.clone()),
             );
-            completed = completed.clone() + part.completed.clone();
-            failed = part.failed;
-            message = part.message.clone().clone();
-            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
-                && !part.failed
+            completed_terrane_f2_s4382 = completed_terrane_f2_s4382.clone()
+                + part_terrane_f2_s4521.completed.clone();
+            failed_terrane_f2_s4408 = part_terrane_f2_s4521.failed;
+            message_terrane_f2_s4436 = part_terrane_f2_s4521.message.clone().clone();
+            if part_terrane_f2_s4521.completed.clone()
+                == terrane_int_support::Int::from(0_i128)
+                && !part_terrane_f2_s4521.failed
             {
-                failed = true;
-                message = String::from("stream write made no progress");
+                failed_terrane_f2_s4408 = true;
+                message_terrane_f2_s4436 = String::from("stream write made no progress");
             }
         }
-        return WriteResult::terrane_construct(data, completed.clone(), failed, message);
+        return WriteResult::terrane_construct(
+            data,
+            completed_terrane_f2_s4382.clone(),
+            failed_terrane_f2_s4408,
+            message_terrane_f2_s4436,
+        );
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        let raw_terrane_f2_s5023: TerranePlatformWriteResult;
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
             return prior.clone();
         }
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        raw_terrane_f2_s5023 = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &prior.data,
             terrane_int_support::Int::from(prior.completed.clone()),
         );
         return WriteResult::terrane_construct(
             prior.data.clone(),
-            prior.completed.clone() + raw.completed.clone(),
-            raw.failed,
-            raw.message.clone().clone(),
+            prior.completed.clone() + raw_terrane_f2_s5023.completed.clone(),
+            raw_terrane_f2_s5023.failed,
+            raw_terrane_f2_s5023.message.clone().clone(),
         );
     }
     pub async fn write_async(&self, data: Vec<u8>) -> WriteResult {
@@ -1432,39 +1502,43 @@ impl ByteWriter {
         );
     }
     pub fn flush(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_flush(
+        let raw_terrane_f2_s5434: TerranePlatformUnitResult;
+        raw_terrane_f2_s5434 = terrane_platform_flush(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s5434.failed,
+            raw_terrane_f2_s5434.message.clone().clone(),
         );
     }
     pub fn sync_data(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+        let raw_terrane_f2_s5594: TerranePlatformUnitResult;
+        raw_terrane_f2_s5594 = terrane_platform_sync_data(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s5594.failed,
+            raw_terrane_f2_s5594.message.clone().clone(),
         );
     }
     pub fn sync_all(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+        let raw_terrane_f2_s5757: TerranePlatformUnitResult;
+        raw_terrane_f2_s5757 = terrane_platform_sync_all(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s5757.failed,
+            raw_terrane_f2_s5757.message.clone().clone(),
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw_terrane_f2_s5926: TerranePlatformUnitResult;
+        raw_terrane_f2_s5926 = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s5926.failed,
+            raw_terrane_f2_s5926.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
@@ -1512,21 +1586,26 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let raw: TerranePlatformReadResult = terrane_platform_read(
+        let raw_terrane_f2_s6482: TerranePlatformReadResult;
+        let text_terrane_f2_s6526: String;
+        raw_terrane_f2_s6482 = terrane_platform_read(
             &self.handle.as_ref().expect("required field initialized"),
             count,
         );
-        let text: String = __terrane_raised_err(
-            terrane_string_support::decode(&raw.data.clone(), self.codec),
+        text_terrane_f2_s6526 = __terrane_raised_err(
+            terrane_string_support::decode(
+                &raw_terrane_f2_s6482.data.clone(),
+                self.codec,
+            ),
             0 /* terrane-site: core/streams.trn:188:23-188:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
-                text,
-                raw.completed.clone(),
-                raw.end,
-                raw.failed,
-                raw.message.clone().clone(),
+                text_terrane_f2_s6526,
+                raw_terrane_f2_s6482.completed.clone(),
+                raw_terrane_f2_s6482.end,
+                raw_terrane_f2_s6482.failed,
+                raw_terrane_f2_s6482.message.clone().clone(),
             ),
         );
     }
@@ -1534,21 +1613,28 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+        let mut data_terrane_f2_s6745: Vec<u8>;
+        let mut completed_terrane_f2_s6770: terrane_int_support::Int;
+        let mut end_terrane_f2_s6796: bool;
+        let mut failed_terrane_f2_s6821: bool;
+        let mut message_terrane_f2_s6849: String;
+        let mut part_terrane_f2_s6940: TerranePlatformReadResult;
+        let text_terrane_f2_s7483: String;
+        data_terrane_f2_s6745 = Vec::from([]);
+        completed_terrane_f2_s6770 = terrane_int_support::Int::from(0_i128);
+        end_terrane_f2_s6796 = false;
+        failed_terrane_f2_s6821 = false;
+        message_terrane_f2_s6849 = String::from("");
+        while completed_terrane_f2_s6770.clone() < count.clone() && !end_terrane_f2_s6796
+            && !failed_terrane_f2_s6821
+        {
+            part_terrane_f2_s6940 = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                count.clone() - completed.clone(),
+                count.clone() - completed_terrane_f2_s6770.clone(),
             );
-            data = {
-                let mut bytes = data;
-                let part_0: Vec<u8> = part.data.clone();
+            data_terrane_f2_s6745 = {
+                let mut bytes = data_terrane_f2_s6745;
+                let part_0: Vec<u8> = part_terrane_f2_s6940.data.clone();
                 let additional = match [part_0.len()]
                     .into_iter()
                     .try_fold(0usize, usize::checked_add)
@@ -1562,32 +1648,38 @@ impl TextReader {
                 bytes.extend(part_0);
                 bytes
             };
-            completed = completed.clone() + part.completed.clone();
-            end = part.end;
-            failed = part.failed;
-            message = part.message.clone().clone();
-            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
-                && !part.end && !part.failed
+            completed_terrane_f2_s6770 = completed_terrane_f2_s6770.clone()
+                + part_terrane_f2_s6940.completed.clone();
+            end_terrane_f2_s6796 = part_terrane_f2_s6940.end;
+            failed_terrane_f2_s6821 = part_terrane_f2_s6940.failed;
+            message_terrane_f2_s6849 = part_terrane_f2_s6940.message.clone().clone();
+            if part_terrane_f2_s6940.completed.clone()
+                == terrane_int_support::Int::from(0_i128) && !part_terrane_f2_s6940.end
+                && !part_terrane_f2_s6940.failed
             {
-                failed = true;
-                message = String::from("stream read made no progress");
+                failed_terrane_f2_s6821 = true;
+                message_terrane_f2_s6849 = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
-            failed = true;
-            message = String::from("stream ended before exact byte count");
+        if end_terrane_f2_s6796 && completed_terrane_f2_s6770.clone() < count.clone()
+            && !failed_terrane_f2_s6821
+        {
+            failed_terrane_f2_s6821 = true;
+            message_terrane_f2_s6849 = String::from(
+                "stream ended before exact byte count",
+            );
         }
-        let text: String = __terrane_raised_err(
-            terrane_string_support::decode(&data, self.codec),
+        text_terrane_f2_s7483 = __terrane_raised_err(
+            terrane_string_support::decode(&data_terrane_f2_s6745, self.codec),
             1 /* terrane-site: core/streams.trn:210:23-210:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
-                text,
-                completed.clone(),
-                end,
-                failed,
-                message,
+                text_terrane_f2_s7483,
+                completed_terrane_f2_s6770.clone(),
+                end_terrane_f2_s6796,
+                failed_terrane_f2_s6821,
+                message_terrane_f2_s6849,
             ),
         );
     }
@@ -1595,21 +1687,28 @@ impl TextReader {
         &self,
         limit: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let mut data: Vec<u8> = Vec::from([]);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut end: bool = false;
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
-        while completed.clone() < limit.clone() && !end && !failed {
-            let part: TerranePlatformReadResult = terrane_platform_read(
+        let mut data_terrane_f2_s7680: Vec<u8>;
+        let mut completed_terrane_f2_s7705: terrane_int_support::Int;
+        let mut end_terrane_f2_s7731: bool;
+        let mut failed_terrane_f2_s7756: bool;
+        let mut message_terrane_f2_s7784: String;
+        let mut part_terrane_f2_s7875: TerranePlatformReadResult;
+        let text_terrane_f2_s8279: String;
+        data_terrane_f2_s7680 = Vec::from([]);
+        completed_terrane_f2_s7705 = terrane_int_support::Int::from(0_i128);
+        end_terrane_f2_s7731 = false;
+        failed_terrane_f2_s7756 = false;
+        message_terrane_f2_s7784 = String::from("");
+        while completed_terrane_f2_s7705.clone() < limit.clone() && !end_terrane_f2_s7731
+            && !failed_terrane_f2_s7756
+        {
+            part_terrane_f2_s7875 = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
-                limit.clone() - completed.clone(),
+                limit.clone() - completed_terrane_f2_s7705.clone(),
             );
-            data = {
-                let mut bytes = data;
-                let part_0: Vec<u8> = part.data.clone();
+            data_terrane_f2_s7680 = {
+                let mut bytes = data_terrane_f2_s7680;
+                let part_0: Vec<u8> = part_terrane_f2_s7875.data.clone();
                 let additional = match [part_0.len()]
                     .into_iter()
                     .try_fold(0usize, usize::checked_add)
@@ -1623,28 +1722,30 @@ impl TextReader {
                 bytes.extend(part_0);
                 bytes
             };
-            completed = completed.clone() + part.completed.clone();
-            end = part.end;
-            failed = part.failed;
-            message = part.message.clone().clone();
-            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
-                && !part.end && !part.failed
+            completed_terrane_f2_s7705 = completed_terrane_f2_s7705.clone()
+                + part_terrane_f2_s7875.completed.clone();
+            end_terrane_f2_s7731 = part_terrane_f2_s7875.end;
+            failed_terrane_f2_s7756 = part_terrane_f2_s7875.failed;
+            message_terrane_f2_s7784 = part_terrane_f2_s7875.message.clone().clone();
+            if part_terrane_f2_s7875.completed.clone()
+                == terrane_int_support::Int::from(0_i128) && !part_terrane_f2_s7875.end
+                && !part_terrane_f2_s7875.failed
             {
-                failed = true;
-                message = String::from("stream read made no progress");
+                failed_terrane_f2_s7756 = true;
+                message_terrane_f2_s7784 = String::from("stream read made no progress");
             }
         }
-        let text: String = __terrane_raised_err(
-            terrane_string_support::decode(&data, self.codec),
+        text_terrane_f2_s8279 = __terrane_raised_err(
+            terrane_string_support::decode(&data_terrane_f2_s7680, self.codec),
             2 /* terrane-site: core/streams.trn:229:23-229:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
-                text,
-                completed.clone(),
-                end,
-                failed,
-                message,
+                text_terrane_f2_s8279,
+                completed_terrane_f2_s7705.clone(),
+                end_terrane_f2_s7731,
+                failed_terrane_f2_s7756,
+                message_terrane_f2_s7784,
             ),
         );
     }
@@ -1652,34 +1753,40 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
-        let raw: TerranePlatformReadResult = __terrane_await(
+        let raw_terrane_f2_s8484: TerranePlatformReadResult;
+        let text_terrane_f2_s8540: String;
+        raw_terrane_f2_s8484 = __terrane_await(
                 terrane_platform_read_async(
                     &self.handle.as_ref().expect("required field initialized"),
                     count,
                 ),
             )
             .await;
-        let text: String = __terrane_raised_err(
-            terrane_string_support::decode(&raw.data.clone(), self.codec),
+        text_terrane_f2_s8540 = __terrane_raised_err(
+            terrane_string_support::decode(
+                &raw_terrane_f2_s8484.data.clone(),
+                self.codec,
+            ),
             3 /* terrane-site: core/streams.trn:234:23-234:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
-                text,
-                raw.completed.clone(),
-                raw.end,
-                raw.failed,
-                raw.message.clone().clone(),
+                text_terrane_f2_s8540,
+                raw_terrane_f2_s8484.completed.clone(),
+                raw_terrane_f2_s8484.end,
+                raw_terrane_f2_s8484.failed,
+                raw_terrane_f2_s8484.message.clone().clone(),
             ),
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw_terrane_f2_s8741: TerranePlatformUnitResult;
+        raw_terrane_f2_s8741 = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s8741.failed,
+            raw_terrane_f2_s8741.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
@@ -1724,63 +1831,78 @@ impl TextWriter {
         self.codec = codec;
     }
     pub fn write(&self, text: String) -> WriteResult {
-        let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
-        let offset: i64 = 0;
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        let data_terrane_f2_s9276: Vec<u8>;
+        let offset_terrane_f2_s9321: i64;
+        let raw_terrane_f2_s9344: TerranePlatformWriteResult;
+        data_terrane_f2_s9276 = terrane_string_support::encode(&text, self.codec);
+        offset_terrane_f2_s9321 = 0;
+        raw_terrane_f2_s9344 = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
-            &data,
-            terrane_int_support::Int::from(offset.clone()),
+            &data_terrane_f2_s9276,
+            terrane_int_support::Int::from(offset_terrane_f2_s9321.clone()),
         );
         return WriteResult::terrane_construct(
-            data,
-            raw.completed.clone(),
-            raw.failed,
-            raw.message.clone().clone(),
+            data_terrane_f2_s9276,
+            raw_terrane_f2_s9344.completed.clone(),
+            raw_terrane_f2_s9344.failed,
+            raw_terrane_f2_s9344.message.clone().clone(),
         );
     }
     pub fn write_all(&self, text: String) -> WriteResult {
-        let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
-        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        let mut failed: bool = false;
-        let mut message: String = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
+        let data_terrane_f2_s9528: Vec<u8>;
+        let mut completed_terrane_f2_s9573: terrane_int_support::Int;
+        let mut failed_terrane_f2_s9599: bool;
+        let mut message_terrane_f2_s9627: String;
+        let mut part_terrane_f2_s9712: TerranePlatformWriteResult;
+        data_terrane_f2_s9528 = terrane_string_support::encode(&text, self.codec);
+        completed_terrane_f2_s9573 = terrane_int_support::Int::from(0_i128);
+        failed_terrane_f2_s9599 = false;
+        message_terrane_f2_s9627 = String::from("");
+        while completed_terrane_f2_s9573.clone()
+            < terrane_int_support::Int::from(data_terrane_f2_s9528.len() as i128)
+            && !failed_terrane_f2_s9599
         {
-            let part: TerranePlatformWriteResult = terrane_platform_write(
+            part_terrane_f2_s9712 = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
-                &data,
-                terrane_int_support::Int::from(completed.clone()),
+                &data_terrane_f2_s9528,
+                terrane_int_support::Int::from(completed_terrane_f2_s9573.clone()),
             );
-            completed = completed.clone() + part.completed.clone();
-            failed = part.failed;
-            message = part.message.clone().clone();
-            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
-                && !part.failed
+            completed_terrane_f2_s9573 = completed_terrane_f2_s9573.clone()
+                + part_terrane_f2_s9712.completed.clone();
+            failed_terrane_f2_s9599 = part_terrane_f2_s9712.failed;
+            message_terrane_f2_s9627 = part_terrane_f2_s9712.message.clone().clone();
+            if part_terrane_f2_s9712.completed.clone()
+                == terrane_int_support::Int::from(0_i128)
+                && !part_terrane_f2_s9712.failed
             {
-                failed = true;
-                message = String::from("stream write made no progress");
+                failed_terrane_f2_s9599 = true;
+                message_terrane_f2_s9627 = String::from("stream write made no progress");
             }
         }
-        return WriteResult::terrane_construct(data, completed.clone(), failed, message);
+        return WriteResult::terrane_construct(
+            data_terrane_f2_s9528,
+            completed_terrane_f2_s9573.clone(),
+            failed_terrane_f2_s9599,
+            message_terrane_f2_s9627,
+        );
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        let raw_terrane_f2_s10214: TerranePlatformWriteResult;
         if terrane_int_support::Int::from(prior.data.len() as i128)
             == terrane_int_support::Int::from(0_i128)
         {
             return prior.clone();
         }
-        let raw: TerranePlatformWriteResult = terrane_platform_write(
+        raw_terrane_f2_s10214 = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
             &prior.data,
             terrane_int_support::Int::from(prior.completed.clone()),
         );
         return WriteResult::terrane_construct(
             prior.data.clone(),
-            prior.completed.clone() + raw.completed.clone(),
-            raw.failed,
-            raw.message.clone().clone(),
+            prior.completed.clone() + raw_terrane_f2_s10214.completed.clone(),
+            raw_terrane_f2_s10214.failed,
+            raw_terrane_f2_s10214.message.clone().clone(),
         );
     }
     pub fn line(&self, text: String) -> WriteResult {
@@ -1796,39 +1918,43 @@ impl TextWriter {
         return self.write(text);
     }
     pub fn flush(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_flush(
+        let raw_terrane_f2_s10619: TerranePlatformUnitResult;
+        raw_terrane_f2_s10619 = terrane_platform_flush(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s10619.failed,
+            raw_terrane_f2_s10619.message.clone().clone(),
         );
     }
     pub fn sync_data(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
+        let raw_terrane_f2_s10779: TerranePlatformUnitResult;
+        raw_terrane_f2_s10779 = terrane_platform_sync_data(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s10779.failed,
+            raw_terrane_f2_s10779.message.clone().clone(),
         );
     }
     pub fn sync_all(&self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
+        let raw_terrane_f2_s10942: TerranePlatformUnitResult;
+        raw_terrane_f2_s10942 = terrane_platform_sync_all(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s10942.failed,
+            raw_terrane_f2_s10942.message.clone().clone(),
         );
     }
     pub fn close(self) -> StreamOperationResult {
-        let raw: TerranePlatformUnitResult = terrane_platform_close(
+        let raw_terrane_f2_s11111: TerranePlatformUnitResult;
+        raw_terrane_f2_s11111 = terrane_platform_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
         return StreamOperationResult::terrane_construct(
-            raw.failed,
-            raw.message.clone().clone(),
+            raw_terrane_f2_s11111.failed,
+            raw_terrane_f2_s11111.message.clone().clone(),
         );
     }
     pub fn destruct(&mut self) {
@@ -1871,22 +1997,28 @@ impl Path {
     }
 }
 pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
-    let parts: Vec<String> = terrane_string_support::split(
+    let parts_terrane_f3_s224: Vec<String>;
+    let mut result_terrane_f3_s260: terrane_collection_support::List<String>;
+    let mut index_terrane_f3_s294: terrane_int_support::Int;
+    let mut part_terrane_f3_s347: String;
+    parts_terrane_f3_s224 = terrane_string_support::split(
         &subject.text,
         &String::from("/"),
     );
-    let mut result: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    result_terrane_f3_s260 = terrane_collection_support::List::<String>::new(vec![]);
+    index_terrane_f3_s294 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_0 = result.make_unique();
-        while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-            let part: String = __terrane_raised(
+        let __terrane_list_append_0 = result_terrane_f3_s260.make_unique();
+        while index_terrane_f3_s294.clone()
+            < terrane_int_support::Int::from(parts_terrane_f3_s224.len() as i128)
+        {
+            part_terrane_f3_s347 = __terrane_raised(
                 {
-                    let __terrane_receiver = &parts;
+                    let __terrane_receiver = &parts_terrane_f3_s224;
                     let __terrane_index = __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
+                        terrane_collection_support::index_from_int(
+                            &index_terrane_f3_s294.clone(),
+                        ),
                         4 /* terrane-site: core/paths.trn:16:16-16:28 */,
                     );
                     __terrane_receiver
@@ -1898,36 +2030,45 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 },
                 4 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
-            if part != String::from("") {
-                __terrane_list_append_0.push(part);
+            if part_terrane_f3_s347.as_str() != "" {
+                __terrane_list_append_0.push(part_terrane_f3_s347);
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f3_s294 = index_terrane_f3_s294.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    return result;
+    return result_terrane_f3_s260;
 }
 pub fn path_is_absolute(subject: Path) -> bool {
     return subject.text.starts_with(&String::from("/"));
 }
 pub fn normalise_path(subject: Path) -> Path {
-    let parts: Vec<String> = terrane_string_support::split(
+    let parts_terrane_f3_s603: Vec<String>;
+    let absolute_terrane_f3_s639: bool;
+    let mut kept_terrane_f3_s680: terrane_collection_support::List<String>;
+    let mut count_terrane_f3_s712: terrane_int_support::Int;
+    let mut part_index_terrane_f3_s730: terrane_int_support::Int;
+    let mut part_terrane_f3_s793: String;
+    let mut result_terrane_f3_s1481: String;
+    let mut index_terrane_f3_s1504: terrane_int_support::Int;
+    parts_terrane_f3_s603 = terrane_string_support::split(
         &subject.text,
         &String::from("/"),
     );
-    let absolute: bool = path_is_absolute(subject);
-    let mut kept: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut count: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    let mut part_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    while part_index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-        let part: String = __terrane_raised(
+    absolute_terrane_f3_s639 = path_is_absolute(subject);
+    kept_terrane_f3_s680 = terrane_collection_support::List::<String>::new(vec![]);
+    count_terrane_f3_s712 = terrane_int_support::Int::from(0_i128);
+    part_index_terrane_f3_s730 = terrane_int_support::Int::from(0_i128);
+    while part_index_terrane_f3_s730.clone()
+        < terrane_int_support::Int::from(parts_terrane_f3_s603.len() as i128)
+    {
+        part_terrane_f3_s793 = __terrane_raised(
             {
-                let __terrane_receiver = &parts;
+                let __terrane_receiver = &parts_terrane_f3_s603;
                 let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(&part_index.clone()),
+                    terrane_collection_support::index_from_int(
+                        &part_index_terrane_f3_s730.clone(),
+                    ),
                     5 /* terrane-site: core/paths.trn:32:16-32:33 */,
                 );
                 __terrane_receiver
@@ -1939,116 +2080,134 @@ pub fn normalise_path(subject: Path) -> Path {
             },
             5 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
-        if part != String::from("") && part != String::from(".") {
-            if part == String::from("..") {
-                if count.clone() > terrane_int_support::Int::from(0_i128)
+        if part_terrane_f3_s793.as_str() != "" && part_terrane_f3_s793.as_str() != "." {
+            if part_terrane_f3_s793.as_str() == ".." {
+                if count_terrane_f3_s712.clone() > terrane_int_support::Int::from(0_i128)
                     && __terrane_raised(
-                        kept
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &(count.clone() - terrane_int_support::Int::from(1_i128)),
+                            kept_terrane_f3_s680
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(
+                                            &(count_terrane_f3_s712.clone()
+                                                - terrane_int_support::Int::from(1_i128)),
+                                        ),
+                                        6 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                     ),
-                                    6 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                 ),
-                            ),
-                        6 /* terrane-site: core/paths.trn:35:34-35:49 */,
-                    ) != String::from("..")
+                            6 /* terrane-site: core/paths.trn:35:34-35:49 */,
+                        )
+                        .as_str() != ".."
                 {
-                    count = count.clone() - terrane_int_support::Int::from(1_i128);
+                    count_terrane_f3_s712 = count_terrane_f3_s712.clone()
+                        - terrane_int_support::Int::from(1_i128);
                 } else {
-                    if !absolute {
-                        if count.clone()
+                    if !absolute_terrane_f3_s639 {
+                        if count_terrane_f3_s712.clone()
                             < terrane_int_support::Int::from(
-                                terrane_int_support::Int::from(kept.length()),
+                                terrane_int_support::Int::from(
+                                    kept_terrane_f3_s680.length(),
+                                ),
                             )
                         {
                             __terrane_raised(
-                                kept
+                                kept_terrane_f3_s680
                                     .set(
                                         __terrane_raised(
-                                            terrane_collection_support::index_from_int(&count.clone()),
+                                            terrane_collection_support::index_from_int(
+                                                &count_terrane_f3_s712.clone(),
+                                            ),
                                             7 /* terrane-site: core/paths.trn:40:29-40:50 */,
                                         ),
-                                        part,
+                                        part_terrane_f3_s793,
                                     ),
                                 7 /* terrane-site: core/paths.trn:40:29-40:50 */,
                             );
                         } else {
-                            kept.append(part);
+                            kept_terrane_f3_s680.append(part_terrane_f3_s793);
                         }
-                        count = count.clone() + terrane_int_support::Int::from(1_i128);
+                        count_terrane_f3_s712 = count_terrane_f3_s712.clone()
+                            + terrane_int_support::Int::from(1_i128);
                     }
                 }
             } else {
-                if count.clone()
+                if count_terrane_f3_s712.clone()
                     < terrane_int_support::Int::from(
-                        terrane_int_support::Int::from(kept.length()),
+                        terrane_int_support::Int::from(kept_terrane_f3_s680.length()),
                     )
                 {
                     __terrane_raised(
-                        kept
+                        kept_terrane_f3_s680
                             .set(
                                 __terrane_raised(
-                                    terrane_collection_support::index_from_int(&count.clone()),
+                                    terrane_collection_support::index_from_int(
+                                        &count_terrane_f3_s712.clone(),
+                                    ),
                                     8 /* terrane-site: core/paths.trn:46:21-46:42 */,
                                 ),
-                                part,
+                                part_terrane_f3_s793,
                             ),
                         8 /* terrane-site: core/paths.trn:46:21-46:42 */,
                     );
                 } else {
-                    kept.append(part);
+                    kept_terrane_f3_s680.append(part_terrane_f3_s793);
                 }
-                count = count.clone() + terrane_int_support::Int::from(1_i128);
+                count_terrane_f3_s712 = count_terrane_f3_s712.clone()
+                    + terrane_int_support::Int::from(1_i128);
             }
         }
-        part_index = part_index.clone() + terrane_int_support::Int::from(1_i128);
+        part_index_terrane_f3_s730 = part_index_terrane_f3_s730.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < count.clone() {
-        if result != String::from("") {
-            result = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&result),
+    result_terrane_f3_s1481 = String::from("");
+    index_terrane_f3_s1504 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f3_s1504.clone() < count_terrane_f3_s712.clone() {
+        if result_terrane_f3_s1481.as_str() != "" {
+            result_terrane_f3_s1481 = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f3_s1481),
                 terrane_scalar_support::scalar_text(&String::from("/"))
             );
         }
-        result = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&result),
-            terrane_scalar_support::scalar_text(&__terrane_raised(kept
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
+        result_terrane_f3_s1481 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f3_s1481),
+            terrane_scalar_support::scalar_text(&__terrane_raised(kept_terrane_f3_s680
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index_terrane_f3_s1504
             .clone()), 9 /* terrane-site: core/paths.trn:56:33-56:44 */)),
             9 /* terrane-site: core/paths.trn:56:33-56:44 */))
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f3_s1504 = index_terrane_f3_s1504.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    if absolute {
-        result = format!(
+    if absolute_terrane_f3_s639 {
+        result_terrane_f3_s1481 = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
-            terrane_scalar_support::scalar_text(&result)
+            terrane_scalar_support::scalar_text(&result_terrane_f3_s1481)
         );
     }
-    if result == String::from("") && absolute {
-        result = String::from("/");
+    if result_terrane_f3_s1481.as_str() == "" && absolute_terrane_f3_s639 {
+        result_terrane_f3_s1481 = String::from("/");
     }
-    return Path::terrane_construct(result);
+    return Path::terrane_construct(result_terrane_f3_s1481);
 }
 pub fn path_name(subject: Path) -> String {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(normal);
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-        == terrane_int_support::Int::from(0_i128)
+    let normal_terrane_f3_s1860: Path;
+    let parts_terrane_f3_s1897: terrane_collection_support::List<String>;
+    normal_terrane_f3_s1860 = normalise_path(subject);
+    parts_terrane_f3_s1897 = path_components(normal_terrane_f3_s1860);
+    if terrane_int_support::Int::from(
+        terrane_int_support::Int::from(parts_terrane_f3_s1897.length()),
+    ) == terrane_int_support::Int::from(0_i128)
     {
         return String::from("");
     }
     return __terrane_raised(
-        parts
+        parts_terrane_f3_s1897
             .get_or_error(
                 __terrane_raised(
                     terrane_collection_support::index_from_int(
                         &(terrane_int_support::Int::from(
-                            terrane_int_support::Int::from(parts.length()),
+                            terrane_int_support::Int::from(
+                                parts_terrane_f3_s1897.length(),
+                            ),
                         ) - terrane_int_support::Int::from(1_i128)),
                     ),
                     10 /* terrane-site: core/paths.trn:69:12-69:35 */,
@@ -2058,151 +2217,169 @@ pub fn path_name(subject: Path) -> String {
     );
 }
 pub fn path_parent(subject: Path) -> Path {
-    let normal: Path = normalise_path(subject);
-    let parts: terrane_collection_support::List<String> = path_components(
-        normal.clone(),
-    );
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-        == terrane_int_support::Int::from(0_i128)
+    let normal_terrane_f3_s2052: Path;
+    let parts_terrane_f3_s2089: terrane_collection_support::List<String>;
+    let mut result_terrane_f3_s2266: String;
+    let mut index_terrane_f3_s2289: terrane_int_support::Int;
+    let absolute_terrane_f3_s2477: bool;
+    normal_terrane_f3_s2052 = normalise_path(subject);
+    parts_terrane_f3_s2089 = path_components(normal_terrane_f3_s2052.clone());
+    if terrane_int_support::Int::from(
+        terrane_int_support::Int::from(parts_terrane_f3_s2089.length()),
+    ) == terrane_int_support::Int::from(0_i128)
     {
-        return normal.clone();
+        return normal_terrane_f3_s2052.clone();
     }
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-        == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
+    if terrane_int_support::Int::from(
+        terrane_int_support::Int::from(parts_terrane_f3_s2089.length()),
+    ) == terrane_int_support::Int::from(1_i128)
+        && !path_is_absolute(normal_terrane_f3_s2052.clone())
     {
         return Path::terrane_construct(String::from("."));
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
-            - terrane_int_support::Int::from(1_i128)
+    result_terrane_f3_s2266 = String::from("");
+    index_terrane_f3_s2289 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f3_s2289.clone()
+        < terrane_int_support::Int::from(
+            terrane_int_support::Int::from(parts_terrane_f3_s2089.length()),
+        ) - terrane_int_support::Int::from(1_i128)
     {
-        if result != String::from("") {
-            result = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&result),
+        if result_terrane_f3_s2266.as_str() != "" {
+            result_terrane_f3_s2266 = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f3_s2266),
                 terrane_scalar_support::scalar_text(&String::from("/"))
             );
         }
-        result = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&result),
-            terrane_scalar_support::scalar_text(&__terrane_raised(parts
-            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
+        result_terrane_f3_s2266 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f3_s2266),
+            terrane_scalar_support::scalar_text(&__terrane_raised(parts_terrane_f3_s2089
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index_terrane_f3_s2289
             .clone()), 11 /* terrane-site: core/paths.trn:83:33-83:45 */)),
             11 /* terrane-site: core/paths.trn:83:33-83:45 */))
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f3_s2289 = index_terrane_f3_s2289.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    let absolute: bool = path_is_absolute(normal);
-    if absolute {
-        result = format!(
+    absolute_terrane_f3_s2477 = path_is_absolute(normal_terrane_f3_s2052);
+    if absolute_terrane_f3_s2477 {
+        result_terrane_f3_s2266 = format!(
             "{}{}", terrane_scalar_support::scalar_text(&String::from("/")),
-            terrane_scalar_support::scalar_text(&result)
+            terrane_scalar_support::scalar_text(&result_terrane_f3_s2266)
         );
     }
-    return Path::terrane_construct(result);
+    return Path::terrane_construct(result_terrane_f3_s2266);
 }
 pub fn path_stem(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
+    let current_terrane_f3_s2643: String;
+    let pieces_terrane_f3_s2676: Vec<String>;
+    let mut result_terrane_f3_s2826: String;
+    let mut index_terrane_f3_s2849: terrane_int_support::Int;
+    current_terrane_f3_s2643 = path_name(subject);
+    pieces_terrane_f3_s2676 = terrane_string_support::split(
+        &current_terrane_f3_s2643,
         &String::from("."),
     );
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f3_s2676.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
-        return current.clone();
+        return current_terrane_f3_s2643.clone();
     }
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f3_s2676.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    12 /* terrane-site: core/paths.trn:95:31-95:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            12 /* terrane-site: core/paths.trn:95:31-95:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces_terrane_f3_s2676;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        12 /* terrane-site: core/paths.trn:95:31-95:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                12 /* terrane-site: core/paths.trn:95:31-95:40 */,
+            )
+            .as_str() == ""
     {
-        return current;
+        return current_terrane_f3_s2643;
     }
-    let mut result: String = String::from("");
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(pieces.len() as i128)
+    result_terrane_f3_s2826 = String::from("");
+    index_terrane_f3_s2849 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f3_s2849.clone()
+        < terrane_int_support::Int::from(pieces_terrane_f3_s2676.len() as i128)
             - terrane_int_support::Int::from(1_i128)
     {
-        if index.clone() > terrane_int_support::Int::from(0_i128) {
-            result = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&result),
+        if index_terrane_f3_s2849.clone() > terrane_int_support::Int::from(0_i128) {
+            result_terrane_f3_s2826 = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f3_s2826),
                 terrane_scalar_support::scalar_text(&String::from("."))
             );
         }
-        result = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&result),
+        result_terrane_f3_s2826 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&result_terrane_f3_s2826),
             terrane_scalar_support::scalar_text(&__terrane_raised({ let
-            __terrane_receiver = &pieces; let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&index.clone()),
-            13 /* terrane-site: core/paths.trn:102:33-102:46 */); __terrane_receiver
-            .get(__terrane_index).cloned().ok_or_else(| |
+            __terrane_receiver = &pieces_terrane_f3_s2676; let __terrane_index =
+            __terrane_raised(terrane_collection_support::index_from_int(&index_terrane_f3_s2849
+            .clone()), 13 /* terrane-site: core/paths.trn:102:33-102:46 */);
+            __terrane_receiver.get(__terrane_index).cloned().ok_or_else(| |
             terrane_collection_support::IndexError::from_usize(__terrane_index)) },
             13 /* terrane-site: core/paths.trn:102:33-102:46 */))
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f3_s2849 = index_terrane_f3_s2849.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    return result;
+    return result_terrane_f3_s2826;
 }
 pub fn path_extension(subject: Path) -> String {
-    let current: String = path_name(subject);
-    let pieces: Vec<String> = terrane_string_support::split(
-        &current,
+    let current_terrane_f3_s3100: String;
+    let pieces_terrane_f3_s3133: Vec<String>;
+    current_terrane_f3_s3100 = path_name(subject);
+    pieces_terrane_f3_s3133 = terrane_string_support::split(
+        &current_terrane_f3_s3100,
         &String::from("."),
     );
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f3_s3133.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
         return String::from("");
     }
-    if terrane_int_support::Int::from(pieces.len() as i128)
+    if terrane_int_support::Int::from(pieces_terrane_f3_s3133.len() as i128)
         == terrane_int_support::Int::from(2_i128)
         && __terrane_raised(
-            {
-                let __terrane_receiver = &pieces;
-                let __terrane_index = __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    14 /* terrane-site: core/paths.trn:111:31-111:40 */,
-                );
-                __terrane_receiver
-                    .get(__terrane_index)
-                    .cloned()
-                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                        __terrane_index,
-                    ))
-            },
-            14 /* terrane-site: core/paths.trn:111:31-111:40 */,
-        ) == String::from("")
+                {
+                    let __terrane_receiver = &pieces_terrane_f3_s3133;
+                    let __terrane_index = __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        14 /* terrane-site: core/paths.trn:111:31-111:40 */,
+                    );
+                    __terrane_receiver
+                        .get(__terrane_index)
+                        .cloned()
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_index,
+                        ))
+                },
+                14 /* terrane-site: core/paths.trn:111:31-111:40 */,
+            )
+            .as_str() == ""
     {
         return String::from("");
     }
     return __terrane_raised(
         {
-            let __terrane_receiver = &pieces;
+            let __terrane_receiver = &pieces_terrane_f3_s3133;
             let __terrane_index = __terrane_raised(
                 terrane_collection_support::index_from_int(
-                    &(terrane_int_support::Int::from(pieces.len() as i128)
-                        - terrane_int_support::Int::from(1_i128)),
+                    &(terrane_int_support::Int::from(
+                        pieces_terrane_f3_s3133.len() as i128,
+                    ) - terrane_int_support::Int::from(1_i128)),
                 ),
                 15 /* terrane-site: core/paths.trn:113:12-113:37 */,
             );
@@ -2217,21 +2394,26 @@ pub fn path_extension(subject: Path) -> String {
     );
 }
 pub fn join_path(base: Path, child: Path) -> Path {
-    let absolute: bool = path_is_absolute(child.clone());
-    if absolute {
+    let absolute_terrane_f3_s3358: bool;
+    let mut joined_terrane_f3_s3450: String;
+    let combined_terrane_f3_s3608: Path;
+    absolute_terrane_f3_s3358 = path_is_absolute(child.clone());
+    if absolute_terrane_f3_s3358 {
         return normalise_path(child.clone());
     }
-    let mut joined: String = base.text.clone();
-    if joined != String::from("") && !joined.ends_with(&String::from("/")) {
-        joined = format!(
-            "{}{}", terrane_scalar_support::scalar_text(&joined),
+    joined_terrane_f3_s3450 = base.text.clone();
+    if joined_terrane_f3_s3450.as_str() != ""
+        && !joined_terrane_f3_s3450.ends_with(&String::from("/"))
+    {
+        joined_terrane_f3_s3450 = format!(
+            "{}{}", terrane_scalar_support::scalar_text(&joined_terrane_f3_s3450),
             terrane_scalar_support::scalar_text(&String::from("/"))
         );
     }
-    joined = format!(
-        "{}{}", terrane_scalar_support::scalar_text(&joined),
+    joined_terrane_f3_s3450 = format!(
+        "{}{}", terrane_scalar_support::scalar_text(&joined_terrane_f3_s3450),
         terrane_scalar_support::scalar_text(&child.text)
     );
-    let combined: Path = Path::terrane_construct(joined);
-    return normalise_path(combined);
+    combined_terrane_f3_s3608 = Path::terrane_construct(joined_terrane_f3_s3450);
+    return normalise_path(combined_terrane_f3_s3608);
 }

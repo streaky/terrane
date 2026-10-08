@@ -492,16 +492,32 @@ mod __terrane_trace {
         )
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: src/main.trn
 // Namespace: app
 fn parse_twice(text: String) -> terrane_int_support::Int {
+    let mut __trn_5f6669727374_terrane_f0_s185: Option<HeaderValue> = None;
+    let mut __trn_5f7365636f6e64_terrane_f0_s292: Option<HeaderValue> = None;
     let __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-            let __trn_5f6669727374: HeaderValue = __terrane_raised_completion!(
-                terrane_static_trn_48656164657256616c7565_from_str(text.clone()),
-                0 /* terrane-site: src/main.trn:9:18-9:45 */
-            );
-            let _ = &__trn_5f6669727374;
+            let _ = __trn_5f6669727374_terrane_f0_s185
+                .insert(
+                    __terrane_raised_completion!(
+                        terrane_static_trn_48656164657256616c7565_from_str(text.clone()),
+                        0 /* terrane-site: src/main.trn:9:18-9:45 */
+                    ),
+                );
+            let _ = &__trn_5f6669727374_terrane_f0_s185;
             return TerraneCompletion::Return(terrane_int_support::Int::from(1_i128));
         })();
         match __terrane_try_0 {
@@ -522,11 +538,14 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                         let __terrane_try_1: TerraneCompletion<
                             terrane_int_support::Int,
                         > = (|| {
-                            let __trn_5f7365636f6e64: HeaderValue = __terrane_raised_completion!(
-                                terrane_static_trn_48656164657256616c7565_from_str(text
-                                .clone()), 1 /* terrane-site: src/main.trn:13:23-13:50 */
-                            );
-                            let _ = &__trn_5f7365636f6e64;
+                            let _ = __trn_5f7365636f6e64_terrane_f0_s292
+                                .insert(
+                                    __terrane_raised_completion!(
+                                        terrane_static_trn_48656164657256616c7565_from_str(text
+                                        .clone()), 1 /* terrane-site: src/main.trn:13:23-13:50 */
+                                    ),
+                                );
+                            let _ = &__trn_5f7365636f6e64_terrane_f0_s292;
                             return TerraneCompletion::Return(
                                 terrane_int_support::Int::from(2_i128),
                             );
@@ -603,7 +622,7 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
 fn sensitive(header: &HeaderValue) -> bool {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| header.is_sensitive()),
+            std::panic::AssertUnwindSafe(|| (&header).is_sensitive()),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -641,6 +660,7 @@ fn mark_sensitive(header: &mut HeaderValue) {
     );
 }
 fn main() {
+    let mut header_terrane_f0_s719: Option<HeaderValue>;
     println!(
         "{}", terrane_scalar_support::scalar_text(&parse_twice(String::from("valid")))
     );
@@ -648,21 +668,28 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&parse_twice(String::from("bad\nvalue")))
     );
-    let mut header: Option<HeaderValue> = Some(
+    header_terrane_f0_s719 = Some(
         __terrane_raised(
             terrane_static_trn_48656164657256616c7565_from_str(String::from("value")),
             4 /* terrane-site: src/main.trn:29:31-29:61 */,
         ),
     );
-    if header.is_some() {
+    if header_terrane_f0_s719.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&sensitive(&* header.as_ref()
-            .expect("semantic optional narrowing")))
+            "{}", terrane_scalar_support::scalar_text(&sensitive(match
+            &header_terrane_f0_s719 { Some(value) => value, _ =>
+            unreachable!("flow-proven storage refinement") }))
         );
-        mark_sensitive(&mut *header.as_mut().expect("semantic optional narrowing"));
+        mark_sensitive(
+            match &mut header_terrane_f0_s719 {
+                Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            },
+        );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&sensitive(&* header.as_ref()
-            .expect("semantic optional narrowing")))
+            "{}", terrane_scalar_support::scalar_text(&sensitive(match
+            &header_terrane_f0_s719 { Some(value) => value, _ =>
+            unreachable!("flow-proven storage refinement") }))
         );
     } else {
         println!(

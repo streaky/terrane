@@ -436,7 +436,12 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: checked-map-int-refinement
 fn main() {
-    let mut counts: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+    let mut counts_terrane_f0_s90: terrane_collection_support::Map<
+        String,
+        terrane_int_support::Int,
+    >;
+    let current_terrane_f0_s114: Option<terrane_int_support::Int>;
+    counts_terrane_f0_s90 = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -445,19 +450,20 @@ fn main() {
             terrane_int_support::Int::from(1_i128))
         ],
     );
-    let current: Option<terrane_int_support::Int> = counts
-        .get(&String::from("apple"))
-        .cloned();
-    if current.is_some() {
-        let _ = counts
+    current_terrane_f0_s114 = counts_terrane_f0_s90.get(&String::from("apple")).cloned();
+    if current_terrane_f0_s114.is_some() {
+        let _ = counts_terrane_f0_s90
             .set(
                 String::from("apple"),
-                current.as_ref().expect("semantic optional narrowing").clone().clone()
-                    + terrane_int_support::Int::from(1_i128),
+                match &current_terrane_f0_s114 {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                }
+                    .clone() + terrane_int_support::Int::from(1_i128),
             );
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(counts
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(counts_terrane_f0_s90
         .get_or_error(&String::from("apple")), 0 /* terrane-site: case.trn:10:10-10:25 */))
     );
 }

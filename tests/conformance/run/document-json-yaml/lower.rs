@@ -489,237 +489,339 @@ impl From<Note> for Serializable {
     }
 }
 fn main() {
-    let options: JsonOptions = default_json_options();
-    let parsed: DocumentResult = parse_json(
+    let options_terrane_f0_s1004: JsonOptions;
+    let parsed_terrane_f0_s1040: DocumentResult;
+    let integer_terrane_f0_s1168: DocumentResult;
+    let decimal_terrane_f0_s1206: DocumentResult;
+    let canonical_terrane_f0_s1463: DocumentResult;
+    let reparsed_terrane_f0_s1543: DocumentResult;
+    let equivalent_terrane_f0_s1603: DocumentResult;
+    let stringify_input_terrane_f0_s1775: DocumentResult;
+    let stringified_terrane_f0_s1837: DocumentResult;
+    let yaml_input_terrane_f0_s1902: DocumentResult;
+    let yaml_written_terrane_f0_s1959: DocumentResult;
+    let list_value_terrane_f0_s2062: DocumentResult;
+    let list_document_terrane_f0_s2128: DocumentValue;
+    let first_terrane_f0_s2165: DocumentResult;
+    let second_terrane_f0_s2199: DocumentResult;
+    let nested_terrane_f0_s2234: DocumentResult;
+    let negative_item_terrane_f0_s2376: DocumentResult;
+    let duplicate_terrane_f0_s2452: DocumentResult;
+    let fields_terrane_f0_s2585: terrane_collection_support::List<String>;
+    let optional_fields_terrane_f0_s2648: terrane_collection_support::List<String>;
+    let default_fields_terrane_f0_s2702: terrane_collection_support::List<String>;
+    let default_values_terrane_f0_s2753: terrane_collection_support::List<String>;
+    let mut mapping_terrane_f0_s2802: DocumentMapping;
+    let mut missing_terrane_f0_s3033: DocumentResult;
+    let mut unknown_terrane_f0_s3185: DocumentResult;
+    let mut mapped_terrane_f0_s3359: DocumentResult;
+    let active_terrane_f0_s3477: DocumentResult;
+    let constructor_mapping_terrane_f0_s3565: DocumentMapping;
+    let constructor_input_terrane_f0_s3642: DocumentResult;
+    let constructor_result_terrane_f0_s3697: DocumentResult;
+    let encoded_note_terrane_f0_s3856: DocumentResult;
+    let encoded_yaml_note_terrane_f0_s3922: DocumentResult;
+    let exact_integer_terrane_f0_s4055: DocumentResult;
+    let exact_decimal_terrane_f0_s4131: DocumentResult;
+    let values_terrane_f0_s4183: terrane_collection_support::List<DocumentValue>;
+    let built_list_terrane_f0_s4289: DocumentResult;
+    let mut entries_terrane_f0_s4388: DocumentMapEntries;
+    let count_value_terrane_f0_s4526: DocumentResult;
+    let built_map_terrane_f0_s4677: DocumentResult;
+    let mut duplicate_entries_terrane_f0_s4773: DocumentMapEntries;
+    let duplicate_map_terrane_f0_s5049: DocumentResult;
+    let canonical_integer_terrane_f0_s5106: DocumentResult;
+    let decoded_through_interface_terrane_f0_s5268: DocumentResult;
+    let negative_limits_terrane_f0_s5393: JsonOptions;
+    let limited_terrane_f0_s5445: DocumentResult;
+    let excessive_depth_terrane_f0_s5561: DocumentResult;
+    let trailing_json_terrane_f0_s5727: DocumentResult;
+    let yaml_limits_terrane_f0_s5876: YamlOptions;
+    let yaml_value_terrane_f0_s5926: DocumentResult;
+    let yaml_integer_terrane_f0_s6053: DocumentResult;
+    let yaml_decimal_terrane_f0_s6106: DocumentResult;
+    let yaml_decoded_terrane_f0_s6308: DocumentResult;
+    let ordinary_star_terrane_f0_s6430: DocumentResult;
+    let bomb_terrane_f0_s6548: DocumentResult;
+    let yaml_depth_terrane_f0_s6736: DocumentResult;
+    let excessive_yaml_depth_terrane_f0_s6891: DocumentResult;
+    options_terrane_f0_s1004 = default_json_options();
+    parsed_terrane_f0_s1040 = parse_json(
         String::from("{\"a\":123456789012345678901234567890,\"z\":1.2300}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&parsed.failed),
-        terrane_scalar_support::scalar_text(&parsed.value.kind)
+        "{}{}", terrane_scalar_support::scalar_text(&parsed_terrane_f0_s1040.failed),
+        terrane_scalar_support::scalar_text(&parsed_terrane_f0_s1040.value.kind)
     );
-    let integer: DocumentResult = parsed.value.field(String::from("a"));
-    let decimal: DocumentResult = parsed.value.field(String::from("z"));
+    integer_terrane_f0_s1168 = parsed_terrane_f0_s1040.value.field(String::from("a"));
+    decimal_terrane_f0_s1206 = parsed_terrane_f0_s1040.value.field(String::from("z"));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&integer.value.kind),
-        terrane_scalar_support::scalar_text(&integer.value.scalar)
+        "{}{}", terrane_scalar_support::scalar_text(&integer_terrane_f0_s1168.value
+        .kind), terrane_scalar_support::scalar_text(&integer_terrane_f0_s1168.value
+        .scalar)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&decimal.value.kind),
-        terrane_scalar_support::scalar_text(&decimal.value.scalar)
+        "{}{}", terrane_scalar_support::scalar_text(&decimal_terrane_f0_s1206.value
+        .kind), terrane_scalar_support::scalar_text(&decimal_terrane_f0_s1206.value
+        .scalar)
     );
-    println!("{}", terrane_scalar_support::scalar_text(&integer.value.integer.text));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&decimal.value.decimal.coefficient),
-        terrane_scalar_support::scalar_text(&decimal.value.decimal.exponent)
+        "{}", terrane_scalar_support::scalar_text(&integer_terrane_f0_s1168.value.integer
+        .text)
     );
-    let canonical: DocumentResult = canonical_json(parsed.value);
-    println!("{}", terrane_scalar_support::scalar_text(&canonical.value.encoded));
-    let reparsed: DocumentResult = parse_json(
-        canonical.value.encoded.clone(),
-        options.clone(),
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&decimal_terrane_f0_s1206.value
+        .decimal.coefficient),
+        terrane_scalar_support::scalar_text(&decimal_terrane_f0_s1206.value.decimal
+        .exponent)
     );
-    let equivalent: DocumentResult = parse_json(
+    canonical_terrane_f0_s1463 = canonical_json(parsed_terrane_f0_s1040.value);
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&canonical_terrane_f0_s1463.value
+        .encoded)
+    );
+    reparsed_terrane_f0_s1543 = parse_json(
+        canonical_terrane_f0_s1463.value.encoded.clone(),
+        options_terrane_f0_s1004.clone(),
+    );
+    equivalent_terrane_f0_s1603 = parse_json(
         String::from("{\"a\":1.2345678901234567890123456789e+29,\"z\":1.23}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&reparsed.failed),
-        terrane_scalar_support::scalar_text(&(canonical.value.encoded == equivalent.value
-        .encoded))
+        "{}{}", terrane_scalar_support::scalar_text(&reparsed_terrane_f0_s1543.failed),
+        terrane_scalar_support::scalar_text(&(canonical_terrane_f0_s1463.value.encoded
+        .as_str() == equivalent_terrane_f0_s1603.value.encoded.as_str()))
     );
-    let stringify_input: DocumentResult = parse_json(
+    stringify_input_terrane_f0_s1775 = parse_json(
         String::from("{\"a\":1,\"z\":1.23}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
-    let stringified: DocumentResult = stringify_json(
-        stringify_input.value,
-        options.clone(),
+    stringified_terrane_f0_s1837 = stringify_json(
+        stringify_input_terrane_f0_s1775.value,
+        options_terrane_f0_s1004.clone(),
     );
-    let yaml_input: DocumentResult = parse_json(
+    yaml_input_terrane_f0_s1902 = parse_json(
         String::from("{\"a\":1,\"z\":1.23}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
-    let yaml_written: DocumentResult = stringify_yaml(yaml_input.value);
+    yaml_written_terrane_f0_s1959 = stringify_yaml(yaml_input_terrane_f0_s1902.value);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&stringified.failed),
-        terrane_scalar_support::scalar_text(&yaml_written.failed)
+        "{}{}", terrane_scalar_support::scalar_text(&stringified_terrane_f0_s1837
+        .failed), terrane_scalar_support::scalar_text(&yaml_written_terrane_f0_s1959
+        .failed)
     );
-    let list_value: DocumentResult = parse_json(
+    list_value_terrane_f0_s2062 = parse_json(
         String::from("[\"first\",{\"nested\":true}]"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
-    let list_document: DocumentValue = list_value.value;
-    let first: DocumentResult = list_document
+    list_document_terrane_f0_s2128 = list_value_terrane_f0_s2062.value;
+    first_terrane_f0_s2165 = list_document_terrane_f0_s2128
         .item(terrane_int_support::Int::from(0_i128));
-    let second: DocumentResult = list_document
+    second_terrane_f0_s2199 = list_document_terrane_f0_s2128
         .item(terrane_int_support::Int::from(1_i128));
-    let nested: DocumentResult = second.value.field(String::from("nested"));
+    nested_terrane_f0_s2234 = second_terrane_f0_s2199
+        .value
+        .field(String::from("nested"));
     println!(
-        "{}{}{}{}", terrane_scalar_support::scalar_text(&list_document.length()),
-        terrane_scalar_support::scalar_text(&list_document
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&list_document_terrane_f0_s2128
+        .length()), terrane_scalar_support::scalar_text(&list_document_terrane_f0_s2128
         .key(terrane_int_support::Int::from(0_i128))),
-        terrane_scalar_support::scalar_text(&first.value.scalar),
-        terrane_scalar_support::scalar_text(&nested.value.scalar)
+        terrane_scalar_support::scalar_text(&first_terrane_f0_s2165.value.scalar),
+        terrane_scalar_support::scalar_text(&nested_terrane_f0_s2234.value.scalar)
     );
-    let negative_item: DocumentResult = list_document
+    negative_item_terrane_f0_s2376 = list_document_terrane_f0_s2128
         .item(terrane_int_support::Int::from(-1_i128));
-    println!("{}", terrane_scalar_support::scalar_text(&negative_item.failed));
-    let duplicate: DocumentResult = parse_json(
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&negative_item_terrane_f0_s2376.failed)
+    );
+    duplicate_terrane_f0_s2452 = parse_json(
         String::from("{\"key\":1,\"key\":2}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&duplicate.failed),
-        terrane_scalar_support::scalar_text(&duplicate.message
+        "{}{}", terrane_scalar_support::scalar_text(&duplicate_terrane_f0_s2452.failed),
+        terrane_scalar_support::scalar_text(&duplicate_terrane_f0_s2452.message
         .contains(&String::from("duplicate key")))
     );
-    let fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    fields_terrane_f0_s2585 = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("name"), String::from("nickname"), String::from("active")]);
-    let optional_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    optional_fields_terrane_f0_s2648 = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("nickname")]);
-    let default_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    default_fields_terrane_f0_s2702 = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("active")]);
-    let default_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    default_values_terrane_f0_s2753 = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("true")]);
-    let mut mapping: DocumentMapping = DocumentMapping::terrane_construct(
+    mapping_terrane_f0_s2802 = DocumentMapping::terrane_construct(
         String::from("person"),
         String::from("map"),
         false,
     );
-    mapping.field_names = fields;
-    mapping.optional_fields = optional_fields;
-    mapping.default_fields = default_fields;
-    mapping.default_values = default_values;
-    let mut missing: DocumentResult = parse_json(String::from("{}"), options.clone());
-    missing = decode_document(missing.value, mapping.clone());
-    println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&missing.failed),
-        terrane_scalar_support::scalar_text(&missing.path),
-        terrane_scalar_support::scalar_text(&missing.expected)
+    mapping_terrane_f0_s2802.field_names = fields_terrane_f0_s2585;
+    mapping_terrane_f0_s2802.optional_fields = optional_fields_terrane_f0_s2648;
+    mapping_terrane_f0_s2802.default_fields = default_fields_terrane_f0_s2702;
+    mapping_terrane_f0_s2802.default_values = default_values_terrane_f0_s2753;
+    missing_terrane_f0_s3033 = parse_json(
+        String::from("{}"),
+        options_terrane_f0_s1004.clone(),
     );
-    let mut unknown: DocumentResult = parse_json(
+    missing_terrane_f0_s3033 = decode_document(
+        missing_terrane_f0_s3033.value,
+        mapping_terrane_f0_s2802.clone(),
+    );
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&missing_terrane_f0_s3033.failed),
+        terrane_scalar_support::scalar_text(&missing_terrane_f0_s3033.path),
+        terrane_scalar_support::scalar_text(&missing_terrane_f0_s3033.expected)
+    );
+    unknown_terrane_f0_s3185 = parse_json(
         String::from("{\"name\":\"Ada\",\"extra\":1}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
-    unknown = decode_document(unknown.value, mapping.clone());
+    unknown_terrane_f0_s3185 = decode_document(
+        unknown_terrane_f0_s3185.value,
+        mapping_terrane_f0_s2802.clone(),
+    );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&unknown.failed),
-        terrane_scalar_support::scalar_text(&unknown.path),
-        terrane_scalar_support::scalar_text(&unknown.expected)
+        "{}{}{}", terrane_scalar_support::scalar_text(&unknown_terrane_f0_s3185.failed),
+        terrane_scalar_support::scalar_text(&unknown_terrane_f0_s3185.path),
+        terrane_scalar_support::scalar_text(&unknown_terrane_f0_s3185.expected)
     );
-    let mut mapped: DocumentResult = parse_json(
+    mapped_terrane_f0_s3359 = parse_json(
         String::from("{\"name\":\"Ada\",\"nickname\":\"A\"}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
-    mapped = decode_document(mapped.value, mapping.clone());
-    let active: DocumentResult = mapped.value.field(String::from("active"));
+    mapped_terrane_f0_s3359 = decode_document(
+        mapped_terrane_f0_s3359.value,
+        mapping_terrane_f0_s2802.clone(),
+    );
+    active_terrane_f0_s3477 = mapped_terrane_f0_s3359
+        .value
+        .field(String::from("active"));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&mapped.failed),
-        terrane_scalar_support::scalar_text(&active.value.scalar)
+        "{}{}", terrane_scalar_support::scalar_text(&mapped_terrane_f0_s3359.failed),
+        terrane_scalar_support::scalar_text(&active_terrane_f0_s3477.value.scalar)
     );
-    let constructor_mapping: DocumentMapping = DocumentMapping::terrane_construct(
+    constructor_mapping_terrane_f0_s3565 = DocumentMapping::terrane_construct(
         String::from("open-map"),
         String::from("map"),
         true,
     );
-    let constructor_input: DocumentResult = parse_json(
+    constructor_input_terrane_f0_s3642 = parse_json(
         String::from("{\"a\":1}"),
-        options.clone(),
+        options_terrane_f0_s1004.clone(),
     );
-    let constructor_result: DocumentResult = decode_document(
-        constructor_input.value,
-        constructor_mapping,
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&constructor_result.failed),
-        terrane_scalar_support::scalar_text(&constructor_result.value.encoded)
-    );
-    let encoded_note: DocumentResult = encode_json(
-        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
-        options.clone(),
-    );
-    let encoded_yaml_note: DocumentResult = encode_yaml(
-        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
+    constructor_result_terrane_f0_s3697 = decode_document(
+        constructor_input_terrane_f0_s3642.value,
+        constructor_mapping_terrane_f0_s3565,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&encoded_note.value.encoded),
-        terrane_scalar_support::scalar_text(&encoded_yaml_note.value.encoded)
+        "{}{}", terrane_scalar_support::scalar_text(&constructor_result_terrane_f0_s3697
+        .failed),
+        terrane_scalar_support::scalar_text(&constructor_result_terrane_f0_s3697.value
+        .encoded)
     );
-    let exact_integer: DocumentResult = make_document_integer(
+    encoded_note_terrane_f0_s3856 = encode_json(
+        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
+        options_terrane_f0_s1004.clone(),
+    );
+    encoded_yaml_note_terrane_f0_s3922 = encode_yaml(
+        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&encoded_note_terrane_f0_s3856.value
+        .encoded),
+        terrane_scalar_support::scalar_text(&encoded_yaml_note_terrane_f0_s3922.value
+        .encoded)
+    );
+    exact_integer_terrane_f0_s4055 = make_document_integer(
         String::from("123456789012345678901234567890"),
     );
-    let exact_decimal: DocumentResult = make_document_decimal(String::from("1.2300"));
-    let values: terrane_collection_support::List<DocumentValue> = terrane_collection_support::List::<
+    exact_decimal_terrane_f0_s4131 = make_document_decimal(String::from("1.2300"));
+    values_terrane_f0_s4183 = terrane_collection_support::List::<
         DocumentValue,
-    >::new(vec![exact_integer.value, exact_decimal.value, make_document_none()]);
-    let built_list: DocumentResult = make_document_list(values);
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&built_list.failed),
-        terrane_scalar_support::scalar_text(&built_list.value.encoded)
+    >::new(
+        vec![
+            exact_integer_terrane_f0_s4055.value, exact_decimal_terrane_f0_s4131.value,
+            make_document_none()
+        ],
     );
-    let mut entries: DocumentMapEntries = DocumentMapEntries::terrane_construct();
-    entries = append_document_map_entry(
-        entries,
+    built_list_terrane_f0_s4289 = make_document_list(values_terrane_f0_s4183);
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&built_list_terrane_f0_s4289.failed),
+        terrane_scalar_support::scalar_text(&built_list_terrane_f0_s4289.value.encoded)
+    );
+    entries_terrane_f0_s4388 = DocumentMapEntries::terrane_construct();
+    entries_terrane_f0_s4388 = append_document_map_entry(
+        entries_terrane_f0_s4388,
         String::from("message"),
         make_document_string(String::from("hello")),
     );
-    let count_value: DocumentResult = make_document_integer(
+    count_value_terrane_f0_s4526 = make_document_integer(
         String::from("123456789012345678901234567890"),
     );
-    entries = append_document_map_entry(
-        entries,
+    entries_terrane_f0_s4388 = append_document_map_entry(
+        entries_terrane_f0_s4388,
         String::from("count"),
-        count_value.value,
+        count_value_terrane_f0_s4526.value,
     );
-    let built_map: DocumentResult = make_document_map(entries);
+    built_map_terrane_f0_s4677 = make_document_map(entries_terrane_f0_s4388);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&built_map.failed),
-        terrane_scalar_support::scalar_text(&built_map.value.encoded)
+        "{}{}", terrane_scalar_support::scalar_text(&built_map_terrane_f0_s4677.failed),
+        terrane_scalar_support::scalar_text(&built_map_terrane_f0_s4677.value.encoded)
     );
-    let mut duplicate_entries: DocumentMapEntries = DocumentMapEntries::terrane_construct();
-    duplicate_entries = append_document_map_entry(
-        duplicate_entries,
+    duplicate_entries_terrane_f0_s4773 = DocumentMapEntries::terrane_construct();
+    duplicate_entries_terrane_f0_s4773 = append_document_map_entry(
+        duplicate_entries_terrane_f0_s4773,
         String::from("same"),
         make_document_string(String::from("first")),
     );
-    duplicate_entries = append_document_map_entry(
-        duplicate_entries,
+    duplicate_entries_terrane_f0_s4773 = append_document_map_entry(
+        duplicate_entries_terrane_f0_s4773,
         String::from("same"),
         make_document_string(String::from("second")),
     );
-    let duplicate_map: DocumentResult = make_document_map(duplicate_entries);
-    let canonical_integer: DocumentResult = make_document_integer(
+    duplicate_map_terrane_f0_s5049 = make_document_map(
+        duplicate_entries_terrane_f0_s4773,
+    );
+    canonical_integer_terrane_f0_s5106 = make_document_integer(
         String::from("1.2345678901234567890123456789e+29"),
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&duplicate_map.failed),
-        terrane_scalar_support::scalar_text(&duplicate_map.path),
-        terrane_scalar_support::scalar_text(&canonical_integer.failed)
+        "{}{}{}", terrane_scalar_support::scalar_text(&duplicate_map_terrane_f0_s5049
+        .failed), terrane_scalar_support::scalar_text(&duplicate_map_terrane_f0_s5049
+        .path), terrane_scalar_support::scalar_text(&canonical_integer_terrane_f0_s5106
+        .failed)
     );
-    let decoded_through_interface: DocumentResult = decode_json(
+    decoded_through_interface_terrane_f0_s5268 = decode_json(
         String::from("{\"name\":\"Ada\"}"),
-        <Deserializable>::from(mapping.clone()),
-        options.clone(),
+        <Deserializable>::from(mapping_terrane_f0_s2802.clone()),
+        options_terrane_f0_s1004.clone(),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&decoded_through_interface.failed)
+        "{}",
+        terrane_scalar_support::scalar_text(&decoded_through_interface_terrane_f0_s5268
+        .failed)
     );
-    let negative_limits: JsonOptions = JsonOptions::terrane_construct(
+    negative_limits_terrane_f0_s5393 = JsonOptions::terrane_construct(
         terrane_int_support::Int::from(-1_i128),
         terrane_int_support::Int::from(-1_i128),
     );
-    let limited: DocumentResult = parse_json(String::from("{}"), negative_limits);
+    limited_terrane_f0_s5445 = parse_json(
+        String::from("{}"),
+        negative_limits_terrane_f0_s5393,
+    );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&limited.failed),
-        terrane_scalar_support::scalar_text(&limited.message
+        "{}{}", terrane_scalar_support::scalar_text(&limited_terrane_f0_s5445.failed),
+        terrane_scalar_support::scalar_text(&limited_terrane_f0_s5445.message
         .contains(&String::from("byte limit")))
     );
-    let excessive_depth: DocumentResult = parse_json(
+    excessive_depth_terrane_f0_s5561 = parse_json(
         String::from("[]"),
         JsonOptions::terrane_construct(
             terrane_int_support::Int::from(1000000_i128),
@@ -727,52 +829,60 @@ fn main() {
         ),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&excessive_depth.failed),
-        terrane_scalar_support::scalar_text(&excessive_depth.message
-        .contains(&String::from("cannot exceed")))
+        "{}{}", terrane_scalar_support::scalar_text(&excessive_depth_terrane_f0_s5561
+        .failed), terrane_scalar_support::scalar_text(&excessive_depth_terrane_f0_s5561
+        .message.contains(&String::from("cannot exceed")))
     );
-    let trailing_json: DocumentResult = parse_json(
+    trailing_json_terrane_f0_s5727 = parse_json(
         String::from("{\"a\":1} garbage"),
-        options,
+        options_terrane_f0_s1004,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&trailing_json.failed),
-        terrane_scalar_support::scalar_text(&trailing_json.message
-        .contains(&String::from("trailing characters")))
+        "{}{}", terrane_scalar_support::scalar_text(&trailing_json_terrane_f0_s5727
+        .failed), terrane_scalar_support::scalar_text(&trailing_json_terrane_f0_s5727
+        .message.contains(&String::from("trailing characters")))
     );
-    let yaml_limits: YamlOptions = make_yaml_options(
+    yaml_limits_terrane_f0_s5876 = make_yaml_options(
         terrane_int_support::Int::from(32_i128),
         terrane_int_support::Int::from(2048_i128),
         terrane_int_support::Int::from(20_i128),
     );
-    let yaml_value: DocumentResult = parse_yaml(
+    yaml_value_terrane_f0_s5926 = parse_yaml(
         String::from(
             "integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279",
         ),
-        yaml_limits.clone(),
+        yaml_limits_terrane_f0_s5876.clone(),
     );
-    let yaml_integer: DocumentResult = yaml_value.value.field(String::from("integer"));
-    let yaml_decimal: DocumentResult = yaml_value.value.field(String::from("decimal"));
+    yaml_integer_terrane_f0_s6053 = yaml_value_terrane_f0_s5926
+        .value
+        .field(String::from("integer"));
+    yaml_decimal_terrane_f0_s6106 = yaml_value_terrane_f0_s5926
+        .value
+        .field(String::from("decimal"));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&yaml_value.failed),
-        terrane_scalar_support::scalar_text(&yaml_integer.value.integer.text)
+        "{}{}", terrane_scalar_support::scalar_text(&yaml_value_terrane_f0_s5926.failed),
+        terrane_scalar_support::scalar_text(&yaml_integer_terrane_f0_s6053.value.integer
+        .text)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&yaml_decimal.value.decimal
-        .coefficient), terrane_scalar_support::scalar_text(&yaml_decimal.value.decimal
+        "{}{}", terrane_scalar_support::scalar_text(&yaml_decimal_terrane_f0_s6106.value
+        .decimal.coefficient),
+        terrane_scalar_support::scalar_text(&yaml_decimal_terrane_f0_s6106.value.decimal
         .exponent)
     );
-    let yaml_decoded: DocumentResult = decode_yaml(
+    yaml_decoded_terrane_f0_s6308 = decode_yaml(
         String::from("name: Ada"),
-        <Deserializable>::from(mapping),
+        <Deserializable>::from(mapping_terrane_f0_s2802),
         make_yaml_options(
             terrane_int_support::Int::from(32_i128),
             terrane_int_support::Int::from(1024_i128),
             terrane_int_support::Int::from(65536_i128),
         ),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&yaml_decoded.failed));
-    let ordinary_star: DocumentResult = parse_yaml(
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&yaml_decoded_terrane_f0_s6308.failed)
+    );
+    ordinary_star_terrane_f0_s6430 = parse_yaml(
         String::from("glob: \"a * b * c\""),
         make_yaml_options(
             terrane_int_support::Int::from(32_i128),
@@ -780,19 +890,21 @@ fn main() {
             terrane_int_support::Int::from(0_i128),
         ),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&ordinary_star.failed));
-    let bomb: DocumentResult = parse_yaml(
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&ordinary_star_terrane_f0_s6430.failed)
+    );
+    bomb_terrane_f0_s6548 = parse_yaml(
         String::from(
             "leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]",
         ),
-        yaml_limits,
+        yaml_limits_terrane_f0_s5876,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&bomb.failed),
-        terrane_scalar_support::scalar_text(&bomb.message
+        "{}{}", terrane_scalar_support::scalar_text(&bomb_terrane_f0_s6548.failed),
+        terrane_scalar_support::scalar_text(&bomb_terrane_f0_s6548.message
         .contains(&String::from("alias node limit")))
     );
-    let yaml_depth: DocumentResult = parse_yaml(
+    yaml_depth_terrane_f0_s6736 = parse_yaml(
         String::from("a: [[[[]]]]"),
         make_yaml_options(
             terrane_int_support::Int::from(2_i128),
@@ -801,11 +913,11 @@ fn main() {
         ),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&yaml_depth.failed),
-        terrane_scalar_support::scalar_text(&yaml_depth.message
+        "{}{}", terrane_scalar_support::scalar_text(&yaml_depth_terrane_f0_s6736.failed),
+        terrane_scalar_support::scalar_text(&yaml_depth_terrane_f0_s6736.message
         .contains(&String::from("depth limit")))
     );
-    let excessive_yaml_depth: DocumentResult = parse_yaml(
+    excessive_yaml_depth_terrane_f0_s6891 = parse_yaml(
         String::from("[]"),
         make_yaml_options(
             terrane_int_support::Int::from(256_i128),
@@ -814,9 +926,11 @@ fn main() {
         ),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&excessive_yaml_depth.failed),
-        terrane_scalar_support::scalar_text(&excessive_yaml_depth.message
-        .contains(&String::from("cannot exceed 255")))
+        "{}{}",
+        terrane_scalar_support::scalar_text(&excessive_yaml_depth_terrane_f0_s6891
+        .failed),
+        terrane_scalar_support::scalar_text(&excessive_yaml_depth_terrane_f0_s6891
+        .message.contains(&String::from("cannot exceed 255")))
     );
 }
 // Source: core/documents.trn
@@ -979,10 +1093,10 @@ impl DocumentValue {
         self.kind = terrane_document_kind(&raw);
         self.scalar = terrane_document_text(&raw);
         self.encoded = terrane_data_encoded(&raw);
-        if self.kind == String::from("integer") {
+        if self.kind.as_str() == "integer" {
             self.integer = DocumentInteger::terrane_construct(self.scalar.clone());
         }
-        if self.kind == String::from("decimal") {
+        if self.kind.as_str() == "decimal" {
             self.decimal = DocumentDecimal::terrane_construct(
                 terrane_document_coefficient(&raw),
                 terrane_document_exponent(&raw),
@@ -998,21 +1112,17 @@ impl DocumentValue {
         return self.clone();
     }
     pub fn item(&self, index: terrane_int_support::Int) -> DocumentResult {
-        let raw: terrane_document_support::DataResult = terrane_document_item(
-            &self.raw,
-            index.clone(),
-        );
-        return make_document_result(raw);
+        let raw_terrane_f1_s1690: terrane_document_support::DataResult;
+        raw_terrane_f1_s1690 = terrane_document_item(&self.raw, index.clone());
+        return make_document_result(raw_terrane_f1_s1690);
     }
     pub fn key(&self, index: terrane_int_support::Int) -> String {
         return terrane_document_key(&self.raw, index.clone());
     }
     pub fn field(&self, name: String) -> DocumentResult {
-        let raw: terrane_document_support::DataResult = terrane_document_field(
-            &self.raw,
-            name,
-        );
-        return make_document_result(raw);
+        let raw_terrane_f1_s1916: terrane_document_support::DataResult;
+        raw_terrane_f1_s1916 = terrane_document_field(&self.raw, name);
+        return make_document_result(raw_terrane_f1_s1916);
     }
 }
 impl SerializableProtocol for DocumentValue {
@@ -1204,18 +1314,22 @@ pub fn append_document_map_entry(
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
 ) -> DocumentResult {
-    let mut raw: terrane_document_support::DataResult = terrane_make_document_list();
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
+    let mut raw_terrane_f1_s4793: terrane_document_support::DataResult;
+    let mut index_terrane_f1_s4828: terrane_int_support::Int;
+    raw_terrane_f1_s4793 = terrane_make_document_list();
+    index_terrane_f1_s4828 = terrane_int_support::Int::from(0_i128);
+    while index_terrane_f1_s4828.clone()
         < terrane_int_support::Int::from(terrane_int_support::Int::from(values.length()))
     {
-        raw = terrane_document_list_append(
-            &raw,
+        raw_terrane_f1_s4793 = terrane_document_list_append(
+            &raw_terrane_f1_s4793,
             &__terrane_raised(
                     values
                         .get_or_error(
                             __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
+                                terrane_collection_support::index_from_int(
+                                    &index_terrane_f1_s4828.clone(),
+                                ),
                                 0 /* terrane-site: core/documents.trn:140:47-140:60 */,
                             ),
                         ),
@@ -1223,9 +1337,10 @@ pub fn make_document_list(
                 )
                 .raw,
         );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+        index_terrane_f1_s4828 = index_terrane_f1_s4828.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    return make_document_result(raw);
+    return make_document_result(raw_terrane_f1_s4793);
 }
 pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
     return make_document_result(entries.raw);
@@ -1233,129 +1348,145 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields: terrane_collection_support::List<String> = mapping.field_names.clone();
-    let optional_fields: terrane_collection_support::List<String> = mapping
-        .optional_fields
-        .clone();
-    let default_fields: terrane_collection_support::List<String> = mapping
-        .default_fields
-        .clone();
-    let mut required: terrane_collection_support::List<String> = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    let fields_terrane_f1_s5198: terrane_collection_support::List<String>;
+    let optional_fields_terrane_f1_s5231: terrane_collection_support::List<String>;
+    let default_fields_terrane_f1_s5277: terrane_collection_support::List<String>;
+    let mut required_terrane_f1_s5321: terrane_collection_support::List<String>;
+    let mut index_terrane_f1_s5357: terrane_int_support::Int;
+    let mut field_terrane_f1_s5411: String;
+    let mut optional_terrane_f1_s5441: bool;
+    let mut optional_index_terrane_f1_s5471: terrane_int_support::Int;
+    let mut defaulted_terrane_f1_s5692: bool;
+    let mut default_index_terrane_f1_s5723: terrane_int_support::Int;
+    fields_terrane_f1_s5198 = mapping.field_names.clone();
+    optional_fields_terrane_f1_s5231 = mapping.optional_fields.clone();
+    default_fields_terrane_f1_s5277 = mapping.default_fields.clone();
+    required_terrane_f1_s5321 = terrane_collection_support::List::<String>::new(vec![]);
+    index_terrane_f1_s5357 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_0 = required.make_unique();
-        while index.clone()
+        let __terrane_list_append_0 = required_terrane_f1_s5321.make_unique();
+        while index_terrane_f1_s5357.clone()
             < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(fields.length()),
+                terrane_int_support::Int::from(fields_terrane_f1_s5198.length()),
             )
         {
-            let field: String = __terrane_raised(
-                fields
+            field_terrane_f1_s5411 = __terrane_raised(
+                fields_terrane_f1_s5198
                     .get_or_error(
                         __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
+                            terrane_collection_support::index_from_int(
+                                &index_terrane_f1_s5357.clone(),
+                            ),
                             1 /* terrane-site: core/documents.trn:153:17-153:30 */,
                         ),
                     ),
                 1 /* terrane-site: core/documents.trn:153:17-153:30 */,
             );
-            let mut optional: bool = false;
-            let mut optional_index: terrane_int_support::Int = terrane_int_support::Int::from(
-                0_i128,
-            );
-            while optional_index.clone()
+            optional_terrane_f1_s5441 = false;
+            optional_index_terrane_f1_s5471 = terrane_int_support::Int::from(0_i128);
+            while optional_index_terrane_f1_s5471.clone()
                 < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(optional_fields.length()),
+                    terrane_int_support::Int::from(
+                        optional_fields_terrane_f1_s5231.length(),
+                    ),
                 )
             {
                 if __terrane_raised(
-                    optional_fields
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &optional_index.clone(),
+                        optional_fields_terrane_f1_s5231
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &optional_index_terrane_f1_s5471.clone(),
+                                    ),
+                                    2 /* terrane-site: core/documents.trn:157:16-157:47 */,
                                 ),
-                                2 /* terrane-site: core/documents.trn:157:16-157:47 */,
                             ),
-                        ),
-                    2 /* terrane-site: core/documents.trn:157:16-157:47 */,
-                ) == field
+                        2 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                    )
+                    .as_str() == field_terrane_f1_s5411.as_str()
                 {
-                    optional = true;
+                    optional_terrane_f1_s5441 = true;
                 }
-                optional_index = optional_index.clone()
+                optional_index_terrane_f1_s5471 = optional_index_terrane_f1_s5471.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            let mut defaulted: bool = false;
-            let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-                0_i128,
-            );
-            while default_index.clone()
+            defaulted_terrane_f1_s5692 = false;
+            default_index_terrane_f1_s5723 = terrane_int_support::Int::from(0_i128);
+            while default_index_terrane_f1_s5723.clone()
                 < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(default_fields.length()),
+                    terrane_int_support::Int::from(
+                        default_fields_terrane_f1_s5277.length(),
+                    ),
                 )
             {
                 if __terrane_raised(
-                    default_fields
-                        .get_or_error(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &default_index.clone(),
+                        default_fields_terrane_f1_s5277
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &default_index_terrane_f1_s5723.clone(),
+                                    ),
+                                    3 /* terrane-site: core/documents.trn:163:16-163:45 */,
                                 ),
-                                3 /* terrane-site: core/documents.trn:163:16-163:45 */,
                             ),
-                        ),
-                    3 /* terrane-site: core/documents.trn:163:16-163:45 */,
-                ) == field
+                        3 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                    )
+                    .as_str() == field_terrane_f1_s5411.as_str()
                 {
-                    defaulted = true;
+                    defaulted_terrane_f1_s5692 = true;
                 }
-                default_index = default_index.clone()
+                default_index_terrane_f1_s5723 = default_index_terrane_f1_s5723.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            if field != String::from("") && !optional && !defaulted {
-                __terrane_list_append_0.push(field);
+            if field_terrane_f1_s5411.as_str() != "" && !optional_terrane_f1_s5441
+                && !defaulted_terrane_f1_s5692
+            {
+                __terrane_list_append_0.push(field_terrane_f1_s5411);
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
+            index_terrane_f1_s5357 = index_terrane_f1_s5357.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    return required;
+    return required_terrane_f1_s5321;
 }
 pub fn decode_document(
     value: DocumentValue,
     mapping: DocumentMapping,
 ) -> DocumentResult {
-    let required: terrane_collection_support::List<String> = mapping_required_fields(
-        mapping.clone(),
-    );
-    let mut declared_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    let required_terrane_f1_s6163: terrane_collection_support::List<String>;
+    let mut declared_fields_terrane_f1_s6211: terrane_collection_support::List<String>;
+    let mut field_index_terrane_f1_s6254: terrane_int_support::Int;
+    let mut default_fields_terrane_f1_s6486: terrane_collection_support::List<String>;
+    let mut default_values_terrane_f1_s6528: terrane_collection_support::List<String>;
+    let mut default_index_terrane_f1_s6570: terrane_int_support::Int;
+    let raw_terrane_f1_s6945: terrane_document_support::DataResult;
+    let mut result_terrane_f1_s7093: DocumentResult;
+    required_terrane_f1_s6163 = mapping_required_fields(mapping.clone());
+    declared_fields_terrane_f1_s6211 = terrane_collection_support::List::<
         String,
     >::new(vec![]);
-    let mut field_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
+    field_index_terrane_f1_s6254 = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_1 = declared_fields.make_unique();
-        while field_index.clone()
+        let __terrane_list_append_1 = declared_fields_terrane_f1_s6211.make_unique();
+        while field_index_terrane_f1_s6254.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(mapping.field_names.length()),
             )
         {
             if __terrane_raised(
-                mapping
-                    .field_names
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &field_index.clone(),
+                    mapping
+                        .field_names
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &field_index_terrane_f1_s6254.clone(),
+                                ),
+                                4 /* terrane-site: core/documents.trn:176:12-176:44 */,
                             ),
-                            4 /* terrane-site: core/documents.trn:176:12-176:44 */,
                         ),
-                    ),
-                4 /* terrane-site: core/documents.trn:176:12-176:44 */,
-            ) != String::from("")
+                    4 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                )
+                .as_str() != ""
             {
                 __terrane_list_append_1
                     .push(
@@ -1365,7 +1496,7 @@ pub fn decode_document(
                                 .get_or_error(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(
-                                            &field_index.clone(),
+                                            &field_index_terrane_f1_s6254.clone(),
                                         ),
                                         5 /* terrane-site: core/documents.trn:177:37-177:69 */,
                                     ),
@@ -1374,42 +1505,42 @@ pub fn decode_document(
                         ),
                     );
             }
-            field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
+            field_index_terrane_f1_s6254 = field_index_terrane_f1_s6254.clone()
+                + terrane_int_support::Int::from(1_i128);
         }
     }
-    let mut default_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    default_fields_terrane_f1_s6486 = terrane_collection_support::List::<
         String,
     >::new(vec![]);
-    let mut default_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
+    default_values_terrane_f1_s6528 = terrane_collection_support::List::<
         String,
     >::new(vec![]);
-    let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    while default_index.clone()
+    default_index_terrane_f1_s6570 = terrane_int_support::Int::from(0_i128);
+    while default_index_terrane_f1_s6570.clone()
         < terrane_int_support::Int::from(
             terrane_int_support::Int::from(mapping.default_fields.length()),
         )
-        && default_index.clone()
+        && default_index_terrane_f1_s6570.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(mapping.default_values.length()),
             )
     {
         if __terrane_raised(
-            mapping
-                .default_fields
-                .get_or_error(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(
-                            &default_index.clone(),
+                mapping
+                    .default_fields
+                    .get_or_error(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(
+                                &default_index_terrane_f1_s6570.clone(),
+                            ),
+                            6 /* terrane-site: core/documents.trn:183:12-183:49 */,
                         ),
-                        6 /* terrane-site: core/documents.trn:183:12-183:49 */,
                     ),
-                ),
-            6 /* terrane-site: core/documents.trn:183:12-183:49 */,
-        ) != String::from("")
+                6 /* terrane-site: core/documents.trn:183:12-183:49 */,
+            )
+            .as_str() != ""
         {
-            default_fields
+            default_fields_terrane_f1_s6486
                 .append(
                     __terrane_raised(
                         mapping
@@ -1417,7 +1548,7 @@ pub fn decode_document(
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
+                                        &default_index_terrane_f1_s6570.clone(),
                                     ),
                                     7 /* terrane-site: core/documents.trn:184:36-184:73 */,
                                 ),
@@ -1425,7 +1556,7 @@ pub fn decode_document(
                         7 /* terrane-site: core/documents.trn:184:36-184:73 */,
                     ),
                 );
-            default_values
+            default_values_terrane_f1_s6528
                 .append(
                     __terrane_raised(
                         mapping
@@ -1433,7 +1564,7 @@ pub fn decode_document(
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
+                                        &default_index_terrane_f1_s6570.clone(),
                                     ),
                                     8 /* terrane-site: core/documents.trn:185:36-185:73 */,
                                 ),
@@ -1442,22 +1573,23 @@ pub fn decode_document(
                     ),
                 );
         }
-        default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
+        default_index_terrane_f1_s6570 = default_index_terrane_f1_s6570.clone()
+            + terrane_int_support::Int::from(1_i128);
     }
-    let raw: terrane_document_support::DataResult = terrane_validate_mapping(
+    raw_terrane_f1_s6945 = terrane_validate_mapping(
         &value.raw,
         mapping.expected_kind,
-        required,
-        declared_fields,
-        default_fields,
-        default_values,
+        required_terrane_f1_s6163,
+        declared_fields_terrane_f1_s6211,
+        default_fields_terrane_f1_s6486,
+        default_values_terrane_f1_s6528,
         mapping.allow_unknown,
     );
-    let mut result: DocumentResult = make_document_result(raw);
-    if result.failed {
-        result.expected = mapping.descriptor_name.clone();
+    result_terrane_f1_s7093 = make_document_result(raw_terrane_f1_s6945);
+    if result_terrane_f1_s7093.failed {
+        result_terrane_f1_s7093.expected = mapping.descriptor_name.clone();
     }
-    return result;
+    return result_terrane_f1_s7093;
 }
 // Source: core/json.trn
 // Namespace: core/documents/json
@@ -1494,32 +1626,36 @@ pub fn default_json_options() -> JsonOptions {
     );
 }
 pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_json_parse(
+    let raw_terrane_f2_s641: terrane_document_support::DataResult;
+    raw_terrane_f2_s641 = terrane_json_parse(
         input,
         options.max_depth.clone(),
         options.max_bytes.clone(),
     );
-    return make_document_result(raw);
+    return make_document_result(raw_terrane_f2_s641);
 }
 pub fn stringify_json(value: DocumentValue, options: JsonOptions) -> DocumentResult {
+    let raw_terrane_f2_s834: terrane_document_support::DataResult;
     let _ = &options;
-    let raw: terrane_document_support::DataResult = terrane_json_canonical(&value.raw);
-    return make_document_result(raw);
+    raw_terrane_f2_s834 = terrane_json_canonical(&value.raw);
+    return make_document_result(raw_terrane_f2_s834);
 }
 pub fn canonical_json(value: DocumentValue) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_json_canonical(&value.raw);
-    return make_document_result(raw);
+    let raw_terrane_f2_s975: terrane_document_support::DataResult;
+    raw_terrane_f2_s975 = terrane_json_canonical(&value.raw);
+    return make_document_result(raw_terrane_f2_s975);
 }
 pub fn decode_json(
     input: String,
     mapping: Deserializable,
     options: JsonOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_json(input, options);
-    if parsed.failed {
-        return parsed.clone();
+    let parsed_terrane_f2_s1151: DocumentResult;
+    parsed_terrane_f2_s1151 = parse_json(input, options);
+    if parsed_terrane_f2_s1151.failed {
+        return parsed_terrane_f2_s1151.clone();
     }
-    return deserialize_document(parsed.value, mapping);
+    return deserialize_document(parsed_terrane_f2_s1151.value, mapping);
 }
 pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult {
     return stringify_json(serialize_document(value), options);
@@ -1576,28 +1712,31 @@ pub fn make_yaml_options(
     );
 }
 pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_yaml_parse(
+    let raw_terrane_f3_s912: terrane_document_support::DataResult;
+    raw_terrane_f3_s912 = terrane_yaml_parse(
         input,
         options.max_depth.clone(),
         options.max_bytes.clone(),
         options.max_alias_nodes.clone(),
     );
-    return make_document_result(raw);
+    return make_document_result(raw_terrane_f3_s912);
 }
 pub fn stringify_yaml(value: DocumentValue) -> DocumentResult {
-    let raw: terrane_document_support::DataResult = terrane_json_canonical(&value.raw);
-    return make_document_result(raw);
+    let raw_terrane_f3_s1196: terrane_document_support::DataResult;
+    raw_terrane_f3_s1196 = terrane_json_canonical(&value.raw);
+    return make_document_result(raw_terrane_f3_s1196);
 }
 pub fn decode_yaml(
     input: String,
     mapping: Deserializable,
     options: YamlOptions,
 ) -> DocumentResult {
-    let parsed: DocumentResult = parse_yaml(input, options);
-    if parsed.failed {
-        return parsed.clone();
+    let parsed_terrane_f3_s1372: DocumentResult;
+    parsed_terrane_f3_s1372 = parse_yaml(input, options);
+    if parsed_terrane_f3_s1372.failed {
+        return parsed_terrane_f3_s1372.clone();
     }
-    return deserialize_document(parsed.value, mapping);
+    return deserialize_document(parsed_terrane_f3_s1372.value, mapping);
 }
 pub fn encode_yaml(value: Serializable) -> DocumentResult {
     return stringify_yaml(serialize_document(value));

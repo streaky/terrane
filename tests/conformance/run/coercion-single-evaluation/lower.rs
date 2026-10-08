@@ -8,6 +8,7 @@ fn observed() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(300_i128);
 }
 fn main() {
-    let value: u8 = terrane_int_support::wrapping_coerce::<u8>(&observed());
-    println!("{}", terrane_scalar_support::scalar_text(&value));
+    let value_terrane_f0_s108: u8;
+    value_terrane_f0_s108 = terrane_int_support::wrapping_coerce::<u8>(&observed());
+    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s108));
 }

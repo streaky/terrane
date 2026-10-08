@@ -461,100 +461,155 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: complete-float-surface
 fn exercise32() {
-    let zero: f32 = 0.0_f32;
-    let negative_zero: f32 = -0.0_f32;
-    let one: f32 = 1.0_f32;
-    let two: f32 = 2.0_f32;
-    let three: f32 = 3.0_f32;
-    let four: f32 = 4.0_f32;
-    let negative_one: f32 = -1.0_f32;
-    let negative_two: f32 = -2.0_f32;
-    let negative_quarter: f32 = -0.25_f32;
-    let fractional: f32 = -1.25_f32;
-    let twelve: f32 = 12.0_f32;
-    let thousand: f32 = 1000.0_f32;
-    let overflow_input: f32 = 128.0_f32;
-    let underflow_input: f32 = -150.0_f32;
-    let eight: f32 = 8.0_f32;
+    let zero_terrane_f0_s57: f32;
+    let negative_zero_terrane_f0_s78: f32;
+    let one_terrane_f0_s109: f32;
+    let two_terrane_f0_s129: f32;
+    let three_terrane_f0_s149: f32;
+    let four_terrane_f0_s171: f32;
+    let negative_one_terrane_f0_s192: f32;
+    let negative_two_terrane_f0_s222: f32;
+    let negative_quarter_terrane_f0_s252: f32;
+    let fractional_terrane_f0_s287: f32;
+    let twelve_terrane_f0_s316: f32;
+    let thousand_terrane_f0_s340: f32;
+    let overflow_input_terrane_f0_s368: f32;
+    let underflow_input_terrane_f0_s401: f32;
+    let eight_terrane_f0_s436: f32;
+    let decomposition_terrane_f0_s1418: terrane_scalar_support::FloatDecomposition<f32>;
+    let not_a_number_terrane_f0_s2019: f32;
+    let infinity_terrane_f0_s2060: f32;
+    let clamped_zero_terrane_f0_s2092: f32;
+    let subnormal_decomposition_terrane_f0_s2368: terrane_scalar_support::FloatDecomposition<
+        f32,
+    >;
+    let wide_four_terrane_f0_s2688: f64;
+    let floating_exponent_terrane_f0_s2714: f64;
+    let nan_decomposition_terrane_f0_s2940: terrane_scalar_support::FloatDecomposition<
+        f32,
+    >;
+    let infinity_decomposition_terrane_f0_s2988: terrane_scalar_support::FloatDecomposition<
+        f32,
+    >;
+    let negative_zero_decomposition_terrane_f0_s3037: terrane_scalar_support::FloatDecomposition<
+        f32,
+    >;
+    let negative_infinity_terrane_f0_s3369: f32;
+    let large_exponent_terrane_f0_s3615: f32;
+    let large_terrane_f0_s3648: f32;
+    let descriptor_terrane_f0_s3767: TerraneDescriptor;
+    zero_terrane_f0_s57 = 0.0_f32;
+    negative_zero_terrane_f0_s78 = -0.0_f32;
+    one_terrane_f0_s109 = 1.0_f32;
+    two_terrane_f0_s129 = 2.0_f32;
+    three_terrane_f0_s149 = 3.0_f32;
+    four_terrane_f0_s171 = 4.0_f32;
+    negative_one_terrane_f0_s192 = -1.0_f32;
+    negative_two_terrane_f0_s222 = -2.0_f32;
+    negative_quarter_terrane_f0_s252 = -0.25_f32;
+    fractional_terrane_f0_s287 = -1.25_f32;
+    twelve_terrane_f0_s316 = 12.0_f32;
+    thousand_terrane_f0_s340 = 1000.0_f32;
+    overflow_input_terrane_f0_s368 = 128.0_f32;
+    underflow_input_terrane_f0_s401 = -150.0_f32;
+    eight_terrane_f0_s436 = 8.0_f32;
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(eight.cbrt() == two)),
-        terrane_scalar_support::scalar_text(&(three.hypot(four) == 5.0_f32))
+        "{}{}", terrane_scalar_support::scalar_text(&(eight_terrane_f0_s436.cbrt() ==
+        two_terrane_f0_s129)),
+        terrane_scalar_support::scalar_text(&(three_terrane_f0_s149
+        .hypot(four_terrane_f0_s171) == 5.0_f32))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(four.powf(0.5_f32) == two)),
-        terrane_scalar_support::scalar_text(&(two.powi(10) == 1024.0_f32))
+        "{}{}", terrane_scalar_support::scalar_text(&(four_terrane_f0_s171.powf(0.5_f32)
+        == two_terrane_f0_s129)),
+        terrane_scalar_support::scalar_text(&(two_terrane_f0_s129.powi(10) ==
+        1024.0_f32))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(three.exp2() == eight)),
-        terrane_scalar_support::scalar_text(&(zero.exp_m1() == zero))
+        "{}{}", terrane_scalar_support::scalar_text(&(three_terrane_f0_s149.exp2() ==
+        eight_terrane_f0_s436)),
+        terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57.exp_m1() ==
+        zero_terrane_f0_s57))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(zero.ln_1p() == zero)),
-        terrane_scalar_support::scalar_text(&(eight.log2() == three))
+        "{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57.ln_1p() ==
+        zero_terrane_f0_s57)),
+        terrane_scalar_support::scalar_text(&(eight_terrane_f0_s436.log2() ==
+        three_terrane_f0_s149))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(thousand.log10() == three)),
-        terrane_scalar_support::scalar_text(&(eight.log(two) == three))
+        "{}{}", terrane_scalar_support::scalar_text(&(thousand_terrane_f0_s340.log10() ==
+        three_terrane_f0_s149)),
+        terrane_scalar_support::scalar_text(&(eight_terrane_f0_s436
+        .log(two_terrane_f0_s129) == three_terrane_f0_s149))
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&(zero.tan() == zero)),
-        terrane_scalar_support::scalar_text(&(zero.asin() == zero)),
-        terrane_scalar_support::scalar_text(&(one.acos() == zero))
+        "{}{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57.tan() ==
+        zero_terrane_f0_s57)), terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57
+        .asin() == zero_terrane_f0_s57)),
+        terrane_scalar_support::scalar_text(&(one_terrane_f0_s109.acos() ==
+        zero_terrane_f0_s57))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(zero.atan() == zero)),
-        terrane_scalar_support::scalar_text(&(zero.atan2(negative_one) > three))
+        "{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57.atan() ==
+        zero_terrane_f0_s57)), terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57
+        .atan2(negative_one_terrane_f0_s192) > three_terrane_f0_s149))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(one.copysign(negative_zero) ==
-        negative_one)), terrane_scalar_support::scalar_text(&negative_zero
+        "{}{}", terrane_scalar_support::scalar_text(&(one_terrane_f0_s109
+        .copysign(negative_zero_terrane_f0_s78) == negative_one_terrane_f0_s192)),
+        terrane_scalar_support::scalar_text(&negative_zero_terrane_f0_s78
         .is_sign_negative())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&({ let terrane_value : f32 = two;
-        let terrane_lower : f32 = 3.0_f32; let terrane_upper : f32 = 4.0_f32; if
-        terrane_value.is_nan() { terrane_value } else if terrane_lower.is_nan() ||
-        terrane_upper.is_nan() || terrane_lower > terrane_upper { f32::NAN } else { let
-        terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
+        "{}{}", terrane_scalar_support::scalar_text(&({ let terrane_value : f32 =
+        two_terrane_f0_s129; let terrane_lower : f32 = 3.0_f32; let terrane_upper : f32 =
+        4.0_f32; if terrane_value.is_nan() { terrane_value } else if terrane_lower
+        .is_nan() || terrane_upper.is_nan() || terrane_lower > terrane_upper { f32::NAN }
+        else { let terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
         terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() { 0.0 } else
         { - 0.0 } } else { terrane_value.max(terrane_lower) }; if terrane_lowered == 0.0
         &&terrane_upper == 0.0 { if terrane_lowered.is_sign_negative() || terrane_upper
         .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
-        .min(terrane_upper) } } } == three)), terrane_scalar_support::scalar_text(&({ let
-        terrane_receiver : f32 = fractional; let terrane_fraction = terrane_receiver
-        .fract(); if terrane_fraction == 0.0 { 0.0_f32.copysign(terrane_receiver) } else
-        { terrane_fraction } } == negative_quarter))
+        .min(terrane_upper) } } } == three_terrane_f0_s149)),
+        terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 =
+        fractional_terrane_f0_s287; let terrane_fraction = terrane_receiver.fract(); if
+        terrane_fraction == 0.0 { 0.0_f32.copysign(terrane_receiver) } else {
+        terrane_fraction } } == negative_quarter_terrane_f0_s252))
     );
     println!(
-        "{}{}{}{}", terrane_scalar_support::scalar_text(&(zero == 0.0)),
-        terrane_scalar_support::scalar_text(&(negative_zero == 0.0)),
-        terrane_scalar_support::scalar_text(&one.is_normal()),
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57 == 0.0)),
+        terrane_scalar_support::scalar_text(&(negative_zero_terrane_f0_s78 == 0.0)),
+        terrane_scalar_support::scalar_text(&one_terrane_f0_s109.is_normal()),
         terrane_scalar_support::scalar_text(&{ let _ = &TerraneDescriptor { identity :
         "float32", name : "float32", kind : "type", inherently_identity_bearing : false,
         fields : &[] }; f32::from_bits(1) } .is_subnormal())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero.next_up() == { let _ =
-        &TerraneDescriptor { identity : "float32", name : "float32", kind : "type",
-        inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1) }))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero.next_down() == negative_one * {
+        "{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57.next_up() == {
         let _ = &TerraneDescriptor { identity : "float32", name : "float32", kind :
         "type", inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1)
         }))
     );
-    let decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        twelve,
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s57.next_down() ==
+        negative_one_terrane_f0_s192 * { let _ = &TerraneDescriptor { identity :
+        "float32", name : "float32", kind : "type", inherently_identity_bearing : false,
+        fields : &[] }; f32::from_bits(1) }))
+    );
+    decomposition_terrane_f0_s1418 = terrane_scalar_support::decompose_f32(
+        twelve_terrane_f0_s316,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(decomposition.mantissa ==
-        0.75_f32)), terrane_scalar_support::scalar_text(&(decomposition.exponent == 4))
+        "{}{}", terrane_scalar_support::scalar_text(&(decomposition_terrane_f0_s1418
+        .mantissa == 0.75_f32)),
+        terrane_scalar_support::scalar_text(&(decomposition_terrane_f0_s1418.exponent ==
+        4))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(decomposition
-        .mantissa, decomposition.exponent) == twelve))
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(decomposition_terrane_f0_s1418
+        .mantissa, decomposition_terrane_f0_s1418.exponent) == twelve_terrane_f0_s316))
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
@@ -570,37 +625,41 @@ fn exercise32() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
         identity : "float32", name : "float32", kind : "type",
-        inherently_identity_bearing : false, fields : &[] }; f32::EPSILON } > zero)),
-        terrane_scalar_support::scalar_text(&{ let _ = &TerraneDescriptor { identity :
-        "float32", name : "float32", kind : "type", inherently_identity_bearing : false,
-        fields : &[] }; f32::MIN_POSITIVE } .is_normal())
+        inherently_identity_bearing : false, fields : &[] }; f32::EPSILON } >
+        zero_terrane_f0_s57)), terrane_scalar_support::scalar_text(&{ let _ =
+        &TerraneDescriptor { identity : "float32", name : "float32", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f32::MIN_POSITIVE }
+        .is_normal())
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
         identity : "float32", name : "float32", kind : "type",
         inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1) } >
-        zero)), terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
-        identity : "float32", name : "float32", kind : "type",
-        inherently_identity_bearing : false, fields : &[] }; f32::MIN } < zero)),
-        terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor { identity :
-        "float32", name : "float32", kind : "type", inherently_identity_bearing : false,
-        fields : &[] }; f32::MAX } > zero))
+        zero_terrane_f0_s57)), terrane_scalar_support::scalar_text(&({ let _ =
+        &TerraneDescriptor { identity : "float32", name : "float32", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f32::MIN } <
+        zero_terrane_f0_s57)), terrane_scalar_support::scalar_text(&({ let _ =
+        &TerraneDescriptor { identity : "float32", name : "float32", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f32::MAX } >
+        zero_terrane_f0_s57))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&two.asin().is_nan()),
-        terrane_scalar_support::scalar_text(&negative_two.powf(0.5_f32).is_nan())
+        "{}{}", terrane_scalar_support::scalar_text(&two_terrane_f0_s129.asin()
+        .is_nan()), terrane_scalar_support::scalar_text(&negative_two_terrane_f0_s222
+        .powf(0.5_f32).is_nan())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&overflow_input.exp2()
-        .is_infinite()), terrane_scalar_support::scalar_text(&(underflow_input.exp2() ==
-        zero))
+        "{}{}", terrane_scalar_support::scalar_text(&overflow_input_terrane_f0_s368
+        .exp2().is_infinite()),
+        terrane_scalar_support::scalar_text(&(underflow_input_terrane_f0_s401.exp2() ==
+        zero_terrane_f0_s57))
     );
-    let not_a_number: f32 = two.asin();
-    let infinity: f32 = one / zero;
-    let clamped_zero: f32 = {
-        let terrane_value: f32 = negative_zero;
-        let terrane_lower: f32 = zero;
-        let terrane_upper: f32 = one;
+    not_a_number_terrane_f0_s2019 = two_terrane_f0_s129.asin();
+    infinity_terrane_f0_s2060 = one_terrane_f0_s109 / zero_terrane_f0_s57;
+    clamped_zero_terrane_f0_s2092 = {
+        let terrane_value: f32 = negative_zero_terrane_f0_s78;
+        let terrane_lower: f32 = zero_terrane_f0_s57;
+        let terrane_upper: f32 = one_terrane_f0_s109;
         if terrane_value.is_nan() {
             terrane_value
         } else if terrane_lower.is_nan() || terrane_upper.is_nan()
@@ -629,34 +688,39 @@ fn exercise32() {
             }
         }
     };
-    println!("{}", terrane_scalar_support::scalar_text(&(one / clamped_zero > zero)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(one_terrane_f0_s109 /
+        clamped_zero_terrane_f0_s2092 > zero_terrane_f0_s57))
+    );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_value : f32 =
-        not_a_number; let terrane_lower : f32 = zero; let terrane_upper : f32 = one; if
-        terrane_value.is_nan() { terrane_value } else if terrane_lower.is_nan() ||
-        terrane_upper.is_nan() || terrane_lower > terrane_upper { f32::NAN } else { let
-        terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
-        terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() { 0.0 } else
-        { - 0.0 } } else { terrane_value.max(terrane_lower) }; if terrane_lowered == 0.0
-        &&terrane_upper == 0.0 { if terrane_lowered.is_sign_negative() || terrane_upper
-        .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
-        .min(terrane_upper) } } } .is_nan()), terrane_scalar_support::scalar_text(&{ let
-        terrane_value : f32 = one; let terrane_lower : f32 = not_a_number; let
-        terrane_upper : f32 = one; if terrane_value.is_nan() { terrane_value } else if
-        terrane_lower.is_nan() || terrane_upper.is_nan() || terrane_lower > terrane_upper
-        { f32::NAN } else { let terrane_lowered = if terrane_value == 0.0 &&terrane_lower
-        == 0.0 { if terrane_value.is_sign_positive() || terrane_lower.is_sign_positive()
-        { 0.0 } else { - 0.0 } } else { terrane_value.max(terrane_lower) }; if
-        terrane_lowered == 0.0 &&terrane_upper == 0.0 { if terrane_lowered
-        .is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 } else { 0.0 } }
-        else { terrane_lowered.min(terrane_upper) } } } .is_nan())
+        not_a_number_terrane_f0_s2019; let terrane_lower : f32 = zero_terrane_f0_s57; let
+        terrane_upper : f32 = one_terrane_f0_s109; if terrane_value.is_nan() {
+        terrane_value } else if terrane_lower.is_nan() || terrane_upper.is_nan() ||
+        terrane_lower > terrane_upper { f32::NAN } else { let terrane_lowered = if
+        terrane_value == 0.0 &&terrane_lower == 0.0 { if terrane_value.is_sign_positive()
+        || terrane_lower.is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_value
+        .max(terrane_lower) }; if terrane_lowered == 0.0 &&terrane_upper == 0.0 { if
+        terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 }
+        else { 0.0 } } else { terrane_lowered.min(terrane_upper) } } } .is_nan()),
+        terrane_scalar_support::scalar_text(&{ let terrane_value : f32 =
+        one_terrane_f0_s109; let terrane_lower : f32 = not_a_number_terrane_f0_s2019; let
+        terrane_upper : f32 = one_terrane_f0_s109; if terrane_value.is_nan() {
+        terrane_value } else if terrane_lower.is_nan() || terrane_upper.is_nan() ||
+        terrane_lower > terrane_upper { f32::NAN } else { let terrane_lowered = if
+        terrane_value == 0.0 &&terrane_lower == 0.0 { if terrane_value.is_sign_positive()
+        || terrane_lower.is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_value
+        .max(terrane_lower) }; if terrane_lowered == 0.0 &&terrane_upper == 0.0 { if
+        terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 }
+        else { 0.0 } } else { terrane_lowered.min(terrane_upper) } } } .is_nan())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&not_a_number.hypot(infinity)
-        .is_infinite()), terrane_scalar_support::scalar_text(&infinity.next_up()
+        "{}{}", terrane_scalar_support::scalar_text(&not_a_number_terrane_f0_s2019
+        .hypot(infinity_terrane_f0_s2060).is_infinite()),
+        terrane_scalar_support::scalar_text(&infinity_terrane_f0_s2060.next_up()
         .is_infinite())
     );
-    let subnormal_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32({
+    subnormal_decomposition_terrane_f0_s2368 = terrane_scalar_support::decompose_f32({
         let _ = &TerraneDescriptor {
             identity: "float32",
             name: "float32",
@@ -668,9 +732,9 @@ fn exercise32() {
     });
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(subnormal_decomposition
-        .mantissa, subnormal_decomposition.exponent) == { let _ = &TerraneDescriptor {
-        identity : "float32", name : "float32", kind : "type",
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(subnormal_decomposition_terrane_f0_s2368
+        .mantissa, subnormal_decomposition_terrane_f0_s2368.exponent) == { let _ =
+        &TerraneDescriptor { identity : "float32", name : "float32", kind : "type",
         inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1) }))
     );
     println!(
@@ -682,86 +746,93 @@ fn exercise32() {
         terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32({
         let _ = &TerraneDescriptor { identity : "float32", name : "float32", kind :
         "type", inherently_identity_bearing : false, fields : &[] }; f32::from_bits(1) },
-        - 1) == zero))
+        - 1) == zero_terrane_f0_s57))
     );
-    let wide_four: f64 = 4.0;
-    let floating_exponent: f64 = 2.0;
+    wide_four_terrane_f0_s2688 = 4.0;
+    floating_exponent_terrane_f0_s2714 = 2.0;
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(three.hypot({ let source_value =
-        wide_four; let converted = source_value as f32; if converted as f64 ==
-        source_value { converted } else {
+        "{}{}", terrane_scalar_support::scalar_text(&(three_terrane_f0_s149.hypot({ let
+        source_value = wide_four_terrane_f0_s2688; let converted = source_value as f32;
+        if converted as f64 == source_value { converted } else {
         __terrane_raised(Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value,
         "float64", "float32", "the floating value is not exactly representable")),
         0 /* terrane-site: case.trn:50:29-50:38 */) } }) == 5.0_f32)),
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(one,
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(one_terrane_f0_s109,
         __terrane_raised(terrane_int_support::exact_from_f64:: < i32 >
-        (floating_exponent), 1 /* terrane-site: case.trn:50:67-50:84 */)) == four))
+        (floating_exponent_terrane_f0_s2714), 1 /* terrane-site: case.trn:50:67-50:84 */)) == four_terrane_f0_s171))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f32 =
-        negative_one; let terrane_fraction = terrane_receiver.fract(); if
+        negative_one_terrane_f0_s192; let terrane_fraction = terrane_receiver.fract(); if
         terrane_fraction == 0.0 { 0.0_f32.copysign(terrane_receiver) } else {
         terrane_fraction } } .is_sign_negative())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let terrane_value : f32 = one; let
-        terrane_lower : f32 = two; let terrane_upper : f32 = one; if terrane_value
-        .is_nan() { terrane_value } else if terrane_lower.is_nan() || terrane_upper
-        .is_nan() || terrane_lower > terrane_upper { f32::NAN } else { let
-        terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
-        terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() { 0.0 } else
-        { - 0.0 } } else { terrane_value.max(terrane_lower) }; if terrane_lowered == 0.0
-        &&terrane_upper == 0.0 { if terrane_lowered.is_sign_negative() || terrane_upper
-        .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
-        .min(terrane_upper) } } } .is_nan())
+        "{}", terrane_scalar_support::scalar_text(&{ let terrane_value : f32 =
+        one_terrane_f0_s109; let terrane_lower : f32 = two_terrane_f0_s129; let
+        terrane_upper : f32 = one_terrane_f0_s109; if terrane_value.is_nan() {
+        terrane_value } else if terrane_lower.is_nan() || terrane_upper.is_nan() ||
+        terrane_lower > terrane_upper { f32::NAN } else { let terrane_lowered = if
+        terrane_value == 0.0 &&terrane_lower == 0.0 { if terrane_value.is_sign_positive()
+        || terrane_lower.is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_value
+        .max(terrane_lower) }; if terrane_lowered == 0.0 &&terrane_upper == 0.0 { if
+        terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 }
+        else { 0.0 } } else { terrane_lowered.min(terrane_upper) } } } .is_nan())
     );
-    let nan_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        not_a_number,
+    nan_decomposition_terrane_f0_s2940 = terrane_scalar_support::decompose_f32(
+        not_a_number_terrane_f0_s2019,
     );
-    let infinity_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        infinity,
+    infinity_decomposition_terrane_f0_s2988 = terrane_scalar_support::decompose_f32(
+        infinity_terrane_f0_s2060,
     );
-    let negative_zero_decomposition: terrane_scalar_support::FloatDecomposition<f32> = terrane_scalar_support::decompose_f32(
-        negative_zero,
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&nan_decomposition.mantissa
-        .is_nan()), terrane_scalar_support::scalar_text(&(nan_decomposition.exponent ==
-        0))
+    negative_zero_decomposition_terrane_f0_s3037 = terrane_scalar_support::decompose_f32(
+        negative_zero_terrane_f0_s78,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&infinity_decomposition.mantissa
-        .is_infinite()), terrane_scalar_support::scalar_text(&(infinity_decomposition
+        "{}{}", terrane_scalar_support::scalar_text(&nan_decomposition_terrane_f0_s2940
+        .mantissa.is_nan()),
+        terrane_scalar_support::scalar_text(&(nan_decomposition_terrane_f0_s2940.exponent
+        == 0))
+    );
+    println!(
+        "{}{}",
+        terrane_scalar_support::scalar_text(&infinity_decomposition_terrane_f0_s2988
+        .mantissa.is_infinite()),
+        terrane_scalar_support::scalar_text(&(infinity_decomposition_terrane_f0_s2988
         .exponent == 0))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&negative_zero_decomposition.mantissa
-        .is_sign_negative()),
-        terrane_scalar_support::scalar_text(&(negative_zero_decomposition.exponent == 0))
+        "{}{}",
+        terrane_scalar_support::scalar_text(&negative_zero_decomposition_terrane_f0_s3037
+        .mantissa.is_sign_negative()),
+        terrane_scalar_support::scalar_text(&(negative_zero_decomposition_terrane_f0_s3037
+        .exponent == 0))
     );
-    let negative_infinity: f32 = negative_one / zero;
+    negative_infinity_terrane_f0_s3369 = negative_one_terrane_f0_s192
+        / zero_terrane_f0_s57;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f32 =
-        infinity; let terrane_fraction = terrane_receiver.fract(); if terrane_fraction ==
-        0.0 { 0.0_f32.copysign(terrane_receiver) } else { terrane_fraction } }
-        .is_nan()), terrane_scalar_support::scalar_text(&{ let terrane_receiver : f32 =
-        negative_infinity; let terrane_fraction = terrane_receiver.fract(); if
+        infinity_terrane_f0_s2060; let terrane_fraction = terrane_receiver.fract(); if
         terrane_fraction == 0.0 { 0.0_f32.copysign(terrane_receiver) } else {
-        terrane_fraction } } .is_nan())
+        terrane_fraction } } .is_nan()), terrane_scalar_support::scalar_text(&{ let
+        terrane_receiver : f32 = negative_infinity_terrane_f0_s3369; let terrane_fraction
+        = terrane_receiver.fract(); if terrane_fraction == 0.0 { 0.0_f32
+        .copysign(terrane_receiver) } else { terrane_fraction } } .is_nan())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&negative_infinity.next_down()
-        .is_infinite()), terrane_scalar_support::scalar_text(&negative_infinity
+        "{}{}", terrane_scalar_support::scalar_text(&negative_infinity_terrane_f0_s3369
+        .next_down().is_infinite()),
+        terrane_scalar_support::scalar_text(&negative_infinity_terrane_f0_s3369
         .next_down().is_sign_negative())
     );
-    let large_exponent: f32 = 120.0_f32;
-    let large: f32 = large_exponent.exp2();
+    large_exponent_terrane_f0_s3615 = 120.0_f32;
+    large_terrane_f0_s3648 = large_exponent_terrane_f0_s3615.exp2();
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(large,
-        - 250) == terrane_scalar_support::scale_binary_f32(one, - 130)))
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f32(large_terrane_f0_s3648,
+        - 250) == terrane_scalar_support::scale_binary_f32(one_terrane_f0_s109, - 130)))
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor_terrane_f0_s3767 = TerraneDescriptor {
         identity: "float32",
         name: "float32",
         kind: "type",
@@ -769,106 +840,163 @@ fn exercise32() {
         fields: &[],
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&({ let _ = &descriptor; f32::EPSILON }
-        == { let _ = &TerraneDescriptor { identity : "float32", name : "float32", kind :
-        "type", inherently_identity_bearing : false, fields : &[] }; f32::EPSILON }))
+        "{}", terrane_scalar_support::scalar_text(&({ let _ =
+        &descriptor_terrane_f0_s3767; f32::EPSILON } == { let _ = &TerraneDescriptor {
+        identity : "float32", name : "float32", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f32::EPSILON }))
     );
 }
 fn exercise64() {
-    let zero: f64 = 0.0;
-    let negative_zero: f64 = -0.0_f64;
-    let one: f64 = 1.0;
-    let two: f64 = 2.0;
-    let three: f64 = 3.0;
-    let four: f64 = 4.0;
-    let eight: f64 = 8.0;
+    let zero_terrane_f0_s3859: f64;
+    let negative_zero_terrane_f0_s3880: f64;
+    let one_terrane_f0_s3911: f64;
+    let two_terrane_f0_s3931: f64;
+    let three_terrane_f0_s3951: f64;
+    let four_terrane_f0_s3973: f64;
+    let eight_terrane_f0_s3994: f64;
+    let negative_one_terrane_f0_s4084: f64;
+    let negative_two_terrane_f0_s4114: f64;
+    let negative_quarter_terrane_f0_s4144: f64;
+    let fractional_terrane_f0_s4179: f64;
+    let twelve_terrane_f0_s4208: f64;
+    let thousand_terrane_f0_s4232: f64;
+    let overflow_input_terrane_f0_s4260: f64;
+    let underflow_input_terrane_f0_s4294: f64;
+    let decomposition_terrane_f0_s5222: terrane_scalar_support::FloatDecomposition<f64>;
+    let not_a_number_terrane_f0_s5823: f64;
+    let infinity_terrane_f0_s5864: f64;
+    let clamped_zero_terrane_f0_s5896: f64;
+    let subnormal_decomposition_terrane_f0_s6172: terrane_scalar_support::FloatDecomposition<
+        f64,
+    >;
+    let narrow_four_terrane_f0_s6492: f32;
+    let floating_exponent_terrane_f0_s6520: f64;
+    let nan_decomposition_terrane_f0_s6748: terrane_scalar_support::FloatDecomposition<
+        f64,
+    >;
+    let infinity_decomposition_terrane_f0_s6796: terrane_scalar_support::FloatDecomposition<
+        f64,
+    >;
+    let negative_zero_decomposition_terrane_f0_s6845: terrane_scalar_support::FloatDecomposition<
+        f64,
+    >;
+    let negative_infinity_terrane_f0_s7177: f64;
+    let large_exponent_terrane_f0_s7423: f64;
+    let large_terrane_f0_s7457: f64;
+    let descriptor_terrane_f0_s7578: TerraneDescriptor;
+    zero_terrane_f0_s3859 = 0.0;
+    negative_zero_terrane_f0_s3880 = -0.0_f64;
+    one_terrane_f0_s3911 = 1.0;
+    two_terrane_f0_s3931 = 2.0;
+    three_terrane_f0_s3951 = 3.0;
+    four_terrane_f0_s3973 = 4.0;
+    eight_terrane_f0_s3994 = 8.0;
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(eight.cbrt() == two)),
-        terrane_scalar_support::scalar_text(&(three.hypot(four) == 5.0))
+        "{}{}", terrane_scalar_support::scalar_text(&(eight_terrane_f0_s3994.cbrt() ==
+        two_terrane_f0_s3931)),
+        terrane_scalar_support::scalar_text(&(three_terrane_f0_s3951
+        .hypot(four_terrane_f0_s3973) == 5.0))
     );
-    let negative_one: f64 = -1.0_f64;
-    let negative_two: f64 = -2.0_f64;
-    let negative_quarter: f64 = -0.25_f64;
-    let fractional: f64 = -1.25_f64;
-    let twelve: f64 = 12.0;
-    let thousand: f64 = 1000.0;
-    let overflow_input: f64 = 1024.0;
-    let underflow_input: f64 = -1075.0_f64;
+    negative_one_terrane_f0_s4084 = -1.0_f64;
+    negative_two_terrane_f0_s4114 = -2.0_f64;
+    negative_quarter_terrane_f0_s4144 = -0.25_f64;
+    fractional_terrane_f0_s4179 = -1.25_f64;
+    twelve_terrane_f0_s4208 = 12.0;
+    thousand_terrane_f0_s4232 = 1000.0;
+    overflow_input_terrane_f0_s4260 = 1024.0;
+    underflow_input_terrane_f0_s4294 = -1075.0_f64;
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(four.powf(0.5) == two)),
-        terrane_scalar_support::scalar_text(&(two.powi(10) == 1024.0))
+        "{}{}", terrane_scalar_support::scalar_text(&(four_terrane_f0_s3973.powf(0.5) ==
+        two_terrane_f0_s3931)),
+        terrane_scalar_support::scalar_text(&(two_terrane_f0_s3931.powi(10) == 1024.0))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(three.exp2() == eight)),
-        terrane_scalar_support::scalar_text(&(zero.exp_m1() == zero))
+        "{}{}", terrane_scalar_support::scalar_text(&(three_terrane_f0_s3951.exp2() ==
+        eight_terrane_f0_s3994)),
+        terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.exp_m1() ==
+        zero_terrane_f0_s3859))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(zero.ln_1p() == zero)),
-        terrane_scalar_support::scalar_text(&(eight.log2() == three))
+        "{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.ln_1p() ==
+        zero_terrane_f0_s3859)),
+        terrane_scalar_support::scalar_text(&(eight_terrane_f0_s3994.log2() ==
+        three_terrane_f0_s3951))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(thousand.log10() == three)),
-        terrane_scalar_support::scalar_text(&(eight.log(two) == three))
+        "{}{}", terrane_scalar_support::scalar_text(&(thousand_terrane_f0_s4232.log10()
+        == three_terrane_f0_s3951)),
+        terrane_scalar_support::scalar_text(&(eight_terrane_f0_s3994
+        .log(two_terrane_f0_s3931) == three_terrane_f0_s3951))
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&(zero.tan() == zero)),
-        terrane_scalar_support::scalar_text(&(zero.asin() == zero)),
-        terrane_scalar_support::scalar_text(&(one.acos() == zero))
+        "{}{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.tan() ==
+        zero_terrane_f0_s3859)),
+        terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.asin() ==
+        zero_terrane_f0_s3859)),
+        terrane_scalar_support::scalar_text(&(one_terrane_f0_s3911.acos() ==
+        zero_terrane_f0_s3859))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(zero.atan() == zero)),
-        terrane_scalar_support::scalar_text(&(zero.atan2(negative_one) > three))
+        "{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.atan() ==
+        zero_terrane_f0_s3859)),
+        terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859
+        .atan2(negative_one_terrane_f0_s4084) > three_terrane_f0_s3951))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(one.copysign(negative_zero) ==
-        negative_one)), terrane_scalar_support::scalar_text(&negative_zero
+        "{}{}", terrane_scalar_support::scalar_text(&(one_terrane_f0_s3911
+        .copysign(negative_zero_terrane_f0_s3880) == negative_one_terrane_f0_s4084)),
+        terrane_scalar_support::scalar_text(&negative_zero_terrane_f0_s3880
         .is_sign_negative())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&({ let terrane_value : f64 = two;
-        let terrane_lower : f64 = 3.0; let terrane_upper : f64 = 4.0; if terrane_value
-        .is_nan() { terrane_value } else if terrane_lower.is_nan() || terrane_upper
-        .is_nan() || terrane_lower > terrane_upper { f64::NAN } else { let
-        terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
+        "{}{}", terrane_scalar_support::scalar_text(&({ let terrane_value : f64 =
+        two_terrane_f0_s3931; let terrane_lower : f64 = 3.0; let terrane_upper : f64 =
+        4.0; if terrane_value.is_nan() { terrane_value } else if terrane_lower.is_nan()
+        || terrane_upper.is_nan() || terrane_lower > terrane_upper { f64::NAN } else {
+        let terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
         terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() { 0.0 } else
         { - 0.0 } } else { terrane_value.max(terrane_lower) }; if terrane_lowered == 0.0
         &&terrane_upper == 0.0 { if terrane_lowered.is_sign_negative() || terrane_upper
         .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
-        .min(terrane_upper) } } } == three)), terrane_scalar_support::scalar_text(&({ let
-        terrane_receiver : f64 = fractional; let terrane_fraction = terrane_receiver
-        .fract(); if terrane_fraction == 0.0 { 0.0_f64.copysign(terrane_receiver) } else
-        { terrane_fraction } } == negative_quarter))
+        .min(terrane_upper) } } } == three_terrane_f0_s3951)),
+        terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
+        fractional_terrane_f0_s4179; let terrane_fraction = terrane_receiver.fract(); if
+        terrane_fraction == 0.0 { 0.0_f64.copysign(terrane_receiver) } else {
+        terrane_fraction } } == negative_quarter_terrane_f0_s4144))
     );
     println!(
-        "{}{}{}{}", terrane_scalar_support::scalar_text(&(zero == 0.0)),
-        terrane_scalar_support::scalar_text(&(negative_zero == 0.0)),
-        terrane_scalar_support::scalar_text(&one.is_normal()),
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859 == 0.0)),
+        terrane_scalar_support::scalar_text(&(negative_zero_terrane_f0_s3880 == 0.0)),
+        terrane_scalar_support::scalar_text(&one_terrane_f0_s3911.is_normal()),
         terrane_scalar_support::scalar_text(&{ let _ = &TerraneDescriptor { identity :
         "float64", name : "float64", kind : "type", inherently_identity_bearing : false,
         fields : &[] }; f64::from_bits(1) } .is_subnormal())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero.next_up() == { let _ =
-        &TerraneDescriptor { identity : "float64", name : "float64", kind : "type",
-        inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1) }))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero.next_down() == negative_one * {
+        "{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.next_up() == {
         let _ = &TerraneDescriptor { identity : "float64", name : "float64", kind :
         "type", inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1)
         }))
     );
-    let decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        twelve,
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(zero_terrane_f0_s3859.next_down() ==
+        negative_one_terrane_f0_s4084 * { let _ = &TerraneDescriptor { identity :
+        "float64", name : "float64", kind : "type", inherently_identity_bearing : false,
+        fields : &[] }; f64::from_bits(1) }))
+    );
+    decomposition_terrane_f0_s5222 = terrane_scalar_support::decompose_f64(
+        twelve_terrane_f0_s4208,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(decomposition.mantissa == 0.75)),
-        terrane_scalar_support::scalar_text(&(decomposition.exponent == 4))
+        "{}{}", terrane_scalar_support::scalar_text(&(decomposition_terrane_f0_s5222
+        .mantissa == 0.75)),
+        terrane_scalar_support::scalar_text(&(decomposition_terrane_f0_s5222.exponent ==
+        4))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(decomposition
-        .mantissa, decomposition.exponent) == twelve))
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(decomposition_terrane_f0_s5222
+        .mantissa, decomposition_terrane_f0_s5222.exponent) == twelve_terrane_f0_s4208))
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
@@ -884,37 +1012,41 @@ fn exercise64() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
         identity : "float64", name : "float64", kind : "type",
-        inherently_identity_bearing : false, fields : &[] }; f64::EPSILON } > zero)),
-        terrane_scalar_support::scalar_text(&{ let _ = &TerraneDescriptor { identity :
-        "float64", name : "float64", kind : "type", inherently_identity_bearing : false,
-        fields : &[] }; f64::MIN_POSITIVE } .is_normal())
+        inherently_identity_bearing : false, fields : &[] }; f64::EPSILON } >
+        zero_terrane_f0_s3859)), terrane_scalar_support::scalar_text(&{ let _ =
+        &TerraneDescriptor { identity : "float64", name : "float64", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f64::MIN_POSITIVE }
+        .is_normal())
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
         identity : "float64", name : "float64", kind : "type",
         inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1) } >
-        zero)), terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor {
-        identity : "float64", name : "float64", kind : "type",
-        inherently_identity_bearing : false, fields : &[] }; f64::MIN } < zero)),
-        terrane_scalar_support::scalar_text(&({ let _ = &TerraneDescriptor { identity :
-        "float64", name : "float64", kind : "type", inherently_identity_bearing : false,
-        fields : &[] }; f64::MAX } > zero))
+        zero_terrane_f0_s3859)), terrane_scalar_support::scalar_text(&({ let _ =
+        &TerraneDescriptor { identity : "float64", name : "float64", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f64::MIN } <
+        zero_terrane_f0_s3859)), terrane_scalar_support::scalar_text(&({ let _ =
+        &TerraneDescriptor { identity : "float64", name : "float64", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f64::MAX } >
+        zero_terrane_f0_s3859))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&two.asin().is_nan()),
-        terrane_scalar_support::scalar_text(&negative_two.powf(0.5).is_nan())
+        "{}{}", terrane_scalar_support::scalar_text(&two_terrane_f0_s3931.asin()
+        .is_nan()), terrane_scalar_support::scalar_text(&negative_two_terrane_f0_s4114
+        .powf(0.5).is_nan())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&overflow_input.exp2()
-        .is_infinite()), terrane_scalar_support::scalar_text(&(underflow_input.exp2() ==
-        zero))
+        "{}{}", terrane_scalar_support::scalar_text(&overflow_input_terrane_f0_s4260
+        .exp2().is_infinite()),
+        terrane_scalar_support::scalar_text(&(underflow_input_terrane_f0_s4294.exp2() ==
+        zero_terrane_f0_s3859))
     );
-    let not_a_number: f64 = two.asin();
-    let infinity: f64 = one / zero;
-    let clamped_zero: f64 = {
-        let terrane_value: f64 = negative_zero;
-        let terrane_lower: f64 = zero;
-        let terrane_upper: f64 = one;
+    not_a_number_terrane_f0_s5823 = two_terrane_f0_s3931.asin();
+    infinity_terrane_f0_s5864 = one_terrane_f0_s3911 / zero_terrane_f0_s3859;
+    clamped_zero_terrane_f0_s5896 = {
+        let terrane_value: f64 = negative_zero_terrane_f0_s3880;
+        let terrane_lower: f64 = zero_terrane_f0_s3859;
+        let terrane_upper: f64 = one_terrane_f0_s3911;
         if terrane_value.is_nan() {
             terrane_value
         } else if terrane_lower.is_nan() || terrane_upper.is_nan()
@@ -943,34 +1075,39 @@ fn exercise64() {
             }
         }
     };
-    println!("{}", terrane_scalar_support::scalar_text(&(one / clamped_zero > zero)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(one_terrane_f0_s3911 /
+        clamped_zero_terrane_f0_s5896 > zero_terrane_f0_s3859))
+    );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_value : f64 =
-        not_a_number; let terrane_lower : f64 = zero; let terrane_upper : f64 = one; if
-        terrane_value.is_nan() { terrane_value } else if terrane_lower.is_nan() ||
-        terrane_upper.is_nan() || terrane_lower > terrane_upper { f64::NAN } else { let
-        terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
-        terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() { 0.0 } else
-        { - 0.0 } } else { terrane_value.max(terrane_lower) }; if terrane_lowered == 0.0
-        &&terrane_upper == 0.0 { if terrane_lowered.is_sign_negative() || terrane_upper
-        .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
-        .min(terrane_upper) } } } .is_nan()), terrane_scalar_support::scalar_text(&{ let
-        terrane_value : f64 = one; let terrane_lower : f64 = not_a_number; let
-        terrane_upper : f64 = one; if terrane_value.is_nan() { terrane_value } else if
-        terrane_lower.is_nan() || terrane_upper.is_nan() || terrane_lower > terrane_upper
-        { f64::NAN } else { let terrane_lowered = if terrane_value == 0.0 &&terrane_lower
-        == 0.0 { if terrane_value.is_sign_positive() || terrane_lower.is_sign_positive()
-        { 0.0 } else { - 0.0 } } else { terrane_value.max(terrane_lower) }; if
-        terrane_lowered == 0.0 &&terrane_upper == 0.0 { if terrane_lowered
-        .is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 } else { 0.0 } }
-        else { terrane_lowered.min(terrane_upper) } } } .is_nan())
+        not_a_number_terrane_f0_s5823; let terrane_lower : f64 = zero_terrane_f0_s3859;
+        let terrane_upper : f64 = one_terrane_f0_s3911; if terrane_value.is_nan() {
+        terrane_value } else if terrane_lower.is_nan() || terrane_upper.is_nan() ||
+        terrane_lower > terrane_upper { f64::NAN } else { let terrane_lowered = if
+        terrane_value == 0.0 &&terrane_lower == 0.0 { if terrane_value.is_sign_positive()
+        || terrane_lower.is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_value
+        .max(terrane_lower) }; if terrane_lowered == 0.0 &&terrane_upper == 0.0 { if
+        terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 }
+        else { 0.0 } } else { terrane_lowered.min(terrane_upper) } } } .is_nan()),
+        terrane_scalar_support::scalar_text(&{ let terrane_value : f64 =
+        one_terrane_f0_s3911; let terrane_lower : f64 = not_a_number_terrane_f0_s5823;
+        let terrane_upper : f64 = one_terrane_f0_s3911; if terrane_value.is_nan() {
+        terrane_value } else if terrane_lower.is_nan() || terrane_upper.is_nan() ||
+        terrane_lower > terrane_upper { f64::NAN } else { let terrane_lowered = if
+        terrane_value == 0.0 &&terrane_lower == 0.0 { if terrane_value.is_sign_positive()
+        || terrane_lower.is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_value
+        .max(terrane_lower) }; if terrane_lowered == 0.0 &&terrane_upper == 0.0 { if
+        terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 }
+        else { 0.0 } } else { terrane_lowered.min(terrane_upper) } } } .is_nan())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&not_a_number.hypot(infinity)
-        .is_infinite()), terrane_scalar_support::scalar_text(&infinity.next_up()
+        "{}{}", terrane_scalar_support::scalar_text(&not_a_number_terrane_f0_s5823
+        .hypot(infinity_terrane_f0_s5864).is_infinite()),
+        terrane_scalar_support::scalar_text(&infinity_terrane_f0_s5864.next_up()
         .is_infinite())
     );
-    let subnormal_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64({
+    subnormal_decomposition_terrane_f0_s6172 = terrane_scalar_support::decompose_f64({
         let _ = &TerraneDescriptor {
             identity: "float64",
             name: "float64",
@@ -982,9 +1119,9 @@ fn exercise64() {
     });
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(subnormal_decomposition
-        .mantissa, subnormal_decomposition.exponent) == { let _ = &TerraneDescriptor {
-        identity : "float64", name : "float64", kind : "type",
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(subnormal_decomposition_terrane_f0_s6172
+        .mantissa, subnormal_decomposition_terrane_f0_s6172.exponent) == { let _ =
+        &TerraneDescriptor { identity : "float64", name : "float64", kind : "type",
         inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1) }))
     );
     println!(
@@ -996,82 +1133,90 @@ fn exercise64() {
         terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64({
         let _ = &TerraneDescriptor { identity : "float64", name : "float64", kind :
         "type", inherently_identity_bearing : false, fields : &[] }; f64::from_bits(1) },
-        - 1) == zero))
+        - 1) == zero_terrane_f0_s3859))
     );
-    let narrow_four: f32 = 4.0_f32;
-    let floating_exponent: f64 = 2.0;
+    narrow_four_terrane_f0_s6492 = 4.0_f32;
+    floating_exponent_terrane_f0_s6520 = 2.0;
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&(three.hypot(narrow_four as f64) ==
-        5.0)),
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(one,
+        "{}{}", terrane_scalar_support::scalar_text(&(three_terrane_f0_s3951
+        .hypot(narrow_four_terrane_f0_s6492 as f64) == 5.0)),
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(one_terrane_f0_s3911,
         __terrane_raised(terrane_int_support::exact_from_f64:: < i32 >
-        (floating_exponent), 2 /* terrane-site: case.trn:115:69-115:86 */)) == four))
+        (floating_exponent_terrane_f0_s6520), 2 /* terrane-site: case.trn:115:69-115:86 */)) == four_terrane_f0_s3973))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
-        negative_one; let terrane_fraction = terrane_receiver.fract(); if
-        terrane_fraction == 0.0 { 0.0_f64.copysign(terrane_receiver) } else {
+        negative_one_terrane_f0_s4084; let terrane_fraction = terrane_receiver.fract();
+        if terrane_fraction == 0.0 { 0.0_f64.copysign(terrane_receiver) } else {
         terrane_fraction } } .is_sign_negative())
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let terrane_value : f64 = one; let
-        terrane_lower : f64 = two; let terrane_upper : f64 = one; if terrane_value
-        .is_nan() { terrane_value } else if terrane_lower.is_nan() || terrane_upper
-        .is_nan() || terrane_lower > terrane_upper { f64::NAN } else { let
-        terrane_lowered = if terrane_value == 0.0 &&terrane_lower == 0.0 { if
-        terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() { 0.0 } else
-        { - 0.0 } } else { terrane_value.max(terrane_lower) }; if terrane_lowered == 0.0
-        &&terrane_upper == 0.0 { if terrane_lowered.is_sign_negative() || terrane_upper
-        .is_sign_negative() { - 0.0 } else { 0.0 } } else { terrane_lowered
-        .min(terrane_upper) } } } .is_nan())
+        "{}", terrane_scalar_support::scalar_text(&{ let terrane_value : f64 =
+        one_terrane_f0_s3911; let terrane_lower : f64 = two_terrane_f0_s3931; let
+        terrane_upper : f64 = one_terrane_f0_s3911; if terrane_value.is_nan() {
+        terrane_value } else if terrane_lower.is_nan() || terrane_upper.is_nan() ||
+        terrane_lower > terrane_upper { f64::NAN } else { let terrane_lowered = if
+        terrane_value == 0.0 &&terrane_lower == 0.0 { if terrane_value.is_sign_positive()
+        || terrane_lower.is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_value
+        .max(terrane_lower) }; if terrane_lowered == 0.0 &&terrane_upper == 0.0 { if
+        terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() { - 0.0 }
+        else { 0.0 } } else { terrane_lowered.min(terrane_upper) } } } .is_nan())
     );
-    let nan_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        not_a_number,
+    nan_decomposition_terrane_f0_s6748 = terrane_scalar_support::decompose_f64(
+        not_a_number_terrane_f0_s5823,
     );
-    let infinity_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        infinity,
+    infinity_decomposition_terrane_f0_s6796 = terrane_scalar_support::decompose_f64(
+        infinity_terrane_f0_s5864,
     );
-    let negative_zero_decomposition: terrane_scalar_support::FloatDecomposition<f64> = terrane_scalar_support::decompose_f64(
-        negative_zero,
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&nan_decomposition.mantissa
-        .is_nan()), terrane_scalar_support::scalar_text(&(nan_decomposition.exponent ==
-        0))
+    negative_zero_decomposition_terrane_f0_s6845 = terrane_scalar_support::decompose_f64(
+        negative_zero_terrane_f0_s3880,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&infinity_decomposition.mantissa
-        .is_infinite()), terrane_scalar_support::scalar_text(&(infinity_decomposition
+        "{}{}", terrane_scalar_support::scalar_text(&nan_decomposition_terrane_f0_s6748
+        .mantissa.is_nan()),
+        terrane_scalar_support::scalar_text(&(nan_decomposition_terrane_f0_s6748.exponent
+        == 0))
+    );
+    println!(
+        "{}{}",
+        terrane_scalar_support::scalar_text(&infinity_decomposition_terrane_f0_s6796
+        .mantissa.is_infinite()),
+        terrane_scalar_support::scalar_text(&(infinity_decomposition_terrane_f0_s6796
         .exponent == 0))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&negative_zero_decomposition.mantissa
-        .is_sign_negative()),
-        terrane_scalar_support::scalar_text(&(negative_zero_decomposition.exponent == 0))
+        "{}{}",
+        terrane_scalar_support::scalar_text(&negative_zero_decomposition_terrane_f0_s6845
+        .mantissa.is_sign_negative()),
+        terrane_scalar_support::scalar_text(&(negative_zero_decomposition_terrane_f0_s6845
+        .exponent == 0))
     );
-    let negative_infinity: f64 = negative_one / zero;
+    negative_infinity_terrane_f0_s7177 = negative_one_terrane_f0_s4084
+        / zero_terrane_f0_s3859;
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
-        infinity; let terrane_fraction = terrane_receiver.fract(); if terrane_fraction ==
-        0.0 { 0.0_f64.copysign(terrane_receiver) } else { terrane_fraction } }
-        .is_nan()), terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
-        negative_infinity; let terrane_fraction = terrane_receiver.fract(); if
+        infinity_terrane_f0_s5864; let terrane_fraction = terrane_receiver.fract(); if
         terrane_fraction == 0.0 { 0.0_f64.copysign(terrane_receiver) } else {
-        terrane_fraction } } .is_nan())
+        terrane_fraction } } .is_nan()), terrane_scalar_support::scalar_text(&{ let
+        terrane_receiver : f64 = negative_infinity_terrane_f0_s7177; let terrane_fraction
+        = terrane_receiver.fract(); if terrane_fraction == 0.0 { 0.0_f64
+        .copysign(terrane_receiver) } else { terrane_fraction } } .is_nan())
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&negative_infinity.next_down()
-        .is_infinite()), terrane_scalar_support::scalar_text(&negative_infinity
+        "{}{}", terrane_scalar_support::scalar_text(&negative_infinity_terrane_f0_s7177
+        .next_down().is_infinite()),
+        terrane_scalar_support::scalar_text(&negative_infinity_terrane_f0_s7177
         .next_down().is_sign_negative())
     );
-    let large_exponent: f64 = 1000.0;
-    let large: f64 = large_exponent.exp2();
+    large_exponent_terrane_f0_s7423 = 1000.0;
+    large_terrane_f0_s7457 = large_exponent_terrane_f0_s7423.exp2();
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(large,
-        - 2000) == terrane_scalar_support::scale_binary_f64(one, - 1000)))
+        terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(large_terrane_f0_s7457,
+        - 2000) == terrane_scalar_support::scale_binary_f64(one_terrane_f0_s3911, -
+        1000)))
     );
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
+    descriptor_terrane_f0_s7578 = TerraneDescriptor {
         identity: "float64",
         name: "float64",
         kind: "type",
@@ -1079,9 +1224,10 @@ fn exercise64() {
         fields: &[],
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&({ let _ = &descriptor; f64::EPSILON }
-        == { let _ = &TerraneDescriptor { identity : "float64", name : "float64", kind :
-        "type", inherently_identity_bearing : false, fields : &[] }; f64::EPSILON }))
+        "{}", terrane_scalar_support::scalar_text(&({ let _ =
+        &descriptor_terrane_f0_s7578; f64::EPSILON } == { let _ = &TerraneDescriptor {
+        identity : "float64", name : "float64", kind : "type",
+        inherently_identity_bearing : false, fields : &[] }; f64::EPSILON }))
     );
 }
 fn main() {

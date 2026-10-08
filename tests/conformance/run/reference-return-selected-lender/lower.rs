@@ -17,10 +17,15 @@ fn relay<'a>(
     return choose(left, right);
 }
 fn main() {
-    let left_value: terrane_int_support::Int = terrane_int_support::Int::from(1_i128);
-    let right_value: terrane_int_support::Int = terrane_int_support::Int::from(2_i128);
-    let left: &terrane_int_support::Int = &left_value;
-    let right: &terrane_int_support::Int = &right_value;
-    let chosen: &terrane_int_support::Int = relay(left, right);
-    println!("{}", terrane_scalar_support::scalar_text(&chosen.clone()));
+    let left_value_terrane_f0_s211: terrane_int_support::Int;
+    let right_value_terrane_f0_s228: terrane_int_support::Int;
+    let left_terrane_f0_s246: &terrane_int_support::Int;
+    let right_terrane_f0_s278: &terrane_int_support::Int;
+    let chosen_terrane_f0_s312: &terrane_int_support::Int;
+    left_value_terrane_f0_s211 = terrane_int_support::Int::from(1_i128);
+    right_value_terrane_f0_s228 = terrane_int_support::Int::from(2_i128);
+    left_terrane_f0_s246 = &left_value_terrane_f0_s211;
+    right_terrane_f0_s278 = &right_value_terrane_f0_s228;
+    chosen_terrane_f0_s312 = relay(left_terrane_f0_s246, right_terrane_f0_s278);
+    println!("{}", terrane_scalar_support::scalar_text(&chosen_terrane_f0_s312.clone()));
 }
