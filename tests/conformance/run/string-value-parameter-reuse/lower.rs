@@ -28,14 +28,11 @@ impl MessageBox {
     }
 }
 fn main() {
-    let entries_terrane_f0_s290: terrane_collection_support::Map<
-        String,
-        terrane_int_support::Int,
-    >;
-    let mut key_terrane_f0_s338: String;
-    let mut value_terrane_f0_s343: terrane_int_support::Int;
-    let holder_terrane_f0_s415: MessageBox;
-    entries_terrane_f0_s290 = terrane_collection_support::Map::<
+    let entries: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let mut key: String;
+    let mut value: terrane_int_support::Int;
+    let holder: MessageBox;
+    entries = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -44,7 +41,7 @@ fn main() {
             terrane_int_support::Int::from(1_i128))
         ],
     );
-    let __terrane_iterable_0 = entries_terrane_f0_s290;
+    let __terrane_iterable_0 = entries;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
@@ -53,19 +50,19 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        key_terrane_f0_s338 = __terrane_item_0.key;
-        value_terrane_f0_s343 = __terrane_item_0.value;
-        consume(key_terrane_f0_s338.clone());
+        key = __terrane_item_0.key;
+        value = __terrane_item_0.value;
+        consume(key.clone());
         println!(
             "{}{}{}{}", terrane_scalar_support::scalar_text(&String::from("key:")),
-            terrane_scalar_support::scalar_text(&key_terrane_f0_s338),
+            terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&String::from("=")),
-            terrane_scalar_support::scalar_text(&value_terrane_f0_s343)
+            terrane_scalar_support::scalar_text(&value)
         );
     }
-    holder_terrane_f0_s415 = MessageBox::terrane_construct(String::from("saved"));
+    holder = MessageBox::terrane_construct(String::from("saved"));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&String::from("field:")),
-        terrane_scalar_support::scalar_text(&holder_terrane_f0_s415.message)
+        terrane_scalar_support::scalar_text(&holder.message)
     );
 }

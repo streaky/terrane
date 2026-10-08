@@ -436,11 +436,11 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: decode-error-offset
 fn main() {
-    let invalid_terrane_f0_s47: Vec<u8>;
-    invalid_terrane_f0_s47 = Vec::from([97, 255]);
+    let invalid: Vec<u8>;
+    invalid = Vec::from([97, 255]);
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&invalid_terrane_f0_s47,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&invalid,
         terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:4:11-4:31 */))
     );
 }

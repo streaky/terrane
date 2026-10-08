@@ -436,32 +436,32 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: loop-carried-store-reads
 fn main() {
-    let mut while_value_terrane_f0_s52: i8;
-    let mut limit_terrane_f0_s75: i8;
-    let mut for_value_terrane_f0_s175: i8;
-    let mut character_terrane_f0_s200: String;
-    while_value_terrane_f0_s52 = 0;
-    limit_terrane_f0_s75 = 0;
-    while limit_terrane_f0_s75 < 2 {
-        println!("{}", terrane_scalar_support::scalar_text(&while_value_terrane_f0_s52));
-        while_value_terrane_f0_s52 = 5;
-        limit_terrane_f0_s75 = __terrane_raised(
-            terrane_int_support::fixed_addition(limit_terrane_f0_s75, 1),
+    let mut while_value: i8;
+    let mut limit: i8;
+    let mut for_value: i8;
+    let mut character: String;
+    while_value = 0;
+    limit = 0;
+    while limit < 2 {
+        println!("{}", terrane_scalar_support::scalar_text(&while_value));
+        while_value = 5;
+        limit = __terrane_raised(
+            terrane_int_support::fixed_addition(limit, 1),
             0 /* terrane-site: case.trn:8:13-8:22 */,
         );
     }
-    for_value_terrane_f0_s175 = 0;
+    for_value = 0;
     let __terrane_iterable_0 = String::from("ab");
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        character_terrane_f0_s200 = match __terrane_iterator_0.next() {
+        character = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &character_terrane_f0_s200;
-        println!("{}", terrane_scalar_support::scalar_text(&for_value_terrane_f0_s175));
-        for_value_terrane_f0_s175 = 7;
+        let _ = &character;
+        println!("{}", terrane_scalar_support::scalar_text(&for_value));
+        for_value = 7;
     }
 }

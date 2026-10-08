@@ -459,19 +459,19 @@ fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
     );
 }
 fn main() {
-    let text_terrane_f0_s223: String;
-    let parsed_terrane_f0_s243: terrane_int_support::Int;
-    let value_terrane_f0_s295: i64;
-    let bad_terrane_f0_s340: String;
-    text_terrane_f0_s223 = String::from("ff");
-    parsed_terrane_f0_s243 = from_hex(text_terrane_f0_s223);
-    println!("{}", terrane_scalar_support::scalar_text(&parsed_terrane_f0_s243));
-    value_terrane_f0_s295 = 255;
+    let text: String;
+    let parsed: terrane_int_support::Int;
+    let value: i64;
+    let bad: String;
+    text = String::from("ff");
+    parsed = from_hex(text);
+    println!("{}", terrane_scalar_support::scalar_text(&parsed));
+    value = 255;
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::format_radix(&value_terrane_f0_s295,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::format_radix(&value,
         &16), 2 /* terrane-site: case.trn:13:11-13:26 */))
     );
-    bad_terrane_f0_s340 = String::from("x");
-    fail(bad_terrane_f0_s340).ok();
+    bad = String::from("x");
+    fail(bad).ok();
 }

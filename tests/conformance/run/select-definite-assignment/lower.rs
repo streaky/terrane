@@ -11,8 +11,8 @@ async fn two() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let selected_terrane_f0_s133: terrane_int_support::Int;
-        let value_terrane_f0_s164: terrane_int_support::Int;
+        let selected: terrane_int_support::Int;
+        let value: terrane_int_support::Int;
         let mut __terrane_select_cursor_148 = 0usize;
         {
             let mut __terrane_select_guard_148 = __terrane_finally_guard();
@@ -108,20 +108,20 @@ fn main() {
             __terrane_select_guard_148.finish();
             match __terrane_select_winner_148 {
                 0 => {
-                    value_terrane_f0_s164 = __terrane_select_result_148_0
+                    value = __terrane_select_result_148_0
                         .take()
                         .expect("selected case owns its ready result");
-                    selected_terrane_f0_s133 = value_terrane_f0_s164.clone();
+                    selected = value.clone();
                 }
                 1 => {
-                    value_terrane_f0_s164 = __terrane_select_result_148_1
+                    value = __terrane_select_result_148_1
                         .take()
                         .expect("selected case owns its ready result");
-                    selected_terrane_f0_s133 = value_terrane_f0_s164.clone();
+                    selected = value.clone();
                 }
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        println!("{}", terrane_scalar_support::scalar_text(&selected_terrane_f0_s133));
+        println!("{}", terrane_scalar_support::scalar_text(&selected));
     });
 }

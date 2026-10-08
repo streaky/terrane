@@ -436,28 +436,26 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: integer-coercions
 fn main() {
-    let value_terrane_f0_s46: i64;
-    let same_terrane_f0_s64: terrane_int_support::Int;
-    let exact_terrane_f0_s95: i8;
-    let wrapped_terrane_f0_s122: u8;
-    let saturated_terrane_f0_s165: u8;
-    value_terrane_f0_s46 = 300;
-    same_terrane_f0_s64 = terrane_int_support::Int::from(value_terrane_f0_s46 as i128);
-    exact_terrane_f0_s95 = __terrane_raised(
+    let value: i64;
+    let same: terrane_int_support::Int;
+    let exact: i8;
+    let wrapped: u8;
+    let saturated: u8;
+    value = 300;
+    same = terrane_int_support::Int::from(value as i128);
+    exact = __terrane_raised(
         terrane_int_support::coerce::<i8>(&120),
         0 /* terrane-site: case.trn:6:11-6:14 */,
     );
-    wrapped_terrane_f0_s122 = terrane_int_support::wrapping_coerce::<
+    wrapped = terrane_int_support::wrapping_coerce::<
         u8,
     >(
-        &(terrane_int_support::Int::from(value_terrane_f0_s46 as i128)
+        &(terrane_int_support::Int::from(value as i128)
             + terrane_int_support::Int::from(0_i128)),
     );
-    saturated_terrane_f0_s165 = terrane_int_support::saturating_coerce::<
-        u8,
-    >(&value_terrane_f0_s46);
-    println!("{}", terrane_scalar_support::scalar_text(&exact_terrane_f0_s95));
-    println!("{}", terrane_scalar_support::scalar_text(&wrapped_terrane_f0_s122));
-    println!("{}", terrane_scalar_support::scalar_text(&saturated_terrane_f0_s165));
-    println!("{}", terrane_scalar_support::scalar_text(&same_terrane_f0_s64));
+    saturated = terrane_int_support::saturating_coerce::<u8>(&value);
+    println!("{}", terrane_scalar_support::scalar_text(&exact));
+    println!("{}", terrane_scalar_support::scalar_text(&wrapped));
+    println!("{}", terrane_scalar_support::scalar_text(&saturated));
+    println!("{}", terrane_scalar_support::scalar_text(&same));
 }

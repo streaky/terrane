@@ -43,14 +43,12 @@ impl Holder {
     }
 }
 fn main() {
-    let value_terrane_f0_s351: Leaf;
-    let mut container_terrane_f0_s380: Holder;
-    value_terrane_f0_s351 = Leaf::terrane_construct(
-        terrane_int_support::Int::from(1_i128),
-    );
-    container_terrane_f0_s380 = Holder::terrane_construct(value_terrane_f0_s351);
+    let value: Leaf;
+    let mut container: Holder;
+    value = Leaf::terrane_construct(terrane_int_support::Int::from(1_i128));
+    container = Holder::terrane_construct(value);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&container_terrane_f0_s380
+        "{}", terrane_scalar_support::scalar_text(&container
         .replace(terrane_int_support::Int::from(42_i128)))
     );
 }

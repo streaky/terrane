@@ -442,27 +442,24 @@ fn inspect_bytes(data: Vec<u8>) {
     println!("{}", terrane_scalar_support::scalar_text(&(data.len() as i128)));
 }
 fn branch_name(left: bool) -> String {
-    let selected_terrane_f0_s242: String;
-    let selected_terrane_f0_s289: String;
+    let selected: String;
+    let selected_2: String;
     if left {
-        selected_terrane_f0_s242 = String::from("left");
-        return selected_terrane_f0_s242;
+        selected = String::from("left");
+        return selected;
     }
-    selected_terrane_f0_s289 = String::from("right");
-    return selected_terrane_f0_s289;
+    selected_2 = String::from("right");
+    return selected_2;
 }
 fn main() {
     __terrane_run(async move {
-        let data_terrane_f0_s377: Vec<u8>;
-        let mut part_terrane_f0_s497: String;
-        let mut counter_terrane_f0_s548: terrane_int_support::Int;
+        let data: Vec<u8>;
+        let mut part: String;
+        let mut counter: terrane_int_support::Int;
         __terrane_await(observe(terrane_int_support::Int::from(42_i128))).await;
-        data_terrane_f0_s377 = Vec::from([97, 98, 99]);
-        inspect_bytes(data_terrane_f0_s377.clone());
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&(data_terrane_f0_s377.len() as
-            i128))
-        );
+        data = Vec::from([97, 98, 99]);
+        inspect_bytes(data.clone());
+        println!("{}", terrane_scalar_support::scalar_text(&(data.len() as i128)));
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&branch_name(true)),
             terrane_scalar_support::scalar_text(&branch_name(false))
@@ -475,23 +472,20 @@ fn main() {
             &__terrane_iterable_0,
         );
         loop {
-            part_terrane_f0_s497 = match __terrane_iterator_0.next() {
+            part = match __terrane_iterator_0.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            println!("{}", terrane_scalar_support::scalar_text(&part_terrane_f0_s497));
+            println!("{}", terrane_scalar_support::scalar_text(&part));
         }
-        counter_terrane_f0_s548 = terrane_int_support::Int::from(0_i128);
-        while counter_terrane_f0_s548.clone() < terrane_int_support::Int::from(2_i128) {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&counter_terrane_f0_s548)
-            );
-            counter_terrane_f0_s548 = counter_terrane_f0_s548.clone()
-                + terrane_int_support::Int::from(1_i128);
+        counter = terrane_int_support::Int::from(0_i128);
+        while counter.clone() < terrane_int_support::Int::from(2_i128) {
+            println!("{}", terrane_scalar_support::scalar_text(&counter));
+            counter = counter.clone() + terrane_int_support::Int::from(1_i128);
         }
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data_terrane_f0_s377,
+            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data,
             terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:30:11-30:28 */))
         );
     });

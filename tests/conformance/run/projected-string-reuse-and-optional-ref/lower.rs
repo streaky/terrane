@@ -506,18 +506,18 @@ fn __terrane_uninitialized_binding(
 // Source: src/main.trn
 // Namespace: app
 fn parse_twice(text: String) -> terrane_int_support::Int {
-    let mut __trn_5f6669727374_terrane_f0_s185: Option<HeaderValue> = None;
-    let mut __trn_5f7365636f6e64_terrane_f0_s292: Option<HeaderValue> = None;
+    let mut __trn_5f6669727374: Option<HeaderValue> = None;
+    let mut __trn_5f7365636f6e64: Option<HeaderValue> = None;
     let __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-            let _ = __trn_5f6669727374_terrane_f0_s185
+            let _ = __trn_5f6669727374
                 .insert(
                     __terrane_raised_completion!(
                         terrane_static_trn_48656164657256616c7565_from_str(text.clone()),
                         0 /* terrane-site: src/main.trn:9:18-9:45 */
                     ),
                 );
-            let _ = &__trn_5f6669727374_terrane_f0_s185;
+            let _ = &__trn_5f6669727374;
             return TerraneCompletion::Return(terrane_int_support::Int::from(1_i128));
         })();
         match __terrane_try_0 {
@@ -538,14 +538,14 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                         let __terrane_try_1: TerraneCompletion<
                             terrane_int_support::Int,
                         > = (|| {
-                            let _ = __trn_5f7365636f6e64_terrane_f0_s292
+                            let _ = __trn_5f7365636f6e64
                                 .insert(
                                     __terrane_raised_completion!(
                                         terrane_static_trn_48656164657256616c7565_from_str(text
                                         .clone()), 1 /* terrane-site: src/main.trn:13:23-13:50 */
                                     ),
                                 );
-                            let _ = &__trn_5f7365636f6e64_terrane_f0_s292;
+                            let _ = &__trn_5f7365636f6e64;
                             return TerraneCompletion::Return(
                                 terrane_int_support::Int::from(2_i128),
                             );
@@ -660,7 +660,7 @@ fn mark_sensitive(header: &mut HeaderValue) {
     );
 }
 fn main() {
-    let mut header_terrane_f0_s719: Option<HeaderValue>;
+    let mut header: Option<HeaderValue>;
     println!(
         "{}", terrane_scalar_support::scalar_text(&parse_twice(String::from("valid")))
     );
@@ -668,28 +668,26 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&parse_twice(String::from("bad\nvalue")))
     );
-    header_terrane_f0_s719 = Some(
+    header = Some(
         __terrane_raised(
             terrane_static_trn_48656164657256616c7565_from_str(String::from("value")),
             4 /* terrane-site: src/main.trn:29:31-29:61 */,
         ),
     );
-    if header_terrane_f0_s719.is_some() {
+    if header.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&sensitive(match
-            &header_terrane_f0_s719 { Some(value) => value, _ =>
-            unreachable!("flow-proven storage refinement") }))
+            "{}", terrane_scalar_support::scalar_text(&sensitive(match &header {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }))
         );
         mark_sensitive(
-            match &mut header_terrane_f0_s719 {
+            match &mut header {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             },
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&sensitive(match
-            &header_terrane_f0_s719 { Some(value) => value, _ =>
-            unreachable!("flow-proven storage refinement") }))
+            "{}", terrane_scalar_support::scalar_text(&sensitive(match &header {
+            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }))
         );
     } else {
         println!(

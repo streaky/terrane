@@ -539,21 +539,21 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
     }
 }
 fn main() {
-    let first_terrane_f0_s340: terrane_int_support::Int;
-    let mut second_terrane_f0_s396: Option<terrane_int_support::Int> = None;
-    first_terrane_f0_s340 = error_then_return();
-    println!("{}", terrane_scalar_support::scalar_text(&first_terrane_f0_s340));
+    let first: terrane_int_support::Int;
+    let mut second: Option<terrane_int_support::Int> = None;
+    first = error_then_return();
+    println!("{}", terrane_scalar_support::scalar_text(&first));
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
-            let _ = second_terrane_f0_s396
+            let _ = second
                 .insert(
                     __terrane_traced_completion!(
                         return_then_error(), 2 /* terrane-site: case.trn:17:18-17:36 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&second_terrane_f0_s396
-                .as_ref().expect("flow-proven available binding").clone())
+                "{}", terrane_scalar_support::scalar_text(&second.as_ref()
+                .expect("flow-proven available binding").clone())
             );
             TerraneCompletion::Normal
         })();

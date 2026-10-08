@@ -437,13 +437,13 @@ async fn work() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let scope_terrane_f0_s94: TerraneTaskScope;
-        let child_terrane_f0_s116: TerraneScopedTask<terrane_int_support::Int>;
-        let outcome_terrane_f0_s144: TerraneTaskOutcome<terrane_int_support::Int>;
-        let value_terrane_f0_s180: Option<terrane_int_support::Int>;
-        scope_terrane_f0_s94 = TerraneTaskScope::new(None);
-        child_terrane_f0_s116 = {
-            let __terrane_scope = scope_terrane_f0_s94.clone();
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<terrane_int_support::Int>;
+        let outcome: TerraneTaskOutcome<terrane_int_support::Int>;
+        let value: Option<terrane_int_support::Int>;
+        scope = TerraneTaskScope::new(None);
+        child = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -461,18 +461,14 @@ fn main() {
                 }
             })
         };
-        outcome_terrane_f0_s144 = __terrane_await(
-                scope_terrane_f0_s94.join(child_terrane_f0_s116),
-            )
-            .await;
-        value_terrane_f0_s180 = outcome_terrane_f0_s144.value.clone();
-        if value_terrane_f0_s180.is_some() {
+        outcome = __terrane_await(scope.join(child)).await;
+        value = outcome.value.clone();
+        if value.is_some() {
             println!(
-                "{}{}{}", terrane_scalar_support::scalar_text(&outcome_terrane_f0_s144
-                .completed), terrane_scalar_support::scalar_text(&outcome_terrane_f0_s144
-                .cancelled), terrane_scalar_support::scalar_text(&match
-                &value_terrane_f0_s180 { Some(value) => value, _ =>
-                unreachable!("flow-proven storage refinement") })
+                "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
+                terrane_scalar_support::scalar_text(&outcome.cancelled),
+                terrane_scalar_support::scalar_text(&match &value { Some(value) => value,
+                _ => unreachable!("flow-proven storage refinement") })
             );
         }
     });

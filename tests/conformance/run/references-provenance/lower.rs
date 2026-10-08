@@ -438,54 +438,47 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: references-provenance
 fn main() {
-    let values_terrane_f0_s116: std::sync::Arc<
+    let values: std::sync::Arc<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
-    let owner_terrane_f0_s147: std::sync::Arc<
+    let owner: std::sync::Arc<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
-    let observer_terrane_f0_s198: std::sync::Weak<
+    let observer: std::sync::Weak<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
-    let owned_terrane_f0_s292: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let transferred_terrane_f0_s322: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    values_terrane_f0_s116 = std::sync::Arc::new(
+    let owned: terrane_collection_support::List<terrane_int_support::Int>;
+    let transferred: terrane_collection_support::List<terrane_int_support::Int>;
+    values = std::sync::Arc::new(
         std::sync::Mutex::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),
         ),
     );
-    owner_terrane_f0_s147 = values_terrane_f0_s116.clone();
-    observer_terrane_f0_s198 = std::sync::Arc::downgrade(
-        &values_terrane_f0_s116.clone(),
-    );
-    owner_terrane_f0_s147
+    owner = values.clone();
+    observer = std::sync::Arc::downgrade(&values.clone());
+    owner
         .lock()
         .expect("shared reference lock poisoned")
         .append(terrane_int_support::Int::from(2_i128));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
-        __terrane_value = values_terrane_f0_s116.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value } .length())),
+        __terrane_value = values.lock().expect("reference lock poisoned").clone();
+        __terrane_value } .length())),
         terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_owner =
-        observer_terrane_f0_s198.upgrade().expect("reference expired"); let
-        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }
+        observer.upgrade().expect("reference expired"); let __terrane_value =
+        __terrane_owner.lock().expect("reference lock poisoned").clone(); __terrane_value
+        }
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         0 /* terrane-site: case.trn:10:25-10:36 */)), 0 /* terrane-site: case.trn:10:25-10:36 */))
     );
-    owned_terrane_f0_s292 = terrane_collection_support::List::<
+    owned = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(9_i128)]);
-    transferred_terrane_f0_s322 = owned_terrane_f0_s292;
+    transferred = owned;
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(transferred_terrane_f0_s322
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(transferred
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         1 /* terrane-site: case.trn:13:10-13:24 */)), 1 /* terrane-site: case.trn:13:10-13:24 */))
     );

@@ -484,12 +484,11 @@ async fn ready() -> String {
 }
 fn main() {
     __terrane_run(async move {
-        let mut iteration_terrane_f0_s221: terrane_int_support::Int;
-        let mut value_terrane_f0_s291: Option<TerraneUnionF0S291> = None;
+        let mut iteration: terrane_int_support::Int;
+        let mut value: Option<TerraneUnionF0S291> = None;
         let mut __terrane_select_cursor_271 = 0usize;
-        iteration_terrane_f0_s221 = terrane_int_support::Int::from(0_i128);
-        while iteration_terrane_f0_s221.clone() < terrane_int_support::Int::from(2_i128)
-        {
+        iteration = terrane_int_support::Int::from(0_i128);
+        while iteration.clone() < terrane_int_support::Int::from(2_i128) {
             let __terrane_completion_0: TerraneCompletion<()> = async {
                 let __terrane_try_0: TerraneCompletion<()> = async {
                     {
@@ -626,7 +625,7 @@ fn main() {
                         }
                         match __terrane_select_winner_271 {
                             0 => {
-                                let _ = value_terrane_f0_s291
+                                let _ = value
                                     .insert(
                                         TerraneUnionF0S291::Arm0(
                                             __terrane_traced_completion!(
@@ -637,15 +636,14 @@ fn main() {
                                         ),
                                     );
                                 println!(
-                                    "{}", terrane_scalar_support::scalar_text(&match
-                                    value_terrane_f0_s291.as_ref()
-                                    .expect("flow-proven available binding") {
+                                    "{}", terrane_scalar_support::scalar_text(&match value
+                                    .as_ref().expect("flow-proven available binding") {
                                     TerraneUnionF0S291::Arm0(value) => value, _ =>
                                     unreachable!("flow-proven storage refinement") })
                                 );
                             }
                             1 => {
-                                let _ = value_terrane_f0_s291
+                                let _ = value
                                     .insert(
                                         TerraneUnionF0S291::Arm1(
                                             __terrane_select_result_271_1
@@ -654,9 +652,8 @@ fn main() {
                                         ),
                                     );
                                 println!(
-                                    "{}", terrane_scalar_support::scalar_text(&match
-                                    value_terrane_f0_s291.as_ref()
-                                    .expect("flow-proven available binding") {
+                                    "{}", terrane_scalar_support::scalar_text(&match value
+                                    .as_ref().expect("flow-proven available binding") {
                                     TerraneUnionF0S291::Arm1(value) => value, _ =>
                                     unreachable!("flow-proven storage refinement") })
                                 );
@@ -700,8 +697,7 @@ fn main() {
                 TerraneCompletion::Break => break,
                 TerraneCompletion::Continue => continue,
             }
-            iteration_terrane_f0_s221 = iteration_terrane_f0_s221.clone()
-                + terrane_int_support::Int::from(1_i128);
+            iteration = iteration.clone() + terrane_int_support::Int::from(1_i128);
         }
     });
 }

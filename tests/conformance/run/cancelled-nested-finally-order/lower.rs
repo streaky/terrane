@@ -502,8 +502,8 @@ fn __terrane_uninitialized_binding(
 // Source: src/main.trn
 // Namespace: app
 async fn blocked() -> String {
-    let mut inner_terrane_f0_s250: Option<String> = None;
-    let mut outer_terrane_f0_s329: Option<String> = None;
+    let mut inner: Option<String> = None;
+    let mut outer: Option<String> = None;
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<TerraneCompletion<String>> = __terrane_cancel_operation(
             &__terrane_finally_guard_0,
@@ -550,7 +550,7 @@ async fn blocked() -> String {
                     let mut __terrane_completion_1 = __terrane_maybe_completion_1
                         .unwrap_or(TerraneCompletion::Normal);
                     let __terrane_finally_1: TerraneCompletion<String> = async {
-                        let _ = inner_terrane_f0_s250
+                        let _ = inner
                             .insert(
                                 __terrane_traced_completion!(
                                     __terrane_await({ let __terrane_future =
@@ -561,9 +561,8 @@ async fn blocked() -> String {
                                 ),
                             );
                         println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&inner_terrane_f0_s250
-                            .as_ref().expect("flow-proven available binding").clone())
+                            "{}", terrane_scalar_support::scalar_text(&inner.as_ref()
+                            .expect("flow-proven available binding").clone())
                         );
                         TerraneCompletion::Normal
                     }
@@ -621,7 +620,7 @@ async fn blocked() -> String {
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<String> = async {
-        let _ = outer_terrane_f0_s329
+        let _ = outer
             .insert(
                 __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future =
@@ -630,7 +629,7 @@ async fn blocked() -> String {
                 ),
             );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&outer_terrane_f0_s329.as_ref()
+            "{}", terrane_scalar_support::scalar_text(&outer.as_ref()
             .expect("flow-proven available binding").clone())
         );
         TerraneCompletion::Normal
@@ -659,18 +658,18 @@ async fn blocked() -> String {
 }
 fn main() {
     __terrane_run(async move {
-        let scope_terrane_f0_s441: TerraneTaskScope;
-        let child_terrane_f0_s463: TerraneScopedTask<String>;
-        let started_terrane_f0_s494: bool;
-        let outcome_terrane_f0_s563: TerraneTaskOutcome<String>;
-        let drops_terrane_f0_s635: terrane_int_support::Int;
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<String>;
+        let started: bool;
+        let outcome: TerraneTaskOutcome<String>;
+        let drops: terrane_int_support::Int;
         __terrane_raised(
             reset_operation_state(),
             3 /* terrane-site: src/main.trn:17:3-17:25 */,
         );
-        scope_terrane_f0_s441 = TerraneTaskScope::new(None);
-        child_terrane_f0_s463 = {
-            let __terrane_scope = scope_terrane_f0_s441.clone();
+        scope = TerraneTaskScope::new(None);
+        child = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -688,7 +687,7 @@ fn main() {
                 }
             })
         };
-        started_terrane_f0_s494 = __terrane_traced(
+        started = __terrane_traced(
             __terrane_await({
                     let __terrane_future = wait_until_operation_started();
                     async move {
@@ -701,20 +700,17 @@ fn main() {
                 .await,
             4 /* terrane-site: src/main.trn:20:24-20:53 */,
         );
-        scope_terrane_f0_s441.cancel();
-        outcome_terrane_f0_s563 = __terrane_await(
-                scope_terrane_f0_s441.join(child_terrane_f0_s463),
-            )
-            .await;
+        scope.cancel();
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&started_terrane_f0_s494),
-            terrane_scalar_support::scalar_text(&outcome_terrane_f0_s563.cancelled)
+            "{}{}", terrane_scalar_support::scalar_text(&started),
+            terrane_scalar_support::scalar_text(&outcome.cancelled)
         );
-        drops_terrane_f0_s635 = __terrane_raised(
+        drops = __terrane_raised(
             operation_drop_count(),
             5 /* terrane-site: src/main.trn:24:15-24:36 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&drops_terrane_f0_s635));
+        println!("{}", terrane_scalar_support::scalar_text(&drops));
     });
 }
 // Source: <terrane>/projected/deps/async-witness.trn

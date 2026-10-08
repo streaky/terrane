@@ -452,10 +452,10 @@ fn exact() -> Result<terrane_int_support::Int, TerraneError> {
     );
 }
 fn main() {
-    let value_terrane_f0_s230: terrane_int_support::Int;
-    value_terrane_f0_s230 = fallible();
+    let value: terrane_int_support::Int;
+    value = fallible();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s230),
+        "{}{}", terrane_scalar_support::scalar_text(&value),
         terrane_scalar_support::scalar_text(&{ let _ = fallible; "throws".to_owned() })
     );
     println!(

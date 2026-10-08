@@ -7,20 +7,20 @@ fn add(
     left: terrane_int_support::Int,
     right: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    let result_terrane_f0_s74: terrane_int_support::Int;
+    let result: terrane_int_support::Int;
     let _ = (&left, &right);
-    result_terrane_f0_s74 = {
+    result = {
         let left = left.clone();
         let right = right.clone();
         left + right
     };
-    return result_terrane_f0_s74.clone();
+    return result.clone();
 }
 #[allow(unsafe_code)]
 fn inspect_pointer() -> u8 {
-    let value_terrane_f0_s160: u8;
-    value_terrane_f0_s160 = unsafe { *(&7u8 as *const u8) };
-    return value_terrane_f0_s160;
+    let value: u8;
+    value = unsafe { *(&7u8 as *const u8) };
+    return value;
 }
 fn rust_statement() {
     {
@@ -28,13 +28,13 @@ fn rust_statement() {
     }
 }
 fn inspect_cloned_input(input: String) -> terrane_int_support::Int {
-    let size_terrane_f0_s344: terrane_int_support::Int;
-    size_terrane_f0_s344 = {
+    let size: terrane_int_support::Int;
+    size = {
         let input = input.clone();
         terrane_int_support::Int::from(input.len() as i64)
     };
     println!("{}", terrane_scalar_support::scalar_text(&input));
-    return size_terrane_f0_s344.clone();
+    return size.clone();
 }
 fn main() {
     println!(

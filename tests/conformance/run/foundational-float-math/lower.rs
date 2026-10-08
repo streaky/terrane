@@ -442,203 +442,153 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: foundational-float-math
 fn main() {
-    let zero32_terrane_f0_s88: f32;
-    let one32_terrane_f0_s111: f32;
-    let nine32_terrane_f0_s133: f32;
-    let root32_terrane_f0_s156: std::sync::Arc<dyn Fn() -> f32 + Send + Sync>;
-    let pair32_terrane_f0_s276: terrane_collection_support::Tuple<f32>;
-    let zero64_terrane_f0_s464: f64;
-    let one64_terrane_f0_s487: f64;
-    let nine64_terrane_f0_s509: f64;
-    let pair64_terrane_f0_s634: terrane_collection_support::Tuple<f64>;
-    let negative_terrane_f0_s822: f64;
-    let not_a_number_terrane_f0_s848: f64;
-    let negative_zero_terrane_f0_s933: f64;
-    let reciprocal_terrane_f0_s964: f64;
-    let negative_infinity_terrane_f0_s1048: f64;
-    let negative32_terrane_f0_s1132: f32;
-    let low32_terrane_f0_s1160: f32;
-    let high32_terrane_f0_s1182: f32;
-    let not_a_number32_terrane_f0_s1397: f32;
-    let infinity32_terrane_f0_s1448: f32;
-    let low64_terrane_f0_s1551: f64;
-    let high64_terrane_f0_s1573: f64;
-    let minimum64_terrane_f0_s1764: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync>;
-    let maximum64_terrane_f0_s1792: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync>;
-    let multiply_add64_terrane_f0_s1820: std::sync::Arc<
-        dyn Fn(f64, f64) -> f64 + Send + Sync,
-    >;
-    let minimum_zero_terrane_f0_s2152: f64;
-    let maximum_zero_terrane_f0_s2209: f64;
-    let multiplicand_terrane_f0_s2335: f64;
-    let multiplier_terrane_f0_s2379: f64;
-    let addend_terrane_f0_s2421: f64;
-    let fused_terrane_f0_s2460: f64;
-    let unfused_terrane_f0_s2526: f64;
-    let multiplicand32_terrane_f0_s2677: f32;
-    let multiplier32_terrane_f0_s2714: f32;
-    let addend32_terrane_f0_s2749: f32;
-    let fused32_terrane_f0_s2781: f32;
-    let unfused32_terrane_f0_s2855: f32;
-    zero32_terrane_f0_s88 = 0.0_f32;
-    one32_terrane_f0_s111 = 1.0_f32;
-    nine32_terrane_f0_s133 = 9.0_f32;
-    root32_terrane_f0_s156 = {
-        let receiver = nine32_terrane_f0_s133;
+    let zero32: f32;
+    let one32: f32;
+    let nine32: f32;
+    let root32: std::sync::Arc<dyn Fn() -> f32 + Send + Sync>;
+    let pair32: terrane_collection_support::Tuple<f32>;
+    let zero64: f64;
+    let one64: f64;
+    let nine64: f64;
+    let pair64: terrane_collection_support::Tuple<f64>;
+    let negative: f64;
+    let not_a_number: f64;
+    let negative_zero: f64;
+    let reciprocal: f64;
+    let negative_infinity: f64;
+    let negative32: f32;
+    let low32: f32;
+    let high32: f32;
+    let not_a_number32: f32;
+    let infinity32: f32;
+    let low64: f64;
+    let high64: f64;
+    let minimum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync>;
+    let maximum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync>;
+    let multiply_add64: std::sync::Arc<dyn Fn(f64, f64) -> f64 + Send + Sync>;
+    let minimum_zero: f64;
+    let maximum_zero: f64;
+    let multiplicand: f64;
+    let multiplier: f64;
+    let addend: f64;
+    let fused: f64;
+    let unfused: f64;
+    let multiplicand32: f32;
+    let multiplier32: f32;
+    let addend32: f32;
+    let fused32: f32;
+    let unfused32: f32;
+    zero32 = 0.0_f32;
+    one32 = 1.0_f32;
+    nine32 = 9.0_f32;
+    root32 = {
+        let receiver = nine32;
         std::sync::Arc::new(move || receiver.sqrt())
     };
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(root32_terrane_f0_s156() == 3.0_f32))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero32_terrane_f0_s88.sin() ==
-        0.0_f32))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero32_terrane_f0_s88.cos() ==
-        1.0_f32))
-    );
-    pair32_terrane_f0_s276 = {
-        let terrane_sine_cosine = zero32_terrane_f0_s88.sin_cos();
+    println!("{}", terrane_scalar_support::scalar_text(&(root32() == 3.0_f32)));
+    println!("{}", terrane_scalar_support::scalar_text(&(zero32.sin() == 0.0_f32)));
+    println!("{}", terrane_scalar_support::scalar_text(&(zero32.cos() == 1.0_f32)));
+    pair32 = {
+        let terrane_sine_cosine = zero32.sin_cos();
         terrane_collection_support::Tuple::new(
             vec![terrane_sine_cosine.0, terrane_sine_cosine.1],
         )
     };
     println!(
         "{}{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(pair32_terrane_f0_s276
+        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(pair32
         .length())) == terrane_int_support::Int::from(2_i128))),
-        terrane_scalar_support::scalar_text(&(__terrane_raised(pair32_terrane_f0_s276
+        terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:13:30-13:39 */)), 0 /* terrane-site: case.trn:13:30-13:39 */) == 0.0_f32)),
-        terrane_scalar_support::scalar_text(&(__terrane_raised(pair32_terrane_f0_s276
+        terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         1 /* terrane-site: case.trn:13:48-13:57 */)), 1 /* terrane-site: case.trn:13:48-13:57 */) == 1.0_f32))
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(one32_terrane_f0_s111.ln() ==
-        0.0_f32))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero32_terrane_f0_s88.exp() ==
-        1.0_f32))
-    );
-    zero64_terrane_f0_s464 = 0.0;
-    one64_terrane_f0_s487 = 1.0;
-    nine64_terrane_f0_s509 = 9.0;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(nine64_terrane_f0_s509.sqrt() ==
-        3.0))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero64_terrane_f0_s464.sin() == 0.0))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero64_terrane_f0_s464.cos() == 1.0))
-    );
-    pair64_terrane_f0_s634 = {
-        let terrane_sine_cosine = zero64_terrane_f0_s464.sin_cos();
+    println!("{}", terrane_scalar_support::scalar_text(&(one32.ln() == 0.0_f32)));
+    println!("{}", terrane_scalar_support::scalar_text(&(zero32.exp() == 1.0_f32)));
+    zero64 = 0.0;
+    one64 = 1.0;
+    nine64 = 9.0;
+    println!("{}", terrane_scalar_support::scalar_text(&(nine64.sqrt() == 3.0)));
+    println!("{}", terrane_scalar_support::scalar_text(&(zero64.sin() == 0.0)));
+    println!("{}", terrane_scalar_support::scalar_text(&(zero64.cos() == 1.0)));
+    pair64 = {
+        let terrane_sine_cosine = zero64.sin_cos();
         terrane_collection_support::Tuple::new(
             vec![terrane_sine_cosine.0, terrane_sine_cosine.1],
         )
     };
     println!(
         "{}{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(pair64_terrane_f0_s634
+        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(pair64
         .length())) == terrane_int_support::Int::from(2_i128))),
-        terrane_scalar_support::scalar_text(&(__terrane_raised(pair64_terrane_f0_s634
+        terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         2 /* terrane-site: case.trn:24:30-24:39 */)), 2 /* terrane-site: case.trn:24:30-24:39 */) == 0.0)),
-        terrane_scalar_support::scalar_text(&(__terrane_raised(pair64_terrane_f0_s634
+        terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         3 /* terrane-site: case.trn:24:48-24:57 */)), 3 /* terrane-site: case.trn:24:48-24:57 */) == 1.0))
     );
+    println!("{}", terrane_scalar_support::scalar_text(&(one64.ln() == 0.0)));
+    println!("{}", terrane_scalar_support::scalar_text(&(zero64.exp() == 1.0)));
+    negative = -1.0_f64;
+    not_a_number = negative.sqrt();
+    println!("{}", terrane_scalar_support::scalar_text(&(not_a_number != not_a_number)));
+    negative_zero = -0.0_f64;
+    reciprocal = 1.0 / negative_zero.sqrt();
+    println!("{}", terrane_scalar_support::scalar_text(&(reciprocal < 0.0)));
+    negative_infinity = zero64.ln();
+    println!("{}", terrane_scalar_support::scalar_text(&(negative_infinity < 0.0)));
+    negative32 = -3.0_f32;
+    low32 = 2.0_f32;
+    high32 = 5.0_f32;
+    println!("{}", terrane_scalar_support::scalar_text(&(negative32.abs() == 3.0_f32)));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(one64_terrane_f0_s487.ln() == 0.0))
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 = low32;
+        let terrane_argument : f32 = high32; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
+        terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 } } else {
+        terrane_receiver.min(terrane_argument) } } == 2.0_f32))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(zero64_terrane_f0_s464.exp() == 1.0))
-    );
-    negative_terrane_f0_s822 = -1.0_f64;
-    not_a_number_terrane_f0_s848 = negative_terrane_f0_s822.sqrt();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(not_a_number_terrane_f0_s848 !=
-        not_a_number_terrane_f0_s848))
-    );
-    negative_zero_terrane_f0_s933 = -0.0_f64;
-    reciprocal_terrane_f0_s964 = 1.0 / negative_zero_terrane_f0_s933.sqrt();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(reciprocal_terrane_f0_s964 < 0.0))
-    );
-    negative_infinity_terrane_f0_s1048 = zero64_terrane_f0_s464.ln();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(negative_infinity_terrane_f0_s1048 <
-        0.0))
-    );
-    negative32_terrane_f0_s1132 = -3.0_f32;
-    low32_terrane_f0_s1160 = 2.0_f32;
-    high32_terrane_f0_s1182 = 5.0_f32;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(negative32_terrane_f0_s1132.abs() ==
-        3.0_f32))
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 = low32;
+        let terrane_argument : f32 = high32; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_positive() ||
+        terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
+        terrane_receiver.max(terrane_argument) } } == 5.0_f32))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 =
-        low32_terrane_f0_s1160; let terrane_argument : f32 = high32_terrane_f0_s1182; if
-        terrane_receiver == 0.0 &&terrane_argument == 0.0 { if terrane_receiver
-        .is_sign_negative() || terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 }
-        } else { terrane_receiver.min(terrane_argument) } } == 2.0_f32))
+        "{}", terrane_scalar_support::scalar_text(&(low32.mul_add(high32, 1.0_f32) ==
+        11.0_f32))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&low32.is_finite()));
+    not_a_number32 = negative32.sqrt();
+    infinity32 = 1.0_f32 / zero32;
+    println!("{}", terrane_scalar_support::scalar_text(&not_a_number32.is_nan()));
+    println!("{}", terrane_scalar_support::scalar_text(&infinity32.is_infinite()));
+    low64 = 2.0;
+    high64 = 5.0;
+    println!("{}", terrane_scalar_support::scalar_text(&(negative.abs() == 1.0)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 = low64;
+        let terrane_argument : f64 = high64; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
+        terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 } } else {
+        terrane_receiver.min(terrane_argument) } } == 2.0))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 =
-        low32_terrane_f0_s1160; let terrane_argument : f32 = high32_terrane_f0_s1182; if
-        terrane_receiver == 0.0 &&terrane_argument == 0.0 { if terrane_receiver
-        .is_sign_positive() || terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 }
-        } else { terrane_receiver.max(terrane_argument) } } == 5.0_f32))
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 = low64;
+        let terrane_argument : f64 = high64; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_positive() ||
+        terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
+        terrane_receiver.max(terrane_argument) } } == 5.0))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(low32_terrane_f0_s1160
-        .mul_add(high32_terrane_f0_s1182, 1.0_f32) == 11.0_f32))
+        "{}", terrane_scalar_support::scalar_text(&(low64.mul_add(high64, 1.0) == 11.0))
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&low32_terrane_f0_s1160.is_finite())
-    );
-    not_a_number32_terrane_f0_s1397 = negative32_terrane_f0_s1132.sqrt();
-    infinity32_terrane_f0_s1448 = 1.0_f32 / zero32_terrane_f0_s88;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&not_a_number32_terrane_f0_s1397
-        .is_nan())
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&infinity32_terrane_f0_s1448
-        .is_infinite())
-    );
-    low64_terrane_f0_s1551 = 2.0;
-    high64_terrane_f0_s1573 = 5.0;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(negative_terrane_f0_s822.abs() ==
-        1.0))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
-        low64_terrane_f0_s1551; let terrane_argument : f64 = high64_terrane_f0_s1573; if
-        terrane_receiver == 0.0 &&terrane_argument == 0.0 { if terrane_receiver
-        .is_sign_negative() || terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 }
-        } else { terrane_receiver.min(terrane_argument) } } == 2.0))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
-        low64_terrane_f0_s1551; let terrane_argument : f64 = high64_terrane_f0_s1573; if
-        terrane_receiver == 0.0 &&terrane_argument == 0.0 { if terrane_receiver
-        .is_sign_positive() || terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 }
-        } else { terrane_receiver.max(terrane_argument) } } == 5.0))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(low64_terrane_f0_s1551
-        .mul_add(high64_terrane_f0_s1573, 1.0) == 11.0))
-    );
-    minimum64_terrane_f0_s1764 = {
-        let receiver = low64_terrane_f0_s1551;
+    minimum64 = {
+        let receiver = low64;
         std::sync::Arc::new(move |argument_0: f64| {
             let terrane_receiver: f64 = receiver;
             let terrane_argument: f64 = argument_0;
@@ -655,8 +605,8 @@ fn main() {
             }
         })
     };
-    maximum64_terrane_f0_s1792 = {
-        let receiver = low64_terrane_f0_s1551;
+    maximum64 = {
+        let receiver = low64;
         std::sync::Arc::new(move |argument_0: f64| {
             let terrane_receiver: f64 = receiver;
             let terrane_argument: f64 = argument_0;
@@ -673,50 +623,39 @@ fn main() {
             }
         })
     };
-    multiply_add64_terrane_f0_s1820 = {
-        let receiver = low64_terrane_f0_s1551;
+    multiply_add64 = {
+        let receiver = low64;
         std::sync::Arc::new(move |argument_0: f64, argument_1: f64| {
             receiver.mul_add(argument_0, argument_1)
         })
     };
     println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&(minimum64_terrane_f0_s1764(high64_terrane_f0_s1573)
-        == 2.0)),
-        terrane_scalar_support::scalar_text(&(maximum64_terrane_f0_s1792(high64_terrane_f0_s1573)
-        == 5.0)),
-        terrane_scalar_support::scalar_text(&(multiply_add64_terrane_f0_s1820(high64_terrane_f0_s1573,
-        1.0) == 11.0))
+        "{}{}{}", terrane_scalar_support::scalar_text(&(minimum64(high64) == 2.0)),
+        terrane_scalar_support::scalar_text(&(maximum64(high64) == 5.0)),
+        terrane_scalar_support::scalar_text(&(multiply_add64(high64, 1.0) == 11.0))
     );
+    println!("{}", terrane_scalar_support::scalar_text(&low64.is_finite()));
+    println!("{}", terrane_scalar_support::scalar_text(&not_a_number.is_nan()));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&low64_terrane_f0_s1551.is_finite())
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&not_a_number_terrane_f0_s848.is_nan())
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&negative_infinity_terrane_f0_s1048
-        .is_infinite())
+        "{}", terrane_scalar_support::scalar_text(&negative_infinity.is_infinite())
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
-        not_a_number_terrane_f0_s848; let terrane_argument : f64 =
-        low64_terrane_f0_s1551; if terrane_receiver == 0.0 &&terrane_argument == 0.0 { if
-        terrane_receiver.is_sign_negative() || terrane_argument.is_sign_negative() { -
-        0.0 } else { 0.0 } } else { terrane_receiver.min(terrane_argument) } } ==
-        low64_terrane_f0_s1551))
+        not_a_number; let terrane_argument : f64 = low64; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
+        terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 } } else {
+        terrane_receiver.min(terrane_argument) } } == low64))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
-        not_a_number_terrane_f0_s848; let terrane_argument : f64 =
-        high64_terrane_f0_s1573; if terrane_receiver == 0.0 &&terrane_argument == 0.0 {
-        if terrane_receiver.is_sign_positive() || terrane_argument.is_sign_positive() {
-        0.0 } else { - 0.0 } } else { terrane_receiver.max(terrane_argument) } } ==
-        high64_terrane_f0_s1573))
+        not_a_number; let terrane_argument : f64 = high64; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_positive() ||
+        terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
+        terrane_receiver.max(terrane_argument) } } == high64))
     );
-    minimum_zero_terrane_f0_s2152 = {
-        let terrane_receiver: f64 = negative_zero_terrane_f0_s933;
-        let terrane_argument: f64 = zero64_terrane_f0_s464;
+    minimum_zero = {
+        let terrane_receiver: f64 = negative_zero;
+        let terrane_argument: f64 = zero64;
         if terrane_receiver == 0.0 && terrane_argument == 0.0 {
             if terrane_receiver.is_sign_negative() || terrane_argument.is_sign_negative()
             {
@@ -728,9 +667,9 @@ fn main() {
             terrane_receiver.min(terrane_argument)
         }
     };
-    maximum_zero_terrane_f0_s2209 = {
-        let terrane_receiver: f64 = negative_zero_terrane_f0_s933;
-        let terrane_argument: f64 = zero64_terrane_f0_s464;
+    maximum_zero = {
+        let terrane_receiver: f64 = negative_zero;
+        let terrane_argument: f64 = zero64;
         if terrane_receiver == 0.0 && terrane_argument == 0.0 {
             if terrane_receiver.is_sign_positive() || terrane_argument.is_sign_positive()
             {
@@ -742,65 +681,47 @@ fn main() {
             terrane_receiver.max(terrane_argument)
         }
     };
+    println!("{}", terrane_scalar_support::scalar_text(&(1.0 / minimum_zero < 0.0)));
+    println!("{}", terrane_scalar_support::scalar_text(&(1.0 / maximum_zero > 0.0)));
+    multiplicand = 1.0000000000000002;
+    multiplier = 1.0000000000000002;
+    addend = -1.0000000000000004_f64;
+    fused = multiplicand.mul_add(multiplier, addend);
+    unfused = multiplicand * multiplier + addend;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(1.0 / minimum_zero_terrane_f0_s2152 <
-        0.0))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(1.0 / maximum_zero_terrane_f0_s2209 >
-        0.0))
-    );
-    multiplicand_terrane_f0_s2335 = 1.0000000000000002;
-    multiplier_terrane_f0_s2379 = 1.0000000000000002;
-    addend_terrane_f0_s2421 = -1.0000000000000004_f64;
-    fused_terrane_f0_s2460 = multiplicand_terrane_f0_s2335
-        .mul_add(multiplier_terrane_f0_s2379, addend_terrane_f0_s2421);
-    unfused_terrane_f0_s2526 = multiplicand_terrane_f0_s2335
-        * multiplier_terrane_f0_s2379 + addend_terrane_f0_s2421;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(fused_terrane_f0_s2460 ==
+        "{}", terrane_scalar_support::scalar_text(&(fused ==
         0.00000000000000000000000000000004930380657631323784))
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(unfused_terrane_f0_s2526 == 0.0))
-    );
-    multiplicand32_terrane_f0_s2677 = 1.0000001_f32;
-    multiplier32_terrane_f0_s2714 = 1.0000001_f32;
-    addend32_terrane_f0_s2749 = -1.0000002_f32;
-    fused32_terrane_f0_s2781 = multiplicand32_terrane_f0_s2677
-        .mul_add(multiplier32_terrane_f0_s2714, addend32_terrane_f0_s2749);
-    unfused32_terrane_f0_s2855 = multiplicand32_terrane_f0_s2677
-        * multiplier32_terrane_f0_s2714 + addend32_terrane_f0_s2749;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(fused32_terrane_f0_s2781 ==
-        1.4210855e-14_f32))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(unfused32_terrane_f0_s2855 ==
-        0.0_f32))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&(unfused == 0.0)));
+    multiplicand32 = 1.0000001_f32;
+    multiplier32 = 1.0000001_f32;
+    addend32 = -1.0000002_f32;
+    fused32 = multiplicand32.mul_add(multiplier32, addend32);
+    unfused32 = multiplicand32 * multiplier32 + addend32;
+    println!("{}", terrane_scalar_support::scalar_text(&(fused32 == 1.4210855e-14_f32)));
+    println!("{}", terrane_scalar_support::scalar_text(&(unfused32 == 0.0_f32)));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 =
-        low32_terrane_f0_s1160; let terrane_argument : f32 = 0.0_f32; if terrane_receiver
-        == 0.0 &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
+        low32; let terrane_argument : f32 = 0.0_f32; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
         terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 } } else {
         terrane_receiver.min(terrane_argument) } } == 0.0_f32)),
-        terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 =
-        low32_terrane_f0_s1160; let terrane_argument : f32 = 7.0_f32; if terrane_receiver
-        == 0.0 &&terrane_argument == 0.0 { if terrane_receiver.is_sign_positive() ||
-        terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
-        terrane_receiver.max(terrane_argument) } } == 7.0_f32))
+        terrane_scalar_support::scalar_text(&({ let terrane_receiver : f32 = low32; let
+        terrane_argument : f32 = 7.0_f32; if terrane_receiver == 0.0 &&terrane_argument
+        == 0.0 { if terrane_receiver.is_sign_positive() || terrane_argument
+        .is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_receiver
+        .max(terrane_argument) } } == 7.0_f32))
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
-        low64_terrane_f0_s1551; let terrane_argument : f64 = 0.0; if terrane_receiver ==
-        0.0 &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
+        low64; let terrane_argument : f64 = 0.0; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
         terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 } } else {
         terrane_receiver.min(terrane_argument) } } == 0.0)),
-        terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 =
-        low64_terrane_f0_s1551; let terrane_argument : f64 = 7.0; if terrane_receiver ==
-        0.0 &&terrane_argument == 0.0 { if terrane_receiver.is_sign_positive() ||
-        terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
-        terrane_receiver.max(terrane_argument) } } == 7.0))
+        terrane_scalar_support::scalar_text(&({ let terrane_receiver : f64 = low64; let
+        terrane_argument : f64 = 7.0; if terrane_receiver == 0.0 &&terrane_argument ==
+        0.0 { if terrane_receiver.is_sign_positive() || terrane_argument
+        .is_sign_positive() { 0.0 } else { - 0.0 } } else { terrane_receiver
+        .max(terrane_argument) } } == 7.0))
     );
 }

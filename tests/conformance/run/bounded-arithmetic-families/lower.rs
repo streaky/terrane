@@ -476,163 +476,143 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: bounded-arithmetic-families
 fn main() {
-    let small_terrane_f0_s55: i8;
-    let wrapped_terrane_f0_s74: i8;
-    let overflowed_terrane_f0_s127: terrane_int_support::OverflowResult<i8>;
-    let pair_terrane_f0_s217: terrane_int_support::DivRemResult<
-        terrane_int_support::Int,
-    >;
-    let exact_terrane_f0_s282: i64;
-    let negated_terrane_f0_s443: terrane_int_support::OverflowResult<i8>;
-    let mut count_terrane_f0_s591: i8;
-    let sub_overflow_terrane_f0_s778: terrane_int_support::OverflowResult<i8>;
-    let mul_overflow_terrane_f0_s990: terrane_int_support::OverflowResult<i8>;
-    let minimum_terrane_f0_s1090: i8;
-    let div_overflow_terrane_f0_s1178: terrane_int_support::OverflowResult<i8>;
-    let rem_overflow_terrane_f0_s1317: terrane_int_support::OverflowResult<i8>;
-    small_terrane_f0_s55 = 120;
-    wrapped_terrane_f0_s74 = terrane_int_support::fixed_addition_wrap(
-        small_terrane_f0_s55,
-        10,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&wrapped_terrane_f0_s74));
-    overflowed_terrane_f0_s127 = terrane_int_support::fixed_addition_overflowing(
-        small_terrane_f0_s55,
-        10,
-    );
+    let small: i8;
+    let wrapped: i8;
+    let overflowed: terrane_int_support::OverflowResult<i8>;
+    let pair: terrane_int_support::DivRemResult<terrane_int_support::Int>;
+    let exact: i64;
+    let negated: terrane_int_support::OverflowResult<i8>;
+    let mut count: i8;
+    let sub_overflow: terrane_int_support::OverflowResult<i8>;
+    let mul_overflow: terrane_int_support::OverflowResult<i8>;
+    let minimum: i8;
+    let div_overflow: terrane_int_support::OverflowResult<i8>;
+    let rem_overflow: terrane_int_support::OverflowResult<i8>;
+    small = 120;
+    wrapped = terrane_int_support::fixed_addition_wrap(small, 10);
+    println!("{}", terrane_scalar_support::scalar_text(&wrapped));
+    overflowed = terrane_int_support::fixed_addition_overflowing(small, 10);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&overflowed_terrane_f0_s127.value),
-        terrane_scalar_support::scalar_text(&overflowed_terrane_f0_s127.overflowed)
+        "{}{}", terrane_scalar_support::scalar_text(&overflowed.value),
+        terrane_scalar_support::scalar_text(&overflowed.overflowed)
     );
-    pair_terrane_f0_s217 = __terrane_raised(
+    pair = __terrane_raised(
         terrane_int_support::Int::from(-7_i128)
             .div_rem(&terrane_int_support::Int::from(3_i128)),
         0 /* terrane-site: case.trn:8:10-8:26 */,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&pair_terrane_f0_s217.quotient),
-        terrane_scalar_support::scalar_text(&pair_terrane_f0_s217.remainder)
+        "{}{}", terrane_scalar_support::scalar_text(&pair.quotient),
+        terrane_scalar_support::scalar_text(&pair.remainder)
     );
-    exact_terrane_f0_s282 = 5;
+    exact = 5;
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(exact_terrane_f0_s282
+        "{}", terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(exact
         as i128) * terrane_int_support::Int::from(9_i128)))
     );
-    terrane_int_support::fixed_subtraction_checked(small_terrane_f0_s55, 20);
+    terrane_int_support::fixed_subtraction_checked(small, 20);
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_saturate(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_saturate(small,
         2))
     );
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division(small,
         3), 1 /* terrane-site: case.trn:14:11-14:26 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder(small,
         7), 2 /* terrane-site: case.trn:14:30-14:48 */))
     );
-    negated_terrane_f0_s443 = terrane_int_support::fixed_negation_overflowing(
-        small_terrane_f0_s55,
-    );
+    negated = terrane_int_support::fixed_negation_overflowing(small);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&negated_terrane_f0_s443.value),
-        terrane_scalar_support::scalar_text(&negated_terrane_f0_s443.overflowed)
+        "{}{}", terrane_scalar_support::scalar_text(&negated.value),
+        terrane_scalar_support::scalar_text(&negated.overflowed)
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_shift_left_wrap(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_shift_left_wrap(small,
         &1), 3 /* terrane-site: case.trn:17:11-17:35 */))
     );
     __terrane_raised(
-        terrane_int_support::fixed_shift_right_checked(small_terrane_f0_s55, &2),
+        terrane_int_support::fixed_shift_right_checked(small, &2),
         4 /* terrane-site: case.trn:18:3-18:31 */,
     );
-    count_terrane_f0_s591 = 1;
-    count_terrane_f0_s591 = __terrane_raised(
-        terrane_int_support::fixed_addition(count_terrane_f0_s591, 1),
+    count = 1;
+    count = __terrane_raised(
+        terrane_int_support::fixed_addition(count, 1),
         5 /* terrane-site: case.trn:20:3-20:10 */,
     );
-    count_terrane_f0_s591 = __terrane_raised(
-        terrane_int_support::fixed_subtraction(count_terrane_f0_s591, 1),
+    count = __terrane_raised(
+        terrane_int_support::fixed_subtraction(count, 1),
         6 /* terrane-site: case.trn:21:3-21:10 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&count_terrane_f0_s591));
+    println!("{}", terrane_scalar_support::scalar_text(&count));
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition_checked(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition_checked(small,
         10).is_none()),
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition_saturate(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition_saturate(small,
         10))
     );
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_wrap(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_wrap(small,
         - 20)),
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_saturate(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_saturate(small,
         - 20))
     );
-    sub_overflow_terrane_f0_s778 = terrane_int_support::fixed_subtraction_overflowing(
-        small_terrane_f0_s55,
-        -20,
-    );
+    sub_overflow = terrane_int_support::fixed_subtraction_overflowing(small, -20);
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&sub_overflow_terrane_f0_s778
-        .value), terrane_scalar_support::scalar_text(&sub_overflow_terrane_f0_s778
-        .overflowed),
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_checked(small_terrane_f0_s55,
+        "{}{}{}", terrane_scalar_support::scalar_text(&sub_overflow.value),
+        terrane_scalar_support::scalar_text(&sub_overflow.overflowed),
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_checked(small,
         - 20).is_none())
     );
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_wrap(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_wrap(small,
         2)),
-        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_checked(small_terrane_f0_s55,
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_checked(small,
         2).is_none())
     );
-    mul_overflow_terrane_f0_s990 = terrane_int_support::fixed_multiplication_overflowing(
-        small_terrane_f0_s55,
-        2,
-    );
+    mul_overflow = terrane_int_support::fixed_multiplication_overflowing(small, 2);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&mul_overflow_terrane_f0_s990.value),
-        terrane_scalar_support::scalar_text(&mul_overflow_terrane_f0_s990.overflowed)
+        "{}{}", terrane_scalar_support::scalar_text(&mul_overflow.value),
+        terrane_scalar_support::scalar_text(&mul_overflow.overflowed)
     );
-    minimum_terrane_f0_s1090 = -128;
+    minimum = -128;
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_wrap(minimum_terrane_f0_s1090,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_wrap(minimum,
         - 1), 7 /* terrane-site: case.trn:31:11-31:34 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_saturate(minimum_terrane_f0_s1090,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_saturate(minimum,
         - 1), 8 /* terrane-site: case.trn:31:38-31:65 */))
     );
-    div_overflow_terrane_f0_s1178 = __terrane_raised(
-        terrane_int_support::fixed_division_overflowing(minimum_terrane_f0_s1090, -1),
+    div_overflow = __terrane_raised(
+        terrane_int_support::fixed_division_overflowing(minimum, -1),
         9 /* terrane-site: case.trn:32:18-32:48 */,
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&div_overflow_terrane_f0_s1178
-        .value), terrane_scalar_support::scalar_text(&div_overflow_terrane_f0_s1178
-        .overflowed),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_checked(minimum_terrane_f0_s1090,
+        "{}{}{}", terrane_scalar_support::scalar_text(&div_overflow.value),
+        terrane_scalar_support::scalar_text(&div_overflow.overflowed),
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_division_checked(minimum,
         - 1), 10 /* terrane-site: case.trn:33:56-33:82 */).is_none())
     );
-    rem_overflow_terrane_f0_s1317 = __terrane_raised(
-        terrane_int_support::fixed_remainder_overflowing(minimum_terrane_f0_s1090, -1),
+    rem_overflow = __terrane_raised(
+        terrane_int_support::fixed_remainder_overflowing(minimum, -1),
         11 /* terrane-site: case.trn:34:18-34:51 */,
     );
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder_wrap(minimum_terrane_f0_s1090,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder_wrap(minimum,
         - 1), 12 /* terrane-site: case.trn:35:11-35:37 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder_saturate(minimum_terrane_f0_s1090,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder_saturate(minimum,
         - 1), 13 /* terrane-site: case.trn:35:41-35:71 */))
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&rem_overflow_terrane_f0_s1317
-        .value), terrane_scalar_support::scalar_text(&rem_overflow_terrane_f0_s1317
-        .overflowed),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder_checked(minimum_terrane_f0_s1090,
+        "{}{}{}", terrane_scalar_support::scalar_text(&rem_overflow.value),
+        terrane_scalar_support::scalar_text(&rem_overflow.overflowed),
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_remainder_checked(minimum,
         - 1), 14 /* terrane-site: case.trn:36:56-36:85 */).is_none())
     );
     println!(

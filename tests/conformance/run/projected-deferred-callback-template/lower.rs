@@ -491,9 +491,9 @@ fn length(value: String) -> terrane_int_support::Int {
     );
 }
 fn main() {
-    let value_terrane_f0_s244: String;
-    let size_terrane_f0_s280: terrane_int_support::Int;
-    value_terrane_f0_s244 = __terrane_raised(
+    let value: String;
+    let size: terrane_int_support::Int;
+    value = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| terrane_deferred_callback_witness::produce(
                 match || -> Result<_, crate::TerraneForeignError> {
@@ -528,10 +528,10 @@ fn main() {
         },
         0 /* terrane-site: src/main.trn:13:20-13:36 */,
     );
-    size_terrane_f0_s280 = __terrane_raised(
+    size = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| terrane_deferred_callback_witness::transform(
-                value_terrane_f0_s244.clone(),
+                value.clone(),
                 match || -> Result<_, crate::TerraneForeignError> {
                     Ok({
                         let callback = std::sync::Arc::new(length).clone();
@@ -570,9 +570,9 @@ fn main() {
         1 /* terrane-site: src/main.trn:14:16-14:40 */,
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s244),
+        "{}{}{}", terrane_scalar_support::scalar_text(&value),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&size_terrane_f0_s280)
+        terrane_scalar_support::scalar_text(&size)
     );
 }
 // Source: <terrane>/projected/deps/terrane-deferred-callback-witness.trn

@@ -50,19 +50,15 @@ impl Child {
     }
 }
 fn main() {
-    let concrete_terrane_f0_s126: Child;
-    let mut view_terrane_f0_s157: Base;
-    concrete_terrane_f0_s126 = Child::terrane_construct();
-    view_terrane_f0_s157 = Base::Child(concrete_terrane_f0_s126);
+    let concrete: Child;
+    let mut view: Base;
+    concrete = Child::terrane_construct();
+    view = Base::Child(concrete);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&view_terrane_f0_s157
-        .terrane_field_value().clone())
+        "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
     );
-    *view_terrane_f0_s157.terrane_field_value_mut() = terrane_int_support::Int::from(
-        9_i128,
-    );
+    *view.terrane_field_value_mut() = terrane_int_support::Int::from(9_i128);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&view_terrane_f0_s157
-        .terrane_field_value().clone())
+        "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
     );
 }

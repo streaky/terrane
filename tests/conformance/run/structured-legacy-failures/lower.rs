@@ -466,10 +466,10 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: structured-legacy-failures
 fn narrow_fixed() -> Result<i8, TerraneError> {
-    let wide_terrane_f0_s138: i16;
-    wide_terrane_f0_s138 = 300;
+    let wide: i16;
+    wide = 300;
     return Ok({
-        let source_value = wide_terrane_f0_s138;
+        let source_value = wide;
         __terrane_raised_err(
             i8::try_from(source_value)
                 .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(
@@ -483,10 +483,10 @@ fn narrow_fixed() -> Result<i8, TerraneError> {
     });
 }
 fn narrow_float() -> Result<f32, TerraneError> {
-    let wide_float_terrane_f0_s202: f64;
-    wide_float_terrane_f0_s202 = 340282400000000000000000000000000000000.0;
+    let wide_float: f64;
+    wide_float = 340282400000000000000000000000000000000.0;
     return Ok({
-        let source_value = wide_float_terrane_f0_s202;
+        let source_value = wide_float;
         let converted = source_value as f32;
         if converted as f64 == source_value {
             converted
@@ -506,46 +506,42 @@ fn narrow_float() -> Result<f32, TerraneError> {
     });
 }
 fn divide() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator_terrane_f0_s308: i64;
-    let denominator_terrane_f0_s328: i64;
-    numerator_terrane_f0_s308 = 1;
-    denominator_terrane_f0_s328 = 0;
+    let numerator: i64;
+    let denominator: i64;
+    numerator = 1;
+    denominator = 0;
     return Ok(
         __terrane_raised_err(
-            terrane_int_support::Int::from(numerator_terrane_f0_s308 as i128)
-                .euclidean_div(
-                    &terrane_int_support::Int::from(denominator_terrane_f0_s328 as i128),
-                ),
+            terrane_int_support::Int::from(numerator as i128)
+                .euclidean_div(&terrane_int_support::Int::from(denominator as i128)),
             2 /* terrane-site: case.trn:12:10-12:33 */,
         )?,
     );
 }
 fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator_terrane_f0_s407: i64;
-    let denominator_terrane_f0_s427: i64;
-    numerator_terrane_f0_s407 = 1;
-    denominator_terrane_f0_s427 = 0;
+    let numerator: i64;
+    let denominator: i64;
+    numerator = 1;
+    denominator = 0;
     return Ok(
         __terrane_raised_err(
-            terrane_int_support::Int::from(numerator_terrane_f0_s407 as i128)
-                .modulo(
-                    &terrane_int_support::Int::from(denominator_terrane_f0_s427 as i128),
-                ),
+            terrane_int_support::Int::from(numerator as i128)
+                .modulo(&terrane_int_support::Int::from(denominator as i128)),
             3 /* terrane-site: case.trn:16:10-16:33 */,
         )?,
     );
 }
 fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
-    let one_terrane_f0_s508: f64;
-    let zero_terrane_f0_s528: f64;
-    let infinite_terrane_f0_s549: f64;
-    one_terrane_f0_s508 = 1.0;
-    zero_terrane_f0_s528 = 0.0;
-    infinite_terrane_f0_s549 = one_terrane_f0_s508 / zero_terrane_f0_s528;
+    let one: f64;
+    let zero: f64;
+    let infinite: f64;
+    one = 1.0;
+    zero = 0.0;
+    infinite = one / zero;
     return Ok(
         __terrane_raised_err(
             terrane_int_support::rounded_f64(
-                infinite_terrane_f0_s549,
+                infinite,
                 terrane_int_support::FloatRounding::TiesEven,
             ),
             4 /* terrane-site: case.trn:21:10-21:25 */,
@@ -556,11 +552,11 @@ fn accepts_narrow(value: i8) -> terrane_int_support::Int {
     return terrane_int_support::Int::from(value as i128);
 }
 fn narrow_argument() -> Result<terrane_int_support::Int, TerraneError> {
-    let wide_terrane_f0_s691: i16;
-    wide_terrane_f0_s691 = 300;
+    let wide: i16;
+    wide = 300;
     return Ok(
         accepts_narrow({
-            let source_value = wide_terrane_f0_s691;
+            let source_value = wide;
             __terrane_raised_err(
                 i8::try_from(source_value)
                     .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(

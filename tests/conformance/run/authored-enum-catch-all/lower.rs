@@ -36,14 +36,14 @@ pub enum State {
     Held(Resource),
 }
 fn main() {
-    let payload_terrane_f0_s206: Resource;
-    let value_terrane_f0_s239: State;
-    payload_terrane_f0_s206 = Resource::terrane_construct();
-    value_terrane_f0_s239 = {
-        let __terrane_enum_payload_0 = payload_terrane_f0_s206;
+    let payload: Resource;
+    let value: State;
+    payload = Resource::terrane_construct();
+    value = {
+        let __terrane_enum_payload_0 = payload;
         State::Held(__terrane_enum_payload_0)
     };
-    let __terrane_match_value_300 = value_terrane_f0_s239;
+    let __terrane_match_value_300 = value;
     match __terrane_match_value_300 {
         State::Ready => {
             println!("{}", terrane_scalar_support::scalar_text(&String::from("ready")));

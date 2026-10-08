@@ -583,8 +583,8 @@ async fn keep_string_async(value: String) -> String {
     return value;
 }
 async fn stay_pending(value: terrane_int_support::Int) -> terrane_int_support::Int {
-    let result_terrane_f0_s1132: terrane_int_support::Int;
-    result_terrane_f0_s1132 = __terrane_traced(
+    let result: terrane_int_support::Int;
+    result = __terrane_traced(
         __terrane_await({
                 let __terrane_future = pending_value(value.clone());
                 async move {
@@ -597,7 +597,7 @@ async fn stay_pending(value: terrane_int_support::Int) -> terrane_int_support::I
             .await,
         0 /* terrane-site: src/main.trn:20:24-20:44 */,
     );
-    return result_terrane_f0_s1132.clone();
+    return result.clone();
 }
 async fn run_retained() -> terrane_int_support::Int {
     let __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = async {
@@ -1473,34 +1473,32 @@ impl ProjectedCounterHolder {
 }
 fn main() {
     __terrane_run(async move {
-        let changed_terrane_f0_s3325: String;
-        let offset_terrane_f0_s3411: i64;
-        let add_offset_terrane_f0_s3431: std::sync::Arc<
+        let changed: String;
+        let offset: i64;
+        let add_offset: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> std::pin::Pin<
                     Box<dyn Future<Output = terrane_int_support::Int> + Send>,
                 > + Send + Sync,
         >;
-        let concurrent_terrane_f0_s3508: terrane_int_support::Int;
-        let callback_registry_terrane_f0_s3598: Registrar;
-        let retained_scope_terrane_f0_s3733: TerraneTaskScope;
-        let retained_child_terrane_f0_s3766: TerraneScopedTask<terrane_int_support::Int>;
-        let active_terrane_f0_s3822: bool;
-        let retained_outcome_terrane_f0_s3912: TerraneTaskOutcome<
-            terrane_int_support::Int,
-        >;
-        let message_terrane_f0_s4055: ProjectedMessage;
-        let interface_message_terrane_f0_s4195: Renderable;
-        let impl_message_terrane_f0_s4386: ProjectedMessage;
-        let mut counter_terrane_f0_s4482: ProjectedCounter;
-        let mut holder_terrane_f0_s4562: ProjectedCounterHolder;
-        let mut retained_counter_terrane_f0_s4653: AdjustableOwner;
-        let boxed_counter_terrane_f0_s4772: ProjectedCounter;
-        let mut boxed_owner_terrane_f0_s4820: AdjustableOwner;
-        let erased_boxed_terrane_f0_s4937: Adjustable;
-        let mut erased_owner_terrane_f0_s4995: AdjustableOwner;
-        let mut local_owner_terrane_f0_s5113: LocalAdjustableOwner;
+        let concurrent: terrane_int_support::Int;
+        let callback_registry: Registrar;
+        let retained_scope: TerraneTaskScope;
+        let retained_child: TerraneScopedTask<terrane_int_support::Int>;
+        let active: bool;
+        let retained_outcome: TerraneTaskOutcome<terrane_int_support::Int>;
+        let message: ProjectedMessage;
+        let interface_message: Renderable;
+        let impl_message: ProjectedMessage;
+        let mut counter: ProjectedCounter;
+        let mut holder: ProjectedCounterHolder;
+        let mut retained_counter: AdjustableOwner;
+        let boxed_counter: ProjectedCounter;
+        let mut boxed_owner: AdjustableOwner;
+        let erased_boxed: Adjustable;
+        let mut erased_owner: AdjustableOwner;
+        let mut local_owner: LocalAdjustableOwner;
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_shared(terrane_int_support::Int::from(40_i128),
@@ -1518,7 +1516,7 @@ fn main() {
             TerraneConsumingCallable::new(move | (argument_0,) : (String,) |
             keep_string(argument_0))), 15 /* terrane-site: src/main.trn:105:13-105:45 */))
         );
-        changed_terrane_f0_s3325 = __terrane_traced(
+        changed = __terrane_traced(
             __terrane_await({
                     let __terrane_future = apply_async(
                         String::from("hello"),
@@ -1538,29 +1536,27 @@ fn main() {
                 .await,
             16 /* terrane-site: src/main.trn:106:28-106:67 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&changed_terrane_f0_s3325));
-        offset_terrane_f0_s3411 = 10;
-        add_offset_terrane_f0_s3431 = {
-            let offset_terrane_f0_s3411 = offset_terrane_f0_s3411.clone();
+        println!("{}", terrane_scalar_support::scalar_text(&changed));
+        offset = 10;
+        add_offset = {
+            let offset = offset.clone();
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> std::pin::Pin<
                 Box<dyn Future<Output = terrane_int_support::Int> + Send>,
             > {
-                let offset_terrane_f0_s3411 = offset_terrane_f0_s3411.clone();
+                let offset = offset.clone();
                 Box::pin(async move {
                     return value.clone()
-                        + terrane_int_support::Int::from(
-                            offset_terrane_f0_s3411 as i128,
-                        );
+                        + terrane_int_support::Int::from(offset as i128);
                 })
             })
         };
-        concurrent_terrane_f0_s3508 = __terrane_traced(
+        concurrent = __terrane_traced(
             __terrane_await({
                     let __terrane_future = apply_async_concurrently(
                         terrane_int_support::Int::from(20_i128),
-                        add_offset_terrane_f0_s3431.clone(),
+                        add_offset.clone(),
                     );
                     async move {
                         __terrane_raised_err(
@@ -1572,17 +1568,15 @@ fn main() {
                 .await,
             17 /* terrane-site: src/main.trn:111:28-111:68 */,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&concurrent_terrane_f0_s3508)
-        );
-        callback_registry_terrane_f0_s3598 = __terrane_raised(
+        println!("{}", terrane_scalar_support::scalar_text(&concurrent));
+        callback_registry = __terrane_raised(
             registrar(),
             18 /* terrane-site: src/main.trn:113:25-113:35 */,
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            (&callback_registry_terrane_f0_s3598).apply(match | | -> Result < _, crate
+            (&callback_registry).apply(match | | -> Result < _, crate
             ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
             (&terrane_int_support::Int::from(5_i128)).map_err(| error | crate
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
@@ -1606,9 +1600,9 @@ fn main() {
             terrane_scalar_support::scalar_text(&__terrane_raised(dispatch(String::from("dissimilar"),
             true, std::sync::Arc::new(render)), 20 /* terrane-site: src/main.trn:116:13-116:49 */))
         );
-        retained_scope_terrane_f0_s3733 = TerraneTaskScope::new(None);
-        retained_child_terrane_f0_s3766 = {
-            let __terrane_scope = retained_scope_terrane_f0_s3733.clone();
+        retained_scope = TerraneTaskScope::new(None);
+        retained_child = {
+            let __terrane_scope = retained_scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -1626,7 +1620,7 @@ fn main() {
                 }
             })
         };
-        active_terrane_f0_s3822 = __terrane_traced(
+        active = __terrane_traced(
             __terrane_await({
                     let __terrane_future = wait_until_retained_invocation_active();
                     async move {
@@ -1639,74 +1633,64 @@ fn main() {
                 .await,
             21 /* terrane-site: src/main.trn:119:25-119:63 */,
         );
-        retained_scope_terrane_f0_s3733.cancel();
-        retained_outcome_terrane_f0_s3912 = __terrane_await(
-                retained_scope_terrane_f0_s3733.join(retained_child_terrane_f0_s3766),
-            )
-            .await;
+        retained_scope.cancel();
+        retained_outcome = __terrane_await(retained_scope.join(retained_child)).await;
         println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&active_terrane_f0_s3822),
-            terrane_scalar_support::scalar_text(&retained_outcome_terrane_f0_s3912
-            .cancelled),
+            "{}{}{}", terrane_scalar_support::scalar_text(&active),
+            terrane_scalar_support::scalar_text(&retained_outcome.cancelled),
             terrane_scalar_support::scalar_text(&__terrane_raised(active_retained_invocations(),
             22 /* terrane-site: src/main.trn:122:49-122:77 */))
         );
-        message_terrane_f0_s4055 = ProjectedMessage::terrane_construct();
+        message = ProjectedMessage::terrane_construct();
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(render_value(&message_terrane_f0_s4055,
+            terrane_scalar_support::scalar_text(&__terrane_raised(render_value(&message,
             String::from("interface")), 23 /* terrane-site: src/main.trn:124:13-124:47 */))
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(render_decorated(&message_terrane_f0_s4055,
+            terrane_scalar_support::scalar_text(&__terrane_raised(render_decorated(&message,
             String::from("default")), 24 /* terrane-site: src/main.trn:125:13-125:49 */))
         );
-        interface_message_terrane_f0_s4195 = <Renderable>::from(
-            message_terrane_f0_s4055,
-        );
+        interface_message = <Renderable>::from(message);
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&(&interface_message_terrane_f0_s4195)
+            "{}", terrane_scalar_support::scalar_text(&(&interface_message)
             .decorated(String::from("provided")))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&(&interface_message_terrane_f0_s4195)
+            "{}", terrane_scalar_support::scalar_text(&(&interface_message)
             .borrowed(String::from("borrowed")))
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced((&interface_message_terrane_f0_s4195)
+            terrane_scalar_support::scalar_text(&__terrane_traced((&interface_message)
             .parsed(String::from("7")), 25 /* terrane-site: src/main.trn:129:13-129:42 */))
         );
-        impl_message_terrane_f0_s4386 = ProjectedMessage::terrane_construct();
+        impl_message = ProjectedMessage::terrane_construct();
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(render_impl(&impl_message_terrane_f0_s4386,
+            terrane_scalar_support::scalar_text(&__terrane_raised(render_impl(&impl_message,
             String::from("opaque")), 26 /* terrane-site: src/main.trn:131:13-131:48 */))
         );
-        counter_terrane_f0_s4482 = ProjectedCounter::terrane_construct();
+        counter = ProjectedCounter::terrane_construct();
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(adjust_value(&mut
-            counter_terrane_f0_s4482, terrane_int_support::Int::from(7_i128)),
-            27 /* terrane-site: src/main.trn:133:13-133:37 */))
+            counter, terrane_int_support::Int::from(7_i128)), 27 /* terrane-site: src/main.trn:133:13-133:37 */))
         );
-        holder_terrane_f0_s4562 = ProjectedCounterHolder::terrane_construct();
+        holder = ProjectedCounterHolder::terrane_construct();
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(adjust_value(&mut
-            holder_terrane_f0_s4562.inner, terrane_int_support::Int::from(9_i128)),
-            28 /* terrane-site: src/main.trn:135:13-135:42 */))
+            holder.inner, terrane_int_support::Int::from(9_i128)), 28 /* terrane-site: src/main.trn:135:13-135:42 */))
         );
-        retained_counter_terrane_f0_s4653 = __terrane_raised(
-            retain_adjustable(counter_terrane_f0_s4482),
+        retained_counter = __terrane_raised(
+            retain_adjustable(counter),
             29 /* terrane-site: src/main.trn:136:24-136:50 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            retained_counter_terrane_f0_s4653.adjust(match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | retained_counter
+            .adjust(match | | -> Result < _, crate ::TerraneForeignError > {
+            Ok(terrane_int_support::coerce:: < i64 >
             (&terrane_int_support::Int::from(5_i128)).map_err(| error | crate
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
@@ -1716,23 +1700,23 @@ fn main() {
             "terrane_callback_witness::AdjustableOwner::adjust")) },
             30 /* terrane-site: src/main.trn:137:13-137:39 */)),
             terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            (&retained_counter_terrane_f0_s4653).current())) { Ok(value) =>
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&retained_counter)
+            .current())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
             "terrane_callback_witness::AdjustableOwner::current")) },
             31 /* terrane-site: src/main.trn:137:43-137:68 */))
         );
-        boxed_counter_terrane_f0_s4772 = ProjectedCounter::terrane_construct();
-        boxed_owner_terrane_f0_s4820 = __terrane_raised(
-            retain_boxed_adjustable(boxed_counter_terrane_f0_s4772),
+        boxed_counter = ProjectedCounter::terrane_construct();
+        boxed_owner = __terrane_raised(
+            retain_boxed_adjustable(boxed_counter),
             32 /* terrane-site: src/main.trn:139:19-139:57 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            boxed_owner_terrane_f0_s4820.adjust(match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | boxed_owner
+            .adjust(match | | -> Result < _, crate ::TerraneForeignError > {
+            Ok(terrane_int_support::coerce:: < i64 >
             (&terrane_int_support::Int::from(11_i128)).map_err(| error | crate
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
@@ -1742,25 +1726,23 @@ fn main() {
             "terrane_callback_witness::AdjustableOwner::adjust")) },
             33 /* terrane-site: src/main.trn:140:13-140:35 */)),
             terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            (&boxed_owner_terrane_f0_s4820).current())) { Ok(value) =>
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&boxed_owner)
+            .current())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
             "terrane_callback_witness::AdjustableOwner::current")) },
             34 /* terrane-site: src/main.trn:140:39-140:59 */))
         );
-        erased_boxed_terrane_f0_s4937 = <Adjustable>::from(
-            ProjectedCounter::terrane_construct(),
-        );
-        erased_owner_terrane_f0_s4995 = __terrane_raised(
-            retain_boxed_adjustable(erased_boxed_terrane_f0_s4937),
+        erased_boxed = <Adjustable>::from(ProjectedCounter::terrane_construct());
+        erased_owner = __terrane_raised(
+            retain_boxed_adjustable(erased_boxed),
             35 /* terrane-site: src/main.trn:142:20-142:57 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            erased_owner_terrane_f0_s4995.adjust(match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | erased_owner
+            .adjust(match | | -> Result < _, crate ::TerraneForeignError > {
+            Ok(terrane_int_support::coerce:: < i64 >
             (&terrane_int_support::Int::from(4_i128)).map_err(| error | crate
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
@@ -1770,22 +1752,22 @@ fn main() {
             "terrane_callback_witness::AdjustableOwner::adjust")) },
             36 /* terrane-site: src/main.trn:143:13-143:35 */)),
             terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            (&erased_owner_terrane_f0_s4995).current())) { Ok(value) =>
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&erased_owner)
+            .current())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
             "terrane_callback_witness::AdjustableOwner::current")) },
             37 /* terrane-site: src/main.trn:143:39-143:60 */))
         );
-        local_owner_terrane_f0_s5113 = __terrane_raised(
+        local_owner = __terrane_raised(
             retain_local_adjustable(ProjectedLocalCounter::terrane_construct()),
             38 /* terrane-site: src/main.trn:144:19-144:79 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            local_owner_terrane_f0_s5113.adjust(match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | local_owner
+            .adjust(match | | -> Result < _, crate ::TerraneForeignError > {
+            Ok(terrane_int_support::coerce:: < i64 >
             (&terrane_int_support::Int::from(3_i128)).map_err(| error | crate
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
@@ -1795,8 +1777,8 @@ fn main() {
             "terrane_callback_witness::LocalAdjustableOwner::adjust")) },
             39 /* terrane-site: src/main.trn:145:13-145:34 */)),
             terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            (&local_owner_terrane_f0_s5113).current())) { Ok(value) =>
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&local_owner)
+            .current())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
             "terrane_callback_witness::LocalAdjustableOwner::current")) },

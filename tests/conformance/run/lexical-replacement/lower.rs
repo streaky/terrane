@@ -4,10 +4,10 @@
 // Source: case.trn
 // Namespace: lexical-replacement
 fn main() {
-    let value_terrane_f0_s47: i8;
-    let value_terrane_f0_s79: i64;
-    value_terrane_f0_s47 = 1;
-    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s47));
-    value_terrane_f0_s79 = 2;
-    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s79));
+    let value: i8;
+    let value_2: i64;
+    value = 1;
+    println!("{}", terrane_scalar_support::scalar_text(&value));
+    value_2 = 2;
+    println!("{}", terrane_scalar_support::scalar_text(&value_2));
 }

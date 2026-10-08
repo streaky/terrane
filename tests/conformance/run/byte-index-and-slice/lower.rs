@@ -483,28 +483,28 @@ fn __terrane_uninitialized_binding(
 // Source: case.trn
 // Namespace: byte-index-and-slice
 fn main() {
-    let data_terrane_f0_s186: Vec<u8>;
-    let middle_terrane_f0_s248: Vec<u8>;
-    let stepped_terrane_f0_s314: Vec<u8>;
-    let empty_terrane_f0_s397: Vec<u8>;
-    let __trn_66696e616c_terrane_f0_s473: Vec<u8>;
-    let mut failure_terrane_f0_s736: Option<TerraneError> = None;
-    data_terrane_f0_s186 = terrane_string_support::encode(
+    let data: Vec<u8>;
+    let middle: Vec<u8>;
+    let stepped: Vec<u8>;
+    let empty: Vec<u8>;
+    let __trn_66696e616c: Vec<u8>;
+    let mut failure: Option<TerraneError> = None;
+    data = terrane_string_support::encode(
         &String::from("A👍"),
         terrane_string_support::Encoding::Utf8,
     );
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&data_terrane_f0_s186,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&data,
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:9:10-9:17 */)), 0 /* terrane-site: case.trn:9:10-9:17 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&data_terrane_f0_s186,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&data,
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         1 /* terrane-site: case.trn:9:19-9:26 */)), 1 /* terrane-site: case.trn:9:19-9:26 */))
     );
-    middle_terrane_f0_s248 = __terrane_raised(
+    middle = __terrane_raised(
         terrane_collection_support::byte_slice(
-            &data_terrane_f0_s186,
+            &data,
             &__terrane_raised(
                 terrane_collection_support::Range::new(
                     terrane_int_support::Int::from(1_i128),
@@ -518,12 +518,12 @@ fn main() {
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&middle_terrane_f0_s248,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&middle,
         terrane_string_support::Encoding::Utf8), 4 /* terrane-site: case.trn:11:11-11:30 */))
     );
-    stepped_terrane_f0_s314 = __terrane_raised(
+    stepped = __terrane_raised(
         terrane_collection_support::byte_slice(
-            &data_terrane_f0_s186,
+            &data,
             &__terrane_raised(
                 terrane_collection_support::Range::new(
                     terrane_int_support::Int::from(0_i128),
@@ -537,23 +537,23 @@ fn main() {
     );
     println!(
         "{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&stepped_terrane_f0_s314,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&stepped,
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         7 /* terrane-site: case.trn:13:10-13:20 */)), 7 /* terrane-site: case.trn:13:10-13:20 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&stepped_terrane_f0_s314,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&stepped,
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         8 /* terrane-site: case.trn:13:22-13:32 */)), 8 /* terrane-site: case.trn:13:22-13:32 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&stepped_terrane_f0_s314,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&stepped,
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         9 /* terrane-site: case.trn:13:34-13:44 */)), 9 /* terrane-site: case.trn:13:34-13:44 */))
     );
-    empty_terrane_f0_s397 = __terrane_raised(
+    empty = __terrane_raised(
         terrane_collection_support::byte_slice(
-            &data_terrane_f0_s186,
+            &data,
             &__terrane_raised(
                 terrane_collection_support::Range::new(
-                    terrane_int_support::Int::from(data_terrane_f0_s186.len() as i128),
-                    terrane_int_support::Int::from(data_terrane_f0_s186.len() as i128),
+                    terrane_int_support::Int::from(data.len() as i128),
+                    terrane_int_support::Int::from(data.len() as i128),
                     terrane_int_support::Int::from(1_i64),
                 ),
                 10 /* terrane-site: case.trn:14:22-14:53 */,
@@ -561,12 +561,10 @@ fn main() {
         ),
         11 /* terrane-site: case.trn:14:17-14:54 */,
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(empty_terrane_f0_s397.len() as i128))
-    );
-    __trn_66696e616c_terrane_f0_s473 = __terrane_raised(
+    println!("{}", terrane_scalar_support::scalar_text(&(empty.len() as i128)));
+    __trn_66696e616c = __terrane_raised(
         terrane_collection_support::byte_slice(
-            &data_terrane_f0_s186,
+            &data,
             &__terrane_raised(
                 terrane_collection_support::Range::through(
                     terrane_int_support::Int::from(4_i128),
@@ -580,7 +578,7 @@ fn main() {
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&__trn_66696e616c_terrane_f0_s473,
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&__trn_66696e616c,
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         14 /* terrane-site: case.trn:17:10-17:18 */)), 14 /* terrane-site: case.trn:17:10-17:18 */))
     );
@@ -588,8 +586,8 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_collection_support::byte_at(&data_terrane_f0_s186,
-                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(data_terrane_f0_s186
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
+                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(data
                 .len() as i128)), 15 /* terrane-site: case.trn:19:12-19:29 */)),
                 15 /* terrane-site: case.trn:19:12-19:29 */))
             );
@@ -629,7 +627,7 @@ fn main() {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&(__terrane_raised_completion!(terrane_collection_support::byte_slice(&data_terrane_f0_s186,
+                terrane_scalar_support::scalar_text(&(__terrane_raised_completion!(terrane_collection_support::byte_slice(&data,
                 &__terrane_raised_completion!(terrane_collection_support::Range::new(terrane_int_support::Int::from(0_i128),
                 terrane_int_support::Int::from(6_i128),
                 terrane_int_support::Int::from(1_i64)), 16 /* terrane-site: case.trn:23:17-23:28 */)), 17 /* terrane-site: case.trn:23:12-23:29 */) .len() as i128))
@@ -670,7 +668,7 @@ fn main() {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_collection_support::byte_at(&data_terrane_f0_s186,
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
                 __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(-
                 1_i128)), 18 /* terrane-site: case.trn:27:12-27:21 */)),
                 18 /* terrane-site: case.trn:27:12-27:21 */))
@@ -688,12 +686,11 @@ fn main() {
                     && __terrane_error_2.kind == TerraneErrorKind::IndexError
                 {
                     __terrane_handled_2 = true;
-                    let _ = failure_terrane_f0_s736.insert(__terrane_error_2.clone());
+                    let _ = failure.insert(__terrane_error_2.clone());
                     println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&failure_terrane_f0_s736
-                        .as_ref().expect("flow-proven available binding").clone()
-                        .message().to_owned())
+                        "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
+                        .expect("flow-proven available binding").clone().message()
+                        .to_owned())
                     );
                 }
                 if !__terrane_handled_2 {

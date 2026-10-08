@@ -447,21 +447,21 @@ fn __terrane_uninitialized_binding(
 // Source: case.trn
 // Namespace: catch-decode-error
 fn main() {
-    let raw_terrane_f0_s84: Vec<u8>;
-    let mut decoded_terrane_f0_s108: Option<String> = None;
-    raw_terrane_f0_s84 = Vec::from([255]);
+    let raw: Vec<u8>;
+    let mut decoded: Option<String> = None;
+    raw = Vec::from([255]);
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let _ = decoded_terrane_f0_s108
+            let _ = decoded
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_string_support::decode(&raw_terrane_f0_s84,
+                        terrane_string_support::decode(&raw,
                         terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:6:15-6:31 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&decoded_terrane_f0_s108
-                .as_ref().expect("flow-proven available binding").clone())
+                "{}", terrane_scalar_support::scalar_text(&decoded.as_ref()
+                .expect("flow-proven available binding").clone())
             );
             TerraneCompletion::Normal
         })();

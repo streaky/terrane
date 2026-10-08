@@ -470,27 +470,27 @@ fn apply(
     );
 }
 fn main() {
-    let operation_terrane_f0_s325: std::sync::Arc<
+    let operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
     >;
-    operation_terrane_f0_s325 = std::sync::Arc::new(render);
+    operation = std::sync::Arc::new(render);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation_terrane_f0_s325;
-        "throws".to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "throws"
+        .to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation_terrane_f0_s325;
-        "coercion-error".to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "coercion-error"
+        .to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation_terrane_f0_s325;
-        "coercion-error".to_owned() })
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "coercion-error"
+        .to_owned() })
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(apply(operation_terrane_f0_s325
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(apply(operation
                 .clone(), terrane_int_support::Int::from(- 1_i128)),
                 2 /* terrane-site: case.trn:18:13-18:33 */))
             );
@@ -528,8 +528,7 @@ fn main() {
         }
     }
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(apply(operation_terrane_f0_s325
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(apply(operation
         .clone(), terrane_int_support::Int::from(4_i128)), 3 /* terrane-site: case.trn:21:11-21:30 */))
     );
 }

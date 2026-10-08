@@ -456,7 +456,7 @@ fn report(failure: Option<TerraneError>) {
     }
 }
 fn main() {
-    let mut failure_terrane_f0_s249: Option<TerraneError> = None;
+    let mut failure: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -477,10 +477,10 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    let _ = failure_terrane_f0_s249.insert(__terrane_error_0.clone());
+                    let _ = failure.insert(__terrane_error_0.clone());
                     report(
                         Some(
-                            failure_terrane_f0_s249
+                            failure
                                 .as_ref()
                                 .expect("flow-proven available binding")
                                 .clone(),

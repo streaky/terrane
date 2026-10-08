@@ -529,27 +529,22 @@ fn caught() -> terrane_int_support::Int {
     }
 }
 fn main() {
-    let value_terrane_f0_s303: terrane_int_support::Int;
-    let caught_value_terrane_f0_s339: terrane_int_support::Int;
-    let mut counter_terrane_f0_s390: terrane_int_support::Int;
-    value_terrane_f0_s303 = early();
-    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s303));
-    caught_value_terrane_f0_s339 = caught();
-    println!("{}", terrane_scalar_support::scalar_text(&caught_value_terrane_f0_s339));
-    counter_terrane_f0_s390 = terrane_int_support::Int::from(0_i128);
-    while counter_terrane_f0_s390.clone() < terrane_int_support::Int::from(3_i128) {
-        counter_terrane_f0_s390 = counter_terrane_f0_s390.clone()
-            + terrane_int_support::Int::from(1_i128);
+    let value: terrane_int_support::Int;
+    let caught_value: terrane_int_support::Int;
+    let mut counter: terrane_int_support::Int;
+    value = early();
+    println!("{}", terrane_scalar_support::scalar_text(&value));
+    caught_value = caught();
+    println!("{}", terrane_scalar_support::scalar_text(&caught_value));
+    counter = terrane_int_support::Int::from(0_i128);
+    while counter.clone() < terrane_int_support::Int::from(3_i128) {
+        counter = counter.clone() + terrane_int_support::Int::from(1_i128);
         let mut __terrane_completion_2: TerraneCompletion<()> = (|| {
             let __terrane_try_2: TerraneCompletion<()> = (|| {
-                if counter_terrane_f0_s390.clone()
-                    == terrane_int_support::Int::from(1_i128)
-                {
+                if counter.clone() == terrane_int_support::Int::from(1_i128) {
                     return TerraneCompletion::Continue;
                 }
-                if counter_terrane_f0_s390.clone()
-                    == terrane_int_support::Int::from(2_i128)
-                {
+                if counter.clone() == terrane_int_support::Int::from(2_i128) {
                     return TerraneCompletion::Break;
                 }
                 TerraneCompletion::Normal

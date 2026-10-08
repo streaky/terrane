@@ -461,80 +461,71 @@ fn __terrane_uninitialized_binding(
 // Source: case.trn
 // Namespace: fixed-integer-float-destination
 fn main() {
-    let signed64_terrane_f0_s113: i64;
-    let signed64_float_terrane_f0_s154: f64;
-    let unsigned64_terrane_f0_s190: u64;
-    let unsigned64_float_terrane_f0_s238: f64;
-    let signed128_terrane_f0_s278: i128;
-    let signed128_float_terrane_f0_s352: f64;
-    let unsigned128_terrane_f0_s390: u128;
-    let unsigned128_float_terrane_f0_s466: f64;
-    let signed32_terrane_f0_s508: i32;
-    let signed32_float_terrane_f0_s538: f32;
-    let largest_float32_integer_terrane_f0_s574: u128;
-    let largest_float32_terrane_f0_s662: f32;
-    let mut inexact64_terrane_f0_s875: Option<u64> = None;
-    let mut rejected64_terrane_f0_s925: Option<f64> = None;
-    let mut inexact32_terrane_f0_s1060: Option<u128> = None;
-    let mut rejected32_terrane_f0_s1136: Option<f32> = None;
-    signed64_terrane_f0_s113 = 9007199254740992;
-    signed64_float_terrane_f0_s154 = __terrane_raised(
-        terrane_int_support::exact_fixed_f64(signed64_terrane_f0_s113),
+    let signed64: i64;
+    let signed64_float: f64;
+    let unsigned64: u64;
+    let unsigned64_float: f64;
+    let signed128: i128;
+    let signed128_float: f64;
+    let unsigned128: u128;
+    let unsigned128_float: f64;
+    let signed32: i32;
+    let signed32_float: f32;
+    let largest_float32_integer: u128;
+    let largest_float32: f32;
+    let mut inexact64: Option<u64> = None;
+    let mut rejected64: Option<f64> = None;
+    let mut inexact32: Option<u128> = None;
+    let mut rejected32: Option<f32> = None;
+    signed64 = 9007199254740992;
+    signed64_float = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(signed64),
         0 /* terrane-site: case.trn:6:28-6:36 */,
     );
-    unsigned64_terrane_f0_s190 = 9223372036854775808;
-    unsigned64_float_terrane_f0_s238 = __terrane_raised(
-        terrane_int_support::exact_fixed_f64(unsigned64_terrane_f0_s190),
+    unsigned64 = 9223372036854775808;
+    unsigned64_float = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(unsigned64),
         1 /* terrane-site: case.trn:8:30-8:40 */,
     );
-    signed128_terrane_f0_s278 = -170141183460469231731687303715884105728;
-    signed128_float_terrane_f0_s352 = __terrane_raised(
-        terrane_int_support::exact_fixed_f64(signed128_terrane_f0_s278),
+    signed128 = -170141183460469231731687303715884105728;
+    signed128_float = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(signed128),
         2 /* terrane-site: case.trn:10:29-10:38 */,
     );
-    unsigned128_terrane_f0_s390 = 170141183460469231731687303715884105728;
-    unsigned128_float_terrane_f0_s466 = __terrane_raised(
-        terrane_int_support::exact_fixed_f64(unsigned128_terrane_f0_s390),
+    unsigned128 = 170141183460469231731687303715884105728;
+    unsigned128_float = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(unsigned128),
         3 /* terrane-site: case.trn:12:31-12:42 */,
     );
-    signed32_terrane_f0_s508 = 16777216;
-    signed32_float_terrane_f0_s538 = __terrane_raised(
-        terrane_int_support::exact_fixed_f32(signed32_terrane_f0_s508),
+    signed32 = 16777216;
+    signed32_float = __terrane_raised(
+        terrane_int_support::exact_fixed_f32(signed32),
         4 /* terrane-site: case.trn:14:28-14:36 */,
     );
-    largest_float32_integer_terrane_f0_s574 = 340282346638528859811704183484516925440;
-    largest_float32_terrane_f0_s662 = __terrane_raised(
-        terrane_int_support::exact_fixed_f32(largest_float32_integer_terrane_f0_s574),
+    largest_float32_integer = 340282346638528859811704183484516925440;
+    largest_float32 = __terrane_raised(
+        terrane_int_support::exact_fixed_f32(largest_float32_integer),
         5 /* terrane-site: case.trn:16:29-16:52 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&signed64_float_terrane_f0_s154));
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&unsigned64_float_terrane_f0_s238)
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&signed128_float_terrane_f0_s352)
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&unsigned128_float_terrane_f0_s466)
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&signed32_float_terrane_f0_s538));
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&largest_float32_terrane_f0_s662)
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&signed64_float));
+    println!("{}", terrane_scalar_support::scalar_text(&unsigned64_float));
+    println!("{}", terrane_scalar_support::scalar_text(&signed128_float));
+    println!("{}", terrane_scalar_support::scalar_text(&unsigned128_float));
+    println!("{}", terrane_scalar_support::scalar_text(&signed32_float));
+    println!("{}", terrane_scalar_support::scalar_text(&largest_float32));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let _ = inexact64_terrane_f0_s875.insert(18446744073709551615);
-            let _ = rejected64_terrane_f0_s925
+            let _ = inexact64.insert(18446744073709551615);
+            let _ = rejected64
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_int_support::exact_fixed_f64(* inexact64_terrane_f0_s875
-                        .as_ref().expect("flow-proven available binding")),
-                        6 /* terrane-site: case.trn:27:26-27:35 */
+                        terrane_int_support::exact_fixed_f64(* inexact64.as_ref()
+                        .expect("flow-proven available binding")), 6 /* terrane-site: case.trn:27:26-27:35 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* rejected64_terrane_f0_s925
-                .as_ref().expect("flow-proven available binding"))
+                "{}", terrane_scalar_support::scalar_text(&* rejected64.as_ref()
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();
@@ -572,19 +563,17 @@ fn main() {
     }
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
-            let _ = inexact32_terrane_f0_s1060
-                .insert(340282366920938463463374607431768211455);
-            let _ = rejected32_terrane_f0_s1136
+            let _ = inexact32.insert(340282366920938463463374607431768211455);
+            let _ = rejected32
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_int_support::exact_fixed_f32(* inexact32_terrane_f0_s1060
-                        .as_ref().expect("flow-proven available binding")),
-                        7 /* terrane-site: case.trn:34:26-34:35 */
+                        terrane_int_support::exact_fixed_f32(* inexact32.as_ref()
+                        .expect("flow-proven available binding")), 7 /* terrane-site: case.trn:34:26-34:35 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* rejected32_terrane_f0_s1136
-                .as_ref().expect("flow-proven available binding"))
+                "{}", terrane_scalar_support::scalar_text(&* rejected32.as_ref()
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();

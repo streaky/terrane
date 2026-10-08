@@ -22,19 +22,17 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: builtin-descriptor-contracts
 fn main() {
-    let number_terrane_f0_s129: i8;
-    let text_terrane_f0_s147: String;
-    let numbers_terrane_f0_s173: terrane_collection_support::List<i8>;
-    let number_descriptor_terrane_f0_s211: TerraneDescriptor;
-    let text_descriptor_terrane_f0_s245: TerraneDescriptor;
-    let list_descriptor_terrane_f0_s275: TerraneDescriptor;
-    number_terrane_f0_s129 = 7;
-    text_terrane_f0_s147 = String::from("terrane");
-    numbers_terrane_f0_s173 = terrane_collection_support::List::<
-        i8,
-    >::new(vec![number_terrane_f0_s129]);
-    number_descriptor_terrane_f0_s211 = {
-        let _ = &number_terrane_f0_s129;
+    let number: i8;
+    let text: String;
+    let numbers: terrane_collection_support::List<i8>;
+    let number_descriptor: TerraneDescriptor;
+    let text_descriptor: TerraneDescriptor;
+    let list_descriptor: TerraneDescriptor;
+    number = 7;
+    text = String::from("terrane");
+    numbers = terrane_collection_support::List::<i8>::new(vec![number]);
+    number_descriptor = {
+        let _ = &number;
         TerraneDescriptor {
             identity: "/core/types::int8",
             name: "int8",
@@ -43,8 +41,8 @@ fn main() {
             fields: &[],
         }
     };
-    text_descriptor_terrane_f0_s245 = {
-        let _ = &text_terrane_f0_s147;
+    text_descriptor = {
+        let _ = &text;
         TerraneDescriptor {
             identity: "/core/types::string",
             name: "string",
@@ -53,8 +51,8 @@ fn main() {
             fields: &[],
         }
     };
-    list_descriptor_terrane_f0_s275 = {
-        let _ = &numbers_terrane_f0_s173;
+    list_descriptor = {
+        let _ = &numbers;
         TerraneDescriptor {
             identity: "/core/collections::list of int8",
             name: "list of int8",
@@ -64,36 +62,30 @@ fn main() {
         }
     };
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&number_descriptor_terrane_f0_s211
-        .identity.to_owned()),
-        terrane_scalar_support::scalar_text(&number_descriptor_terrane_f0_s211.name
-        .to_owned()),
-        terrane_scalar_support::scalar_text(&number_descriptor_terrane_f0_s211.kind
+        "{}{}{}", terrane_scalar_support::scalar_text(&number_descriptor.identity
+        .to_owned()), terrane_scalar_support::scalar_text(&number_descriptor.name
+        .to_owned()), terrane_scalar_support::scalar_text(&number_descriptor.kind
         .to_owned())
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&text_descriptor_terrane_f0_s245
-        .identity.to_owned()),
-        terrane_scalar_support::scalar_text(&text_descriptor_terrane_f0_s245.name
-        .to_owned()),
-        terrane_scalar_support::scalar_text(&text_descriptor_terrane_f0_s245.kind
+        "{}{}{}", terrane_scalar_support::scalar_text(&text_descriptor.identity
+        .to_owned()), terrane_scalar_support::scalar_text(&text_descriptor.name
+        .to_owned()), terrane_scalar_support::scalar_text(&text_descriptor.kind
         .to_owned())
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&list_descriptor_terrane_f0_s275
-        .identity.to_owned()),
-        terrane_scalar_support::scalar_text(&list_descriptor_terrane_f0_s275.name
-        .to_owned()),
-        terrane_scalar_support::scalar_text(&list_descriptor_terrane_f0_s275.kind
+        "{}{}{}", terrane_scalar_support::scalar_text(&list_descriptor.identity
+        .to_owned()), terrane_scalar_support::scalar_text(&list_descriptor.name
+        .to_owned()), terrane_scalar_support::scalar_text(&list_descriptor.kind
         .to_owned())
     );
     println!(
         "{}{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(number_descriptor_terrane_f0_s211
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(number_descriptor
         .fields.len() as i128)),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(text_descriptor_terrane_f0_s245
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(text_descriptor
         .fields.len() as i128)),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(list_descriptor_terrane_f0_s275
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(list_descriptor
         .fields.len() as i128))
     );
 }

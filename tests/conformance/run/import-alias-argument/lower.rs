@@ -436,11 +436,11 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: later-coercion-alias-argument
 fn main() {
-    let value_terrane_f0_s89: i64;
-    value_terrane_f0_s89 = 100;
+    let value: i64;
+    value = 100;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::coerce::
-        < i8 > (&value_terrane_f0_s89), 0 /* terrane-site: case.trn:6:11-6:16 */))
+        < i8 > (&value), 0 /* terrane-site: case.trn:6:11-6:16 */))
     );
 }

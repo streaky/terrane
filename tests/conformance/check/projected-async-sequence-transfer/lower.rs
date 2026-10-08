@@ -484,10 +484,8 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 async fn wait_next(mut sequence: TokioSequence) {
-    let step_terrane_f0_s151: terrane_collection_support::AsyncIterationStep<
-        terrane_int_support::Int,
-    >;
-    step_terrane_f0_s151 = __terrane_traced(
+    let step: terrane_collection_support::AsyncIterationStep<terrane_int_support::Int>;
+    step = __terrane_traced(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -542,24 +540,24 @@ async fn wait_next(mut sequence: TokioSequence) {
             .await,
         0 /* terrane-site: src/main.trn:4:16-4:30 */,
     );
-    let _ = &step_terrane_f0_s151;
+    let _ = &step;
 }
 fn main() {
     __terrane_run(async move {
-        let scope_terrane_f0_s202: TerraneTaskScope;
-        let sequence_terrane_f0_s224: TokioSequence;
-        let child_terrane_f0_s266: TerraneScopedTask<()>;
-        let outcome_terrane_f0_s311: TerraneTaskOutcome<()>;
-        scope_terrane_f0_s202 = TerraneTaskScope::new(None);
-        sequence_terrane_f0_s224 = __terrane_raised(
+        let scope: TerraneTaskScope;
+        let sequence: TokioSequence;
+        let child: TerraneScopedTask<()>;
+        let outcome: TerraneTaskOutcome<()>;
+        scope = TerraneTaskScope::new(None);
+        sequence = __terrane_raised(
             make_pending_tokio_sequence(),
             1 /* terrane-site: src/main.trn:7:14-7:42 */,
         );
-        child_terrane_f0_s266 = {
-            let __terrane_scope = scope_terrane_f0_s202.clone();
+        child = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
-            let __terrane_spawned_task = wait_next(sequence_terrane_f0_s224);
+            let __terrane_spawned_task = wait_next(sequence);
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
                         __terrane_spawned_task,
@@ -573,11 +571,8 @@ fn main() {
                 }
             })
         };
-        outcome_terrane_f0_s311 = __terrane_await(
-                scope_terrane_f0_s202.join(child_terrane_f0_s266),
-            )
-            .await;
-        let _ = &outcome_terrane_f0_s311;
+        outcome = __terrane_await(scope.join(child)).await;
+        let _ = &outcome;
     });
 }
 // Source: <terrane>/projected/deps/terrane-sequence-witness.trn

@@ -438,15 +438,13 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: nested-collection-contextual-typing
 fn main() {
-    let outer_terrane_f0_s129: terrane_collection_support::List<
-        terrane_collection_support::List<i8>,
-    >;
-    outer_terrane_f0_s129 = terrane_collection_support::List::<
+    let outer: terrane_collection_support::List<terrane_collection_support::List<i8>>;
+    outer = terrane_collection_support::List::<
         terrane_collection_support::List<i8>,
     >::new(vec![terrane_collection_support::List::< i8 >::new(vec![5, 6])]);
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(outer_terrane_f0_s129
+        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(outer
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:6:10-6:18 */)), 0 /* terrane-site: case.trn:6:10-6:18 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),

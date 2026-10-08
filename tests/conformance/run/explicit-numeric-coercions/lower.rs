@@ -471,97 +471,80 @@ fn divide(numerator: f64, denominator: f64) -> f64 {
     return numerator / denominator;
 }
 fn main() {
-    let quantity_terrane_f0_s225: i64;
-    let rounded64_terrane_f0_s264: f64;
-    let rounded32_terrane_f0_s311: f32;
-    let signed_terrane_f0_s397: i8;
-    let signed_float_terrane_f0_s416: f32;
-    let maximum_terrane_f0_s464: u128;
-    let maximum_float_terrane_f0_s536: f64;
-    let precise_terrane_f0_s632: f64;
-    let narrowed_terrane_f0_s665: f32;
-    let widened_terrane_f0_s710: f64;
-    let infinity64_terrane_f0_s791: f64;
-    let infinity32_terrane_f0_s823: f32;
-    let nan64_terrane_f0_s873: f64;
-    let nan32_terrane_f0_s900: f32;
-    let checked_integer_terrane_f0_s998: Option<f32>;
-    let base_terrane_f0_s1086: f64;
-    let too_large_terrane_f0_s1112: f64;
-    let checked_float_terrane_f0_s1180: Option<f32>;
-    let mut impossible_terrane_f0_s1274: Option<f32> = None;
-    quantity_terrane_f0_s225 = 9007199254740993;
-    rounded64_terrane_f0_s264 = __terrane_raised(
-        terrane_int_support::coerce_to_f64(&quantity_terrane_f0_s225),
+    let quantity: i64;
+    let rounded64: f64;
+    let rounded32: f32;
+    let signed: i8;
+    let signed_float: f32;
+    let maximum: u128;
+    let maximum_float: f64;
+    let precise: f64;
+    let narrowed: f32;
+    let widened: f64;
+    let infinity64: f64;
+    let infinity32: f32;
+    let nan64: f64;
+    let nan32: f32;
+    let checked_integer: Option<f32>;
+    let base: f64;
+    let too_large: f64;
+    let checked_float: Option<f32>;
+    let mut impossible: Option<f32> = None;
+    quantity = 9007199254740993;
+    rounded64 = __terrane_raised(
+        terrane_int_support::coerce_to_f64(&quantity),
         0 /* terrane-site: case.trn:11:23-11:38 */,
     );
-    rounded32_terrane_f0_s311 = __terrane_raised(
-        terrane_int_support::coerce_to_f32(&quantity_terrane_f0_s225),
+    rounded32 = __terrane_raised(
+        terrane_int_support::coerce_to_f32(&quantity),
         1 /* terrane-site: case.trn:12:23-12:38 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&rounded64_terrane_f0_s264));
-    println!("{}", terrane_scalar_support::scalar_text(&rounded32_terrane_f0_s311));
-    signed_terrane_f0_s397 = -7;
-    signed_float_terrane_f0_s416 = signed_terrane_f0_s397 as f32;
-    maximum_terrane_f0_s464 = 340282366920938463463374607431768211455;
-    maximum_float_terrane_f0_s536 = maximum_terrane_f0_s464 as f64;
-    println!("{}", terrane_scalar_support::scalar_text(&signed_float_terrane_f0_s416));
-    println!("{}", terrane_scalar_support::scalar_text(&maximum_float_terrane_f0_s536));
-    precise_terrane_f0_s632 = 16777217.0;
-    narrowed_terrane_f0_s665 = __terrane_raised(
-        terrane_int_support::coerce_f64_to_f32(precise_terrane_f0_s632),
+    println!("{}", terrane_scalar_support::scalar_text(&rounded64));
+    println!("{}", terrane_scalar_support::scalar_text(&rounded32));
+    signed = -7;
+    signed_float = signed as f32;
+    maximum = 340282366920938463463374607431768211455;
+    maximum_float = maximum as f64;
+    println!("{}", terrane_scalar_support::scalar_text(&signed_float));
+    println!("{}", terrane_scalar_support::scalar_text(&maximum_float));
+    precise = 16777217.0;
+    narrowed = __terrane_raised(
+        terrane_int_support::coerce_f64_to_f32(precise),
         2 /* terrane-site: case.trn:24:22-24:36 */,
     );
-    widened_terrane_f0_s710 = narrowed_terrane_f0_s665 as f64;
-    println!("{}", terrane_scalar_support::scalar_text(&narrowed_terrane_f0_s665));
-    println!("{}", terrane_scalar_support::scalar_text(&widened_terrane_f0_s710));
-    infinity64_terrane_f0_s791 = divide(1.0, 0.0);
-    infinity32_terrane_f0_s823 = __terrane_raised(
-        terrane_int_support::coerce_f64_to_f32(infinity64_terrane_f0_s791),
+    widened = narrowed as f64;
+    println!("{}", terrane_scalar_support::scalar_text(&narrowed));
+    println!("{}", terrane_scalar_support::scalar_text(&widened));
+    infinity64 = divide(1.0, 0.0);
+    infinity32 = __terrane_raised(
+        terrane_int_support::coerce_f64_to_f32(infinity64),
         3 /* terrane-site: case.trn:30:24-30:41 */,
     );
-    nan64_terrane_f0_s873 = divide(0.0, 0.0);
-    nan32_terrane_f0_s900 = __terrane_raised(
-        terrane_int_support::coerce_f64_to_f32(nan64_terrane_f0_s873),
+    nan64 = divide(0.0, 0.0);
+    nan32 = __terrane_raised(
+        terrane_int_support::coerce_f64_to_f32(nan64),
         4 /* terrane-site: case.trn:32:19-32:31 */,
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&infinity32_terrane_f0_s823
-        .is_infinite())
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&nan32_terrane_f0_s900.is_nan()));
-    checked_integer_terrane_f0_s998 = terrane_int_support::coerce_fixed_to_f32(
-            maximum_terrane_f0_s464,
-        )
-        .ok();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&checked_integer_terrane_f0_s998
-        .is_none())
-    );
-    base_terrane_f0_s1086 = 65536.0;
-    too_large_terrane_f0_s1112 = base_terrane_f0_s1086 * base_terrane_f0_s1086
-        * base_terrane_f0_s1086 * base_terrane_f0_s1086 * base_terrane_f0_s1086
-        * base_terrane_f0_s1086 * base_terrane_f0_s1086 * base_terrane_f0_s1086;
-    checked_float_terrane_f0_s1180 = terrane_int_support::coerce_f64_to_f32(
-            too_large_terrane_f0_s1112,
-        )
-        .ok();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&checked_float_terrane_f0_s1180
-        .is_none())
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&infinity32.is_infinite()));
+    println!("{}", terrane_scalar_support::scalar_text(&nan32.is_nan()));
+    checked_integer = terrane_int_support::coerce_fixed_to_f32(maximum).ok();
+    println!("{}", terrane_scalar_support::scalar_text(&checked_integer.is_none()));
+    base = 65536.0;
+    too_large = base * base * base * base * base * base * base * base;
+    checked_float = terrane_int_support::coerce_f64_to_f32(too_large).ok();
+    println!("{}", terrane_scalar_support::scalar_text(&checked_float.is_none()));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let _ = impossible_terrane_f0_s1274
+            let _ = impossible
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_int_support::coerce_fixed_to_f32(maximum_terrane_f0_s464),
+                        terrane_int_support::coerce_fixed_to_f32(maximum),
                         5 /* terrane-site: case.trn:45:26-45:40 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* impossible_terrane_f0_s1274
-                .as_ref().expect("flow-proven available binding"))
+                "{}", terrane_scalar_support::scalar_text(&* impossible.as_ref()
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();
@@ -598,16 +581,16 @@ fn main() {
     }
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
-            let _ = impossible_terrane_f0_s1274
+            let _ = impossible
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_int_support::coerce_f64_to_f32(too_large_terrane_f0_s1112),
+                        terrane_int_support::coerce_f64_to_f32(too_large),
                         6 /* terrane-site: case.trn:51:26-51:42 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* impossible_terrane_f0_s1274
-                .as_ref().expect("flow-proven available binding"))
+                "{}", terrane_scalar_support::scalar_text(&* impossible.as_ref()
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();

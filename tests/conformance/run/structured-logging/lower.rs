@@ -574,73 +574,67 @@ impl From<CountedValue> for LogValue {
 }
 fn main() {
     __terrane_run(async move {
-        let sink_result_terrane_f0_s1031: LogSinkResult;
-        let mut writer_terrane_f0_s1095: Logger;
-        let lazy_terrane_f0_s1328: CountedValue;
-        let mut token_field_terrane_f0_s1374: LogField;
-        let descriptor_terrane_f0_s1447: TerraneDescriptor;
-        let additions_terrane_f0_s1595: terrane_collection_support::List<LogField>;
-        let filtered_terrane_f0_s1653: LogOutcome;
-        let written_terrane_f0_s1767: LogOutcome;
-        let records_terrane_f0_s1861: terrane_collection_support::List<String>;
-        let other_sink_terrane_f0_s2413: LogSinkResult;
-        let other_terrane_f0_s2476: Logger;
-        let target_filtered_terrane_f0_s2593: LogOutcome;
-        let empty_fields_terrane_f0_s2705: terrane_collection_support::List<LogField>;
-        let mut caught_terrane_f0_s2810: Option<TerraneError> = None;
-        let mut error_fields_terrane_f0_s2825: Option<
-            terrane_collection_support::List<LogField>,
-        > = None;
-        let mut error_write_terrane_f0_s2894: Option<LogOutcome> = None;
-        let mut error_records_terrane_f0_s2963: Option<
-            terrane_collection_support::List<String>,
-        > = None;
-        let failed_sink_terrane_f0_s3107: LogSinkResult;
-        let failed_target_terrane_f0_s3139: LogSink;
-        let failed_logger_terrane_f0_s3177: Logger;
-        let failed_write_terrane_f0_s3227: LogOutcome;
-        let fallback_terrane_f0_s3296: terrane_collection_support::List<String>;
-        let console_result_terrane_f0_s3418: LogSinkResult;
-        let console_terrane_f0_s3459: Logger;
-        let console_write_terrane_f0_s3510: LogOutcome;
-        let adapter_pair_terrane_f0_s3602: TerraneChannelPair<LogEvent>;
-        let adapter_producer_terrane_f0_s3658: TerraneChannelSender<LogEvent>;
-        let adapter_receiver_terrane_f0_s3701: TerraneChannelReceiver<LogEvent>;
-        let adapter_sent_terrane_f0_s3746: bool;
-        let adapter_received_terrane_f0_s3854: TerraneChannelReceiveOutcome<LogEvent>;
-        let async_sink_terrane_f0_s3962: LogSinkResult;
-        let async_target_terrane_f0_s4020: LogSink;
-        let async_writer_terrane_f0_s4056: Logger;
-        let pair_terrane_f0_s4104: TerraneChannelPair<LogEvent>;
-        let producer_terrane_f0_s4152: TerraneChannelSender<LogEvent>;
-        let receiver_terrane_f0_s4179: TerraneChannelReceiver<LogEvent>;
-        let consumer_scope_terrane_f0_s4208: TerraneTaskScope;
-        let consumer_terrane_f0_s4241: TerraneScopedTask<bool>;
-        let first_sent_terrane_f0_s4319: TerraneChannelSendOutcome<LogEvent>;
-        let second_sent_terrane_f0_s4418: TerraneChannelSendOutcome<LogEvent>;
-        let consumed_terrane_f0_s4538: TerraneTaskOutcome<bool>;
-        let consumed_value_terrane_f0_s4589: Option<bool>;
-        let transported_records_terrane_f0_s4748: terrane_collection_support::List<
-            String,
-        >;
-        let failing_pair_terrane_f0_s4972: TerraneChannelPair<LogEvent>;
-        let failing_producer_terrane_f0_s5028: TerraneChannelSender<LogEvent>;
-        let failing_receiver_terrane_f0_s5071: TerraneChannelReceiver<LogEvent>;
-        let failing_scope_terrane_f0_s5116: TerraneTaskScope;
-        let failing_consumer_terrane_f0_s5148: TerraneScopedTask<bool>;
-        let failing_sent_terrane_f0_s5242: TerraneChannelSendOutcome<LogEvent>;
-        let failing_consumed_terrane_f0_s5381: TerraneTaskOutcome<bool>;
-        let failing_consumed_value_terrane_f0_s5447: Option<bool>;
-        let async_fallback_terrane_f0_s5626: terrane_collection_support::List<String>;
-        sink_result_terrane_f0_s1031 = memory_sink(
+        let sink_result: LogSinkResult;
+        let mut writer: Logger;
+        let lazy: CountedValue;
+        let mut token_field: LogField;
+        let descriptor: TerraneDescriptor;
+        let additions: terrane_collection_support::List<LogField>;
+        let filtered: LogOutcome;
+        let written: LogOutcome;
+        let records: terrane_collection_support::List<String>;
+        let other_sink: LogSinkResult;
+        let other: Logger;
+        let target_filtered: LogOutcome;
+        let empty_fields: terrane_collection_support::List<LogField>;
+        let mut caught: Option<TerraneError> = None;
+        let mut error_fields: Option<terrane_collection_support::List<LogField>> = None;
+        let mut error_write: Option<LogOutcome> = None;
+        let mut error_records: Option<terrane_collection_support::List<String>> = None;
+        let failed_sink: LogSinkResult;
+        let failed_target: LogSink;
+        let failed_logger: Logger;
+        let failed_write: LogOutcome;
+        let fallback: terrane_collection_support::List<String>;
+        let console_result: LogSinkResult;
+        let console: Logger;
+        let console_write: LogOutcome;
+        let adapter_pair: TerraneChannelPair<LogEvent>;
+        let adapter_producer: TerraneChannelSender<LogEvent>;
+        let adapter_receiver: TerraneChannelReceiver<LogEvent>;
+        let adapter_sent: bool;
+        let adapter_received: TerraneChannelReceiveOutcome<LogEvent>;
+        let async_sink: LogSinkResult;
+        let async_target: LogSink;
+        let async_writer: Logger;
+        let pair: TerraneChannelPair<LogEvent>;
+        let producer: TerraneChannelSender<LogEvent>;
+        let receiver: TerraneChannelReceiver<LogEvent>;
+        let consumer_scope: TerraneTaskScope;
+        let consumer: TerraneScopedTask<bool>;
+        let first_sent: TerraneChannelSendOutcome<LogEvent>;
+        let second_sent: TerraneChannelSendOutcome<LogEvent>;
+        let consumed: TerraneTaskOutcome<bool>;
+        let consumed_value: Option<bool>;
+        let transported_records: terrane_collection_support::List<String>;
+        let failing_pair: TerraneChannelPair<LogEvent>;
+        let failing_producer: TerraneChannelSender<LogEvent>;
+        let failing_receiver: TerraneChannelReceiver<LogEvent>;
+        let failing_scope: TerraneTaskScope;
+        let failing_consumer: TerraneScopedTask<bool>;
+        let failing_sent: TerraneChannelSendOutcome<LogEvent>;
+        let failing_consumed: TerraneTaskOutcome<bool>;
+        let failing_consumed_value: Option<bool>;
+        let async_fallback: terrane_collection_support::List<String>;
+        sink_result = memory_sink(
             terrane_int_support::Int::from(4_i128),
             String::from("drop-oldest"),
             terrane_int_support::Int::from(1000_i128),
             terrane_int_support::Int::from(5_i128),
             false,
         );
-        writer_terrane_f0_s1095 = make_logger(
-            sink_result_terrane_f0_s1031.value,
+        writer = make_logger(
+            sink_result.value,
             make_logger_options(
                 info_level(),
                 String::from("service."),
@@ -649,8 +643,8 @@ fn main() {
                 terrane_int_support::Int::from(4096_i128),
             ),
         );
-        writer_terrane_f0_s1095 = with_field(
-            writer_terrane_f0_s1095,
+        writer = with_field(
+            writer,
             field_at(
                 String::from("request").clone(),
                 log_text(String::from("r-1")),
@@ -658,14 +652,9 @@ fn main() {
                 "case.trn:31:35".to_owned(),
             ),
         );
-        writer_terrane_f0_s1095 = with_span(
-            writer_terrane_f0_s1095,
-            String::from("serve"),
-        );
-        lazy_terrane_f0_s1328 = CountedValue::terrane_construct(
-            String::from("rendered"),
-        );
-        token_field_terrane_f0_s1374 = field_at(
+        writer = with_span(writer, String::from("serve"));
+        lazy = CountedValue::terrane_construct(String::from("rendered"));
+        token_field = field_at(
             String::from("token").clone(),
             <LogValue>::from(
                 CountedValue::terrane_construct(String::from("raw-secret")),
@@ -673,7 +662,7 @@ fn main() {
             false,
             "case.trn:35:19".to_owned(),
         );
-        descriptor_terrane_f0_s1447 = TerraneDescriptor {
+        descriptor = TerraneDescriptor {
             identity: "/structured-logging::request-data",
             name: "request-data",
             kind: "class",
@@ -690,7 +679,7 @@ fn main() {
         };
         if __terrane_raised(
             terrane_collection_support::List::new(
-                    descriptor_terrane_f0_s1447
+                    descriptor
                         .fields
                         .iter()
                         .map(|field| field.secret)
@@ -706,7 +695,7 @@ fn main() {
                 ),
             0 /* terrane-site: case.trn:37:8-37:34 */,
         ) {
-            token_field_terrane_f0_s1374 = field_at(
+            token_field = field_at(
                 String::from("token").clone(),
                 <LogValue>::from(
                     CountedValue::terrane_construct(String::from("raw-secret")),
@@ -715,100 +704,93 @@ fn main() {
                 "case.trn:38:23".to_owned(),
             );
         }
-        additions_terrane_f0_s1595 = terrane_collection_support::List::<
+        additions = terrane_collection_support::List::<
             LogField,
         >::new(
             vec![
-                field_at(String::from("value").clone(), < LogValue >
-                ::from(lazy_terrane_f0_s1328), false, "case.trn:39:24".to_owned()),
-                token_field_terrane_f0_s1374
+                field_at(String::from("value").clone(), < LogValue > ::from(lazy), false,
+                "case.trn:39:24".to_owned()), token_field
             ],
         );
-        filtered_terrane_f0_s1653 = emit_at(
-            writer_terrane_f0_s1095.clone(),
+        filtered = emit_at(
+            writer.clone(),
             debug_level().clone(),
             String::from("filtered").clone(),
             "case.trn:40:16".to_owned(),
-            additions_terrane_f0_s1595.clone(),
+            additions.clone(),
         );
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&filtered_terrane_f0_s1653
-            .filtered), terrane_scalar_support::scalar_text(&filtered_terrane_f0_s1653
-            .failed)
+            "{}{}", terrane_scalar_support::scalar_text(&filtered.filtered),
+            terrane_scalar_support::scalar_text(&filtered.failed)
         );
-        written_terrane_f0_s1767 = emit_at(
-            writer_terrane_f0_s1095.clone(),
+        written = emit_at(
+            writer.clone(),
             info_level(),
             String::from("handled").clone(),
             "case.trn:43:15".to_owned(),
-            additions_terrane_f0_s1595.clone(),
+            additions.clone(),
         );
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&written_terrane_f0_s1767
-            .filtered), terrane_scalar_support::scalar_text(&written_terrane_f0_s1767
-            .failed)
+            "{}{}", terrane_scalar_support::scalar_text(&written.filtered),
+            terrane_scalar_support::scalar_text(&written.failed)
         );
-        records_terrane_f0_s1861 = drain_memory(writer_terrane_f0_s1095.clone());
+        records = drain_memory(writer.clone());
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(records
             .length()))
         );
         println!(
-            "{}{}{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             1 /* terrane-site: case.trn:48:13-48:23 */)), 1 /* terrane-site: case.trn:48:13-48:23 */).contains(&String::from("\"timestamp\":1000"))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             2 /* terrane-site: case.trn:48:56-48:66 */)), 2 /* terrane-site: case.trn:48:56-48:66 */).contains(&String::from("\"sequence\":0"))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             3 /* terrane-site: case.trn:48:95-48:105 */)), 3 /* terrane-site: case.trn:48:95-48:105 */).contains(&String::from("\"severity\":\"info\"")))
         );
         println!(
-            "{}{}{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             4 /* terrane-site: case.trn:49:13-49:23 */)), 4 /* terrane-site: case.trn:49:13-49:23 */)
             .contains(&String::from("\"target\":\"service.worker\""))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             5 /* terrane-site: case.trn:49:65-49:75 */)), 5 /* terrane-site: case.trn:49:65-49:75 */).contains(&String::from("\"message\":\"handled\""))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             6 /* terrane-site: case.trn:49:111-49:121 */)), 6 /* terrane-site: case.trn:49:111-49:121 */).contains(&String::from("\"serve\"")))
         );
         println!(
-            "{}{}{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             7 /* terrane-site: case.trn:50:13-50:23 */)), 7 /* terrane-site: case.trn:50:13-50:23 */).contains(&String::from("\"request\""))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             8 /* terrane-site: case.trn:50:49-50:59 */)), 8 /* terrane-site: case.trn:50:49-50:59 */).contains(&String::from("\"<redacted>\""))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             9 /* terrane-site: case.trn:50:88-50:98 */)), 9 /* terrane-site: case.trn:50:88-50:98 */).contains(&String::from("raw-secret")))
         );
         println!(
-            "{}{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             10 /* terrane-site: case.trn:51:13-51:23 */)), 10 /* terrane-site: case.trn:51:13-51:23 */).contains(&String::from("case.trn"))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(records_terrane_f0_s1861
+            terrane_scalar_support::scalar_text(&__terrane_raised(records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             11 /* terrane-site: case.trn:51:48-51:58 */)), 11 /* terrane-site: case.trn:51:48-51:58 */).contains(&String::from("\"origin\":\"terrane\"")))
         );
-        other_sink_terrane_f0_s2413 = memory_sink(
+        other_sink = memory_sink(
             terrane_int_support::Int::from(2_i128),
             String::from("drop-oldest"),
             terrane_int_support::Int::from(2000_i128),
             terrane_int_support::Int::from(1_i128),
             false,
         );
-        other_terrane_f0_s2476 = make_logger(
-            other_sink_terrane_f0_s2413.value,
+        other = make_logger(
+            other_sink.value,
             make_logger_options(
                 info_level(),
                 String::from("service."),
@@ -817,20 +799,15 @@ fn main() {
                 terrane_int_support::Int::from(4096_i128),
             ),
         );
-        target_filtered_terrane_f0_s2593 = emit_at(
-            other_terrane_f0_s2476.clone(),
+        target_filtered = emit_at(
+            other.clone(),
             info_level().clone(),
             String::from("not-written").clone(),
             "case.trn:55:23".to_owned(),
-            additions_terrane_f0_s1595.clone(),
+            additions.clone(),
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&target_filtered_terrane_f0_s2593
-            .filtered)
-        );
-        empty_fields_terrane_f0_s2705 = terrane_collection_support::List::<
-            LogField,
-        >::new(vec![]);
+        println!("{}", terrane_scalar_support::scalar_text(&target_filtered.filtered));
+        empty_fields = terrane_collection_support::List::<LogField>::new(vec![]);
         let __terrane_completion_0: TerraneCompletion<()> = (|| {
             let __terrane_try_0: TerraneCompletion<()> = (|| {
                 return TerraneCompletion::Error(
@@ -853,46 +830,43 @@ fn main() {
                         && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_0 = true;
-                        let _ = caught_terrane_f0_s2810
-                            .insert(__terrane_error_0.clone());
-                        let _ = error_fields_terrane_f0_s2825
+                        let _ = caught.insert(__terrane_error_0.clone());
+                        let _ = error_fields
                             .insert(
                                 terrane_collection_support::List::<
                                     LogField,
                                 >::new(
                                     vec![
                                         field_at(String::from("failure").clone(),
-                                        terrane_log_error(caught_terrane_f0_s2810.as_ref()
+                                        terrane_log_error(caught.as_ref()
                                         .expect("flow-proven available binding").clone().clone()),
                                         false, "case.trn:63:31".to_owned())
                                     ],
                                 ),
                             );
-                        let _ = error_write_terrane_f0_s2894
+                        let _ = error_write
                             .insert(
                                 emit_at(
-                                    writer_terrane_f0_s1095.clone(),
+                                    writer.clone(),
                                     info_level(),
                                     String::from("failed-operation").clone(),
                                     "case.trn:64:23".to_owned(),
-                                    error_fields_terrane_f0_s2825
+                                    error_fields
                                         .as_ref()
                                         .expect("flow-proven available binding")
                                         .clone()
                                         .clone(),
                                 ),
                             );
-                        let _ = error_records_terrane_f0_s2963
-                            .insert(drain_memory(writer_terrane_f0_s1095));
+                        let _ = error_records.insert(drain_memory(writer));
                         println!(
-                            "{}{}{}",
-                            terrane_scalar_support::scalar_text(&error_write_terrane_f0_s2894
+                            "{}{}{}", terrane_scalar_support::scalar_text(&error_write
                             .as_ref().expect("flow-proven available binding").clone()
                             .failed),
-                            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(error_records_terrane_f0_s2963
+                            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(error_records
                             .as_ref().expect("flow-proven available binding").clone()
                             .length())),
-                            terrane_scalar_support::scalar_text(&__terrane_raised_completion!(error_records_terrane_f0_s2963
+                            terrane_scalar_support::scalar_text(&__terrane_raised_completion!(error_records
                             .as_ref().expect("flow-proven available binding").clone()
                             .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
                             13 /* terrane-site: case.trn:66:59-66:75 */)),
@@ -915,100 +889,84 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        failed_sink_terrane_f0_s3107 = failing_sink();
-        failed_target_terrane_f0_s3139 = failed_sink_terrane_f0_s3107.value;
-        failed_logger_terrane_f0_s3177 = default_logger(
-            failed_target_terrane_f0_s3139.clone(),
-        );
-        failed_write_terrane_f0_s3227 = emit_at(
-            failed_logger_terrane_f0_s3177.clone(),
+        failed_sink = failing_sink();
+        failed_target = failed_sink.value;
+        failed_logger = default_logger(failed_target.clone());
+        failed_write = emit_at(
+            failed_logger.clone(),
             info_level(),
             String::from("cannot-write").clone(),
             "case.trn:70:20".to_owned(),
-            empty_fields_terrane_f0_s2705.clone(),
+            empty_fields.clone(),
         );
-        fallback_terrane_f0_s3296 = drain_fallback();
+        fallback = drain_fallback();
         println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&failed_write_terrane_f0_s3227
-            .failed),
-            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(fallback_terrane_f0_s3296
-            .length())),
-            terrane_scalar_support::scalar_text(&__terrane_raised(fallback_terrane_f0_s3296
+            "{}{}{}", terrane_scalar_support::scalar_text(&failed_write.failed),
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(fallback
+            .length())), terrane_scalar_support::scalar_text(&__terrane_raised(fallback
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             14 /* terrane-site: case.trn:72:51-72:62 */)), 14 /* terrane-site: case.trn:72:51-72:62 */).contains(&String::from("event rejected")))
         );
-        console_result_terrane_f0_s3418 = console_sink(false);
-        console_terrane_f0_s3459 = default_logger(console_result_terrane_f0_s3418.value);
-        console_write_terrane_f0_s3510 = emit_at(
-            console_terrane_f0_s3459.clone(),
+        console_result = console_sink(false);
+        console = default_logger(console_result.value);
+        console_write = emit_at(
+            console.clone(),
             info_level(),
             String::from("visible").clone(),
             "case.trn:76:21".to_owned(),
-            empty_fields_terrane_f0_s2705.clone(),
+            empty_fields.clone(),
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&console_write_terrane_f0_s3510
-            .failed)
-        );
-        adapter_pair_terrane_f0_s3602 = TerraneChannelPair::new(
+        println!("{}", terrane_scalar_support::scalar_text(&console_write.failed));
+        adapter_pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        adapter_producer_terrane_f0_s3658 = adapter_pair_terrane_f0_s3602.sender;
-        adapter_receiver_terrane_f0_s3701 = adapter_pair_terrane_f0_s3602.receiver;
-        adapter_sent_terrane_f0_s3746 = __terrane_await(
+        adapter_producer = adapter_pair.sender;
+        adapter_receiver = adapter_pair.receiver;
+        adapter_sent = __terrane_await(
                 send_event(
-                    adapter_producer_terrane_f0_s3658,
+                    adapter_producer,
                     make_event_at(
                         info_level().clone(),
                         String::from("adapter").clone(),
                         "case.trn:82:57".to_owned(),
-                        empty_fields_terrane_f0_s2705.clone(),
+                        empty_fields.clone(),
                     ),
                 ),
             )
             .await;
-        adapter_received_terrane_f0_s3854 = __terrane_await(
-                Box::pin(adapter_receiver_terrane_f0_s3701.receive()),
-            )
-            .await;
+        adapter_received = __terrane_await(Box::pin(adapter_receiver.receive())).await;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&adapter_sent_terrane_f0_s3746),
-            terrane_scalar_support::scalar_text(&adapter_received_terrane_f0_s3854
-            .available)
+            "{}{}", terrane_scalar_support::scalar_text(&adapter_sent),
+            terrane_scalar_support::scalar_text(&adapter_received.available)
         );
-        async_sink_terrane_f0_s3962 = memory_sink(
+        async_sink = memory_sink(
             terrane_int_support::Int::from(4_i128),
             String::from("reject"),
             terrane_int_support::Int::from(3000_i128),
             terrane_int_support::Int::from(1_i128),
             false,
         );
-        async_target_terrane_f0_s4020 = async_sink_terrane_f0_s3962.value;
-        async_writer_terrane_f0_s4056 = default_logger(
-            async_target_terrane_f0_s4020.clone(),
-        );
-        pair_terrane_f0_s4104 = TerraneChannelPair::new(
+        async_target = async_sink.value;
+        async_writer = default_logger(async_target.clone());
+        pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        producer_terrane_f0_s4152 = pair_terrane_f0_s4104.sender;
-        receiver_terrane_f0_s4179 = pair_terrane_f0_s4104.receiver;
-        consumer_scope_terrane_f0_s4208 = TerraneTaskScope::new(None);
-        consumer_terrane_f0_s4241 = {
-            let __terrane_scope = consumer_scope_terrane_f0_s4208.clone();
+        producer = pair.sender;
+        receiver = pair.receiver;
+        consumer_scope = TerraneTaskScope::new(None);
+        consumer = {
+            let __terrane_scope = consumer_scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
-            let __terrane_spawned_task = consume_events(
-                async_target_terrane_f0_s4020,
-                receiver_terrane_f0_s4179,
-            );
+            let __terrane_spawned_task = consume_events(async_target, receiver);
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
                         __terrane_spawned_task,
@@ -1022,87 +980,76 @@ fn main() {
                 }
             })
         };
-        first_sent_terrane_f0_s4319 = __terrane_await(
+        first_sent = __terrane_await(
                 Box::pin(
-                    producer_terrane_f0_s4152
+                    producer
                         .send(
                             make_event_at(
                                 info_level().clone(),
                                 String::from("transported-one").clone(),
                                 "case.trn:94:40".to_owned(),
-                                empty_fields_terrane_f0_s2705.clone(),
+                                empty_fields.clone(),
                             ),
                         ),
                 ),
             )
             .await;
-        second_sent_terrane_f0_s4418 = __terrane_await(
+        second_sent = __terrane_await(
                 Box::pin(
-                    producer_terrane_f0_s4152
+                    producer
                         .send(
                             make_event_at(
                                 info_level().clone(),
                                 String::from("transported-two").clone(),
                                 "case.trn:95:41".to_owned(),
-                                empty_fields_terrane_f0_s2705.clone(),
+                                empty_fields.clone(),
                             ),
                         ),
                 ),
             )
             .await;
-        producer_terrane_f0_s4152.close();
-        consumed_terrane_f0_s4538 = __terrane_await(
-                consumer_scope_terrane_f0_s4208.join(consumer_terrane_f0_s4241),
-            )
-            .await;
-        consumed_value_terrane_f0_s4589 = consumed_terrane_f0_s4538.value.clone();
-        if consumed_value_terrane_f0_s4589.is_some() {
+        producer.close();
+        consumed = __terrane_await(consumer_scope.join(consumer)).await;
+        consumed_value = consumed.value.clone();
+        if consumed_value.is_some() {
             println!(
-                "{}{}{}{}",
-                terrane_scalar_support::scalar_text(&first_sent_terrane_f0_s4319
-                .accepted),
-                terrane_scalar_support::scalar_text(&second_sent_terrane_f0_s4418
-                .accepted),
-                terrane_scalar_support::scalar_text(&consumed_terrane_f0_s4538
-                .completed), terrane_scalar_support::scalar_text(&* match
-                &consumed_value_terrane_f0_s4589 { Some(value) => value, _ =>
-                unreachable!("flow-proven storage refinement") })
+                "{}{}{}{}", terrane_scalar_support::scalar_text(&first_sent.accepted),
+                terrane_scalar_support::scalar_text(&second_sent.accepted),
+                terrane_scalar_support::scalar_text(&consumed.completed),
+                terrane_scalar_support::scalar_text(&* match &consumed_value {
+                Some(value) => value, _ => unreachable!("flow-proven storage refinement")
+                })
             );
         }
-        transported_records_terrane_f0_s4748 = drain_memory(
-            async_writer_terrane_f0_s4056,
-        );
+        transported_records = drain_memory(async_writer);
         println!(
             "{}{}{}",
-            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(transported_records_terrane_f0_s4748
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(transported_records
             .length())),
-            terrane_scalar_support::scalar_text(&__terrane_raised(transported_records_terrane_f0_s4748
+            terrane_scalar_support::scalar_text(&__terrane_raised(transported_records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             15 /* terrane-site: case.trn:102:41-102:63 */)), 15 /* terrane-site: case.trn:102:41-102:63 */)
             .contains(&String::from("\"message\":\"transported-one\""))),
-            terrane_scalar_support::scalar_text(&__terrane_raised(transported_records_terrane_f0_s4748
+            terrane_scalar_support::scalar_text(&__terrane_raised(transported_records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             16 /* terrane-site: case.trn:102:107-102:129 */)), 16 /* terrane-site: case.trn:102:107-102:129 */)
             .contains(&String::from("\"message\":\"transported-two\"")))
         );
-        failing_pair_terrane_f0_s4972 = TerraneChannelPair::new(
+        failing_pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
                 )
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        failing_producer_terrane_f0_s5028 = failing_pair_terrane_f0_s4972.sender;
-        failing_receiver_terrane_f0_s5071 = failing_pair_terrane_f0_s4972.receiver;
-        failing_scope_terrane_f0_s5116 = TerraneTaskScope::new(None);
-        failing_consumer_terrane_f0_s5148 = {
-            let __terrane_scope = failing_scope_terrane_f0_s5116.clone();
+        failing_producer = failing_pair.sender;
+        failing_receiver = failing_pair.receiver;
+        failing_scope = TerraneTaskScope::new(None);
+        failing_consumer = {
+            let __terrane_scope = failing_scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
-            let __terrane_spawned_task = consume_events(
-                failed_target_terrane_f0_s3139,
-                failing_receiver_terrane_f0_s5071,
-            );
+            let __terrane_spawned_task = consume_events(failed_target, failing_receiver);
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
                         __terrane_spawned_task,
@@ -1116,45 +1063,38 @@ fn main() {
                 }
             })
         };
-        failing_sent_terrane_f0_s5242 = __terrane_await(
+        failing_sent = __terrane_await(
                 Box::pin(
-                    failing_producer_terrane_f0_s5028
+                    failing_producer
                         .send(
                             make_event_at(
                                 info_level().clone(),
                                 String::from("transport-failure").clone(),
                                 "case.trn:109:50".to_owned(),
-                                empty_fields_terrane_f0_s2705.clone(),
+                                empty_fields.clone(),
                             ),
                         ),
                 ),
             )
             .await;
-        failing_producer_terrane_f0_s5028.close();
-        failing_consumed_terrane_f0_s5381 = __terrane_await(
-                failing_scope_terrane_f0_s5116.join(failing_consumer_terrane_f0_s5148),
-            )
-            .await;
-        failing_consumed_value_terrane_f0_s5447 = failing_consumed_terrane_f0_s5381
-            .value
-            .clone();
-        if failing_consumed_value_terrane_f0_s5447.is_some() {
+        failing_producer.close();
+        failing_consumed = __terrane_await(failing_scope.join(failing_consumer)).await;
+        failing_consumed_value = failing_consumed.value.clone();
+        if failing_consumed_value.is_some() {
             println!(
-                "{}{}{}",
-                terrane_scalar_support::scalar_text(&failing_sent_terrane_f0_s5242
-                .accepted),
-                terrane_scalar_support::scalar_text(&failing_consumed_terrane_f0_s5381
-                .completed), terrane_scalar_support::scalar_text(&* match
-                &failing_consumed_value_terrane_f0_s5447 { Some(value) => value, _ =>
-                unreachable!("flow-proven storage refinement") })
+                "{}{}{}", terrane_scalar_support::scalar_text(&failing_sent.accepted),
+                terrane_scalar_support::scalar_text(&failing_consumed.completed),
+                terrane_scalar_support::scalar_text(&* match &failing_consumed_value {
+                Some(value) => value, _ => unreachable!("flow-proven storage refinement")
+                })
             );
         }
-        async_fallback_terrane_f0_s5626 = drain_fallback();
+        async_fallback = drain_fallback();
         println!(
             "{}{}",
-            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(async_fallback_terrane_f0_s5626
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(async_fallback
             .length())),
-            terrane_scalar_support::scalar_text(&__terrane_raised(async_fallback_terrane_f0_s5626
+            terrane_scalar_support::scalar_text(&__terrane_raised(async_fallback
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             17 /* terrane-site: case.trn:116:36-116:53 */)), 17 /* terrane-site: case.trn:116:36-116:53 */).contains(&String::from("event rejected")))
         );
@@ -1252,44 +1192,44 @@ impl IntMutex {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw_terrane_f1_s966: TerranePlatformResult;
-        raw_terrane_f1_s966 = terrane_platform_int_mutex(initial);
-        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s966);
-        self.message = terrane_platform_result_message(&raw_terrane_f1_s966);
-        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s966);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self) -> ConcurrencyIntResult {
-        let raw_terrane_f1_s1191: TerranePlatformResult;
-        raw_terrane_f1_s1191 = terrane_platform_int_mutex_load(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_load(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s1191),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1191),
-            terrane_platform_result_bool(&raw_terrane_f1_s1191),
-            terrane_platform_result_message(&raw_terrane_f1_s1191),
-            terrane_platform_result_int(&raw_terrane_f1_s1191),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
     pub fn store(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw_terrane_f1_s1487: TerranePlatformResult;
-        raw_terrane_f1_s1487 = terrane_platform_int_mutex_store(&self.handle, value);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_store(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s1487),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1487),
-            terrane_platform_result_message(&raw_terrane_f1_s1487),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
         );
     }
     pub fn increase(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> ConcurrencyIntResult {
-        let raw_terrane_f1_s1754: TerranePlatformResult;
-        raw_terrane_f1_s1754 = terrane_platform_int_mutex_add(&self.handle, amount);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_mutex_add(&self.handle, amount);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s1754),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s1754),
-            terrane_platform_result_bool(&raw_terrane_f1_s1754),
-            terrane_platform_result_message(&raw_terrane_f1_s1754),
-            terrane_platform_result_int(&raw_terrane_f1_s1754),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
 }
@@ -1310,30 +1250,30 @@ impl IntReadWriteLock {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw_terrane_f1_s2175: TerranePlatformResult;
-        raw_terrane_f1_s2175 = terrane_platform_int_rw_lock(initial);
-        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s2175);
-        self.message = terrane_platform_result_message(&raw_terrane_f1_s2175);
-        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s2175);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn read(&self) -> ConcurrencyIntResult {
-        let raw_terrane_f1_s2410: TerranePlatformResult;
-        raw_terrane_f1_s2410 = terrane_platform_int_rw_lock_read(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_read(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s2410),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s2410),
-            terrane_platform_result_bool(&raw_terrane_f1_s2410),
-            terrane_platform_result_message(&raw_terrane_f1_s2410),
-            terrane_platform_result_int(&raw_terrane_f1_s2410),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw_terrane_f1_s2716: TerranePlatformResult;
-        raw_terrane_f1_s2716 = terrane_platform_int_rw_lock_write(&self.handle, value);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_int_rw_lock_write(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s2716),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s2716),
-            terrane_platform_result_message(&raw_terrane_f1_s2716),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
         );
     }
 }
@@ -1385,24 +1325,21 @@ impl AtomicInt64 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: i64) {
-        let raw_terrane_f1_s3708: TerranePlatformResult;
-        raw_terrane_f1_s3708 = terrane_platform_atomic_int64(initial);
-        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s3708);
-        self.message = terrane_platform_result_message(&raw_terrane_f1_s3708);
-        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s3708);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
-        let raw_terrane_f1_s3958: TerranePlatformResult;
-        raw_terrane_f1_s3958 = terrane_platform_atomic_int64_load(
-            &self.handle,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_load(&self.handle, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s3958),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s3958),
-            terrane_platform_result_bool(&raw_terrane_f1_s3958),
-            terrane_platform_result_message(&raw_terrane_f1_s3958),
-            terrane_platform_result_int(&raw_terrane_f1_s3958),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
     pub fn store(
@@ -1410,16 +1347,12 @@ impl AtomicInt64 {
         value: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyOperationResult {
-        let raw_terrane_f1_s4297: TerranePlatformResult;
-        raw_terrane_f1_s4297 = terrane_platform_atomic_int64_store(
-            &self.handle,
-            value,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_store(&self.handle, value, ordering.name);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s4297),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s4297),
-            terrane_platform_result_message(&raw_terrane_f1_s4297),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
         );
     }
     pub fn increase(
@@ -1427,18 +1360,14 @@ impl AtomicInt64 {
         amount: i64,
         ordering: MemoryOrder,
     ) -> ConcurrencyIntResult {
-        let raw_terrane_f1_s4607: TerranePlatformResult;
-        raw_terrane_f1_s4607 = terrane_platform_atomic_int64_add(
-            &self.handle,
-            amount,
-            ordering.name,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_atomic_int64_add(&self.handle, amount, ordering.name);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s4607),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s4607),
-            terrane_platform_result_bool(&raw_terrane_f1_s4607),
-            terrane_platform_result_message(&raw_terrane_f1_s4607),
-            terrane_platform_result_int(&raw_terrane_f1_s4607),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
 }
@@ -1459,33 +1388,30 @@ impl ThreadLocalInt {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        let raw_terrane_f1_s5043: TerranePlatformResult;
-        raw_terrane_f1_s5043 = terrane_platform_thread_local_int(initial);
-        self.failed = terrane_platform_result_failed(&raw_terrane_f1_s5043);
-        self.message = terrane_platform_result_message(&raw_terrane_f1_s5043);
-        self.handle = terrane_platform_result_capability(&raw_terrane_f1_s5043);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int(initial);
+        self.failed = terrane_platform_result_failed(&raw);
+        self.message = terrane_platform_result_message(&raw);
+        self.handle = terrane_platform_result_capability(&raw);
     }
     pub fn get(&self) -> ConcurrencyIntResult {
-        let raw_terrane_f1_s5274: TerranePlatformResult;
-        raw_terrane_f1_s5274 = terrane_platform_thread_local_int_get(&self.handle);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_get(&self.handle);
         return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s5274),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s5274),
-            terrane_platform_result_bool(&raw_terrane_f1_s5274),
-            terrane_platform_result_message(&raw_terrane_f1_s5274),
-            terrane_platform_result_int(&raw_terrane_f1_s5274),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_bool(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
     pub fn write(&self, value: terrane_int_support::Int) -> ConcurrencyOperationResult {
-        let raw_terrane_f1_s5576: TerranePlatformResult;
-        raw_terrane_f1_s5576 = terrane_platform_thread_local_int_set(
-            &self.handle,
-            value,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_thread_local_int_set(&self.handle, value);
         return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s5576),
-            terrane_platform_result_deadline_exceeded(&raw_terrane_f1_s5576),
-            terrane_platform_result_message(&raw_terrane_f1_s5576),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
+            terrane_platform_result_message(&raw),
         );
     }
 }
@@ -1668,17 +1594,17 @@ impl DocumentValue {
         return self.clone();
     }
     pub fn item(&self, index: terrane_int_support::Int) -> DocumentResult {
-        let raw_terrane_f2_s1690: terrane_document_support::DataResult;
-        raw_terrane_f2_s1690 = terrane_document_item(&self.raw, index.clone());
-        return make_document_result(raw_terrane_f2_s1690);
+        let raw: terrane_document_support::DataResult;
+        raw = terrane_document_item(&self.raw, index.clone());
+        return make_document_result(raw);
     }
     pub fn key(&self, index: terrane_int_support::Int) -> String {
         return terrane_document_key(&self.raw, index.clone());
     }
     pub fn field(&self, name: String) -> DocumentResult {
-        let raw_terrane_f2_s1916: terrane_document_support::DataResult;
-        raw_terrane_f2_s1916 = terrane_document_field(&self.raw, name);
-        return make_document_result(raw_terrane_f2_s1916);
+        let raw: terrane_document_support::DataResult;
+        raw = terrane_document_field(&self.raw, name);
+        return make_document_result(raw);
     }
 }
 impl SerializableProtocol for DocumentValue {
@@ -1870,22 +1796,20 @@ pub fn append_document_map_entry(
 pub fn make_document_list(
     values: terrane_collection_support::List<DocumentValue>,
 ) -> DocumentResult {
-    let mut raw_terrane_f2_s4793: terrane_document_support::DataResult;
-    let mut index_terrane_f2_s4828: terrane_int_support::Int;
-    raw_terrane_f2_s4793 = terrane_make_document_list();
-    index_terrane_f2_s4828 = terrane_int_support::Int::from(0_i128);
-    while index_terrane_f2_s4828.clone()
+    let mut raw: terrane_document_support::DataResult;
+    let mut index: terrane_int_support::Int;
+    raw = terrane_make_document_list();
+    index = terrane_int_support::Int::from(0_i128);
+    while index.clone()
         < terrane_int_support::Int::from(terrane_int_support::Int::from(values.length()))
     {
-        raw_terrane_f2_s4793 = terrane_document_list_append(
-            &raw_terrane_f2_s4793,
+        raw = terrane_document_list_append(
+            &raw,
             &__terrane_raised(
                     values
                         .get_or_error(
                             __terrane_raised(
-                                terrane_collection_support::index_from_int(
-                                    &index_terrane_f2_s4828.clone(),
-                                ),
+                                terrane_collection_support::index_from_int(&index.clone()),
                                 18 /* terrane-site: core/documents.trn:140:47-140:60 */,
                             ),
                         ),
@@ -1893,10 +1817,9 @@ pub fn make_document_list(
                 )
                 .raw,
         );
-        index_terrane_f2_s4828 = index_terrane_f2_s4828.clone()
-            + terrane_int_support::Int::from(1_i128);
+        index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    return make_document_result(raw_terrane_f2_s4793);
+    return make_document_result(raw);
 }
 pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
     return make_document_result(entries.raw);
@@ -1904,127 +1827,116 @@ pub fn make_document_map(entries: DocumentMapEntries) -> DocumentResult {
 pub fn mapping_required_fields(
     mapping: DocumentMapping,
 ) -> terrane_collection_support::List<String> {
-    let fields_terrane_f2_s5198: terrane_collection_support::List<String>;
-    let optional_fields_terrane_f2_s5231: terrane_collection_support::List<String>;
-    let default_fields_terrane_f2_s5277: terrane_collection_support::List<String>;
-    let mut required_terrane_f2_s5321: terrane_collection_support::List<String>;
-    let mut index_terrane_f2_s5357: terrane_int_support::Int;
-    let mut field_terrane_f2_s5411: String;
-    let mut optional_terrane_f2_s5441: bool;
-    let mut optional_index_terrane_f2_s5471: terrane_int_support::Int;
-    let mut defaulted_terrane_f2_s5692: bool;
-    let mut default_index_terrane_f2_s5723: terrane_int_support::Int;
-    fields_terrane_f2_s5198 = mapping.field_names.clone();
-    optional_fields_terrane_f2_s5231 = mapping.optional_fields.clone();
-    default_fields_terrane_f2_s5277 = mapping.default_fields.clone();
-    required_terrane_f2_s5321 = terrane_collection_support::List::<String>::new(vec![]);
-    index_terrane_f2_s5357 = terrane_int_support::Int::from(0_i128);
+    let fields: terrane_collection_support::List<String>;
+    let optional_fields: terrane_collection_support::List<String>;
+    let default_fields: terrane_collection_support::List<String>;
+    let mut required: terrane_collection_support::List<String>;
+    let mut index: terrane_int_support::Int;
+    let mut field: String;
+    let mut optional: bool;
+    let mut optional_index: terrane_int_support::Int;
+    let mut defaulted: bool;
+    let mut default_index: terrane_int_support::Int;
+    fields = mapping.field_names.clone();
+    optional_fields = mapping.optional_fields.clone();
+    default_fields = mapping.default_fields.clone();
+    required = terrane_collection_support::List::<String>::new(vec![]);
+    index = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_0 = required_terrane_f2_s5321.make_unique();
-        while index_terrane_f2_s5357.clone()
+        let __terrane_list_append_0 = required.make_unique();
+        while index.clone()
             < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(fields_terrane_f2_s5198.length()),
+                terrane_int_support::Int::from(fields.length()),
             )
         {
-            field_terrane_f2_s5411 = __terrane_raised(
-                fields_terrane_f2_s5198
+            field = __terrane_raised(
+                fields
                     .get_or_error(
                         __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &index_terrane_f2_s5357.clone(),
-                            ),
+                            terrane_collection_support::index_from_int(&index.clone()),
                             19 /* terrane-site: core/documents.trn:153:17-153:30 */,
                         ),
                     ),
                 19 /* terrane-site: core/documents.trn:153:17-153:30 */,
             );
-            optional_terrane_f2_s5441 = false;
-            optional_index_terrane_f2_s5471 = terrane_int_support::Int::from(0_i128);
-            while optional_index_terrane_f2_s5471.clone()
+            optional = false;
+            optional_index = terrane_int_support::Int::from(0_i128);
+            while optional_index.clone()
                 < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(
-                        optional_fields_terrane_f2_s5231.length(),
-                    ),
+                    terrane_int_support::Int::from(optional_fields.length()),
                 )
             {
                 if __terrane_raised(
-                        optional_fields_terrane_f2_s5231
+                        optional_fields
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(
-                                        &optional_index_terrane_f2_s5471.clone(),
+                                        &optional_index.clone(),
                                     ),
                                     20 /* terrane-site: core/documents.trn:157:16-157:47 */,
                                 ),
                             ),
                         20 /* terrane-site: core/documents.trn:157:16-157:47 */,
                     )
-                    .as_str() == field_terrane_f2_s5411.as_str()
+                    .as_str() == field.as_str()
                 {
-                    optional_terrane_f2_s5441 = true;
+                    optional = true;
                 }
-                optional_index_terrane_f2_s5471 = optional_index_terrane_f2_s5471.clone()
+                optional_index = optional_index.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            defaulted_terrane_f2_s5692 = false;
-            default_index_terrane_f2_s5723 = terrane_int_support::Int::from(0_i128);
-            while default_index_terrane_f2_s5723.clone()
+            defaulted = false;
+            default_index = terrane_int_support::Int::from(0_i128);
+            while default_index.clone()
                 < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(
-                        default_fields_terrane_f2_s5277.length(),
-                    ),
+                    terrane_int_support::Int::from(default_fields.length()),
                 )
             {
                 if __terrane_raised(
-                        default_fields_terrane_f2_s5277
+                        default_fields
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(
-                                        &default_index_terrane_f2_s5723.clone(),
+                                        &default_index.clone(),
                                     ),
                                     21 /* terrane-site: core/documents.trn:163:16-163:45 */,
                                 ),
                             ),
                         21 /* terrane-site: core/documents.trn:163:16-163:45 */,
                     )
-                    .as_str() == field_terrane_f2_s5411.as_str()
+                    .as_str() == field.as_str()
                 {
-                    defaulted_terrane_f2_s5692 = true;
+                    defaulted = true;
                 }
-                default_index_terrane_f2_s5723 = default_index_terrane_f2_s5723.clone()
+                default_index = default_index.clone()
                     + terrane_int_support::Int::from(1_i128);
             }
-            if field_terrane_f2_s5411.as_str() != "" && !optional_terrane_f2_s5441
-                && !defaulted_terrane_f2_s5692
-            {
-                __terrane_list_append_0.push(field_terrane_f2_s5411);
+            if field.as_str() != "" && !optional && !defaulted {
+                __terrane_list_append_0.push(field);
             }
-            index_terrane_f2_s5357 = index_terrane_f2_s5357.clone()
-                + terrane_int_support::Int::from(1_i128);
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    return required_terrane_f2_s5321;
+    return required;
 }
 pub fn decode_document(
     value: DocumentValue,
     mapping: DocumentMapping,
 ) -> DocumentResult {
-    let required_terrane_f2_s6163: terrane_collection_support::List<String>;
-    let mut declared_fields_terrane_f2_s6211: terrane_collection_support::List<String>;
-    let mut field_index_terrane_f2_s6254: terrane_int_support::Int;
-    let mut default_fields_terrane_f2_s6486: terrane_collection_support::List<String>;
-    let mut default_values_terrane_f2_s6528: terrane_collection_support::List<String>;
-    let mut default_index_terrane_f2_s6570: terrane_int_support::Int;
-    let raw_terrane_f2_s6945: terrane_document_support::DataResult;
-    let mut result_terrane_f2_s7093: DocumentResult;
-    required_terrane_f2_s6163 = mapping_required_fields(mapping.clone());
-    declared_fields_terrane_f2_s6211 = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    field_index_terrane_f2_s6254 = terrane_int_support::Int::from(0_i128);
+    let required: terrane_collection_support::List<String>;
+    let mut declared_fields: terrane_collection_support::List<String>;
+    let mut field_index: terrane_int_support::Int;
+    let mut default_fields: terrane_collection_support::List<String>;
+    let mut default_values: terrane_collection_support::List<String>;
+    let mut default_index: terrane_int_support::Int;
+    let raw: terrane_document_support::DataResult;
+    let mut result: DocumentResult;
+    required = mapping_required_fields(mapping.clone());
+    declared_fields = terrane_collection_support::List::<String>::new(vec![]);
+    field_index = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_1 = declared_fields_terrane_f2_s6211.make_unique();
-        while field_index_terrane_f2_s6254.clone()
+        let __terrane_list_append_1 = declared_fields.make_unique();
+        while field_index.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(mapping.field_names.length()),
             )
@@ -2035,7 +1947,7 @@ pub fn decode_document(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(
-                                    &field_index_terrane_f2_s6254.clone(),
+                                    &field_index.clone(),
                                 ),
                                 22 /* terrane-site: core/documents.trn:176:12-176:44 */,
                             ),
@@ -2052,7 +1964,7 @@ pub fn decode_document(
                                 .get_or_error(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(
-                                            &field_index_terrane_f2_s6254.clone(),
+                                            &field_index.clone(),
                                         ),
                                         23 /* terrane-site: core/documents.trn:177:37-177:69 */,
                                     ),
@@ -2061,22 +1973,17 @@ pub fn decode_document(
                         ),
                     );
             }
-            field_index_terrane_f2_s6254 = field_index_terrane_f2_s6254.clone()
-                + terrane_int_support::Int::from(1_i128);
+            field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
-    default_fields_terrane_f2_s6486 = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    default_values_terrane_f2_s6528 = terrane_collection_support::List::<
-        String,
-    >::new(vec![]);
-    default_index_terrane_f2_s6570 = terrane_int_support::Int::from(0_i128);
-    while default_index_terrane_f2_s6570.clone()
+    default_fields = terrane_collection_support::List::<String>::new(vec![]);
+    default_values = terrane_collection_support::List::<String>::new(vec![]);
+    default_index = terrane_int_support::Int::from(0_i128);
+    while default_index.clone()
         < terrane_int_support::Int::from(
             terrane_int_support::Int::from(mapping.default_fields.length()),
         )
-        && default_index_terrane_f2_s6570.clone()
+        && default_index.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(mapping.default_values.length()),
             )
@@ -2087,7 +1994,7 @@ pub fn decode_document(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(
-                                &default_index_terrane_f2_s6570.clone(),
+                                &default_index.clone(),
                             ),
                             24 /* terrane-site: core/documents.trn:183:12-183:49 */,
                         ),
@@ -2096,7 +2003,7 @@ pub fn decode_document(
             )
             .as_str() != ""
         {
-            default_fields_terrane_f2_s6486
+            default_fields
                 .append(
                     __terrane_raised(
                         mapping
@@ -2104,7 +2011,7 @@ pub fn decode_document(
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(
-                                        &default_index_terrane_f2_s6570.clone(),
+                                        &default_index.clone(),
                                     ),
                                     25 /* terrane-site: core/documents.trn:184:36-184:73 */,
                                 ),
@@ -2112,7 +2019,7 @@ pub fn decode_document(
                         25 /* terrane-site: core/documents.trn:184:36-184:73 */,
                     ),
                 );
-            default_values_terrane_f2_s6528
+            default_values
                 .append(
                     __terrane_raised(
                         mapping
@@ -2120,7 +2027,7 @@ pub fn decode_document(
                             .get_or_error(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(
-                                        &default_index_terrane_f2_s6570.clone(),
+                                        &default_index.clone(),
                                     ),
                                     26 /* terrane-site: core/documents.trn:185:36-185:73 */,
                                 ),
@@ -2129,23 +2036,22 @@ pub fn decode_document(
                     ),
                 );
         }
-        default_index_terrane_f2_s6570 = default_index_terrane_f2_s6570.clone()
-            + terrane_int_support::Int::from(1_i128);
+        default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
     }
-    raw_terrane_f2_s6945 = terrane_validate_mapping(
+    raw = terrane_validate_mapping(
         &value.raw,
         mapping.expected_kind,
-        required_terrane_f2_s6163,
-        declared_fields_terrane_f2_s6211,
-        default_fields_terrane_f2_s6486,
-        default_values_terrane_f2_s6528,
+        required,
+        declared_fields,
+        default_fields,
+        default_values,
         mapping.allow_unknown,
     );
-    result_terrane_f2_s7093 = make_document_result(raw_terrane_f2_s6945);
-    if result_terrane_f2_s7093.failed {
-        result_terrane_f2_s7093.expected = mapping.descriptor_name.clone();
+    result = make_document_result(raw);
+    if result.failed {
+        result.expected = mapping.descriptor_name.clone();
     }
-    return result_terrane_f2_s7093;
+    return result;
 }
 // Source: core/logging.trn
 // Namespace: core/logging
@@ -2471,48 +2377,42 @@ pub fn memory_sink(
     step: terrane_int_support::Int,
     reveal: bool,
 ) -> LogSinkResult {
-    let raw_terrane_f3_s3227: TerranePlatformResult;
-    let sink_terrane_f3_s3299: LogSink;
-    raw_terrane_f3_s3227 = terrane_platform_support::logging_memory_sink(
+    let raw: TerranePlatformResult;
+    let sink: LogSink;
+    raw = terrane_platform_support::logging_memory_sink(
         terrane_int_support::checked_coerce::<i128>(&capacity.clone()),
         &overflow,
         terrane_int_support::checked_coerce::<i128>(&start.clone()),
         terrane_int_support::checked_coerce::<i128>(&step.clone()),
         reveal,
     );
-    sink_terrane_f3_s3299 = LogSink::terrane_construct(
-        terrane_platform_result_capability(&raw_terrane_f3_s3227),
-    );
+    sink = LogSink::terrane_construct(terrane_platform_result_capability(&raw));
     return LogSinkResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f3_s3227),
-        terrane_platform_result_message(&raw_terrane_f3_s3227),
-        sink_terrane_f3_s3299,
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        sink,
     );
 }
 pub fn console_sink(reveal: bool) -> LogSinkResult {
-    let raw_terrane_f3_s3520: TerranePlatformResult;
-    let sink_terrane_f3_s3560: LogSink;
-    raw_terrane_f3_s3520 = terrane_platform_support::logging_console_sink(reveal);
-    sink_terrane_f3_s3560 = LogSink::terrane_construct(
-        terrane_platform_result_capability(&raw_terrane_f3_s3520),
-    );
+    let raw: TerranePlatformResult;
+    let sink: LogSink;
+    raw = terrane_platform_support::logging_console_sink(reveal);
+    sink = LogSink::terrane_construct(terrane_platform_result_capability(&raw));
     return LogSinkResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f3_s3520),
-        terrane_platform_result_message(&raw_terrane_f3_s3520),
-        sink_terrane_f3_s3560,
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        sink,
     );
 }
 pub fn failing_sink() -> LogSinkResult {
-    let raw_terrane_f3_s3769: TerranePlatformResult;
-    let sink_terrane_f3_s3802: LogSink;
-    raw_terrane_f3_s3769 = terrane_platform_support::logging_failing_sink();
-    sink_terrane_f3_s3802 = LogSink::terrane_construct(
-        terrane_platform_result_capability(&raw_terrane_f3_s3769),
-    );
+    let raw: TerranePlatformResult;
+    let sink: LogSink;
+    raw = terrane_platform_support::logging_failing_sink();
+    sink = LogSink::terrane_construct(terrane_platform_result_capability(&raw));
     return LogSinkResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f3_s3769),
-        terrane_platform_result_message(&raw_terrane_f3_s3769),
-        sink_terrane_f3_s3802,
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        sink,
     );
 }
 #[derive(Clone)]
@@ -2585,114 +2485,112 @@ impl LogContext {
         }
     }
     pub fn append_field(&mut self, item: LogField) {
-        let mut updated_terrane_f3_s4842: terrane_collection_support::List<LogField>;
-        let mut existing_terrane_f3_s4887: LogField;
-        updated_terrane_f3_s4842 = terrane_collection_support::List::new(Vec::new());
+        let mut updated: terrane_collection_support::List<LogField>;
+        let mut existing: LogField;
+        updated = terrane_collection_support::List::new(Vec::new());
         let __terrane_iterable_0 = self.fields.clone();
         let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_0,
         );
         {
-            let __terrane_list_append_0 = updated_terrane_f3_s4842.make_unique();
+            let __terrane_list_append_0 = updated.make_unique();
             loop {
-                existing_terrane_f3_s4887 = match __terrane_iterator_0.next() {
+                existing = match __terrane_iterator_0.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
-                __terrane_list_append_0.push(existing_terrane_f3_s4887);
+                __terrane_list_append_0.push(existing);
             }
         }
-        updated_terrane_f3_s4842.append(item);
-        self.fields = updated_terrane_f3_s4842;
+        updated.append(item);
+        self.fields = updated;
     }
     pub fn append_span(&mut self, item: String) {
-        let mut updated_terrane_f3_s5070: terrane_collection_support::List<String>;
-        let mut existing_terrane_f3_s5114: String;
-        updated_terrane_f3_s5070 = terrane_collection_support::List::<
-            String,
-        >::new(Vec::new());
+        let mut updated: terrane_collection_support::List<String>;
+        let mut existing: String;
+        updated = terrane_collection_support::List::<String>::new(Vec::new());
         let __terrane_iterable_1 = self.spans.clone();
         let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_1,
         );
         {
-            let __terrane_list_append_1 = updated_terrane_f3_s5070.make_unique();
+            let __terrane_list_append_1 = updated.make_unique();
             loop {
-                existing_terrane_f3_s5114 = match __terrane_iterator_1.next() {
+                existing = match __terrane_iterator_1.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
-                __terrane_list_append_1.push(existing_terrane_f3_s5114);
+                __terrane_list_append_1.push(existing);
             }
         }
-        updated_terrane_f3_s5070.append(item);
-        self.spans = updated_terrane_f3_s5070;
+        updated.append(item);
+        self.spans = updated;
     }
     pub fn adding_field(&self, addition: LogField) -> LogContext {
-        let mut value_terrane_f3_s5300: LogContext;
-        let mut existing_terrane_f3_s5342: TerraneUnionF3S5342;
-        value_terrane_f3_s5300 = LogContext::terrane_construct();
+        let mut value: LogContext;
+        let mut existing: TerraneUnionF3S5342;
+        value = LogContext::terrane_construct();
         let __terrane_iterable_2 = self.fields.clone();
         let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_2,
         );
         loop {
-            existing_terrane_f3_s5342 = TerraneUnionF3S5342::Arm0(
+            existing = TerraneUnionF3S5342::Arm0(
                 match __terrane_iterator_2.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 },
             );
-            value_terrane_f3_s5300
+            value
                 .append_field(
-                    match existing_terrane_f3_s5342 {
+                    match existing {
                         TerraneUnionF3S5342::Arm0(value) => value,
                         _ => unreachable!("flow-proven storage refinement"),
                     },
                 );
         }
-        value_terrane_f3_s5300.append_field(addition);
+        value.append_field(addition);
         let __terrane_iterable_3 = self.spans.clone();
         let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_3,
         );
         loop {
-            existing_terrane_f3_s5342 = TerraneUnionF3S5342::Arm1(
+            existing = TerraneUnionF3S5342::Arm1(
                 match __terrane_iterator_3.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 },
             );
-            let _ = &existing_terrane_f3_s5342;
-            value_terrane_f3_s5300
+            let _ = &existing;
+            value
                 .append_span(
-                    match &existing_terrane_f3_s5342 {
+                    match &existing {
                         TerraneUnionF3S5342::Arm1(value) => value,
                         _ => unreachable!("flow-proven storage refinement"),
                     }
                         .clone(),
                 );
         }
-        return value_terrane_f3_s5300;
+        return value;
     }
     pub fn adding_span(&self, span: String) -> LogContext {
-        let mut value_terrane_f3_s5599: LogContext;
-        let mut existing_terrane_f3_s5641: TerraneUnionF3S5641;
-        value_terrane_f3_s5599 = LogContext::terrane_construct();
+        let mut value: LogContext;
+        let mut existing: TerraneUnionF3S5641;
+        value = LogContext::terrane_construct();
         let __terrane_iterable_4 = self.fields.clone();
         let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_4,
         );
         loop {
-            existing_terrane_f3_s5641 = TerraneUnionF3S5641::Arm0(
+            existing = TerraneUnionF3S5641::Arm0(
                 match __terrane_iterator_4.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 },
             );
-            value_terrane_f3_s5599
+            value
                 .append_field(
-                    match existing_terrane_f3_s5641 {
+                    match existing {
                         TerraneUnionF3S5641::Arm0(value) => value,
                         _ => unreachable!("flow-proven storage refinement"),
                     },
@@ -2703,24 +2601,24 @@ impl LogContext {
             &__terrane_iterable_5,
         );
         loop {
-            existing_terrane_f3_s5641 = TerraneUnionF3S5641::Arm1(
+            existing = TerraneUnionF3S5641::Arm1(
                 match __terrane_iterator_5.next() {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 },
             );
-            let _ = &existing_terrane_f3_s5641;
-            value_terrane_f3_s5599
+            let _ = &existing;
+            value
                 .append_span(
-                    match &existing_terrane_f3_s5641 {
+                    match &existing {
                         TerraneUnionF3S5641::Arm1(value) => value,
                         _ => unreachable!("flow-proven storage refinement"),
                     }
                         .clone(),
                 );
         }
-        value_terrane_f3_s5599.append_span(span);
-        return value_terrane_f3_s5599;
+        value.append_span(span);
+        return value;
     }
 }
 #[derive(Clone)]
@@ -2888,10 +2786,10 @@ pub fn emit_at(
     source: String,
     f: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
-    let mut combined_terrane_f3_s8307: terrane_collection_support::List<LogField>;
-    let mut item_terrane_f3_s8349: LogField;
-    let options_terrane_f3_s8456: LoggerOptions;
-    let raw_terrane_f3_s8480: TerranePlatformResult;
+    let mut combined: terrane_collection_support::List<LogField>;
+    let mut item: LogField;
+    let options: LoggerOptions;
+    let raw: TerranePlatformResult;
     if l.rank.clone() < v.options.minimum.rank.clone() {
         return LogOutcome::terrane_construct(true, false, String::from(""));
     }
@@ -2900,19 +2798,19 @@ pub fn emit_at(
     {
         return LogOutcome::terrane_construct(true, false, String::from(""));
     }
-    combined_terrane_f3_s8307 = terrane_collection_support::List::new(Vec::new());
+    combined = terrane_collection_support::List::new(Vec::new());
     let __terrane_iterable_6 = v.context.fields.clone();
     let mut __terrane_iterator_6 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_6,
     );
     {
-        let __terrane_list_append_2 = combined_terrane_f3_s8307.make_unique();
+        let __terrane_list_append_2 = combined.make_unique();
         loop {
-            item_terrane_f3_s8349 = match __terrane_iterator_6.next() {
+            item = match __terrane_iterator_6.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            __terrane_list_append_2.push(item_terrane_f3_s8349);
+            __terrane_list_append_2.push(item);
         }
     }
     let __terrane_iterable_7 = f;
@@ -2920,27 +2818,27 @@ pub fn emit_at(
         &__terrane_iterable_7,
     );
     {
-        let __terrane_list_append_3 = combined_terrane_f3_s8307.make_unique();
+        let __terrane_list_append_3 = combined.make_unique();
         loop {
-            item_terrane_f3_s8349 = match __terrane_iterator_7.next() {
+            item = match __terrane_iterator_7.next() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            let _ = &item_terrane_f3_s8349;
-            __terrane_list_append_3.push(item_terrane_f3_s8349.clone());
+            let _ = &item;
+            __terrane_list_append_3.push(item.clone());
         }
     }
-    options_terrane_f3_s8456 = v.options;
-    raw_terrane_f3_s8480 = {
+    options = v.options;
+    raw = {
         let sink = v.sink.handle;
         let severity = l.name;
-        let target = options_terrane_f3_s8456.target;
+        let target = options.target;
         let message = m;
-        let raw_fields = combined_terrane_f3_s8307;
+        let raw_fields = combined;
         let source = source;
         let spans = v.context.spans;
-        let max_fields_value = options_terrane_f3_s8456.max_fields.clone();
-        let max_bytes_value = options_terrane_f3_s8456.max_bytes.clone();
+        let max_fields_value = options.max_fields.clone();
+        let max_bytes_value = options.max_bytes.clone();
         match (
             terrane_collection_support::index_from_int(&max_fields_value),
             terrane_collection_support::index_from_int(&max_bytes_value),
@@ -2995,8 +2893,8 @@ pub fn emit_at(
     };
     return LogOutcome::terrane_construct(
         false,
-        terrane_platform_result_failed(&raw_terrane_f3_s8480),
-        terrane_platform_result_message(&raw_terrane_f3_s8480),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
     );
 }
 pub fn emit(
@@ -3036,14 +2934,14 @@ pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
     );
 }
 pub fn install_dependency_bridge(value: Logger) -> LogOutcome {
-    let raw_terrane_f3_s9252: TerranePlatformResult;
-    raw_terrane_f3_s9252 = terrane_platform_support::logging_install_dependency_bridge(
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_support::logging_install_dependency_bridge(
         &value.sink.handle,
     );
     return LogOutcome::terrane_construct(
         false,
-        terrane_platform_result_failed(&raw_terrane_f3_s9252),
-        terrane_platform_result_message(&raw_terrane_f3_s9252),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
     );
 }
 pub fn info(
@@ -3107,40 +3005,40 @@ pub fn drain_fallback() -> terrane_collection_support::List<String> {
 // Source: core/logging_async.trn
 // Namespace: core/logging/async
 pub async fn send_event(sink: TerraneChannelSender<LogEvent>, value: LogEvent) -> bool {
-    let outcome_terrane_f4_s194: TerraneChannelSendOutcome<LogEvent>;
-    outcome_terrane_f4_s194 = __terrane_await(Box::pin(sink.send(value))).await;
-    return outcome_terrane_f4_s194.accepted;
+    let outcome: TerraneChannelSendOutcome<LogEvent>;
+    outcome = __terrane_await(Box::pin(sink.send(value))).await;
+    return outcome.accepted;
 }
 pub async fn consume_events(
     target: LogSink,
     source: TerraneChannelReceiver<LogEvent>,
 ) -> bool {
-    let mut open_terrane_f4_s352: bool;
-    let mut succeeded_terrane_f4_s368: bool;
-    let mut received_terrane_f4_s408: TerraneChannelReceiveOutcome<LogEvent>;
-    let mut event_terrane_f4_s449: Option<LogEvent>;
-    let mut written_terrane_f4_s509: LogOutcome;
-    open_terrane_f4_s352 = true;
-    succeeded_terrane_f4_s368 = true;
-    while open_terrane_f4_s352 {
-        received_terrane_f4_s408 = __terrane_await(Box::pin(source.receive())).await;
-        event_terrane_f4_s449 = received_terrane_f4_s408.value;
-        if event_terrane_f4_s449.is_some() {
-            written_terrane_f4_s509 = write_event(
+    let mut open: bool;
+    let mut succeeded: bool;
+    let mut received: TerraneChannelReceiveOutcome<LogEvent>;
+    let mut event: Option<LogEvent>;
+    let mut written: LogOutcome;
+    open = true;
+    succeeded = true;
+    while open {
+        received = __terrane_await(Box::pin(source.receive())).await;
+        event = received.value;
+        if event.is_some() {
+            written = write_event(
                 default_logger(target.clone()),
-                match event_terrane_f4_s449 {
+                match event {
                     Some(value) => value,
                     _ => unreachable!("flow-proven storage refinement"),
                 },
             );
-            if written_terrane_f4_s509.failed {
-                succeeded_terrane_f4_s368 = false;
-                open_terrane_f4_s352 = false;
+            if written.failed {
+                succeeded = false;
+                open = false;
             }
         }
-        if received_terrane_f4_s408.closed {
-            open_terrane_f4_s352 = false;
+        if received.closed {
+            open = false;
         }
     }
-    return succeeded_terrane_f4_s368;
+    return succeeded;
 }

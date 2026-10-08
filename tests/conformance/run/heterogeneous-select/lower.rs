@@ -28,12 +28,12 @@ async fn text_task(marker: String) -> String {
 }
 fn main() {
     __terrane_run(async move {
-        let mut count_terrane_f0_s243: terrane_int_support::Int;
-        let mut number_terrane_f0_s293: Option<terrane_int_support::Int> = None;
-        let mut text_terrane_f0_s382: String;
+        let mut count: terrane_int_support::Int;
+        let mut number: Option<terrane_int_support::Int> = None;
+        let mut text: String;
         let mut __terrane_select_cursor_275 = 0usize;
-        count_terrane_f0_s243 = terrane_int_support::Int::from(0_i128);
-        while count_terrane_f0_s243.clone() < terrane_int_support::Int::from(4_i128) {
+        count = terrane_int_support::Int::from(0_i128);
+        while count.clone() < terrane_int_support::Int::from(4_i128) {
             {
                 let mut __terrane_select_guard_275 = __terrane_finally_guard();
                 let __terrane_select_control_275_0 = __terrane_select_control();
@@ -130,32 +130,27 @@ fn main() {
                 __terrane_select_guard_275.finish();
                 match __terrane_select_winner_275 {
                     0 => {
-                        let _ = number_terrane_f0_s293
+                        let _ = number
                             .insert(
                                 __terrane_select_result_275_0
                                     .take()
                                     .expect("selected case owns its ready result"),
                             );
                         println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&number_terrane_f0_s293
-                            .as_ref().expect("flow-proven available binding").clone())
+                            "{}", terrane_scalar_support::scalar_text(&number.as_ref()
+                            .expect("flow-proven available binding").clone())
                         );
                     }
                     1 => {
-                        text_terrane_f0_s382 = __terrane_select_result_275_1
+                        text = __terrane_select_result_275_1
                             .take()
                             .expect("selected case owns its ready result");
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&text_terrane_f0_s382)
-                        );
+                        println!("{}", terrane_scalar_support::scalar_text(&text));
                     }
                     _ => unreachable!("selected winner is within the case count"),
                 }
             }
-            count_terrane_f0_s243 = count_terrane_f0_s243.clone()
-                + terrane_int_support::Int::from(1_i128);
+            count = count.clone() + terrane_int_support::Int::from(1_i128);
         }
     });
 }

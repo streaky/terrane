@@ -29,9 +29,9 @@ impl Widget {
     }
 }
 fn main() {
-    let value_terrane_f0_s44: TerraneUnionF0S44;
-    value_terrane_f0_s44 = TerraneUnionF0S44::Arm1(());
-    if matches!(&value_terrane_f0_s44, TerraneUnionF0S44::Arm1(_)) {
+    let value: TerraneUnionF0S44;
+    value = TerraneUnionF0S44::Arm1(());
+    if matches!(&value, TerraneUnionF0S44::Arm1(_)) {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("empty")));
     }
 }

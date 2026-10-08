@@ -480,37 +480,35 @@ fn wrap() -> Result<String, TerraneError> {
     );
 }
 fn main() {
-    let closure_terrane_f0_s447: std::sync::Arc<
+    let closure: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
     >;
-    let service_terrane_f0_s508: Renderer;
-    let bound_terrane_f0_s539: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
-    >;
+    let service: Renderer;
+    let bound: std::sync::Arc<dyn Fn(terrane_int_support::Int) -> String + Send + Sync>;
     println!(
         "{}", terrane_scalar_support::scalar_text(&std::sync::Arc::new(render)
         (source()))
     );
-    closure_terrane_f0_s447 = {
+    closure = {
         std::sync::Arc::new(move |
             __trn_5f76616c7565: terrane_int_support::Int,
         | -> String {
             return String::from("closure");
         })
     };
-    service_terrane_f0_s508 = Renderer::terrane_construct();
-    bound_terrane_f0_s539 = {
-        let receiver = service_terrane_f0_s508;
+    service = Renderer::terrane_construct();
+    bound = {
+        let receiver = service;
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
             receiver.render(argument_0)
         })
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&closure_terrane_f0_s447.clone()
+        "{}", terrane_scalar_support::scalar_text(&closure.clone()
         (terrane_int_support::Int::from(8_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&bound_terrane_f0_s539.clone()
+        "{}", terrane_scalar_support::scalar_text(&bound.clone()
         (terrane_int_support::Int::from(9_i128)))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {

@@ -529,49 +529,47 @@ impl Plain {
     }
 }
 fn main() {
-    let value_terrane_f0_s569: Defaults;
-    let descriptor_terrane_f0_s962: TerraneDescriptor;
-    let plain_value_terrane_f0_s986: Plain;
-    value_terrane_f0_s569 = Defaults::terrane_construct(String::from("ready"));
+    let value: Defaults;
+    let descriptor: TerraneDescriptor;
+    let plain_value: Plain;
+    value = Defaults::terrane_construct(String::from("ready"));
     println!(
-        "{}{}{}{}{}{}{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.message),
+        "{}{}{}{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&value.message),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.path),
+        terrane_scalar_support::scalar_text(&value.path),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.id),
+        terrane_scalar_support::scalar_text(&value.id),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.active),
+        terrane_scalar_support::scalar_text(&value.active),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.something),
+        terrane_scalar_support::scalar_text(&value.something),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.ratio)
+        terrane_scalar_support::scalar_text(&value.ratio)
     );
     println!(
-        "{}{}{}{}{}{}{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&(value_terrane_f0_s569.data.len() as i128)),
-        terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value_terrane_f0_s569
-        .items.length())), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value_terrane_f0_s569
-        .names.length())), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value_terrane_f0_s569
-        .tags.length())), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value_terrane_f0_s569
+        "{}{}{}{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&(value.data.len()
+        as i128)), terrane_scalar_support::scalar_text(&String::from(":")),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value.items
+        .length())), terrane_scalar_support::scalar_text(&String::from(":")),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value.names
+        .length())), terrane_scalar_support::scalar_text(&String::from(":")),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value.tags
+        .length())), terrane_scalar_support::scalar_text(&String::from(":")),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value
         .unordered_names.length())),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value_terrane_f0_s569
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value
         .unordered_tags.length()))
     );
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s569.note
-        .is_none()), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&value_terrane_f0_s569.explicit),
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&value.note.is_none()),
+        terrane_scalar_support::scalar_text(&String::from(":")),
+        terrane_scalar_support::scalar_text(&value.explicit),
         terrane_scalar_support::scalar_text(&String::from(":")),
         terrane_scalar_support::scalar_text(&TERRANE_STATIC_DEFAULTS_SHARED.lock()
         .expect("static field lock poisoned").clone())
     );
-    descriptor_terrane_f0_s962 = TerraneDescriptor {
+    descriptor = TerraneDescriptor {
         identity: "/implicit-class-field-defaults::defaults",
         name: "defaults",
         kind: "class",
@@ -677,22 +675,22 @@ fn main() {
             },
         ],
     };
-    plain_value_terrane_f0_s986 = Plain::terrane_construct();
+    plain_value = Plain::terrane_construct();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&plain_value_terrane_f0_s986
-        .count), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&plain_value_terrane_f0_s986.text)
+        "{}{}{}", terrane_scalar_support::scalar_text(&plain_value.count),
+        terrane_scalar_support::scalar_text(&String::from(":")),
+        terrane_scalar_support::scalar_text(&plain_value.text)
     );
     println!(
         "{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor_terrane_f0_s962
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor
         .fields.len() as i128)), terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor_terrane_f0_s962
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:38:39-38:68 */)), 0 /* terrane-site: case.trn:38:39-38:68 */)),
         terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor_terrane_f0_s962
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(13_i128)),
         1 /* terrane-site: case.trn:38:75-38:105 */)), 1 /* terrane-site: case.trn:38:75-38:105 */))

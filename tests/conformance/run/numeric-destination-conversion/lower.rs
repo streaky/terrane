@@ -458,56 +458,56 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S121 {
     }
 }
 fn main() {
-    let small_terrane_f0_s59: i8;
-    let adaptive_terrane_f0_s77: i64;
-    let wide_terrane_f0_s100: i32;
-    let mut selected_terrane_f0_s121: TerraneUnionF0S121;
-    let count_terrane_f0_s151: i32;
-    let total_terrane_f0_s178: f64;
-    let exact_terrane_f0_s200: i64;
-    let exact_float_terrane_f0_s237: f64;
-    let whole_terrane_f0_s265: f64;
-    let converted_terrane_f0_s285: terrane_int_support::Int;
-    let other_terrane_f0_s359: i32;
-    let myvar_terrane_f0_s528: i64;
-    let slop_terrane_f0_s547: i8;
-    small_terrane_f0_s59 = 12;
-    adaptive_terrane_f0_s77 = small_terrane_f0_s59 as i64;
-    wide_terrane_f0_s100 = small_terrane_f0_s59 as i32;
-    selected_terrane_f0_s121 = TerraneUnionF0S121::Arm0(small_terrane_f0_s59);
-    count_terrane_f0_s151 = 16777216;
-    total_terrane_f0_s178 = count_terrane_f0_s151 as f64;
-    exact_terrane_f0_s200 = 18014398509481984;
-    exact_float_terrane_f0_s237 = __terrane_raised(
-        terrane_int_support::exact_f64(&exact_terrane_f0_s200),
+    let small: i8;
+    let adaptive: i64;
+    let wide: i32;
+    let mut selected: TerraneUnionF0S121;
+    let count: i32;
+    let total: f64;
+    let exact: i64;
+    let exact_float: f64;
+    let whole: f64;
+    let converted: terrane_int_support::Int;
+    let other: i32;
+    let myvar: i64;
+    let slop: i8;
+    small = 12;
+    adaptive = small as i64;
+    wide = small as i32;
+    selected = TerraneUnionF0S121::Arm0(small);
+    count = 16777216;
+    total = count as f64;
+    exact = 18014398509481984;
+    exact_float = __terrane_raised(
+        terrane_int_support::exact_f64(&exact),
         0 /* terrane-site: case.trn:11:23-11:28 */,
     );
-    whole_terrane_f0_s265 = 4.0;
-    converted_terrane_f0_s285 = __terrane_raised(
-        terrane_int_support::exact_int_f64(whole_terrane_f0_s265),
+    whole = 4.0;
+    converted = __terrane_raised(
+        terrane_int_support::exact_int_f64(whole),
         1 /* terrane-site: case.trn:13:19-13:24 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&adaptive_terrane_f0_s77));
-    println!("{}", terrane_scalar_support::scalar_text(&wide_terrane_f0_s100));
-    println!("{}", terrane_scalar_support::scalar_text(&selected_terrane_f0_s121));
-    other_terrane_f0_s359 = 13;
-    selected_terrane_f0_s121 = TerraneUnionF0S121::Arm1(other_terrane_f0_s359);
+    println!("{}", terrane_scalar_support::scalar_text(&adaptive));
+    println!("{}", terrane_scalar_support::scalar_text(&wide));
+    println!("{}", terrane_scalar_support::scalar_text(&selected));
+    other = 13;
+    selected = TerraneUnionF0S121::Arm1(other);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&matches!(&selected_terrane_f0_s121,
+        "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
         TerraneUnionF0S121::Arm1(_)))
     );
-    selected_terrane_f0_s121 = TerraneUnionF0S121::Arm0(small_terrane_f0_s59);
+    selected = TerraneUnionF0S121::Arm0(small);
     println!(
-        "{}", terrane_scalar_support::scalar_text(&matches!(&selected_terrane_f0_s121,
+        "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
         TerraneUnionF0S121::Arm0(_)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&total_terrane_f0_s178));
-    println!("{}", terrane_scalar_support::scalar_text(&exact_float_terrane_f0_s237));
-    println!("{}", terrane_scalar_support::scalar_text(&converted_terrane_f0_s285));
-    myvar_terrane_f0_s528 = 12;
-    slop_terrane_f0_s547 = {
+    println!("{}", terrane_scalar_support::scalar_text(&total));
+    println!("{}", terrane_scalar_support::scalar_text(&exact_float));
+    println!("{}", terrane_scalar_support::scalar_text(&converted));
+    myvar = 12;
+    slop = {
         let source_value = __terrane_raised(
-            terrane_int_support::fixed_addition(myvar_terrane_f0_s528, 1),
+            terrane_int_support::fixed_addition(myvar, 1),
             2 /* terrane-site: case.trn:27:10-27:19 */,
         );
         __terrane_raised(
@@ -521,5 +521,5 @@ fn main() {
             2 /* terrane-site: case.trn:27:10-27:19 */,
         )
     };
-    println!("{}", terrane_scalar_support::scalar_text(&slop_terrane_f0_s547));
+    println!("{}", terrane_scalar_support::scalar_text(&slop));
 }

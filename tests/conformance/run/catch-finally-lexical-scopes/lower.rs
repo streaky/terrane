@@ -452,8 +452,8 @@ fn __terrane_uninitialized_binding(
 // Source: case.trn
 // Namespace: catch-finally-lexical-scopes
 fn typed_catch() {
-    let mut caught_terrane_f0_s191: Option<i64> = None;
-    let mut completed_terrane_f0_s234: Option<i64> = None;
+    let mut caught: Option<i64> = None;
+    let mut completed: Option<i64> = None;
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -474,10 +474,10 @@ fn typed_catch() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    let _ = caught_terrane_f0_s191.insert(1);
+                    let _ = caught.insert(1);
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&caught_terrane_f0_s191
-                        .as_ref().expect("flow-proven available binding").clone())
+                        "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
+                        .expect("flow-proven available binding").clone())
                     );
                 }
                 if !__terrane_handled_0 {
@@ -488,9 +488,9 @@ fn typed_catch() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        let _ = completed_terrane_f0_s234.insert(2);
+        let _ = completed.insert(2);
         println!(
-            "{}", terrane_scalar_support::scalar_text(&completed_terrane_f0_s234.as_ref()
+            "{}", terrane_scalar_support::scalar_text(&completed.as_ref()
             .expect("flow-proven available binding").clone())
         );
         TerraneCompletion::Normal
@@ -509,7 +509,7 @@ fn typed_catch() {
     }
 }
 fn catch_all() {
-    let mut caught_terrane_f0_s333: Option<i64> = None;
+    let mut caught: Option<i64> = None;
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -528,10 +528,10 @@ fn catch_all() {
                 let mut __terrane_handled_1 = false;
                 if !__terrane_handled_1 {
                     __terrane_handled_1 = true;
-                    let _ = caught_terrane_f0_s333.insert(3);
+                    let _ = caught.insert(3);
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&caught_terrane_f0_s333
-                        .as_ref().expect("flow-proven available binding").clone())
+                        "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
+                        .expect("flow-proven available binding").clone())
                     );
                 }
                 if !__terrane_handled_1 {

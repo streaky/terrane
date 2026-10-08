@@ -4,24 +4,23 @@
 // Source: case.trn
 // Namespace: text-families
 fn main() {
-    let text_terrane_f0_s41: String;
-    let decomposed_terrane_f0_s262: String;
-    let rtl_terrane_f0_s432: String;
-    text_terrane_f0_s41 = String::from("  Straße  ");
+    let text: String;
+    let decomposed: String;
+    let rtl: String;
+    text = String::from("  Straße  ");
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::trim(&text_terrane_f0_s41))
+        "{}", terrane_scalar_support::scalar_text(&terrane_string_support::trim(&text))
     );
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::trim_start(&text_terrane_f0_s41,
+        terrane_scalar_support::scalar_text(&terrane_string_support::trim_start(&text,
         None)),
-        terrane_scalar_support::scalar_text(&terrane_string_support::trim_end(&text_terrane_f0_s41,
+        terrane_scalar_support::scalar_text(&terrane_string_support::trim_end(&text,
         None))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::case_fold(&text_terrane_f0_s41))
+        terrane_scalar_support::scalar_text(&terrane_string_support::case_fold(&text))
     );
     println!(
         "{}{}",
@@ -32,10 +31,10 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::lower_first(&String::from("Hello")))
     );
-    decomposed_terrane_f0_s262 = String::from("e\u{301}");
+    decomposed = String::from("e\u{301}");
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::normalise(&decomposed_terrane_f0_s262,
+        terrane_scalar_support::scalar_text(&terrane_string_support::normalise(&decomposed,
         "nfc"))
     );
     println!(
@@ -50,33 +49,31 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(terrane_string_support::find_all(&String::from("banana"),
         &String::from("")).len() as i128))
     );
-    rtl_terrane_f0_s432 = String::from("שלום");
+    rtl = String::from("שלום");
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&rtl_terrane_f0_s432
-        .starts_with(&String::from("ש"))),
-        terrane_scalar_support::scalar_text(&rtl_terrane_f0_s432
+        "{}{}", terrane_scalar_support::scalar_text(&rtl
+        .starts_with(&String::from("ש"))), terrane_scalar_support::scalar_text(&rtl
         .ends_with(&String::from("ם")))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_string_support::find_all(&decomposed_terrane_f0_s262,
+        terrane_scalar_support::scalar_text(&(terrane_string_support::find_all(&decomposed,
         &String::from("")).len() as i128))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_string_support::split(&decomposed_terrane_f0_s262,
+        terrane_scalar_support::scalar_text(&(terrane_string_support::split(&decomposed,
         &String::from("")).len() as i128))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::replace(&decomposed_terrane_f0_s262,
+        terrane_scalar_support::scalar_text(&terrane_string_support::replace(&decomposed,
         &String::from(""), &String::from("X")))
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&(decomposed_terrane_f0_s262.len()
-        as i128)), terrane_scalar_support::scalar_text(&(decomposed_terrane_f0_s262
-        .chars().count() as i128)),
-        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&decomposed_terrane_f0_s262)
+        "{}{}{}", terrane_scalar_support::scalar_text(&(decomposed.len() as i128)),
+        terrane_scalar_support::scalar_text(&(decomposed.chars().count() as i128)),
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&decomposed)
         as i128))
     );
 }

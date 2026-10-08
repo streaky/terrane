@@ -436,42 +436,31 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: bytes-and-legacy-digests
 fn main() {
-    let octets_terrane_f0_s265: terrane_collection_support::List<u8>;
-    let data_terrane_f0_s307: Vec<u8>;
-    let empty_octets_terrane_f0_s390: terrane_collection_support::List<u8>;
-    let empty_terrane_f0_s427: Vec<u8>;
-    let first_terrane_f0_s497: DigestResult;
-    let second_terrane_f0_s578: DigestResult;
-    octets_terrane_f0_s265 = terrane_collection_support::List::<
-        u8,
-    >::new(vec![65, 66, 67]);
-    data_terrane_f0_s307 = bytes_from_octets(octets_terrane_f0_s265);
+    let octets: terrane_collection_support::List<u8>;
+    let data: Vec<u8>;
+    let empty_octets: terrane_collection_support::List<u8>;
+    let empty: Vec<u8>;
+    let first: DigestResult;
+    let second: DigestResult;
+    octets = terrane_collection_support::List::<u8>::new(vec![65, 66, 67]);
+    data = bytes_from_octets(octets);
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data_terrane_f0_s307,
-        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:12:11-12:28 */)),
-        terrane_scalar_support::scalar_text(&(data_terrane_f0_s307.len() as i128))
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data,
+        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:12:11-12:28 */)), terrane_scalar_support::scalar_text(&(data.len() as
+        i128))
     );
-    empty_octets_terrane_f0_s390 = terrane_collection_support::List::<u8>::new(vec![]);
-    empty_terrane_f0_s427 = bytes_from_octets(empty_octets_terrane_f0_s390);
+    empty_octets = terrane_collection_support::List::<u8>::new(vec![]);
+    empty = bytes_from_octets(empty_octets);
+    println!("{}", terrane_scalar_support::scalar_text(&(empty.len() as i128)));
+    first = digest_bytes_terrane_core_random(sha1(), Vec::from([97, 98, 99]));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(empty_terrane_f0_s427.len() as i128))
+        "{}", terrane_scalar_support::scalar_text(&encode_hex(first.value.value.clone()))
     );
-    first_terrane_f0_s497 = digest_bytes_terrane_core_random(
-        sha1(),
-        Vec::from([97, 98, 99]),
-    );
+    second = digest_bytes_terrane_core_random(md5(), Vec::from([97, 98, 99]));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&encode_hex(first_terrane_f0_s497.value
-        .value.clone()))
-    );
-    second_terrane_f0_s578 = digest_bytes_terrane_core_random(
-        md5(),
-        Vec::from([97, 98, 99]),
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&encode_hex(second_terrane_f0_s578
-        .value.value.clone()))
+        "{}", terrane_scalar_support::scalar_text(&encode_hex(second.value.value
+        .clone()))
     );
 }
 // Source: core/codecs.trn
@@ -508,12 +497,12 @@ impl HexCodec {
         return terrane_platform_hex_encode(data);
     }
     pub fn decode(&self, text: String) -> DecodeResult {
-        let raw_terrane_f1_s414: TerranePlatformResult;
-        raw_terrane_f1_s414 = terrane_platform_hex_decode(text);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_hex_decode(text);
         return DecodeResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s414),
-            terrane_platform_result_message(&raw_terrane_f1_s414),
-            terrane_platform_result_bytes(&raw_terrane_f1_s414),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_bytes(&raw),
         );
     }
 }
@@ -534,16 +523,12 @@ impl Base64Codec {
         return terrane_platform_base64_encode(data, self.url_safe, padded);
     }
     pub fn decode(&self, text: String, padded: bool) -> DecodeResult {
-        let raw_terrane_f1_s864: TerranePlatformResult;
-        raw_terrane_f1_s864 = terrane_platform_base64_decode(
-            text,
-            self.url_safe,
-            padded,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_base64_decode(text, self.url_safe, padded);
         return DecodeResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f1_s864),
-            terrane_platform_result_message(&raw_terrane_f1_s864),
-            terrane_platform_result_bytes(&raw_terrane_f1_s864),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_bytes(&raw),
         );
     }
 }
@@ -563,24 +548,24 @@ pub fn encode_hex(data: Vec<u8>) -> String {
     return terrane_platform_hex_encode(data);
 }
 pub fn decode_hex(text: String) -> DecodeResult {
-    let raw_terrane_f1_s1463: TerranePlatformResult;
-    raw_terrane_f1_s1463 = terrane_platform_hex_decode(text);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_hex_decode(text);
     return DecodeResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f1_s1463),
-        terrane_platform_result_message(&raw_terrane_f1_s1463),
-        terrane_platform_result_bytes(&raw_terrane_f1_s1463),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_bytes(&raw),
     );
 }
 pub fn encode_base64(data: Vec<u8>, url_safe: bool, padded: bool) -> String {
     return terrane_platform_base64_encode(data, url_safe, padded);
 }
 pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult {
-    let raw_terrane_f1_s1814: TerranePlatformResult;
-    raw_terrane_f1_s1814 = terrane_platform_base64_decode(text, url_safe, padded);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_base64_decode(text, url_safe, padded);
     return DecodeResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f1_s1814),
-        terrane_platform_result_message(&raw_terrane_f1_s1814),
-        terrane_platform_result_bytes(&raw_terrane_f1_s1814),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_bytes(&raw),
     );
 }
 // Source: core/random.trn
@@ -674,11 +659,11 @@ impl SecretBuffer {
     }
 }
 pub fn destroy_secret(secret: SecretBuffer) -> SecretOperationResult {
-    let raw_terrane_f2_s948: TerranePlatformResult;
-    raw_terrane_f2_s948 = terrane_platform_destroy_secret(&secret.handle);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_destroy_secret(&secret.handle);
     return SecretOperationResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s948),
-        terrane_platform_result_message(&raw_terrane_f2_s948),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
     );
 }
 #[derive(Clone)]
@@ -700,12 +685,12 @@ impl DigestValue {
         self.value = data;
     }
     pub fn constant_time_equals(&self, other: DigestValue) -> bool {
-        let left_terrane_f2_s1409: Vec<u8>;
+        let left: Vec<u8>;
         if self.algorithm.as_str() != other.algorithm.as_str() {
             return false;
         }
-        left_terrane_f2_s1409 = self.value.clone();
-        return terrane_platform_constant_time_equal(left_terrane_f2_s1409, other.value);
+        left = self.value.clone();
+        return terrane_platform_constant_time_equal(left, other.value);
     }
 }
 #[derive(Clone)]
@@ -753,12 +738,12 @@ impl SignatureValue {
         self.value = data;
     }
     pub fn constant_time_equals(&self, other: SignatureValue) -> bool {
-        let left_terrane_f2_s2100: Vec<u8>;
+        let left: Vec<u8>;
         if self.algorithm.as_str() != other.algorithm.as_str() {
             return false;
         }
-        left_terrane_f2_s2100 = self.value.clone();
-        return terrane_platform_constant_time_equal(left_terrane_f2_s2100, other.value);
+        left = self.value.clone();
+        return terrane_platform_constant_time_equal(left, other.value);
     }
 }
 #[derive(Clone)]
@@ -808,27 +793,24 @@ impl SecureRandom {
         self.handle = terrane_platform_secure_random();
     }
     pub fn generate_bytes(&self, count: terrane_int_support::Int) -> ByteResult {
-        let raw_terrane_f2_s2698: TerranePlatformResult;
-        raw_terrane_f2_s2698 = terrane_platform_random_bytes(&self.handle, count);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bytes(&self.handle, count);
         return ByteResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f2_s2698),
-            terrane_platform_result_message(&raw_terrane_f2_s2698),
-            terrane_platform_result_bytes(&raw_terrane_f2_s2698),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_bytes(&raw),
         );
     }
     pub fn bounded_int(
         &self,
         upper_exclusive: terrane_int_support::Int,
     ) -> RandomIntResult {
-        let raw_terrane_f2_s2932: TerranePlatformResult;
-        raw_terrane_f2_s2932 = terrane_platform_random_bounded(
-            &self.handle,
-            upper_exclusive,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bounded(&self.handle, upper_exclusive);
         return RandomIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f2_s2932),
-            terrane_platform_result_message(&raw_terrane_f2_s2932),
-            terrane_platform_result_int(&raw_terrane_f2_s2932),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
 }
@@ -868,105 +850,89 @@ impl PseudoRandom {
         self.handle = terrane_platform_pseudo_random(algorithm.name, seed);
     }
     pub fn generate_bytes(&self, count: terrane_int_support::Int) -> ByteResult {
-        let raw_terrane_f2_s3620: TerranePlatformResult;
-        raw_terrane_f2_s3620 = terrane_platform_random_bytes(&self.handle, count);
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bytes(&self.handle, count);
         return ByteResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f2_s3620),
-            terrane_platform_result_message(&raw_terrane_f2_s3620),
-            terrane_platform_result_bytes(&raw_terrane_f2_s3620),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_bytes(&raw),
         );
     }
     pub fn bounded_int(
         &self,
         upper_exclusive: terrane_int_support::Int,
     ) -> RandomIntResult {
-        let raw_terrane_f2_s3854: TerranePlatformResult;
-        raw_terrane_f2_s3854 = terrane_platform_random_bounded(
-            &self.handle,
-            upper_exclusive,
-        );
+        let raw: TerranePlatformResult;
+        raw = terrane_platform_random_bounded(&self.handle, upper_exclusive);
         return RandomIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw_terrane_f2_s3854),
-            terrane_platform_result_message(&raw_terrane_f2_s3854),
-            terrane_platform_result_int(&raw_terrane_f2_s3854),
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
+            terrane_platform_result_int(&raw),
         );
     }
     pub fn split(self) -> PseudoRandom {
-        let raw_terrane_f2_s4084: TerranePlatformResult;
-        let mut child_terrane_f2_s4129: PseudoRandom;
-        raw_terrane_f2_s4084 = terrane_platform_random_split(&self.handle);
-        child_terrane_f2_s4129 = PseudoRandom::terrane_construct(
-            chacha20(),
-            Vec::from([]),
-        );
-        child_terrane_f2_s4129.handle = terrane_platform_result_capability(
-            &raw_terrane_f2_s4084,
-        );
-        return child_terrane_f2_s4129;
+        let raw: TerranePlatformResult;
+        let mut child: PseudoRandom;
+        raw = terrane_platform_random_split(&self.handle);
+        child = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
+        child.handle = terrane_platform_result_capability(&raw);
+        return child;
     }
 }
 pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
-    let raw_terrane_f2_s4313: TerranePlatformResult;
-    let mut child_terrane_f2_s4356: PseudoRandom;
-    raw_terrane_f2_s4313 = terrane_platform_random_split(&source.handle);
-    child_terrane_f2_s4356 = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
-    child_terrane_f2_s4356.handle = terrane_platform_result_capability(
-        &raw_terrane_f2_s4313,
-    );
-    return child_terrane_f2_s4356;
+    let raw: TerranePlatformResult;
+    let mut child: PseudoRandom;
+    raw = terrane_platform_random_split(&source.handle);
+    child = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
+    child.handle = terrane_platform_result_capability(&raw);
+    return child;
 }
 pub fn secure_bytes(
     source: SecureRandom,
     count: terrane_int_support::Int,
 ) -> ByteResult {
-    let raw_terrane_f2_s4540: TerranePlatformResult;
-    raw_terrane_f2_s4540 = terrane_platform_random_bytes(&source.handle, count);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bytes(&source.handle, count);
     return ByteResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s4540),
-        terrane_platform_result_message(&raw_terrane_f2_s4540),
-        terrane_platform_result_bytes(&raw_terrane_f2_s4540),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_bytes(&raw),
     );
 }
 pub fn pseudo_bytes(
     source: PseudoRandom,
     count: terrane_int_support::Int,
 ) -> ByteResult {
-    let raw_terrane_f2_s4771: TerranePlatformResult;
-    raw_terrane_f2_s4771 = terrane_platform_random_bytes(&source.handle, count);
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bytes(&source.handle, count);
     return ByteResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s4771),
-        terrane_platform_result_message(&raw_terrane_f2_s4771),
-        terrane_platform_result_bytes(&raw_terrane_f2_s4771),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_bytes(&raw),
     );
 }
 pub fn secure_bounded_int(
     source: SecureRandom,
     upper_exclusive: terrane_int_support::Int,
 ) -> RandomIntResult {
-    let raw_terrane_f2_s5024: TerranePlatformResult;
-    raw_terrane_f2_s5024 = terrane_platform_random_bounded(
-        &source.handle,
-        upper_exclusive,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bounded(&source.handle, upper_exclusive);
     return RandomIntResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s5024),
-        terrane_platform_result_message(&raw_terrane_f2_s5024),
-        terrane_platform_result_int(&raw_terrane_f2_s5024),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_int(&raw),
     );
 }
 pub fn pseudo_bounded_int(
     source: PseudoRandom,
     upper_exclusive: terrane_int_support::Int,
 ) -> RandomIntResult {
-    let raw_terrane_f2_s5293: TerranePlatformResult;
-    raw_terrane_f2_s5293 = terrane_platform_random_bounded(
-        &source.handle,
-        upper_exclusive,
-    );
+    let raw: TerranePlatformResult;
+    raw = terrane_platform_random_bounded(&source.handle, upper_exclusive);
     return RandomIntResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s5293),
-        terrane_platform_result_message(&raw_terrane_f2_s5293),
-        terrane_platform_result_int(&raw_terrane_f2_s5293),
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_int(&raw),
     );
 }
 #[derive(Clone)]
@@ -993,17 +959,17 @@ pub fn digest_bytes_terrane_core_random(
     algorithm: HashAlgorithm,
     data: Vec<u8>,
 ) -> DigestResult {
-    let raw_terrane_f2_s5811: TerranePlatformResult;
-    let value_terrane_f2_s5855: DigestValue;
-    raw_terrane_f2_s5811 = terrane_platform_digest(&algorithm.name, data);
-    value_terrane_f2_s5855 = DigestValue::terrane_construct(
+    let raw: TerranePlatformResult;
+    let value: DigestValue;
+    raw = terrane_platform_digest(&algorithm.name, data);
+    value = DigestValue::terrane_construct(
         algorithm.name.clone(),
-        terrane_platform_result_bytes(&raw_terrane_f2_s5811),
+        terrane_platform_result_bytes(&raw),
     );
     return DigestResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s5811),
-        terrane_platform_result_message(&raw_terrane_f2_s5811),
-        value_terrane_f2_s5855,
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        value,
     );
 }
 pub fn sign_hmac(
@@ -1011,17 +977,17 @@ pub fn sign_hmac(
     key: SecretBuffer,
     data: Vec<u8>,
 ) -> SignatureResult {
-    let raw_terrane_f2_s6121: TerranePlatformResult;
-    let value_terrane_f2_s6175: SignatureValue;
-    raw_terrane_f2_s6121 = terrane_platform_hmac(&algorithm.name, &key.handle, data);
-    value_terrane_f2_s6175 = SignatureValue::terrane_construct(
+    let raw: TerranePlatformResult;
+    let value: SignatureValue;
+    raw = terrane_platform_hmac(&algorithm.name, &key.handle, data);
+    value = SignatureValue::terrane_construct(
         algorithm.name.clone(),
-        terrane_platform_result_bytes(&raw_terrane_f2_s6121),
+        terrane_platform_result_bytes(&raw),
     );
     return SignatureResult::terrane_construct(
-        terrane_platform_result_failed(&raw_terrane_f2_s6121),
-        terrane_platform_result_message(&raw_terrane_f2_s6121),
-        value_terrane_f2_s6175,
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        value,
     );
 }
 pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {

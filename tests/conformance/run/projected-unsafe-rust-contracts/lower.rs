@@ -492,8 +492,8 @@ fn view<'view>(state: &'view String) -> witness::ScopedView<'view> {
 }
 #[allow(unsafe_code)]
 fn main() {
-    let state_terrane_f0_s231: String;
-    state_terrane_f0_s231 = String::from("unsafe");
+    let state: String;
+    state = String::from("unsafe");
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(unsafe {
         unchecked_add(terrane_int_support::Int::from(20_i128),
@@ -502,7 +502,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        witness::render_unsafe(&state_terrane_f0_s231, view))) { Ok(value) =>
+        witness::render_unsafe(&state, view))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness", "witness::render_unsafe")) },
         2 /* terrane-site: src/main.trn:12:13-12:39 */))

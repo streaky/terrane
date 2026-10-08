@@ -437,12 +437,12 @@ async fn work() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_run(async move {
-        let scope_terrane_f0_s75: TerraneTaskScope;
-        let child_terrane_f0_s97: TerraneScopedTask<terrane_int_support::Int>;
-        let outcome_terrane_f0_s141: TerraneTaskOutcome<terrane_int_support::Int>;
-        scope_terrane_f0_s75 = TerraneTaskScope::new(None);
-        child_terrane_f0_s97 = {
-            let __terrane_scope = scope_terrane_f0_s75.clone();
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<terrane_int_support::Int>;
+        let outcome: TerraneTaskOutcome<terrane_int_support::Int>;
+        scope = TerraneTaskScope::new(None);
+        child = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -460,15 +460,11 @@ fn main() {
                 }
             })
         };
-        scope_terrane_f0_s75.cancel();
-        outcome_terrane_f0_s141 = __terrane_await(
-                scope_terrane_f0_s75.join(child_terrane_f0_s97),
-            )
-            .await;
+        scope.cancel();
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&outcome_terrane_f0_s141
-            .cancelled), terrane_scalar_support::scalar_text(&outcome_terrane_f0_s141
-            .value.clone().is_none())
+            "{}{}", terrane_scalar_support::scalar_text(&outcome.cancelled),
+            terrane_scalar_support::scalar_text(&outcome.value.clone().is_none())
         );
     });
 }

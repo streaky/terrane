@@ -497,17 +497,17 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
-    let mut children_terrane_f0_s390: terrane_collection_support::List<_>;
-    let mut child_terrane_f0_s453: &State;
-    children_terrane_f0_s390 = terrane_collection_support::List::<_>::new(vec![]);
+    let mut children: terrane_collection_support::List<_>;
+    let mut child: &State;
+    children = terrane_collection_support::List::<_>::new(vec![]);
     let __terrane_iterable_0 = &state.children;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iter();
     loop {
-        child_terrane_f0_s453 = match __terrane_iterator_0.next() {
+        child = match __terrane_iterator_0.next() {
             Some(item) => item,
             None => break,
         };
-        children_terrane_f0_s390.push_unique(render(child_terrane_f0_s453));
+        children.push_unique(render(child));
     }
     return {
         let value: iced::Element<'_, ()> = __terrane_raised(
@@ -539,10 +539,10 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
                                                 ::__terrane_dependency_panic(payload, "iced",
                                                 "iced::widget::text::<_, _>")) }, 1 /* terrane-site: src/main.trn:11:118-11:151 */)), __terrane_raised(match
                                                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                                iced::widget::row:: < _, _, _ > (children_terrane_f0_s390
-                                                .into_unique_vec().into_iter().map(Into::into).collect:: <
-                                                Vec < _ > > ()))) { Ok(value) => Ok(value), Err(payload) =>
-                                                Err(crate ::__terrane_dependency_panic(payload, "iced",
+                                                iced::widget::row:: < _, _, _ > (children.into_unique_vec()
+                                                .into_iter().map(Into::into).collect:: < Vec < _ > > ()))) {
+                                                Ok(value) => Ok(value), Err(payload) => Err(crate
+                                                ::__terrane_dependency_panic(payload, "iced",
                                                 "iced::widget::row::<_, _, _>")) }, 2 /* terrane-site: src/main.trn:11:156-11:178 */)
                                             )
                                         }),
@@ -585,33 +585,29 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
     };
 }
 fn main() {
-    let mut children_terrane_f0_s721: terrane_collection_support::List<State>;
-    let state_terrane_f0_s871: State;
-    children_terrane_f0_s721 = terrane_collection_support::List::<State>::new(vec![]);
-    children_terrane_f0_s721
+    let mut children: terrane_collection_support::List<State>;
+    let state: State;
+    children = terrane_collection_support::List::<State>::new(vec![]);
+    children
         .append(
             __terrane_raised(
                 terrane_static_trn_5374617465_new(String::from("first borrowed leaf")),
                 5 /* terrane-site: src/main.trn:14:23-14:56 */,
             ),
         );
-    children_terrane_f0_s721
+    children
         .append(
             __terrane_raised(
                 terrane_static_trn_5374617465_new(String::from("second borrowed leaf")),
                 6 /* terrane-site: src/main.trn:15:23-15:57 */,
             ),
         );
-    state_terrane_f0_s871 = __terrane_raised(
-        terrane_static_trn_5374617465_branch(
-            String::from("borrowed root"),
-            children_terrane_f0_s721,
-        ),
+    state = __terrane_raised(
+        terrane_static_trn_5374617465_branch(String::from("borrowed root"), children),
         7 /* terrane-site: src/main.trn:16:13-16:53 */,
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(inspect(&state_terrane_f0_s871,
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(inspect(&state,
         render), 8 /* terrane-site: src/main.trn:17:13-17:35 */))
     );
 }

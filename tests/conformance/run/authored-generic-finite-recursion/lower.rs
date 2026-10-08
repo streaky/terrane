@@ -36,14 +36,14 @@ impl<TerraneType54> Box<TerraneType54> {
     }
 }
 fn main() {
-    let boxed_terrane_f0_s480: Box<String>;
+    let boxed: Box<String>;
     println!(
         "{}", terrane_scalar_support::scalar_text(&count_down:: < String >
         (String::from("same"), terrane_int_support::Int::from(3_i128)))
     );
-    boxed_terrane_f0_s480 = Box::<String>::terrane_construct(String::from("same"));
+    boxed = Box::<String>::terrane_construct(String::from("same"));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&boxed_terrane_f0_s480
+        "{}", terrane_scalar_support::scalar_text(&boxed
         .count_down(terrane_int_support::Int::from(3_i128)))
     );
 }

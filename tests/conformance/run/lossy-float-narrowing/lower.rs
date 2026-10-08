@@ -25,19 +25,19 @@ fn divide(numerator: f64, denominator: f64) -> f64 {
     return numerator / denominator;
 }
 fn main() {
-    let rounded_terrane_f0_s148: f32;
-    let negative_zero_terrane_f0_s203: f64;
-    let narrowed_negative_zero_terrane_f0_s234: f32;
-    let overflow_input_terrane_f0_s305: f64;
-    let overflow_terrane_f0_s366: f32;
-    let underflow_input_terrane_f0_s424: f64;
-    let underflow_terrane_f0_s487: f32;
-    let nan_input_terrane_f0_s547: f64;
-    let nan_terrane_f0_s578: f32;
-    rounded_terrane_f0_s148 = 16777217.0 as f32;
-    negative_zero_terrane_f0_s203 = -0.0_f64;
-    narrowed_negative_zero_terrane_f0_s234 = negative_zero_terrane_f0_s203 as f32;
-    overflow_input_terrane_f0_s305 = terrane_scalar_support::scale_binary_f32(
+    let rounded: f32;
+    let negative_zero: f64;
+    let narrowed_negative_zero: f32;
+    let overflow_input: f64;
+    let overflow: f32;
+    let underflow_input: f64;
+    let underflow: f32;
+    let nan_input: f64;
+    let nan: f32;
+    rounded = 16777217.0 as f32;
+    negative_zero = -0.0_f64;
+    narrowed_negative_zero = negative_zero as f32;
+    overflow_input = terrane_scalar_support::scale_binary_f32(
         {
             let _ = &TerraneDescriptor {
                 identity: "float32",
@@ -50,8 +50,8 @@ fn main() {
         },
         1,
     ) as f64;
-    overflow_terrane_f0_s366 = overflow_input_terrane_f0_s305 as f32;
-    underflow_input_terrane_f0_s424 = {
+    overflow = overflow_input as f32;
+    underflow_input = {
         let _ = &TerraneDescriptor {
             identity: "float64",
             name: "float64",
@@ -61,23 +61,15 @@ fn main() {
         };
         f64::from_bits(1)
     };
-    underflow_terrane_f0_s487 = underflow_input_terrane_f0_s424 as f32;
-    nan_input_terrane_f0_s547 = divide(0.0, 0.0);
-    nan_terrane_f0_s578 = nan_input_terrane_f0_s547 as f32;
-    println!("{}", terrane_scalar_support::scalar_text(&rounded_terrane_f0_s148));
+    underflow = underflow_input as f32;
+    nan_input = divide(0.0, 0.0);
+    nan = nan_input as f32;
+    println!("{}", terrane_scalar_support::scalar_text(&rounded));
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&(narrowed_negative_zero_terrane_f0_s234 ==
-        0.0)),
-        terrane_scalar_support::scalar_text(&narrowed_negative_zero_terrane_f0_s234
-        .is_sign_negative())
+        "{}{}", terrane_scalar_support::scalar_text(&(narrowed_negative_zero == 0.0)),
+        terrane_scalar_support::scalar_text(&narrowed_negative_zero.is_sign_negative())
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&overflow_terrane_f0_s366
-        .is_infinite())
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(underflow_terrane_f0_s487 == 0.0))
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&nan_terrane_f0_s578.is_nan()));
+    println!("{}", terrane_scalar_support::scalar_text(&overflow.is_infinite()));
+    println!("{}", terrane_scalar_support::scalar_text(&(underflow == 0.0)));
+    println!("{}", terrane_scalar_support::scalar_text(&nan.is_nan()));
 }

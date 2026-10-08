@@ -514,25 +514,22 @@ fn __terrane_uninitialized_binding(
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let path_terrane_f0_s225: String;
-        let mut missing_options_terrane_f0_s256: SqliteConnectOptions;
-        let mut missing_connection_terrane_f0_s423: Option<SqliteConnection> = None;
-        let mut create_options_terrane_f0_s577: SqliteConnectOptions;
-        let connection_terrane_f0_s730: SqliteConnection;
-        path_terrane_f0_s225 = __terrane_raised(
+        let path: String;
+        let mut missing_options: SqliteConnectOptions;
+        let mut missing_connection: Option<SqliteConnection> = None;
+        let mut create_options: SqliteConnectOptions;
+        let connection: SqliteConnection;
+        path = __terrane_raised(
             prepare_missing_path(),
             0 /* terrane-site: src/main.trn:9:10-9:31 */,
         );
-        missing_options_terrane_f0_s256 = __terrane_raised(
+        missing_options = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
             1 /* terrane-site: src/main.trn:10:21-10:47 */,
         );
-        missing_options_terrane_f0_s256 = __terrane_raised(
+        missing_options = __terrane_raised(
             match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    missing_options_terrane_f0_s256
-                        .filename(path_terrane_f0_s225.as_str())
-                }),
+                std::panic::AssertUnwindSafe(|| missing_options.filename(path.as_str())),
             ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {
@@ -547,11 +544,9 @@ fn main() {
             },
             2 /* terrane-site: src/main.trn:11:21-11:51 */,
         );
-        missing_options_terrane_f0_s256 = __terrane_raised(
+        missing_options = __terrane_raised(
             match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    missing_options_terrane_f0_s256.create_if_missing(false)
-                }),
+                std::panic::AssertUnwindSafe(|| missing_options.create_if_missing(false)),
             ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {
@@ -568,14 +563,13 @@ fn main() {
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
-                let _ = missing_connection_terrane_f0_s423
+                let _ = missing_connection
                     .insert(
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = < sqlx_sqlite::SqliteConnectOptions as
                             sqlx_core::connection::ConnectOptions
-                            >::connect(&missing_options_terrane_f0_s256); async move {
-                            match crate
+                            >::connect(&missing_options); async move { match crate
                             ::__terrane_dependency_await_unwind(__terrane_call). await {
                             Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                             ::TerraneForeignError(crate
@@ -595,7 +589,7 @@ fn main() {
                 __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future = { let __terrane_call = <
                     sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection
-                    >::close(missing_connection_terrane_f0_s423.take()
+                    >::close(missing_connection.take()
                     .expect("flow-proven availability")); async move { match crate
                     ::__terrane_dependency_await_unwind(__terrane_call). await {
                     Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
@@ -645,16 +639,13 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        create_options_terrane_f0_s577 = __terrane_raised(
+        create_options = __terrane_raised(
             terrane_static_trn_53716c697465436f6e6e6563744f7074696f6e73_new(),
             6 /* terrane-site: src/main.trn:19:20-19:46 */,
         );
-        create_options_terrane_f0_s577 = __terrane_raised(
+        create_options = __terrane_raised(
             match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    create_options_terrane_f0_s577
-                        .filename(path_terrane_f0_s225.as_str())
-                }),
+                std::panic::AssertUnwindSafe(|| create_options.filename(path.as_str())),
             ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {
@@ -669,11 +660,9 @@ fn main() {
             },
             7 /* terrane-site: src/main.trn:20:20-20:49 */,
         );
-        create_options_terrane_f0_s577 = __terrane_raised(
+        create_options = __terrane_raised(
             match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    create_options_terrane_f0_s577.create_if_missing(true)
-                }),
+                std::panic::AssertUnwindSafe(|| create_options.create_if_missing(true)),
             ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {
@@ -688,11 +677,11 @@ fn main() {
             },
             8 /* terrane-site: src/main.trn:21:20-21:58 */,
         );
-        connection_terrane_f0_s730 = __terrane_traced(
+        connection = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = <sqlx_sqlite::SqliteConnectOptions as sqlx_core::connection::ConnectOptions>::connect(
-                            &create_options_terrane_f0_s577,
+                            &create_options,
                         );
                         async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -738,7 +727,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = <sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection>::close(
-                            connection_terrane_f0_s730,
+                            connection,
                         );
                         async move {
                             match crate::__terrane_dependency_await_unwind(

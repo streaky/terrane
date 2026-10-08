@@ -440,18 +440,18 @@ async fn two() -> String {
 }
 fn main() {
     __terrane_run(async move {
-        let inner_terrane_f0_s134: std::sync::Arc<
+        let inner: std::sync::Arc<
             dyn Fn() -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
         >;
-        let finished_terrane_f0_s275: ();
-        inner_terrane_f0_s134 = {
+        let finished: ();
+        inner = {
             std::sync::Arc::new(move || -> std::pin::Pin<
                 Box<dyn Future<Output = ()> + Send>,
             > {
                 Box::pin(async move {
                     let mut __terrane_select_cursor_162 = 0usize;
-                    let value_terrane_f0_s180: terrane_int_support::Int;
-                    let text_terrane_f0_s233: String;
+                    let value: terrane_int_support::Int;
+                    let text: String;
                     {
                         let mut __terrane_select_guard_162 = __terrane_finally_guard();
                         let __terrane_select_control_162_0 = __terrane_select_control();
@@ -549,22 +549,16 @@ fn main() {
                         __terrane_select_guard_162.finish();
                         match __terrane_select_winner_162 {
                             0 => {
-                                value_terrane_f0_s180 = __terrane_select_result_162_0
+                                value = __terrane_select_result_162_0
                                     .take()
                                     .expect("selected case owns its ready result");
-                                println!(
-                                    "{}",
-                                    terrane_scalar_support::scalar_text(&value_terrane_f0_s180)
-                                );
+                                println!("{}", terrane_scalar_support::scalar_text(&value));
                             }
                             1 => {
-                                text_terrane_f0_s233 = __terrane_select_result_162_1
+                                text = __terrane_select_result_162_1
                                     .take()
                                     .expect("selected case owns its ready result");
-                                println!(
-                                    "{}",
-                                    terrane_scalar_support::scalar_text(&text_terrane_f0_s233)
-                                );
+                                println!("{}", terrane_scalar_support::scalar_text(&text));
                             }
                             _ => unreachable!("selected winner is within the case count"),
                         }
@@ -573,8 +567,8 @@ fn main() {
                 })
             })
         };
-        finished_terrane_f0_s275 = __terrane_await(inner_terrane_f0_s134()).await;
-        if finished_terrane_f0_s275 == () {
+        finished = __terrane_await(inner()).await;
+        if finished == () {
             return ();
         }
     });

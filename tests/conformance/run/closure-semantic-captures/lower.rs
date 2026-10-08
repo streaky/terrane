@@ -441,26 +441,22 @@ fn apply(
     return callback(value.clone());
 }
 fn main() {
-    let outer_terrane_f0_s145: i64;
-    let callback_terrane_f0_s162: std::sync::Arc<
+    let outer: i64;
+    let callback: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >;
-    let result_terrane_f0_s267: terrane_int_support::Int;
-    outer_terrane_f0_s145 = 10;
-    callback_terrane_f0_s162 = {
+    let result: terrane_int_support::Int;
+    outer = 10;
+    callback = {
         std::sync::Arc::new(move |
-            outer: terrane_int_support::Int,
+            outer_2: terrane_int_support::Int,
         | -> terrane_int_support::Int {
-            let local_terrane_f0_s226: terrane_int_support::Int;
-            local_terrane_f0_s226 = outer.clone()
-                + terrane_int_support::Int::from(1_i128);
-            return local_terrane_f0_s226.clone();
+            let local: terrane_int_support::Int;
+            local = outer_2.clone() + terrane_int_support::Int::from(1_i128);
+            return local.clone();
         })
     };
-    result_terrane_f0_s267 = apply(
-        callback_terrane_f0_s162.clone(),
-        terrane_int_support::Int::from(2_i128),
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&result_terrane_f0_s267));
-    println!("{}", terrane_scalar_support::scalar_text(&outer_terrane_f0_s145));
+    result = apply(callback.clone(), terrane_int_support::Int::from(2_i128));
+    println!("{}", terrane_scalar_support::scalar_text(&result));
+    println!("{}", terrane_scalar_support::scalar_text(&outer));
 }

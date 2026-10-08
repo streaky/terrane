@@ -20,11 +20,11 @@ impl WorkItem {
         return self.estimate.clone();
     }
     pub fn next_estimate(&self) -> Option<terrane_int_support::Int> {
-        let current_terrane_f0_s267: Option<terrane_int_support::Int>;
-        current_terrane_f0_s267 = self.estimate.clone();
-        if current_terrane_f0_s267.is_some() {
+        let current: Option<terrane_int_support::Int>;
+        current = self.estimate.clone();
+        if current.is_some() {
             return Some(
-                match &current_terrane_f0_s267 {
+                match &current {
                     Some(value) => value,
                     _ => unreachable!("flow-proven storage refinement"),
                 }
@@ -35,24 +35,22 @@ impl WorkItem {
     }
 }
 fn main() {
-    let item_terrane_f0_s398: WorkItem;
-    let estimate_terrane_f0_s431: Option<terrane_int_support::Int>;
-    let next_terrane_f0_s524: Option<terrane_int_support::Int>;
-    item_terrane_f0_s398 = WorkItem::terrane_construct(
-        Some(terrane_int_support::Int::from(4_i128)),
-    );
-    estimate_terrane_f0_s431 = item_terrane_f0_s398.estimate_units();
-    if estimate_terrane_f0_s431.is_some() {
+    let item: WorkItem;
+    let estimate: Option<terrane_int_support::Int>;
+    let next: Option<terrane_int_support::Int>;
+    item = WorkItem::terrane_construct(Some(terrane_int_support::Int::from(4_i128)));
+    estimate = item.estimate_units();
+    if estimate.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&match &estimate_terrane_f0_s431 {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
+            "{}", terrane_scalar_support::scalar_text(&match &estimate { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    next_terrane_f0_s524 = item_terrane_f0_s398.next_estimate();
-    if next_terrane_f0_s524.is_some() {
+    next = item.next_estimate();
+    if next.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&match &next_terrane_f0_s524 {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
+            "{}", terrane_scalar_support::scalar_text(&match &next { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
 }

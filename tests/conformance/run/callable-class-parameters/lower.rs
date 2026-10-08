@@ -586,40 +586,30 @@ impl ChildHolder {
     }
 }
 fn main() {
-    let operation_terrane_f0_s709: std::sync::Arc<
+    let operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >;
-    let direct_terrane_f0_s758: DirectHolder;
-    let base_terrane_f0_s880: BaseHolder;
-    let child_terrane_f0_s957: ChildHolder;
-    operation_terrane_f0_s709 = std::sync::Arc::new(increment);
-    direct_terrane_f0_s758 = DirectHolder::terrane_construct(
-        operation_terrane_f0_s709.clone(),
-    );
+    let direct: DirectHolder;
+    let base: BaseHolder;
+    let child: ChildHolder;
+    operation = std::sync::Arc::new(increment);
+    direct = DirectHolder::terrane_construct(operation.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&direct_terrane_f0_s758
-        .apply(operation_terrane_f0_s709.clone(),
+        "{}", terrane_scalar_support::scalar_text(&direct.apply(operation.clone(),
         terrane_int_support::Int::from(4_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&direct_terrane_f0_s758
-        .ignore(operation_terrane_f0_s709.clone(),
+        "{}", terrane_scalar_support::scalar_text(&direct.ignore(operation.clone(),
         terrane_int_support::Int::from(9_i128)))
     );
-    base_terrane_f0_s880 = BaseHolder::terrane_construct(
-        operation_terrane_f0_s709.clone(),
-    );
+    base = BaseHolder::terrane_construct(operation.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&base_terrane_f0_s880
-        .apply(operation_terrane_f0_s709.clone(),
+        "{}", terrane_scalar_support::scalar_text(&base.apply(operation.clone(),
         terrane_int_support::Int::from(5_i128)))
     );
-    child_terrane_f0_s957 = ChildHolder::terrane_construct(
-        operation_terrane_f0_s709.clone(),
-    );
+    child = ChildHolder::terrane_construct(operation.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&child_terrane_f0_s957
-        .apply(operation_terrane_f0_s709.clone(),
+        "{}", terrane_scalar_support::scalar_text(&child.apply(operation.clone(),
         terrane_int_support::Int::from(6_i128)))
     );
 }

@@ -21,12 +21,12 @@ impl Widget {
     }
 }
 fn main() {
-    let direct_terrane_f0_s204: Widget;
-    let factory_terrane_f0_s234: Widget;
-    direct_terrane_f0_s204 = Widget::terrane_construct();
-    factory_terrane_f0_s234 = Widget::terrane_static_create();
+    let direct: Widget;
+    let factory: Widget;
+    direct = Widget::terrane_construct();
+    factory = Widget::terrane_static_create();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&direct_terrane_f0_s204.read()),
-        terrane_scalar_support::scalar_text(&factory_terrane_f0_s234.read())
+        "{}{}", terrane_scalar_support::scalar_text(&direct.read()),
+        terrane_scalar_support::scalar_text(&factory.read())
     );
 }

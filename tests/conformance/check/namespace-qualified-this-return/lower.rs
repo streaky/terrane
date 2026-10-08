@@ -52,11 +52,11 @@ impl TerraneNs3AppChild {
     }
 }
 fn main() {
-    let value_terrane_f0_s144: TerraneNs3AppChild;
-    let result_terrane_f0_s170: Base;
-    value_terrane_f0_s144 = TerraneNs3AppChild::terrane_construct();
-    result_terrane_f0_s170 = value_terrane_f0_s144.copy();
-    result_terrane_f0_s170.marker();
+    let value: TerraneNs3AppChild;
+    let result: Base;
+    value = TerraneNs3AppChild::terrane_construct();
+    result = value.copy();
+    result.marker();
     return ();
 }
 // Source: right/other.trn

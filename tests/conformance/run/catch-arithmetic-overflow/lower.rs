@@ -447,21 +447,21 @@ fn __terrane_uninitialized_binding(
 // Source: case.trn
 // Namespace: catch-arithmetic-overflow
 fn main() {
-    let mut value_terrane_f0_s106: Option<i8> = None;
+    let mut value: Option<i8> = None;
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let _ = value_terrane_f0_s106.insert(127);
-            let _ = value_terrane_f0_s106
+            let _ = value.insert(127);
+            let _ = value
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_int_support::fixed_addition(* value_terrane_f0_s106
-                        .as_ref().expect("flow-proven available binding"), 1),
+                        terrane_int_support::fixed_addition(* value.as_ref()
+                        .expect("flow-proven available binding"), 1),
                         0 /* terrane-site: case.trn:6:13-6:22 */
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* value_terrane_f0_s106
-                .as_ref().expect("flow-proven available binding"))
+                "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();

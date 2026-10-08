@@ -644,11 +644,11 @@ fn make_render(
 ) -> std::sync::Arc<
     dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
 > {
-    let service_terrane_f0_s1410: Formatter;
+    let service: Formatter;
     let _ = &value;
-    service_terrane_f0_s1410 = Formatter::terrane_construct();
+    service = Formatter::terrane_construct();
     return {
-        let receiver = service_terrane_f0_s1410;
+        let receiver = service;
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
             receiver.render(argument_0)
         })
@@ -679,16 +679,16 @@ fn invoke_maker(
     >,
     value: terrane_int_support::Int,
 ) -> Result<String, TerraneError> {
-    let operation_terrane_f0_s1799: std::sync::Arc<
+    let operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
     >;
-    operation_terrane_f0_s1799 = __terrane_traced_err(
+    operation = __terrane_traced_err(
         maker(value.clone()),
         6 /* terrane-site: case.trn:61:15-61:27 */,
     )?;
     return Ok(
         __terrane_traced_err(
-            operation_terrane_f0_s1799(value.clone()),
+            operation(value.clone()),
             7 /* terrane-site: case.trn:62:10-62:26 */,
         )?,
     );
@@ -712,71 +712,71 @@ async fn invoke_async(
 }
 fn main() {
     __terrane_run(async move {
-        let service_terrane_f0_s2015: Formatter;
-        let bound_terrane_f0_s2047: std::sync::Arc<
+        let service: Formatter;
+        let bound: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
         >;
-        let closure_terrane_f0_s2122: std::sync::Arc<
+        let closure: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
         >;
-        let broad_closure_terrane_f0_s2276: std::sync::Arc<
+        let broad_closure: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
         >;
-        let broad_async_terrane_f0_s2433: std::sync::Arc<
+        let broad_async: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> std::pin::Pin<
                     Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
                 > + Send + Sync,
         >;
-        let alias_terrane_f0_s2598: std::sync::Arc<
+        let alias: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
         >;
-        let broad_terrane_f0_s2614: std::sync::Arc<
+        let broad: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
         >;
-        let async_operation_terrane_f0_s2675: std::sync::Arc<
+        let async_operation: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> std::pin::Pin<
                     Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
                 > + Send + Sync,
         >;
-        let safe_operation_terrane_f0_s2759: std::sync::Arc<
+        let safe_operation: std::sync::Arc<
             dyn Fn(terrane_int_support::Int) -> String + Send + Sync,
         >;
-        let async_safe_operation_terrane_f0_s2790: std::sync::Arc<
+        let async_safe_operation: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> std::pin::Pin<
                     Box<dyn Future<Output = Result<String, TerraneError>> + Send>,
                 > + Send + Sync,
         >;
-        let custom_terrane_f0_s3202: std::sync::Arc<
+        let custom: std::sync::Arc<
             dyn Fn(
                 terrane_int_support::Int,
             ) -> Result<String, TerraneError> + Send + Sync,
         >;
-        let holder_terrane_f0_s3857: OperationHolder;
-        let mut callable_terrane_f0_s3926: CallableHolder;
-        service_terrane_f0_s2015 = Formatter::terrane_construct();
-        bound_terrane_f0_s2047 = {
-            let receiver = service_terrane_f0_s2015.clone();
+        let holder: OperationHolder;
+        let mut callable: CallableHolder;
+        service = Formatter::terrane_construct();
+        bound = {
+            let receiver = service.clone();
             std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
                 receiver.render(argument_0)
             })
         };
-        closure_terrane_f0_s2122 = {
+        closure = {
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> Result<String, TerraneError> {
@@ -791,7 +791,7 @@ fn main() {
                 return Ok(String::from("closure"));
             })
         };
-        broad_closure_terrane_f0_s2276 = {
+        broad_closure = {
             let callable = {
                 std::sync::Arc::new(move |value: terrane_int_support::Int| -> String {
                     if value.clone() < terrane_int_support::Int::from(0_i128) {
@@ -805,7 +805,7 @@ fn main() {
                 callable(argument_0),
             ))
         };
-        broad_async_terrane_f0_s2433 = {
+        broad_async = {
             let callable = {
                 std::sync::Arc::new(move |
                     value: terrane_int_support::Int,
@@ -828,86 +828,83 @@ fn main() {
                 }
             })
         };
-        alias_terrane_f0_s2598 = bound_terrane_f0_s2047.clone();
-        broad_terrane_f0_s2614 = bound_terrane_f0_s2047.clone();
-        async_operation_terrane_f0_s2675 = std::sync::Arc::new(move |
+        alias = bound.clone();
+        broad = bound.clone();
+        async_operation = std::sync::Arc::new(move |
             argument_0: terrane_int_support::Int,
         | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
             Box::pin(async_render(argument_0))
         });
-        safe_operation_terrane_f0_s2759 = std::sync::Arc::new(safe_render);
-        async_safe_operation_terrane_f0_s2790 = std::sync::Arc::new(move |
+        safe_operation = std::sync::Arc::new(safe_render);
+        async_safe_operation = std::sync::Arc::new(move |
             argument_0: terrane_int_support::Int,
         | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
             Box::pin(async move { Ok(async_safe_render(argument_0).await) })
         });
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = bound_terrane_f0_s2047;
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = bound; "coercion-error"
+            .to_owned() })
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = bound; "coercion-error"
+            .to_owned() })
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = closure;
             "coercion-error".to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = bound_terrane_f0_s2047;
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = closure;
             "coercion-error".to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ =
-            closure_terrane_f0_s2122; "coercion-error".to_owned() })
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = broad; "throwable"
+            .to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ =
-            closure_terrane_f0_s2122; "coercion-error".to_owned() })
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = broad; "coercion-error"
+            .to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = broad_terrane_f0_s2614;
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = alias; "coercion-error"
+            .to_owned() })
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = alias; "coercion-error"
+            .to_owned() })
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = async_operation;
             "throwable".to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = broad_terrane_f0_s2614;
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = async_operation;
             "coercion-error".to_owned() })
         );
+        custom = std::sync::Arc::new(custom_render);
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = alias_terrane_f0_s2598;
-            "coercion-error".to_owned() })
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = custom; "local-error"
+            .to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = alias_terrane_f0_s2598;
-            "coercion-error".to_owned() })
+            "{}", terrane_scalar_support::scalar_text(&{ let _ = custom; "local-error"
+            .to_owned() })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ =
-            async_operation_terrane_f0_s2675; "throwable".to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ =
-            async_operation_terrane_f0_s2675; "coercion-error".to_owned() })
-        );
-        custom_terrane_f0_s3202 = std::sync::Arc::new(custom_render);
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = custom_terrane_f0_s3202;
-            "local-error".to_owned() })
-        );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let _ = custom_terrane_f0_s3202;
-            "local-error".to_owned() })
-        );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(invoke(alias_terrane_f0_s2598
+            "{}", terrane_scalar_support::scalar_text(&__terrane_traced(invoke(alias
             .clone(), terrane_int_support::Int::from(1_i128)), 10 /* terrane-site: case.trn:100:11-100:27 */))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(invoke(broad_terrane_f0_s2614
+            "{}", terrane_scalar_support::scalar_text(&__terrane_traced(invoke(broad
             .clone(), terrane_int_support::Int::from(1_i128)), 11 /* terrane-site: case.trn:101:11-101:27 */))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(invoke(closure_terrane_f0_s2122
+            "{}", terrane_scalar_support::scalar_text(&__terrane_traced(invoke(closure
             .clone(), terrane_int_support::Int::from(1_i128)), 12 /* terrane-site: case.trn:102:11-102:29 */))
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(invoke_async(async_operation_terrane_f0_s2675
+            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(invoke_async(async_operation
             .clone(), terrane_int_support::Int::from(1_i128))). await,
             13 /* terrane-site: case.trn:103:16-103:48 */))
         );
@@ -915,7 +912,7 @@ fn main() {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 println!(
                     "{}",
-                    terrane_scalar_support::scalar_text(&__terrane_traced_completion!(__terrane_await(invoke_async(async_operation_terrane_f0_s2675
+                    terrane_scalar_support::scalar_text(&__terrane_traced_completion!(__terrane_await(invoke_async(async_operation
                     .clone(), terrane_int_support::Int::from(- 1_i128))). await,
                     14 /* terrane-site: case.trn:105:18-105:51 */))
                 );
@@ -958,18 +955,18 @@ fn main() {
         }
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(invoke(broad_closure_terrane_f0_s2276
+            terrane_scalar_support::scalar_text(&__terrane_traced(invoke(broad_closure
             .clone(), terrane_int_support::Int::from(1_i128)), 15 /* terrane-site: case.trn:108:11-108:35 */))
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(invoke_async(broad_async_terrane_f0_s2433
+            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(invoke_async(broad_async
             .clone(), terrane_int_support::Int::from(1_i128))). await,
             16 /* terrane-site: case.trn:109:16-109:44 */))
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&safe_operation_terrane_f0_s2759(terrane_int_support::Int::from(1_i128)))
+            terrane_scalar_support::scalar_text(&safe_operation(terrane_int_support::Int::from(1_i128)))
         );
         println!(
             "{}",
@@ -978,38 +975,35 @@ fn main() {
             terrane_int_support::Int::from(1_i128)), 17 /* terrane-site: case.trn:111:11-111:39 */))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(service_terrane_f0_s2015
-            .invoke(bound_terrane_f0_s2047.clone(),
-            terrane_int_support::Int::from(1_i128)), 18 /* terrane-site: case.trn:112:11-112:35 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_traced(service
+            .invoke(bound.clone(), terrane_int_support::Int::from(1_i128)),
+            18 /* terrane-site: case.trn:112:11-112:35 */))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&invoke_infallible(safe_operation_terrane_f0_s2759
+            "{}", terrane_scalar_support::scalar_text(&invoke_infallible(safe_operation
             .clone(), terrane_int_support::Int::from(1_i128)))
         );
         println!(
             "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(async_safe_operation_terrane_f0_s2790(terrane_int_support::Int::from(1_i128)))
+            terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await(async_safe_operation(terrane_int_support::Int::from(1_i128)))
             . await, 19 /* terrane-site: case.trn:114:16-114:39 */))
         );
-        holder_terrane_f0_s3857 = OperationHolder::terrane_construct();
+        holder = OperationHolder::terrane_construct();
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_traced((holder_terrane_f0_s3857
+            "{}", terrane_scalar_support::scalar_text(&__terrane_traced((holder
             .operation) (terrane_int_support::Int::from(1_i128)), 20 /* terrane-site: case.trn:116:11-116:30 */))
         );
-        callable_terrane_f0_s3926 = CallableHolder::terrane_construct();
-        callable_terrane_f0_s3926.render = std::sync::Arc::new(loud_render);
+        callable = CallableHolder::terrane_construct();
+        callable.render = std::sync::Arc::new(loud_render);
         println!(
-            "{}", terrane_scalar_support::scalar_text(&(callable_terrane_f0_s3926.render)
+            "{}", terrane_scalar_support::scalar_text(&(callable.render)
             (terrane_int_support::Int::from(1_i128)))
         );
         let __terrane_completion_1: TerraneCompletion<()> = (|| {
             let __terrane_try_1: TerraneCompletion<()> = (|| {
                 println!(
                     "{}",
-                    terrane_scalar_support::scalar_text(&__terrane_traced_completion!(invoke(custom_terrane_f0_s3202
+                    terrane_scalar_support::scalar_text(&__terrane_traced_completion!(invoke(custom
                     .clone(), terrane_int_support::Int::from(- 1_i128)),
                     21 /* terrane-site: case.trn:121:13-121:31 */))
                 );
@@ -1049,9 +1043,6 @@ fn main() {
                 __terrane_generated_defect("loop control escaped a non-loop try")
             }
         }
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&invoke_field(holder_terrane_f0_s3857))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&invoke_field(holder)));
     });
 }

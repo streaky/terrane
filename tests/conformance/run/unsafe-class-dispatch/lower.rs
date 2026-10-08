@@ -44,10 +44,10 @@ impl Child {
 }
 #[allow(unsafe_code)]
 fn main() {
-    let value_terrane_f0_s128: Base;
-    value_terrane_f0_s128 = Base::Child(Child::terrane_construct());
+    let value: Base;
+    value = Base::Child(Child::terrane_construct());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&unsafe { value_terrane_f0_s128
+        "{}", terrane_scalar_support::scalar_text(&unsafe { value
         ._terrane_unsafe_726177() })
     );
 }

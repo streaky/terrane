@@ -438,17 +438,14 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: map-entry-destructuring
 fn main() {
-    let ordered_terrane_f0_s101: terrane_collection_support::Map<
+    let ordered: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let mut key: String;
+    let mut value: terrane_int_support::Int;
+    let deterministic: terrane_collection_support::UnorderedMap<
         String,
         terrane_int_support::Int,
     >;
-    let mut key_terrane_f0_s140: String;
-    let mut value_terrane_f0_s145: terrane_int_support::Int;
-    let deterministic_terrane_f0_s283: terrane_collection_support::UnorderedMap<
-        String,
-        terrane_int_support::Int,
-    >;
-    ordered_terrane_f0_s101 = terrane_collection_support::Map::<
+    ordered = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -459,7 +456,7 @@ fn main() {
             terrane_int_support::Int::from(2_i128))
         ],
     );
-    let __terrane_iterable_0 = ordered_terrane_f0_s101.clone();
+    let __terrane_iterable_0 = ordered.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
@@ -468,28 +465,26 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        key_terrane_f0_s140 = __terrane_item_0.key;
-        value_terrane_f0_s145 = __terrane_item_0.value;
+        key = __terrane_item_0.key;
+        value = __terrane_item_0.value;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&key_terrane_f0_s140),
-            terrane_scalar_support::scalar_text(&value_terrane_f0_s145)
+            "{}{}", terrane_scalar_support::scalar_text(&key),
+            terrane_scalar_support::scalar_text(&value)
         );
-        key_terrane_f0_s140 = String::from("seen");
-        value_terrane_f0_s145 = value_terrane_f0_s145.clone()
-            + terrane_int_support::Int::from(1_i128);
+        key = String::from("seen");
+        value = value.clone() + terrane_int_support::Int::from(1_i128);
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&key_terrane_f0_s140),
-            terrane_scalar_support::scalar_text(&value_terrane_f0_s145)
+            "{}{}", terrane_scalar_support::scalar_text(&key),
+            terrane_scalar_support::scalar_text(&value)
         );
     }
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(ordered_terrane_f0_s101
+        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(ordered
         .get_or_error(&String::from("first")), 0 /* terrane-site: case.trn:11:10-11:26 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(ordered_terrane_f0_s101
+        terrane_scalar_support::scalar_text(&__terrane_raised(ordered
         .get_or_error(&String::from("second")), 1 /* terrane-site: case.trn:11:28-11:45 */))
     );
-    deterministic_terrane_f0_s283 = terrane_collection_support::UnorderedMap::<
+    deterministic = terrane_collection_support::UnorderedMap::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -498,7 +493,7 @@ fn main() {
             terrane_int_support::Int::from(7_i128))
         ],
     );
-    let __terrane_iterable_1 = deterministic_terrane_f0_s283;
+    let __terrane_iterable_1 = deterministic;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
     );
@@ -507,13 +502,13 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        key_terrane_f0_s140 = __terrane_item_1.key;
-        let _ = &key_terrane_f0_s140;
-        value_terrane_f0_s145 = __terrane_item_1.value;
-        let _ = &value_terrane_f0_s145;
+        key = __terrane_item_1.key;
+        let _ = &key;
+        value = __terrane_item_1.value;
+        let _ = &value;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&key_terrane_f0_s140),
-            terrane_scalar_support::scalar_text(&value_terrane_f0_s145)
+            "{}{}", terrane_scalar_support::scalar_text(&key),
+            terrane_scalar_support::scalar_text(&value)
         );
     }
 }

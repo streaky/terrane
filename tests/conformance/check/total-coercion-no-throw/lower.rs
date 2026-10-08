@@ -7,9 +7,9 @@ fn widen(value: i8) -> i16 {
     return value as i16;
 }
 fn main() {
-    let value_terrane_f0_s177: i8;
-    let widened_terrane_f0_s195: i16;
-    value_terrane_f0_s177 = 12;
-    widened_terrane_f0_s195 = widen(value_terrane_f0_s177);
-    println!("{}", terrane_scalar_support::scalar_text(&widened_terrane_f0_s195));
+    let value: i8;
+    let widened: i16;
+    value = 12;
+    widened = widen(value);
+    println!("{}", terrane_scalar_support::scalar_text(&widened));
 }

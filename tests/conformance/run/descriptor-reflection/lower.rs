@@ -22,8 +22,8 @@ struct TerraneDescriptor {
 // Source: case.trn
 // Namespace: descriptor-reflection
 fn main() {
-    let descriptor_terrane_f0_s50: TerraneDescriptor;
-    descriptor_terrane_f0_s50 = TerraneDescriptor {
+    let descriptor: TerraneDescriptor;
+    descriptor = TerraneDescriptor {
         identity: "int",
         name: "int",
         kind: "type",
@@ -31,9 +31,8 @@ fn main() {
         fields: &[],
     };
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&descriptor_terrane_f0_s50.name
-        .to_owned()), terrane_scalar_support::scalar_text(&descriptor_terrane_f0_s50.kind
-        .to_owned()), terrane_scalar_support::scalar_text(&descriptor_terrane_f0_s50
-        .identity.to_owned())
+        "{}{}{}", terrane_scalar_support::scalar_text(&descriptor.name.to_owned()),
+        terrane_scalar_support::scalar_text(&descriptor.kind.to_owned()),
+        terrane_scalar_support::scalar_text(&descriptor.identity.to_owned())
     );
 }

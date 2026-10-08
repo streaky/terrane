@@ -7,11 +7,11 @@ fn identity(value: Item) -> Item {
     return value;
 }
 fn main() {
-    let original_terrane_f0_s112: Item;
-    let copied_terrane_f0_s142: Item;
-    original_terrane_f0_s112 = Item::terrane_construct();
-    copied_terrane_f0_s142 = identity(original_terrane_f0_s112);
-    let _ = &copied_terrane_f0_s142;
+    let original: Item;
+    let copied: Item;
+    original = Item::terrane_construct();
+    copied = identity(original);
+    let _ = &copied;
 }
 // Source: models/item.trn
 // Namespace: models

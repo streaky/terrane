@@ -4,17 +4,17 @@
 // Source: app/main.trn
 // Namespace: app
 fn main() {
-    let values_terrane_f0_s64: Counter;
-    let mut value_terrane_f0_s97: terrane_int_support::Int;
-    values_terrane_f0_s64 = Counter::terrane_construct();
-    let __terrane_iterable_0 = values_terrane_f0_s64;
+    let values: Counter;
+    let mut value: terrane_int_support::Int;
+    values = Counter::terrane_construct();
+    let __terrane_iterable_0 = values;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
-        value_terrane_f0_s97 = match __terrane_iterator_0.next() {
+        value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s97));
+        println!("{}", terrane_scalar_support::scalar_text(&value));
     }
 }
 // Source: app/support/iterator.trn
@@ -35,14 +35,14 @@ impl Counter {
     pub fn next(
         &mut self,
     ) -> terrane_collection_support::IterationStep<terrane_int_support::Int> {
-        let value_terrane_f1_s263: terrane_int_support::Int;
+        let value: terrane_int_support::Int;
         if self.current.clone() >= terrane_int_support::Int::from(2_i128) {
             return terrane_collection_support::IterationStep::End;
         }
-        value_terrane_f1_s263 = self.current.clone();
+        value = self.current.clone();
         self.current = self.current.clone() + terrane_int_support::Int::from(1_i128);
         return terrane_collection_support::IterationStep::<
             terrane_int_support::Int,
-        >::Item(value_terrane_f1_s263.clone());
+        >::Item(value.clone());
     }
 }

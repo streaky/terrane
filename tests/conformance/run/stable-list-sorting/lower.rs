@@ -520,54 +520,39 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: stable-list-sorting
 fn main() {
-    let mut adaptive_terrane_f0_s88: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let mut int8s_terrane_f0_s283: terrane_collection_support::List<i8>;
-    let mut int16s_terrane_f0_s318: terrane_collection_support::List<i16>;
-    let mut int32s_terrane_f0_s355: terrane_collection_support::List<i32>;
-    let mut int64s_terrane_f0_s392: terrane_collection_support::List<i64>;
-    let mut int128s_terrane_f0_s429: terrane_collection_support::List<i128>;
-    let mut uint8s_terrane_f0_s468: terrane_collection_support::List<u8>;
-    let mut uint16s_terrane_f0_s504: terrane_collection_support::List<u16>;
-    let mut uint32s_terrane_f0_s542: terrane_collection_support::List<u32>;
-    let mut uint64s_terrane_f0_s580: terrane_collection_support::List<u64>;
-    let mut uint128s_terrane_f0_s618: terrane_collection_support::List<u128>;
-    let mut words_terrane_f0_s945: terrane_collection_support::List<String>;
-    let zero_terrane_f0_s1092: f64;
-    let negative_zero_terrane_f0_s1113: f64;
-    let one_terrane_f0_s1144: f64;
-    let negative_one_terrane_f0_s1164: f64;
-    let infinity_terrane_f0_s1194: f64;
-    let negative_infinity_terrane_f0_s1226: f64;
-    let first_nan_terrane_f0_s1276: f64;
-    let second_nan_terrane_f0_s1310: f64;
-    let mut floats_terrane_f0_s1354: terrane_collection_support::List<f64>;
-    let mut narrow_terrane_f0_s1868: terrane_collection_support::List<f32>;
-    let mut values_terrane_f0_s1957: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let preserved_terrane_f0_s1982: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let mut returned_terrane_f0_s2003: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let indexed_terrane_f0_s2137: terrane_collection_support::Map<
-        String,
-        terrane_int_support::Int,
-    >;
-    let mut keys_terrane_f0_s2168: terrane_collection_support::List<String>;
-    let ascending_terrane_f0_s2191: terrane_collection_support::List<String>;
-    let mut key_terrane_f0_s2220: String;
-    let descending_terrane_f0_s2268: terrane_collection_support::List<String>;
-    let mut empty_terrane_f0_s2359: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    let mut single_terrane_f0_s2400: terrane_collection_support::List<
-        terrane_int_support::Int,
-    >;
-    adaptive_terrane_f0_s88 = terrane_collection_support::List::<
+    let mut adaptive: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut int8s: terrane_collection_support::List<i8>;
+    let mut int16s: terrane_collection_support::List<i16>;
+    let mut int32s: terrane_collection_support::List<i32>;
+    let mut int64s: terrane_collection_support::List<i64>;
+    let mut int128s: terrane_collection_support::List<i128>;
+    let mut uint8s: terrane_collection_support::List<u8>;
+    let mut uint16s: terrane_collection_support::List<u16>;
+    let mut uint32s: terrane_collection_support::List<u32>;
+    let mut uint64s: terrane_collection_support::List<u64>;
+    let mut uint128s: terrane_collection_support::List<u128>;
+    let mut words: terrane_collection_support::List<String>;
+    let zero: f64;
+    let negative_zero: f64;
+    let one: f64;
+    let negative_one: f64;
+    let infinity: f64;
+    let negative_infinity: f64;
+    let first_nan: f64;
+    let second_nan: f64;
+    let mut floats: terrane_collection_support::List<f64>;
+    let mut narrow: terrane_collection_support::List<f32>;
+    let mut values: terrane_collection_support::List<terrane_int_support::Int>;
+    let preserved: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut returned: terrane_collection_support::List<terrane_int_support::Int>;
+    let indexed: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let mut keys: terrane_collection_support::List<String>;
+    let ascending: terrane_collection_support::List<String>;
+    let mut key: String;
+    let descending: terrane_collection_support::List<String>;
+    let mut empty: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut single: terrane_collection_support::List<terrane_int_support::Int>;
+    adaptive = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -577,201 +562,180 @@ fn main() {
             terrane_int_support::Int::from(7_i128)
         ],
     );
-    adaptive_terrane_f0_s88.sort_by(|left, right| left.cmp(right));
+    adaptive.sort_by(|left, right| left.cmp(right));
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(adaptive_terrane_f0_s88
+        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:7:10-7:21 */)), 0 /* terrane-site: case.trn:7:10-7:21 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(adaptive_terrane_f0_s88
+        terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
         1 /* terrane-site: case.trn:7:23-7:34 */)), 1 /* terrane-site: case.trn:7:23-7:34 */))
     );
-    adaptive_terrane_f0_s88.sort_by(|left, right| right.cmp(left));
+    adaptive.sort_by(|left, right| right.cmp(left));
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(adaptive_terrane_f0_s88
+        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         2 /* terrane-site: case.trn:9:10-9:21 */)), 2 /* terrane-site: case.trn:9:10-9:21 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(adaptive_terrane_f0_s88
+        terrane_scalar_support::scalar_text(&__terrane_raised(adaptive
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
         3 /* terrane-site: case.trn:9:23-9:34 */)), 3 /* terrane-site: case.trn:9:23-9:34 */))
     );
-    int8s_terrane_f0_s283 = terrane_collection_support::List::<i8>::new(vec![2, - 1]);
-    int16s_terrane_f0_s318 = terrane_collection_support::List::<i16>::new(vec![2, - 1]);
-    int32s_terrane_f0_s355 = terrane_collection_support::List::<i32>::new(vec![2, - 1]);
-    int64s_terrane_f0_s392 = terrane_collection_support::List::<i64>::new(vec![2, - 1]);
-    int128s_terrane_f0_s429 = terrane_collection_support::List::<
-        i128,
-    >::new(vec![2, - 1]);
-    uint8s_terrane_f0_s468 = terrane_collection_support::List::<u8>::new(vec![2, 1]);
-    uint16s_terrane_f0_s504 = terrane_collection_support::List::<u16>::new(vec![2, 1]);
-    uint32s_terrane_f0_s542 = terrane_collection_support::List::<u32>::new(vec![2, 1]);
-    uint64s_terrane_f0_s580 = terrane_collection_support::List::<u64>::new(vec![2, 1]);
-    uint128s_terrane_f0_s618 = terrane_collection_support::List::<u128>::new(vec![2, 1]);
-    int8s_terrane_f0_s283.sort_by(|left, right| left.cmp(right));
-    int16s_terrane_f0_s318.sort_by(|left, right| left.cmp(right));
-    int32s_terrane_f0_s355.sort_by(|left, right| left.cmp(right));
-    int64s_terrane_f0_s392.sort_by(|left, right| left.cmp(right));
-    int128s_terrane_f0_s429.sort_by(|left, right| left.cmp(right));
-    uint8s_terrane_f0_s468.sort_by(|left, right| left.cmp(right));
-    uint16s_terrane_f0_s504.sort_by(|left, right| left.cmp(right));
-    uint32s_terrane_f0_s542.sort_by(|left, right| left.cmp(right));
-    uint64s_terrane_f0_s580.sort_by(|left, right| left.cmp(right));
-    uint128s_terrane_f0_s618.sort_by(|left, right| left.cmp(right));
+    int8s = terrane_collection_support::List::<i8>::new(vec![2, - 1]);
+    int16s = terrane_collection_support::List::<i16>::new(vec![2, - 1]);
+    int32s = terrane_collection_support::List::<i32>::new(vec![2, - 1]);
+    int64s = terrane_collection_support::List::<i64>::new(vec![2, - 1]);
+    int128s = terrane_collection_support::List::<i128>::new(vec![2, - 1]);
+    uint8s = terrane_collection_support::List::<u8>::new(vec![2, 1]);
+    uint16s = terrane_collection_support::List::<u16>::new(vec![2, 1]);
+    uint32s = terrane_collection_support::List::<u32>::new(vec![2, 1]);
+    uint64s = terrane_collection_support::List::<u64>::new(vec![2, 1]);
+    uint128s = terrane_collection_support::List::<u128>::new(vec![2, 1]);
+    int8s.sort_by(|left, right| left.cmp(right));
+    int16s.sort_by(|left, right| left.cmp(right));
+    int32s.sort_by(|left, right| left.cmp(right));
+    int64s.sort_by(|left, right| left.cmp(right));
+    int128s.sort_by(|left, right| left.cmp(right));
+    uint8s.sort_by(|left, right| left.cmp(right));
+    uint16s.sort_by(|left, right| left.cmp(right));
+    uint32s.sort_by(|left, right| left.cmp(right));
+    uint64s.sort_by(|left, right| left.cmp(right));
+    uint128s.sort_by(|left, right| left.cmp(right));
     println!(
-        "{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(int8s_terrane_f0_s283
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(int8s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         4 /* terrane-site: case.trn:31:10-31:18 */)), 4 /* terrane-site: case.trn:31:10-31:18 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(int16s_terrane_f0_s318
+        terrane_scalar_support::scalar_text(&__terrane_raised(int16s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         5 /* terrane-site: case.trn:31:20-31:29 */)), 5 /* terrane-site: case.trn:31:20-31:29 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(int32s_terrane_f0_s355
+        terrane_scalar_support::scalar_text(&__terrane_raised(int32s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         6 /* terrane-site: case.trn:31:31-31:40 */)), 6 /* terrane-site: case.trn:31:31-31:40 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(int64s_terrane_f0_s392
+        terrane_scalar_support::scalar_text(&__terrane_raised(int64s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         7 /* terrane-site: case.trn:31:42-31:51 */)), 7 /* terrane-site: case.trn:31:42-31:51 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(int128s_terrane_f0_s429
+        terrane_scalar_support::scalar_text(&__terrane_raised(int128s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         8 /* terrane-site: case.trn:31:53-31:63 */)), 8 /* terrane-site: case.trn:31:53-31:63 */))
     );
     println!(
-        "{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(uint8s_terrane_f0_s468
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(uint8s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         9 /* terrane-site: case.trn:32:10-32:19 */)), 9 /* terrane-site: case.trn:32:10-32:19 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(uint16s_terrane_f0_s504
+        terrane_scalar_support::scalar_text(&__terrane_raised(uint16s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         10 /* terrane-site: case.trn:32:21-32:31 */)), 10 /* terrane-site: case.trn:32:21-32:31 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(uint32s_terrane_f0_s542
+        terrane_scalar_support::scalar_text(&__terrane_raised(uint32s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         11 /* terrane-site: case.trn:32:33-32:43 */)), 11 /* terrane-site: case.trn:32:33-32:43 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(uint64s_terrane_f0_s580
+        terrane_scalar_support::scalar_text(&__terrane_raised(uint64s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         12 /* terrane-site: case.trn:32:45-32:55 */)), 12 /* terrane-site: case.trn:32:45-32:55 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(uint128s_terrane_f0_s618
+        terrane_scalar_support::scalar_text(&__terrane_raised(uint128s
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         13 /* terrane-site: case.trn:32:57-32:68 */)), 13 /* terrane-site: case.trn:32:57-32:68 */))
     );
-    words_terrane_f0_s945 = terrane_collection_support::List::<
+    words = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("é"), String::from("e"), String::from("z")]);
-    words_terrane_f0_s945.sort_by(|left, right| left.cmp(right));
+    words.sort_by(|left, right| left.cmp(right));
     println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(words_terrane_f0_s945
+        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         14 /* terrane-site: case.trn:36:10-36:18 */)), 14 /* terrane-site: case.trn:36:10-36:18 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(words_terrane_f0_s945
+        terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         15 /* terrane-site: case.trn:36:20-36:28 */)), 15 /* terrane-site: case.trn:36:20-36:28 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(words_terrane_f0_s945
+        terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         16 /* terrane-site: case.trn:36:30-36:38 */)), 16 /* terrane-site: case.trn:36:30-36:38 */))
     );
-    words_terrane_f0_s945.sort_by(|left, right| right.cmp(left));
+    words.sort_by(|left, right| right.cmp(left));
     println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(words_terrane_f0_s945
+        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         17 /* terrane-site: case.trn:38:10-38:18 */)), 17 /* terrane-site: case.trn:38:10-38:18 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(words_terrane_f0_s945
+        terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         18 /* terrane-site: case.trn:38:20-38:28 */)), 18 /* terrane-site: case.trn:38:20-38:28 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(words_terrane_f0_s945
+        terrane_scalar_support::scalar_text(&__terrane_raised(words
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         19 /* terrane-site: case.trn:38:30-38:38 */)), 19 /* terrane-site: case.trn:38:30-38:38 */))
     );
-    zero_terrane_f0_s1092 = 0.0;
-    negative_zero_terrane_f0_s1113 = -0.0_f64;
-    one_terrane_f0_s1144 = 1.0;
-    negative_one_terrane_f0_s1164 = -1.0_f64;
-    infinity_terrane_f0_s1194 = one_terrane_f0_s1144 / zero_terrane_f0_s1092;
-    negative_infinity_terrane_f0_s1226 = negative_one_terrane_f0_s1164
-        / zero_terrane_f0_s1092;
-    first_nan_terrane_f0_s1276 = zero_terrane_f0_s1092 / zero_terrane_f0_s1092;
-    second_nan_terrane_f0_s1310 = negative_zero_terrane_f0_s1113 / zero_terrane_f0_s1092;
-    floats_terrane_f0_s1354 = terrane_collection_support::List::<
+    zero = 0.0;
+    negative_zero = -0.0_f64;
+    one = 1.0;
+    negative_one = -1.0_f64;
+    infinity = one / zero;
+    negative_infinity = negative_one / zero;
+    first_nan = zero / zero;
+    second_nan = negative_zero / zero;
+    floats = terrane_collection_support::List::<
         f64,
     >::new(
-        vec![
-            first_nan_terrane_f0_s1276, negative_zero_terrane_f0_s1113,
-            infinity_terrane_f0_s1194, zero_terrane_f0_s1092,
-            negative_infinity_terrane_f0_s1226, second_nan_terrane_f0_s1310
-        ],
+        vec![first_nan, negative_zero, infinity, zero, negative_infinity, second_nan],
     );
-    floats_terrane_f0_s1354
-        .sort_by(terrane_collection_support::compare_float64_ascending);
+    floats.sort_by(terrane_collection_support::compare_float64_ascending);
     println!(
-        "{}{}{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         20 /* terrane-site: case.trn:50:10-50:19 */)), 20 /* terrane-site: case.trn:50:10-50:19 */).is_infinite()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         21 /* terrane-site: case.trn:50:30-50:39 */)), 21 /* terrane-site: case.trn:50:30-50:39 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         22 /* terrane-site: case.trn:50:55-50:64 */)), 22 /* terrane-site: case.trn:50:55-50:64 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         23 /* terrane-site: case.trn:50:80-50:89 */)), 23 /* terrane-site: case.trn:50:80-50:89 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
         24 /* terrane-site: case.trn:50:105-50:114 */)), 24 /* terrane-site: case.trn:50:105-50:114 */).is_infinite()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
         25 /* terrane-site: case.trn:50:125-50:134 */)), 25 /* terrane-site: case.trn:50:125-50:134 */).is_nan()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
         26 /* terrane-site: case.trn:50:149-50:158 */)), 26 /* terrane-site: case.trn:50:149-50:158 */).is_nan())
     );
-    floats_terrane_f0_s1354
-        .sort_by(terrane_collection_support::compare_float64_descending);
+    floats.sort_by(terrane_collection_support::compare_float64_descending);
     println!(
-        "{}{}{}{}{}{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        "{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         27 /* terrane-site: case.trn:52:10-52:19 */)), 27 /* terrane-site: case.trn:52:10-52:19 */).is_infinite()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         28 /* terrane-site: case.trn:52:30-52:39 */)), 28 /* terrane-site: case.trn:52:30-52:39 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         29 /* terrane-site: case.trn:52:55-52:64 */)), 29 /* terrane-site: case.trn:52:55-52:64 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         30 /* terrane-site: case.trn:52:80-52:89 */)), 30 /* terrane-site: case.trn:52:80-52:89 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
         31 /* terrane-site: case.trn:52:105-52:114 */)), 31 /* terrane-site: case.trn:52:105-52:114 */).is_infinite()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
         32 /* terrane-site: case.trn:52:125-52:134 */)), 32 /* terrane-site: case.trn:52:125-52:134 */).is_sign_negative()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(4_i128)),
         33 /* terrane-site: case.trn:52:150-52:159 */)), 33 /* terrane-site: case.trn:52:150-52:159 */).is_nan()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(floats_terrane_f0_s1354
+        terrane_scalar_support::scalar_text(&__terrane_raised(floats
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(5_i128)),
         34 /* terrane-site: case.trn:52:174-52:183 */)), 34 /* terrane-site: case.trn:52:174-52:183 */).is_nan())
     );
-    narrow_terrane_f0_s1868 = terrane_collection_support::List::<
-        f32,
-    >::new(vec![2.0_f32, - 1.0_f32]);
-    narrow_terrane_f0_s1868
-        .sort_by(terrane_collection_support::compare_float32_ascending);
+    narrow = terrane_collection_support::List::<f32>::new(vec![2.0_f32, - 1.0_f32]);
+    narrow.sort_by(terrane_collection_support::compare_float32_ascending);
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(narrow_terrane_f0_s1868
+        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         35 /* terrane-site: case.trn:56:10-56:19 */)), 35 /* terrane-site: case.trn:56:10-56:19 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(narrow_terrane_f0_s1868
+        terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         36 /* terrane-site: case.trn:56:21-56:30 */)), 36 /* terrane-site: case.trn:56:21-56:30 */))
     );
-    values_terrane_f0_s1957 = terrane_collection_support::List::<
+    values = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
         vec![
@@ -780,33 +744,32 @@ fn main() {
             terrane_int_support::Int::from(2_i128)
         ],
     );
-    preserved_terrane_f0_s1982 = values_terrane_f0_s1957.clone();
-    returned_terrane_f0_s2003 = {
-        let collection = &mut values_terrane_f0_s1957;
+    preserved = values.clone();
+    returned = {
+        let collection = &mut values;
         collection.sort_by(|left, right| left.cmp(right));
         collection.clone()
     };
     println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(preserved_terrane_f0_s1982
+        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(preserved
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         37 /* terrane-site: case.trn:61:10-61:22 */)), 37 /* terrane-site: case.trn:61:10-61:22 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(values_terrane_f0_s1957
+        terrane_scalar_support::scalar_text(&__terrane_raised(values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         38 /* terrane-site: case.trn:61:24-61:33 */)), 38 /* terrane-site: case.trn:61:24-61:33 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(returned_terrane_f0_s2003
+        terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         39 /* terrane-site: case.trn:61:35-61:46 */)), 39 /* terrane-site: case.trn:61:35-61:46 */))
     );
-    returned_terrane_f0_s2003.append(terrane_int_support::Int::from(4_i128));
+    returned.append(terrane_int_support::Int::from(4_i128));
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values_terrane_f0_s1957
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
         .length())),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned_terrane_f0_s2003
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned
         .length()))
     );
-    indexed_terrane_f0_s2137 = terrane_collection_support::Map::<
+    indexed = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -819,61 +782,59 @@ fn main() {
             terrane_int_support::Int::from(2_i128))
         ],
     );
-    keys_terrane_f0_s2168 = indexed_terrane_f0_s2137.keys();
-    ascending_terrane_f0_s2191 = {
-        let collection = &mut keys_terrane_f0_s2168;
+    keys = indexed.keys();
+    ascending = {
+        let collection = &mut keys;
         collection.sort_by(|left, right| left.cmp(right));
         collection.clone()
     };
-    let __terrane_iterable_0 = ascending_terrane_f0_s2191;
+    let __terrane_iterable_0 = ascending;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
     loop {
-        key_terrane_f0_s2220 = match __terrane_iterator_0.next() {
+        key = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&key_terrane_f0_s2220),
-            terrane_scalar_support::scalar_text(&__terrane_raised(indexed_terrane_f0_s2137
-            .get_or_error(&key_terrane_f0_s2220), 40 /* terrane-site: case.trn:69:17-69:29 */))
+            "{}{}", terrane_scalar_support::scalar_text(&key),
+            terrane_scalar_support::scalar_text(&__terrane_raised(indexed
+            .get_or_error(&key), 40 /* terrane-site: case.trn:69:17-69:29 */))
         );
     }
-    descending_terrane_f0_s2268 = {
-        let collection = &mut keys_terrane_f0_s2168;
+    descending = {
+        let collection = &mut keys;
         collection.sort_by(|left, right| right.cmp(left));
         collection.clone()
     };
-    let __terrane_iterable_1 = descending_terrane_f0_s2268.clone();
+    let __terrane_iterable_1 = descending.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
     );
     loop {
-        key_terrane_f0_s2220 = match __terrane_iterator_1.next() {
+        key = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        let _ = &key_terrane_f0_s2220;
+        let _ = &key;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&key_terrane_f0_s2220),
-            terrane_scalar_support::scalar_text(&__terrane_raised(indexed_terrane_f0_s2137
-            .get_or_error(&key_terrane_f0_s2220.clone()), 41 /* terrane-site: case.trn:72:17-72:29 */))
+            "{}{}", terrane_scalar_support::scalar_text(&key),
+            terrane_scalar_support::scalar_text(&__terrane_raised(indexed
+            .get_or_error(&key.clone()), 41 /* terrane-site: case.trn:72:17-72:29 */))
         );
     }
-    empty_terrane_f0_s2359 = terrane_collection_support::List::<
+    empty = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(Vec::new());
-    empty_terrane_f0_s2359.sort_by(|left, right| left.cmp(right));
-    single_terrane_f0_s2400 = terrane_collection_support::List::<
+    empty.sort_by(|left, right| left.cmp(right));
+    single = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
-    single_terrane_f0_s2400.sort_by(|left, right| right.cmp(left));
+    single.sort_by(|left, right| right.cmp(left));
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(empty_terrane_f0_s2359
-        .length())),
-        terrane_scalar_support::scalar_text(&__terrane_raised(single_terrane_f0_s2400
+        "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(empty
+        .length())), terrane_scalar_support::scalar_text(&__terrane_raised(single
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         42 /* terrane-site: case.trn:78:24-78:33 */)), 42 /* terrane-site: case.trn:78:24-78:33 */))
     );

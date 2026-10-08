@@ -611,16 +611,14 @@ impl Drop for Child {
     }
 }
 fn main() {
-    let mut value_terrane_f0_s442: Child;
-    let view_terrane_f0_s541: Named;
-    let copied_terrane_f0_s564: Named;
-    value_terrane_f0_s442 = Child::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s442.report()));
-    value_terrane_f0_s442.set(terrane_int_support::Int::from(4_i128));
-    println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s442.report()));
-    view_terrane_f0_s541 = <Named>::from(value_terrane_f0_s442.terrane_separate());
-    copied_terrane_f0_s564 = view_terrane_f0_s541.terrane_separate();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&copied_terrane_f0_s564.report())
-    );
+    let mut value: Child;
+    let view: Named;
+    let copied: Named;
+    value = Child::terrane_construct();
+    println!("{}", terrane_scalar_support::scalar_text(&value.report()));
+    value.set(terrane_int_support::Int::from(4_i128));
+    println!("{}", terrane_scalar_support::scalar_text(&value.report()));
+    view = <Named>::from(value.terrane_separate());
+    copied = view.terrane_separate();
+    println!("{}", terrane_scalar_support::scalar_text(&copied.report()));
 }

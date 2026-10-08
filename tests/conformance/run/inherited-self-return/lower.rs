@@ -52,11 +52,9 @@ impl Child {
     }
 }
 fn main() {
-    let value_terrane_f0_s193: Child;
-    let result_terrane_f0_s219: Base;
-    value_terrane_f0_s193 = Child::terrane_construct();
-    result_terrane_f0_s219 = value_terrane_f0_s193.copy();
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&result_terrane_f0_s219.marker())
-    );
+    let value: Child;
+    let result: Base;
+    value = Child::terrane_construct();
+    result = value.copy();
+    println!("{}", terrane_scalar_support::scalar_text(&result.marker()));
 }

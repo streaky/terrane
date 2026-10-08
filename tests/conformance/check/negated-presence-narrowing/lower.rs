@@ -22,11 +22,11 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S57 {
     }
 }
 fn main() {
-    let value_terrane_f0_s57: TerraneUnionF0S57;
-    value_terrane_f0_s57 = TerraneUnionF0S57::Arm0(7);
-    if !matches!(&value_terrane_f0_s57, TerraneUnionF0S57::Arm1(_)) {
+    let value: TerraneUnionF0S57;
+    value = TerraneUnionF0S57::Arm0(7);
+    if !matches!(&value, TerraneUnionF0S57::Arm1(_)) {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&* match &value_terrane_f0_s57 {
+            "{}", terrane_scalar_support::scalar_text(&* match &value {
             TerraneUnionF0S57::Arm0(value) => value, _ =>
             unreachable!("flow-proven storage refinement") })
         );

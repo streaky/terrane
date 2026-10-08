@@ -65,12 +65,12 @@ impl Widget {
     }
 }
 fn main() {
-    let first_terrane_f0_s312: Widget;
-    let second_terrane_f0_s347: Widget;
-    first_terrane_f0_s312 = Widget::terrane_static_shared();
-    second_terrane_f0_s347 = Widget::terrane_static_shared();
+    let first: Widget;
+    let second: Widget;
+    first = Widget::terrane_static_shared();
+    second = Widget::terrane_static_shared();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&first_terrane_f0_s312.class_name()),
-        terrane_scalar_support::scalar_text(&second_terrane_f0_s347.class_name())
+        "{}{}", terrane_scalar_support::scalar_text(&first.class_name()),
+        terrane_scalar_support::scalar_text(&second.class_name())
     );
 }

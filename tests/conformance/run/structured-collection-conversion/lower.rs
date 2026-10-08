@@ -467,10 +467,10 @@ fn build(wide: i16) -> Result<terrane_collection_support::List<i8>, TerraneError
 fn append_value(
     wide: i16,
 ) -> Result<terrane_collection_support::List<i8>, TerraneError> {
-    let mut values_terrane_f0_s240: terrane_collection_support::List<i8>;
-    values_terrane_f0_s240 = terrane_collection_support::List::<i8>::new(vec![1]);
+    let mut values: terrane_collection_support::List<i8>;
+    values = terrane_collection_support::List::<i8>::new(vec![1]);
     return Ok({
-        let collection = &mut values_terrane_f0_s240;
+        let collection = &mut values;
         collection
             .append({
                 let source_value = wide;
@@ -489,13 +489,13 @@ fn append_value(
     });
 }
 fn main() {
-    let wide_terrane_f0_s316: i16;
-    wide_terrane_f0_s316 = 300;
+    let wide: i16;
+    wide = 300;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(build(wide_terrane_f0_s316),
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(build(wide),
                 2 /* terrane-site: case.trn:12:13-12:24 */)
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
                 3 /* terrane-site: case.trn:12:12-12:28 */)), 3 /* terrane-site: case.trn:12:12-12:28 */))
@@ -538,7 +538,7 @@ fn main() {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(append_value(wide_terrane_f0_s316),
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(append_value(wide),
                 4 /* terrane-site: case.trn:16:13-16:31 */)
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
                 5 /* terrane-site: case.trn:16:12-16:35 */)), 5 /* terrane-site: case.trn:16:12-16:35 */))

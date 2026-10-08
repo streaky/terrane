@@ -30,7 +30,7 @@ impl Counter {
     pub fn next(
         &mut self,
     ) -> terrane_collection_support::IterationStep<terrane_int_support::Int> {
-        let item_terrane_f0_s528: terrane_int_support::Int;
+        let item: terrane_int_support::Int;
         if self.ended {
             return terrane_collection_support::IterationStep::End;
         }
@@ -39,11 +39,11 @@ impl Counter {
             self.ended = true;
             return terrane_collection_support::IterationStep::End;
         }
-        item_terrane_f0_s528 = self.current.clone();
+        item = self.current.clone();
         self.current = self.current.clone() + terrane_int_support::Int::from(1_i128);
         return terrane_collection_support::IterationStep::<
             terrane_int_support::Int,
-        >::Item(item_terrane_f0_s528.clone());
+        >::Item(item.clone());
     }
 }
 #[derive(Clone)]
@@ -66,50 +66,42 @@ impl NoneOnce {
     }
 }
 fn main() {
-    let values_terrane_f0_s885: Counter;
-    let mut value_terrane_f0_s920: terrane_int_support::Int;
-    let mut probe_terrane_f0_s956: Counter;
-    let fourth_terrane_f0_s1028: terrane_collection_support::IterationStep<
-        terrane_int_support::Int,
-    >;
-    let fifth_terrane_f0_s1073: terrane_collection_support::IterationStep<
-        terrane_int_support::Int,
-    >;
-    let mut missing_terrane_f0_s1168: ();
-    values_terrane_f0_s885 = Counter::terrane_construct(
-        terrane_int_support::Int::from(3_i128),
-    );
-    let __terrane_iterable_0 = values_terrane_f0_s885;
+    let values: Counter;
+    let mut value: terrane_int_support::Int;
+    let mut probe: Counter;
+    let fourth: terrane_collection_support::IterationStep<terrane_int_support::Int>;
+    let fifth: terrane_collection_support::IterationStep<terrane_int_support::Int>;
+    let mut missing: ();
+    values = Counter::terrane_construct(terrane_int_support::Int::from(3_i128));
+    let __terrane_iterable_0 = values;
     let mut __terrane_iterator_0 = __terrane_iterable_0.iterator();
     loop {
-        value_terrane_f0_s920 = match __terrane_iterator_0.next() {
+        value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&value_terrane_f0_s920));
+        println!("{}", terrane_scalar_support::scalar_text(&value));
     }
-    probe_terrane_f0_s956 = Counter::terrane_construct(
-        terrane_int_support::Int::from(3_i128),
-    );
-    probe_terrane_f0_s956.next();
-    probe_terrane_f0_s956.next();
-    probe_terrane_f0_s956.next();
-    fourth_terrane_f0_s1028 = probe_terrane_f0_s956.next();
-    fifth_terrane_f0_s1073 = probe_terrane_f0_s956.next();
+    probe = Counter::terrane_construct(terrane_int_support::Int::from(3_i128));
+    probe.next();
+    probe.next();
+    probe.next();
+    fourth = probe.next();
+    fifth = probe.next();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&matches!(&fourth_terrane_f0_s1028,
+        "{}{}{}", terrane_scalar_support::scalar_text(&matches!(&fourth,
         terrane_collection_support::IterationStep::End)),
-        terrane_scalar_support::scalar_text(&matches!(&fifth_terrane_f0_s1073,
+        terrane_scalar_support::scalar_text(&matches!(&fifth,
         terrane_collection_support::IterationStep::End)),
-        terrane_scalar_support::scalar_text(&probe_terrane_f0_s956.advances)
+        terrane_scalar_support::scalar_text(&probe.advances)
     );
     let __terrane_iterable_1 = NoneOnce::terrane_construct();
     let mut __terrane_iterator_1 = __terrane_iterable_1.iterator();
     loop {
-        missing_terrane_f0_s1168 = match __terrane_iterator_1.next() {
+        missing = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&missing_terrane_f0_s1168));
+        println!("{}", terrane_scalar_support::scalar_text(&missing));
     }
 }

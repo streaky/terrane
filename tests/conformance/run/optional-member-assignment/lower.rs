@@ -18,16 +18,14 @@ impl OptionalValue {
     }
 }
 fn main() {
-    let holder_terrane_f0_s140: OptionalValue;
-    let value_terrane_f0_s179: Option<terrane_int_support::Int>;
-    holder_terrane_f0_s140 = OptionalValue::terrane_construct(
-        terrane_int_support::Int::from(7_i128),
-    );
-    value_terrane_f0_s179 = holder_terrane_f0_s140.value.clone();
-    if value_terrane_f0_s179.is_some() {
+    let holder: OptionalValue;
+    let value: Option<terrane_int_support::Int>;
+    holder = OptionalValue::terrane_construct(terrane_int_support::Int::from(7_i128));
+    value = holder.value.clone();
+    if value.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&match &value_terrane_f0_s179 {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
+            "{}", terrane_scalar_support::scalar_text(&match &value { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     } else {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("none")));

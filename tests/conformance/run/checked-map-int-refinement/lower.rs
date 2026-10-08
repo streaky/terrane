@@ -436,12 +436,9 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: checked-map-int-refinement
 fn main() {
-    let mut counts_terrane_f0_s90: terrane_collection_support::Map<
-        String,
-        terrane_int_support::Int,
-    >;
-    let current_terrane_f0_s114: Option<terrane_int_support::Int>;
-    counts_terrane_f0_s90 = terrane_collection_support::Map::<
+    let mut counts: terrane_collection_support::Map<String, terrane_int_support::Int>;
+    let current: Option<terrane_int_support::Int>;
+    counts = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
     >::new(
@@ -450,12 +447,12 @@ fn main() {
             terrane_int_support::Int::from(1_i128))
         ],
     );
-    current_terrane_f0_s114 = counts_terrane_f0_s90.get(&String::from("apple")).cloned();
-    if current_terrane_f0_s114.is_some() {
-        let _ = counts_terrane_f0_s90
+    current = counts.get(&String::from("apple")).cloned();
+    if current.is_some() {
+        let _ = counts
             .set(
                 String::from("apple"),
-                match &current_terrane_f0_s114 {
+                match &current {
                     Some(value) => value,
                     _ => unreachable!("flow-proven storage refinement"),
                 }
@@ -463,7 +460,7 @@ fn main() {
             );
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(counts_terrane_f0_s90
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(counts
         .get_or_error(&String::from("apple")), 0 /* terrane-site: case.trn:10:10-10:25 */))
     );
 }

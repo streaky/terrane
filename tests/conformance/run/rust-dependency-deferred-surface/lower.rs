@@ -489,21 +489,21 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let buffer_terrane_f0_s146: BytesMut;
-    let remaining_terrane_f0_s186: terrane_int_support::Int;
-    let candidate_terrane_f0_s224: Option<Number>;
-    let data_terrane_f0_s262: Category;
-    let io_terrane_f0_s289: Category;
-    buffer_terrane_f0_s146 = __terrane_raised(
+    let buffer: BytesMut;
+    let remaining: terrane_int_support::Int;
+    let candidate: Option<Number>;
+    let data: Category;
+    let io: Category;
+    buffer = __terrane_raised(
         terrane_static_trn_42797465734d7574_with_capacity(
             terrane_int_support::Int::from(8_i128),
         ),
         0 /* terrane-site: src/main.trn:6:14-6:40 */,
     );
-    remaining_terrane_f0_s186 = __terrane_raised(
+    remaining = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
-                &buffer_terrane_f0_s146,
+                &buffer,
             )),
         ) {
             Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
@@ -519,13 +519,13 @@ fn main() {
         },
         1 /* terrane-site: src/main.trn:7:17-7:38 */,
     );
-    candidate_terrane_f0_s224 = __terrane_raised(
+    candidate = __terrane_raised(
         terrane_static_trn_4e756d626572_from_u128(
             terrane_int_support::Int::from(42_i128),
         ),
         2 /* terrane-site: src/main.trn:8:17-8:38 */,
     );
-    data_terrane_f0_s262 = __terrane_raised(
+    data = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| serde_json::error::Category::Data),
         ) {
@@ -542,7 +542,7 @@ fn main() {
         },
         3 /* terrane-site: src/main.trn:9:12-9:27 */,
     );
-    io_terrane_f0_s289 = __terrane_raised(
+    io = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| serde_json::error::Category::Io),
         ) {
@@ -560,16 +560,11 @@ fn main() {
         4 /* terrane-site: src/main.trn:10:10-10:23 */,
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(remaining_terrane_f0_s186.clone() >
+        "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >
         terrane_int_support::Int::from(0_i128)))
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&candidate_terrane_f0_s224.is_some())
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&(data_terrane_f0_s262 !=
-        io_terrane_f0_s289))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&candidate.is_some()));
+    println!("{}", terrane_scalar_support::scalar_text(&(data != io)));
 }
 // Source: <terrane>/projected/deps/bytes.trn
 // Namespace: deps/bytes

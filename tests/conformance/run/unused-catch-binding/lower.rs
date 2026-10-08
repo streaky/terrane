@@ -447,7 +447,7 @@ fn __terrane_uninitialized_binding(
 // Source: case.trn
 // Namespace: unused-catch-binding
 fn main() {
-    let mut unused_terrane_f0_s175: Option<TerraneError> = None;
+    let mut unused: Option<TerraneError> = None;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             return TerraneCompletion::Error(
@@ -468,7 +468,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    let _ = unused_terrane_f0_s175.insert(__terrane_error_0.clone());
+                    let _ = unused.insert(__terrane_error_0.clone());
                     println!(
                         "{}",
                         terrane_scalar_support::scalar_text(&String::from("caught"))

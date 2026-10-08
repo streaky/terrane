@@ -460,8 +460,8 @@ async fn two() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(2_i128);
 }
 async fn selected_return() -> terrane_int_support::Int {
-    let value_terrane_f0_s213: terrane_int_support::Int;
-    let value_terrane_f0_s262: terrane_int_support::Int;
+    let value: terrane_int_support::Int;
+    let value_2: terrane_int_support::Int;
     let mut __terrane_select_cursor_197 = 0usize;
     {
         let mut __terrane_select_guard_197 = __terrane_finally_guard();
@@ -554,16 +554,16 @@ async fn selected_return() -> terrane_int_support::Int {
         __terrane_select_guard_197.finish();
         match __terrane_select_winner_197 {
             0 => {
-                value_terrane_f0_s213 = __terrane_select_result_197_0
+                value = __terrane_select_result_197_0
                     .take()
                     .expect("selected case owns its ready result");
-                return value_terrane_f0_s213.clone();
+                return value.clone();
             }
             1 => {
-                value_terrane_f0_s262 = __terrane_select_result_197_1
+                value_2 = __terrane_select_result_197_1
                     .take()
                     .expect("selected case owns its ready result");
-                return value_terrane_f0_s262.clone();
+                return value_2.clone();
             }
             _ => unreachable!("selected winner is within the case count"),
         }
@@ -684,12 +684,11 @@ async fn selected_throw() -> Result<(), TerraneError> {
 }
 fn main() {
     __terrane_run(async move {
-        let mut iteration_terrane_f0_s468: terrane_int_support::Int;
-        let mut finished_terrane_f0_s669: Option<()> = None;
+        let mut iteration: terrane_int_support::Int;
+        let mut finished: Option<()> = None;
         let mut __terrane_select_cursor_508 = 0usize;
-        iteration_terrane_f0_s468 = terrane_int_support::Int::from(0_i128);
-        while iteration_terrane_f0_s468.clone() < terrane_int_support::Int::from(2_i128)
-        {
+        iteration = terrane_int_support::Int::from(0_i128);
+        while iteration.clone() < terrane_int_support::Int::from(2_i128) {
             {
                 let mut __terrane_select_guard_508 = __terrane_finally_guard();
                 let __terrane_select_control_508_0 = __terrane_select_control();
@@ -789,7 +788,7 @@ fn main() {
                         let _ = __terrane_select_result_508_0
                             .take()
                             .expect("selected case owns its ready result");
-                        iteration_terrane_f0_s468 = iteration_terrane_f0_s468.clone()
+                        iteration = iteration.clone()
                             + terrane_int_support::Int::from(1_i128);
                         continue;
                     }
@@ -804,23 +803,20 @@ fn main() {
             }
         }
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&iteration_terrane_f0_s468),
+            "{}{}", terrane_scalar_support::scalar_text(&iteration),
             terrane_scalar_support::scalar_text(&__terrane_await(selected_return()).
             await)
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
-                let _ = finished_terrane_f0_s669
+                let _ = finished
                     .insert(
                         __terrane_traced_completion!(
                             __terrane_await(selected_throw()). await,
                             2 /* terrane-site: case.trn:35:22-35:39 */
                         ),
                     );
-                if *finished_terrane_f0_s669
-                    .as_ref()
-                    .expect("flow-proven available binding") == ()
-                {
+                if *finished.as_ref().expect("flow-proven available binding") == () {
                     println!(
                         "{}",
                         terrane_scalar_support::scalar_text(&String::from("unexpected completion"))

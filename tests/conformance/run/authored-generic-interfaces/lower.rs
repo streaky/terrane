@@ -135,10 +135,10 @@ impl MessageSource {
         }
     }
     pub fn next(&mut self) -> Option<String> {
-        let result_terrane_f0_s887: Option<String>;
-        result_terrane_f0_s887 = self.value.clone();
+        let result: Option<String>;
+        result = self.value.clone();
         self.value = None;
-        return result_terrane_f0_s887;
+        return result;
     }
 }
 impl SourceProtocol<String> for MessageSource {
@@ -161,43 +161,33 @@ fn next_string(mut input: Source<String>) -> Option<String> {
     return input.next();
 }
 fn main() {
-    let message_terrane_f0_s1056: Message;
-    let kept_terrane_f0_s1100: Message;
-    let mut input_terrane_f0_s1199: Source<String>;
-    let first_terrane_f0_s1253: Option<String>;
-    let second_terrane_f0_s1342: Option<String>;
-    let peer_terrane_f0_s1411: Address;
-    let erased_terrane_f0_s1440: Describable;
-    message_terrane_f0_s1056 = Message::terrane_construct(String::from("preserved"));
-    kept_terrane_f0_s1100 = preserve(message_terrane_f0_s1056.clone());
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&kept_terrane_f0_s1100.describe())
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&describe_value(kept_terrane_f0_s1100))
-    );
-    input_terrane_f0_s1199 = <Source<String>>::from(MessageSource::terrane_construct());
-    first_terrane_f0_s1253 = next_string(input_terrane_f0_s1199.clone());
-    if first_terrane_f0_s1253.is_some() {
+    let message: Message;
+    let kept: Message;
+    let mut input: Source<String>;
+    let first: Option<String>;
+    let second: Option<String>;
+    let peer: Address;
+    let erased: Describable;
+    message = Message::terrane_construct(String::from("preserved"));
+    kept = preserve(message.clone());
+    println!("{}", terrane_scalar_support::scalar_text(&kept.describe()));
+    println!("{}", terrane_scalar_support::scalar_text(&describe_value(kept)));
+    input = <Source<String>>::from(MessageSource::terrane_construct());
+    first = next_string(input.clone());
+    if first.is_some() {
         println!(
-            "{}", terrane_scalar_support::scalar_text(&match &first_terrane_f0_s1253 {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
+            "{}", terrane_scalar_support::scalar_text(&match &first { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    input_terrane_f0_s1199.next();
-    second_terrane_f0_s1342 = input_terrane_f0_s1199.next();
-    if second_terrane_f0_s1342.is_none() {
+    input.next();
+    second = input.next();
+    if second.is_none() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("none")));
     }
-    peer_terrane_f0_s1411 = Address::terrane_construct();
-    erased_terrane_f0_s1440 = choose::<
+    peer = Address::terrane_construct();
+    erased = choose::<
         Describable,
-    >(
-        <Describable>::from(message_terrane_f0_s1056),
-        <Describable>::from(peer_terrane_f0_s1411),
-        false,
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&erased_terrane_f0_s1440.describe())
-    );
+    >(<Describable>::from(message), <Describable>::from(peer), false);
+    println!("{}", terrane_scalar_support::scalar_text(&erased.describe()));
 }

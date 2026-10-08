@@ -445,12 +445,12 @@ async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
 }
 fn main() {
     __terrane_run(async move {
-        let scope_terrane_f0_s172: TerraneTaskScope;
-        let child_terrane_f0_s194: TerraneScopedTask<terrane_int_support::Int>;
-        let outcome_terrane_f0_s222: TerraneTaskOutcome<terrane_int_support::Int>;
-        scope_terrane_f0_s172 = TerraneTaskScope::new(None);
-        child_terrane_f0_s194 = {
-            let __terrane_scope = scope_terrane_f0_s172.clone();
+        let scope: TerraneTaskScope;
+        let child: TerraneScopedTask<terrane_int_support::Int>;
+        let outcome: TerraneTaskOutcome<terrane_int_support::Int>;
+        scope = TerraneTaskScope::new(None);
+        child = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -469,19 +469,12 @@ fn main() {
                 }
             })
         };
-        outcome_terrane_f0_s222 = __terrane_await(
-                scope_terrane_f0_s172.join(child_terrane_f0_s194),
-            )
-            .await;
+        outcome = __terrane_await(scope.join(child)).await;
         println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&outcome_terrane_f0_s222
-            .completed), terrane_scalar_support::scalar_text(&outcome_terrane_f0_s222
-            .cancelled), terrane_scalar_support::scalar_text(&outcome_terrane_f0_s222
-            .value.clone().is_none())
+            "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
+            terrane_scalar_support::scalar_text(&outcome.cancelled),
+            terrane_scalar_support::scalar_text(&outcome.value.clone().is_none())
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&outcome_terrane_f0_s222.error
-            .is_some())
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&outcome.error.is_some()));
     });
 }

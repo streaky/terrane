@@ -456,7 +456,7 @@ fn recursive_choose() -> std::sync::Arc<
     });
 }
 async fn choose(depth: terrane_int_support::Int) -> String {
-    let recurse_terrane_f0_s371: std::sync::Arc<
+    let recurse: std::sync::Arc<
         dyn Fn(
             terrane_int_support::Int,
         ) -> std::pin::Pin<Box<dyn Future<Output = String> + Send>> + Send + Sync,
@@ -558,9 +558,9 @@ async fn choose(depth: terrane_int_support::Int) -> String {
                     .take()
                     .expect("selected case owns its ready result");
                 if depth.clone() > terrane_int_support::Int::from(0_i128) {
-                    recurse_terrane_f0_s371 = recursive_choose();
+                    recurse = recursive_choose();
                     return __terrane_await(
-                            recurse_terrane_f0_s371(
+                            recurse(
                                 depth.clone() - terrane_int_support::Int::from(1_i128),
                             ),
                         )
@@ -690,16 +690,16 @@ async fn choose(depth: terrane_int_support::Int) -> String {
 }
 fn main() {
     __terrane_run(async move {
-        let scope_terrane_f0_s607: TerraneTaskScope;
-        let first_terrane_f0_s629: TerraneScopedTask<String>;
-        let second_terrane_f0_s664: TerraneScopedTask<String>;
-        let first_outcome_terrane_f0_s700: TerraneTaskOutcome<String>;
-        let second_outcome_terrane_f0_s742: TerraneTaskOutcome<String>;
-        let first_value_terrane_f0_s786: Option<String>;
-        let second_value_terrane_f0_s822: Option<String>;
-        scope_terrane_f0_s607 = TerraneTaskScope::new(None);
-        first_terrane_f0_s629 = {
-            let __terrane_scope = scope_terrane_f0_s607.clone();
+        let scope: TerraneTaskScope;
+        let first: TerraneScopedTask<String>;
+        let second: TerraneScopedTask<String>;
+        let first_outcome: TerraneTaskOutcome<String>;
+        let second_outcome: TerraneTaskOutcome<String>;
+        let first_value: Option<String>;
+        let second_value: Option<String>;
+        scope = TerraneTaskScope::new(None);
+        first = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             let __terrane_spawned_task = choose(terrane_int_support::Int::from(1_i128));
@@ -716,8 +716,8 @@ fn main() {
                 }
             })
         };
-        second_terrane_f0_s664 = {
-            let __terrane_scope = scope_terrane_f0_s607.clone();
+        second = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             let __terrane_spawned_task = choose(terrane_int_support::Int::from(1_i128));
@@ -734,24 +734,18 @@ fn main() {
                 }
             })
         };
-        first_outcome_terrane_f0_s700 = __terrane_await(
-                scope_terrane_f0_s607.join(first_terrane_f0_s629),
-            )
-            .await;
-        second_outcome_terrane_f0_s742 = __terrane_await(
-                scope_terrane_f0_s607.join(second_terrane_f0_s664),
-            )
-            .await;
-        first_value_terrane_f0_s786 = first_outcome_terrane_f0_s700.value.clone();
-        second_value_terrane_f0_s822 = second_outcome_terrane_f0_s742.value.clone();
-        if first_value_terrane_f0_s786.is_some() {
-            if second_value_terrane_f0_s822.is_some() {
+        first_outcome = __terrane_await(scope.join(first)).await;
+        second_outcome = __terrane_await(scope.join(second)).await;
+        first_value = first_outcome.value.clone();
+        second_value = second_outcome.value.clone();
+        if first_value.is_some() {
+            if second_value.is_some() {
                 println!(
-                    "{}{}", terrane_scalar_support::scalar_text(&match
-                    &first_value_terrane_f0_s786 { Some(value) => value, _ =>
+                    "{}{}", terrane_scalar_support::scalar_text(&match &first_value {
+                    Some(value) => value, _ =>
                     unreachable!("flow-proven storage refinement") }),
-                    terrane_scalar_support::scalar_text(&match
-                    &second_value_terrane_f0_s822 { Some(value) => value, _ =>
+                    terrane_scalar_support::scalar_text(&match &second_value {
+                    Some(value) => value, _ =>
                     unreachable!("flow-proven storage refinement") })
                 );
             }
