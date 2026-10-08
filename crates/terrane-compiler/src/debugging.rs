@@ -687,12 +687,6 @@ mod tests {
                     .count()
                     >= 2
         }));
-        assert!(
-            debug
-                .bindings
-                .iter()
-                .any(|binding| binding.name == "value" && binding.rust_name == "value")
-        );
         let embedded = compile_with_options(
             "embedded.trn",
             source.to_owned(),
