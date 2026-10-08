@@ -2176,28 +2176,28 @@ fn mapped_stop_location(
     backend: &mut Backend,
     provenance: &ProvenanceManifest,
     thread_id: i64,
+    frame_index: usize,
 ) -> Result<Option<StopLocation>, CliFailure> {
     let response = backend.request(
         "stackTrace",
         json!({"threadId": thread_id, "startFrame": 0}),
     )?;
-    let frames = response["body"]["stackFrames"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
+    let frames = response["body"]["stackFrames"].as_array();
     let frame_depth = response["body"]["totalFrames"]
         .as_u64()
         .and_then(|depth| usize::try_from(depth).ok())
-        .unwrap_or(frames.len());
-    Ok(frames.into_iter().find_map(|frame| {
-        let association = association_for_frame(provenance, &frame)?;
-        Some(StopLocation {
-            frame_depth,
-            generated_path: frame["source"]["path"].as_str()?.to_owned(),
-            generated_line: association.generated.line,
-            function_id: association.function_id.clone(),
-        })
-    }))
+        .unwrap_or_else(|| frames.map_or(0, Vec::len));
+    Ok(frames
+        .and_then(|frames| frames.get(frame_index))
+        .and_then(|frame| {
+            let association = association_for_frame(provenance, frame)?;
+            Some(StopLocation {
+                frame_depth: frame_depth.saturating_sub(frame_index),
+                generated_path: frame["source"]["path"].as_str()?.to_owned(),
+                generated_line: association.generated.line,
+                function_id: association.function_id.clone(),
+            })
+        }))
 }
 
 #[expect(
@@ -2319,7 +2319,7 @@ fn temporary_sequence_step(
             {
                 return Ok(event);
             }
-            let location = mapped_stop_location(backend, provenance, thread_id)?;
+            let location = mapped_stop_location(backend, provenance, thread_id, 0)?;
             let at_temporary_location = location.as_ref().is_some_and(|location| {
                 target_locations.contains(&(
                     lexical_normalize(Path::new(&location.generated_path)),
@@ -2469,7 +2469,12 @@ fn step_to_source(
     {
         return Ok(event);
     }
-    let origin = mapped_stop_location(backend, provenance, thread_id)?;
+    let origin = mapped_stop_location(backend, provenance, thread_id, 0)?;
+    let caller = if command == "stepOut" {
+        mapped_stop_location(backend, provenance, thread_id, 1)?
+    } else {
+        None
+    };
     let suspended_ids = origin.as_ref().map_or_else(Vec::new, |origin| {
         breakpoints.backend_ids_at(&origin.generated_path, origin.generated_line)
     });
@@ -2492,7 +2497,7 @@ fn step_to_source(
             if command == "stepOut" {
                 native_command = "next";
             }
-            let Some(current) = mapped_stop_location(backend, provenance, thread_id)? else {
+            let Some(current) = mapped_stop_location(backend, provenance, thread_id, 0)? else {
                 continue;
             };
             let Some(origin) = &origin else {
@@ -2506,7 +2511,10 @@ fn step_to_source(
                     current.frame_depth < origin.frame_depth
                         || (current.frame_depth == origin.frame_depth && changed_point)
                 }
-                "stepOut" => current.frame_depth < origin.frame_depth,
+                "stepOut" => {
+                    current.frame_depth < origin.frame_depth
+                        && caller.as_ref().is_none_or(|caller| current != *caller)
+                }
                 _ => current.frame_depth > origin.frame_depth || changed_point,
             };
             if reached_source_target {

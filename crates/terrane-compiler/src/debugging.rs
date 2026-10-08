@@ -335,7 +335,7 @@ fn append_unit_symbols(
                 binding.span.file, binding.span.start, binding.span.end
             ),
             name: binding.name.clone(),
-            rust_name: crate::lowering::debug_binding_rust_name(unit, binding),
+            rust_name: crate::lowering::binding_storage_rust_name(unit, binding),
             source: source_span(&unit.source, binding.span),
             scope_id,
             physical_type_name: format!("{:?}", storage_value_type(unit, binding)),

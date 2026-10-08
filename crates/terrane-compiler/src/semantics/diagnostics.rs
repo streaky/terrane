@@ -686,99 +686,121 @@ pub(crate) fn binding_span_is_mutated(
     initially_assigned: bool,
     closure_writes: ClosureWrites,
 ) -> bool {
-    fn writes(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        declaration_span: Span,
-        iterator_binding: bool,
-        closure_writes: ClosureWrites,
-        node: &SyntaxNode,
-    ) -> usize {
-        if closure_writes == ClosureWrites::Exclude && node.kind == SyntaxKind::AnonymousFunction {
-            return 0;
-        }
-        let resolves_to_binding = |target: &SyntaxNode| {
-            object_mutation_root(unit, target).is_some_and(|root| {
-                !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, root))
-                    && package
-                        .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
-                        .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
-            })
-        };
-        let direct_write = matches!(
-            node.kind,
-            SyntaxKind::Assignment | SyntaxKind::PostfixExpression
-        ) && node.span != declaration_span
-            && node.children.first().is_some_and(|target| {
-                resolves_to_binding(target)
-                    || (matches!(
-                        target.kind,
-                        SyntaxKind::IndexExpression | SyntaxKind::MemberExpression
-                    ) && target.children.first().is_some_and(resolves_to_binding))
-            });
-        let mutator_call = node.kind == SyntaxKind::CallExpression
-            && node.children.first().is_some_and(|callee| {
-                let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee)
-                else {
-                    return false;
-                };
-                let family = member
-                    .split_once('.')
-                    .map_or(member.as_str(), |(family, _)| family);
-                let callable_field = match &receiver_type {
-                    ValueType::Object(identity) => matches!(
-                        object_field_type(unit, identity, family, false),
-                        Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
-                    ),
-                    _ => false,
-                };
-                member_invocation_mode(package, unit, &receiver_type, family)
-                    == InvocationMode::Mutable
-                    && (closure_writes == ClosureWrites::Include || !callable_field)
-                    && resolves_to_binding(receiver)
-            });
-        let iterator_advance = iterator_binding
-            && node.kind == SyntaxKind::ForStatement
-            && node.children.get(1).is_some_and(resolves_to_binding);
-        let projected_argument_write = node.kind == SyntaxKind::CallExpression
-            && projected_call_mutates_binding(package, unit, node, declaration_span);
-        let source_argument_write = node.kind == SyntaxKind::CallExpression
-            && source_call_mutates_binding(package, unit, node, declaration_span);
-        let writes_here = usize::from(
-            direct_write
-                || mutator_call
-                || iterator_advance
-                || projected_argument_write
-                || source_argument_write,
-        );
-        writes_here
-            + node
-                .children
-                .iter()
-                .map(|child| {
-                    writes(
-                        package,
-                        unit,
-                        declaration_span,
-                        iterator_binding,
-                        closure_writes,
-                        child,
-                    )
-                })
-                .sum::<usize>()
-    }
-
     let iterator_binding = unit.typed_bindings.iter().any(|binding| {
         binding.span == declaration_span && matches!(binding.value_type, ValueType::Iterator(_))
     });
-    writes(
+    binding_mutation_count(
         package,
         unit,
         declaration_span,
         iterator_binding,
         closure_writes,
+        false,
         &unit.tree.root,
     ) > usize::from(!initially_assigned)
+}
+
+pub(crate) fn binding_span_has_interior_mutation(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    declaration_span: Span,
+    closure_writes: ClosureWrites,
+) -> bool {
+    binding_mutation_count(
+        package,
+        unit,
+        declaration_span,
+        false,
+        closure_writes,
+        true,
+        &unit.tree.root,
+    ) > 0
+}
+
+fn binding_mutation_count(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    declaration_span: Span,
+    iterator_binding: bool,
+    closure_writes: ClosureWrites,
+    only_interior: bool,
+    node: &SyntaxNode,
+) -> usize {
+    if closure_writes == ClosureWrites::Exclude && node.kind == SyntaxKind::AnonymousFunction {
+        return 0;
+    }
+    let resolves_to_binding = |target: &SyntaxNode| {
+        object_mutation_root(unit, target).is_some_and(|root| {
+            !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, root))
+                && package
+                    .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                    .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+        })
+    };
+    let direct_write = matches!(
+        node.kind,
+        SyntaxKind::Assignment | SyntaxKind::PostfixExpression
+    ) && node.span != declaration_span
+        && node.children.first().is_some_and(|target| {
+            (!only_interior
+                || node.kind == SyntaxKind::PostfixExpression
+                || target.kind != SyntaxKind::Name)
+                && (resolves_to_binding(target)
+                    || (matches!(
+                        target.kind,
+                        SyntaxKind::IndexExpression | SyntaxKind::MemberExpression
+                    ) && target.children.first().is_some_and(resolves_to_binding)))
+        });
+    let mutator_call = node.kind == SyntaxKind::CallExpression
+        && node.children.first().is_some_and(|callee| {
+            let Some((receiver, receiver_type, member)) = typed_member_call(unit, callee) else {
+                return false;
+            };
+            let family = member
+                .split_once('.')
+                .map_or(member.as_str(), |(family, _)| family);
+            let callable_field = match &receiver_type {
+                ValueType::Object(identity) => matches!(
+                    object_field_type(unit, identity, family, false),
+                    Some(ValueType::Function(..) | ValueType::AsyncFunction(..))
+                ),
+                _ => false,
+            };
+            member_invocation_mode(package, unit, &receiver_type, family) == InvocationMode::Mutable
+                && (closure_writes == ClosureWrites::Include || !callable_field)
+                && resolves_to_binding(receiver)
+        });
+    let iterator_advance = !only_interior
+        && iterator_binding
+        && node.kind == SyntaxKind::ForStatement
+        && node.children.get(1).is_some_and(resolves_to_binding);
+    let projected_argument_write = node.kind == SyntaxKind::CallExpression
+        && projected_call_mutates_binding(package, unit, node, declaration_span);
+    let source_argument_write = node.kind == SyntaxKind::CallExpression
+        && source_call_mutates_binding(package, unit, node, declaration_span);
+    let writes_here = usize::from(
+        direct_write
+            || mutator_call
+            || iterator_advance
+            || projected_argument_write
+            || source_argument_write,
+    );
+    let mut child_counts = node.children.iter().map(|child| {
+        binding_mutation_count(
+            package,
+            unit,
+            declaration_span,
+            iterator_binding,
+            closure_writes,
+            only_interior,
+            child,
+        )
+    });
+    if only_interior {
+        usize::from(writes_here != 0 || child_counts.any(|count| count != 0))
+    } else {
+        writes_here + child_counts.sum::<usize>()
+    }
 }
 
 pub(super) fn add_private_host_bindings<'a>(

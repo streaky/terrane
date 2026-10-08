@@ -766,6 +766,18 @@ pub(crate) fn binding_requires_mutable_storage(
     if initially_assigned {
         return binding_span_is_mutated(package, unit, declaration_span, true, closure_writes);
     }
+    // Interior mutation needs a mutable place even when reaching paths only
+    // initialize the carrier once.
+    if unit.typed_bindings.iter().any(|binding| {
+        unit.flow_binding_ids
+            .get(&span_key(binding.span))
+            .copied()
+            .unwrap_or(binding.span)
+            == declaration_span
+            && binding_span_has_interior_mutation(package, unit, binding.span, closure_writes)
+    }) {
+        return true;
+    }
     let declaration_function = unit
         .enclosing_function_spans
         .get(&declaration_span.start)

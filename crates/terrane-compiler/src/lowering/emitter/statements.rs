@@ -1522,7 +1522,7 @@ impl Emitter<'_> {
             self.list_append_counter += 1;
             self.line(&format!(
                 "let {vector} = {}.make_unique();",
-                rust_name(&binding.name)
+                crate::lowering::binding_storage_rust_name(self.unit, binding)
             ));
             if let Some((start, end)) = capacity_hint {
                 self.line(&format!(

@@ -66,7 +66,7 @@ pub(crate) fn debug_rust_name(name: &str) -> String {
     helpers::rust_name(name)
 }
 
-pub(crate) fn debug_binding_rust_name(
+pub(crate) fn binding_storage_rust_name(
     unit: &crate::semantics::SemanticUnit,
     binding: &crate::semantics::TypedBinding,
 ) -> String {
