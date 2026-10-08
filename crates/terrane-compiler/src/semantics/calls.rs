@@ -986,11 +986,7 @@ fn substitute_callable_parameter_generics(
     bindings: &BTreeMap<String, ValueType>,
 ) -> CallableParameterType {
     let value_type = substitute_projected_value_generics(parameter.value_type_ref(), bindings);
-    if parameter.is_variadic() {
-        CallableParameterType::variadic(ElementType::new(value_type))
-    } else {
-        CallableParameterType::fixed(ElementType::new(value_type))
-    }
+    parameter.with_element_type(ElementType::new(value_type))
 }
 
 pub(super) fn substitute_projected_value_generics(

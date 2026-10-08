@@ -17,7 +17,7 @@ function main;
   unique.add; 'c'
   for value in unique
     print; value
-  pair = tuple; 'left', 'right'
+  pair tuple of string = tuple; 'left', 'right'
   print; pair.length, pair[1]
   explicit = entry; 'key', 7
   print; explicit.key, explicit.value

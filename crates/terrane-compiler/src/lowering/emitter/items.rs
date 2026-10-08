@@ -2483,26 +2483,45 @@ impl<'a> Emitter<'a> {
                 continue;
             }
             let name = rust_binding_name(binding);
-            let ty = self.binding_rust_type(
-                binding,
-                self.binding_scalar_storage_type(binding),
-                self.reference_backed(binding),
-            );
+            // Task expressions keep their concrete future type, as ordinary bindings do.
+            let ty =
+                (!matches!(self.flow_binding_type(binding), ValueType::Task(_, _))).then(|| {
+                    self.binding_rust_type(
+                        binding,
+                        self.binding_scalar_storage_type(binding),
+                        self.reference_backed(binding),
+                    )
+                });
             if self.binding_may_be_unassigned(binding) {
-                self.line(&format!("let mut {name}: Option<{ty}> = None;"));
-            } else {
-                let mutable = if binding_requires_mutable_storage(
-                    self.package,
-                    unit,
-                    binding.span,
-                    false,
-                    self.local_binding_closure_writes(),
-                ) {
-                    "mut "
+                if let Some(ty) = &ty {
+                    self.line(&format!("let mut {name}: Option<{ty}> = None;"));
                 } else {
-                    ""
+                    self.line(&format!("let mut {name} = None;"));
+                }
+            } else {
+                let requires_mutable = if self.reference_backed(binding) {
+                    binding_storage_is_replaced(
+                        self.package,
+                        unit,
+                        binding.span,
+                        self.local_binding_closure_writes(),
+                        true,
+                    )
+                } else {
+                    binding_requires_mutable_storage(
+                        self.package,
+                        unit,
+                        binding.span,
+                        false,
+                        self.local_binding_closure_writes(),
+                    )
                 };
-                self.line(&format!("let {mutable}{name}: {ty};"));
+                let mutable = if requires_mutable { "mut " } else { "" };
+                if let Some(ty) = &ty {
+                    self.line(&format!("let {mutable}{name}: {ty};"));
+                } else {
+                    self.line(&format!("let {mutable}{name};"));
+                }
             }
         }
     }

@@ -158,11 +158,11 @@ function generate codec-source throws consumer-error; request document-value
                 if alias.kind != 'none'
                     alias-value = scalar; (get; alias, 'value')
                     if alias-value.kind != 'string'
-                        raise; record, 'codec wire name must be text and unique'
+                        raise; record, 'codec wire name must be text'
                     wire = text; alias-value
                 for previous in wires
                     if previous == wire
-                        raise; record, 'codec wire name must be text and unique'
+                        raise; record, 'codec wire names must be unique'
                 wires.append; wire
                 required-metadata = annotation-of; record, 'required'
                 required = (truth; (get; field, 'required')) or required-metadata.kind != 'none'

@@ -2722,6 +2722,9 @@ pub(super) fn refresh_typed_bindings_after_effect_inference(
 fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     let enums = super::enums::resolve_enums(package);
     for index in 0..package.units.len() {
+        // Earlier reaching facts may contain provisional projected generic results.
+        // Rebuild bindings from the newly selected expression types, then refresh flow.
+        package.units[index].flow_types.clear();
         let unit = &package.units[index];
         let matches = super::enums::MatchContext::new(package, unit, &enums);
         let mut bindings = Vec::new();
@@ -2736,7 +2739,7 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
         )?;
         package.units[index].typed_bindings = bindings;
     }
-    Ok(())
+    super::scopes::validate_definite_assignment(package)
 }
 fn populate_projected_call_result_types(
     package: &mut SemanticPackage,

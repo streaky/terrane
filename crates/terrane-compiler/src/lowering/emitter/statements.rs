@@ -371,14 +371,6 @@ impl Emitter<'_> {
         if self.assign_static_field(left, &value) {
             return;
         }
-        let value = if assigned_binding
-            .as_ref()
-            .is_some_and(|binding| self.binding_may_be_unassigned(binding))
-        {
-            format!("Some({value})")
-        } else {
-            value
-        };
         let reference_backed = assigned_binding
             .as_ref()
             .is_some_and(|binding| self.reference_backed(binding));
@@ -404,7 +396,14 @@ impl Emitter<'_> {
             self.expression(left)
         };
         self.assignment_target = previous_assignment_target;
-        self.line(&format!("{target} = {value};"));
+        if assigned_binding
+            .as_ref()
+            .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+        {
+            self.line(&format!("let _ = {target}.insert({value});"));
+        } else {
+            self.line(&format!("{target} = {value};"));
+        }
         if let Some(binding) = &assigned_binding
             && !reference_backed
             && !binding_store_value_is_read(self.package, binding.span, node.span)
@@ -762,20 +761,28 @@ impl Emitter<'_> {
                 } else {
                     output
                 };
-                let output = if self.binding_may_be_unassigned(storage) {
-                    format!("Some({output})")
-                } else {
-                    output
-                };
                 let name = if self.active_function_bindings.contains(&storage.span) {
                     rust_binding_name(storage)
                 } else {
                     rust_name(self.text(name_node))
                 };
-                if self.active_function_bindings.contains(&storage.span) {
-                    self.line(&format!("{name} = {output};"));
+                if rust_value_is_copy(&self.flow_binding_type(storage))
+                    && !binding_store_value_is_read(self.package, header.span, header.span)
+                {
+                    self.line(&format!("let _ = {output};"));
+                } else if self.active_function_bindings.contains(&storage.span) {
+                    if self.binding_may_be_unassigned(storage) {
+                        self.line(&format!("let _ = {name}.insert({output});"));
+                    } else {
+                        self.line(&format!("{name} = {output};"));
+                    }
                 } else {
                     let ty = self.binding_rust_type(storage, None, false);
+                    let output = if self.binding_may_be_unassigned(storage) {
+                        format!("Some({output})")
+                    } else {
+                        output
+                    };
                     self.line(&format!("let {name}: {ty} = {output};"));
                 }
             } else {
@@ -956,18 +963,14 @@ impl Emitter<'_> {
                     .find(|binding| binding.span == alias.span);
                 let name = binding.map_or_else(|| rust_name(self.text(alias)), rust_binding_name);
                 let value = format!("__terrane_error_{index}.clone()");
-                let value = if binding.is_some_and(|binding| {
-                    self.active_function_bindings.contains(&binding.span)
-                        && self.binding_may_be_unassigned(binding)
-                }) {
-                    format!("Some({value})")
-                } else {
-                    value
-                };
                 if binding
                     .is_some_and(|binding| self.active_function_bindings.contains(&binding.span))
                 {
-                    self.line(&format!("{name} = {value};"));
+                    if binding.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+                        self.line(&format!("let _ = {name}.insert({value});"));
+                    } else {
+                        self.line(&format!("{name} = {value};"));
+                    }
                 } else {
                     self.line(&format!("let {name} = {value};"));
                 }
@@ -1214,6 +1217,11 @@ impl Emitter<'_> {
             && self
                 .binding_scalar_storage_type(previous)
                 .is_none_or(|scalar| !rust_value_is_copy(&ValueType::Scalar(scalar)))
+            && !self.binding_transferred_to_callable(
+                &self.unit.tree.root,
+                previous_identity,
+                node.span.end,
+            )
             && initializer.is_none_or(|initializer| {
                 !self.initializer_consumes_binding(initializer, previous_identity)
             })
@@ -1244,28 +1252,46 @@ impl Emitter<'_> {
             } else {
                 value
             };
-            if storage_binding.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+            if !deferred
+                && storage_binding.is_some_and(|binding| self.binding_may_be_unassigned(binding))
+            {
                 format!("Some({value})")
             } else {
                 value
             }
         });
+        let consumes_destination = initializer.is_some_and(|initializer| {
+            storage_binding
+                .is_some_and(|binding| self.initializer_consumes_binding(initializer, binding.span))
+        });
+        if (release_previous.is_some() || consumes_destination)
+            && let Some(initialized) = &value
+        {
+            let temporary = rust_local_name("__replacement", node.span);
+            self.line(&format!("let {temporary} = {initialized};"));
+            value = Some(temporary);
+        }
         if let Some(release) = release_previous {
-            if let Some(initialized) = &value {
-                let temporary = rust_local_name("__replacement", node.span);
-                self.line(&format!("let {temporary} = {initialized};"));
-                value = Some(temporary);
-            }
             self.line(&release);
         }
         if deferred && initializer.is_none() {
             return;
         }
+        let uncertain = !discard
+            && deferred
+            && storage_binding.is_some_and(|binding| self.binding_may_be_unassigned(binding));
         self.line_start();
         if discard {
-            self.output.push_str("{ ");
+            self.output.push_str("{ let _");
+            if let Some(ty) = ty {
+                write!(self.output, ": {ty}").unwrap();
+            }
         } else if deferred {
-            write!(self.output, "{name}").unwrap();
+            if uncertain {
+                write!(self.output, "let _ = {name}.insert").unwrap();
+            } else {
+                write!(self.output, "{name}").unwrap();
+            }
         } else {
             self.output.push_str("let ");
             if mutable {
@@ -1277,7 +1303,11 @@ impl Emitter<'_> {
             }
         }
         if let Some(value) = value {
-            write!(self.output, " = {value}").unwrap();
+            if uncertain {
+                write!(self.output, "({value})").unwrap();
+            } else {
+                write!(self.output, " = {value}").unwrap();
+            }
         }
         if discard {
             self.output.push_str("; }\n");
@@ -1381,9 +1411,20 @@ impl Emitter<'_> {
             self.line("}");
             return;
         }
+        let current = self.expression(value);
+        let updated = self.postfix_updated_value(&current, value_type, addition, node);
+        let previous_assignment_target = self.assignment_target;
+        self.assignment_target = true;
         let target = self.expression(value);
-        let updated = self.postfix_updated_value(&target, value_type, addition, node);
-        self.line(&format!("{target} = {updated};"));
+        self.assignment_target = previous_assignment_target;
+        if self
+            .local_typed_binding(value)
+            .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+        {
+            self.line(&format!("let _ = {target}.insert({updated});"));
+        } else {
+            self.line(&format!("{target} = {updated};"));
+        }
     }
 
     #[expect(
@@ -1520,10 +1561,13 @@ impl Emitter<'_> {
             let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
             let vector = format!("__terrane_list_append_{}", self.list_append_counter);
             self.list_append_counter += 1;
-            self.line(&format!(
-                "let {vector} = {}.make_unique();",
-                crate::lowering::binding_storage_rust_name(self.unit, binding)
-            ));
+            let storage = crate::lowering::binding_storage_rust_name(self.unit, binding);
+            let storage = if self.binding_may_be_unassigned(binding) {
+                format!("{storage}.as_mut().expect(\"flow-proven available binding\")")
+            } else {
+                storage
+            };
+            self.line(&format!("let {vector} = {storage}.make_unique();"));
             if let Some((start, end)) = capacity_hint {
                 self.line(&format!(
                     "if let (Ok(__terrane_start), Ok(__terrane_end)) = (usize::try_from({start}), usize::try_from({end})) {{"
@@ -1587,7 +1631,7 @@ impl Emitter<'_> {
         let length = format!("__terrane_list_length_{loop_index}");
         let capacity_limit = format!("__terrane_list_capacity_limit_{loop_index}");
         let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
-        self.line(&format!("let {start} = {};", builder.index));
+        self.line(&format!("let {start} = {};", builder.index_read));
         self.line(&format!("let {end} = {};", builder.end));
         self.line(&format!("let {length} = ({start}..{end}).size_hint().0;"));
         self.line(&format!(
@@ -1595,23 +1639,32 @@ impl Emitter<'_> {
         ));
         self.line(&format!("if {length} <= {capacity_limit} {{"));
         self.indent += 1;
-        self.line(&format!(
-            "*{vector} = ({start}..{end}).map(|{}| {{",
-            builder.index
-        ));
+        self.line(&format!("{vector}.reserve({length});"));
+        let iteration_index = format!("__terrane_list_index_{loop_index}");
+        self.line(&format!("for {iteration_index} in {start}..{end} {{"));
         self.indent += 1;
+        if builder.index_optional {
+            self.line(&format!(
+                "let _ = {}.insert({iteration_index});",
+                builder.index
+            ));
+        } else {
+            self.line(&format!("{} = {iteration_index};", builder.index));
+        }
         for statement in &builder.prefix {
             self.statement(statement);
         }
         self.debug_point(&builder.append, "user");
         let value = self.expression_as(&builder.value, item_type);
-        self.line(&value);
+        self.line(&format!("{vector}.push({value});"));
         self.indent -= 1;
-        self.line("}).collect();");
-        self.line(&format!(
-            "{} = std::cmp::max({start}, {end});",
-            builder.index
-        ));
+        self.line("}");
+        let final_index = format!("std::cmp::max({start}, {end})");
+        if builder.index_optional {
+            self.line(&format!("let _ = {}.insert({final_index});", builder.index));
+        } else {
+            self.line(&format!("{} = {final_index};", builder.index));
+        }
         self.indent -= 1;
         self.line("} else {");
         self.indent += 1;
@@ -1881,7 +1934,11 @@ impl Emitter<'_> {
                             .expect("for target type belongs to flow union");
                         assigned = format!("{}::Arm{index}({assigned})", union_type_name(storage));
                     }
-                    if storage.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+                    let uncertain = active
+                        && storage.is_some_and(|binding| self.binding_may_be_unassigned(binding));
+                    if !active
+                        && storage.is_some_and(|binding| self.binding_may_be_unassigned(binding))
+                    {
                         assigned = format!("Some({assigned})");
                     }
                     let declaration = if active {
@@ -1900,7 +1957,11 @@ impl Emitter<'_> {
                         };
                         format!("let {mutable}{name}")
                     };
-                    self.line(&format!("{declaration} = {assigned};"));
+                    if uncertain {
+                        self.line(&format!("let _ = {name}.insert({assigned});"));
+                    } else {
+                        self.line(&format!("{declaration} = {assigned};"));
+                    }
                     if !binding_store_value_is_read(self.package, target_span, target_span) {
                         self.line(&format!("let _ = &{name};"));
                     }
@@ -1976,17 +2037,24 @@ impl Emitter<'_> {
         } else {
             next
         };
-        let next = if storage.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
-            format!("Some({next})")
-        } else {
-            next
-        };
+        let uncertain =
+            active && storage.is_some_and(|binding| self.binding_may_be_unassigned(binding));
+        let next =
+            if !active && storage.is_some_and(|binding| self.binding_may_be_unassigned(binding)) {
+                format!("Some({next})")
+            } else {
+                next
+            };
         let declaration = if active {
             storage_name.clone()
         } else {
             format!("let {mutable}{storage_name}")
         };
-        self.line(&format!("{declaration} = {next};"));
+        if uncertain {
+            self.line(&format!("let _ = {storage_name}.insert({next});"));
+        } else {
+            self.line(&format!("{declaration} = {next};"));
+        }
         if !binding_store_value_is_read(self.package, name_span, name_span) {
             self.line(&format!("let _ = &{storage_name};"));
         }

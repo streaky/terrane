@@ -126,6 +126,8 @@ pub(super) struct ListAppendBorrow {
 pub(super) struct IteratorListBuilder {
     pub(super) binding: crate::Span,
     pub(super) index: String,
+    pub(super) index_read: String,
+    pub(super) index_optional: bool,
     pub(super) end: String,
     pub(super) prefix: Vec<crate::syntax::SyntaxNode>,
     pub(super) append: crate::syntax::SyntaxNode,

@@ -342,6 +342,11 @@ fn rust_callable_parameter_type(
 ) -> String {
     if parameter.is_variadic() {
         rust_value_type(package, ValueType::List(parameter.element_type()))
+    } else if parameter.requires_mutable_reference() {
+        let ValueType::Reference(item) = parameter.value_type_ref() else {
+            unreachable!("mutable native callback parameter must be a reference")
+        };
+        format!("&mut {}", rust_element_type(package, item.clone()))
     } else {
         rust_element_type(package, parameter.element_type())
     }

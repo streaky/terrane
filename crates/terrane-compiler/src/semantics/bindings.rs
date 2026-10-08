@@ -462,6 +462,7 @@ pub(super) enum BindingEvent {
     },
     Write {
         span: Span,
+        declaration_store: bool,
         loops: Vec<Span>,
         regions: Vec<ControlRegion>,
     },
@@ -605,6 +606,7 @@ pub(super) fn record_declared_binding_writes(
                     .or_default()
                     .push(BindingEvent::Write {
                         span: name.span,
+                        declaration_store: true,
                         loops: loops.to_vec(),
                         regions: regions.to_vec(),
                     });
@@ -631,6 +633,7 @@ pub(super) fn record_declared_binding_writes(
             .or_default()
             .push(BindingEvent::Write {
                 span: initial_store_span(node, binding),
+                declaration_store: true,
                 loops: loops.to_vec(),
                 regions: regions.to_vec(),
             });
@@ -713,6 +716,7 @@ pub(super) fn collect_binding_events(
                 .or_default()
                 .push(BindingEvent::Write {
                     span: node.span,
+                    declaration_store: false,
                     loops: loops.clone(),
                     regions: regions.clone(),
                 });
@@ -774,10 +778,24 @@ pub(crate) fn binding_requires_mutable_storage(
             .copied()
             .unwrap_or(binding.span)
             == declaration_span
+            && !matches!(
+                binding.value_type,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            )
             && binding_span_has_interior_mutation(package, unit, binding.span, closure_writes)
     }) {
         return true;
     }
+    binding_storage_is_replaced(package, unit, declaration_span, closure_writes, false)
+}
+
+pub(crate) fn binding_storage_is_replaced(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    declaration_span: Span,
+    closure_writes: ClosureWrites,
+    declarations_only: bool,
+) -> bool {
     let declaration_function = unit
         .enclosing_function_spans
         .get(&declaration_span.start)
@@ -798,15 +816,17 @@ pub(crate) fn binding_requires_mutable_storage(
         .filter_map(|event| match event {
             BindingEvent::Write {
                 span,
+                declaration_store,
                 loops,
                 regions,
-            } if closure_writes == ClosureWrites::Include
-                || unit
-                    .enclosing_function_spans
-                    .get(&span.start)
-                    .copied()
-                    .flatten()
-                    == declaration_function =>
+            } if (!declarations_only || *declaration_store)
+                && (closure_writes == ClosureWrites::Include
+                    || unit
+                        .enclosing_function_spans
+                        .get(&span.start)
+                        .copied()
+                        .flatten()
+                        == declaration_function) =>
             {
                 Some((loops, regions))
             }
@@ -814,12 +834,24 @@ pub(crate) fn binding_requires_mutable_storage(
         })
         .collect::<Vec<_>>();
     writes.iter().any(|(loops, _)| !loops.is_empty())
-        || writes.iter().enumerate().any(|(index, (_, left))| {
+        || (unit.flow_replacements.iter().any(|(statement, previous)| {
+            unit.flow_binding_ids
+                .get(&span_key(*statement))
+                .copied()
+                .unwrap_or(*statement)
+                == declaration_span
+                && unit
+                    .flow_binding_ids
+                    .get(&span_key(*previous))
+                    .copied()
+                    .unwrap_or(*previous)
+                    == declaration_span
+        }) && writes.iter().enumerate().any(|(index, (_, left))| {
             writes
                 .iter()
                 .skip(index + 1)
                 .any(|(_, right)| !regions_conflict(left, right))
-        })
+        }))
 }
 
 pub(super) fn later_store_replaces(earlier: &[ControlRegion], later: &[ControlRegion]) -> bool {
@@ -1642,6 +1674,7 @@ pub(crate) fn binding_store_value_is_read(
                 span,
                 loops,
                 regions,
+                ..
             } = event
             else {
                 return None;
@@ -2208,10 +2241,17 @@ fn local_lender_name(
     if node.kind == SyntaxKind::Name {
         let name = node_text(&unit.source, node);
         let binding = visible_binding(unit, node)?;
-        if !contract
-            .parameters
-            .iter()
-            .any(|parameter| parameter.name == name)
+        let externally_lent = unit
+            .reference_provenance
+            .get(&(binding.span.start, binding.span.end))
+            .is_some_and(|provenance| {
+                provenance.external_lender && provenance.lender_parameter.is_some()
+            });
+        if !externally_lent
+            && !contract
+                .parameters
+                .iter()
+                .any(|parameter| parameter.name == name)
             && binding.scope == Some(function_span)
             && invocation_scoped_region(&binding.value_type).is_none()
         {

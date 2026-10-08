@@ -78,6 +78,7 @@ function main;
     if after != none
         print; after
     if snapshot != none
+        snapshot.set_sensitive; false
         print; (snapshot.is_sensitive;)
     (headers.get_mut; 'forwarded').map; mark-sensitive
     empty bool|none = (headers.get_mut; 'forwarded').and_then; clear-sensitive-optional

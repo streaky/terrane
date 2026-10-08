@@ -813,6 +813,10 @@ impl CallableParameterType {
     pub(crate) fn is_variadic(&self) -> bool {
         self.variadic
     }
+
+    pub(crate) fn requires_mutable_reference(&self) -> bool {
+        self.requires_mutable_reference
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

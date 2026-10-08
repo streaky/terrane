@@ -54,6 +54,13 @@ pub(super) fn analyze_binding_node(
     bindings: &mut Vec<TypedBinding>,
     scope: Option<Span>,
 ) -> Result<(), SemanticFailure> {
+    let scope = if node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "global"
+    }) {
+        None
+    } else {
+        scope
+    };
     if node.kind == SyntaxKind::Assignment
         && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::MemberExpression
@@ -1837,6 +1844,14 @@ pub(crate) fn narrowed_value_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Option<ValueType> {
+    // Reaching-path facts already account for guards and subsequent replacements.
+    // A lexical guard must not narrow a newly assigned nullable value again.
+    if unit
+        .flow_types
+        .contains_key(&(node.span.file, node.span.start, node.span.end))
+    {
+        return None;
+    }
     let name = node_text(&unit.source, node);
     let function_span = unit
         .enclosing_function_spans

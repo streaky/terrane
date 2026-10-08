@@ -10,4 +10,7 @@ drop moved-once
 drop union-resource
 union-replacement
 13
+drop consumed
+consumed
+plain
 end

@@ -31,12 +31,7 @@ impl Emitter<'_> {
             return "()".to_owned();
         }
         if source_name == "this" {
-            return if self.closure_depth == 0 {
-                "self"
-            } else {
-                "this"
-            }
-            .to_owned();
+            return self.receiver_capture_name(node);
         }
         if let Some(name) = self.narrowed_name(node) {
             return name;
@@ -77,7 +72,7 @@ impl Emitter<'_> {
             && self.binding_may_be_unassigned(binding)
             && !self.assignment_target
         {
-            let access = self.available_storage_reference(binding, node);
+            let access = self.available_storage_reference(binding, node, false);
             if self.reference_backed(binding) {
                 return format!(
                     "({{ let __terrane_value = {access}.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})"
@@ -112,6 +107,41 @@ impl Emitter<'_> {
         } else {
             self.local_storage_name(node)
         }
+    }
+
+    fn receiver_capture_name(&self, node: &SyntaxNode) -> String {
+        if self.closure_depth == 0 {
+            return "self".to_owned();
+        }
+        let closure = self
+            .unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.is_anonymous
+                    && function.span.start <= node.span.start
+                    && node.span.end <= function.span.end
+                    && function.captures.iter().any(|capture| capture == "this")
+            })
+            .min_by_key(|function| function.span.end - function.span.start);
+        if let Some(closure) = closure
+            && let Some(binding) = self.unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == "this"
+                    && binding.is_visible_at(self.source.id(), closure.span.start)
+            })
+        {
+            return if self.unit.functions.iter().any(|function| {
+                function
+                    .parameters
+                    .iter()
+                    .any(|parameter| parameter.span == binding.span)
+            }) {
+                rust_name("this")
+            } else {
+                rust_binding_name(binding)
+            };
+        }
+        "this".to_owned()
     }
 
     pub(super) fn raw_storage_name(&self, node: &SyntaxNode) -> String {
@@ -294,15 +324,58 @@ impl Emitter<'_> {
             .any(|child| self.initializer_consumes_binding(child, identity))
     }
 
+    pub(super) fn binding_transferred_to_callable(
+        &self,
+        node: &SyntaxNode,
+        identity: crate::Span,
+        before: usize,
+    ) -> bool {
+        if node.span.start >= before {
+            return false;
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        ) && !(node.span.start <= identity.start && identity.end <= node.span.end)
+        {
+            return false;
+        }
+        if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+            && let Some(name_index) = node.children.iter().position(|child| child.kind == SyntaxKind::Name)
+            && let Some(initializer) = binding_initializer(node, name_index)
+            && initializer.kind == SyntaxKind::MemberExpression
+            && let Some(receiver) = initializer.children.first()
+            && receiver.kind == SyntaxKind::Name
+            && self.local_binding_identity(receiver) == Some(identity)
+            && self.contract_for_call(initializer, false).is_some()
+            && !self.binding_value_is_reused(receiver)
+            && !self.non_consuming_capture_read(receiver)
+            && self.local_typed_binding(receiver).is_some_and(|binding| {
+                !self.reference_backed(binding) && !self.binding_may_be_unassigned(binding)
+            })
+            && self.value_type(receiver).is_some_and(|value_type| {
+                !rust_value_is_copy(&value_type)
+                    && !matches!(&value_type, ValueType::Object(object) if self.object_requires_separation(object))
+            })
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| self.binding_transferred_to_callable(child, identity, before))
+    }
+
     pub(super) fn available_storage_reference(
         &self,
         binding: &TypedBinding,
         node: &SyntaxNode,
+        mutable: bool,
     ) -> String {
         let storage = self.local_storage_name(node);
         if !self.binding_may_be_unassigned(binding) {
-            return format!("&{storage}");
+            return format!("&{}{storage}", if mutable { "mut " } else { "" });
         }
+        let access = if mutable { "as_mut" } else { "as_ref" };
         if self
             .unit
             .flow_availability
@@ -310,9 +383,38 @@ impl Emitter<'_> {
             == Some(&crate::semantics::FlowAvailability::MayBeUnassigned)
         {
             let failure = self.uninitialized_binding_failure(node);
-            format!("{storage}.as_ref().unwrap_or_else(|| {failure})")
+            format!("{storage}.{access}().unwrap_or_else(|| {failure})")
         } else {
-            format!("{storage}.as_ref().expect(\"flow-proven available binding\")")
+            format!("{storage}.{access}().expect(\"flow-proven available binding\")")
+        }
+    }
+
+    pub(super) fn owned_storage_value(&self, node: &SyntaxNode) -> String {
+        let storage = self.raw_storage_name(node);
+        let Some(binding) = self
+            .local_typed_binding(node)
+            .filter(|binding| self.binding_may_be_unassigned(binding))
+        else {
+            return storage;
+        };
+        if rust_value_is_copy(&self.flow_binding_type(binding)) {
+            return format!(
+                "*({})",
+                self.available_storage_reference(binding, node, false)
+            );
+        }
+        if self
+            .unit
+            .flow_availability
+            .get(&(node.span.file, node.span.start, node.span.end))
+            == Some(&crate::semantics::FlowAvailability::MayBeUnassigned)
+        {
+            format!(
+                "{storage}.take().unwrap_or_else(|| {})",
+                self.uninitialized_binding_failure(node)
+            )
+        } else {
+            format!("{storage}.take().expect(\"flow-proven availability\")")
         }
     }
     pub(super) fn is_throwable_value(&self, node: &SyntaxNode) -> bool {
@@ -400,6 +502,20 @@ impl Emitter<'_> {
             else {
                 return false;
             };
+            if self
+                .unit
+                .flow_availability
+                .iter()
+                .any(|(key, availability)| {
+                    key.0 == block.span.file
+                        && block.span.start <= key.1
+                        && key.2 <= block.span.end
+                        && *availability == crate::semantics::FlowAvailability::MayBeUnassigned
+                        && self.unit.flow_binding_ids.get(key) == Some(&binding.span)
+                })
+            {
+                return false;
+            }
             let (condition_references, _) = uses(self, condition, false, binding.span);
             let (references, appends) = uses(self, block, false, binding.span);
             condition_references == 0 && appends > 0 && references == appends
@@ -442,6 +558,7 @@ impl Emitter<'_> {
         block: &SyntaxNode,
     ) -> Option<(String, String)> {
         self.list_append_capacity_hint(condition, None, block)
+            .map(|(_, start, end, _)| (start, end))
     }
 
     pub(super) fn for_capacity_hint(
@@ -451,6 +568,7 @@ impl Emitter<'_> {
         block: &SyntaxNode,
     ) -> Option<(String, String)> {
         self.list_append_capacity_hint(condition, Some(update), block)
+            .map(|(_, start, end, _)| (start, end))
     }
 
     fn list_append_capacity_hint(
@@ -458,7 +576,7 @@ impl Emitter<'_> {
         condition: &SyntaxNode,
         update: Option<&SyntaxNode>,
         block: &SyntaxNode,
-    ) -> Option<(String, String)> {
+    ) -> Option<(String, String, String, bool)> {
         fn mutation_count(
             emitter: &Emitter<'_>,
             node: &SyntaxNode,
@@ -542,7 +660,7 @@ impl Emitter<'_> {
             let upper_update_mutations =
                 update.map_or(0, |update| mutation_count(self, update, upper));
             (mutation_count(self, block, upper) + upper_update_mutations == 0).then_some(())?;
-            rust_name(&upper.name)
+            self.name(right)
         } else {
             (right.kind == SyntaxKind::Literal).then_some(())?;
             format!(
@@ -551,7 +669,12 @@ impl Emitter<'_> {
                 if signed { "i" } else { "u" }
             )
         };
-        Some((rust_name(&binding.name), end))
+        Some((
+            self.local_storage_name(left),
+            self.name(left),
+            end,
+            self.binding_may_be_unassigned(binding),
+        ))
     }
 
     pub(super) fn fresh_lists_referenced_by(&self, node: &SyntaxNode) -> Vec<crate::Span> {
@@ -592,7 +715,8 @@ impl Emitter<'_> {
                     .iter()
                     .any(|child| contains_await(emitter, child))
         }
-        let (index, end) = self.while_capacity_hint(condition, block)?;
+        let (index, index_read, end, index_optional) =
+            self.list_append_capacity_hint(condition, None, block)?;
         let [left, right] = condition.children.as_slice() else {
             return None;
         };
@@ -634,6 +758,8 @@ impl Emitter<'_> {
         Some(IteratorListBuilder {
             binding,
             index,
+            index_read,
+            index_optional,
             end,
             prefix: prefix.to_vec(),
             append: append.clone(),
@@ -988,7 +1114,7 @@ impl Emitter<'_> {
 
     pub(super) fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {
         if self.reference_backed_name(operand).is_some() {
-            format!("({}).clone()", rust_name(self.text(operand)))
+            format!("({}).clone()", self.local_storage_name(operand))
         } else {
             format!(
                 "std::sync::Arc::new(std::sync::Mutex::new({}))",
@@ -1030,11 +1156,23 @@ impl Emitter<'_> {
         ) {
             return format!("std::sync::Arc::downgrade(&{})", self.expression(operand));
         }
+        if self
+            .value_type(operand)
+            .is_some_and(|value_type| !rust_value_is_copy(&value_type))
+            && let Some(reference) = self.narrowed_storage_name(operand, false, false)
+        {
+            return reference;
+        }
         if self.narrowed_optional_name(operand).is_some() {
-            let source_name = rust_name(self.text(operand));
+            let source_name = self.name(operand);
             return format!("&*{source_name}.as_ref().expect(\"semantic optional narrowing\")");
         }
         if operand.kind == SyntaxKind::Name {
+            if let Some(binding) = self.local_typed_binding(operand)
+                && self.binding_may_be_unassigned(binding)
+            {
+                return self.available_storage_reference(binding, operand, false);
+            }
             return format!("&{}", self.raw_storage_name(operand));
         }
         if operand.kind == SyntaxKind::MemberExpression
@@ -1198,26 +1336,32 @@ impl Emitter<'_> {
                     && binding.is_visible_at(self.unit.source.id(), node.span.start)
                     && !matches!(binding.value_type, ValueType::Reference(_))
                     && !rust_value_is_copy(&binding.value_type)
-                    && identifiers.contains(&rust_name(&binding.name))
+                    && identifiers.contains(&crate::lowering::binding_storage_rust_name(
+                        self.unit, binding,
+                    ))
             })
             .map(|binding| {
-                let name = rust_name(&binding.name);
+                let name = crate::lowering::binding_storage_rust_name(self.unit, binding);
                 format!("let {name} = {name}.clone();")
             })
             .collect::<Vec<_>>()
             .join(" ")
     }
     pub(super) fn inline_rust_expression(&self, node: &SyntaxNode) -> String {
+        let body = self.rust_block_body(node);
+        let prelude = self.rust_block_clone_prelude(node);
+        if node.kind == SyntaxKind::RustBlock
+            && prelude.is_empty()
+            && syn::parse_str::<syn::Expr>(&body).is_ok()
+        {
+            return format!("({body})");
+        }
         let boundary = if node.kind == SyntaxKind::UnsafeRustBlock {
             "unsafe "
         } else {
             ""
         };
-        format!(
-            "{boundary}{{ {} {} }}",
-            self.rust_block_clone_prelude(node),
-            self.rust_block_body(node)
-        )
+        format!("{boundary}{{ {prelude} {body} }}")
     }
 
     pub(super) fn inline_rust_statement(&mut self, node: &SyntaxNode) {
@@ -1272,7 +1416,12 @@ impl Emitter<'_> {
         self.line(&format!("__terrane_debug_point!({comment:?});"));
     }
 
-    pub(super) fn narrowed_storage_name(&self, node: &SyntaxNode, owned: bool) -> Option<String> {
+    pub(super) fn narrowed_storage_name(
+        &self,
+        node: &SyntaxNode,
+        owned: bool,
+        mutable: bool,
+    ) -> Option<String> {
         if self.assignment_target {
             return None;
         }
@@ -1294,42 +1443,33 @@ impl Emitter<'_> {
             ValueType::Optional(inner) if inner.as_ref() == value_type => "Some".to_owned(),
             _ => return None,
         };
+        let copy = rust_value_is_copy(value_type) || matches!(value_type, ValueType::Reference(_));
         let take = owned
-            && !rust_value_is_copy(value_type)
+            && !mutable
+            && !copy
             && !self.value_type_owns_resource(value_type)
             && !self.binding_value_is_reused(node)
             && !self.non_consuming_capture_read(node);
         let access = if take {
-            let storage = self.local_storage_name(node);
-            if self
-                .local_typed_binding(node)
-                .is_some_and(|binding| self.binding_may_be_unassigned(binding))
-            {
-                if self.unit.flow_availability.get(&key)
-                    == Some(&crate::semantics::FlowAvailability::MayBeUnassigned)
-                {
-                    format!(
-                        "{storage}.take().unwrap_or_else(|| {})",
-                        self.uninitialized_binding_failure(node)
-                    )
-                } else {
-                    format!("{storage}.take().expect(\"flow-proven availability\")")
-                }
-            } else {
-                storage
-            }
+            self.owned_storage_value(node)
         } else {
             self.local_typed_binding(node).map_or_else(
-                || format!("&{}", self.local_storage_name(node)),
-                |binding| self.available_storage_reference(binding, node),
+                || {
+                    format!(
+                        "{}{}",
+                        if mutable { "&mut " } else { "&" },
+                        self.local_storage_name(node)
+                    )
+                },
+                |binding| self.available_storage_reference(binding, node, mutable),
             )
         };
         let value = format!(
             "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
         );
-        Some(if take {
+        Some(if mutable || take {
             format!("({value})")
-        } else if rust_value_is_copy(value_type) {
+        } else if copy {
             format!("*({value})")
         } else if owned && !self.value_type_owns_resource(value_type) {
             format!("({value}).clone()")
@@ -1339,7 +1479,7 @@ impl Emitter<'_> {
     }
 
     fn narrowed_name(&self, node: &SyntaxNode) -> Option<String> {
-        if let Some(value) = self.narrowed_storage_name(node, false) {
+        if let Some(value) = self.narrowed_storage_name(node, false, false) {
             return Some(value);
         }
         let source_name = self.text(node);

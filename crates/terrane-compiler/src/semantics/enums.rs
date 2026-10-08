@@ -7,6 +7,7 @@ pub(super) struct ResolvedEnum {
     variants: Vec<(String, Vec<ValueType>)>,
     generic_parameters: Vec<GenericParameterContract>,
     exhaustive: bool,
+    projected: bool,
     unavailable_variants: BTreeSet<String>,
 }
 
@@ -309,7 +310,11 @@ fn validate_match(
                 continue;
             }
             let field_type = substitute_value_type(ty, &substitutions);
-            let binding_type = if borrowed {
+            // Native unbounded integers are converted to Terrane's integer
+            // representation, so this payload is a value, not a borrowed view.
+            let payload_borrowed = borrowed
+                && !(contract.projected && field_type == ValueType::Scalar(ScalarType::Int));
+            let binding_type = if payload_borrowed {
                 ValueType::Reference(ElementType::new(field_type))
             } else {
                 field_type
@@ -324,7 +329,7 @@ fn validate_match(
                 storage_type: None,
                 mutable: false,
             });
-            if borrowed {
+            if payload_borrowed {
                 provenance.insert(
                     (name_node.span.start, name_node.span.end),
                     ReferenceProvenance {
@@ -449,6 +454,7 @@ pub(super) fn resolve_enums(package: &SemanticPackage) -> Vec<ResolvedEnum> {
                         .collect(),
                     generic_parameters,
                     exhaustive: true,
+                    projected: false,
                     unavailable_variants: BTreeSet::new(),
                 }
             })
@@ -491,6 +497,7 @@ pub(super) fn resolve_enums(package: &SemanticPackage) -> Vec<ResolvedEnum> {
                 variants: resolved,
                 generic_parameters,
                 exhaustive: *exhaustive,
+                projected: true,
                 unavailable_variants,
             });
         }

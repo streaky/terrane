@@ -213,6 +213,43 @@ impl Emitter<'_> {
             })
     }
 
+    pub(super) fn moved_name(&self, operand: &SyntaxNode) -> String {
+        let source_name = self.text(operand);
+        let narrowed = narrowed_value_type(self.unit, operand, &self.unit.typed_bindings)
+            .or_else(|| {
+                self.parameter_types
+                    .iter()
+                    .rev()
+                    .find(|(name, _)| name == source_name)
+                    .and_then(|(_, value_type)| {
+                        narrowed_optional_type(self.unit, operand, value_type.clone())
+                    })
+            })
+            .or_else(|| {
+                let binding = self.local_typed_binding(operand)?;
+                let ValueType::Optional(inner) = self.flow_binding_type(binding) else {
+                    return None;
+                };
+                (self.value_type(operand).as_ref() == Some(inner.as_ref())).then_some(*inner)
+            });
+        let storage = self.owned_storage_value(operand);
+        if let Some(binding) = self.local_typed_binding(operand)
+            && let ValueType::Union(arms) = self.flow_binding_type(binding)
+            && let Some(value_type) = self.value_type(operand)
+            && let Some(index) = arms.iter().position(|arm| *arm == value_type)
+        {
+            let variant = union_type_name(binding);
+            return format!(
+                "(match {storage} {{ {variant}::Arm{index}(value) => value, _ => unreachable!(\"semantic type refinement\") }})"
+            );
+        }
+        if narrowed.is_some() {
+            format!("{storage}.expect(\"semantic optional narrowing\")")
+        } else {
+            storage
+        }
+    }
+
     fn unary_expression(&mut self, node: &SyntaxNode) -> String {
         let Some(operand) = node.children.last() else {
             return String::new();
@@ -240,29 +277,7 @@ impl Emitter<'_> {
         }
         if source_operator == "move" {
             return match operand.kind {
-                SyntaxKind::Name => {
-                    let source_name = self.text(operand);
-                    let narrowed = narrowed_value_type(
-                        self.unit,
-                        operand,
-                        &self.unit.typed_bindings,
-                    )
-                    .or_else(|| {
-                        self.parameter_types
-                            .iter()
-                            .rev()
-                            .find(|(name, _)| name == source_name)
-                            .and_then(|(_, value_type)| {
-                                narrowed_optional_type(self.unit, operand, value_type.clone())
-                            })
-                    });
-                    let storage = self.raw_storage_name(operand);
-                    if narrowed.is_some() {
-                        format!("{storage}.expect(\"semantic optional narrowing\")")
-                    } else {
-                        storage
-                    }
-                }
+                SyntaxKind::Name => self.moved_name(operand),
                 SyntaxKind::MemberExpression
                     if matches!(self.value_type(operand), Some(ValueType::Optional(_))) =>
                 {
@@ -404,7 +419,7 @@ impl Emitter<'_> {
     ) -> String {
         if node.kind == SyntaxKind::Name
             && self.value_type(node).as_ref() == Some(&value_type)
-            && let Some(value) = self.narrowed_storage_name(node, true)
+            && let Some(value) = self.narrowed_storage_name(node, true, false)
         {
             return value;
         }
@@ -1433,7 +1448,36 @@ impl Emitter<'_> {
         if left_is_none && is_optional(right_type) {
             return Some(presence_check(self.expression(right)));
         }
-        None
+        let optional_origin = |mut operand: &SyntaxNode| {
+            while operand.kind == SyntaxKind::GroupExpression
+                && let Some(inner) = operand.children.first()
+            {
+                operand = inner;
+            }
+            self.local_typed_binding(operand).is_some_and(|binding| {
+                matches!(self.flow_binding_type(binding), ValueType::Optional(_))
+            })
+        };
+        let refined = if right_is_none && optional_origin(left) {
+            Some(left)
+        } else if left_is_none && optional_origin(right) {
+            Some(right)
+        } else {
+            None
+        };
+        refined.map(|operand| {
+            let value = self.expression(operand);
+            let present = self.value_type(operand) != Some(ValueType::Scalar(ScalarType::None));
+            let result = present == (operator == "!=");
+            format!("{{ let _ = &{value}; {result} }}")
+        })
+    }
+    fn string_comparison_operand(&mut self, node: &SyntaxNode) -> String {
+        if node.kind == SyntaxKind::Literal {
+            crate::lowering::helpers::native_macro_literal(self.text(node))
+        } else {
+            format!("({}).as_str()", self.receiver_expression(node))
+        }
     }
 
     #[expect(
@@ -1506,6 +1550,14 @@ impl Emitter<'_> {
             return comparison;
         }
         let comparison = matches!(source_operator, "==" | "!=" | "<" | "<=" | ">" | ">=");
+        if comparison
+            && self.value_type(left) == Some(ValueType::Scalar(ScalarType::String))
+            && self.value_type(right) == Some(ValueType::Scalar(ScalarType::String))
+        {
+            let left = self.string_comparison_operand(left);
+            let right = self.string_comparison_operand(right);
+            return format!("({left} {source_operator} {right})");
+        }
         let left_is_small = self.small_int_binding(left).is_some()
             || matches!(
                 contextual_constant(self.source, left, ScalarType::Int64),
@@ -1743,18 +1795,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn binding_value_is_reused(&self, node: &SyntaxNode) -> bool {
-        let name = self.text(node);
-        self.unit
-            .typed_bindings
-            .iter()
-            .rev()
-            .find(|binding| {
-                binding.name == name
-                    && binding.is_visible_at(self.unit.source.id(), node.span.start)
-            })
-            .is_some_and(|binding| {
-                binding_read_value_is_reused(self.package, binding.span, node.span)
-            })
+        self.local_typed_binding(node).is_some_and(|binding| {
+            binding_read_value_is_reused(self.package, binding.span, node.span)
+        })
     }
 
     pub(in crate::lowering) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {

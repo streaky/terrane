@@ -710,7 +710,9 @@ pub(crate) fn binding_span_has_interior_mutation(
         package,
         unit,
         declaration_span,
-        false,
+        unit.typed_bindings.iter().any(|binding| {
+            binding.span == declaration_span && matches!(binding.value_type, ValueType::Iterator(_))
+        }),
         closure_writes,
         true,
         &unit.tree.root,
@@ -770,8 +772,7 @@ fn binding_mutation_count(
                 && (closure_writes == ClosureWrites::Include || !callable_field)
                 && resolves_to_binding(receiver)
         });
-    let iterator_advance = !only_interior
-        && iterator_binding
+    let iterator_advance = iterator_binding
         && node.kind == SyntaxKind::ForStatement
         && node.children.get(1).is_some_and(resolves_to_binding);
     let projected_argument_write = node.kind == SyntaxKind::CallExpression

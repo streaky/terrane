@@ -748,12 +748,11 @@ impl<'a> Emitter<'a> {
                                 }
                                 let projected =
                                     substitute_projected_generic(&field.ty, &selected_types);
+                                // Fixed-width payloads retain their native borrowed
+                                // representation. Unbounded integers require a value conversion.
                                 if matches!(
                                     projected,
                                     crate::rust_interop::projection::ProjectedType::Int
-                                        | crate::rust_interop::projection::ProjectedType::RustInt(
-                                            _
-                                        )
                                 ) {
                                     let name = rust_name(binding);
                                     let converted = projected_result_expression(
@@ -873,9 +872,13 @@ impl<'a> Emitter<'a> {
                     value = format!("{}::Arm{index}({value})", union_type_name(storage));
                 }
                 if self.binding_may_be_unassigned(storage) {
-                    value = format!("Some({value})");
+                    self.line(&format!(
+                        "let _ = {}.insert({value});",
+                        rust_binding_name(storage)
+                    ));
+                } else {
+                    self.line(&format!("{} = {value};", rust_binding_name(storage)));
                 }
-                self.line(&format!("{} = {value};", rust_binding_name(storage)));
             }
             if let Some(body) = case
                 .children

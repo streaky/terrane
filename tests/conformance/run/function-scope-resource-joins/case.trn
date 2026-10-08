@@ -7,6 +7,8 @@ class marker
         this.name = name
     consuming function destruct;
         print; 'drop ', this.name
+    consuming function consume-name string;
+        return this.name
 
 function replace-old;
     value marker = instance marker; name = 'old'
@@ -37,6 +39,16 @@ function union-resource; choose bool
         item string = 'union-replacement'
     print; item
 
+function move-union-resource string; choose bool
+    if choose
+        item marker = instance marker; name = 'consumed'
+    else
+        item string = 'plain'
+    if item is a string
+        return item
+    else
+        return (move item).consume-name;
+
 function main;
     conditional-resource; true
     conditional-resource; false
@@ -44,4 +56,6 @@ function main;
     moved-replacement;
     union-resource; true
     union-resource; false
+    print; (move-union-resource; true)
+    print; (move-union-resource; false)
     print; 'end'

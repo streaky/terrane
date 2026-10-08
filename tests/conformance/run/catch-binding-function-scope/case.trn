@@ -1,4 +1,4 @@
-namespace catch-binding-out-of-scope
+namespace catch-binding-function-scope
 from /core/errors import arithmetic-overflow
 from /core/output import print
 

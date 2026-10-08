@@ -518,6 +518,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                             .position(|binding| binding.span == span)
                     })
                     .or_else(|| {
+                        unit.typed_bindings
+                            .iter()
+                            .position(|binding| binding.span == node.span)
+                    })
+                    .or_else(|| {
                         binding_at(unit, node_text(&unit.source, target), target.span.start)
                     })
             });
@@ -773,7 +778,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             *moved = entry;
             return Ok(());
         }
-        for child in &node.children {
+        for (index, child) in node.children.iter().enumerate() {
+            if !super::scopes::is_flow_value_child(node, index, child) {
+                continue;
+            }
             visit(package, unit, child, moved, false, resource_objects)?;
         }
         Ok(())
@@ -880,10 +888,15 @@ fn first_owner_lifetime_end(
         _ => None,
     };
     if node.span.start > after
-        && target
-            .and_then(root_name)
-            .and_then(|target| binding_at(unit, target))
-            .is_some_and(|binding| binding.span == owner)
+        && target.and_then(root_name).is_some_and(|target| {
+            unit.flow_binding_ids
+                .get(&(target.span.file, target.span.start, target.span.end))
+                .is_some_and(|identity| *identity == owner)
+                || package
+                    .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
+                    .and_then(|symbol| symbol.declaration_span)
+                    == Some(owner)
+        })
     {
         return Some(node.span);
     }
@@ -1120,6 +1133,14 @@ fn expression_provenance(
             owner_is_external_lender(unit, node.span.start, provenance.owner);
         return Some(provenance);
     }
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("ref")
+    {
+        return node
+            .children
+            .last()
+            .and_then(|operand| borrow_origin(package, unit, operand, proven, return_lenders));
+    }
     if node.kind == SyntaxKind::GroupExpression {
         return node
             .children
@@ -1319,6 +1340,8 @@ fn record_reference_provenance(
     validate_reference_return(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::ForStatement
         && let [target, collection, _block] = node.children.as_slice()
+        && collection.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, collection).as_deref() == Some("ref")
         && let Some(mut provenance) =
             expression_provenance(package, unit, collection, proven, return_lenders)
     {
@@ -1326,7 +1349,10 @@ fn record_reference_provenance(
         for binding in unit.typed_bindings.iter().filter(|binding| {
             binding.span.start >= target.span.start
                 && binding.span.end <= target.span.end
-                && matches!(binding.value_type, ValueType::Reference(_))
+                && matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::SharedReference(_)
+                )
         }) {
             proven.insert((binding.span.start, binding.span.end), provenance.clone());
         }

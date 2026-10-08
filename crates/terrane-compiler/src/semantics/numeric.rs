@@ -563,10 +563,30 @@ pub(super) fn infer_binary_type(
     {
         return Ok(generic.clone());
     }
+    let optional_origin = |mut operand: &SyntaxNode| {
+        while operand.kind == SyntaxKind::GroupExpression
+            && let Some(inner) = operand.children.first()
+        {
+            operand = inner;
+        }
+        let key = (operand.span.file, operand.span.start, operand.span.end);
+        let Some(identity) = unit.flow_binding_ids.get(&key) else {
+            return false;
+        };
+        matches!(
+            unit.flow_binding_types.get(identity).or_else(|| {
+                bindings
+                    .iter()
+                    .find(|binding| binding.span == *identity)
+                    .map(|binding| &binding.value_type)
+            }),
+            Some(ValueType::Optional(_))
+        )
+    };
     if matches!(operator, "==" | "!=")
-        && ((matches!(left, Some(ValueType::Optional(_)))
+        && (((matches!(left, Some(ValueType::Optional(_))) || optional_origin(left_node))
             && node_text(&unit.source, right_node).trim() == "none")
-            || (matches!(right, Some(ValueType::Optional(_)))
+            || ((matches!(right, Some(ValueType::Optional(_))) || optional_origin(right_node))
                 && node_text(&unit.source, left_node).trim() == "none"))
     {
         return Ok(ValueType::Scalar(ScalarType::Bool));

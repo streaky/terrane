@@ -16,3 +16,7 @@ function main;
     if index == 1
       continue
     print; index
+  print; index
+  for skipped = 7; skipped < 7; skipped++
+    print; 'unreachable'
+  print; skipped
