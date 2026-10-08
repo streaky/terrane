@@ -206,46 +206,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 31.0 — General declaration annotations and documentation reflection
-
-**Status:** complete; implementation and integration verification passed. Canonical language reference: [General declaration annotations](../manual/reference/records/language/declarations/annotations.yaml).
-
-**Outcome:** Packages define typed immutable declaration metadata, attach it without executing decorators, and consume it through an explicit compiler consumer mechanism to validate declarations or generate ordinary Terrane/Rust code. CLI and codec consumers demonstrate independent uses of one general mechanism; HTTP remains a possible use, not a compiler subsystem or required dependency.
-
-#### Source and metadata contract
-
-- Annotation applications use `@[name; arguments]`, with ordinary imported-name resolution, positional arguments followed by `name = value`, and an explicit semicolon for zero arguments.
-- Annotations target classes, functions/methods, parameters, and fields. Declaration applications precede the declaration; parameter applications precede the parameter, including multiline parameter lists.
-- The compiler-owned annotation marker and target descriptor declare annotation types, valid targets, and repeatability. Unknown names, invalid construction, wrong targets, and disallowed duplicate applications diagnose at source.
-- Annotation payload construction admits immutable compile-time data and explicitly typed descriptor/kind slots: canonical descriptors can include builtin type names, `none`, and named function declarations, but not arbitrary runtime function/type values. Arbitrary constructors, runtime state, I/O, and decorator execution are excluded.
-- Source order is retained for inspection without hidden execution precedence. Metadata does not redefine visibility, name resolution, invocation authority, ownership, effects, safety, or throwable contracts.
-- Annotation metadata remains separate from the deferred `with` decorative realization protocol.
-
-#### Documentation and declaration reflection
-
-`///` line documentation and `/** ... */` block documentation are distinct from ordinary `#` (including `##`), `//`, and `/* ... */` comments. Consecutive documentation lines form one block; block extraction strips delimiters, surrounding blank lines, common source-layout indentation, and decorative leading `*` with at most one following space. It preserves paragraphs and meaningful indentation without modifying original lossless comment bytes. A contiguous block attaches across annotation applications; blank source lines outside comments or intervening ordinary comments break attachment, and dangling documentation diagnoses.
-
-Declaration metadata exposes canonical identity, source and origin spans, annotations and documentation, parameter names/types/defaults, fields and visibility, declared results, and existing callable contracts. `DeclarationInterface` format 1 exposes `to_json`/`from_json`, package identity, metadata fingerprint, file-ID-to-path `sources`, and declarations without source bodies. It omits bundled roots and private declarations/fields and redacts defaults for non-public or secret fields. Relevant metadata edits participate in interface fingerprints.
-
-#### Explicit package consumers
-
-A package configures each trusted consumer in `[consumers.<id>]` with `command`, string-array `args`, explicit canonical `declarations`, and optional `interfaces` paths to declaration-interface JSON. The compiler sends a JSON format-1 request to stdin and accepts a response on stdout containing `format`, `generated_sources` (each with `identity` and Terrane `source`), and `diagnostics` with messages and optional declaration spans. Generated identities are safe, unique, and namespaced by consumer; source text persists at `.trn/generated/<consumer>/<identity>.trn`. Diagnostics map to an available source span, report exported origin when dependency source is unavailable, or use the package fallback when the span is omitted. All returned diagnostics are reported as `S2061`; process and protocol failures use `S2060`. Input, stdout, stderr, and declaration-interface files are capped at 16 MiB. Executables are trusted tools, run synchronously in the package directory; the current contract specifies no wall-clock timeout.
-
-Consumers run after declaration preparation but before ordinary full-package checking. Generated sources join authored sources and go through ordinary parsing, semantic checking, lowering, and compilation. This does not bypass source-language contracts or create metadata-driven runtime behavior.
-
-1. The CLI consumer accepts standalone synchronous, safe, non-throwing, non-variadic functions returning `int`, with immutable scalar `string`/`int` parameters. Command metadata supplies name and nullable summary; parameter metadata supplies long option name and nullable help. Summary precedence is explicit consumer `--summary` (including empty string), annotation, then declaration docs.
-2. The codec consumer accepts public, non-derived classes with the canonical default constructor; it supports string, bool, int, fixed-width signed/unsigned integers, and nullable scalar fields. It skips static/private/secret fields, validates integer constraints, honors defaults, and rejects unknown/inaccessible fields.
-
-Tracked consumers are native Terrane packages at `tools/annotation-consumers/cli-consumer` and `tools/annotation-consumers/codec-consumer`, with shared protocol helpers in `tools/annotation-consumers/protocol`. After building the compiler, `sh tools/annotation-consumers/build.sh` builds their executables into `target/annotation-consumers` and installs fixture copies under `.trn/consumers`; they do not participate in building the compiler itself. Conformance `native-tools` declarations independently build/stage each required executable from source. Focused cases are under `tests/conformance/run/annotation-cli-consumer`, `annotation-codec-consumer`, `annotation-source-free`, and `declaration-annotations`; unit evidence is `crates/terrane-compiler/tests/annotations.rs`.
-
-#### Verification
-
-`cargo test -p terrane-compiler --test annotations` passed all 10 tests. `TERRANE_CONFORMANCE_FILTER=annotation cargo test -p terrane-compiler --test conformance` passed all 12 harness test functions, including CLI, codec, declaration, and source-free interface cases through generated Rust/Cargo. `cargo clippy --workspace --all-targets -- -D warnings` passed. The latest full-workspace timing evidence, including the checked revision and pass/failure/ignored totals, is the final `runs[]` entry in `docs/test-scoreboard.yaml`; refresh it with `python docs/measure-test-times.py -- --workspace` and commit both scoreboard files together. Source-free fixture `tests/conformance/run/annotation-source-free` consumes `library.interface.json` after the dependency `.trn` source is absent; its `case.toml` records the regeneration command and tracked producer source.
-
-Arbitrary executable decorators, HTTP/OpenAPI implementation, database drivers, test-discovery migration, and the deferred `with` protocol remain outside this milestone.
-
-This is a distinct general language capability alongside milestone 31.1's native integration work. It may reuse canonical exported metadata machinery, but must not require unrelated native-package cohorts or establish a second semantic interface model.
-
 ### Milestone 31.1 — Scalable Rust binding synthesis and generated host integration
 
 **Status:** partially delivered. The bounded capabilities identified below are implemented; the
@@ -1083,6 +1043,123 @@ honest declines at approved exceptional boundaries; the named applications passi
 ordinary supported Rust capabilities still requiring package-by-package compiler intervention.
 New Rust language/toolchain capabilities may require engine work; new package names must not.
 
+### Milestone 31.2 — Caught-error payloads and scalable annotation lookup
+
+**Status:** planned. Neither capability is currently supported. Both were accepted as non-blocking
+follow-ups during milestone 31.0 review: the caught-payload limitation as a language follow-up
+rather than a branch change, and the linear lookups as an observation with no demonstrated defect.
+
+**Outcome:** a typed `catch` clause can read the concrete fields of the throwable it caught, so
+annotation consumers and other programs no longer carry error context through global state; and
+annotation evaluation's descriptor and syntax-node lookups are measured at a large-package size
+and, where the measurement justifies it, served from canonical indexes rather than repeated
+whole-package scans.
+
+#### A. Typed access to a caught throwable's concrete payload
+
+Today every catch binding, including one bound by a typed clause, has the static type
+`throwable`. In `catch tagged-error as error`, `error.message` is accepted but a field that
+`tagged-error` declares beyond the interface is rejected with ``T0055 `throwable` has no instance
+member``, even though the clause has already established the caught kind. The runtime envelope
+retains the concrete descriptor, so the limitation is in source typing, not in what is available
+at run time.
+
+The reference consumer protocol works around this. `consumer-error` in
+`tools/annotation-consumers/protocol/src/main.trn` stores its declaration record in
+`static origin` from its constructor, and both consumers report through `error-origin;` after
+`catch consumer-error as error`. That is global mutable state with last-constructed-wins
+semantics. It is correct only because each consumer handles one synchronous request per process
+and never constructs a second `consumer-error` before the first is caught. Constructing an error
+that is not thrown, nested handling, or any reuse in a long-lived or concurrent process would
+report the wrong origin.
+
+Deliver:
+
+- In a clause naming a class, the binding has that class's type and exposes its public instance
+  members, in addition to the envelope's `message`, `cause` and `render`. In a clause naming an
+  interface, the binding exposes that interface's members. A catch-all binding remains
+  `throwable`. If a clause can name several kinds, its binding is their union and member access
+  follows the ordinary union and narrowing rules.
+- Clause matching remains descriptor compatibility, never message text. There is no new downcast
+  or unchecked-cast operator, and no source-visible way to view a caught value as a kind the
+  clause did not establish.
+- Rethrowing the bound value, with or without reading its fields, preserves its kind, cause chain
+  and origin exactly as today.
+- Settle and document whether the binding may be mutated or moved out of, consistently with
+  ordinary ownership of a function-owned local, and whether a later rethrow observes such a
+  mutation.
+- Lowering reads payload fields from the concrete value the generated error already carries,
+  with no universal boxed value, no `unsafe` access, and no added cost to `try` blocks whose
+  clauses never read concrete fields.
+- Remove `static origin`, `error-origin` and the explanatory comment from the protocol package.
+  Both reference consumers read the origin from the caught `consumer-error` itself, and their
+  conformance cases still produce identical diagnostics.
+
+Evidence:
+
+- Run fixtures cover:
+  - concrete field access in a class clause;
+  - interface-member access in an interface clause;
+  - two errors of the same class constructed before either is caught, each reporting its own
+    field values (the case the static workaround gets wrong);
+  - nested `try` blocks;
+  - a rethrow after field access that keeps the original cause chain and source context.
+- Reject fixtures cover a concrete field read through a catch-all binding, and a class-only
+  member read through an interface clause.
+- Update `reference/records/language/errors/handling.yaml` and the concise specification.
+  Review the error-handling tutorial and the annotation consumer protocol records for the
+  removed workaround.
+
+#### B. Indexed descriptor and node lookup in annotation evaluation
+
+Annotation evaluation currently resolves by scanning:
+
+- `descriptor()` in `semantics/annotations.rs` flattens every unit's descriptors and compares
+  `identity.qualified()` against the requested identity on each call. `qualified()` formats a
+  new `String` for every comparison, so a single lookup allocates once per descriptor in the
+  package.
+- `find_node` walks a unit's syntax tree from the root to recover a node by span. Its uses in
+  `semantics/annotations.rs` cover declaration, field, payload expression and schema lookups.
+  The same function is copied in `semantics/selection.rs`. A kind-and-span variant lives in
+  `lowering/helpers.rs`.
+
+Each scan is linear, so evaluating annotations across a package grows roughly with
+`applications × package size`. At current fixture and package sizes this has no measured cost.
+This part is gated on measurement, not on the observation:
+
+1. Add a deterministic synthetic package generator, outside the conformance corpus, that
+   produces annotation-heavy packages: many annotated classes, fields and functions spread over
+   many units, with nested payload references. Measure `terrane check` at sizes at least ten
+   times larger than the largest tracked annotation package, using the unified profiler from
+   milestone 30.4 to attribute time to these lookups.
+2. If the lookups are not a material share of check time at those sizes, record the
+   measurement in this milestone's evidence and close part B without code changes.
+3. Otherwise:
+   - Resolve descriptors through an identity-keyed index owned by the canonical semantic package
+     model, built once when the package is analysed. It must not be a parallel table maintained
+     separately from the descriptors it indexes.
+   - Compare structured identities, never freshly formatted strings.
+   - Recover syntax nodes from identities or node references already recorded in the semantic
+     contracts, or from one span index per unit. Do not re-walk from the root.
+   - Consolidate the three `find_node` variants into the single canonical mechanism.
+
+Lookup results, diagnostics and their ordering, and generated output must be byte-for-byte
+unchanged. Record before-and-after timings from the same synthetic sizes with the milestone
+evidence.
+
+#### Exit criteria
+
+- Part A's run and reject fixtures pass through the real CLI, and the reference consumers no
+  longer contain static error-origin state.
+- Part B is closed either by the recorded measurement showing no material cost, or by the
+  indexed lookup with unchanged conformance output and recorded timings.
+- The manual, concise specification and catalog are regenerated and checked, and a clean
+  full-workspace run is recorded.
+
+Excluded: exposing concrete payloads through catch-all bindings, reflective or string-based
+error inspection, changes to throwable matching or propagation, and indexing beyond the
+annotation and selection lookups named above.
+
 ### Milestone 32 — First-version hardening and release gate
 
 Deliver:
@@ -1325,6 +1402,9 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
   shared profile artifact/presentation model (milestone 30.4);
 - add allocation/retention and process-memory evidence to the unified profiler (milestone 30.5);
 - add general typed declaration annotations, documentation reflection, and independent CLI/serialization consumers (milestone 31.0);
+- give typed `catch` bindings their concrete payload type, retire the consumer protocol's static
+  error origin, and measure (then index, if justified) annotation descriptor/node lookups
+  (milestone 31.2);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 32.1).
@@ -1353,6 +1433,46 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 31.0 — General declaration annotations and documentation reflection
+
+**Status:** complete; implementation and integration verification passed. Canonical language reference: [General declaration annotations](../manual/reference/records/language/declarations/annotations.yaml).
+
+**Outcome:** Packages define typed immutable declaration metadata, attach it without executing decorators, and consume it through an explicit compiler consumer mechanism to validate declarations or generate ordinary Terrane/Rust code. CLI and codec consumers demonstrate independent uses of one general mechanism; HTTP remains a possible use, not a compiler subsystem or required dependency.
+
+#### Source and metadata contract
+
+- Annotation applications use `@[name; arguments]`, with ordinary imported-name resolution, positional arguments followed by `name = value`, and an explicit semicolon for zero arguments.
+- Annotations target classes, functions/methods, parameters, and fields. Declaration applications precede the declaration; parameter applications precede the parameter, including multiline parameter lists.
+- The compiler-owned annotation marker and target descriptor declare annotation types, valid targets, and repeatability. Unknown names, invalid construction, wrong targets, and disallowed duplicate applications diagnose at source.
+- Annotation payload construction admits immutable compile-time data and explicitly typed descriptor/kind slots: canonical descriptors can include builtin type names, `none`, and named function declarations, but not arbitrary runtime function/type values. Arbitrary constructors, runtime state, I/O, and decorator execution are excluded.
+- Source order is retained for inspection without hidden execution precedence. Metadata does not redefine visibility, name resolution, invocation authority, ownership, effects, safety, or throwable contracts.
+- Annotation metadata remains separate from the deferred `with` decorative realization protocol.
+
+#### Documentation and declaration reflection
+
+`///` line documentation and `/** ... */` block documentation are distinct from ordinary `#` (including `##`), `//`, and `/* ... */` comments. Consecutive documentation lines form one block; block extraction strips delimiters, surrounding blank lines, common source-layout indentation, and decorative leading `*` with at most one following space. It preserves paragraphs and meaningful indentation without modifying original lossless comment bytes. A contiguous block attaches across annotation applications; blank source lines outside comments or intervening ordinary comments break attachment, and dangling documentation diagnoses.
+
+Declaration metadata exposes canonical identity, source and origin spans, annotations and documentation, parameter names/types/defaults, fields and visibility, declared results, and existing callable contracts. `DeclarationInterface` format 1 exposes `to_json`/`from_json`, package identity, metadata fingerprint, file-ID-to-path `sources`, and declarations without source bodies. It omits bundled roots and private declarations/fields and redacts defaults for non-public or secret fields. Relevant metadata edits participate in interface fingerprints.
+
+#### Explicit package consumers
+
+A package configures each trusted consumer in `[consumers.<id>]` with `command`, string-array `args`, explicit canonical `declarations`, and optional `interfaces` paths to declaration-interface JSON. The compiler sends a JSON format-1 request to stdin and accepts a response on stdout containing `format`, `generated_sources` (each with `identity` and Terrane `source`), and `diagnostics` with messages and optional declaration spans. Generated identities are safe, unique, and namespaced by consumer; source text persists at `.trn/generated/<consumer>/<identity>.trn`. Diagnostics map to an available source span, report exported origin when dependency source is unavailable, or use the package fallback when the span is omitted. All returned diagnostics are reported as `S2061`; process and protocol failures use `S2060`. Input, stdout, stderr, and declaration-interface files are capped at 16 MiB. Executables are trusted tools, run synchronously in the package directory; the current contract specifies no wall-clock timeout.
+
+Consumers run after declaration preparation but before ordinary full-package checking. Generated sources join authored sources and go through ordinary parsing, semantic checking, lowering, and compilation. This does not bypass source-language contracts or create metadata-driven runtime behavior.
+
+1. The CLI consumer accepts standalone synchronous, safe, non-throwing, non-variadic functions returning `int`, with immutable scalar `string`/`int` parameters. Command metadata supplies name and nullable summary; parameter metadata supplies long option name and nullable help. Summary precedence is explicit consumer `--summary` (including empty string), annotation, then declaration docs.
+2. The codec consumer accepts public, non-derived classes with the canonical default constructor; it supports string, bool, int, fixed-width signed/unsigned integers, and nullable scalar fields. It skips static/private/secret fields, validates integer constraints, honors defaults, and rejects unknown/inaccessible fields.
+
+Tracked consumers are native Terrane packages at `tools/annotation-consumers/cli-consumer` and `tools/annotation-consumers/codec-consumer`, with shared protocol helpers in `tools/annotation-consumers/protocol`. After building the compiler, `sh tools/annotation-consumers/build.sh` builds their executables into `target/annotation-consumers` and installs fixture copies under `.trn/consumers`; they do not participate in building the compiler itself. Conformance `native-tools` declarations independently build/stage each required executable from source. Focused cases are under `tests/conformance/run/annotation-cli-consumer`, `annotation-codec-consumer`, `annotation-source-free`, and `declaration-annotations`; unit evidence is `crates/terrane-compiler/tests/annotations.rs`.
+
+#### Verification
+
+`cargo test -p terrane-compiler --test annotations` passed all 10 tests. `TERRANE_CONFORMANCE_FILTER=annotation cargo test -p terrane-compiler --test conformance` passed all 12 harness test functions, including CLI, codec, declaration, and source-free interface cases through generated Rust/Cargo. `cargo clippy --workspace --all-targets -- -D warnings` passed. The latest full-workspace timing evidence, including the checked revision and pass/failure/ignored totals, is the final `runs[]` entry in `docs/test-scoreboard.yaml`; refresh it with `python docs/measure-test-times.py -- --workspace` and commit both scoreboard files together. Source-free fixture `tests/conformance/run/annotation-source-free` consumes `library.interface.json` after the dependency `.trn` source is absent; its `case.toml` records the regeneration command and tracked producer source.
+
+Arbitrary executable decorators, HTTP/OpenAPI implementation, database drivers, test-discovery migration, and the deferred `with` protocol remain outside this milestone.
+
+This is a distinct general language capability alongside milestone 31.1's native integration work. It may reuse canonical exported metadata machinery, but must not require unrelated native-package cohorts or establish a second semantic interface model.
 
 ### Milestone 28.1 — Concrete projected interfaces and class implementations
 
