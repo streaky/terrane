@@ -12,11 +12,13 @@ function inferred;
             typed-result int = previous + 1
             step = previous
             composed = step * 2 + 1
+            chained = step + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1
             comparison = previous > 1
             total = total + step
             print; result
             print; typed-result
             print; composed
+            print; chained
             print; comparison
         previous = count
     print; total
