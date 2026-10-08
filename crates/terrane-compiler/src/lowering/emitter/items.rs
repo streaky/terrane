@@ -2917,8 +2917,10 @@ impl<'a> Emitter<'a> {
             }
             self.indent -= 1;
             self.line("}");
-            let printable =
-                |arm: &ValueType| matches!(arm, ValueType::Scalar(_) | ValueType::StringView(_));
+            let printable = |arm: &ValueType| {
+                matches!(arm, ValueType::Scalar(scalar) if *scalar != ScalarType::Bytes)
+                    || matches!(arm, ValueType::StringView(_))
+            };
             if arms.iter().any(printable) {
                 self.line(&format!(
                     "impl{lifetime} terrane_scalar_support::ScalarDisplay for {name}{lifetime} {{"

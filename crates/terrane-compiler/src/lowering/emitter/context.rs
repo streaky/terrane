@@ -1272,43 +1272,77 @@ impl Emitter<'_> {
         self.line(&format!("__terrane_debug_point!({comment:?});"));
     }
 
-    fn narrowed_name(&self, node: &SyntaxNode) -> Option<String> {
-        let source_name = self.text(node);
-        if !self.assignment_target {
-            let binding = self.local_typed_binding(node);
-            let identity = self.local_binding_identity(node);
-            let carrier_type = identity
-                .and_then(|identity| self.unit.flow_binding_types.get(&identity).cloned())
-                .or_else(|| binding.map(|binding| self.flow_binding_type(binding)));
-            let value_type =
-                self.unit
-                    .flow_types
-                    .get(&(node.span.file, node.span.start, node.span.end));
-            if let (Some(identity), Some(carrier), Some(value_type)) =
-                (identity, carrier_type, value_type)
-                && !matches!(value_type, ValueType::Union(_))
-                && let ValueType::Union(arms) = carrier
-                && let Some(index) = arms.iter().position(|arm| arm == value_type)
-            {
-                let access = binding.map_or_else(
-                    || format!("&{}", self.local_storage_name(node)),
-                    |binding| self.available_storage_reference(binding, node),
-                );
-                let value = format!(
-                    "match {access} {{ {}::Arm{index}(value) => value, _ => unreachable!(\"flow-proven union arm\") }}",
-                    union_type_name_for_span(identity)
-                );
-                return Some(
-                    if rust_value_is_copy(value_type)
-                        || matches!(value_type, ValueType::Reference(_))
-                    {
-                        format!("(*{value})")
-                    } else {
-                        format!("({value})")
-                    },
-                );
-            }
+    pub(super) fn narrowed_storage_name(&self, node: &SyntaxNode, owned: bool) -> Option<String> {
+        if self.assignment_target {
+            return None;
         }
+        let key = (node.span.file, node.span.start, node.span.end);
+        let identity = *self.unit.flow_binding_ids.get(&key)?;
+        let physical = self.unit.flow_binding_types.get(&identity).or_else(|| {
+            self.unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == identity)
+                .map(|binding| &binding.value_type)
+        })?;
+        let value_type = self.unit.flow_types.get(&key)?;
+        let variant = match physical {
+            ValueType::Union(arms) => {
+                let index = arms.iter().position(|arm| arm == value_type)?;
+                format!("{}::Arm{index}", union_type_name_for_span(identity))
+            }
+            ValueType::Optional(inner) if inner.as_ref() == value_type => "Some".to_owned(),
+            _ => return None,
+        };
+        let take = owned
+            && !rust_value_is_copy(value_type)
+            && !self.value_type_owns_resource(value_type)
+            && !self.binding_value_is_reused(node)
+            && !self.non_consuming_capture_read(node);
+        let access = if take {
+            let storage = self.local_storage_name(node);
+            if self
+                .local_typed_binding(node)
+                .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+            {
+                if self.unit.flow_availability.get(&key)
+                    == Some(&crate::semantics::FlowAvailability::MayBeUnassigned)
+                {
+                    format!(
+                        "{storage}.take().unwrap_or_else(|| {})",
+                        self.uninitialized_binding_failure(node)
+                    )
+                } else {
+                    format!("{storage}.take().expect(\"flow-proven availability\")")
+                }
+            } else {
+                storage
+            }
+        } else {
+            self.local_typed_binding(node).map_or_else(
+                || format!("&{}", self.local_storage_name(node)),
+                |binding| self.available_storage_reference(binding, node),
+            )
+        };
+        let value = format!(
+            "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
+        );
+        Some(if take {
+            format!("({value})")
+        } else if rust_value_is_copy(value_type) {
+            format!("*({value})")
+        } else if owned && !self.value_type_owns_resource(value_type) {
+            format!("({value}).clone()")
+        } else {
+            format!("({value})")
+        })
+    }
+
+    fn narrowed_name(&self, node: &SyntaxNode) -> Option<String> {
+        if let Some(value) = self.narrowed_storage_name(node, false) {
+            return Some(value);
+        }
+        let source_name = self.text(node);
         let narrowed = (!self.assignment_target)
             .then(|| {
                 narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {

@@ -136,8 +136,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     .find(|(binding_index, binding)| {
                         binding.scope.is_some()
                             && binding.is_visible_at(unit.source.id(), node.span.start)
-                            && identifiers
-                                .contains(&crate::lowering::debug_binding_rust_name(unit, binding))
+                            && identifiers.contains(&crate::lowering::binding_storage_rust_name(
+                                unit, binding,
+                            ))
                             && noncopyable_binding(package, unit, *binding_index)
                     })
             {

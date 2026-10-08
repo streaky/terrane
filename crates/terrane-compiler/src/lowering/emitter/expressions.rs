@@ -190,7 +190,7 @@ impl Emitter<'_> {
         self.traced_await_output(awaited, operand)
     }
 
-    fn non_consuming_capture_read(&self, node: &SyntaxNode) -> bool {
+    pub(super) fn non_consuming_capture_read(&self, node: &SyntaxNode) -> bool {
         if node.kind != SyntaxKind::Name {
             return false;
         }
@@ -402,6 +402,12 @@ impl Emitter<'_> {
         node: &SyntaxNode,
         value_type: ValueType,
     ) -> String {
+        if node.kind == SyntaxKind::Name
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && let Some(value) = self.narrowed_storage_name(node, true)
+        {
+            return value;
+        }
         if node.kind == SyntaxKind::GroupExpression
             && let [grouped] = node.children.as_slice()
         {
@@ -1736,7 +1742,7 @@ impl Emitter<'_> {
         format!("let _ = {};", Self::unwrapped_expression(expression))
     }
 
-    fn binding_value_is_reused(&self, node: &SyntaxNode) -> bool {
+    pub(super) fn binding_value_is_reused(&self, node: &SyntaxNode) -> bool {
         let name = self.text(node);
         self.unit
             .typed_bindings

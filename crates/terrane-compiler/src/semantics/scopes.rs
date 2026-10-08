@@ -715,6 +715,16 @@ fn union_flow_types(types: impl IntoIterator<Item = ValueType>) -> Option<ValueT
     }
     arms.sort_by_key(|value_type| format!("{value_type:?}"));
     arms.dedup();
+    if let Some(optional) = arms.iter().position(|candidate| {
+        let ValueType::Optional(inner) = candidate else {
+            return false;
+        };
+        arms.iter().all(|arm| {
+            arm == candidate || arm == inner.as_ref() || *arm == ValueType::Scalar(ScalarType::None)
+        })
+    }) {
+        return Some(arms.swap_remove(optional));
+    }
     match arms.len() {
         0 => None,
         1 => arms.pop(),
@@ -1118,7 +1128,24 @@ pub(super) fn validate_definite_assignment(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::Block)
             {
-                let _flow_exits = flow_block(unit, block, active);
+                let flow_exits = flow_block(unit, block, active);
+                // Function-owned storage also needs to account for paths that
+                // exit before a value is created, not just uncertain reads.
+                for binding in unit
+                    .typed_bindings
+                    .iter()
+                    .filter(|binding| binding.scope == Some(function.span))
+                {
+                    if flow_exits.values().any(|env| {
+                        !env.types.contains_key(&binding.name)
+                            || env.uncertain.contains(&binding.name)
+                    }) {
+                        let key = span_key(binding.span);
+                        unit.flow_binding_ids.entry(key).or_insert(binding.span);
+                        unit.flow_availability
+                            .insert(key, FlowAvailability::MayBeUnassigned);
+                    }
+                }
                 validate_assignment_block(unit, block, &mut declared, &mut assigned)?;
             }
         }
@@ -2406,6 +2433,12 @@ fn flow_try(
                 .iter()
                 .find(|binding| binding.span == alias.span)
         {
+            // Catch storage exists only on the error path, even when all reads
+            // occur within that path and are proven available there.
+            unit.flow_binding_ids
+                .insert(span_key(alias.span), binding.span);
+            unit.flow_availability
+                .insert(span_key(alias.span), FlowAvailability::MayBeUnassigned);
             caught
                 .types
                 .insert(binding.name.clone(), binding.value_type.clone());
@@ -2722,6 +2755,11 @@ fn flow_assignment(
                 .iter()
                 .find(|binding| binding.span == statement.span)
                 .map(|binding| binding.value_type.clone())
+                .or_else(|| {
+                    (statement.kind == SyntaxKind::Assignment)
+                        .then(|| state.types.get(&name).cloned())
+                        .flatten()
+                })
                 .or_else(|| {
                     infer_value_type(unit, value, &unit.typed_bindings)
                         .ok()
