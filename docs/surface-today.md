@@ -749,6 +749,8 @@ A top-level plain assignment creates a namespace variable. Functions cannot read
 
 `constant` declarations are non-rebindable at every supported identity tier. In one lexical scope, an ordinary assignment to an already initialized local creates a replacement binding; its initializer sees the earlier binding, and its inferred type may change. Assignment to an uninitialized local, an enclosing-scope binding, a parameter, or a `for` target remains mutation. Generated Rust marks only genuinely mutated storage mutable.
 
+Only named and anonymous functions introduce lexical scopes. `if`/`else`, `select`, `while`, and `for` share their function's variables and replacement rules; loop targets remain visible afterward. Flow joins form ordinary finite unions of reaching types. Control flow determines value availability: proven uses need no runtime check; only uncertain variables represent uncertainty, checked at uncertain uses. Owned values are released on replacement or function exit, not control-block exit.
+
 ## Classes, interfaces, traits, and references
 
 Classes provide typed, definitely initialized instance fields and methods, class-level static fields

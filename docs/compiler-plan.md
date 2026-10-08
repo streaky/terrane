@@ -1900,7 +1900,7 @@ Implemented evidence: package input now uses the authored `package.toml` contrac
 deterministically loads its complete enumerated source set before analysis. The shared
 semantic pass assembles symmetric namespace declarations, resolves exact root and parent
 imports, keeps ordinary and object-form namespaces separate, and records lexical scopes
-for parameters, local bindings, assignments, and block-local imports. Import discovery walks the
+for parameters, local bindings, assignments, and function-local imports. Import discovery walks the
 complete syntax tree, so selective and namespace-wide imports at every lexical depth load bundled
 core packages and contribute their capability requirements without widening lexical scope. Its
 fixed bootstrap table and exact default prelude are versioned compiler-owned data. Every
