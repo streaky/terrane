@@ -1806,10 +1806,13 @@ impl SemanticPackage {
         offset: usize,
         name: &str,
     ) -> Option<&'a Symbol> {
-        let reaching_identity = unit
-            .flow_binding_ids
-            .get(&(unit.source.id(), offset, offset + name.len()))
-            .copied();
+        let reaching_identity = (unit.source.text().get(offset..offset + name.len()) == Some(name))
+            .then(|| {
+                unit.flow_binding_ids
+                    .get(&(unit.source.id(), offset, offset + name.len()))
+                    .copied()
+            })
+            .flatten();
         let mut scopes = lexical_scope_chain(unit, offset).peekable();
         let inside_lexical_scope = scopes.peek().is_some();
         scopes
