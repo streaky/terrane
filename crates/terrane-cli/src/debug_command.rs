@@ -527,8 +527,8 @@ impl Adapter {
                 .is_some_and(supports_adaptive_int_layout);
             let (mut body, value_summaries, events) = {
                 let backend = self.backend_mut()?;
-                let backend_response = if provenance.is_some() {
-                    request_terrane_variables(backend, arguments)?
+                let backend_response = if let Some(provenance) = &provenance {
+                    request_terrane_variables(backend, arguments, provenance)?
                 } else {
                     backend.request(command, arguments)?
                 };
@@ -1717,9 +1717,10 @@ fn translate_variables(
         let logical_name = backend_name
             .split_once(" @ ")
             .map_or(backend_name, |(name, _)| name);
-        let retain = last_logical_variable
-            .get(logical_name)
-            .is_none_or(|last| *last == index);
+        let retain = (!logical_name.contains("_terrane_f") || bindings.contains_key(logical_name))
+            && last_logical_variable
+                .get(logical_name)
+                .is_none_or(|last| *last == index);
         index += 1;
         retain
     });
@@ -1730,6 +1731,9 @@ fn translate_variables(
         let rust_name = backend_name
             .split_once(" @ ")
             .map_or(backend_name, |(name, _)| name);
+        let union_storage = bindings
+            .get(rust_name)
+            .is_some_and(|(_, binding)| binding.physical_type_name.starts_with("Union("));
         let presentation = parent_object
             .and_then(|object| {
                 object
@@ -1749,7 +1753,10 @@ fn translate_variables(
                 bindings.get(rust_name).map(|(_, binding)| {
                     (
                         binding.name.clone(),
-                        binding.object_id.clone(),
+                        variable["terraneObjectId"]
+                            .as_str()
+                            .map(str::to_owned)
+                            .or_else(|| binding.object_id.clone()),
                         false,
                         binding.type_name.as_str(),
                     )
@@ -1782,7 +1789,9 @@ fn translate_variables(
                         variable["value"] = summary.clone().into();
                     }
                     variable["variablesReference"] = 0.into();
-                } else if matches!(type_name, "Scalar(String)" | "Bytes")
+                } else if (matches!(type_name, "Scalar(String)" | "Bytes")
+                    || type_name.starts_with("Union(")
+                    || union_storage)
                     && let Some(summary) = variable["memoryReference"]
                         .as_str()
                         .and_then(|reference| value_summaries.get(reference))
@@ -1821,17 +1830,163 @@ fn debug_object_name(object_id: Option<&str>, fallback: &str) -> String {
         .to_owned()
 }
 
-fn request_terrane_variables(backend: &mut Backend, arguments: Value) -> Result<Value, CliFailure> {
+fn request_terrane_variables(
+    backend: &mut Backend,
+    arguments: Value,
+    provenance: &ProvenanceManifest,
+) -> Result<Value, CliFailure> {
     let _ = backend.request(
         "evaluate",
         json!({"expression": "`type category disable Rust", "context": "repl"}),
     );
-    let result = backend.request("variables", arguments);
+    let result = backend
+        .request("variables", arguments)
+        .and_then(|mut response| {
+            if let Some(variables) = response["body"]["variables"].as_array_mut() {
+                for variable in variables {
+                    let name = variable["name"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .split(" @ ")
+                        .next()
+                        .unwrap_or_default();
+                    if let Some(binding) = provenance
+                        .debug
+                        .bindings
+                        .iter()
+                        .find(|binding| binding.rust_name == name)
+                        && (binding.storage_may_be_unassigned
+                            || binding.physical_type_name.starts_with("Union("))
+                    {
+                        unwrap_storage_variable(backend, variable, binding)?;
+                    }
+                }
+            }
+            Ok(response)
+        });
     let _ = backend.request(
         "evaluate",
         json!({"expression": "`type category enable Rust", "context": "repl"}),
     );
     result
+}
+
+fn unwrap_storage_variable(
+    backend: &mut Backend,
+    variable: &mut Value,
+    binding: &terrane_compiler::debugging::DebugBinding,
+) -> Result<(), CliFailure> {
+    let original_name = variable["name"].clone();
+    let evaluate_name = variable["evaluateName"].clone();
+    let mut object_id = variable["terraneObjectId"].clone();
+    let mut current = variable.clone();
+    let mut payloads = usize::from(binding.storage_may_be_unassigned)
+        + usize::from(binding.physical_type_name.starts_with("Union("));
+    let mut visited = std::collections::BTreeSet::new();
+    while payloads != 0 {
+        let native_type = current["type"].as_str().unwrap_or_default();
+        if native_type
+            .rsplit("::")
+            .next()
+            .is_some_and(|name| name.split([':', '<']).next() == Some("None"))
+        {
+            variable["value"] = "<unassigned>".into();
+            variable["variablesReference"] = 0.into();
+            variable["memoryReference"] = Value::Null;
+            return Ok(());
+        }
+        if let Some(arm) = native_type
+            .rsplit_once("::Arm")
+            .and_then(|(_, index)| index.split(':').next()?.parse::<usize>().ok())
+        {
+            object_id = binding
+                .union_object_ids
+                .get(arm)
+                .and_then(Option::as_ref)
+                .map_or(Value::Null, |id| id.clone().into());
+        }
+        let reference = current["variablesReference"].as_i64().unwrap_or(0);
+        if reference == 0 || !visited.insert(reference) {
+            break;
+        }
+        let response = backend.request("variables", json!({"variablesReference": reference}))?;
+        let Some(children) = response["body"]["variables"].as_array() else {
+            break;
+        };
+        let discriminant = children
+            .iter()
+            .find(|child| child["name"] == "$discr$")
+            .and_then(native_discriminant);
+        let mut selected = children
+            .iter()
+            .find(|child| child["name"] == "$variants$")
+            .cloned();
+        if selected.is_none() {
+            for variant in children.iter().filter(|child| {
+                child["name"]
+                    .as_str()
+                    .is_some_and(|name| name.starts_with("$variant$") && name != "$variant$")
+            }) {
+                let tag = variant["name"]
+                    .as_str()
+                    .and_then(|name| name.strip_prefix("$variant$"))
+                    .and_then(|tag| tag.parse::<u32>().ok());
+                let actual = if discriminant.is_some() {
+                    discriminant
+                } else {
+                    let reference = variant["variablesReference"].as_i64().unwrap_or(0);
+                    let nested =
+                        backend.request("variables", json!({"variablesReference": reference}))?;
+                    nested["body"]["variables"]
+                        .as_array()
+                        .and_then(|children| {
+                            children.iter().find(|child| child["name"] == "$discr$")
+                        })
+                        .and_then(native_discriminant)
+                };
+                if tag.is_some() && tag == actual {
+                    selected = Some(variant.clone());
+                    break;
+                }
+            }
+        }
+        let selected = selected.or_else(|| {
+            ["$variant$", "value", "__0"]
+                .into_iter()
+                .find_map(|name| children.iter().find(|child| child["name"] == name).cloned())
+        });
+        let Some(selected) = selected else {
+            break;
+        };
+        if selected["name"] == "__0" {
+            payloads -= 1;
+        }
+        current = selected;
+    }
+    if payloads == 0 {
+        *variable = current;
+        variable["name"] = original_name;
+        variable["evaluateName"] = evaluate_name;
+        if !object_id.is_null() {
+            variable["terraneObjectId"] = object_id;
+        }
+    } else if binding.storage_may_be_unassigned {
+        variable["value"] = "<unavailable debug information>".into();
+        variable["variablesReference"] = 0.into();
+        variable["memoryReference"] = Value::Null;
+    }
+    Ok(())
+}
+
+// LLDB's raw DWARF variant names contain a 32-bit discriminant, even for
+// Rust niche tags wider than that. The value is read from the native storage,
+// not inferred from source types or declaration order.
+fn native_discriminant(variable: &Value) -> Option<u32> {
+    variable["value"]
+        .as_str()?
+        .parse::<i128>()
+        .ok()
+        .and_then(|value| u32::try_from(value & i128::from(u32::MAX)).ok())
 }
 
 fn read_value_summaries(
@@ -2530,7 +2685,11 @@ fn show_variables(
         let response = if registers {
             backend.request("variables", json!({"variablesReference": reference}))?
         } else {
-            request_terrane_variables(backend, json!({"variablesReference": reference}))?
+            request_terrane_variables(
+                backend,
+                json!({"variablesReference": reference}),
+                provenance,
+            )?
         };
         let mut body = response["body"].clone();
         if !registers {
@@ -2583,8 +2742,11 @@ fn show_value(
         })
     {
         let reference = scope["variablesReference"].as_i64().unwrap_or(0);
-        let response =
-            request_terrane_variables(backend, json!({"variablesReference": reference}))?;
+        let response = request_terrane_variables(
+            backend,
+            json!({"variablesReference": reference}),
+            provenance,
+        )?;
         let mut body = response["body"].clone();
         let summaries =
             read_value_summaries(backend, &body, supports_adaptive_int_layout(provenance));
@@ -2656,7 +2818,11 @@ fn print_value_tree(
         eprintln!("{}<cycle>", "  ".repeat(depth + 1));
         return Ok(());
     }
-    let response = request_terrane_variables(backend, json!({"variablesReference": reference}))?;
+    let response = request_terrane_variables(
+        backend,
+        json!({"variablesReference": reference}),
+        provenance,
+    )?;
     let mut body = response["body"].clone();
     let summaries = read_value_summaries(backend, &body, supports_adaptive_int_layout(provenance));
     translate_variables(

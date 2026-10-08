@@ -1253,7 +1253,7 @@ fn debugger_preserves_breakpoints_beyond_five_hundred_sequence_points() {
 }
 
 #[test]
-fn cli_locals_follow_the_innermost_shadowed_binding() {
+fn cli_locals_show_the_function_binding_through_control_flow() {
     let fixture = DebugFixture::new();
     fs::write(
         &fixture.source,
@@ -1263,7 +1263,7 @@ fn cli_locals_follow_the_innermost_shadowed_binding() {
             "function main;\n",
             "  value int = 1\n",
             "  if value == 1\n",
-            "    value int = 2\n",
+            "    value = 2\n",
             "    print; value\n",
             "  print; value\n",
         ),
@@ -1293,11 +1293,64 @@ fn cli_locals_follow_the_innermost_shadowed_binding() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     let inner = stderr
         .find("value = 2")
-        .unwrap_or_else(|| panic!("inner binding is not visible:\n{stderr}"));
+        .unwrap_or_else(|| panic!("updated binding is not visible:\n{stderr}"));
     let outer = stderr[inner + 1..]
-        .find("value = 1")
-        .unwrap_or_else(|| panic!("outer binding is not restored:\n{stderr}"));
+        .find("value = 2")
+        .unwrap_or_else(|| panic!("function binding is not retained:\n{stderr}"));
     assert!(outer > 0);
+}
+
+#[test]
+fn cli_locals_decode_active_union_arms_and_uncertain_availability() {
+    for (body, line, choose, expected) in [
+        (
+            "  if choose\n    value int = 3\n  else\n    value string = 'cat'\n  print; value\n",
+            8,
+            true,
+            "value = 3",
+        ),
+        (
+            "  if choose\n    value int = 3\n  else\n    value string = 'cat'\n  print; value\n",
+            8,
+            false,
+            "value = \"cat\"",
+        ),
+        (
+            "  if choose\n    pending int = 3\n  print; 'before-read'\n  print; pending\n",
+            6,
+            true,
+            "pending = 3",
+        ),
+        (
+            "  if choose\n    pending int = 3\n  print; 'before-read'\n  print; pending\n",
+            6,
+            false,
+            "pending = <unassigned>",
+        ),
+    ] {
+        let fixture = DebugFixture::new();
+        fs::write(&fixture.source, format!(
+            "namespace debugger\nfrom /core/output import print\nfunction show; choose bool\n{body}function main;\n  show; {choose}\n"
+        )).unwrap();
+        let commands = format!(
+            "break {}:{line}\ncontinue\nlocals\nquit\n",
+            fixture.source.display()
+        );
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["debug", fixture.source.to_str().unwrap()])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .and_then(|mut child| {
+                child.stdin.take().unwrap().write_all(commands.as_bytes())?;
+                child.wait_with_output()
+            })
+            .unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(output.status.success(), "{stderr}");
+        assert!(stderr.contains(expected), "expected {expected}:\n{stderr}");
+    }
 }
 
 #[test]
