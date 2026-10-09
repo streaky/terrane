@@ -1,6 +1,6 @@
 namespace app
 
-from /model import state as workflow-state
+from /model import state as workflow-state, unit-state as command-state
 from /core/output import print
 
 function report string; value workflow-state of string
@@ -13,5 +13,13 @@ function report string; value workflow-state of string
 function main;
     waiting workflow-state of string = instance workflow-state::pending;
     completed workflow-state of string = instance workflow-state::completed; value = 'done'
+    inferred = instance workflow-state::completed; value = 'inferred'
+    bare command-state = command-state::rejected
     print; (report; waiting)
     print; (report; completed)
+    print; (report; inferred)
+    match bare
+        case command-state::rejected
+            print; 'rejected'
+        case else
+            print; 'other'

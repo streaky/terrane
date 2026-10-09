@@ -1,0 +1,27 @@
+namespace app
+
+from /core/output import print
+from /core/collections import list
+
+class option
+    value int = 1
+
+class vec
+    value int = 2
+
+class result
+    value int = 3
+
+class String
+    value int = 4
+
+function main;
+    absent option|none = none
+    numbers list of option = list;
+    maybe-numbers list of (option|none) = list; absent
+    first result = instance result;
+    second String = instance String;
+    print; first.value
+    print; second.value
+    print; numbers.length
+    print; maybe-numbers.length

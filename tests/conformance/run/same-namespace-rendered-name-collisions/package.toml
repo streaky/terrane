@@ -1,0 +1,4 @@
+package = "same-namespace-rendered-name-collisions"
+
+[namespaces]
+app = "src"

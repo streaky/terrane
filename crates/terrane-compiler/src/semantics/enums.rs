@@ -1229,19 +1229,21 @@ pub(super) fn selected_enum_constructor_contract(
         ValueType::Object(identity) => identity.clone(),
         _ => return None,
     };
-    if let Some(source_enum) = unit
-        .source_enums
+    if let Some(source_enum) = package
+        .units
         .iter()
+        .flat_map(|candidate| &candidate.source_enums)
         .find(|item| item.identity.qualified() == enum_identity)
     {
         let variant = source_enum
             .variants
             .iter()
             .find(|item| item.name == variant_name)?;
-        let substitutions = unit
-            .descriptors
+        let substitutions = package
+            .units
             .iter()
-            .find(|item| item.identity == source_enum.identity)
+            .flat_map(|candidate| &candidate.descriptors)
+            .find(|item| item.identity.base() == source_enum.identity.base())
             .map_or(&[][..], |item| item.generic_parameters.as_slice())
             .iter()
             .zip(&result.type_arguments)

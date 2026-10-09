@@ -1,0 +1,6 @@
+package = "authored-imported-generic-field-assignment"
+
+[namespaces]
+app = "src"
+model = "model"
+wrapper = "wrapper"

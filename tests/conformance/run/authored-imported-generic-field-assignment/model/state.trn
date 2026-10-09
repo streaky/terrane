@@ -3,7 +3,3 @@ namespace model
 enum state of (T)
     pending
     completed; value T
-
-enum unit-state
-    accepted
-    rejected

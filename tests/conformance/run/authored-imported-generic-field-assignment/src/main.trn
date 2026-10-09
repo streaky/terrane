@@ -1,0 +1,27 @@
+namespace app
+
+from /model import state as workflow-state
+from /wrapper import job
+from /core/collections import list
+from /core/output import print
+
+function finish workflow-state of int; amount int
+    return instance workflow-state::completed; value = amount
+
+function result int; value ref (workflow-state of int)
+    match ref value
+        case workflow-state::pending
+            return 0
+        case workflow-state::completed; amount
+            return amount
+
+function main;
+    j = instance job;
+    j.status = finish; 1
+    print; (result; ref j.status)
+    j.status = finish; 42
+    print; (result; ref j.status)
+    j.status = instance workflow-state::completed; value = 5
+    print; (result; ref j.status)
+    j.statuses = list; (finish; 9)
+    print; (result; ref j.statuses[0])

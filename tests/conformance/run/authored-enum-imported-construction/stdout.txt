@@ -1,2 +1,4 @@
 pending
 done
+inferred
+rejected

@@ -2581,6 +2581,31 @@ fn analyze_source_enums(
     Ok((result, descriptors))
 }
 
+fn prepare_source_enums(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    for index in 0..package.units.len() {
+        let (source_enums, enum_descriptors) = {
+            let unit = &package.units[index];
+            let alias_history = descriptor_construct_alias_history(package, unit);
+            let aliases = visible_descriptor_aliases(&alias_history, unit.source.id(), 0);
+            analyze_source_enums(unit, &aliases)?
+        };
+        package.units[index].descriptors.extend(enum_descriptors);
+        package.units[index].source_enums =
+            source_enums.into_iter().map(std::sync::Arc::new).collect();
+    }
+    let source_enum_registry = std::sync::Arc::<[std::sync::Arc<SourceEnumContract>]>::from(
+        package
+            .units
+            .iter()
+            .flat_map(|unit| unit.source_enums.iter().cloned())
+            .collect::<Vec<_>>(),
+    );
+    for unit in &mut package.units {
+        unit.source_enum_registry = source_enum_registry.clone();
+    }
+    Ok(())
+}
+
 pub(super) fn prepare_type_declarations(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -2614,16 +2639,7 @@ pub(super) fn prepare_type_declarations(
         };
         package.units[index].descriptors = descriptors;
     }
-    for index in 0..package.units.len() {
-        let (source_enums, enum_descriptors) = {
-            let unit = &package.units[index];
-            let alias_history = descriptor_construct_alias_history(package, unit);
-            let aliases = visible_descriptor_aliases(&alias_history, unit.source.id(), 0);
-            analyze_source_enums(unit, &aliases)?
-        };
-        package.units[index].descriptors.extend(enum_descriptors);
-        package.units[index].source_enums = source_enums;
-    }
+    prepare_source_enums(package)?;
     populate_object_aliases(package);
     for unit in &mut package.units {
         for object in &mut unit.descriptors {

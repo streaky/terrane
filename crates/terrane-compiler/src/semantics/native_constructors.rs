@@ -306,12 +306,41 @@ pub(super) fn normalize_contracts(
             }
         }
     }
+    // Fields are initially parsed before imported generic declarations are available.
+    // Publish their final written types to both declarations and imported descriptor copies.
+    let field_types = package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.descriptors
+                .iter()
+                .filter(|descriptor| descriptor.span.file == unit.source.id())
+                .flat_map(|descriptor| &descriptor.fields)
+                .filter_map(|field| {
+                    let declaration =
+                        super::ownership::find_node_by_span(&unit.tree.root, field.span)?;
+                    let annotation = declaration
+                        .children
+                        .iter()
+                        .find(|child| child.kind == crate::syntax::SyntaxKind::TypeExpression)?;
+                    let selected = unit.selected_expression_types.get(&(
+                        annotation.span.file,
+                        annotation.span.start,
+                        annotation.span.end,
+                    ))?;
+                    (selected != &field.value_type).then(|| (field.span, selected.clone()))
+                })
+        })
+        .collect::<BTreeMap<_, _>>();
     for unit in &mut package.units {
         for descriptor in &mut unit.descriptors {
             if let Some(selected) = selections.get(&descriptor.identity) {
                 descriptor.identity.clone_from(selected);
             }
             for field in &mut descriptor.fields {
+                if let Some(selected) = field_types.get(&field.span) {
+                    field.value_type.clone_from(selected);
+                }
                 normalize_type(&mut field.value_type, &selections);
             }
         }
