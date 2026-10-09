@@ -15,7 +15,19 @@ class result
 class String
     value int = 4
 
-function main;
+class future
+    value int = 1
+
+class into-future
+    value int = 2
+
+class double-ended-iterator
+    value int = 3
+
+async function later int;
+    return 41
+
+async function main;
     absent option|none = none
     numbers list of option = list;
     maybe-numbers list of (option|none) = list; absent
@@ -25,3 +37,9 @@ function main;
     print; second.value
     print; numbers.length
     print; maybe-numbers.length
+    f = instance future;
+    conversion = instance into-future;
+    iterator = instance double-ended-iterator;
+    print; f.value + (await later;)
+    print; conversion.value
+    print; iterator.value

@@ -831,15 +831,14 @@ fn rust_rendered_object_name(identity: &ObjectIdentity) -> impl Iterator<Item = 
     )
 }
 
-/// Qualifies rendered-name collisions with an injective encoding of the canonical source identity.
+/// Qualifies rendered-name collisions with a readable canonical stem and exact-byte suffix.
 pub(crate) fn rust_object_type_name(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> String {
-    let collides = rust_prelude_type_name(&rust_rendered_object_name(identity))
-        || rust_rendered_object_name(identity)
-            .take(7)
-            .eq("Terrane".chars())
+    let rendered = rust_rendered_object_name(identity);
+    let collides = rust_prelude_type_name(&rendered)
+        || rendered.clone().take(7).eq("Terrane".chars())
         || package
             .units
             .iter()
@@ -858,18 +857,28 @@ pub(crate) fn rust_object_type_name(
                     || current.chain("Protocol".chars()).eq(other)
             });
     let mut base = if collides {
-        let mut encoded =
-            String::with_capacity(identity.namespace.len() * 2 + identity.name.len() * 2 + 11);
-        encoded.push_str("TerraneNs");
+        let mut qualified =
+            String::with_capacity(18 + identity.namespace.len() * 3 + identity.name.len() * 3);
+        qualified.push_str("TerraneNs");
+        qualified.extend(
+            identity
+                .namespace
+                .split('/')
+                .flat_map(rust_object_name_characters),
+        );
+        qualified.extend(rust_object_name_characters(&identity.name));
+        // The non-hex marker makes the exact identity suffix unambiguous without
+        // introducing underscores that trigger Rust's type-name style warnings.
+        qualified.push_str("Identity");
         for byte in identity
             .namespace
             .bytes()
             .chain([0])
             .chain(identity.name.bytes())
         {
-            write!(encoded, "{byte:02X}").expect("writing to a string cannot fail");
+            write!(qualified, "{byte:02X}").expect("writing to a string cannot fail");
         }
-        encoded
+        qualified
     } else {
         rust_object_name(&identity.name)
     };
@@ -896,6 +905,7 @@ pub(crate) fn rust_object_type_name(
     }
 }
 
+// Mirrors the edition-2024 std prelude, plus names used by generated runtime support.
 fn rust_prelude_type_name(name: &(impl Iterator<Item = char> + Clone)) -> bool {
     [
         "AsMut",
@@ -904,6 +914,7 @@ fn rust_prelude_type_name(name: &(impl Iterator<Item = char> + Clone)) -> bool {
         "Clone",
         "Copy",
         "Default",
+        "DoubleEndedIterator",
         "Drop",
         "Eq",
         "ExactSizeIterator",
@@ -913,10 +924,12 @@ fn rust_prelude_type_name(name: &(impl Iterator<Item = char> + Clone)) -> bool {
         "FnOnce",
         "From",
         "FromIterator",
+        "Future",
         "Hash",
         "Hasher",
         "Into",
         "IntoIterator",
+        "IntoFuture",
         "Iterator",
         "None",
         "Option",

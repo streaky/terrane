@@ -531,3 +531,44 @@ pub(super) fn decode_adaptive_int(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{native_discriminant, native_variant_matches};
+    use serde_json::json;
+
+    #[test]
+    fn native_variant_matching_preserves_tag_width() {
+        let full_width = 0x1_0000_0001;
+        assert!(native_variant_matches(Some(full_width), Some(full_width)));
+        assert!(native_variant_matches(Some(1), Some(full_width)));
+        assert!(native_variant_matches(Some(1), Some(1)));
+        assert!(native_variant_matches(
+            Some(u64::from(u32::MAX) - 1),
+            Some(u64::MAX - 1),
+        ));
+        assert!(!native_variant_matches(
+            Some(full_width),
+            Some(0x2_0000_0001)
+        ));
+        assert!(!native_variant_matches(Some(2), Some(1)));
+        assert!(!native_variant_matches(None, Some(full_width)));
+        assert!(!native_variant_matches(Some(1), None));
+    }
+
+    #[test]
+    fn native_discriminants_preserve_signed_native_bits() {
+        assert_eq!(native_discriminant(&json!({"value": "-1"})), Some(u64::MAX));
+        assert_eq!(
+            native_discriminant(&json!({"value": "-2147483648"})),
+            Some(0xffff_ffff_8000_0000)
+        );
+        assert_eq!(
+            native_discriminant(&json!({"value": "18446744073709551615"})),
+            Some(u64::MAX)
+        );
+        assert_eq!(native_discriminant(&json!({"value": "malformed"})), None);
+        assert_eq!(native_discriminant(&json!({})), None);
+        assert_eq!(native_discriminant(&json!({"value": 1})), None);
+    }
+}
