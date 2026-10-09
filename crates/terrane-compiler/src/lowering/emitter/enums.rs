@@ -302,10 +302,15 @@ impl<'a> Emitter<'a> {
             return None;
         };
         let descriptor = self.enum_designator(enum_name)?;
-        let contract = self.unit.source_enums.iter().find(|contract| {
-            contract.identity.namespace == descriptor.identity.namespace
-                && contract.identity.name == descriptor.identity.name
-        });
+        let contract = self
+            .package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.source_enums)
+            .find(|contract| {
+                contract.identity.namespace == descriptor.identity.namespace
+                    && contract.identity.name == descriptor.identity.name
+            });
         let Some(contract) = contract else {
             let item = self
                 .package
@@ -653,9 +658,10 @@ impl<'a> Emitter<'a> {
                 };
                 let variant_name = self.text(variant);
                 if let Some(contract) = self
-                    .unit
-                    .source_enums
+                    .package
+                    .units
                     .iter()
+                    .flat_map(|unit| &unit.source_enums)
                     .find(|contract| contract.identity.base() == descriptor.identity.base())
                 {
                     let enum_identity = match self.value_type(operand) {

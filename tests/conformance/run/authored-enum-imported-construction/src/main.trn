@@ -1,0 +1,17 @@
+namespace app
+
+from /model import state as workflow-state
+from /core/output import print
+
+function report string; value workflow-state of string
+    match ref value
+        case workflow-state::pending
+            return 'pending'
+        case workflow-state::completed; result
+            return result
+
+function main;
+    waiting workflow-state of string = instance workflow-state::pending;
+    completed workflow-state of string = instance workflow-state::completed; value = 'done'
+    print; (report; waiting)
+    print; (report; completed)

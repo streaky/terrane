@@ -1,0 +1,5 @@
+namespace model
+
+enum state of (T)
+    pending
+    completed; value T
