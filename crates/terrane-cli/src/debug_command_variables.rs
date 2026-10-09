@@ -287,7 +287,7 @@ pub(super) fn unwrap_storage_variable(
                 let tag = variant["name"]
                     .as_str()
                     .and_then(|name| name.strip_prefix("$variant$"))
-                    .and_then(|tag| tag.parse::<u32>().ok());
+                    .and_then(|tag| tag.parse::<u64>().ok());
                 let actual = if discriminant.is_some() {
                     discriminant
                 } else {
@@ -301,7 +301,7 @@ pub(super) fn unwrap_storage_variable(
                         })
                         .and_then(native_discriminant)
                 };
-                if tag.is_some() && tag == actual {
+                if native_variant_matches(tag, actual) {
                     selected = Some(variant.clone());
                     break;
                 }
@@ -335,15 +335,20 @@ pub(super) fn unwrap_storage_variable(
     Ok(())
 }
 
-// LLDB's raw DWARF variant names contain a 32-bit discriminant, even for
-// Rust niche tags wider than that. The value is read from the native storage,
-// not inferred from source types or declaration order.
-pub(super) fn native_discriminant(variable: &Value) -> Option<u32> {
+fn native_variant_matches(tag: Option<u64>, actual: Option<u64>) -> bool {
+    tag.zip(actual).is_some_and(|(tag, actual)| {
+        tag == actual || (u32::try_from(tag).is_ok() && tag == actual & u64::from(u32::MAX))
+    })
+}
+
+// LLDB can expose full-width niche tags or truncate DWARF variant names to 32 bits.
+// Preserve the native discriminant's width; only compare its low bits for a narrow tag.
+pub(super) fn native_discriminant(variable: &Value) -> Option<u64> {
     variable["value"]
         .as_str()?
         .parse::<i128>()
         .ok()
-        .and_then(|value| u32::try_from(value & i128::from(u32::MAX)).ok())
+        .and_then(|value| u64::try_from(value & i128::from(u64::MAX)).ok())
 }
 
 pub(super) fn read_value_summaries(
@@ -524,5 +529,46 @@ pub(super) fn decode_adaptive_int(
                 _ => Err("<unsupported layout: unknown bigint sign>".to_owned()),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{native_discriminant, native_variant_matches};
+    use serde_json::json;
+
+    #[test]
+    fn native_variant_matching_preserves_tag_width() {
+        let full_width = 0x1_0000_0001;
+        assert!(native_variant_matches(Some(full_width), Some(full_width)));
+        assert!(native_variant_matches(Some(1), Some(full_width)));
+        assert!(native_variant_matches(Some(1), Some(1)));
+        assert!(native_variant_matches(
+            Some(u64::from(u32::MAX) - 1),
+            Some(u64::MAX - 1),
+        ));
+        assert!(!native_variant_matches(
+            Some(full_width),
+            Some(0x2_0000_0001)
+        ));
+        assert!(!native_variant_matches(Some(2), Some(1)));
+        assert!(!native_variant_matches(None, Some(full_width)));
+        assert!(!native_variant_matches(Some(1), None));
+    }
+
+    #[test]
+    fn native_discriminants_preserve_signed_native_bits() {
+        assert_eq!(native_discriminant(&json!({"value": "-1"})), Some(u64::MAX));
+        assert_eq!(
+            native_discriminant(&json!({"value": "-2147483648"})),
+            Some(0xffff_ffff_8000_0000)
+        );
+        assert_eq!(
+            native_discriminant(&json!({"value": "18446744073709551615"})),
+            Some(u64::MAX)
+        );
+        assert_eq!(native_discriminant(&json!({"value": "malformed"})), None);
+        assert_eq!(native_discriminant(&json!({})), None);
+        assert_eq!(native_discriminant(&json!({"value": 1})), None);
     }
 }

@@ -9,7 +9,8 @@ use crate::{
             effective_object_methods, find_node, find_node_by_span, function_name,
             object_descendants, object_destructor_chain, rust_empty_collection,
             rust_generic_parameters, rust_name, rust_object_type_name,
-            rust_source_type_application, rust_static_field_name, rust_value_type,
+            rust_source_type_application, rust_static_field_name, rust_type_parameter_name,
+            rust_value_type,
         },
         required_init::constructor_proves_fields,
         runtime_support::package_uses_typed_documents,
@@ -508,7 +509,7 @@ impl<'a> Emitter<'a> {
                         "std::marker::PhantomData<fn({})>",
                         phantom_parameters
                             .iter()
-                            .map(|parameter| rust_name(&parameter.name))
+                            .map(|parameter| rust_type_parameter_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ")
                     )

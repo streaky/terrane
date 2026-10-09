@@ -1,0 +1,8 @@
+namespace wrapper
+
+from /model import state
+from /core/collections import list
+
+class job
+    status state of int = instance state::pending;
+    statuses list of (state of int)

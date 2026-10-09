@@ -1,0 +1,15 @@
+namespace app
+
+from /core/output import print
+
+class foo-bar
+    value int = 1
+
+class fooBar
+    value int = 2
+
+function main;
+    first = instance foo-bar;
+    second = instance fooBar;
+    print; first.value
+    print; second.value

@@ -1,0 +1,5 @@
+package = "authored-enum-imported-construction"
+
+[namespaces]
+app = "src"
+model = "model"

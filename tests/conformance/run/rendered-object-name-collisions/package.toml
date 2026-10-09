@@ -1,0 +1,5 @@
+package = "rendered-object-name-collisions"
+
+[namespaces]
+app = "src"
+other = "other"

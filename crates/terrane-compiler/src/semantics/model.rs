@@ -2003,7 +2003,9 @@ pub struct SemanticUnit {
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
-    pub source_enums: Vec<SourceEnumContract>,
+    pub source_enums: Vec<std::sync::Arc<SourceEnumContract>>,
+    /// Canonical source enum contracts from all package units, retaining local ownership above.
+    pub(crate) source_enum_registry: std::sync::Arc<[std::sync::Arc<SourceEnumContract>]>,
     pub(crate) required_init_proofs: BTreeMap<(u32, usize, usize), RequiredInitProof>,
     pub descriptors: Vec<DescriptorContract>,
     pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,

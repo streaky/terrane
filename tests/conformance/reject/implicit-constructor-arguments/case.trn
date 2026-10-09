@@ -1,0 +1,7 @@
+namespace implicit-constructor-arguments
+
+class job
+    status int
+
+function main;
+    job-value = instance job; status = 1

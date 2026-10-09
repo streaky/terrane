@@ -662,7 +662,7 @@ fn infer_nonbinary_value_type(
                         return Ok(None);
                     };
                     if let Some(enumeration) = unit
-                        .source_enums
+                        .source_enum_registry
                         .iter()
                         .find(|item| item.identity.base() == identity.base())
                     {

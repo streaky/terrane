@@ -348,6 +348,7 @@ pub(super) fn parse_unit(
         typed_bindings: Vec::new(),
         functions: Vec::new(),
         source_enums: Vec::new(),
+        source_enum_registry: std::sync::Arc::from([]),
         required_init_proofs: BTreeMap::new(),
         reference_provenance: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),

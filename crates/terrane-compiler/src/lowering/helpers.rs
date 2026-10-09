@@ -803,46 +803,82 @@ pub(super) fn global_binding_name(name: &str) -> String {
 }
 
 pub(super) fn rust_object_name(name: &str) -> String {
-    let mut uppercase = true;
-    name.chars()
-        .filter_map(|character| {
-            if character == '-' {
-                uppercase = true;
-                None
-            } else if uppercase {
-                uppercase = false;
-                Some(character.to_ascii_uppercase())
-            } else {
-                Some(character)
-            }
-        })
-        .collect()
+    rust_object_name_characters(name).collect()
 }
 
-/// Qualifies colliding names with source-byte-length-prefixed CamelCase namespace segments.
-///
-/// Counting the source segment keeps the encoding injective when case conversion erases spelling
-/// differences; the following CamelCase letter also makes adjacent decimal lengths unambiguous.
+fn rust_object_name_characters(name: &str) -> impl Iterator<Item = char> + Clone + '_ {
+    let mut uppercase = true;
+    name.chars().filter_map(move |character| {
+        if character == '-' {
+            uppercase = true;
+            None
+        } else if uppercase {
+            uppercase = false;
+            Some(character.to_ascii_uppercase())
+        } else {
+            Some(character)
+        }
+    })
+}
+
+fn rust_rendered_object_name(identity: &ObjectIdentity) -> impl Iterator<Item = char> + Clone + '_ {
+    rust_object_name_characters(&identity.name).chain(
+        identity
+            .is_unsafe
+            .then_some("UnsafeContract")
+            .into_iter()
+            .flat_map(str::chars),
+    )
+}
+
+/// Qualifies rendered-name collisions with a readable canonical stem and exact-byte suffix.
 pub(crate) fn rust_object_type_name(
     package: &SemanticPackage,
     identity: &ObjectIdentity,
 ) -> String {
-    let collides = package
-        .units
-        .iter()
-        .flat_map(|unit| &unit.descriptors)
-        .filter(|object| object.identity.name == identity.name)
-        .map(|object| &object.identity)
-        .collect::<std::collections::BTreeSet<_>>()
-        .len()
-        > 1;
+    let rendered = rust_rendered_object_name(identity);
+    let collides = rust_prelude_type_name(&rendered)
+        || rendered.clone().take(7).eq("Terrane".chars())
+        || package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.descriptors)
+            .any(|object| {
+                if object.identity.namespace == identity.namespace
+                    && object.identity.name == identity.name
+                    && object.identity.is_unsafe == identity.is_unsafe
+                {
+                    return false;
+                }
+                let other = rust_rendered_object_name(&object.identity);
+                let current = rust_rendered_object_name(identity);
+                other.clone().eq(current.clone())
+                    || other.clone().chain("Protocol".chars()).eq(current.clone())
+                    || current.chain("Protocol".chars()).eq(other)
+            });
     let mut base = if collides {
-        let mut namespace = String::new();
-        for segment in identity.namespace.trim_start_matches('/').split('/') {
-            write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
-                .expect("writing to a string cannot fail");
+        let mut qualified =
+            String::with_capacity(18 + identity.namespace.len() * 3 + identity.name.len() * 3);
+        qualified.push_str("TerraneNs");
+        qualified.extend(
+            identity
+                .namespace
+                .split('/')
+                .flat_map(rust_object_name_characters),
+        );
+        qualified.extend(rust_object_name_characters(&identity.name));
+        // The non-hex marker makes the exact identity suffix unambiguous without
+        // introducing underscores that trigger Rust's type-name style warnings.
+        qualified.push_str("Identity");
+        for byte in identity
+            .namespace
+            .bytes()
+            .chain([0])
+            .chain(identity.name.bytes())
+        {
+            write!(qualified, "{byte:02X}").expect("writing to a string cannot fail");
         }
-        format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+        qualified
     } else {
         rust_object_name(&identity.name)
     };
@@ -867,6 +903,55 @@ pub(crate) fn rust_object_type_name(
     } else {
         format!("{base}<{}>", arguments.join(", "))
     }
+}
+
+// Mirrors the edition-2024 std prelude, plus names used by generated runtime support.
+fn rust_prelude_type_name(name: &(impl Iterator<Item = char> + Clone)) -> bool {
+    [
+        "AsMut",
+        "AsRef",
+        "Box",
+        "Clone",
+        "Copy",
+        "Default",
+        "DoubleEndedIterator",
+        "Drop",
+        "Eq",
+        "ExactSizeIterator",
+        "Extend",
+        "Fn",
+        "FnMut",
+        "FnOnce",
+        "From",
+        "FromIterator",
+        "Future",
+        "Hash",
+        "Hasher",
+        "Into",
+        "IntoIterator",
+        "IntoFuture",
+        "Iterator",
+        "None",
+        "Option",
+        "Ord",
+        "PartialEq",
+        "PartialOrd",
+        "RefUnwindSafe",
+        "Result",
+        "Send",
+        "Sized",
+        "String",
+        "Sync",
+        "ToOwned",
+        "ToString",
+        "TryFrom",
+        "TryInto",
+        "Unpin",
+        "UnwindSafe",
+        "Vec",
+    ]
+    .into_iter()
+    .any(|reserved| (*name).clone().eq(reserved.chars()))
 }
 
 pub(super) fn rust_source_type_application(

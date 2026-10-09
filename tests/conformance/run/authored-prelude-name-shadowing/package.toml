@@ -1,0 +1,4 @@
+package = "authored-prelude-name-shadowing"
+
+[namespaces]
+app = "src"

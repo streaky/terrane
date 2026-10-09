@@ -419,14 +419,20 @@ impl Emitter<'_> {
             return String::new();
         };
         let member_name = self.text(member);
-        if self.unit.source_enums.iter().any(|contract| {
-            contract.identity.namespace == object.identity.namespace
-                && contract.identity.name == object.identity.name
-                && contract
-                    .variants
-                    .iter()
-                    .any(|variant| variant.name == member_name)
-        }) {
+        if self
+            .package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.source_enums)
+            .any(|contract| {
+                contract.identity.namespace == object.identity.namespace
+                    && contract.identity.name == object.identity.name
+                    && contract
+                        .variants
+                        .iter()
+                        .any(|variant| variant.name == member_name)
+            })
+        {
             return format!(
                 "{}::{}",
                 rust_source_type_application(self.package, &object.identity),
