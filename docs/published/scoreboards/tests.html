@@ -14,29 +14,6 @@
   },
   "runs": [
     {
-      "measured_at": "2026-10-07T22:16:59Z",
-      "command": [
-        "cargo",
-        "test",
-        "--workspace",
-        "--",
-        "--test-threads=8"
-      ],
-      "environment": {
-        "host": "server",
-        "platform": "Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44",
-        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
-        "revision": "74f75d5d"
-      },
-      "exit_code": 0,
-      "cargo_seconds": 1015.172592,
-      "test_seconds": 5205.819197,
-      "measured_tests": 1588,
-      "passed": 1588,
-      "failed": 0,
-      "ignored": 0
-    },
-    {
       "measured_at": "2026-10-07T23:43:53Z",
       "command": [
         "cargo",
@@ -287,6 +264,29 @@
       "measured_tests": 1611,
       "passed": 1611,
       "failed": 0,
+      "ignored": 0
+    },
+    {
+      "measured_at": "2026-10-09T15:16:35Z",
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--",
+        "--test-threads=8"
+      ],
+      "environment": {
+        "host": "server",
+        "platform": "Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44",
+        "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+        "revision": "1c256da0"
+      },
+      "exit_code": 101,
+      "cargo_seconds": 200.367811,
+      "test_seconds": 1161.135565,
+      "measured_tests": 83,
+      "passed": 82,
+      "failed": 1,
       "ignored": 0
     }
   ],
@@ -49206,15 +49206,10 @@
       "name": "all_commands_share_the_hello_pipeline",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 16.454569,
-      "previous_seconds": 17.695763,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 17.477878,
+      "previous_seconds": 16.454569,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 16.805256,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 16.722244,
@@ -49249,6 +49244,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 16.454569,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 17.477878,
+          "status": "passed"
         }
       ]
     },
@@ -49258,15 +49258,10 @@
       "name": "canonical_rust_requirement_preserves_successful_rust_output",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.071789,
-      "previous_seconds": 0.071035,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.076784,
+      "previous_seconds": 0.071789,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.112348,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.077201,
@@ -49301,6 +49296,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.071789,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.076784,
+          "status": "passed"
         }
       ]
     },
@@ -49310,15 +49310,10 @@
       "name": "executable_shebang_script_runs_through_implicit_command",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 13.129692,
-      "previous_seconds": 13.62253,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 13.590338,
+      "previous_seconds": 13.129692,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 13.675812,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 12.776972,
@@ -49353,6 +49348,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 13.129692,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 13.590338,
+          "status": "passed"
         }
       ]
     },
@@ -49362,15 +49362,10 @@
       "name": "extensionless_source_and_package_paths_dispatch_consistently",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 22.895095,
-      "previous_seconds": 22.791769,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 23.165993,
+      "previous_seconds": 22.895095,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 23.656939,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 23.0385,
@@ -49405,6 +49400,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 22.895095,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 23.165993,
+          "status": "passed"
         }
       ]
     },
@@ -49414,15 +49414,10 @@
       "name": "external_query_client_applies_a_multi_file_rename",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.057497,
-      "previous_seconds": 0.047359,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.052385,
+      "previous_seconds": 0.057497,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.087189,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.048828,
@@ -49457,6 +49452,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.057497,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.052385,
+          "status": "passed"
         }
       ]
     },
@@ -49466,15 +49466,10 @@
       "name": "external_tooling_clients_receive_versioned_protocol_frames",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.041379,
-      "previous_seconds": 0.040878,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.043449,
+      "previous_seconds": 0.041379,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.077242,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.038272,
@@ -49509,6 +49504,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.041379,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.043449,
+          "status": "passed"
         }
       ]
     },
@@ -49518,15 +49518,10 @@
       "name": "failures_use_distinct_exit_codes_and_compiler_diagnostics",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.053734,
-      "previous_seconds": 0.055048,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.05495,
+      "previous_seconds": 0.053734,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.08679,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.056313,
@@ -49561,6 +49556,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.053734,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.05495,
+          "status": "passed"
         }
       ]
     },
@@ -49570,15 +49570,10 @@
       "name": "help_succeeds_and_extra_arguments_are_rejected",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.056754,
-      "previous_seconds": 0.048603,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.045981,
+      "previous_seconds": 0.056754,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.073308,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.05219,
@@ -49613,6 +49608,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.056754,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.045981,
+          "status": "passed"
         }
       ]
     },
@@ -49622,15 +49622,10 @@
       "name": "invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.035451,
-      "previous_seconds": 0.035182,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.034878,
+      "previous_seconds": 0.035451,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.039374,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.035207,
@@ -49665,6 +49660,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.035451,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.034878,
+          "status": "passed"
         }
       ]
     },
@@ -49674,15 +49674,10 @@
       "name": "output_options_are_rejected_outside_rust_and_when_repeated",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.146548,
-      "previous_seconds": 0.144168,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.153124,
+      "previous_seconds": 0.146548,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.157464,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.167501,
@@ -49717,6 +49712,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.146548,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.153124,
+          "status": "passed"
         }
       ]
     },
@@ -49726,15 +49726,10 @@
       "name": "package_hash_and_install_support_local_and_tagged_git_libraries",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.127586,
-      "previous_seconds": 0.126839,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.12805,
+      "previous_seconds": 0.127586,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.139759,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.135547,
@@ -49769,6 +49764,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.127586,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.12805,
+          "status": "passed"
         }
       ]
     },
@@ -49778,15 +49778,10 @@
       "name": "package_install_requires_a_current_application_manifest",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.021389,
-      "previous_seconds": 0.023659,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.022645,
+      "previous_seconds": 0.021389,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.023682,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.022774,
@@ -49821,6 +49816,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.021389,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.022645,
+          "status": "passed"
         }
       ]
     },
@@ -49830,15 +49830,10 @@
       "name": "rust_output_writes_clean_authored_lowering_and_support_sidecar",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.050109,
-      "previous_seconds": 0.047898,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.051712,
+      "previous_seconds": 0.050109,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.052496,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.052723,
@@ -49873,6 +49868,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.050109,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.051712,
+          "status": "passed"
         }
       ]
     },
@@ -49882,15 +49882,10 @@
       "name": "source_formatter_checks_then_applies_an_idempotent_edit",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.07114,
-      "previous_seconds": 0.069003,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.070068,
+      "previous_seconds": 0.07114,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.077196,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.074431,
@@ -49925,6 +49920,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.07114,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.070068,
+          "status": "passed"
         }
       ]
     },
@@ -49934,15 +49934,10 @@
       "name": "tooling_stdio_returns_envelopes_for_malformed_requests",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.031579,
-      "previous_seconds": 0.037057,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.033994,
+      "previous_seconds": 0.031579,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.0344,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.033422,
@@ -49977,6 +49972,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.031579,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.033994,
+          "status": "passed"
         }
       ]
     },
@@ -49986,15 +49986,10 @@
       "name": "uncaught_source_errors_render_causes_and_terrane_frames",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 13.182429,
-      "previous_seconds": 13.930242,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 13.533548,
+      "previous_seconds": 13.182429,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 13.973184,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 13.129578,
@@ -50029,6 +50024,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 13.182429,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 13.533548,
+          "status": "passed"
         }
       ]
     },
@@ -50038,15 +50038,10 @@
       "name": "uncertain_function_variables_fail_at_the_unavailable_runtime_use",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 39.929031,
-      "previous_seconds": 43.013533,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 40.583506,
+      "previous_seconds": 39.929031,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 25.165888,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 24.751625,
@@ -50080,6 +50075,11 @@
         {
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 39.929031,
+          "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 40.583506,
           "status": "passed"
         }
       ]
@@ -50974,15 +50974,10 @@
       "name": "adapter_accepts_source_breakpoints_after_launch_before_configuration_done",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 26.333666,
-      "previous_seconds": 25.263301,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 90.113487,
+      "previous_seconds": 26.333666,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 32.231083,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.694218,
@@ -51017,6 +51012,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 26.333666,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 90.113487,
+          "status": "passed"
         }
       ]
     },
@@ -51026,15 +51026,10 @@
       "name": "adapter_debugs_relocated_exact_build_artifacts_and_sources",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 26.430981,
-      "previous_seconds": 25.753591,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 55.041412,
+      "previous_seconds": 26.430981,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.876745,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.693414,
@@ -51069,6 +51064,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 26.430981,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 55.041412,
+          "status": "passed"
         }
       ]
     },
@@ -51078,15 +51078,10 @@
       "name": "adapter_disables_source_translation_for_stale_sources",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 25.449657,
-      "previous_seconds": 24.469407,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 61.597304,
+      "previous_seconds": 25.449657,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.596658,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.111354,
@@ -51121,6 +51116,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 25.449657,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 61.597304,
+          "status": "passed"
         }
       ]
     },
@@ -51130,15 +51130,10 @@
       "name": "adapter_keeps_debuggee_output_framed_and_maps_stack_frames",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 26.380456,
-      "previous_seconds": 24.745505,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 82.678099,
+      "previous_seconds": 26.380456,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.88378,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.702794,
@@ -51173,6 +51168,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 26.380456,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 82.678099,
+          "status": "passed"
         }
       ]
     },
@@ -51182,15 +51182,10 @@
       "name": "adapter_preserves_fatal_native_stop_during_source_translation",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 26.418412,
-      "previous_seconds": 24.619244,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 103.725588,
+      "previous_seconds": 26.418412,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.816934,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.683384,
@@ -51225,6 +51220,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 26.418412,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 103.725588,
+          "status": "passed"
         }
       ]
     },
@@ -51234,15 +51234,10 @@
       "name": "adapter_preserves_raw_native_debugging_for_mismatched_provenance",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 25.26082,
-      "previous_seconds": 24.363571,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 99.111394,
+      "previous_seconds": 25.26082,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.432975,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.700582,
@@ -51277,6 +51272,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 25.26082,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 99.111394,
+          "status": "passed"
         }
       ]
     },
@@ -51286,15 +51286,10 @@
       "name": "adapter_rejects_malformed_schema_hash_and_abi_provenance",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 32.574195,
-      "previous_seconds": 31.771731,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 74.493776,
+      "previous_seconds": 32.574195,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 33.972767,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 29.615931,
@@ -51329,6 +51324,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 32.574195,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 74.493776,
+          "status": "passed"
         }
       ]
     },
@@ -51338,15 +51338,10 @@
       "name": "adapter_renders_explicitly_embedded_generated_source_when_build_tree_is_unavailable",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 26.238254,
-      "previous_seconds": 24.90057,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 77.418447,
+      "previous_seconds": 26.238254,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.73526,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.395878,
@@ -51381,6 +51376,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 26.238254,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 77.418447,
+          "status": "passed"
         }
       ]
     },
@@ -51390,15 +51390,10 @@
       "name": "adapter_renders_split_generated_support_from_exact_build",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 21.100653,
-      "previous_seconds": 21.73354,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 8.698386,
+      "previous_seconds": 21.100653,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 26.72356,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 29.250555,
@@ -51433,6 +51428,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 21.100653,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 8.698386,
+          "status": "passed"
         }
       ]
     },
@@ -51442,15 +51442,10 @@
       "name": "adapter_reports_attach_host_policy_and_honors_disconnect_policy",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.582823,
-      "previous_seconds": 0.621409,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 1.137064,
+      "previous_seconds": 0.582823,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.581592,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.591389,
@@ -51485,6 +51480,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.582823,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 1.137064,
+          "status": "passed"
         }
       ]
     },
@@ -51494,15 +51494,10 @@
       "name": "adapter_reports_the_delayed_launch_failure_after_configuration_done",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.649382,
-      "previous_seconds": 0.589437,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 1.124717,
+      "previous_seconds": 0.649382,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.582331,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.594645,
@@ -51537,6 +51532,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.649382,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 1.124717,
+          "status": "passed"
         }
       ]
     },
@@ -51546,15 +51546,10 @@
       "name": "adapter_reports_unsupported_debug_profiles_as_native_fidelity",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 22.705249,
-      "previous_seconds": 23.966473,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 9.776408,
+      "previous_seconds": 22.705249,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 23.766613,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 28.242244,
@@ -51589,6 +51584,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 22.705249,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 9.776408,
+          "status": "passed"
         }
       ]
     },
@@ -51598,15 +51598,10 @@
       "name": "adapter_serializes_disconnect_queued_during_active_source_step",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 23.200039,
-      "previous_seconds": 23.818753,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 9.941562,
+      "previous_seconds": 23.200039,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 26.370064,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 28.592862,
@@ -51641,6 +51636,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 23.200039,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 9.941562,
+          "status": "passed"
         }
       ]
     },
@@ -51650,15 +51650,10 @@
       "name": "adapter_steps_in_and_out_through_standard_dap_requests",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 22.921643,
-      "previous_seconds": 23.645822,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 15.70497,
+      "previous_seconds": 22.921643,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 26.180822,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 28.604625,
@@ -51693,6 +51688,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 22.921643,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 15.70497,
+          "status": "passed"
         }
       ]
     },
@@ -51702,15 +51702,10 @@
       "name": "adapter_surfaces_backend_launch_failures",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.143425,
-      "previous_seconds": 0.142404,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.988295,
+      "previous_seconds": 0.143425,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.075546,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.086055,
@@ -51745,6 +51740,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.143425,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.988295,
+          "status": "passed"
         }
       ]
     },
@@ -51754,15 +51754,10 @@
       "name": "cli_expands_focused_values_without_exposing_secret_fields",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 22.016126,
-      "previous_seconds": 23.00779,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 12.330597,
+      "previous_seconds": 22.016126,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 22.682934,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.643009,
@@ -51797,6 +51792,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 22.016126,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 12.330597,
+          "status": "passed"
         }
       ]
     },
@@ -51806,15 +51806,10 @@
       "name": "cli_hits_source_breakpoint_and_inspects_preserved_scalar",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 21.867647,
-      "previous_seconds": 23.093313,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 12.322431,
+      "previous_seconds": 21.867647,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 22.630347,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.520856,
@@ -51849,6 +51844,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 21.867647,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 12.322431,
+          "status": "passed"
         }
       ]
     },
@@ -51858,15 +51858,10 @@
       "name": "cli_keeps_debuggee_text_that_resembles_debugger_output_on_stdout",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 21.732566,
-      "previous_seconds": 20.640396,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 11.825887,
+      "previous_seconds": 21.732566,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 18.495869,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 27.118084,
@@ -51901,6 +51896,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 21.732566,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 11.825887,
+          "status": "passed"
         }
       ]
     },
@@ -51909,16 +51909,11 @@
       "target": "tests/debugger_cli.rs [debugger_cli]",
       "name": "cli_locals_decode_active_union_arms_and_uncertain_availability",
       "kind": "libtest",
-      "status": "passed",
-      "seconds": 68.680548,
-      "previous_seconds": 66.599886,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "status": "failed",
+      "seconds": 36.379805,
+      "previous_seconds": 68.680548,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 66.592643,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 82.291767,
@@ -51953,6 +51948,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 68.680548,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 36.379805,
+          "status": "failed"
         }
       ]
     },
@@ -51962,15 +51962,10 @@
       "name": "cli_locals_show_the_function_binding_through_control_flow",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 13.286341,
-      "previous_seconds": 22.544717,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 17.398666,
+      "previous_seconds": 13.286341,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 25.441008,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 29.643801,
@@ -52005,6 +52000,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 13.286341,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 17.398666,
+          "status": "passed"
         }
       ]
     },
@@ -52014,15 +52014,10 @@
       "name": "cli_next_ignores_temporary_breakpoint_hits_in_recursive_deeper_frames",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 29.335144,
-      "previous_seconds": 22.251592,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 18.000375,
+      "previous_seconds": 29.335144,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 25.492139,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 29.628239,
@@ -52057,6 +52052,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 29.335144,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 18.000375,
+          "status": "passed"
         }
       ]
     },
@@ -52066,15 +52066,10 @@
       "name": "cli_next_returns_from_a_helpers_final_sequence_point",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 29.301664,
-      "previous_seconds": 26.864791,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 21.775277,
+      "previous_seconds": 29.301664,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 24.799187,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 29.500689,
@@ -52109,6 +52104,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 29.301664,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 21.775277,
+          "status": "passed"
         }
       ]
     },
@@ -52118,15 +52118,10 @@
       "name": "cli_preserves_breakpoints_and_reenters_loop_sequence_points",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 29.315003,
-      "previous_seconds": 27.679394,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 21.380901,
+      "previous_seconds": 29.315003,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 23.102335,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 29.121095,
@@ -52161,6 +52156,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 29.315003,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 21.380901,
+          "status": "passed"
         }
       ]
     },
@@ -52170,15 +52170,10 @@
       "name": "cli_resolves_relative_sources_from_the_invocation_directory_first",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 28.657818,
-      "previous_seconds": 27.594382,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 20.264745,
+      "previous_seconds": 28.657818,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 23.110356,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 28.745635,
@@ -52213,6 +52208,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 28.657818,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 20.264745,
+          "status": "passed"
         }
       ]
     },
@@ -52222,15 +52222,10 @@
       "name": "cli_returns_the_debuggee_exit_status",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 50.331338,
-      "previous_seconds": 48.222163,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 37.585622,
+      "previous_seconds": 50.331338,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 47.891364,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 54.156991,
@@ -52265,6 +52260,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 50.331338,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 37.585622,
+          "status": "passed"
         }
       ]
     },
@@ -52274,15 +52274,10 @@
       "name": "cli_step_out_returns_to_the_exact_caller",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 28.214911,
-      "previous_seconds": 27.603218,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 25.095178,
+      "previous_seconds": 28.214911,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 23.097786,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 28.69626,
@@ -52317,6 +52312,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 28.214911,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 25.095178,
+          "status": "passed"
         }
       ]
     },
@@ -52326,15 +52326,10 @@
       "name": "cli_steps_across_async_function_boundaries_in_source_space",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 25.155568,
-      "previous_seconds": 21.892289,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 24.975002,
+      "previous_seconds": 25.155568,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 20.251857,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 19.85771,
@@ -52369,6 +52364,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 25.155568,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 24.975002,
+          "status": "passed"
         }
       ]
     },
@@ -52378,15 +52378,10 @@
       "name": "cli_steps_over_folded_guarded_branches_as_one_source_statement",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 17.937779,
-      "previous_seconds": 21.56325,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 25.64608,
+      "previous_seconds": 17.937779,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 21.33766,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 21.407352,
@@ -52421,6 +52416,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 17.937779,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 25.64608,
+          "status": "passed"
         }
       ]
     },
@@ -52430,15 +52430,10 @@
       "name": "debug_build_embeds_sources_only_when_requested",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 15.835686,
-      "previous_seconds": 15.972444,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 19.370064,
+      "previous_seconds": 15.835686,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 19.340437,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 19.444165,
@@ -52473,6 +52468,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 15.835686,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 19.370064,
+          "status": "passed"
         }
       ]
     },
@@ -52482,15 +52482,10 @@
       "name": "debug_rejects_release_profile_instead_of_claiming_source_fidelity",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.037455,
-      "previous_seconds": 0.035723,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.173142,
+      "previous_seconds": 0.037455,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.038285,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.095784,
@@ -52525,6 +52520,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.037455,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.173142,
+          "status": "passed"
         }
       ]
     },
@@ -52534,15 +52534,10 @@
       "name": "debugger_build_does_not_replace_ordinary_application_artifacts",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 30.805572,
-      "previous_seconds": 29.754595,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 32.255553,
+      "previous_seconds": 30.805572,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 34.448627,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 34.874857,
@@ -52577,6 +52572,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 30.805572,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 32.255553,
+          "status": "passed"
         }
       ]
     },
@@ -52586,15 +52586,10 @@
       "name": "debugger_fixture_removes_its_temporary_build_tree_on_drop",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.00023,
-      "previous_seconds": 0.000399,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000245,
+      "previous_seconds": 0.00023,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000209,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.00023,
@@ -52629,6 +52624,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.00023,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000245,
+          "status": "passed"
         }
       ]
     },
@@ -52638,15 +52638,10 @@
       "name": "debugger_preserves_breakpoints_beyond_five_hundred_sequence_points",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 20.998555,
-      "previous_seconds": 19.865457,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 23.498716,
+      "previous_seconds": 20.998555,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 23.088228,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 23.976678,
@@ -52680,6 +52675,11 @@
         {
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 20.998555,
+          "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 23.498716,
           "status": "passed"
         }
       ]
@@ -81608,15 +81608,10 @@
       "name": "census_command::tests::parses_exact_census_request",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.00041,
-      "previous_seconds": 0.000254,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000287,
+      "previous_seconds": 0.00041,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000495,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000329,
@@ -81651,6 +81646,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.00041,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000287,
+          "status": "passed"
         }
       ]
     },
@@ -81660,15 +81660,10 @@
       "name": "census_command::tests::reports_missing_required_census_options",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000406,
-      "previous_seconds": 0.000235,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000259,
+      "previous_seconds": 0.000406,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000481,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000293,
@@ -81703,6 +81698,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000406,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000259,
+          "status": "passed"
         }
       ]
     },
@@ -81712,15 +81712,10 @@
       "name": "debug_command::tests::batched_lldb_breakpoint_output_preserves_every_identifier",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000447,
-      "previous_seconds": 0.000247,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000375,
+      "previous_seconds": 0.000447,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000468,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000283,
@@ -81755,6 +81750,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000447,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000375,
+          "status": "passed"
         }
       ]
     },
@@ -81764,15 +81764,10 @@
       "name": "debug_command::tests::breakpoint_resolution_preserves_every_native_location_and_adjusts_in_function",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.001021,
-      "previous_seconds": 0.000581,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.001387,
+      "previous_seconds": 0.001021,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000803,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000883,
@@ -81807,6 +81802,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.001021,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.001387,
+          "status": "passed"
         }
       ]
     },
@@ -81816,15 +81816,10 @@
       "name": "debug_command::tests::executable_sidecars_preserve_native_extensions",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000381,
-      "previous_seconds": 0.000285,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000359,
+      "previous_seconds": 0.000381,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000486,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000309,
@@ -81859,6 +81854,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000381,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000359,
+          "status": "passed"
         }
       ]
     },
@@ -81868,15 +81868,10 @@
       "name": "debug_command::tests::resuming_invalidates_session_variable_handles_before_backend_io",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000563,
-      "previous_seconds": 0.000342,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000403,
+      "previous_seconds": 0.000563,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.00054,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000404,
@@ -81911,6 +81906,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000563,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000403,
+          "status": "passed"
         }
       ]
     },
@@ -81920,15 +81920,10 @@
       "name": "debug_command::tests::rust_lldb_initialization_precedes_client_commands_when_available",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000574,
-      "previous_seconds": 0.000295,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000379,
+      "previous_seconds": 0.000574,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000517,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000377,
@@ -81963,6 +81958,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000574,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000379,
+          "status": "passed"
         }
       ]
     },
@@ -81972,15 +81972,10 @@
       "name": "debug_command::tests::scalar_values_remain_raw_without_a_matching_abi_recipe",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000948,
-      "previous_seconds": 0.000655,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000622,
+      "previous_seconds": 0.000948,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000744,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000673,
@@ -82015,6 +82010,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000948,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000622,
+          "status": "passed"
         }
       ]
     },
@@ -82024,15 +82024,10 @@
       "name": "debug_command::tests::variable_translation_redacts_secret_fields_before_frontend_exposure",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000524,
-      "previous_seconds": 0.000447,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.00053,
+      "previous_seconds": 0.000524,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000448,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000502,
@@ -82067,6 +82062,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000524,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.00053,
+          "status": "passed"
         }
       ]
     },
@@ -82076,15 +82076,10 @@
       "name": "debug_command::tests::variable_translation_selects_the_innermost_visible_shadow",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000562,
-      "previous_seconds": 0.000463,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000536,
+      "previous_seconds": 0.000562,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000305,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000599,
@@ -82119,6 +82114,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000562,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000536,
+          "status": "passed"
         }
       ]
     },
@@ -82128,15 +82128,10 @@
       "name": "development_fingerprint::tests::fingerprint_reports_unreadable_input_roots",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000175,
-      "previous_seconds": 0.000103,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 8.4e-05,
+      "previous_seconds": 0.000175,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000118,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000118,
@@ -82171,6 +82166,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000175,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 8.4e-05,
+          "status": "passed"
         }
       ]
     },
@@ -82180,15 +82180,10 @@
       "name": "development_fingerprint::tests::fingerprint_tracks_compiler_inputs_and_ignores_documentation",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.001063,
-      "previous_seconds": 0.001214,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000879,
+      "previous_seconds": 0.001063,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.001936,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.001146,
@@ -82223,6 +82218,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.001063,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000879,
+          "status": "passed"
         }
       ]
     },
@@ -82232,15 +82232,10 @@
       "name": "development_provenance::tests::development_binary_detection_accepts_profiles_and_target_triples",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 2.5e-05,
-      "previous_seconds": 8.9e-05,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000114,
+      "previous_seconds": 2.5e-05,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000106,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 7.4e-05,
@@ -82275,6 +82270,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 2.5e-05,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000114,
+          "status": "passed"
         }
       ]
     },
@@ -82284,15 +82284,10 @@
       "name": "development_provenance::tests::rebuild_advice_matches_the_binary_profile",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 9.2e-05,
-      "previous_seconds": 6.4e-05,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 9.7e-05,
+      "previous_seconds": 9.2e-05,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000143,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 7e-05,
@@ -82327,6 +82322,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 9.2e-05,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 9.7e-05,
+          "status": "passed"
         }
       ]
     },
@@ -82336,15 +82336,10 @@
       "name": "profile_command::tests::allocation_options_reject_cpu_and_timeline_profiles",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 8.5e-05,
-      "previous_seconds": 9.2e-05,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 9.8e-05,
+      "previous_seconds": 8.5e-05,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000107,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 7.4e-05,
@@ -82379,6 +82374,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 8.5e-05,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 9.8e-05,
+          "status": "passed"
         }
       ]
     },
@@ -82388,15 +82388,10 @@
       "name": "profile_command::tests::normalizes_heaptrack_transitions_and_address_reuse",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.00011,
-      "previous_seconds": 0.000125,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000212,
+      "previous_seconds": 0.00011,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000218,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000121,
@@ -82431,6 +82426,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.00011,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000212,
+          "status": "passed"
         }
       ]
     },
@@ -82440,15 +82440,10 @@
       "name": "profile_command::tests::omitted_arguments_do_not_leak_into_collector_configuration",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 5e-05,
-      "previous_seconds": 8.4e-05,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 8.9e-05,
+      "previous_seconds": 5e-05,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000167,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 7.6e-05,
@@ -82483,6 +82478,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 5e-05,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 8.9e-05,
+          "status": "passed"
         }
       ]
     },
@@ -82492,15 +82492,10 @@
       "name": "profile_command::tests::parses_heaptrack_summary_units",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 7.5e-05,
-      "previous_seconds": 0.000192,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000302,
+      "previous_seconds": 7.5e-05,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000162,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 9.7e-05,
@@ -82535,6 +82530,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 7.5e-05,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000302,
+          "status": "passed"
         }
       ]
     },
@@ -82544,15 +82544,10 @@
       "name": "profile_command::tests::perf_script_parser_accepts_padded_pids_and_retains_frame_details",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.068379,
-      "previous_seconds": 0.065341,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.067929,
+      "previous_seconds": 0.068379,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.067009,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.066629,
@@ -82587,6 +82582,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.068379,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.067929,
+          "status": "passed"
         }
       ]
     },
@@ -82596,15 +82596,10 @@
       "name": "profile_command::tests::record_parser_allows_memory_timeline_alone_or_alongside_cpu",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000201,
-      "previous_seconds": 8.9e-05,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000256,
+      "previous_seconds": 0.000201,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000106,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000409,
@@ -82639,6 +82634,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000201,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000256,
+          "status": "passed"
         }
       ]
     },
@@ -82648,15 +82648,10 @@
       "name": "profile_command::tests::record_parser_keeps_allocation_and_cpu_evidence_separate",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000252,
-      "previous_seconds": 0.000145,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000192,
+      "previous_seconds": 0.000252,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000138,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000298,
@@ -82691,6 +82686,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000252,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000192,
+          "status": "passed"
         }
       ]
     },
@@ -82700,15 +82700,10 @@
       "name": "profile_command::tests::record_parser_separates_privacy_options_and_workload_arguments",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000245,
-      "previous_seconds": 0.000209,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000134,
+      "previous_seconds": 0.000245,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000115,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000263,
@@ -82743,6 +82738,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000245,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000134,
+          "status": "passed"
         }
       ]
     },
@@ -82752,15 +82752,10 @@
       "name": "profile_command::tests::report_limits_bound_every_row_expansion_and_shorten_build_paths",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000241,
-      "previous_seconds": 0.000216,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000126,
+      "previous_seconds": 0.000241,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000127,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.00024,
@@ -82795,6 +82790,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000241,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000126,
+          "status": "passed"
         }
       ]
     },
@@ -82804,15 +82804,10 @@
       "name": "profile_command::tests::sample_and_frame_limits_have_independent_loss_counts",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000624,
-      "previous_seconds": 0.000604,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000689,
+      "previous_seconds": 0.000624,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000572,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000597,
@@ -82847,6 +82842,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000624,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000689,
+          "status": "passed"
         }
       ]
     },
@@ -82856,15 +82856,10 @@
       "name": "profile_command::tests::show_parser_accepts_allocation_comparison_and_thresholds",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000193,
-      "previous_seconds": 0.000178,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 9.6e-05,
+      "previous_seconds": 0.000193,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000106,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000123,
@@ -82899,6 +82894,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000193,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 9.6e-05,
+          "status": "passed"
         }
       ]
     },
@@ -82908,15 +82908,10 @@
       "name": "profile_command::tests::show_parser_accepts_source_focus_and_lower_level_expansion",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000166,
-      "previous_seconds": 0.000153,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000101,
+      "previous_seconds": 0.000166,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000103,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000146,
@@ -82951,6 +82946,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000166,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000101,
+          "status": "passed"
         }
       ]
     },
@@ -82960,15 +82960,10 @@
       "name": "profile_command::tests::workload_sampler_counts_missing_collector_child",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000179,
-      "previous_seconds": 0.000142,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 9.8e-05,
+      "previous_seconds": 0.000179,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 9.9e-05,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000127,
@@ -83003,6 +82998,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000179,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 9.8e-05,
+          "status": "passed"
         }
       ]
     },
@@ -83012,15 +83012,10 @@
       "name": "tests::backend_error_in_support_sidecar_projects_to_terrane_source",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.072726,
-      "previous_seconds": 0.071402,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.105663,
+      "previous_seconds": 0.072726,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.076032,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.070506,
@@ -83055,6 +83050,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.072726,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.105663,
+          "status": "passed"
         }
       ]
     },
@@ -83064,15 +83064,10 @@
       "name": "tests::generated_cargo_manifest_configures_runtime_profiles_and_toolchain",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.004172,
-      "previous_seconds": 0.004224,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.003693,
+      "previous_seconds": 0.004172,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.004219,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.003513,
@@ -83107,6 +83102,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.004172,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.003693,
+          "status": "passed"
         }
       ]
     },
@@ -83116,15 +83116,10 @@
       "name": "tests::release_is_available_only_for_native_build_and_run",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000125,
-      "previous_seconds": 8.7e-05,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 8e-05,
+      "previous_seconds": 0.000125,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000192,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 8.4e-05,
@@ -83159,6 +83154,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000125,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 8e-05,
+          "status": "passed"
         }
       ]
     },
@@ -83168,15 +83168,10 @@
       "name": "tests::run_and_debug_require_program_argument_separator",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.00015,
-      "previous_seconds": 0.000102,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000122,
+      "previous_seconds": 0.00015,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000233,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 8.9e-05,
@@ -83211,6 +83206,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.00015,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000122,
+          "status": "passed"
         }
       ]
     },
@@ -83220,15 +83220,10 @@
       "name": "tests::source_path_dispatches_to_run_and_forwards_arguments",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000173,
-      "previous_seconds": 0.000106,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000368,
+      "previous_seconds": 0.000173,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.000291,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.000109,
@@ -83263,6 +83258,11 @@
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000173,
           "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000368,
+          "status": "passed"
         }
       ]
     },
@@ -83272,15 +83272,10 @@
       "name": "tests::windows_import_library_cache_copies_the_dll_companion",
       "kind": "libtest",
       "status": "passed",
-      "seconds": 0.000683,
-      "previous_seconds": 0.000698,
-      "measured_at": "2026-10-08T19:39:24Z",
+      "seconds": 0.000528,
+      "previous_seconds": 0.000683,
+      "measured_at": "2026-10-09T15:16:35Z",
       "history": [
-        {
-          "measured_at": "2026-10-08T14:36:31Z",
-          "seconds": 0.001004,
-          "status": "passed"
-        },
         {
           "measured_at": "2026-10-08T14:49:02Z",
           "seconds": 0.00066,
@@ -83314,6 +83309,11 @@
         {
           "measured_at": "2026-10-08T19:39:24Z",
           "seconds": 0.000683,
+          "status": "passed"
+        },
+        {
+          "measured_at": "2026-10-09T15:16:35Z",
+          "seconds": 0.000528,
           "status": "passed"
         }
       ]
