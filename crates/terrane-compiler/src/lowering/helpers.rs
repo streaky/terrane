@@ -803,20 +803,22 @@ pub(super) fn global_binding_name(name: &str) -> String {
 }
 
 pub(super) fn rust_object_name(name: &str) -> String {
+    rust_object_name_characters(name).collect()
+}
+
+fn rust_object_name_characters(name: &str) -> impl Iterator<Item = char> {
     let mut uppercase = true;
-    name.chars()
-        .filter_map(|character| {
-            if character == '-' {
-                uppercase = true;
-                None
-            } else if uppercase {
-                uppercase = false;
-                Some(character.to_ascii_uppercase())
-            } else {
-                Some(character)
-            }
-        })
-        .collect()
+    name.chars().filter_map(move |character| {
+        if character == '-' {
+            uppercase = true;
+            None
+        } else if uppercase {
+            uppercase = false;
+            Some(character.to_ascii_uppercase())
+        } else {
+            Some(character)
+        }
+    })
 }
 
 /// Qualifies colliding names with source-byte-length-prefixed CamelCase namespace segments.
@@ -831,7 +833,10 @@ pub(crate) fn rust_object_type_name(
         .units
         .iter()
         .flat_map(|unit| &unit.descriptors)
-        .filter(|object| object.identity.name == identity.name)
+        .filter(|object| {
+            rust_object_name_characters(&object.identity.name)
+                .eq(rust_object_name_characters(&identity.name))
+        })
         .map(|object| &object.identity)
         .collect::<std::collections::BTreeSet<_>>()
         .len()

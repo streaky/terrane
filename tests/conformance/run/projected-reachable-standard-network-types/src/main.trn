@@ -4,6 +4,9 @@ from /deps/ipnet import IpAddr, IpNet, AddrParseError
 from /deps/tokio/net import SocketAddr
 from /core/output import print
 
+class socket-addr
+    value int = 7
+
 function main;
     address IpAddr = IpAddr::from_str; '192.0.2.44'
     socket SocketAddr = SocketAddr::new; address, 3210
@@ -16,3 +19,5 @@ function main;
         print; 'unexpected parse success'
     catch AddrParseError
         print; 'invalid address caught'
+    local = instance socket-addr;
+    print; local.value
