@@ -403,6 +403,32 @@ pub(super) fn validate_call_nodes<'a>(
             return Err(failure(&unit.source, "T0012", message, callee.span));
         }
         let base_contract = selected_contract.as_ref().or(contract);
+        if base_contract.is_none()
+            && !arguments.children.is_empty()
+            && callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(class) = callee.children.first()
+            && let Some(identity) = class_designator_identity(unit, class)
+            && package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none()
+            && let Some(object) = unit.descriptors.iter().find(|object| {
+                object.kind == ObjectKind::Class && object.identity.base() == identity.base()
+            })
+            && effective_object_fields(package, object)
+                .iter()
+                .all(|field| !field.required)
+        {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "class `{}` has an implicit constructor that accepts no arguments",
+                    identity.name
+                ),
+                arguments.span,
+            ));
+        }
         if let Some(contract) = base_contract {
             let specialized = unit
                 .projected_call_specializations
