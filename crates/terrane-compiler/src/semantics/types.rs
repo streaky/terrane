@@ -1459,13 +1459,23 @@ pub(super) fn object_types_compatible(
     {
         return true;
     }
-    // Descriptor contracts belong to declarations, not individual generic applications.
+    // Prefer an exact applied contract (including projected interfaces); authored generic
+    // applications otherwise use their declaration's nominal conformance.
     let descriptor_for = |identity: &ObjectIdentity| {
-        objects.iter().find(|object| {
-            object.identity.namespace == identity.namespace
+        let mut declaration = None;
+        for object in objects {
+            if &object.identity == identity {
+                return Some(object);
+            }
+            if object.identity.type_arguments.is_empty()
+                && object.identity.namespace == identity.namespace
                 && object.identity.name == identity.name
                 && object.identity.is_unsafe == identity.is_unsafe
-        })
+            {
+                declaration = Some(object);
+            }
+        }
+        declaration
     };
     descriptor_for(actual).is_some_and(|object| {
         if object
