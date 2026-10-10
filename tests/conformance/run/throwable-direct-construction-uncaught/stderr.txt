@@ -1,0 +1,2 @@
+/throwable-direct-construction-uncaught::uncaught-error: uncaught direct message
+at /throwable-direct-construction-uncaught::main (case.trn:10:3-10:23)

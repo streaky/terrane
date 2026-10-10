@@ -1,0 +1,9 @@
+namespace generic-errors
+from /core/errors import throwable
+
+class imported-boxed-error of (T) implements throwable
+  message string = ''
+  function construct; message string
+    this.message = message
+  function render string;
+    return this.message

@@ -1,0 +1,7 @@
+direct generic
+inline instance
+existing instance
+declared bound
+inferred effect
+typed callable bound
+imported alias

@@ -3,5 +3,8 @@ named arguments
 default error
 explicit constructor
 imported alias
+local construction
+closure construction
+default error
 existing instance
 coercion has no compatible result

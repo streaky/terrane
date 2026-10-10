@@ -1383,7 +1383,11 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                 let user_throwable = matches!(
                     &value_type,
                     Some(ValueType::Object(identity))
-                        if identity_implements(package, &identity.qualified(), "/core/errors::throwable")
+                        if identity_implements(
+                            package,
+                            &identity.qualified_base(),
+                            "/core/errors::throwable",
+                        )
                 ) || object_name
                     .and_then(|name| {
                         package.resolve_name_at(

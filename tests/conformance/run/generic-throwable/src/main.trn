@@ -1,0 +1,60 @@
+namespace generic-throwable
+from /core/errors import throwable
+from /generic-errors import imported-boxed-error as aliased-boxed-error
+
+class boxed-error of (T) implements throwable
+  message string = ''
+  function construct; message string
+    this.message = message
+  function render string;
+    return this.message
+
+function declared none throws boxed-error; failure boxed-error of int
+  throw failure
+
+function inferred none; failure boxed-error of int
+  throw failure
+
+function raise-direct none throws boxed-error of int;
+  throw boxed-error of int; 'typed callable bound'
+
+function invoke-typed none throws boxed-error; operation function to none throws boxed-error of int
+  operation;
+  return none
+
+function main;
+  try
+    throw boxed-error of int; 'direct generic'
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    throw instance boxed-error of int; 'inline instance'
+  catch boxed-error as failure
+    print; failure.message
+
+  existing = instance boxed-error of int; 'existing instance'
+  try
+    throw existing
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    declared; (instance boxed-error of int; 'declared bound')
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    inferred; (instance boxed-error of int; 'inferred effect')
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    invoke-typed; raise-direct
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    throw aliased-boxed-error of int; 'imported alias'
+  catch aliased-boxed-error as failure
+    print; failure.message

@@ -648,6 +648,7 @@ function load string throws config-error; path string
   `render string`; compiler-supplied `cause throwable|none`, defaulting to `none`, in the runtime
   envelope. Runtime also retains the concrete descriptor and deterministic source-context chain.
   Descriptor identity, never message text, drives matching.
+- Generic throwable applications use the canonical base class descriptor for conformance, inferred escaping sets, throwable bounds, and runtime catch matching. `catch boxed-error` handles a thrown `boxed-error of int`; ordinary generic constructor type checks still apply. Import aliases retain the same identity. Executable coverage: `tests/conformance/run/generic-throwable/`.
 - `/core/errors` defines `throwable` and EXACTLY these language-mandated implementing classes:
 
 ```text

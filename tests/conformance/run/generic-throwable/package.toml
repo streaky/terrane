@@ -1,0 +1,5 @@
+package = "generic-throwable"
+
+[namespaces]
+generic-throwable = "src"
+generic-errors = "errors"

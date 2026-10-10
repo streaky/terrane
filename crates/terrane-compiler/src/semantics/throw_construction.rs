@@ -41,6 +41,7 @@ pub(super) fn normalize(package: &mut SemanticPackage) {
         }
     }
 
+    // Both passes visit statements in the same pre-order; starts are unique within a unit.
     fn rewrite(node: &mut SyntaxNode, sites: &mut std::iter::Peekable<std::vec::IntoIter<usize>>) {
         if node.kind == SyntaxKind::ThrowStatement && sites.peek() == Some(&node.span.start) {
             sites.next();

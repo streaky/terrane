@@ -438,14 +438,14 @@ impl Emitter<'_> {
 
     pub(super) fn rust_error_kind(&self, node: &SyntaxNode) -> String {
         if let Some(ValueType::Object(identity)) = self.value_type(node)
-            && identity.qualified() != "/core/errors::throwable"
+            && (identity.namespace != "/core/errors" || identity.name != "throwable")
         {
             if let Some(kind) = rust_builtin_error_kind(&identity.name) {
                 return kind.to_owned();
             }
             let descriptor = self
                 .registry
-                .register_descriptor(&identity.qualified(), &identity.name);
+                .register_descriptor(&identity.qualified_base(), &identity.name);
             return format!("Custom(DescriptorId({descriptor}))");
         }
         let descriptor = if node.kind == SyntaxKind::CallExpression {

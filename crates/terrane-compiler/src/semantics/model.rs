@@ -543,6 +543,15 @@ impl ObjectIdentity {
         format!("{}::{}", self.namespace, self)
     }
 
+    pub(crate) fn qualified_base(&self) -> String {
+        format!(
+            "{}::{}{}",
+            self.namespace,
+            if self.is_unsafe { "unsafe " } else { "" },
+            self.name
+        )
+    }
+
     pub(crate) fn base(&self) -> Self {
         Self::new(&self.namespace, &self.name).with_safety(self.is_unsafe)
     }
@@ -734,7 +743,7 @@ impl CallableEffects {
 
     pub(crate) fn possible_throwables(&self) -> BTreeSet<String> {
         match self.upper_bound.as_deref() {
-            Some(ValueType::Object(identity)) => BTreeSet::from([identity.qualified()]),
+            Some(ValueType::Object(identity)) => BTreeSet::from([identity.qualified_base()]),
             Some(_) => unreachable!("callable throwable upper bound must be an object"),
             None => self.escaping.clone(),
         }

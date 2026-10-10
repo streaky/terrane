@@ -24,6 +24,22 @@ class explicit-error implements throwable
   function render string;
     return this.message
 
+function invoke-local-construction;
+  function local-construction;
+    throw aliased-error; 'local construction'
+  local-construction;
+
+function closure-construction;
+  raise = function;
+    throw aliased-error; 'closure construction'
+  raise;
+
+function bare-default-throw;
+  throw default-error
+
+function invoke-bare-default-throw;
+  bare-default-throw;
+
 function main;
   try
     throw consumer-error; (make-document-none;), 'CLI command must be synchronous, non-throwing, and safe'
@@ -44,6 +60,18 @@ function main;
   try
     throw aliased-error; 'imported alias'
   catch aliased-error as error
+    print; error.message
+  try
+    invoke-local-construction;
+  catch aliased-error as error
+    print; error.message
+  try
+    closure-construction;
+  catch aliased-error as error
+    print; error.message
+  try
+    invoke-bare-default-throw;
+  catch default-error as error
     print; error.message
   existing = instance consumer-error; (make-document-none;), 'existing instance'
   try

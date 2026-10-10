@@ -655,7 +655,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                     if let Ok(Some(ValueType::Object(identity))) =
                         infer_value_type(unit, error, &unit.typed_bindings)
                     {
-                        return Some(identity.qualified());
+                        return Some(identity.qualified_base());
                     }
                     let descriptor = if error.kind == SyntaxKind::CallExpression {
                         error.children.first().unwrap_or(error)
@@ -1377,6 +1377,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             let Some(ValueType::Object(bound)) = contract.thrown_types.first() else {
                 continue;
             };
+            let bound_identity = bound.qualified_base();
             for identity in inferred_throwables
                 .get(&key(contract.span))
                 .into_iter()
@@ -1385,12 +1386,9 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                 let actual = identity
                     .rsplit_once("::")
                     .map_or(identity.as_str(), |(_, name)| name);
-                let bound_identity = Some(bound.qualified());
-                let compatible = bound_identity.as_deref().is_some_and(|bound_identity| {
-                    bound_identity == "/core/errors::throwable"
-                        || bound_identity == identity
-                        || identity_implements(package, identity, bound_identity)
-                });
+                let compatible = bound_identity == "/core/errors::throwable"
+                    || &bound_identity == identity
+                    || identity_implements(package, identity, &bound_identity);
                 if !compatible {
                     return Err(failure(
                         &unit.source,
