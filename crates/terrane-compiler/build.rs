@@ -1,0 +1,97 @@
+use std::env;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use sha2::{Digest, Sha256};
+
+fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
+    println!("cargo:rerun-if-changed={}", directory.display());
+    let mut entries = fs::read_dir(directory)
+        .expect("compiler input directory is readable")
+        .map(|entry| entry.expect("compiler input entry is readable").path())
+        .collect::<Vec<_>>();
+    entries.sort();
+    for path in entries {
+        // Source checkouts and archives share the same input policy: editor files,
+        // generated caches and build bookkeeping are not compiler source inputs.
+        if path.file_name().is_some_and(|name| {
+            name.as_encoded_bytes().starts_with(b".") || name == "target" || name == "__pycache__"
+        }) {
+            continue;
+        }
+        if path.is_dir() {
+            collect(&path, files);
+        } else if path.is_file()
+            && matches!(
+                path.extension().and_then(|extension| extension.to_str()),
+                Some("rs" | "trn" | "toml")
+            )
+        {
+            files.push(path);
+        }
+    }
+}
+
+fn main() {
+    let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let workspace = manifest.parent().unwrap().parent().unwrap();
+    let mut files = Vec::new();
+    let crates_root = workspace.join("crates");
+    // Track this directory so adding a relevant runtime/support crate reruns the identity scan.
+    println!("cargo:rerun-if-changed={}", crates_root.display());
+    for entry in fs::read_dir(&crates_root).expect("workspace crates are readable") {
+        let directory = entry.expect("workspace crate entry is readable").path();
+        let Some(name) = directory.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !name.ends_with("-support")
+            && !matches!(
+                name,
+                "terrane-compiler" | "terrane-rust-analysis" | "terrane-stream-abi"
+            )
+        {
+            continue;
+        }
+        if !directory.is_dir() {
+            continue;
+        }
+        println!("cargo:rerun-if-changed={}", directory.display());
+        let source = directory.join("src");
+        if source.is_dir() {
+            collect(&source, &mut files);
+        }
+        for name in ["Cargo.toml", "build.rs"] {
+            let path = directory.join(name);
+            if path.is_file() {
+                println!("cargo:rerun-if-changed={}", path.display());
+                files.push(path);
+            }
+        }
+    }
+    for name in ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml"] {
+        let path = workspace.join(name);
+        if path.is_file() {
+            println!("cargo:rerun-if-changed={}", path.display());
+            files.push(path);
+        }
+    }
+    files.sort();
+    let mut hash = Sha256::new();
+    for path in files {
+        let name = path.strip_prefix(workspace).unwrap().to_string_lossy();
+        let content = fs::read(&path).expect("compiler input file is readable");
+        hash.update((name.len() as u64).to_le_bytes());
+        hash.update(name.as_bytes());
+        hash.update((content.len() as u64).to_le_bytes());
+        hash.update(content);
+    }
+    for name in ["TARGET", "PROFILE", "CARGO_ENCODED_RUSTFLAGS"] {
+        println!("cargo:rerun-if-env-changed={name}");
+        hash.update(name.as_bytes());
+        hash.update(env::var(name).unwrap_or_default().as_bytes());
+    }
+    println!(
+        "cargo:rustc-env=TERRANE_COMPILER_CACHE_ID={:x}",
+        hash.finalize()
+    );
+}

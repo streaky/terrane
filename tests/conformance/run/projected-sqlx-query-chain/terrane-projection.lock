@@ -38,7 +38,7 @@
     {
       "name": "__terrane_recursive_smallvec",
       "package": "smallvec",
-      "version": "=1.16.2"
+      "version": "=1.16.3"
     },
     {
       "name": "__terrane_recursive_url",

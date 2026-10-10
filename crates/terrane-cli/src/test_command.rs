@@ -185,10 +185,12 @@ fn discover_selected_cases(
     test_package: &TestPackage,
     options: &TestOptions,
 ) -> Result<Option<SelectedTestCases>, CliFailure> {
-    let discovered_tiers = match terrane_compiler::discover_test_package(
-        test_package,
-        terrane_compiler::CompilerOptions::default(),
-    ) {
+    let discovered_tiers = match terrane_compiler::with_compilation_cache(|| {
+        terrane_compiler::discover_test_package(
+            test_package,
+            terrane_compiler::CompilerOptions::default(),
+        )
+    }) {
         Ok(discovered) => discovered,
         Err(failure) => {
             if let Some(path) = &options.report {
@@ -237,10 +239,12 @@ fn compile_selected_tiers(
         .filter(|discovery| selected_tiers.contains(&discovery.tier))
     {
         let tier = discovery.tier;
-        match terrane_compiler::compile_discovered_test_tier(
-            discovery,
-            terrane_compiler::CompilerOptions::default(),
-        ) {
+        match terrane_compiler::with_compilation_cache(|| {
+            terrane_compiler::compile_discovered_test_tier(
+                discovery,
+                terrane_compiler::CompilerOptions::default(),
+            )
+        }) {
             Ok(compiled) => compiled_tiers.push(compiled),
             Err(failure) => {
                 if let Some(path) = &options.report {
@@ -270,8 +274,10 @@ pub(super) fn run_tests(arguments: &[OsString]) -> Result<ExitCode, CliFailure> 
                 .map(|error| error.diagnostic.render(&error.source))
                 .collect(),
         })?;
-        let application = terrane_compiler::compile_package(&application_package)
-            .map_err(CliFailure::compilation)?;
+        let application = terrane_compiler::with_compilation_cache(|| {
+            terrane_compiler::compile_package(&application_package)
+        })
+        .map_err(CliFailure::compilation)?;
         Some(build_native_compilation(
             &application_package,
             &application,
@@ -500,6 +506,7 @@ fn build_native_compilation(
         compilation.dependency_containment,
         terrane_compiler::ArtifactKind::Executable,
         crate::CargoProfile::Debug,
+        compilation.native_dependency_identity(),
     )?
     .ok_or_else(|| CliFailure::backend("native build produced no executable".to_owned()))
 }

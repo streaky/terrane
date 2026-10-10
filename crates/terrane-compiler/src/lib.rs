@@ -1,4 +1,8 @@
+mod cache_scope;
+pub use cache_scope::with_compilation_cache;
 mod bundled;
+mod cache_identity;
+mod cache_io;
 mod compilation_progress;
 mod compiler;
 mod consumers;

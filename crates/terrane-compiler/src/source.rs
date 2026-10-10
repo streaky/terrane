@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize,
+)]
 pub struct Span {
     pub file: u32,
     pub start: usize,
@@ -15,12 +17,25 @@ impl Span {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct SourceFile {
     id: u32,
     path: PathBuf,
     text: Arc<str>,
+    #[serde(skip)]
     line_starts: Arc<[usize]>,
+}
+impl<'de> serde::Deserialize<'de> for SourceFile {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        struct Stored {
+            id: u32,
+            path: PathBuf,
+            text: String,
+        }
+        let stored = <Stored as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(Self::new(stored.id, stored.path, stored.text))
+    }
 }
 
 impl SourceFile {
@@ -36,22 +51,18 @@ impl SourceFile {
             line_starts: line_starts.into(),
         }
     }
-
     #[must_use]
     pub const fn id(&self) -> u32 {
         self.id
     }
-
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
-
     #[must_use]
     pub fn text(&self) -> &str {
         &self.text
     }
-
     #[must_use]
     pub fn line_column(&self, offset: usize) -> (usize, usize) {
         let mut offset = offset.min(self.text.len());
@@ -79,5 +90,14 @@ mod tests {
         let source = SourceFile::new(1, PathBuf::from("source.trn"), "a🙂\nnext".to_owned());
         assert_eq!(source.line_column(2), (1, 2));
         assert_eq!(source.line_column(usize::MAX), (2, 5));
+    }
+
+    #[test]
+    fn cached_source_rebuilds_line_index_for_unicode_diagnostics() {
+        let source = SourceFile::new(7, PathBuf::from("cached.trn"), "🙂\nαβ\nend".to_owned());
+        let encoded = serde_json::to_vec(&source).unwrap();
+        let restored: SourceFile = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(restored.line_column(7), (2, 2));
+        assert_eq!(restored.line_column(10), (3, 1));
     }
 }

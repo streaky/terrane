@@ -305,11 +305,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             },
         )
     };
-    let compilation = match if command == CliCommand::Build {
-        terrane_compiler::with_compilation_progress(compile)
-    } else {
-        compile()
-    } {
+    let compilation = match terrane_compiler::with_compilation_cache(|| {
+        if command == CliCommand::Build {
+            terrane_compiler::with_compilation_progress(compile)
+        } else {
+            compile()
+        }
+    }) {
         Ok(compilation) => compilation,
         Err(failure) => return Err(CliFailure::compilation(failure)),
     };
@@ -400,6 +402,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             _ if release => CargoProfile::Release,
             _ => CargoProfile::Debug,
         },
+        compilation.native_dependency_identity(),
     )?;
     if command == CliCommand::Check {
         return Ok(ExitCode::SUCCESS);
@@ -496,8 +499,10 @@ fn run_declaration_interface(arguments: &[OsString]) -> Result<ExitCode, CliFail
         })?;
         terrane_compiler::Package::implicit(&input, source)
     };
-    let interface =
-        terrane_compiler::declaration_interface(&package).map_err(CliFailure::compilation)?;
+    let interface = terrane_compiler::with_compilation_cache(|| {
+        terrane_compiler::declaration_interface(&package)
+    })
+    .map_err(CliFailure::compilation)?;
     let json = interface.to_json().map_err(CliFailure::package)?;
     let output = PathBuf::from(&arguments[3]);
     fs::write(&output, json).map_err(|error| {
@@ -694,6 +699,7 @@ fn artifact_identity(
     crate_dir: &Path,
     containment: terrane_compiler::rust_interop::projection::Containment,
     artifact_kind: terrane_compiler::ArtifactKind,
+    dependency_identity: Option<&str>,
 ) -> Result<String, CliFailure> {
     fn hash_path(path: &Path, hash: &mut Sha256) -> std::io::Result<()> {
         if !path.exists() {
@@ -714,8 +720,13 @@ fn artifact_identity(
         Ok(())
     }
     let mut hash = Sha256::new();
-    hash.update(b"terrane-native-artifact-v4\0");
+    hash.update(b"terrane-native-artifact-v5\0");
     hash.update(terrane_compiler::VERSION.as_bytes());
+    if let Some(identity) = dependency_identity {
+        hash.update(b"native-dependency-inputs\0");
+        hash.update(identity.as_bytes());
+        hash.update(b"\0");
+    }
     hash.update(format!("{containment:?}/{artifact_kind:?}"));
     if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
         hash.update(b"role-owned-library-basename-v1\0");
@@ -779,8 +790,9 @@ fn prepare_artifact(
     containment: terrane_compiler::rust_interop::projection::Containment,
     artifact_kind: terrane_compiler::ArtifactKind,
     profile: CargoProfile,
+    dependency_identity: Option<&str>,
 ) -> Result<Option<PathBuf>, CliFailure> {
-    let identity = artifact_identity(crate_dir, containment, artifact_kind)?;
+    let identity = artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?;
     if fs::read_to_string(crate_dir.join(".artifact-identity"))
         .ok()
         .as_deref()
@@ -811,7 +823,7 @@ fn prepare_artifact(
             )?;
             fs::write(
                 crate_dir.join(".artifact-identity"),
-                artifact_identity(crate_dir, containment, artifact_kind)?,
+                artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?,
             )
             .map_err(|error| {
                 CliFailure::backend(format!("cannot record artifact identity: {error}"))
@@ -863,7 +875,7 @@ fn prepare_artifact(
         }
         fs::write(
             crate_dir.join(".artifact-identity"),
-            artifact_identity(crate_dir, containment, artifact_kind)?,
+            artifact_identity(crate_dir, containment, artifact_kind, dependency_identity)?,
         )
         .map_err(|error| {
             CliFailure::backend(format!("cannot record artifact identity: {error}"))

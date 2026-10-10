@@ -227,7 +227,7 @@ mod tests {
                 parsed
                     .diagnostics
                     .iter()
-                    .any(|diagnostic| diagnostic.code == "S1101")
+                    .any(|diagnostic| diagnostic.code.as_ref() == "S1101")
             );
             assert_eq!(parsed.tree.root.children[0].documentation(), None);
         }
@@ -245,7 +245,7 @@ mod tests {
                 parsed
                     .diagnostics
                     .iter()
-                    .any(|diagnostic| diagnostic.code == "S1100"),
+                    .any(|diagnostic| diagnostic.code.as_ref() == "S1100"),
                 "{source}"
             );
         }

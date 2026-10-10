@@ -115,6 +115,11 @@ fn cached_owner_rustdoc(
     let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
     let containment_fingerprint = format!("{containment:?}");
     let mut fingerprint_hash = Sha256::new();
+    let local_sources =
+        fs::read(workspace.join("local-source-identity")).map_err(|error| ProjectionError {
+            message: error.to_string(),
+        })?;
+    fingerprint_hash.update(&local_sources);
     for (label, value) in [
         ("package-spec", package_spec),
         ("crate-name", crate_name),

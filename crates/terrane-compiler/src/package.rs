@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 pub const MANIFEST_FILE_NAME: &str = "package.toml";
 pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SourceRole {
     Production,
     UnitTest,
@@ -17,7 +17,7 @@ pub enum SourceRole {
     EndToEndTest,
     Bundled,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct SourceUnit {
     /// Normalized path relative to [`Package::root`].
     ///
@@ -34,7 +34,7 @@ impl SourceUnit {
         self.relative_path.to_string_lossy().replace('\\', "/")
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AuthoredRustModule {
     pub name: String,
     /// Normalized path relative to [`Package::root`].
@@ -42,37 +42,37 @@ pub struct AuthoredRustModule {
     pub source: SourceFile,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum ReflectionProfile {
     Ordinary,
     Minimal,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum ExecutorProfile {
     Cooperative,
     Threaded,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum PanicProfile {
     Unwind,
     Abort,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum BuildToolchain {
     Pinned,
     System,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum ArtifactKind {
     Executable,
     DynamicLibrary,
     Library,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum PackagePurpose {
     Production,
     Testing,
@@ -95,7 +95,7 @@ fn is_capability_name(name: &str) -> bool {
     CAPABILITY_NAMES.contains(&name)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct CapabilityProfile {
     pub name: String,
     pub capabilities: Option<BTreeSet<String>>,
@@ -120,7 +120,7 @@ impl CapabilityProfile {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RustDependency {
     pub name: String,
     pub package: String,
@@ -131,13 +131,13 @@ pub struct RustDependency {
     pub effects: Vec<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum TerraneDependencySource {
     Path(PathBuf),
     Git { url: String, tag: String },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct TerraneDependency {
     pub name: String,
     pub source: TerraneDependencySource,
@@ -208,7 +208,7 @@ impl RustDependency {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Package {
     pub identity: String,
     pub root: PathBuf,
@@ -228,7 +228,7 @@ pub struct Package {
     pub dependency_manifests: Vec<PathBuf>,
     pub library_source_ids: BTreeSet<u32>,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct ConsumerConfig {
     pub name: String,
     pub executable: PathBuf,
