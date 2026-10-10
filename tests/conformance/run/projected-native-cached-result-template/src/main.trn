@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import Builder, DefaultOnly, make_lane as make-lane
-from /core/output import print
 
 function callback int;
     return 7

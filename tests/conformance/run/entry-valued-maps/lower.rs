@@ -418,30 +418,30 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/entry-valued-maps::main"];
     pub static SITES: [Site; 12] = [
-        /* terrane-site-row: site 0: /entry-valued-maps::main (case.trn:13:10-13:28) */
-        { Site { function: 0, file: 0, line: 13, column: 10, end_line: 13, end_column: 28 } },
-        /* terrane-site-row: site 1: /entry-valued-maps::main (case.trn:13:34-13:52) */
-        { Site { function: 0, file: 0, line: 13, column: 34, end_line: 13, end_column: 52 } },
-        /* terrane-site-row: site 2: /entry-valued-maps::main (case.trn:14:10-14:29) */
-        { Site { function: 0, file: 0, line: 14, column: 10, end_line: 14, end_column: 29 } },
-        /* terrane-site-row: site 3: /entry-valued-maps::main (case.trn:14:35-14:54) */
-        { Site { function: 0, file: 0, line: 14, column: 35, end_line: 14, end_column: 54 } },
-        /* terrane-site-row: site 4: /entry-valued-maps::main (case.trn:15:10-15:30) */
-        { Site { function: 0, file: 0, line: 15, column: 10, end_line: 15, end_column: 30 } },
-        /* terrane-site-row: site 5: /entry-valued-maps::main (case.trn:15:36-15:56) */
-        { Site { function: 0, file: 0, line: 15, column: 36, end_line: 15, end_column: 56 } },
-        /* terrane-site-row: site 6: /entry-valued-maps::main (case.trn:16:10-16:31) */
+        /* terrane-site-row: site 0: /entry-valued-maps::main (case.trn:12:10-12:28) */
+        { Site { function: 0, file: 0, line: 12, column: 10, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 1: /entry-valued-maps::main (case.trn:12:34-12:52) */
+        { Site { function: 0, file: 0, line: 12, column: 34, end_line: 12, end_column: 52 } },
+        /* terrane-site-row: site 2: /entry-valued-maps::main (case.trn:13:10-13:29) */
+        { Site { function: 0, file: 0, line: 13, column: 10, end_line: 13, end_column: 29 } },
+        /* terrane-site-row: site 3: /entry-valued-maps::main (case.trn:13:35-13:54) */
+        { Site { function: 0, file: 0, line: 13, column: 35, end_line: 13, end_column: 54 } },
+        /* terrane-site-row: site 4: /entry-valued-maps::main (case.trn:14:10-14:30) */
+        { Site { function: 0, file: 0, line: 14, column: 10, end_line: 14, end_column: 30 } },
+        /* terrane-site-row: site 5: /entry-valued-maps::main (case.trn:14:36-14:56) */
+        { Site { function: 0, file: 0, line: 14, column: 36, end_line: 14, end_column: 56 } },
+        /* terrane-site-row: site 6: /entry-valued-maps::main (case.trn:15:10-15:31) */
+        { Site { function: 0, file: 0, line: 15, column: 10, end_line: 15, end_column: 31 } },
+        /* terrane-site-row: site 7: /entry-valued-maps::main (case.trn:15:37-15:58) */
+        { Site { function: 0, file: 0, line: 15, column: 37, end_line: 15, end_column: 58 } },
+        /* terrane-site-row: site 8: /entry-valued-maps::main (case.trn:16:10-16:31) */
         { Site { function: 0, file: 0, line: 16, column: 10, end_line: 16, end_column: 31 } },
-        /* terrane-site-row: site 7: /entry-valued-maps::main (case.trn:16:37-16:58) */
+        /* terrane-site-row: site 9: /entry-valued-maps::main (case.trn:16:37-16:58) */
         { Site { function: 0, file: 0, line: 16, column: 37, end_line: 16, end_column: 58 } },
-        /* terrane-site-row: site 8: /entry-valued-maps::main (case.trn:17:10-17:31) */
-        { Site { function: 0, file: 0, line: 17, column: 10, end_line: 17, end_column: 31 } },
-        /* terrane-site-row: site 9: /entry-valued-maps::main (case.trn:17:37-17:58) */
-        { Site { function: 0, file: 0, line: 17, column: 37, end_line: 17, end_column: 58 } },
-        /* terrane-site-row: site 10: /entry-valued-maps::main (case.trn:18:10-18:33) */
-        { Site { function: 0, file: 0, line: 18, column: 10, end_line: 18, end_column: 33 } },
-        /* terrane-site-row: site 11: /entry-valued-maps::main (case.trn:18:39-18:62) */
-        { Site { function: 0, file: 0, line: 18, column: 39, end_line: 18, end_column: 62 } },
+        /* terrane-site-row: site 10: /entry-valued-maps::main (case.trn:17:10-17:33) */
+        { Site { function: 0, file: 0, line: 17, column: 10, end_line: 17, end_column: 33 } },
+        /* terrane-site-row: site 11: /entry-valued-maps::main (case.trn:17:39-17:62) */
+        { Site { function: 0, file: 0, line: 17, column: 39, end_line: 17, end_column: 62 } },
     ];
     #[cold]
     #[inline(never)]
@@ -534,43 +534,43 @@ fn main() {
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(ordered_bound
-        .get_or_error(&String::from("a")), 0 /* terrane-site: case.trn:13:10-13:28 */)
+        .get_or_error(&String::from("a")), 0 /* terrane-site: case.trn:12:10-12:28 */)
         .key), terrane_scalar_support::scalar_text(&__terrane_raised(ordered_bound
-        .get_or_error(&String::from("a")), 1 /* terrane-site: case.trn:13:34-13:52 */)
+        .get_or_error(&String::from("a")), 1 /* terrane-site: case.trn:12:34-12:52 */)
         .value)
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(ordered_inline
-        .get_or_error(&String::from("a")), 2 /* terrane-site: case.trn:14:10-14:29 */)
+        .get_or_error(&String::from("a")), 2 /* terrane-site: case.trn:13:10-13:29 */)
         .key), terrane_scalar_support::scalar_text(&__terrane_raised(ordered_inline
-        .get_or_error(&String::from("a")), 3 /* terrane-site: case.trn:14:35-14:54 */)
+        .get_or_error(&String::from("a")), 3 /* terrane-site: case.trn:13:35-13:54 */)
         .value)
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(unordered_bound
-        .get_or_error(&String::from("a")), 4 /* terrane-site: case.trn:15:10-15:30 */)
+        .get_or_error(&String::from("a")), 4 /* terrane-site: case.trn:14:10-14:30 */)
         .key), terrane_scalar_support::scalar_text(&__terrane_raised(unordered_bound
-        .get_or_error(&String::from("a")), 5 /* terrane-site: case.trn:15:36-15:56 */)
+        .get_or_error(&String::from("a")), 5 /* terrane-site: case.trn:14:36-14:56 */)
         .value)
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(unordered_inline
-        .get_or_error(&String::from("a")), 6 /* terrane-site: case.trn:16:10-16:31 */)
+        .get_or_error(&String::from("a")), 6 /* terrane-site: case.trn:15:10-15:31 */)
         .key), terrane_scalar_support::scalar_text(&__terrane_raised(unordered_inline
-        .get_or_error(&String::from("a")), 7 /* terrane-site: case.trn:16:37-16:58 */)
+        .get_or_error(&String::from("a")), 7 /* terrane-site: case.trn:15:37-15:58 */)
         .value)
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(inferred_ordered
-        .get_or_error(&String::from("a")), 8 /* terrane-site: case.trn:17:10-17:31 */)
+        .get_or_error(&String::from("a")), 8 /* terrane-site: case.trn:16:10-16:31 */)
         .key), terrane_scalar_support::scalar_text(&__terrane_raised(inferred_ordered
-        .get_or_error(&String::from("a")), 9 /* terrane-site: case.trn:17:37-17:58 */)
+        .get_or_error(&String::from("a")), 9 /* terrane-site: case.trn:16:37-16:58 */)
         .value)
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(inferred_unordered
-        .get_or_error(&String::from("a")), 10 /* terrane-site: case.trn:18:10-18:33 */).key),
+        .get_or_error(&String::from("a")), 10 /* terrane-site: case.trn:17:10-17:33 */).key),
         terrane_scalar_support::scalar_text(&__terrane_raised(inferred_unordered
-        .get_or_error(&String::from("a")), 11 /* terrane-site: case.trn:18:39-18:62 */).value)
+        .get_or_error(&String::from("a")), 11 /* terrane-site: case.trn:17:39-17:62 */).value)
     );
 }

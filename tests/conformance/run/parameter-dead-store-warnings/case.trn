@@ -1,6 +1,5 @@
 namespace parameter-dead-store-warnings
 from /core/collections import list
-from /core/output import print
 function take; v list of int
   v = list; 7, 8
   print; v[1]

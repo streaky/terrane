@@ -1,6 +1,5 @@
 namespace source-defined-iterator
 from /core/collections import iteration-step
-from /core/output import print
 
 class counter
   current int = 0

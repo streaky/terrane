@@ -1,0 +1,33 @@
+{
+  "dependencies": [
+    {
+      "members": {
+        "/deps/witness": [
+          "Opaque",
+          "Opaque.into",
+          "Opaque.into_value",
+          "Opaque.try_into",
+          "Opaque::from_value",
+          "Pair",
+          "default_pair",
+          "flag_code",
+          "flags",
+          "lookup",
+          "make_flag",
+          "make_nested",
+          "make_text",
+          "mapping_value",
+          "pair",
+          "pair_code",
+          "pair_text"
+        ]
+      },
+      "name": "witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "rustdoc_format": 57,
+  "source": "Local"
+}

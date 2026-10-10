@@ -1,5 +1,4 @@
 namespace authored-generic-selection
-from /core/output import print
 
 class slot of (T)
     value T|none = none

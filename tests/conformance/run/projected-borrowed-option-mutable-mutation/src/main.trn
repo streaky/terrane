@@ -1,6 +1,5 @@
 namespace app
 from /deps/http import HeaderMap, HeaderName, HeaderValue
-from /core/output import print
 
 function mark; header ref HeaderValue
     header.set_sensitive; true

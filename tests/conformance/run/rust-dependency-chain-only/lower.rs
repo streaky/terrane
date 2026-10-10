@@ -464,12 +464,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:6:20-6:36) */
-        { Site { function: 0, file: 0, line: 6, column: 20, end_line: 6, end_column: 36 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:7:22-7:81) */
-        { Site { function: 0, file: 0, line: 7, column: 22, end_line: 7, end_column: 81 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:9:21-9:60) */
-        { Site { function: 0, file: 0, line: 9, column: 21, end_line: 9, end_column: 60 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:5:20-5:36) */
+        { Site { function: 0, file: 0, line: 5, column: 20, end_line: 5, end_column: 36 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:6:22-6:81) */
+        { Site { function: 0, file: 0, line: 6, column: 22, end_line: 6, end_column: 81 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:21-8:60) */
+        { Site { function: 0, file: 0, line: 8, column: 21, end_line: 8, end_column: 60 } },
     ];
     #[cold]
     #[inline(never)]
@@ -498,12 +498,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            0 /* terrane-site: src/main.trn:6:20-6:36 */,
+                            0 /* terrane-site: src/main.trn:5:20-5:36 */,
                         )
                     }
                 })
                 .await,
-            0 /* terrane-site: src/main.trn:6:20-6:36 */,
+            0 /* terrane-site: src/main.trn:5:20-5:36 */,
         );
         answer = __terrane_traced(
             __terrane_await({
@@ -563,12 +563,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            1 /* terrane-site: src/main.trn:7:22-7:81 */,
+                            1 /* terrane-site: src/main.trn:6:22-6:81 */,
                         )
                     }
                 })
                 .await,
-            1 /* terrane-site: src/main.trn:7:22-7:81 */,
+            1 /* terrane-site: src/main.trn:6:22-6:81 */,
         );
         prefix = String::from("value=");
         rendered = __terrane_raised(
@@ -602,7 +602,7 @@ fn main() {
                     )
                 }
             },
-            2 /* terrane-site: src/main.trn:9:21-9:60 */,
+            2 /* terrane-site: src/main.trn:8:21-8:60 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&answer));
         println!("{}", terrane_scalar_support::scalar_text(&rendered));

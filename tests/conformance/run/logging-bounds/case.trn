@@ -1,6 +1,5 @@
 namespace logging-bounds
 
-from /core/output import print
 from /core/collections import list
 from /core/logging import log-field, log-text, field, memory-sink, make-logger-options, make-logger, default-logger, discarded-count, drain-memory, drain-fallback, info-level, info
 

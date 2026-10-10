@@ -7,7 +7,6 @@ from /core/errors import throwable, decode-error
 from /core/encodings import utf8
 from /core/streams import stdin
 from /core/process import arguments
-from /core/output import print
 
 # A consumer handles one synchronous request per process. Catch bindings expose
 # the throwable interface, so preserve the diagnostic record beside the error.

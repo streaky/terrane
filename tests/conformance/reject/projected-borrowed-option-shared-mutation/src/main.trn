@@ -1,6 +1,5 @@
 namespace app
 from /deps/http import HeaderMap, HeaderName, HeaderValue
-from /core/output import print
 from /callbacks import change
 
 function main;

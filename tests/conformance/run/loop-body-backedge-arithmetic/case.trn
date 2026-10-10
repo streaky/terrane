@@ -1,6 +1,5 @@
 namespace conformance/loop-body-backedge-arithmetic
 
-from /core/output import print
 
 function inferred;
     count = 0

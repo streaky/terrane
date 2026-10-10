@@ -1,6 +1,5 @@
 namespace collection-boundary-contextual-typing
 from /core/collections import list, map, entry
-from /core/output import print
 function take; values list of int8
   print; values[1]
 function make list of int8;

@@ -1,6 +1,5 @@
 namespace concurrency-objects
 
-from /core/output import print
 from /core/concurrency import int-mutex, int-read-write-lock, atomic-int64, acquire-order, release-order, acquire-release-order, thread-local-int
 
 function main;

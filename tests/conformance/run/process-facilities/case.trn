@@ -1,6 +1,5 @@
 namespace conformance/process-facilities
 
-from /core/output import print
 from /core/collections import list
 from /core/process import native-string, arguments, environment
 from /core/process import cli-schema, parse-command-line, make-exit-status

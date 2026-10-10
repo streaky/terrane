@@ -453,10 +453,10 @@ mod __terrane_trace {
         "/core/time::interval",
     ];
     pub static SITES: [Site; 16] = [
-        /* terrane-site-row: site 0: /app::main (case.trn:17:70-17:90) */
-        { Site { function: 0, file: 0, line: 17, column: 70, end_line: 17, end_column: 90 } },
-        /* terrane-site-row: site 1: /app::main (case.trn:24:29-24:55) */
-        { Site { function: 0, file: 0, line: 24, column: 29, end_line: 24, end_column: 55 } },
+        /* terrane-site-row: site 0: /app::main (case.trn:16:70-16:90) */
+        { Site { function: 0, file: 0, line: 16, column: 70, end_line: 16, end_column: 90 } },
+        /* terrane-site-row: site 1: /app::main (case.trn:23:29-23:55) */
+        { Site { function: 0, file: 0, line: 23, column: 29, end_line: 23, end_column: 55 } },
         /* terrane-site-row: site 2: /core/networking::lookup-dns (core/networking.trn:328:28-328:49) */
         { Site { function: 1, file: 1, line: 328, column: 28, end_line: 328, end_column: 49 } },
         /* terrane-site-row: site 3: /core/streams::read (core/streams.trn:188:23-188:50) */
@@ -538,7 +538,7 @@ fn main() {
                         Duration::terrane_static_seconds(
                             terrane_int_support::Int::from(1_i128),
                         ),
-                        0 /* terrane-site: case.trn:17:70-17:90 */,
+                        0 /* terrane-site: case.trn:16:70-16:90 */,
                     ),
                 ),
             ),
@@ -568,7 +568,7 @@ fn main() {
                         &received.data,
                         terrane_string_support::Encoding::Utf8,
                     ),
-                    1 /* terrane-site: case.trn:24:29-24:55 */,
+                    1 /* terrane-site: case.trn:23:29-23:55 */,
                 ),
             );
         if written.failed {

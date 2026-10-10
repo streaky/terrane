@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import Boxed, make_i128, consume_native
-from /core/output import print
 
 function consume_generic of (T) T; value Boxed of T
     return value.into_value;

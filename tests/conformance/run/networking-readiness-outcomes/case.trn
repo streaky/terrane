@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/networking import ip-address-from-string, socket-address-from-ip, network-cancellation-token, network-operation-options
 from /core/networking import tcp-listener, listener-result, stream-result, bind-tcp, network-cancel-operation
 from /core/time import clock, duration

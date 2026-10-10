@@ -1,6 +1,5 @@
 namespace unused-catch-binding
 from /core/errors import coercion-error
-from /core/output import print
 
 function main;
   try

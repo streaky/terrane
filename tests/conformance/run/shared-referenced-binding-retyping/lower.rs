@@ -418,10 +418,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/shared-referenced-binding-retyping::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /shared-referenced-binding-retyping::main (case.trn:9:12-9:20) */
-        { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 20 } },
-        /* terrane-site-row: site 1: /shared-referenced-binding-retyping::main (case.trn:9:22-9:30) */
-        { Site { function: 0, file: 0, line: 9, column: 22, end_line: 9, end_column: 30 } },
+        /* terrane-site-row: site 0: /shared-referenced-binding-retyping::main (case.trn:8:12-8:20) */
+        { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 20 } },
+        /* terrane-site-row: site 1: /shared-referenced-binding-retyping::main (case.trn:8:22-8:30) */
+        { Site { function: 0, file: 0, line: 8, column: 22, end_line: 8, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]
@@ -464,10 +464,10 @@ fn main() {
         __terrane_value = owner.lock().expect("shared reference lock poisoned").clone();
         __terrane_value }
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:9:12-9:20 */)), 0 /* terrane-site: case.trn:9:12-9:20 */)), terrane_scalar_support::scalar_text(&__terrane_raised({
+        0 /* terrane-site: case.trn:8:12-8:20 */)), 0 /* terrane-site: case.trn:8:12-8:20 */)), terrane_scalar_support::scalar_text(&__terrane_raised({
         let __terrane_value = value.lock().expect("reference lock poisoned").clone();
         __terrane_value }
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:9:22-9:30 */)), 1 /* terrane-site: case.trn:9:22-9:30 */))
+        1 /* terrane-site: case.trn:8:22-8:30 */)), 1 /* terrane-site: case.trn:8:22-8:30 */))
     );
 }

@@ -418,18 +418,18 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collection-identity-lifetime::release-order"];
     pub static SITES: [Site; 6] = [
-        /* terrane-site-row: site 0: /collection-identity-lifetime::release-order (case.trn:18:3-18:50) */
-        { Site { function: 0, file: 0, line: 18, column: 3, end_line: 18, end_column: 50 } },
-        /* terrane-site-row: site 1: /collection-identity-lifetime::release-order (case.trn:21:22-21:38) */
-        { Site { function: 0, file: 0, line: 21, column: 22, end_line: 21, end_column: 38 } },
-        /* terrane-site-row: site 2: /collection-identity-lifetime::release-order (case.trn:25:5-25:21) */
-        { Site { function: 0, file: 0, line: 25, column: 5, end_line: 25, end_column: 21 } },
-        /* terrane-site-row: site 3: /collection-identity-lifetime::release-order (case.trn:34:3-34:57) */
-        { Site { function: 0, file: 0, line: 34, column: 3, end_line: 34, end_column: 57 } },
-        /* terrane-site-row: site 4: /collection-identity-lifetime::release-order (case.trn:35:10-35:21) */
-        { Site { function: 0, file: 0, line: 35, column: 10, end_line: 35, end_column: 21 } },
-        /* terrane-site-row: site 5: /collection-identity-lifetime::release-order (case.trn:35:28-35:40) */
-        { Site { function: 0, file: 0, line: 35, column: 28, end_line: 35, end_column: 40 } },
+        /* terrane-site-row: site 0: /collection-identity-lifetime::release-order (case.trn:17:3-17:50) */
+        { Site { function: 0, file: 0, line: 17, column: 3, end_line: 17, end_column: 50 } },
+        /* terrane-site-row: site 1: /collection-identity-lifetime::release-order (case.trn:20:22-20:38) */
+        { Site { function: 0, file: 0, line: 20, column: 22, end_line: 20, end_column: 38 } },
+        /* terrane-site-row: site 2: /collection-identity-lifetime::release-order (case.trn:24:5-24:21) */
+        { Site { function: 0, file: 0, line: 24, column: 5, end_line: 24, end_column: 21 } },
+        /* terrane-site-row: site 3: /collection-identity-lifetime::release-order (case.trn:33:3-33:57) */
+        { Site { function: 0, file: 0, line: 33, column: 3, end_line: 33, end_column: 57 } },
+        /* terrane-site-row: site 4: /collection-identity-lifetime::release-order (case.trn:34:10-34:21) */
+        { Site { function: 0, file: 0, line: 34, column: 10, end_line: 34, end_column: 21 } },
+        /* terrane-site-row: site 5: /collection-identity-lifetime::release-order (case.trn:34:28-34:40) */
+        { Site { function: 0, file: 0, line: 34, column: 28, end_line: 34, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]
@@ -522,11 +522,11 @@ fn release_order() {
                     terrane_collection_support::index_from_int(
                         &terrane_int_support::Int::from(0_i128),
                     ),
-                    0 /* terrane-site: case.trn:18:3-18:50 */,
+                    0 /* terrane-site: case.trn:17:3-17:50 */,
                 ),
                 Marker::terrane_construct(String::from("replacement")),
             ),
-        0 /* terrane-site: case.trn:18:3-18:50 */,
+        0 /* terrane-site: case.trn:17:3-17:50 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-set")));
     removed = __terrane_raised(
@@ -536,10 +536,10 @@ fn release_order() {
                     terrane_collection_support::index_from_int(
                         &terrane_int_support::Int::from(1_i128),
                     ),
-                    1 /* terrane-site: case.trn:21:22-21:38 */,
+                    1 /* terrane-site: case.trn:20:22-20:38 */,
                 ),
             ),
-        1 /* terrane-site: case.trn:21:22-21:38 */,
+        1 /* terrane-site: case.trn:20:22-20:38 */,
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&String::from("after-remove-")),
@@ -551,7 +551,7 @@ fn release_order() {
             __terrane_raised_completion!(
                 values
                 .remove(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(9_i128)),
-                2 /* terrane-site: case.trn:25:5-25:21 */)), 2 /* terrane-site: case.trn:25:5-25:21 */
+                2 /* terrane-site: case.trn:24:5-24:21 */)), 2 /* terrane-site: case.trn:24:5-24:21 */
             );
             TerraneCompletion::Normal
         })();
@@ -607,19 +607,19 @@ fn release_order() {
                     terrane_collection_support::index_from_int(
                         &terrane_int_support::Int::from(0_i128),
                     ),
-                    3 /* terrane-site: case.trn:34:3-34:57 */,
+                    3 /* terrane-site: case.trn:33:3-33:57 */,
                 ),
                 Marker::terrane_construct(String::from("cow-replacement")),
             ),
-        3 /* terrane-site: case.trn:34:3-34:57 */,
+        3 /* terrane-site: case.trn:33:3-33:57 */,
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(original
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        4 /* terrane-site: case.trn:35:10-35:21 */)), 4 /* terrane-site: case.trn:35:10-35:21 */).name),
+        4 /* terrane-site: case.trn:34:10-34:21 */)), 4 /* terrane-site: case.trn:34:10-34:21 */).name),
         terrane_scalar_support::scalar_text(&__terrane_raised(separated
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        5 /* terrane-site: case.trn:35:28-35:40 */)), 5 /* terrane-site: case.trn:35:28-35:40 */).name)
+        5 /* terrane-site: case.trn:34:28-34:40 */)), 5 /* terrane-site: case.trn:34:28-34:40 */).name)
     );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-cow")));
 }

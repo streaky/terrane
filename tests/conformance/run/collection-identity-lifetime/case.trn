@@ -1,7 +1,6 @@
 namespace collection-identity-lifetime
 from /core/collections import list
 from /core/errors import index-error
-from /core/output import print
 
 class marker
   name string = ''

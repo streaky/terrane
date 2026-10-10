@@ -1,5 +1,4 @@
 namespace app
-from /core/output import print
 from /left import render as render-left
 from /right import render as render-right
 from /z-left import pick as pick-flat

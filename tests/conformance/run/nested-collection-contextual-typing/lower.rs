@@ -418,10 +418,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/nested-collection-contextual-typing::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /nested-collection-contextual-typing::main (case.trn:6:10-6:18) */
-        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 18 } },
-        /* terrane-site-row: site 1: /nested-collection-contextual-typing::main (case.trn:6:10-6:21) */
-        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 21 } },
+        /* terrane-site-row: site 0: /nested-collection-contextual-typing::main (case.trn:5:10-5:18) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 18 } },
+        /* terrane-site-row: site 1: /nested-collection-contextual-typing::main (case.trn:5:10-5:21) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 21 } },
     ];
     #[cold]
     #[inline(never)]
@@ -446,8 +446,8 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(outer
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:6:10-6:18 */)), 0 /* terrane-site: case.trn:6:10-6:18 */)
+        0 /* terrane-site: case.trn:5:10-5:18 */)), 0 /* terrane-site: case.trn:5:10-5:18 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        1 /* terrane-site: case.trn:6:10-6:21 */)), 1 /* terrane-site: case.trn:6:10-6:21 */))
+        1 /* terrane-site: case.trn:5:10-5:21 */)), 1 /* terrane-site: case.trn:5:10-5:21 */))
     );
 }

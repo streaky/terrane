@@ -1,5 +1,4 @@
 namespace authored-generic-enum-states
-from /core/output import print
 
 enum operation-state of (T)
     pending

@@ -3,7 +3,6 @@ namespace app
 from /deps/witness import Packet, next, evaluations, sum as ordinary-sum
 from /deps/witness/macros import sum, packet, message, values, twice, selected, disable
 from /deps/witness/layout/macros import combine
-from /core/output import print
 
 function contextual int;
     return sum; 20, 22

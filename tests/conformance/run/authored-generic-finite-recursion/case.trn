@@ -1,5 +1,4 @@
 namespace authored-generic-finite-recursion
-from /core/output import print
 
 function count-down of (T) int; value T, count int
     if count == 0

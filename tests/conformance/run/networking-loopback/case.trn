@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/encodings import utf8
 from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, udp-options, udp-result, bind-udp
 from /core/streams import stdout

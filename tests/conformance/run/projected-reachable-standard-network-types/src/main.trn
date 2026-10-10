@@ -2,7 +2,6 @@ namespace app
 
 from /deps/ipnet import IpAddr, IpNet, AddrParseError
 from /deps/tokio/net import SocketAddr
-from /core/output import print
 
 class socket-addr
     value int = 7

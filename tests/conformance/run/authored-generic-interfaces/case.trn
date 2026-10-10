@@ -1,5 +1,4 @@
 namespace authored-generic-interfaces
-from /core/output import print
 
 interface describable
     function describe string;

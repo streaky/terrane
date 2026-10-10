@@ -1,6 +1,5 @@
 namespace app
 from /deps/terrane-sequence-witness import SequenceError, make_tcp_sequence, make_tokio_sequence, make_failing_tokio_sequence, make_pending_tokio_sequence, make_queue_sequence, make_failing_queue_sequence, make_pending_queue_sequence, TokioSequence, TcpSequence, QueueSequence
-from /core/output import print
 
 
 async function drain-network bool; sequence TcpSequence

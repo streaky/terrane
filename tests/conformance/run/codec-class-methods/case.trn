@@ -1,6 +1,5 @@
 namespace codec-class-methods
 from /core/codecs import hex, base64
-from /core/output import print
 
 function main;
     hexadecimal = hex;

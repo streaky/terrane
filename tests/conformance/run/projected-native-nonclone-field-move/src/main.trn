@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import make_value
-from /core/output import print
 
 function main;
     value = make_value;

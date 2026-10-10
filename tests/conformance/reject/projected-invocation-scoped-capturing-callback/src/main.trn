@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import first_widget, render_scoped
-from /core/output import print
 
 function main;
     state string = '40'

@@ -480,13 +480,13 @@ fn inspect(acquired: &AcquiredConnection) -> bool {
 }
 fn extract(acquired: AcquiredConnection) -> Option<Connection> {
     let value: Connection;
-    let __terrane_match_value_599 = acquired;
-    match __terrane_match_value_599 {
+    let __terrane_match_value_568 = acquired;
+    match __terrane_match_value_568 {
         AcquiredConnection::Unavailable => {
             return None;
         }
-        AcquiredConnection::Available(__terrane_pattern_697_value) => {
-            value = __terrane_pattern_697_value;
+        AcquiredConnection::Available(__terrane_pattern_666_value) => {
+            value = __terrane_pattern_666_value;
             return Some(value);
         }
     }

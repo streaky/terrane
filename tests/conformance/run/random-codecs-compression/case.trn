@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/encodings import utf8
 from /core/random import secure-random, secure-bytes, secure-bounded-int, pseudo-random, chacha20, pseudo-bytes, pseudo-bounded-int, split-pseudo, secret-buffer, destroy-secret, hash-algorithm, sha256, sha512, digest-bytes, sign-hmac, signature-equals
 from /core/codecs import encode-hex, decode-hex, encode-base64, decode-base64

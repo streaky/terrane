@@ -1,5 +1,4 @@
 namespace authored-generic-contracts
-from /core/output import print
 
 class envelope of (T)
     payload T

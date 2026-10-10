@@ -418,8 +418,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/parameter-dead-store-warnings::take"];
     pub static SITES: [Site; 1] = [
-        /* terrane-site-row: site 0: /parameter-dead-store-warnings::take (case.trn:6:10-6:14) */
-        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 14 } },
+        /* terrane-site-row: site 0: /parameter-dead-store-warnings::take (case.trn:5:10-5:14) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 14 } },
     ];
     #[cold]
     #[inline(never)]
@@ -448,7 +448,7 @@ fn take(mut v: terrane_collection_support::List<terrane_int_support::Int>) {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(v
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        0 /* terrane-site: case.trn:6:10-6:14 */)), 0 /* terrane-site: case.trn:6:10-6:14 */))
+        0 /* terrane-site: case.trn:5:10-5:14 */)), 0 /* terrane-site: case.trn:5:10-5:14 */))
     );
 }
 fn scalar(mut v: terrane_int_support::Int) {

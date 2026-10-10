@@ -1,5 +1,4 @@
 namespace function-scope-resource-joins
-from /core/output import print
 
 class marker
     name string

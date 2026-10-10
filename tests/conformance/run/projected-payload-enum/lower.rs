@@ -463,44 +463,44 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 19] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:10-7:30) */
-        { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 30 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:11-8:29) */
-        { Site { function: 0, file: 0, line: 8, column: 11, end_line: 8, end_column: 29 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:9:28-9:43) */
-        { Site { function: 0, file: 0, line: 9, column: 28, end_line: 9, end_column: 43 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:12:12-12:32) */
-        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 32 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:13:11-13:31) */
-        { Site { function: 0, file: 0, line: 13, column: 11, end_line: 13, end_column: 31 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:14:29-14:48) */
-        { Site { function: 0, file: 0, line: 14, column: 29, end_line: 14, end_column: 48 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:17:10-17:22) */
-        { Site { function: 0, file: 0, line: 17, column: 10, end_line: 17, end_column: 22 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:18:11-18:29) */
-        { Site { function: 0, file: 0, line: 18, column: 11, end_line: 18, end_column: 29 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:21:16-21:41) */
-        { Site { function: 0, file: 0, line: 21, column: 16, end_line: 21, end_column: 41 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:22:32-22:47) */
-        { Site { function: 0, file: 0, line: 22, column: 32, end_line: 22, end_column: 47 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:27:17-27:44) */
-        { Site { function: 0, file: 0, line: 27, column: 17, end_line: 27, end_column: 44 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:28:34-28:51) */
-        { Site { function: 0, file: 0, line: 28, column: 34, end_line: 28, end_column: 51 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:32:20-32:53) */
-        { Site { function: 0, file: 0, line: 32, column: 20, end_line: 32, end_column: 53 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:33:40-33:63) */
-        { Site { function: 0, file: 0, line: 33, column: 40, end_line: 33, end_column: 63 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:36:49-36:75) */
-        { Site { function: 0, file: 0, line: 36, column: 49, end_line: 36, end_column: 75 } },
-        /* terrane-site-row: site 15: /app::main (src/main.trn:36:27-36:76) */
-        { Site { function: 0, file: 0, line: 36, column: 27, end_line: 36, end_column: 76 } },
-        /* terrane-site-row: site 16: /app::main (src/main.trn:38:36-38:62) */
-        { Site { function: 0, file: 0, line: 38, column: 36, end_line: 38, end_column: 62 } },
-        /* terrane-site-row: site 17: /app::main (src/main.trn:40:15-40:44) */
-        { Site { function: 0, file: 0, line: 40, column: 15, end_line: 40, end_column: 44 } },
-        /* terrane-site-row: site 18: /app::main (src/main.trn:41:22-41:35) */
-        { Site { function: 0, file: 0, line: 41, column: 22, end_line: 41, end_column: 35 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:6:10-6:30) */
+        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 30 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:7:11-7:29) */
+        { Site { function: 0, file: 0, line: 7, column: 11, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:28-8:43) */
+        { Site { function: 0, file: 0, line: 8, column: 28, end_line: 8, end_column: 43 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:11:12-11:32) */
+        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 32 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:12:11-12:31) */
+        { Site { function: 0, file: 0, line: 12, column: 11, end_line: 12, end_column: 31 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:13:29-13:48) */
+        { Site { function: 0, file: 0, line: 13, column: 29, end_line: 13, end_column: 48 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:16:10-16:22) */
+        { Site { function: 0, file: 0, line: 16, column: 10, end_line: 16, end_column: 22 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:17:11-17:29) */
+        { Site { function: 0, file: 0, line: 17, column: 11, end_line: 17, end_column: 29 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:20:16-20:41) */
+        { Site { function: 0, file: 0, line: 20, column: 16, end_line: 20, end_column: 41 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:21:32-21:47) */
+        { Site { function: 0, file: 0, line: 21, column: 32, end_line: 21, end_column: 47 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:26:17-26:44) */
+        { Site { function: 0, file: 0, line: 26, column: 17, end_line: 26, end_column: 44 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:27:34-27:51) */
+        { Site { function: 0, file: 0, line: 27, column: 34, end_line: 27, end_column: 51 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:31:20-31:53) */
+        { Site { function: 0, file: 0, line: 31, column: 20, end_line: 31, end_column: 53 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:32:40-32:63) */
+        { Site { function: 0, file: 0, line: 32, column: 40, end_line: 32, end_column: 63 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:35:49-35:75) */
+        { Site { function: 0, file: 0, line: 35, column: 49, end_line: 35, end_column: 75 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:35:27-35:76) */
+        { Site { function: 0, file: 0, line: 35, column: 27, end_line: 35, end_column: 76 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:37:36-37:62) */
+        { Site { function: 0, file: 0, line: 37, column: 36, end_line: 37, end_column: 62 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:39:15-39:44) */
+        { Site { function: 0, file: 0, line: 39, column: 15, end_line: 39, end_column: 44 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:40:22-40:35) */
+        { Site { function: 0, file: 0, line: 40, column: 22, end_line: 40, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]
@@ -518,11 +518,11 @@ mod __terrane_trace {
 // Namespace: app
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF0S248 {
+enum TerraneUnionF0S217 {
     Arm0(Event),
     Arm1(String),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S248 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S217 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(_) => {
@@ -535,7 +535,7 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S248 {
     }
 }
 fn main() {
-    let text: TerraneUnionF0S248;
+    let text: TerraneUnionF0S217;
     let text_value: Option<String>;
     let binary: Event;
     let binary_value: Option<Vec<u8>>;
@@ -553,7 +553,7 @@ fn main() {
     let payload: Option<NonClonePayload>;
     let future: OpenEvent;
     let text_2: String;
-    text = TerraneUnionF0S248::Arm0(
+    text = TerraneUnionF0S217::Arm0(
         __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::Event::Text(
@@ -571,13 +571,13 @@ fn main() {
                     )
                 }
             },
-            0 /* terrane-site: src/main.trn:7:10-7:30 */,
+            0 /* terrane-site: src/main.trn:6:10-6:30 */,
         ),
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | match &match &text {
-        TerraneUnionF0S248::Arm0(value) => value, _ =>
+        TerraneUnionF0S217::Arm0(value) => value, _ =>
         unreachable!("flow-proven storage refinement") } {
         terrane_payload_enum_witness::Event::Text { .. } => "Text".to_owned(),
         terrane_payload_enum_witness::Event::Binary { .. } => "Binary".to_owned(),
@@ -587,12 +587,12 @@ fn main() {
         terrane_payload_enum_witness::Event::Optional { .. } => "Optional".to_owned() }))
         { Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
-        "terrane_payload_enum_witness::Event::variant-name")) }, 1 /* terrane-site: src/main.trn:8:11-8:29 */))
+        "terrane_payload_enum_witness::Event::variant-name")) }, 1 /* terrane-site: src/main.trn:7:11-7:29 */))
     );
     text_value = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| match match &text {
-                TerraneUnionF0S248::Arm0(value) => value,
+                TerraneUnionF0S217::Arm0(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
                 .clone()
@@ -612,7 +612,7 @@ fn main() {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:9:28-9:43 */,
+        2 /* terrane-site: src/main.trn:8:28-8:43 */,
     );
     if text_value.is_some() {
         println!(
@@ -637,7 +637,7 @@ fn main() {
                 )
             }
         },
-        3 /* terrane-site: src/main.trn:12:12-12:32 */,
+        3 /* terrane-site: src/main.trn:11:12-11:32 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -650,7 +650,7 @@ fn main() {
         terrane_payload_enum_witness::Event::Optional { .. } => "Optional".to_owned() }))
         { Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
-        "terrane_payload_enum_witness::Event::variant-name")) }, 4 /* terrane-site: src/main.trn:13:11-13:31 */))
+        "terrane_payload_enum_witness::Event::variant-name")) }, 4 /* terrane-site: src/main.trn:12:11-12:31 */))
     );
     binary_value = __terrane_raised(
         match std::panic::catch_unwind(
@@ -670,7 +670,7 @@ fn main() {
                 )
             }
         },
-        5 /* terrane-site: src/main.trn:14:29-14:48 */,
+        5 /* terrane-site: src/main.trn:13:29-13:48 */,
     );
     if binary_value.is_some() {
         println!(
@@ -694,7 +694,7 @@ fn main() {
                 )
             }
         },
-        6 /* terrane-site: src/main.trn:17:10-17:22 */,
+        6 /* terrane-site: src/main.trn:16:10-16:22 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -707,7 +707,7 @@ fn main() {
         terrane_payload_enum_witness::Event::Optional { .. } => "Optional".to_owned() }))
         { Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
-        "terrane_payload_enum_witness::Event::variant-name")) }, 7 /* terrane-site: src/main.trn:18:11-18:29 */))
+        "terrane_payload_enum_witness::Event::variant-name")) }, 7 /* terrane-site: src/main.trn:17:11-17:29 */))
     );
     pair_payload = EventPair::terrane_construct(20, 22);
     println!(
@@ -732,7 +732,7 @@ fn main() {
                 )
             }
         },
-        8 /* terrane-site: src/main.trn:21:16-21:41 */,
+        8 /* terrane-site: src/main.trn:20:16-20:41 */,
     );
     pair_value = __terrane_raised(
         match std::panic::catch_unwind(
@@ -759,7 +759,7 @@ fn main() {
                 )
             }
         },
-        9 /* terrane-site: src/main.trn:22:32-22:47 */,
+        9 /* terrane-site: src/main.trn:21:32-21:47 */,
     );
     if pair_value.is_some() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("pair")));
@@ -786,7 +786,7 @@ fn main() {
                 )
             }
         },
-        10 /* terrane-site: src/main.trn:27:17-27:44 */,
+        10 /* terrane-site: src/main.trn:26:17-26:44 */,
     );
     named_value = __terrane_raised(
         match std::panic::catch_unwind(
@@ -812,7 +812,7 @@ fn main() {
                 )
             }
         },
-        11 /* terrane-site: src/main.trn:28:34-28:51 */,
+        11 /* terrane-site: src/main.trn:27:34-27:51 */,
     );
     if named_value.is_some() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("named")));
@@ -839,7 +839,7 @@ fn main() {
                 )
             }
         },
-        12 /* terrane-site: src/main.trn:32:20-32:53 */,
+        12 /* terrane-site: src/main.trn:31:20-31:53 */,
     );
     optional_value = __terrane_raised(
         match std::panic::catch_unwind(
@@ -869,7 +869,7 @@ fn main() {
                 )
             }
         },
-        13 /* terrane-site: src/main.trn:33:40-33:63 */,
+        13 /* terrane-site: src/main.trn:32:40-32:63 */,
     );
     if optional_value.is_some() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("optional")));
@@ -880,7 +880,7 @@ fn main() {
                 std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::OwnedEvent::Payload(
                     __terrane_raised(
                         non_clone_payload(String::from("owned")),
-                        14 /* terrane-site: src/main.trn:36:49-36:75 */,
+                        14 /* terrane-site: src/main.trn:35:49-35:75 */,
                     ),
                 )),
             ) {
@@ -895,7 +895,7 @@ fn main() {
                     )
                 }
             },
-            15 /* terrane-site: src/main.trn:36:27-36:76 */,
+            15 /* terrane-site: src/main.trn:35:27-35:76 */,
         ),
     );
     if owned.is_some() {
@@ -921,24 +921,24 @@ fn main() {
                     )
                 }
             },
-            16 /* terrane-site: src/main.trn:38:36-38:62 */,
+            16 /* terrane-site: src/main.trn:37:36-37:62 */,
         );
         if payload.is_some() {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_raised(consume_payload(payload
-                .expect("semantic optional narrowing")), 17 /* terrane-site: src/main.trn:40:15-40:44 */))
+                .expect("semantic optional narrowing")), 17 /* terrane-site: src/main.trn:39:15-39:44 */))
             );
         }
     }
     future = __terrane_raised(
         future_event(),
-        18 /* terrane-site: src/main.trn:41:22-41:35 */,
+        18 /* terrane-site: src/main.trn:40:22-40:35 */,
     );
-    let __terrane_match_value_1620 = future.clone();
-    match __terrane_match_value_1620 {
-        terrane_payload_enum_witness::OpenEvent::Known(__terrane_pattern_1637_text) => {
-            text_2 = __terrane_pattern_1637_text;
+    let __terrane_match_value_1589 = future.clone();
+    match __terrane_match_value_1589 {
+        terrane_payload_enum_witness::OpenEvent::Known(__terrane_pattern_1606_text) => {
+            text_2 = __terrane_pattern_1606_text;
             println!("{}", terrane_scalar_support::scalar_text(&text_2));
         }
         _ => {

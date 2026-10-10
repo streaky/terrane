@@ -1,5 +1,4 @@
 namespace scalar-reference-transparency
-from /core/output import print
 
 function main;
     text string = 'abc'

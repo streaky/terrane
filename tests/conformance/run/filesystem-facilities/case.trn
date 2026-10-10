@@ -1,6 +1,5 @@
 namespace conformance/filesystem-facilities
 
-from /core/output import print
 from /core/filesystem/paths import path, normalise-path
 from /core/filesystem import filesystem, filesystem-capability, filesystem-write-atomic, filesystem-exists
 from /core/filesystem import filesystem-metadata, filesystem-symlink-metadata, filesystem-read-link

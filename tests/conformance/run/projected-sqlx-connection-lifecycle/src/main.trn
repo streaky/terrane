@@ -3,7 +3,6 @@ namespace app
 from /deps/sqlx-sqlite import SqliteConnectOptions
 from /deps/terrane-sqlx-lifecycle-witness import prepare_missing_path
 from /deps/sqlx-core import Error
-from /core/output import print
 
 async function main;
   path = prepare_missing_path;

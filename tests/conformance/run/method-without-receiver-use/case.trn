@@ -1,5 +1,4 @@
 namespace method-without-receiver-use
-from /core/output import print
 
 class answerer
  function answer int;

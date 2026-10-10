@@ -463,10 +463,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:13:20-13:36) */
-        { Site { function: 0, file: 0, line: 13, column: 20, end_line: 13, end_column: 36 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:14:16-14:40) */
-        { Site { function: 0, file: 0, line: 14, column: 16, end_line: 14, end_column: 40 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:12:20-12:36) */
+        { Site { function: 0, file: 0, line: 12, column: 20, end_line: 12, end_column: 36 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:13:16-13:40) */
+        { Site { function: 0, file: 0, line: 13, column: 16, end_line: 13, end_column: 40 } },
     ];
     #[cold]
     #[inline(never)]
@@ -526,7 +526,7 @@ fn main() {
                 )
             }
         },
-        0 /* terrane-site: src/main.trn:13:20-13:36 */,
+        0 /* terrane-site: src/main.trn:12:20-12:36 */,
     );
     size = __terrane_raised(
         match std::panic::catch_unwind(
@@ -567,7 +567,7 @@ fn main() {
                 )
             }
         },
-        1 /* terrane-site: src/main.trn:14:16-14:40 */,
+        1 /* terrane-site: src/main.trn:13:16-13:40 */,
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&value),

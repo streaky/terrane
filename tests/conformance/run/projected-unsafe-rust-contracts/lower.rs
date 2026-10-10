@@ -463,12 +463,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::view", "/app::main"];
     pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /app::view (src/main.trn:7:12-7:32) */
-        { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 32 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:11:13-11:41) */
-        { Site { function: 1, file: 0, line: 11, column: 13, end_line: 11, end_column: 41 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:12:13-12:39) */
-        { Site { function: 1, file: 0, line: 12, column: 13, end_line: 12, end_column: 39 } },
+        /* terrane-site-row: site 0: /app::view (src/main.trn:6:12-6:32) */
+        { Site { function: 0, file: 0, line: 6, column: 12, end_line: 6, end_column: 32 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:10:13-10:41) */
+        { Site { function: 1, file: 0, line: 10, column: 13, end_line: 10, end_column: 41 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:11:13-11:39) */
+        { Site { function: 1, file: 0, line: 11, column: 13, end_line: 11, end_column: 39 } },
     ];
     #[cold]
     #[inline(never)]
@@ -487,7 +487,7 @@ mod __terrane_trace {
 fn view<'view>(state: &'view String) -> witness::ScopedView<'view> {
     return __terrane_raised(
         borrowed_view(state),
-        0 /* terrane-site: src/main.trn:7:12-7:32 */,
+        0 /* terrane-site: src/main.trn:6:12-6:32 */,
     );
 }
 #[allow(unsafe_code)]
@@ -497,7 +497,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(unsafe {
         unchecked_add(terrane_int_support::Int::from(20_i128),
-        terrane_int_support::Int::from(22_i128)) }, 1 /* terrane-site: src/main.trn:11:13-11:41 */))
+        terrane_int_support::Int::from(22_i128)) }, 1 /* terrane-site: src/main.trn:10:13-10:41 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -505,7 +505,7 @@ fn main() {
         witness::render_unsafe(&state, view))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness", "witness::render_unsafe")) },
-        2 /* terrane-site: src/main.trn:12:13-12:39 */))
+        2 /* terrane-site: src/main.trn:11:13-11:39 */))
     );
 }
 // Source: <terrane>/projected/deps/witness.trn

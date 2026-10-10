@@ -463,40 +463,40 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::contextual", "/app::main"];
     pub static SITES: [Site; 17] = [
-        /* terrane-site-row: site 0: /app::contextual (src/main.trn:9:12-9:23) */
-        { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 23 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:12:17-12:21) */
-        { Site { function: 1, file: 0, line: 12, column: 17, end_line: 12, end_column: 21 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:14:17-14:29) */
-        { Site { function: 1, file: 0, line: 14, column: 17, end_line: 14, end_column: 29 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:16:18-16:37) */
-        { Site { function: 1, file: 0, line: 16, column: 18, end_line: 16, end_column: 37 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:18:13-18:26) */
-        { Site { function: 1, file: 0, line: 18, column: 13, end_line: 18, end_column: 26 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:19:21-19:36) */
-        { Site { function: 1, file: 0, line: 19, column: 21, end_line: 19, end_column: 36 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:22:20-22:39) */
-        { Site { function: 1, file: 0, line: 22, column: 20, end_line: 22, end_column: 39 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:25:19-25:44) */
-        { Site { function: 1, file: 0, line: 25, column: 19, end_line: 25, end_column: 44 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:27:28-27:43) */
-        { Site { function: 1, file: 0, line: 27, column: 28, end_line: 27, end_column: 43 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:30:28-30:33) */
-        { Site { function: 1, file: 0, line: 30, column: 28, end_line: 30, end_column: 33 } },
-        /* terrane-site-row: site 10: /app::main (src/main.trn:30:20-30:34) */
-        { Site { function: 1, file: 0, line: 30, column: 20, end_line: 30, end_column: 34 } },
-        /* terrane-site-row: site 11: /app::main (src/main.trn:32:13-32:25) */
-        { Site { function: 1, file: 0, line: 32, column: 13, end_line: 32, end_column: 25 } },
-        /* terrane-site-row: site 12: /app::main (src/main.trn:33:36-33:41) */
-        { Site { function: 1, file: 0, line: 33, column: 36, end_line: 33, end_column: 41 } },
-        /* terrane-site-row: site 13: /app::main (src/main.trn:33:18-33:46) */
-        { Site { function: 1, file: 0, line: 33, column: 18, end_line: 33, end_column: 46 } },
-        /* terrane-site-row: site 14: /app::main (src/main.trn:35:13-35:25) */
-        { Site { function: 1, file: 0, line: 35, column: 13, end_line: 35, end_column: 25 } },
-        /* terrane-site-row: site 15: /app::main (src/main.trn:37:20-37:33) */
-        { Site { function: 1, file: 0, line: 37, column: 20, end_line: 37, end_column: 33 } },
-        /* terrane-site-row: site 16: /app::main (src/main.trn:39:32-39:39) */
-        { Site { function: 1, file: 0, line: 39, column: 32, end_line: 39, end_column: 39 } },
+        /* terrane-site-row: site 0: /app::contextual (src/main.trn:8:12-8:23) */
+        { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 23 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:11:17-11:21) */
+        { Site { function: 1, file: 0, line: 11, column: 17, end_line: 11, end_column: 21 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:13:17-13:29) */
+        { Site { function: 1, file: 0, line: 13, column: 17, end_line: 13, end_column: 29 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:15:18-15:37) */
+        { Site { function: 1, file: 0, line: 15, column: 18, end_line: 15, end_column: 37 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:17:13-17:26) */
+        { Site { function: 1, file: 0, line: 17, column: 13, end_line: 17, end_column: 26 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:18:21-18:36) */
+        { Site { function: 1, file: 0, line: 18, column: 21, end_line: 18, end_column: 36 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:21:20-21:39) */
+        { Site { function: 1, file: 0, line: 21, column: 20, end_line: 21, end_column: 39 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:24:19-24:44) */
+        { Site { function: 1, file: 0, line: 24, column: 19, end_line: 24, end_column: 44 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:26:28-26:43) */
+        { Site { function: 1, file: 0, line: 26, column: 28, end_line: 26, end_column: 43 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:29:28-29:33) */
+        { Site { function: 1, file: 0, line: 29, column: 28, end_line: 29, end_column: 33 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:29:20-29:34) */
+        { Site { function: 1, file: 0, line: 29, column: 20, end_line: 29, end_column: 34 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:31:13-31:25) */
+        { Site { function: 1, file: 0, line: 31, column: 13, end_line: 31, end_column: 25 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:32:36-32:41) */
+        { Site { function: 1, file: 0, line: 32, column: 36, end_line: 32, end_column: 41 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:32:18-32:46) */
+        { Site { function: 1, file: 0, line: 32, column: 18, end_line: 32, end_column: 46 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:34:13-34:25) */
+        { Site { function: 1, file: 0, line: 34, column: 13, end_line: 34, end_column: 25 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:36:20-36:33) */
+        { Site { function: 1, file: 0, line: 36, column: 20, end_line: 36, end_column: 33 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:38:32-38:39) */
+        { Site { function: 1, file: 0, line: 38, column: 32, end_line: 38, end_column: 39 } },
     ];
     #[cold]
     #[inline(never)]
@@ -529,7 +529,7 @@ fn contextual() -> terrane_int_support::Int {
                 )
             }
         },
-        0 /* terrane-site: src/main.trn:9:12-9:23 */,
+        0 /* terrane-site: src/main.trn:8:12-8:23 */,
     );
 }
 fn main() {
@@ -561,7 +561,7 @@ fn main() {
                 )
             }
         },
-        1 /* terrane-site: src/main.trn:12:17-12:21 */,
+        1 /* terrane-site: src/main.trn:11:17-11:21 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&empty));
     total = __terrane_raised(
@@ -580,7 +580,7 @@ fn main() {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:14:17-14:29 */,
+        2 /* terrane-site: src/main.trn:13:17-13:29 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&total));
     nested = __terrane_raised(
@@ -599,13 +599,13 @@ fn main() {
                 )
             }
         },
-        3 /* terrane-site: src/main.trn:16:18-16:37 */,
+        3 /* terrane-site: src/main.trn:15:18-15:37 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&nested));
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sum_terrane_deps_witness(),
-        4 /* terrane-site: src/main.trn:18:13-18:26 */))
+        4 /* terrane-site: src/main.trn:17:13-17:26 */))
     );
     record = __terrane_raised(
         match std::panic::catch_unwind(
@@ -627,7 +627,7 @@ fn main() {
                 )
             }
         },
-        5 /* terrane-site: src/main.trn:19:21-19:36 */,
+        5 /* terrane-site: src/main.trn:18:21-18:36 */,
     );
     println!(
         "{}",
@@ -655,7 +655,7 @@ fn main() {
                 )
             }
         },
-        6 /* terrane-site: src/main.trn:22:20-22:39 */,
+        6 /* terrane-site: src/main.trn:21:20-21:39 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&observed));
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
@@ -679,7 +679,7 @@ fn main() {
                 )
             }
         },
-        7 /* terrane-site: src/main.trn:25:19-25:44 */,
+        7 /* terrane-site: src/main.trn:24:19-24:44 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&text));
     sequence = __terrane_raised(
@@ -711,7 +711,7 @@ fn main() {
                 )
             }
         },
-        8 /* terrane-site: src/main.trn:27:28-27:43 */,
+        8 /* terrane-site: src/main.trn:26:28-26:43 */,
     );
     let __terrane_iterable_0 = sequence;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
@@ -731,7 +731,7 @@ fn main() {
                     witness::twice!(
                         match | | -> Result < _, crate ::TerraneForeignError > {
                         Ok(terrane_int_support::coerce:: < i64 >
-                        (&__terrane_raised(next(), 9 /* terrane-site: src/main.trn:30:28-30:33 */)).map_err(| error | crate
+                        (&__terrane_raised(next(), 9 /* terrane-site: src/main.trn:29:28-29:33 */)).map_err(| error | crate
                         ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
                         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
                         std::panic::panic_any(error) }
@@ -751,12 +751,12 @@ fn main() {
                 )
             }
         },
-        10 /* terrane-site: src/main.trn:30:20-30:34 */,
+        10 /* terrane-site: src/main.trn:29:20-29:34 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&repeated));
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(evaluations(),
-        11 /* terrane-site: src/main.trn:32:13-32:25 */))
+        11 /* terrane-site: src/main.trn:31:13-31:25 */))
     );
     chosen = __terrane_raised(
         match std::panic::catch_unwind(
@@ -765,7 +765,7 @@ fn main() {
                     witness::selected!(
                         false, match | | -> Result < _, crate ::TerraneForeignError > {
                         Ok(terrane_int_support::coerce:: < i64 >
-                        (&__terrane_raised(next(), 12 /* terrane-site: src/main.trn:33:36-33:41 */)).map_err(| error | crate
+                        (&__terrane_raised(next(), 12 /* terrane-site: src/main.trn:32:36-32:41 */)).map_err(| error | crate
                         ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
                         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
                         std::panic::panic_any(error) }, 17_i64
@@ -785,12 +785,12 @@ fn main() {
                 )
             }
         },
-        13 /* terrane-site: src/main.trn:33:18-33:46 */,
+        13 /* terrane-site: src/main.trn:32:18-32:46 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&chosen));
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(evaluations(),
-        14 /* terrane-site: src/main.trn:35:13-35:25 */))
+        14 /* terrane-site: src/main.trn:34:13-34:25 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&contextual()));
     combined = __terrane_raised(
@@ -813,7 +813,7 @@ fn main() {
                 )
             }
         },
-        15 /* terrane-site: src/main.trn:37:20-37:33 */,
+        15 /* terrane-site: src/main.trn:36:20-36:33 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&combined));
     empty_values = __terrane_raised(
@@ -845,7 +845,7 @@ fn main() {
                 )
             }
         },
-        16 /* terrane-site: src/main.trn:39:32-39:39 */,
+        16 /* terrane-site: src/main.trn:38:32-38:39 */,
     );
     let __terrane_iterable_1 = empty_values;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(

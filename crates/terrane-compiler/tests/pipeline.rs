@@ -130,7 +130,6 @@ fn bundled_core_lowering_is_part_of_the_support_sidecar() {
     let compilation = terrane_compiler::compile(
         "process-user.trn",
         "namespace process-user\n\
-         from /core/output import print\n\
          from /core/process import process-host-name\n\
          function main;\n\
              name = process-host-name;\n\

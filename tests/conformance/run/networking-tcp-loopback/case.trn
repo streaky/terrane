@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/encodings import utf8
 from /core/streams import stdin, byte-reader, read-result
 from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp

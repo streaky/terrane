@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import Opaque, Pair, make_text, make_flag, make_nested, default_pair, pair_code, flag_code, mapping_value, pair_text, pair, flags, lookup
-from /core/output import print
 
 function present bool; value Opaque of string
     return (value.into_value;) == 'text'

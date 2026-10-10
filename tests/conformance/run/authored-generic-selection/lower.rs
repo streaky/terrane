@@ -497,11 +497,11 @@ fn main() {
         let __terrane_enum_payload_1 = first();
         Pair::Values(__terrane_enum_payload_1, __terrane_enum_payload_0)
     };
-    let __terrane_match_value_844 = state.clone();
-    match __terrane_match_value_844 {
-        Pair::Values(__terrane_pattern_864_left, __terrane_pattern_864_right) => {
-            left = __terrane_pattern_864_left;
-            right = __terrane_pattern_864_right;
+    let __terrane_match_value_813 = state.clone();
+    match __terrane_match_value_813 {
+        Pair::Values(__terrane_pattern_833_left, __terrane_pattern_833_right) => {
+            left = __terrane_pattern_833_left;
+            right = __terrane_pattern_833_right;
             println!(
                 "{}", terrane_scalar_support::scalar_text(&(left.clone() + right
                 .clone()))

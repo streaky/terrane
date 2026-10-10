@@ -1,6 +1,5 @@
 namespace entry-valued-maps
 from /core/collections import entry, map, unordered-map
-from /core/output import print
 
 function main;
   inner entry of string, int8 = entry; key='b', value=7

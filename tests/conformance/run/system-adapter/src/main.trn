@@ -1,5 +1,4 @@
 namespace system-adapter
-from /core/output import print
 from /core/process import process-host-name
 
 function main;

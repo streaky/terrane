@@ -1,5 +1,4 @@
 namespace authored-enum-catch-all
-from /core/output import print
 
 class resource
     consuming function destruct;

@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import Cell, Factory, Holder, Marker, byte, consume, cycle, echo, make, make_async, make_unsafe, mixed, ordered
-from /core/output import print
 
 function marker-value int; value ref Marker
     return value.value;

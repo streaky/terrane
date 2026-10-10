@@ -423,10 +423,10 @@ mod __terrane_trace {
         "/core/documents::decode-document",
     ];
     pub static SITES: [Site; 11] = [
-        /* terrane-site-row: site 0: /logging-bounds::main (case.trn:16:13-16:31) */
-        { Site { function: 0, file: 0, line: 16, column: 13, end_line: 16, end_column: 31 } },
-        /* terrane-site-row: site 1: /logging-bounds::main (case.trn:16:66-16:84) */
-        { Site { function: 0, file: 0, line: 16, column: 66, end_line: 16, end_column: 84 } },
+        /* terrane-site-row: site 0: /logging-bounds::main (case.trn:15:13-15:31) */
+        { Site { function: 0, file: 0, line: 15, column: 13, end_line: 15, end_column: 31 } },
+        /* terrane-site-row: site 1: /logging-bounds::main (case.trn:15:66-15:84) */
+        { Site { function: 0, file: 0, line: 15, column: 66, end_line: 15, end_column: 84 } },
         /* terrane-site-row: site 2: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
         { Site { function: 1, file: 1, line: 140, column: 47, end_line: 140, end_column: 60 } },
         /* terrane-site-row: site 3: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
@@ -494,14 +494,14 @@ fn main() {
         dropping.clone(),
         info_level(),
         String::from("first").clone(),
-        "case.trn:12:13".to_owned(),
+        "case.trn:11:13".to_owned(),
         empty.clone(),
     );
     second = emit_at(
         dropping.clone(),
         info_level(),
         String::from("second").clone(),
-        "case.trn:13:14".to_owned(),
+        "case.trn:12:14".to_owned(),
         empty.clone(),
     );
     dropped_records = drain_memory(dropping.clone());
@@ -514,10 +514,10 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(dropped_records
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:16:13-16:31 */)), 0 /* terrane-site: case.trn:16:13-16:31 */).contains(&String::from("\"message\":\"second\""))),
+        0 /* terrane-site: case.trn:15:13-15:31 */)), 0 /* terrane-site: case.trn:15:13-15:31 */).contains(&String::from("\"message\":\"second\""))),
         terrane_scalar_support::scalar_text(&__terrane_raised(dropped_records
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:16:66-16:84 */)), 1 /* terrane-site: case.trn:16:66-16:84 */).contains(&String::from("\"message\":\"first\"")))
+        1 /* terrane-site: case.trn:15:66-15:84 */)), 1 /* terrane-site: case.trn:15:66-15:84 */).contains(&String::from("\"message\":\"first\"")))
     );
     rejecting_sink = memory_sink(
         terrane_int_support::Int::from(1_i128),
@@ -531,14 +531,14 @@ fn main() {
         rejecting.clone(),
         info_level(),
         String::from("accepted").clone(),
-        "case.trn:20:16".to_owned(),
+        "case.trn:19:16".to_owned(),
         empty.clone(),
     );
     rejected = emit_at(
         rejecting.clone(),
         info_level(),
         String::from("rejected").clone(),
-        "case.trn:21:16".to_owned(),
+        "case.trn:20:16".to_owned(),
         empty.clone(),
     );
     fallback = drain_fallback();
@@ -553,7 +553,7 @@ fn main() {
     >::new(
         vec![
             field_at(String::from("value").clone(), log_text(String::from("bounded")),
-            false, "case.trn:25:24".to_owned())
+            false, "case.trn:24:24".to_owned())
         ],
     );
     strict_fields = make_logger(
@@ -577,7 +577,7 @@ fn main() {
         strict_fields.clone(),
         info_level(),
         String::from("too-many").clone(),
-        "case.trn:27:16".to_owned(),
+        "case.trn:26:16".to_owned(),
         one_field.clone(),
     );
     strict_bytes = make_logger(
@@ -601,7 +601,7 @@ fn main() {
         strict_bytes.clone(),
         info_level(),
         String::from("too-large").clone(),
-        "case.trn:29:17".to_owned(),
+        "case.trn:28:17".to_owned(),
         empty.clone(),
     );
     println!(
@@ -637,7 +637,7 @@ fn main() {
         negative_limit.clone(),
         info_level(),
         String::from("invalid-limit").clone(),
-        "case.trn:37:21".to_owned(),
+        "case.trn:36:21".to_owned(),
         empty.clone(),
     );
     println!("{}", terrane_scalar_support::scalar_text(&invalid_limit.failed));

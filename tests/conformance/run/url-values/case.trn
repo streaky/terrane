@@ -1,6 +1,5 @@
 namespace conformance/url-values
 
-from /core/output import print
 from /core/urls import parse-url
 
 function main;

@@ -1,6 +1,5 @@
 namespace conformance/loop-body-backedge-inferred-rhs
 
-from /core/output import print
 
 function main;
     first = true

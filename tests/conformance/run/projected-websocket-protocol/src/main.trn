@@ -8,7 +8,6 @@ from /deps/axum/extract/ws import Message, WebSocket
 from /deps/axum-core import Error
 from /deps/tokio/net import TcpListener
 from /deps/terrane-websocket-peer-witness import drive_peer
-from /core/output import print
 
 async function socket-session; socket WebSocket
   try

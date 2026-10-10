@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/collections import list
 
 class option

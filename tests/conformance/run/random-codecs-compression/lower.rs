@@ -418,18 +418,18 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 6] = [
-        /* terrane-site-row: site 0: /app::main (case.trn:52:13-52:38) */
-        { Site { function: 0, file: 0, line: 52, column: 13, end_line: 52, end_column: 38 } },
-        /* terrane-site-row: site 1: /app::main (case.trn:56:13-56:40) */
-        { Site { function: 0, file: 0, line: 56, column: 13, end_line: 56, end_column: 40 } },
-        /* terrane-site-row: site 2: /app::main (case.trn:65:13-65:40) */
-        { Site { function: 0, file: 0, line: 65, column: 13, end_line: 65, end_column: 40 } },
-        /* terrane-site-row: site 3: /app::main (case.trn:69:13-69:45) */
-        { Site { function: 0, file: 0, line: 69, column: 13, end_line: 69, end_column: 45 } },
-        /* terrane-site-row: site 4: /app::main (case.trn:73:13-73:44) */
-        { Site { function: 0, file: 0, line: 73, column: 13, end_line: 73, end_column: 44 } },
-        /* terrane-site-row: site 5: /app::main (case.trn:78:13-78:45) */
-        { Site { function: 0, file: 0, line: 78, column: 13, end_line: 78, end_column: 45 } },
+        /* terrane-site-row: site 0: /app::main (case.trn:51:13-51:38) */
+        { Site { function: 0, file: 0, line: 51, column: 13, end_line: 51, end_column: 38 } },
+        /* terrane-site-row: site 1: /app::main (case.trn:55:13-55:40) */
+        { Site { function: 0, file: 0, line: 55, column: 13, end_line: 55, end_column: 40 } },
+        /* terrane-site-row: site 2: /app::main (case.trn:64:13-64:40) */
+        { Site { function: 0, file: 0, line: 64, column: 13, end_line: 64, end_column: 40 } },
+        /* terrane-site-row: site 3: /app::main (case.trn:68:13-68:45) */
+        { Site { function: 0, file: 0, line: 68, column: 13, end_line: 68, end_column: 45 } },
+        /* terrane-site-row: site 4: /app::main (case.trn:72:13-72:44) */
+        { Site { function: 0, file: 0, line: 72, column: 13, end_line: 72, end_column: 44 } },
+        /* terrane-site-row: site 5: /app::main (case.trn:77:13-77:45) */
+        { Site { function: 0, file: 0, line: 77, column: 13, end_line: 77, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -587,7 +587,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&strict
-        .value, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:52:13-52:38 */))
+        .value, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:51:13-51:38 */))
     );
     unpadded_as_padded = decode_base64(String::from("aGVsbG8"), false, true);
     println!("{}", terrane_scalar_support::scalar_text(&unpadded_as_padded.failed));
@@ -595,7 +595,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unpadded
-        .value, terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:56:13-56:40 */))
+        .value, terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:55:13-55:40 */))
     );
     wrong_alphabet = decode_base64(String::from("aGVsbG8_"), false, false);
     println!("{}", terrane_scalar_support::scalar_text(&wrong_alphabet.failed));
@@ -619,7 +619,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unpacked
-        .value, terrane_string_support::Encoding::Utf8), 2 /* terrane-site: case.trn:65:13-65:40 */))
+        .value, terrane_string_support::Encoding::Utf8), 2 /* terrane-site: case.trn:64:13-64:40 */))
     );
     zlib_codec = zlib();
     zlib_packed = zlib_codec
@@ -631,7 +631,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&zlib_unpacked
-        .value, terrane_string_support::Encoding::Utf8), 3 /* terrane-site: case.trn:69:13-69:45 */))
+        .value, terrane_string_support::Encoding::Utf8), 3 /* terrane-site: case.trn:68:13-68:45 */))
     );
     raw_codec = deflate_raw();
     raw_packed = raw_codec
@@ -643,7 +643,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&raw_unpacked
-        .value, terrane_string_support::Encoding::Utf8), 4 /* terrane-site: case.trn:73:13-73:44 */))
+        .value, terrane_string_support::Encoding::Utf8), 4 /* terrane-site: case.trn:72:13-72:44 */))
     );
     zstd_codec = zstd();
     zstd_packed = zstd_codec
@@ -660,7 +660,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&zstd_unpacked
-        .value, terrane_string_support::Encoding::Utf8), 5 /* terrane-site: case.trn:78:13-78:45 */))
+        .value, terrane_string_support::Encoding::Utf8), 5 /* terrane-site: case.trn:77:13-77:45 */))
     );
     bomb_limits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(4_i128),

@@ -463,10 +463,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:11-7:26) */
-        { Site { function: 0, file: 0, line: 7, column: 11, end_line: 7, end_column: 26 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:11-8:25) */
-        { Site { function: 0, file: 0, line: 8, column: 11, end_line: 8, end_column: 25 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:6:11-6:26) */
+        { Site { function: 0, file: 0, line: 6, column: 11, end_line: 6, end_column: 26 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:7:11-7:25) */
+        { Site { function: 0, file: 0, line: 7, column: 11, end_line: 7, end_column: 25 } },
     ];
     #[cold]
     #[inline(never)]
@@ -485,11 +485,11 @@ mod __terrane_trace {
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(upstream_value(),
-        0 /* terrane-site: src/main.trn:7:11-7:26 */))
+        0 /* terrane-site: src/main.trn:6:11-6:26 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(overlay_value(),
-        1 /* terrane-site: src/main.trn:8:11-8:25 */))
+        1 /* terrane-site: src/main.trn:7:11-7:25 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-overlay-target.trn

@@ -1,6 +1,5 @@
 namespace shared-referenced-binding-retyping
 from /core/collections import list
-from /core/output import print
 
 function main;
     value list of int = list; 12

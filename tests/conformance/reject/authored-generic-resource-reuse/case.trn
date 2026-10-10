@@ -1,5 +1,4 @@
 namespace rejected-generic
-from /core/output import print
 class token
     consuming function destruct;
         print; 'closed'

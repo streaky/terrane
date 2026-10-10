@@ -1,5 +1,4 @@
 namespace app
-from /core/output import print
 from /core/concurrency import channel, channel-block
 
 async function main;

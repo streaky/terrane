@@ -2,7 +2,6 @@ namespace app
 
 from /deps/pdf-oxide import Error
 from /deps/pdf-oxide/api import Pdf
-from /core/output import print
 
 function main;
   try

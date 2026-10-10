@@ -2,7 +2,6 @@ namespace app
 
 from /deps/terrane-borrowed-struct-witness import Descriptor, Owned, consume, summarize, summarize_owned
 from /core/collections import list
-from /core/output import print
 
 function main;
     descriptor Descriptor = instance Descriptor; native-label = 'main', note = 'ready', values = (list; 'ab', 'c'), extra = (list; 'five'), offset = 35

@@ -427,20 +427,20 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/explicit-numeric-coercions::main"];
     pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /explicit-numeric-coercions::main (case.trn:11:23-11:38) */
+        /* terrane-site-row: site 0: /explicit-numeric-coercions::main (case.trn:10:23-10:38) */
+        { Site { function: 0, file: 0, line: 10, column: 23, end_line: 10, end_column: 38 } },
+        /* terrane-site-row: site 1: /explicit-numeric-coercions::main (case.trn:11:23-11:38) */
         { Site { function: 0, file: 0, line: 11, column: 23, end_line: 11, end_column: 38 } },
-        /* terrane-site-row: site 1: /explicit-numeric-coercions::main (case.trn:12:23-12:38) */
-        { Site { function: 0, file: 0, line: 12, column: 23, end_line: 12, end_column: 38 } },
-        /* terrane-site-row: site 2: /explicit-numeric-coercions::main (case.trn:24:22-24:36) */
-        { Site { function: 0, file: 0, line: 24, column: 22, end_line: 24, end_column: 36 } },
-        /* terrane-site-row: site 3: /explicit-numeric-coercions::main (case.trn:30:24-30:41) */
-        { Site { function: 0, file: 0, line: 30, column: 24, end_line: 30, end_column: 41 } },
-        /* terrane-site-row: site 4: /explicit-numeric-coercions::main (case.trn:32:19-32:31) */
-        { Site { function: 0, file: 0, line: 32, column: 19, end_line: 32, end_column: 31 } },
-        /* terrane-site-row: site 5: /explicit-numeric-coercions::main (case.trn:45:26-45:40) */
-        { Site { function: 0, file: 0, line: 45, column: 26, end_line: 45, end_column: 40 } },
-        /* terrane-site-row: site 6: /explicit-numeric-coercions::main (case.trn:51:26-51:42) */
-        { Site { function: 0, file: 0, line: 51, column: 26, end_line: 51, end_column: 42 } },
+        /* terrane-site-row: site 2: /explicit-numeric-coercions::main (case.trn:23:22-23:36) */
+        { Site { function: 0, file: 0, line: 23, column: 22, end_line: 23, end_column: 36 } },
+        /* terrane-site-row: site 3: /explicit-numeric-coercions::main (case.trn:29:24-29:41) */
+        { Site { function: 0, file: 0, line: 29, column: 24, end_line: 29, end_column: 41 } },
+        /* terrane-site-row: site 4: /explicit-numeric-coercions::main (case.trn:31:19-31:31) */
+        { Site { function: 0, file: 0, line: 31, column: 19, end_line: 31, end_column: 31 } },
+        /* terrane-site-row: site 5: /explicit-numeric-coercions::main (case.trn:44:26-44:40) */
+        { Site { function: 0, file: 0, line: 44, column: 26, end_line: 44, end_column: 40 } },
+        /* terrane-site-row: site 6: /explicit-numeric-coercions::main (case.trn:50:26-50:42) */
+        { Site { function: 0, file: 0, line: 50, column: 26, end_line: 50, end_column: 42 } },
     ];
     #[cold]
     #[inline(never)]
@@ -493,11 +493,11 @@ fn main() {
     quantity = 9007199254740993;
     rounded64 = __terrane_raised(
         terrane_int_support::coerce_to_f64(&quantity),
-        0 /* terrane-site: case.trn:11:23-11:38 */,
+        0 /* terrane-site: case.trn:10:23-10:38 */,
     );
     rounded32 = __terrane_raised(
         terrane_int_support::coerce_to_f32(&quantity),
-        1 /* terrane-site: case.trn:12:23-12:38 */,
+        1 /* terrane-site: case.trn:11:23-11:38 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&rounded64));
     println!("{}", terrane_scalar_support::scalar_text(&rounded32));
@@ -510,7 +510,7 @@ fn main() {
     precise = 16777217.0;
     narrowed = __terrane_raised(
         terrane_int_support::coerce_f64_to_f32(precise),
-        2 /* terrane-site: case.trn:24:22-24:36 */,
+        2 /* terrane-site: case.trn:23:22-23:36 */,
     );
     widened = narrowed as f64;
     println!("{}", terrane_scalar_support::scalar_text(&narrowed));
@@ -518,12 +518,12 @@ fn main() {
     infinity64 = divide(1.0, 0.0);
     infinity32 = __terrane_raised(
         terrane_int_support::coerce_f64_to_f32(infinity64),
-        3 /* terrane-site: case.trn:30:24-30:41 */,
+        3 /* terrane-site: case.trn:29:24-29:41 */,
     );
     nan64 = divide(0.0, 0.0);
     nan32 = __terrane_raised(
         terrane_int_support::coerce_f64_to_f32(nan64),
-        4 /* terrane-site: case.trn:32:19-32:31 */,
+        4 /* terrane-site: case.trn:31:19-31:31 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&infinity32.is_infinite()));
     println!("{}", terrane_scalar_support::scalar_text(&nan32.is_nan()));
@@ -539,7 +539,7 @@ fn main() {
                 .insert(
                     __terrane_raised_completion!(
                         terrane_int_support::coerce_fixed_to_f32(maximum),
-                        5 /* terrane-site: case.trn:45:26-45:40 */
+                        5 /* terrane-site: case.trn:44:26-44:40 */
                     ),
                 );
             println!(
@@ -585,7 +585,7 @@ fn main() {
                 .insert(
                     __terrane_raised_completion!(
                         terrane_int_support::coerce_f64_to_f32(too_large),
-                        6 /* terrane-site: case.trn:51:26-51:42 */
+                        6 /* terrane-site: case.trn:50:26-50:42 */
                     ),
                 );
             println!(

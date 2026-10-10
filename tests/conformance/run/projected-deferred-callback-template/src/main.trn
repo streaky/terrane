@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/terrane-deferred-callback-witness import produce, transform
-from /core/output import print
 
 function message string;
     return 'deferred'

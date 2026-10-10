@@ -1,6 +1,5 @@
 namespace conformance/loop-body-backedge-while
 
-from /core/output import print
 
 function main;
     index = 0
