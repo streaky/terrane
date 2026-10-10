@@ -1,0 +1,5 @@
+package = "throwable-direct-construction"
+
+[namespaces]
+throwable-direct-construction = "src"
+imported-errors = "errors"

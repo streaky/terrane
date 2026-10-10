@@ -639,11 +639,11 @@ class config-error implements throwable
 // Executable coverage: tests/conformance/run/custom-throwable/case.trn.
 function load string throws config-error; path string
   throw config-error; path, >configuration is invalid
+```
 
 - Every thrown value MUST statically conform to structural `throwable`; arbitrary dynamic values are
   never throwable.
-- `throw expression` throws an existing instance; `throw class; args` ordinarily invokes the class
-  constructor and throws the resulting instance.
+- `throw expression` throws an existing instance. For a throwable class designator, `throw class` and `throw class;` construct with no arguments; `throw class; args` constructs with supplied arguments. These forms throw the resulting instance using ordinary constructor arity and type checks. User-defined throwables need no separate `instance` expression, just like built-in throwables.
 - `throwable` surface: class-provided `message string` and synchronous, non-throwing, zero-argument
   `render string`; compiler-supplied `cause throwable|none`, defaulting to `none`, in the runtime
   envelope. Runtime also retains the concrete descriptor and deterministic source-context chain.

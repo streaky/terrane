@@ -1,0 +1,12 @@
+namespace throwable-constructor-missing-argument
+from /core/errors import throwable
+
+class custom-error implements throwable
+  message string = ''
+  function construct; detail string
+    this.message = detail
+  function render string;
+    return this.message
+
+function main;
+  throw custom-error
