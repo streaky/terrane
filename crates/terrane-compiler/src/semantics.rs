@@ -32,6 +32,7 @@ mod member_inference;
 mod native_cache;
 mod native_constructors;
 mod numeric;
+mod throw_construction;
 mod types;
 
 // Object, ownership, binding-lifetime, and diagnostic validation.

@@ -1236,6 +1236,7 @@ fn analyze_parsed_with_projection(
         return Ok(semantic);
     }
     let stage = crate::compilation_progress::start("type inference", package.root.display());
+    super::throw_construction::normalize(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
@@ -1372,7 +1373,6 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                     );
                 let object_name = match &value_type {
                     Some(ValueType::Descriptor(name)) => Some(name.as_str()),
-                    Some(ValueType::Object(identity)) => Some(identity.name.as_str()),
                     _ if thrown.kind == SyntaxKind::CallExpression => thrown
                         .children
                         .first()
@@ -1380,7 +1380,11 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                         .map(|callee| node_text(&unit.source, callee)),
                     _ => None,
                 };
-                let user_throwable = object_name
+                let user_throwable = matches!(
+                    &value_type,
+                    Some(ValueType::Object(identity))
+                        if identity_implements(package, &identity.qualified(), "/core/errors::throwable")
+                ) || object_name
                     .and_then(|name| {
                         package.resolve_name_at(
                             unit,

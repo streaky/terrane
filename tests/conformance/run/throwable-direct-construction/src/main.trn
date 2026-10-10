@@ -1,0 +1,56 @@
+namespace throwable-direct-construction
+from /core/errors import throwable, coercion-error
+from /core/documents import document-value, make-document-none
+from /imported-errors import imported-error as aliased-error
+
+class consumer-error implements throwable
+  declaration document-value = make-document-none;
+  message string = ''
+  function construct; declaration document-value, message string
+    this.declaration = declaration
+    this.message = message
+  function render string;
+    return this.message
+
+class default-error implements throwable
+  message string = 'default error'
+  function render string;
+    return this.message
+
+class explicit-error implements throwable
+  message string = ''
+  function construct;
+    this.message = 'explicit constructor'
+  function render string;
+    return this.message
+
+function main;
+  try
+    throw consumer-error; (make-document-none;), 'CLI command must be synchronous, non-throwing, and safe'
+  catch consumer-error as error
+    print; error.message
+  try
+    throw consumer-error; message = 'named arguments', declaration = (make-document-none;)
+  catch consumer-error as error
+    print; error.message
+  try
+    throw default-error
+  catch default-error as error
+    print; error.message
+  try
+    throw explicit-error;
+  catch explicit-error as error
+    print; error.message
+  try
+    throw aliased-error; 'imported alias'
+  catch aliased-error as error
+    print; error.message
+  existing = instance consumer-error; (make-document-none;), 'existing instance'
+  try
+    throw existing
+  catch consumer-error as error
+    print; error.message
+  try
+    throw coercion-error
+  catch coercion-error as error
+    print; error.message

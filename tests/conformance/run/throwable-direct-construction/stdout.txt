@@ -1,0 +1,7 @@
+CLI command must be synchronous, non-throwing, and safe
+named arguments
+default error
+explicit constructor
+imported alias
+existing instance
+coercion has no compatible result
