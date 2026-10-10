@@ -155,6 +155,12 @@ fn owner_rustdoc_identity_mismatch_regenerates_usable_cache() {
         "pub struct UsableOwnerType;\npub fn usable_owner_function() -> bool { true }\n",
     )
     .unwrap();
+    // Resolution publishes the observed dependency input identity before owner queries.
+    fs::write(
+        workspace.join("local-source-identity"),
+        crate::cache_identity::local_rust_sources(&workspace).unwrap(),
+    )
+    .unwrap();
     fs::create_dir_all(workspace.join("owner-rustdoc")).unwrap();
     fs::write(
         workspace.join("owner-rustdoc/owner_fixture.json"),
@@ -162,24 +168,19 @@ fn owner_rustdoc_identity_mismatch_regenerates_usable_cache() {
     )
     .unwrap();
 
-    let document = super::cached_owner_rustdoc(
-        &workspace,
-        "owner-fixture@1.0.0",
-        "owner_fixture",
-        "owner-fixture",
-        "x86_64-unknown-linux-gnu",
-        Containment::Unavailable,
-    )
-    .unwrap();
-    let cached = super::cached_owner_rustdoc(
-        &workspace,
-        "owner-fixture@1.0.0",
-        "owner_fixture",
-        "owner-fixture",
-        "x86_64-unknown-linux-gnu",
-        Containment::Unavailable,
-    )
-    .unwrap();
+    let load = || {
+        super::cached_owner_rustdoc(
+            &workspace,
+            "owner-fixture@1.0.0",
+            "owner_fixture",
+            "owner-fixture",
+            "x86_64-unknown-linux-gnu",
+            Containment::Unavailable,
+        )
+        .unwrap()
+    };
+    let document = load();
+    let cached = load();
     assert!(
         cached
             .index
@@ -204,12 +205,28 @@ fn owner_rustdoc_identity_mismatch_regenerates_usable_cache() {
             .values()
             .any(|item| item.name.as_deref() == Some("usable_owner_function"))
     );
-    let cache: serde_json::Value = serde_json::from_slice(
-        &fs::read(workspace.join("owner-rustdoc/owner_fixture.json")).unwrap(),
+    fs::write(
+        package.join("src/lib.rs"),
+        "pub struct ChangedOwnerType;\npub fn usable_owner_function() -> bool { true }\n",
     )
     .unwrap();
-    assert_ne!(cache["terrane_cache_identity"], "stale");
-    assert_eq!(cache["terrane_cache_package"], "owner-fixture@1.0.0");
-    assert_eq!(cache["terrane_cache_crate"], "owner_fixture");
+    fs::write(
+        workspace.join("local-source-identity"),
+        crate::cache_identity::local_rust_sources(&workspace).unwrap(),
+    )
+    .unwrap();
+    let edited = load();
+    assert!(
+        edited
+            .index
+            .values()
+            .any(|item| item.name.as_deref() == Some("ChangedOwnerType"))
+    );
+    assert!(
+        !edited
+            .index
+            .values()
+            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
+    );
     fs::remove_dir_all(workspace).unwrap();
 }
