@@ -12,9 +12,21 @@ fn collect(directory: &Path, files: &mut Vec<PathBuf>) {
         .collect::<Vec<_>>();
     entries.sort();
     for path in entries {
+        // Source checkouts and archives share the same input policy: editor files,
+        // generated caches and build bookkeeping are not compiler source inputs.
+        if path.file_name().is_some_and(|name| {
+            name.as_encoded_bytes().starts_with(b".") || name == "target" || name == "__pycache__"
+        }) {
+            continue;
+        }
         if path.is_dir() {
             collect(&path, files);
-        } else if path.is_file() {
+        } else if path.is_file()
+            && matches!(
+                path.extension().and_then(|extension| extension.to_str()),
+                Some("rs" | "trn" | "toml")
+            )
+        {
             files.push(path);
         }
     }
