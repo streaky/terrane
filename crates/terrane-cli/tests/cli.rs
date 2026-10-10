@@ -34,9 +34,11 @@ impl Drop for TemporaryDirectory {
     }
 }
 
-fn staged_hello() -> TemporaryDirectory {
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello");
-    let directory = TemporaryDirectory::new("hello-fixture");
+fn staged_fixture(name: &str) -> TemporaryDirectory {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run")
+        .join(name);
+    let directory = TemporaryDirectory::new(name);
     fs::create_dir_all(directory.path()).unwrap();
     for name in ["case.trn", "stdout.txt"] {
         fs::copy(source.join(name), directory.path().join(name)).unwrap();
@@ -44,13 +46,8 @@ fn staged_hello() -> TemporaryDirectory {
     directory
 }
 
-fn hello() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello/case.trn")
-}
-
-fn structured_error() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/conformance/run/structured-error-origin-and-frames/case.trn")
+fn staged_hello() -> TemporaryDirectory {
+    staged_fixture("hello")
 }
 
 #[test]
@@ -262,13 +259,15 @@ fn extensionless_source_and_package_paths_dispatch_consistently() {
 fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let directory = TemporaryDirectory::new("rust-output");
+    let fixture = staged_fixture("structured-error-origin-and-frames");
+    let source = fixture.path().join("case.trn");
     let output = directory.path().join("nested/application.rs");
     let lowered = Command::new(binary)
         .args([
             "rust",
             "--output",
             output.to_str().unwrap(),
-            structured_error().to_str().unwrap(),
+            source.to_str().unwrap(),
         ])
         .output()
         .unwrap();
@@ -287,8 +286,10 @@ fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
 
 #[test]
 fn invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect() {
+    let fixture = staged_hello();
+    let source = fixture.path().join("case.trn");
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .args(["rust", "--output", "", hello().to_str().unwrap()])
+        .args(["rust", "--output", "", source.to_str().unwrap()])
         .output()
         .unwrap();
     let stderr = String::from_utf8(output.stderr).unwrap();
@@ -302,10 +303,12 @@ fn invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect() {
 #[test]
 fn output_options_are_rejected_outside_rust_and_when_repeated() {
     let binary = env!("CARGO_BIN_EXE_terrane");
+    let fixture = staged_hello();
+    let source = fixture.path().join("case.trn");
     for command in ["check", "build", "run"] {
         for flag in ["-o", "--output"] {
             let output = Command::new(binary)
-                .args([command, flag, "generated.rs", hello().to_str().unwrap()])
+                .args([command, flag, "generated.rs", source.to_str().unwrap()])
                 .output()
                 .unwrap();
             assert_eq!(output.status.code(), Some(2), "{command} {flag}");
@@ -319,7 +322,7 @@ fn output_options_are_rejected_outside_rust_and_when_repeated() {
             "first.rs",
             "--output",
             "second.rs",
-            hello().to_str().unwrap(),
+            source.to_str().unwrap(),
         ])
         .output()
         .unwrap();
@@ -334,6 +337,8 @@ fn output_options_are_rejected_outside_rust_and_when_repeated() {
 #[test]
 fn help_succeeds_and_extra_arguments_are_rejected() {
     let binary = env!("CARGO_BIN_EXE_terrane");
+    let fixture = staged_hello();
+    let source = fixture.path().join("case.trn");
     let help = Command::new(binary).arg("--help").output().unwrap();
     assert!(help.status.success());
     let help = String::from_utf8(help.stdout).unwrap();
@@ -342,7 +347,7 @@ fn help_succeeds_and_extra_arguments_are_rejected() {
     assert!(!help.contains("<source.trn>"));
 
     let extra = Command::new(binary)
-        .args(["check", hello().to_str().unwrap(), "unexpected"])
+        .args(["check", source.to_str().unwrap(), "unexpected"])
         .output()
         .unwrap();
     assert_eq!(extra.status.code(), Some(2));
@@ -496,16 +501,14 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
 #[test]
 fn canonical_rust_requirement_preserves_successful_rust_output() {
     let binary = env!("CARGO_BIN_EXE_terrane");
+    let fixture = staged_hello();
+    let source = fixture.path().join("case.trn");
     let ordinary = Command::new(binary)
-        .args(["rust", hello().to_str().unwrap()])
+        .args(["rust", source.to_str().unwrap()])
         .output()
         .unwrap();
     let canonical = Command::new(binary)
-        .args([
-            "rust",
-            "--require-canonical-rust",
-            hello().to_str().unwrap(),
-        ])
+        .args(["rust", "--require-canonical-rust", source.to_str().unwrap()])
         .output()
         .unwrap();
 
