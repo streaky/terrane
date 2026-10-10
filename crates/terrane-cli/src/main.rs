@@ -1,3 +1,4 @@
+mod build_progress;
 mod census_command;
 mod debug_command;
 mod development_fingerprint;
@@ -238,6 +239,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     } else {
         parse_input(arguments, command)?
     };
+    let mut progress =
+        (command == CliCommand::Build).then(|| build_progress::BuildProgress::new(&input_path));
     let source_input = !input_path.is_dir()
         && input_path
             .extension()
@@ -256,6 +259,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 .collect(),
         })?
     };
+    if let Some(progress) = &mut progress {
+        progress.identify(&package.identity);
+    }
     if package.artifact == terrane_compiler::ArtifactKind::DynamicLibrary
         && matches!(
             command,
@@ -273,27 +279,37 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             "Terrane library packages are lowered with an application; use `check` or `rust` directly",
         ));
     }
-    let compilation = match terrane_compiler::compile_package_with_options(
-        &package,
-        terrane_compiler::CompilerOptions {
-            require_canonical_rust,
-            lint_name_style,
-            lint_unused_functions,
-            debug_build: match command {
-                CliCommand::Profile if embed_debug_sources => {
-                    terrane_compiler::DebugBuild::EmbeddedAllSources
-                }
-                CliCommand::Profile => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
-                CliCommand::Debug => match (embed_debug_sources, embed_generated_sources) {
-                    (false, false) => terrane_compiler::DebugBuild::ExternalSources,
-                    (true, false) => terrane_compiler::DebugBuild::EmbeddedSources,
-                    (false, true) => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
-                    (true, true) => terrane_compiler::DebugBuild::EmbeddedAllSources,
+    if let Some(progress) = &mut progress {
+        progress.advance("compiling Terrane sources");
+    }
+    let compile = || {
+        terrane_compiler::compile_package_with_options(
+            &package,
+            terrane_compiler::CompilerOptions {
+                require_canonical_rust,
+                lint_name_style,
+                lint_unused_functions,
+                debug_build: match command {
+                    CliCommand::Profile if embed_debug_sources => {
+                        terrane_compiler::DebugBuild::EmbeddedAllSources
+                    }
+                    CliCommand::Profile => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
+                    CliCommand::Debug => match (embed_debug_sources, embed_generated_sources) {
+                        (false, false) => terrane_compiler::DebugBuild::ExternalSources,
+                        (true, false) => terrane_compiler::DebugBuild::EmbeddedSources,
+                        (false, true) => terrane_compiler::DebugBuild::EmbeddedGeneratedSources,
+                        (true, true) => terrane_compiler::DebugBuild::EmbeddedAllSources,
+                    },
+                    _ => terrane_compiler::DebugBuild::Disabled,
                 },
-                _ => terrane_compiler::DebugBuild::Disabled,
             },
-        },
-    ) {
+        )
+    };
+    let compilation = match if command == CliCommand::Build {
+        terrane_compiler::with_compilation_progress(compile)
+    } else {
+        compile()
+    } {
         Ok(compilation) => compilation,
         Err(failure) => return Err(CliFailure::compilation(failure)),
     };
@@ -301,6 +317,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if command == CliCommand::Rust && output_path.is_none() {
         print_rust(&compilation);
         return Ok(ExitCode::SUCCESS);
+    }
+    if let Some(progress) = &mut progress {
+        progress.advance("preparing native build");
     }
     let rust_entrypoint = output_path.as_deref().unwrap_or_else(|| {
         Path::new(match package.artifact {
@@ -362,6 +381,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         },
     )?;
     let target_dir = package.root.join(".trn/cache/target");
+    if let Some(progress) = &mut progress {
+        progress.advance("compiling native artifact");
+    }
     let artifact = prepare_artifact(
         command,
         &crate_dir,
@@ -384,6 +406,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     let artifact = artifact.expect("build, run, debug, and profile prepare a native artifact");
     if command == CliCommand::Build {
+        if let Some(progress) = progress {
+            progress.finish();
+        }
         println!("{}", artifact.display());
         return Ok(ExitCode::SUCCESS);
     }

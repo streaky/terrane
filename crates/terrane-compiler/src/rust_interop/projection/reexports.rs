@@ -53,6 +53,8 @@ pub(super) fn generate_rustdoc(
     containment: Containment,
     retain_hidden_definitions: bool,
 ) -> Result<RustdocCrate, ProjectionError> {
+    let generation =
+        crate::compilation_progress::start("generating Rustdoc metadata", package_spec);
     let mut rustdoc_args = vec![
         "rustdoc",
         "-p",
@@ -78,6 +80,8 @@ pub(super) fn generate_rustdoc(
             CargoExecution::Host
         },
     )?;
+    generation.finish();
+    let loading = crate::compilation_progress::start("loading Rustdoc metadata", package_spec);
     let rustdoc_path = workspace
         .join("target/rustdoc-57/doc")
         .join(format!("{crate_name}.json"));
@@ -87,11 +91,12 @@ pub(super) fn generate_rustdoc(
             rustdoc_path.display()
         ),
     })?;
-    terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN).map_err(|error| {
-        ProjectionError {
+    let document = terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
+        .map_err(|error| ProjectionError {
             message: error.message,
-        }
-    })
+        })?;
+    loading.finish();
+    Ok(document)
 }
 
 fn cached_owner_rustdoc(
@@ -129,14 +134,18 @@ fn cached_owner_rustdoc(
     let cache_path = workspace
         .join("owner-rustdoc")
         .join(format!("{crate_name}.json"));
+    let cache = crate::compilation_progress::start("checking owner Rustdoc cache", package_spec);
     if let Ok(bytes) = fs::read(&cache_path)
         && let Ok(header) = serde_json::from_slice::<CacheHeader<'_>>(&bytes)
         && header.terrane_cache_identity == fingerprint
         && let Ok(document) =
             terrane_rust_analysis::parse_rustdoc(package_name, &bytes, RUSTDOC_TOOLCHAIN)
     {
+        cache.finish();
+        crate::compilation_progress::note("using cached owner Rustdoc", package_spec);
         return Ok(document);
     }
+    cache.finish();
     let document = generate_rustdoc(
         workspace,
         package_spec,

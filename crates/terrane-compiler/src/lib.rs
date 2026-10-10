@@ -1,4 +1,5 @@
 mod bundled;
+mod compilation_progress;
 mod compiler;
 mod consumers;
 pub mod debugging;
@@ -22,6 +23,7 @@ pub mod tokens;
 pub mod tooling;
 pub mod types;
 
+pub use compilation_progress::with_compilation_progress;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, DebugBuild, RustArtifactError, compile,
     compile_discovered_test_tier, compile_package, compile_package_with_options,

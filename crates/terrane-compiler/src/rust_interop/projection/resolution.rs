@@ -67,8 +67,15 @@ pub fn resolve(
     // projection cache. Namespace-overlay metadata follows that existing invalidation boundary so
     // warm cache hits remain metadata-free.
     let workspace = root.join(".trn/dependencies");
+    let dependency_workspace =
+        crate::compilation_progress::start("preparing dependency workspace", root.display());
     seed_dependency_lock(root, &workspace)?;
     write_workspace(&workspace, dependencies)?;
+    dependency_workspace.finish();
+    let dependency_fetch = crate::compilation_progress::start(
+        "resolving and fetching Rust dependencies",
+        root.display(),
+    );
     if workspace.join("Cargo.lock").exists() {
         run_cargo(
             &workspace,
@@ -84,7 +91,13 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
+    dependency_fetch.finish();
+    let dependency_lock =
+        crate::compilation_progress::start("persisting dependency lock", root.display());
     persist_dependency_lock(root, &workspace)?;
+    dependency_lock.finish();
+    let cache_check =
+        crate::compilation_progress::start("validating projection cache", root.display());
     let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
     let cache_path = workspace.join("projection.json");
     if let Ok(bytes) = fs::read(&cache_path) {
@@ -118,15 +131,23 @@ pub fn resolve(
             persist_dependency_lock(root, &workspace)?;
             history::apply_projection_history(root, &mut cached)?;
             remove_legacy_projection_cache(&workspace)?;
+            cache_check.finish();
+            crate::compilation_progress::note("using exact projection cache", root.display());
             return Ok(cached);
         }
     }
-
+    cache_check.finish();
+    crate::compilation_progress::note(
+        "projection cache miss; generating dependency surfaces",
+        root.display(),
+    );
     let mut resolution_events = vec![ResolutionEvent {
         source: ResolutionSource::BundledArtifact,
         status: ResolutionStatus::Skipped,
         reason: "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel".to_owned(),
     }];
+    let artifact =
+        crate::compilation_progress::start("looking up published projection", root.display());
     match fetch_remote_projection(&identity, &target, dependencies, sandbox)? {
         PublishedProjection::Hit(mut projection) => {
             resolution_events.push(ResolutionEvent {
@@ -157,13 +178,17 @@ pub fn resolve(
             projection
                 .probes
                 .sort_by(|left, right| left.question.cmp(&right.question));
+            artifact.finish();
             return Ok(projection);
         }
         PublishedProjection::Event(event) => resolution_events.push(event),
     }
-
+    artifact.finish();
+    let metadata_progress =
+        crate::compilation_progress::start("reading Rust dependency metadata", root.display());
     let metadata = resolved_dependency_metadata(&workspace)?;
     let overlays = namespace_overlays_from_metadata(&metadata, dependencies)?;
+    metadata_progress.finish();
 
     let mut rustdocs = Vec::new();
     for dependency in dependencies {
@@ -204,18 +229,26 @@ pub fn resolve(
         .iter()
         .enumerate()
         .map(|(dependency_index, (dependency, document, public_paths))| {
-            project_rustdoc(
+            let progress = crate::compilation_progress::start(
+                "projecting Rust dependency surface",
+                &dependency.name,
+            );
+            let projected = project_rustdoc(
                 dependency,
                 document,
                 public_paths,
                 &canonical_public_paths[dependency_index],
                 true,
-            )
+            );
+            progress.finish();
+            projected
         })
         .collect::<Vec<_>>();
     let mut reexport_declines = (0..dependencies.len())
         .map(|_| Vec::new())
         .collect::<Vec<_>>();
+    let reexports =
+        crate::compilation_progress::start("resolving external reexport owners", root.display());
     let reexport_rustdocs = external_reexport_rustdocs(
         &workspace,
         &rustdocs,
@@ -226,6 +259,11 @@ pub fn resolve(
         demands,
         &mut reexport_declines,
     )?;
+    reexports.finish();
+    let owners = crate::compilation_progress::start(
+        "reconciling projected owners and dependencies",
+        root.display(),
+    );
     for (dependency, mut declines) in projected.iter_mut().zip(reexport_declines) {
         dependency.declined.append(&mut declines);
         normalize_projected_items(&mut dependency.items, &mut dependency.declined);
@@ -320,6 +358,7 @@ pub fn resolve(
         true,
     )?;
     decline_unrepresentable_error_types(&mut projected);
+    owners.finish();
     let auto_trait_questions = projected
         .iter()
         .flat_map(|dependency| &dependency.items)
@@ -340,6 +379,8 @@ pub fn resolve(
         })
         .collect::<Vec<_>>();
     if !auto_trait_questions.is_empty() {
+        let progress =
+            crate::compilation_progress::start("proving Rust Send and Sync bounds", root.display());
         let report = crate::rust_interop::ProjectionOracle::new(&workspace, &identity, sandbox)
             .prove_bounds(&auto_trait_questions)?;
         for evidence in report.evidence {
@@ -362,6 +403,7 @@ pub fn resolve(
                 }
             }
         }
+        progress.finish();
     }
     let impl_questions = projected
         .iter()
@@ -374,15 +416,24 @@ pub fn resolve(
         })
         .collect::<Vec<_>>();
     if !impl_questions.is_empty() {
+        let progress = crate::compilation_progress::start(
+            "proving Rust interface implementations",
+            root.display(),
+        );
         let report = crate::rust_interop::ProjectionOracle::new(&workspace, &identity, sandbox)
             .prove_impls(&impl_questions)?;
         decline_unproven_projected_interfaces(&mut projected, &report.evidence);
+        progress.finish();
     }
     resolution_events.push(ResolutionEvent {
         source: ResolutionSource::LocalRustdoc,
         status: ResolutionStatus::Generated,
         reason: "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain".to_owned(),
     });
+    let finalization = crate::compilation_progress::start(
+        "finalizing and caching Rust projection",
+        root.display(),
+    );
     decline_unnameable_bound_owners(
         &mut projected,
         dependencies,
@@ -430,6 +481,7 @@ pub fn resolve(
     write_cache_atomically(&cache_path, &[&bytes])?;
     history::apply_projection_history(root, &mut projection)?;
     remove_legacy_projection_cache(&workspace)?;
+    finalization.finish();
     Ok(projection)
 }
 fn decline_unproven_projected_interfaces(

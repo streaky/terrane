@@ -59,6 +59,10 @@ pub(crate) fn run(
         let (available, external_sources) =
             prepare_declarations(package, semantic, config, fallback)?;
         let input = consumer_input(package, config, &available, fallback)?;
+        let progress = crate::compilation_progress::start(
+            "running declaration consumer",
+            config.executable.display(),
+        );
         let response = execute_consumer(package, config, &input, fallback)?;
         if !response.diagnostics.is_empty() {
             return Err(consumer_diagnostics_failure(
@@ -94,6 +98,7 @@ pub(crate) fn run(
                 source.source,
             ));
         }
+        progress.finish();
     }
     Ok(generated)
 }
