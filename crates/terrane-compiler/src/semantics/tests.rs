@@ -61,7 +61,7 @@ fn ambiguous_projected_import_names_every_rust_identity() {
         "namespace app\nfrom /deps/shared import Generic\n".to_owned(),
     );
     let failure = analyze_with_projection(&package, ambiguous_projection()).unwrap_err();
-    assert_eq!(failure.diagnostics[0].code, "S2056");
+    assert_eq!(failure.diagnostics[0].code.as_ref(), "S2056");
     for identity in ["one::Generic<A>", "two::Generic<B>"] {
         assert!(failure.diagnostics[0].message.contains(identity));
     }
@@ -91,7 +91,7 @@ fn local_function_value_rejects_incompatible_enclosing_result() {
         "namespace app\nfunction first string;\n    function helper int;\n        return 1\n    value = helper;\n    return value\n".to_owned(),
     );
     let failure = analyze(&package).expect_err("int callable must not satisfy string result");
-    assert_eq!(failure.diagnostics[0].code, "T0015");
+    assert_eq!(failure.diagnostics[0].code.as_ref(), "T0015");
 }
 
 #[test]
@@ -224,7 +224,7 @@ fn demanded_unavailable_projected_import_fails_at_the_demand() {
 
     let failure = analyze_with_projection(&package, unavailable_projection()).unwrap_err();
 
-    assert_eq!(failure.diagnostics[0].code, "S2029");
+    assert_eq!(failure.diagnostics[0].code.as_ref(), "S2029");
     let primary = failure.diagnostics[0].primary.unwrap();
     assert_eq!(
         &package.units[0].source.text()[primary.start..primary.end],
@@ -242,7 +242,7 @@ fn compiler_owned_declarations_require_kebab_case() {
     semantic.units[0].bundled = true;
 
     let failure = validate_compiler_owned_names(&semantic.units).unwrap_err();
-    assert_eq!(failure.diagnostics[0].code, "S2018");
+    assert_eq!(failure.diagnostics[0].code.as_ref(), "S2018");
     assert_eq!(
         failure.diagnostics[0].message,
         "compiler-owned declaration `NotKebab` is not kebab-case"
@@ -260,7 +260,7 @@ fn authored_name_style_is_an_opt_in_warning() {
     assert!(warnings(&semantic, false, false).is_empty());
     let diagnostics = warnings(&semantic, true, false);
     assert!(diagnostics.iter().any(|diagnostic| {
-        diagnostic.code == "S2018"
+        diagnostic.code.as_ref() == "S2018"
             && diagnostic.message == "declared name `Answer` is not kebab-case"
             && diagnostic.severity == crate::Severity::Warning
     }));
@@ -279,7 +279,7 @@ fn unused_top_level_function_warning_is_opt_in() {
     assert_eq!(
         diagnostics
             .iter()
-            .map(|diagnostic| diagnostic.code)
+            .map(|diagnostic| diagnostic.code.as_ref())
             .collect::<Vec<_>>(),
         vec!["W4005"]
     );

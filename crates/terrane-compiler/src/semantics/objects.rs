@@ -3317,7 +3317,7 @@ fn specialize_projected_result_batch(
                 && error
                     .diagnostics
                     .iter()
-                    .all(|diagnostic| diagnostic.code == "T0129")
+                    .all(|diagnostic| diagnostic.code.as_ref() == "T0129")
             {
                 // Prove producers first, then retry their consumers with the
                 // closed binding identities. With no progress, retain the error.

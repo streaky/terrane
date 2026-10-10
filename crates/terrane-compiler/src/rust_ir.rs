@@ -844,7 +844,7 @@ impl RenderedProgram {
     }
 
     fn runtime_source_files(&self) -> impl Iterator<Item = &str> + '_ {
-        self.runtime_source_files.iter().map(|file| file.as_ref())
+        self.runtime_source_files.iter().map(AsRef::as_ref)
     }
 
     pub(crate) fn files(&self, entrypoint: &std::path::Path) -> Result<Vec<RenderedFile>, String> {

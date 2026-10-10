@@ -4,13 +4,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use sha2::{Digest, Sha256};
+use crate::cache_io::HashWriter;
 
 pub(crate) const COMPILER: &str = env!("TERRANE_COMPILER_CACHE_ID");
 
-/// Cargo locks identify versions, but local path/patch packages can change within a version.
-/// Hash their actual input trees, including transitive local dependencies. Registry packages
-/// retain Cargo's checksum/lock identity; build outputs and VCS bookkeeping are not inputs.
+/// Hash local package contents, excluding Cargo outputs and compiler/VCS bookkeeping.
+/// Cargo's package include/exclude rules do not cover all build-script input files, so
+/// other directories remain conservatively included; large path dependencies cost more.
 pub(crate) fn local_rust_sources(workspace: &Path) -> Result<String, String> {
     let manifest = workspace
         .join("Cargo.toml")
@@ -51,7 +51,7 @@ pub(crate) fn local_rust_sources(workspace: &Path) -> Result<String, String> {
         .filter_map(|package| package.get("manifest_path")?.as_str().map(PathBuf::from))
         .collect::<Vec<_>>();
     paths.sort();
-    let mut hash = Sha256::new();
+    let mut hash = HashWriter::new();
     // Hash effective configuration, including included config files and environment overrides.
     let configuration = Command::new("cargo")
         .arg(format!("+{}", terrane_rust_analysis::RUSTDOC_TOOLCHAIN))
@@ -72,28 +72,23 @@ pub(crate) fn local_rust_sources(workspace: &Path) -> Result<String, String> {
             String::from_utf8_lossy(&configuration.stderr).trim()
         ));
     }
-    part(&mut hash, &configuration.stdout);
+    hash.part(&configuration.stdout);
     let mut visited = BTreeSet::new();
     for path in paths {
         let parent = path.parent().ok_or("local Rust manifest has no parent")?;
         if parent == manifest.parent().unwrap() {
             continue;
         }
-        tree(parent, &mut hash, &mut visited)?;
+        tree(&mut hash, parent, &mut visited)?;
     }
-    Ok(format!("{:x}", hash.finalize()))
+    Ok(hash.finish_hex())
 }
 
-fn part(hash: &mut Sha256, bytes: &[u8]) {
-    hash.update((bytes.len() as u64).to_le_bytes());
-    hash.update(bytes);
-}
-
-fn tree(root: &Path, hash: &mut Sha256, visited: &mut BTreeSet<PathBuf>) -> Result<(), String> {
+fn tree(hash: &mut HashWriter, root: &Path, visited: &mut BTreeSet<PathBuf>) -> Result<(), String> {
     if !visited.insert(root.canonicalize().map_err(|error| error.to_string())?) {
         return Ok(());
     }
-    part(hash, root.as_os_str().as_encoded_bytes());
+    hash.part(root.as_os_str().as_encoded_bytes());
     let mut paths = fs::read_dir(root)
         .map_err(|error| error.to_string())?
         .map(|entry| entry.map(|entry| entry.path()))
@@ -101,19 +96,19 @@ fn tree(root: &Path, hash: &mut Sha256, visited: &mut BTreeSet<PathBuf>) -> Resu
         .map_err(|error| error.to_string())?;
     paths.sort();
     for path in paths {
+        if matches!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("target" | ".git" | ".trn")
+        ) {
+            continue;
+        }
         if path.is_dir() {
-            if matches!(
-                path.file_name().and_then(|name| name.to_str()),
-                Some("target" | ".git" | ".trn")
-            ) {
-                continue;
-            }
-            tree(&path, hash, visited)?;
+            tree(hash, &path, visited)?;
         } else {
-            part(hash, path.as_os_str().as_encoded_bytes());
+            hash.part(path.as_os_str().as_encoded_bytes());
             let content =
                 fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-            part(hash, &content);
+            hash.part(&content);
         }
     }
     Ok(())

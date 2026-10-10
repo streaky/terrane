@@ -1287,7 +1287,7 @@ fn library_warnings_do_not_leak_into_consumers_or_flag_exports() {
         standalone
             .warnings
             .iter()
-            .all(|warning| !matches!(warning.code, "W4001" | "W4005"))
+            .all(|warning| !matches!(warning.code.as_ref(), "W4001" | "W4005"))
     );
 
     workspace.write(

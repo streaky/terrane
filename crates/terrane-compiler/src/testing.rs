@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Conventional isolation tier for a Terrane test source.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum TestTier {
     Unit,
     Integration,
@@ -47,7 +47,7 @@ impl PartialOrd for TestTier {
 }
 
 /// Manifest-selected roots and capability profile used by `terrane test`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct TestConfiguration {
     pub roots: BTreeMap<TestTier, PathBuf>,
     pub profile: CapabilityProfile,

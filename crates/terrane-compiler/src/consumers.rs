@@ -568,7 +568,7 @@ fn consumer_diagnostics_failure(
             None => failure(package, fallback, message),
         };
         for item in &mut error.diagnostics {
-            item.code = "S2061";
+            item.code = std::borrow::Cow::Borrowed("S2061");
         }
         error
     });
@@ -1014,7 +1014,7 @@ mod tests {
             failure
                 .diagnostics
                 .iter()
-                .all(|diagnostic| diagnostic.code == "S2061")
+                .all(|diagnostic| diagnostic.code.as_ref() == "S2061")
         );
     }
     #[cfg(unix)]
@@ -1031,7 +1031,7 @@ mod tests {
         let error = execute_consumer(&package, &config, b"", fallback_span(&package))
             .err()
             .expect("the consumer exits unsuccessfully");
-        assert_eq!(error.diagnostics[0].code, "S2060");
+        assert_eq!(error.diagnostics[0].code.as_ref(), "S2060");
         assert!(error.diagnostics[0].message.contains("47"));
         std::fs::remove_dir_all(root).unwrap();
     }

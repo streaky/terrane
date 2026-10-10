@@ -305,11 +305,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             },
         )
     };
-    let compilation = match if command == CliCommand::Build {
-        terrane_compiler::with_compilation_progress(compile)
-    } else {
-        compile()
-    } {
+    let compilation = match terrane_compiler::with_compilation_cache(|| {
+        if command == CliCommand::Build {
+            terrane_compiler::with_compilation_progress(compile)
+        } else {
+            compile()
+        }
+    }) {
         Ok(compilation) => compilation,
         Err(failure) => return Err(CliFailure::compilation(failure)),
     };
@@ -497,8 +499,10 @@ fn run_declaration_interface(arguments: &[OsString]) -> Result<ExitCode, CliFail
         })?;
         terrane_compiler::Package::implicit(&input, source)
     };
-    let interface =
-        terrane_compiler::declaration_interface(&package).map_err(CliFailure::compilation)?;
+    let interface = terrane_compiler::with_compilation_cache(|| {
+        terrane_compiler::declaration_interface(&package)
+    })
+    .map_err(CliFailure::compilation)?;
     let json = interface.to_json().map_err(CliFailure::package)?;
     let output = PathBuf::from(&arguments[3]);
     fs::write(&output, json).map_err(|error| {

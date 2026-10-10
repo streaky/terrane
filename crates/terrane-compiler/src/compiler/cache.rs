@@ -1,22 +1,22 @@
 //! Successful compiler outputs are reusable only against the complete current input snapshot.
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use sha2::Digest as _;
 
 use crate::{CompilerOptions, Package};
 
 const FORMAT: u32 = 1;
-static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
-struct Fingerprint(Sha256);
+struct Fingerprint(crate::cache_io::HashWriter);
 impl Fingerprint {
+    fn new() -> Self {
+        Self(crate::cache_io::HashWriter::new())
+    }
     fn part(&mut self, bytes: &[u8]) {
-        self.0.update((bytes.len() as u64).to_le_bytes());
-        self.0.update(bytes);
+        self.0.part(bytes);
     }
     fn file(&mut self, path: &Path) -> Option<()> {
         self.part(path.as_os_str().as_encoded_bytes());
@@ -31,49 +31,48 @@ impl Fingerprint {
         Some(())
     }
 }
-impl std::fmt::Write for Fingerprint {
-    fn write_str(&mut self, text: &str) -> std::fmt::Result {
-        self.0.update(text.as_bytes());
-        Ok(())
-    }
-}
-impl io::Write for Fingerprint {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.0.update(bytes);
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
 
-/// In-memory package content is authoritative (including editor overlays), not filesystem mtimes.
-pub(super) fn key(package: &Package, options: CompilerOptions) -> Option<String> {
-    let mut hash = Fingerprint(Sha256::new());
+/// External inputs are captured independently of in-memory source and options.
+#[derive(PartialEq, Eq)]
+pub(super) struct Inputs(String);
+
+pub(super) fn current(package: &Package) -> Option<Inputs> {
+    if !crate::cache_scope::enabled() {
+        return None;
+    }
+    let mut hash = Fingerprint::new();
     hash.part(crate::cache_identity::COMPILER.as_bytes());
-    std::fmt::Write::write_fmt(&mut hash, format_args!("{package:?}\0")).ok()?;
-    serde_json::to_writer(&mut hash, &options).ok()?;
-    hash.part(b"options-end");
     let root = std::path::absolute(&package.root).ok()?;
     hash.part(root.as_os_str().as_encoded_bytes());
+    // Consumers are executed before compilation lookup; their actual generated output is part
+    // of the expanded package key, so arbitrary consumer environment is not cached here.
+    // Shell/tool environment is still relevant to Cargo and Rust dependency resolution.
     let mut environment = std::env::vars_os().collect::<Vec<_>>();
     environment.sort();
-    for (name, value) in environment {
-        // Shell bookkeeping and progress settings cannot change semantic compilation.
-        if matches!(
-            name.to_str(),
-            Some(
-                "_" | "PWD"
-                    | "OLDPWD"
-                    | "SHLVL"
-                    | "CARGO_MAKEFLAGS"
-                    | "MAKEFLAGS"
-                    | "CARGO_TERM_PROGRESS_WHEN"
-                    | "CARGO_TERM_PROGRESS_WIDTH"
-            )
-        ) {
-            continue;
-        }
+    let include_all_environment = !package.rust_dependencies.is_empty();
+    for (name, value) in environment.into_iter().filter(|(name, _)| {
+        include_all_environment
+            || name.to_str().is_some_and(|name| {
+                name.starts_with("CARGO_")
+                    || name.starts_with("RUST")
+                    || name.starts_with("TERRANE_")
+                    || matches!(
+                        name,
+                        "PATH"
+                            | "HOME"
+                            | "CARGO_HOME"
+                            | "RUSTUP_HOME"
+                            | "RUSTUP_TOOLCHAIN"
+                            | "CC"
+                            | "CXX"
+                            | "AR"
+                            | "TARGET"
+                            | "HOST"
+                            | "PKG_CONFIG_PATH"
+                            | "LIBRARY_PATH"
+                    )
+            })
+    }) {
         hash.part(name.as_encoded_bytes());
         hash.part(value.as_encoded_bytes());
     }
@@ -111,8 +110,6 @@ pub(super) fn key(package: &Package, options: CompilerOptions) -> Option<String>
     if !package.rust_dependencies.is_empty() {
         let sources =
             crate::cache_identity::local_rust_sources(&root.join(".trn/dependencies")).ok()?;
-        // Do not read or publish an output against dependency inputs that its projection
-        // has not observed yet (including an edit arriving during compilation).
         if fs::read(root.join(".trn/dependencies/local-source-identity"))
             .ok()?
             .as_slice()
@@ -122,9 +119,18 @@ pub(super) fn key(package: &Package, options: CompilerOptions) -> Option<String>
         }
         hash.part(sources.as_bytes());
     }
-    Some(format!("{:x}", hash.0.finalize()))
+    Some(Inputs(hash.0.finish_hex()))
 }
 
+/// In-memory source content is authoritative, including generated consumer output.
+pub(super) fn key(package: &Package, options: CompilerOptions, inputs: &Inputs) -> Option<String> {
+    let mut hash = crate::cache_io::HashWriter::new();
+    hash.part(inputs.0.as_bytes());
+    serde_json::to_writer(&mut hash, package).ok()?;
+    hash.part(b"package-end");
+    serde_json::to_writer(&mut hash, &options).ok()?;
+    Some(hash.finish_hex())
+}
 #[derive(Deserialize, Serialize)]
 struct Envelope<T> {
     format: u32,
@@ -134,68 +140,57 @@ struct Envelope<T> {
     value: T,
 }
 
-pub(super) fn load<T: serde::de::DeserializeOwned + Serialize>(
+pub(super) fn load<T: serde::de::DeserializeOwned>(
     root: &Path,
     kind: &str,
     key: &str,
 ) -> Option<T> {
-    let path = root.join(".trn/cache").join(format!("{kind}.json"));
-    let bytes = fs::read(path).ok()?;
-    let entry: Envelope<T> = serde_json::from_slice(&bytes).ok()?;
+    if !crate::cache_scope::enabled() {
+        return None;
+    }
+    let bytes = fs::read(root.join(".trn/cache").join(format!("{kind}.json"))).ok()?;
+    let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
+    let entry: Envelope<&serde_json::value::RawValue> =
+        Envelope::deserialize(&mut deserializer).ok()?;
+    deserializer.end().ok()?;
     if entry.format != FORMAT
         || entry.compiler != crate::cache_identity::COMPILER
         || entry.key != key
+        || format!("{:x}", sha2::Sha256::digest(entry.value.get().as_bytes())) != entry.checksum
     {
         return None;
     }
-    let value = serde_json::to_vec(&entry.value).ok()?;
-    if format!("{:x}", Sha256::digest(value)) != entry.checksum {
-        return None;
-    }
-    Some(entry.value)
+    serde_json::from_str(entry.value.get()).ok()
 }
 
 pub(super) fn store<T: Serialize>(root: &Path, kind: &str, key: &str, value: &T) {
+    if !crate::cache_scope::enabled() {
+        return;
+    }
     let Ok(encoded) = serde_json::to_vec(value) else {
         return;
     };
-    let checksum = format!("{:x}", Sha256::digest(&encoded));
-    let entry = Envelope {
-        format: FORMAT,
-        compiler: crate::cache_identity::COMPILER.to_owned(),
-        key: key.to_owned(),
-        checksum,
-        value,
-    };
-    let Ok(bytes) = serde_json::to_vec(&entry) else {
+    let checksum = format!("{:x}", sha2::Sha256::digest(&encoded));
+    let value = std::str::from_utf8(&encoded).expect("JSON serialization is UTF-8");
+    let Ok(mut bytes) = serde_json::to_vec(&serde_json::json!({
+        "format": FORMAT,
+        "compiler": crate::cache_identity::COMPILER,
+        "key": key,
+        "checksum": checksum,
+    })) else {
         return;
     };
-    let parent = root.join(".trn/cache");
-    if fs::create_dir_all(&parent).is_err() {
-        return;
-    }
-    let target = parent.join(format!("{kind}.json"));
-    let temp = parent.join(format!(
-        ".{kind}-{}-{}.tmp",
-        std::process::id(),
-        NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
-    ));
-    if let Ok(mut file) = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temp)
-    {
-        let written = file.write_all(&bytes).is_ok();
-        drop(file);
-        if written {
-            let _ = fs::rename(&temp, &target);
-        }
-        let _ = fs::remove_file(&temp);
-    }
+    bytes.pop();
+    bytes.extend_from_slice(b",\"value\":");
+    bytes.extend_from_slice(value.as_bytes());
+    bytes.push(b'}');
+    crate::cache_io::atomic_write(
+        &root.join(".trn/cache").join(format!("{kind}.json")),
+        &bytes,
+    );
 }
 
-// Diagnostic codes have static ownership. Decode only compiler-known warning codes rather than
-// leaking arbitrary strings into the process; a future unsupported code safely misses the cache.
+// Diagnostic codes are owned by Diagnostic, so future codes round-trip without a cache-side list.
 pub(super) mod warnings {
     use serde::{Deserialize, Serialize};
     #[derive(Serialize)]
@@ -220,7 +215,7 @@ pub(super) mod warnings {
         let mut seq = serializer.serialize_seq(Some(values.len()))?;
         for value in values {
             seq.serialize_element(&Borrowed {
-                code: value.code,
+                code: value.code.as_ref(),
                 message: &value.message,
                 primary: value.primary,
                 help: &value.help,
@@ -234,19 +229,9 @@ pub(super) mod warnings {
         Vec::<Stored>::deserialize(deserializer)?
             .into_iter()
             .map(|value| {
-                let code = match value.code.as_str() {
-                    "S2018" => "S2018",
-                    "W4001" => "W4001",
-                    "W4002" => "W4002",
-                    "W4003" => "W4003",
-                    "W4004" => "W4004",
-                    "W4005" => "W4005",
-                    "W4006" => "W4006",
-                    _ => return Err(serde::de::Error::custom("unknown cached warning code")),
-                };
                 Ok(crate::Diagnostic {
                     severity: crate::diagnostic::Severity::Warning,
-                    code,
+                    code: std::borrow::Cow::Owned(value.code),
                     message: value.message,
                     primary: value.primary,
                     help: value.help,
@@ -254,4 +239,21 @@ pub(super) mod warnings {
             })
             .collect()
     }
+}
+
+#[cfg(test)]
+#[test]
+fn cached_warning_round_trips_new_owned_code() {
+    #[derive(Serialize, Deserialize)]
+    struct Snapshot(#[serde(with = "warnings")] Vec<crate::Diagnostic>);
+
+    let original = Snapshot(vec![crate::Diagnostic::warning(
+        "W4999",
+        "new warning",
+        crate::Span::new(1, 2, 3),
+    )]);
+    let bytes = serde_json::to_vec(&original).unwrap();
+    let restored: Snapshot = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(restored.0[0].code.as_ref(), "W4999");
+    assert_eq!(restored.0[0].primary, Some(crate::Span::new(1, 2, 3)));
 }

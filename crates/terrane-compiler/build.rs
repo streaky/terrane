@@ -24,13 +24,26 @@ fn main() {
     let manifest = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let workspace = manifest.parent().unwrap().parent().unwrap();
     let mut files = Vec::new();
-    // Include local runtime/support crates too: generated programs depend on their ABI.
-    let mut crates = fs::read_dir(workspace.join("crates"))
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .collect::<Vec<_>>();
-    crates.sort();
-    for directory in crates {
+    let crates_root = workspace.join("crates");
+    // Track this directory so adding a relevant runtime/support crate reruns the identity scan.
+    println!("cargo:rerun-if-changed={}", crates_root.display());
+    for entry in fs::read_dir(&crates_root).expect("workspace crates are readable") {
+        let directory = entry.expect("workspace crate entry is readable").path();
+        let Some(name) = directory.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !name.ends_with("-support")
+            && !matches!(
+                name,
+                "terrane-compiler" | "terrane-rust-analysis" | "terrane-stream-abi"
+            )
+        {
+            continue;
+        }
+        if !directory.is_dir() {
+            continue;
+        }
+        println!("cargo:rerun-if-changed={}", directory.display());
         let source = directory.join("src");
         if source.is_dir() {
             collect(&source, &mut files);

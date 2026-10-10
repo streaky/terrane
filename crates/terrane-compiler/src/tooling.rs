@@ -3286,7 +3286,7 @@ fn is_layout_token(kind: TokenKind) -> bool {
 fn project_diagnostic(diagnostic: &Diagnostic) -> DiagnosticProjection {
     DiagnosticProjection {
         severity: format!("{:?}", diagnostic.severity).to_lowercase(),
-        code: diagnostic.code.to_owned(),
+        code: diagnostic.code.to_string(),
         message: diagnostic.message.clone(),
         span: diagnostic.primary.map(Into::into),
         help: diagnostic.help.clone(),

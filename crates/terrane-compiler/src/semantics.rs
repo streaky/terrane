@@ -29,6 +29,7 @@ mod logging;
 mod macros;
 pub(crate) use macros::macro_argument;
 mod member_inference;
+mod native_cache;
 mod native_constructors;
 mod numeric;
 mod types;

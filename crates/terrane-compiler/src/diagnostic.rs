@@ -1,7 +1,7 @@
+use std::borrow::Cow;
 use std::fmt::Write as _;
 
 use crate::source::{SourceFile, Span};
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Severity {
     Error,
@@ -11,7 +11,7 @@ pub enum Severity {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Diagnostic {
     pub severity: Severity,
-    pub code: &'static str,
+    pub code: Cow<'static, str>,
     pub message: String,
     pub primary: Option<Span>,
     pub help: Option<String>,
@@ -22,7 +22,7 @@ impl Diagnostic {
     pub fn error(code: &'static str, message: impl Into<String>, primary: Span) -> Self {
         Self {
             severity: Severity::Error,
-            code,
+            code: Cow::Borrowed(code),
             message: message.into(),
             primary: Some(primary),
             help: None,
@@ -32,7 +32,7 @@ impl Diagnostic {
     pub fn warning(code: &'static str, message: impl Into<String>, primary: Span) -> Self {
         Self {
             severity: Severity::Warning,
-            code,
+            code: Cow::Borrowed(code),
             message: message.into(),
             primary: Some(primary),
             help: None,
@@ -43,7 +43,7 @@ impl Diagnostic {
     pub fn unlocated_error(code: &'static str, message: impl Into<String>) -> Self {
         Self {
             severity: Severity::Error,
-            code,
+            code: Cow::Borrowed(code),
             message: message.into(),
             primary: None,
             help: None,

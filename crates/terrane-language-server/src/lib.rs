@@ -1347,7 +1347,7 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
             Severity::Error => DiagnosticSeverity::ERROR,
             Severity::Warning => DiagnosticSeverity::WARNING,
         }),
-        code: Some(NumberOrString::String(diagnostic.code.to_owned())),
+        code: Some(NumberOrString::String(diagnostic.code.to_string())),
         source: Some("terrane".to_owned()),
         message,
         ..Default::default()

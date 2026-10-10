@@ -135,6 +135,7 @@ impl Compilation {
     /// Exact resolved native input identity, including local dependency source contents.
     ///
     /// Native artifact caches must include this even when generated Rust is unchanged.
+    #[must_use]
     pub fn native_dependency_identity(&self) -> Option<&str> {
         self.native_dependency_identity.as_deref()
     }
@@ -494,15 +495,19 @@ fn semantic_requires_unsafe_code(semantic: &crate::SemanticPackage) -> bool {
 }
 
 /// Prepares consumers and analyzes declarations shared by compilation and test discovery.
-fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, CompilationFailure> {
+fn prepare_package_for_analysis(
+    package: &Package,
+    inputs: Option<&cache::Inputs>,
+) -> Result<(Option<Package>, bool), CompilationFailure> {
     if package.consumer_configs.is_empty() {
         if !package.dependency_manifests.is_empty() {
             crate::consumers::reconcile_generated_sources(package)?;
         }
-        return Ok(None);
+        return Ok((None, true));
     }
-    let key = cache::key(package, CompilerOptions::default());
-    let cached: Option<Vec<semantics::DeclarationMetadata>> = key
+    let declaration_key =
+        inputs.and_then(|inputs| cache::key(package, CompilerOptions::default(), inputs));
+    let cached: Option<Vec<semantics::DeclarationMetadata>> = declaration_key
         .as_deref()
         .and_then(|key| cache::load(&package.root, "declarations", key));
     let declarations = if let Some(declarations) = cached {
@@ -520,19 +525,22 @@ fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, Co
             })?;
         let declarations = semantic.declarations().cloned().collect::<Vec<_>>();
         progress.finish();
-        if let Some(key) = cache::key(package, CompilerOptions::default()) {
-            cache::store(&package.root, "declarations", &key, &declarations);
-        }
         declarations
     };
     // Execute arbitrary consumers every time and key compilation on their actual output.
     let generated = crate::consumers::run(package, &declarations)?;
     let mut expanded = package.clone();
     crate::consumers::add_generated_sources(&mut expanded, generated)?;
-    if expanded.units.len() == package.units.len() {
-        return Ok(None);
+    let inputs_unchanged = inputs
+        .zip(cache::current(package).as_ref())
+        .is_some_and(|(before, after)| before == after);
+    if inputs_unchanged && let Some(key) = declaration_key.as_deref() {
+        cache::store(&package.root, "declarations", key, &declarations);
     }
-    Ok(Some(expanded))
+    if expanded.units.len() == package.units.len() {
+        return Ok((None, inputs_unchanged));
+    }
+    Ok((Some(expanded), inputs_unchanged))
 }
 
 fn analyze_prepared_package(
@@ -571,18 +579,30 @@ pub fn compile_package_with_options(
 ) -> Result<Compilation, CompilationFailure> {
     let preparation =
         crate::compilation_progress::start("preparing declaration consumers", &package.identity);
-    let prepared = prepare_package_for_analysis(package)?;
+    let before_inputs = cache::current(package);
+    let (prepared, consumer_inputs_unchanged) =
+        prepare_package_for_analysis(package, before_inputs.as_ref())?;
     preparation.finish();
     let package = prepared.as_ref().unwrap_or(package);
-    if let Some(key) = cache::key(package, options)
-        && let Some(compilation) = cache::load(&package.root, "compilation", &key)
+    let before = before_inputs
+        .as_ref()
+        .and_then(|inputs| cache::key(package, options, inputs));
+    if consumer_inputs_unchanged
+        && let Some(key) = before.as_deref()
+        && let Some(compilation) = cache::load(&package.root, "compilation", key)
     {
         crate::compilation_progress::note("reusing unchanged compilation", &package.identity);
         return Ok(compilation);
     }
     let compilation = compile_package_without_consumers(package, options)?;
-    if let Some(key) = cache::key(package, options) {
-        cache::store(&package.root, "compilation", &key, &compilation);
+    if consumer_inputs_unchanged
+        && let Some(before_key) = before.as_deref()
+        && before_inputs
+            .as_ref()
+            .zip(cache::current(package).as_ref())
+            .is_some_and(|(before, after)| before == after)
+    {
+        cache::store(&package.root, "compilation", before_key, &compilation);
     }
     Ok(compilation)
 }
@@ -612,7 +632,7 @@ fn compile_analyzed_package(
                 .primary
                 .is_some_and(|span| package.library_source_ids.contains(&span.file));
             let library_export_warning = package.artifact == crate::package::ArtifactKind::Library
-                && matches!(warning.code, "W4001" | "W4005");
+                && matches!(warning.code.as_ref(), "W4001" | "W4005");
             !dependency_warning && !library_export_warning
         })
         .collect();
@@ -769,7 +789,8 @@ fn discover_test_tier(
     tier: TestTier,
     options: CompilerOptions,
 ) -> Result<TestTierDiscovery, CompilationFailure> {
-    let prepared = prepare_package_for_analysis(package)?;
+    let inputs = cache::current(package);
+    let (prepared, _) = prepare_package_for_analysis(package, inputs.as_ref())?;
     let prepared_package = prepared.as_ref().unwrap_or(package);
     let mut semantic = analyze_prepared_package(prepared_package)?;
     let role = match tier {
@@ -1087,7 +1108,7 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(failure.source.id(), 1);
-        assert_eq!(failure.diagnostics[0].code, "S9004");
+        assert_eq!(failure.diagnostics[0].code.as_ref(), "S9004");
         assert_eq!(failure.diagnostics[0].primary, Some(source_span));
     }
 }

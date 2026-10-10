@@ -1,5 +1,4 @@
-#[path = "native_cache.rs"]
-mod cache;
+use super::native_cache as cache;
 
 use super::model::{ObjectIdentity, SemanticPackage, ValueType};
 use super::objects::closed_projected_value_type;
@@ -133,14 +132,17 @@ pub(super) fn normalize_contracts(
         }
     }
     let target = crate::compilation_progress::owned_target(package.root.display());
-    let context = cache::query_key(&(
-        &package.projection.cache_identity,
-        &package.projection.dependencies,
-        &package.projection.native_owner_aliases,
-        package.projection.containment,
-        &package.projection.bound_dependencies,
-        &package.projection.removed,
-    ));
+    let context = if crate::cache_scope::enabled() {
+        cache::query_key(&(
+            &package.projection.cache_identity,
+            &package.projection.content_hash,
+            package.projection.containment,
+            &package.projection.bound_dependencies,
+            &package.projection.removed,
+        ))
+    } else {
+        String::new()
+    };
     let mut native_cache = cache::NativeCache::load(&package.root, context);
     let selection_gathering =
         crate::compilation_progress::start("native selection gathering", &target);
@@ -669,12 +671,24 @@ fn cached_closed_projected_value_type(
     package: &SemanticPackage,
     projected: &crate::rust_interop::projection::ProjectedType,
 ) -> Option<ValueType> {
+    if !crate::cache_scope::enabled() {
+        return closed_projected_value_type(package, projected);
+    }
     let key = cache::query_key(&(1_u32, projected));
-    if let Some(value) = native_cache.get(&key) {
-        return value;
+    if let Some(answer) = native_cache.get(&key) {
+        return match answer {
+            cache::CachedAnswer::Selected(value) => Some(value),
+            cache::CachedAnswer::Unavailable => None,
+        };
     }
     let value = closed_projected_value_type(package, projected);
-    native_cache.insert(key, value.clone());
+    native_cache.insert(
+        key,
+        value.clone().map_or(
+            cache::CachedAnswer::Unavailable,
+            cache::CachedAnswer::Selected,
+        ),
+    );
     value
 }
 
@@ -685,7 +699,7 @@ fn selected_signature_type(
     projected: &crate::rust_interop::projection::ProjectedType,
     associated: Option<&crate::rust_interop::projection::ProjectedType>,
 ) -> Option<ValueType> {
-    if !cacheable_native_selection_input(current) {
+    if !crate::cache_scope::enabled() || !cacheable_native_selection_input(current) {
         return selected_signature_type_uncached(
             native_cache,
             package,
@@ -695,12 +709,21 @@ fn selected_signature_type(
         );
     }
     let key = cache::query_key(&(2_u32, current, projected, associated));
-    if let Some(value) = native_cache.get(&key) {
-        return value;
+    if let Some(answer) = native_cache.get(&key) {
+        return match answer {
+            cache::CachedAnswer::Selected(value) => Some(value),
+            cache::CachedAnswer::Unavailable => None,
+        };
     }
     let value =
         selected_signature_type_uncached(native_cache, package, current, projected, associated);
-    native_cache.insert(key, value.clone());
+    native_cache.insert(
+        key,
+        value.clone().map_or(
+            cache::CachedAnswer::Unavailable,
+            cache::CachedAnswer::Selected,
+        ),
+    );
     value
 }
 

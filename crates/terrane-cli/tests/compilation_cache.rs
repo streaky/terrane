@@ -61,6 +61,13 @@ fn warm_compilation_tracks_content_and_source_membership_and_recovers_corruption
         .source("namespace app\nfrom /core/output import print\nfunction main;\n  print; 'one'\n");
     assert_eq!(package.output(), "one\n");
     assert_eq!(package.output(), "one\n");
+    let warm = package.build();
+    assert!(
+        warm.status.success(),
+        "{}",
+        String::from_utf8_lossy(&warm.stderr)
+    );
+    assert!(String::from_utf8_lossy(&warm.stderr).contains("reusing unchanged compilation"));
     // Same-size content edits must not depend on timestamps or file sizes.
     package
         .source("namespace app\nfrom /core/output import print\nfunction main;\n  print; 'two'\n");
@@ -158,6 +165,28 @@ fn local_native_dependency_edits_invalidate_cached_projection_and_compilation() 
     let expected = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
     assert_eq!(package.output(), expected);
     assert_eq!(package.output(), expected);
+    let warm = package.build();
+    assert!(
+        warm.status.success(),
+        "{}",
+        String::from_utf8_lossy(&warm.stderr)
+    );
+    assert!(String::from_utf8_lossy(&warm.stderr).contains("reusing unchanged compilation"));
+    let main = package.0.join("src/main.trn");
+    let authored = fs::read_to_string(&main).unwrap();
+    fs::write(
+        &main,
+        format!("{authored}\n// source-only cache regression\n"),
+    )
+    .unwrap();
+    let edited = package.build();
+    assert!(
+        edited.status.success(),
+        "{}",
+        String::from_utf8_lossy(&edited.stderr)
+    );
+    assert!(String::from_utf8_lossy(&edited.stderr).contains("reused native semantic queries"));
+    assert_eq!(package.output(), expected);
     let owner = package
         .0
         .join("fixture-registry/terrane-native-alias-owner-0.1.0/src/lib.rs");
@@ -181,4 +210,56 @@ fn local_native_dependency_edits_invalidate_cached_projection_and_compilation() 
         .unwrap();
     assert!(!emitted.status.success());
     assert!(emitted.stdout.is_empty());
+}
+
+#[test]
+fn consumers_execute_with_cached_declarations_and_changed_output_rebuilds() {
+    let package = Package::new();
+    let consumer = package.0.join("consumer.py");
+    fs::write(&consumer, r#"import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+request = json.load(sys.stdin)
+assert request["format"] == 1
+count = root / "executions"
+count.write_text(str(int(count.read_text()) + 1 if count.exists() else 1))
+value = int((root / "value").read_text())
+source = f"namespace generated/cache\npublic function value int;\n  return {value}\n"
+json.dump({"format": 1, "generated_sources": [{"identity": "value", "source": source}], "diagnostics": []}, sys.stdout)
+"#).unwrap();
+    fs::write(package.0.join("value"), "7").unwrap();
+    fs::write(package.0.join("package.toml"), format!(
+        "package = 'cache-test'\nprelude = false\n[namespaces]\napp = 'src'\n[consumers.cache]\ncommand = 'python3'\nargs = [{consumer:?}, {:?}]\ndeclarations = ['/app::seed']\n", package.0
+    )).unwrap();
+    package.source("namespace app\nfrom /core/output import print\nfrom /generated/cache import value\npublic function seed int;\n  return 1\nfunction main;\n  print; (value;)\n");
+    assert_eq!(package.output(), "7\n");
+    let warm = package.build();
+    assert!(
+        warm.status.success(),
+        "{}",
+        String::from_utf8_lossy(&warm.stderr)
+    );
+    let progress = String::from_utf8_lossy(&warm.stderr);
+    assert!(
+        progress.contains("reusing declaration metadata"),
+        "{progress}"
+    );
+    assert!(
+        progress.contains("reusing unchanged compilation"),
+        "{progress}"
+    );
+    assert_eq!(
+        fs::read_to_string(package.0.join("executions")).unwrap(),
+        "2"
+    );
+    fs::write(package.0.join("value"), "9").unwrap();
+    assert_eq!(package.output(), "9\n");
+    assert_eq!(
+        fs::read_to_string(package.0.join("executions")).unwrap(),
+        "3"
+    );
+    // Consumer execution failure must not be hidden by either warm snapshot.
+    fs::write(package.0.join("value"), "not an integer").unwrap();
+    let failed = package.build();
+    assert!(!failed.status.success());
+    assert!(failed.stdout.is_empty());
 }
