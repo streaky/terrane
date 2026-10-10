@@ -423,22 +423,22 @@ mod __terrane_trace {
         "/core/documents::decode-document",
     ];
     pub static SITES: [Site; 17] = [
-        /* terrane-site-row: site 0: /typed-document-decoding::main (case.trn:39:12-39:34) */
-        { Site { function: 0, file: 0, line: 39, column: 12, end_line: 39, end_column: 34 } },
-        /* terrane-site-row: site 1: /typed-document-decoding::main (case.trn:39:36-39:64) */
-        { Site { function: 0, file: 0, line: 39, column: 36, end_line: 39, end_column: 64 } },
-        /* terrane-site-row: site 2: /typed-document-decoding::main (case.trn:39:66-39:94) */
-        { Site { function: 0, file: 0, line: 39, column: 66, end_line: 39, end_column: 94 } },
-        /* terrane-site-row: site 3: /typed-document-decoding::main (case.trn:45:13-45:37) */
-        { Site { function: 0, file: 0, line: 45, column: 13, end_line: 45, end_column: 37 } },
-        /* terrane-site-row: site 4: /typed-document-decoding::main (case.trn:45:69-45:93) */
-        { Site { function: 0, file: 0, line: 45, column: 69, end_line: 45, end_column: 93 } },
-        /* terrane-site-row: site 5: /typed-document-decoding::main (case.trn:48:28-48:50) */
-        { Site { function: 0, file: 0, line: 48, column: 28, end_line: 48, end_column: 50 } },
-        /* terrane-site-row: site 6: /typed-document-decoding::main (case.trn:48:59-48:81) */
-        { Site { function: 0, file: 0, line: 48, column: 59, end_line: 48, end_column: 81 } },
-        /* terrane-site-row: site 7: /typed-document-decoding::main (case.trn:57:48-57:71) */
-        { Site { function: 0, file: 0, line: 57, column: 48, end_line: 57, end_column: 71 } },
+        /* terrane-site-row: site 0: /typed-document-decoding::main (case.trn:38:12-38:34) */
+        { Site { function: 0, file: 0, line: 38, column: 12, end_line: 38, end_column: 34 } },
+        /* terrane-site-row: site 1: /typed-document-decoding::main (case.trn:38:36-38:64) */
+        { Site { function: 0, file: 0, line: 38, column: 36, end_line: 38, end_column: 64 } },
+        /* terrane-site-row: site 2: /typed-document-decoding::main (case.trn:38:66-38:94) */
+        { Site { function: 0, file: 0, line: 38, column: 66, end_line: 38, end_column: 94 } },
+        /* terrane-site-row: site 3: /typed-document-decoding::main (case.trn:44:13-44:37) */
+        { Site { function: 0, file: 0, line: 44, column: 13, end_line: 44, end_column: 37 } },
+        /* terrane-site-row: site 4: /typed-document-decoding::main (case.trn:44:69-44:93) */
+        { Site { function: 0, file: 0, line: 44, column: 69, end_line: 44, end_column: 93 } },
+        /* terrane-site-row: site 5: /typed-document-decoding::main (case.trn:47:28-47:50) */
+        { Site { function: 0, file: 0, line: 47, column: 28, end_line: 47, end_column: 50 } },
+        /* terrane-site-row: site 6: /typed-document-decoding::main (case.trn:47:59-47:81) */
+        { Site { function: 0, file: 0, line: 47, column: 59, end_line: 47, end_column: 81 } },
+        /* terrane-site-row: site 7: /typed-document-decoding::main (case.trn:56:48-56:71) */
+        { Site { function: 0, file: 0, line: 56, column: 48, end_line: 56, end_column: 71 } },
         /* terrane-site-row: site 8: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
         { Site { function: 1, file: 1, line: 140, column: 47, end_line: 140, end_column: 60 } },
         /* terrane-site-row: site 9: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
@@ -497,7 +497,7 @@ impl TerraneDocumentDecode for Endpoint {
             return Err(
                 vec![
                     __terrane_document_diagnostic(path, "endpoint", "invalid", "parse",
-                    input.message.clone(), source, "case.trn:9:1")
+                    input.message.clone(), source, "case.trn:8:1")
                 ],
             );
         }
@@ -507,7 +507,7 @@ impl TerraneDocumentDecode for Endpoint {
                 path,
                 "endpoint",
                 source,
-                "case.trn:9:1",
+                "case.trn:8:1",
             );
         }
         let mut value = Self::terrane_construct();
@@ -526,7 +526,7 @@ impl TerraneDocumentDecode for Endpoint {
                                 "unknown-field",
                                 format!("unknown field `{key}`"),
                                 source,
-                                "case.trn:9:1",
+                                "case.trn:8:1",
                             ),
                         );
                 }
@@ -541,7 +541,7 @@ impl TerraneDocumentDecode for Endpoint {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:10:5",
+                    "case.trn:9:5",
                 ) {
                     Ok(decoded) => value.host = decoded,
                     Err(mut field_diagnostics) => {
@@ -559,7 +559,7 @@ impl TerraneDocumentDecode for Endpoint {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:11:5",
+                    "case.trn:10:5",
                 ) {
                     Ok(decoded) => value.port = decoded,
                     Err(mut field_diagnostics) => {
@@ -635,7 +635,7 @@ impl TerraneDocumentDecode for ServiceConfig {
             return Err(
                 vec![
                     __terrane_document_diagnostic(path, "service-config", "invalid",
-                    "parse", input.message.clone(), source, "case.trn:13:1")
+                    "parse", input.message.clone(), source, "case.trn:12:1")
                 ],
             );
         }
@@ -645,7 +645,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                 path,
                 "service-config",
                 source,
-                "case.trn:13:1",
+                "case.trn:12:1",
             );
         }
         let mut value = Self::terrane_construct();
@@ -672,7 +672,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                                 "unknown-field",
                                 format!("unknown field `{key}`"),
                                 source,
-                                "case.trn:13:1",
+                                "case.trn:12:1",
                             ),
                         );
                 }
@@ -687,7 +687,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:14:5",
+                    "case.trn:13:5",
                 ) {
                     Ok(decoded) => value.service_name = decoded,
                     Err(mut field_diagnostics) => {
@@ -705,7 +705,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:15:5",
+                    "case.trn:14:5",
                 ) {
                     Ok(decoded) => value.endpoint = decoded,
                     Err(mut field_diagnostics) => {
@@ -725,7 +725,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:16:5",
+                    "case.trn:15:5",
                 ) {
                     Ok(decoded) => value.note = decoded,
                     Err(mut field_diagnostics) => {
@@ -745,7 +745,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:17:5",
+                    "case.trn:16:5",
                 ) {
                     Ok(decoded) => value.ports = decoded,
                     Err(mut field_diagnostics) => {
@@ -766,7 +766,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:18:5",
+                    "case.trn:17:5",
                 ) {
                     Ok(decoded) => value.labels = decoded,
                     Err(mut field_diagnostics) => {
@@ -786,7 +786,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:19:5",
+                    "case.trn:18:5",
                 ) {
                     Ok(decoded) => value.coordinates = decoded,
                     Err(mut field_diagnostics) => {
@@ -804,7 +804,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:20:5",
+                    "case.trn:19:5",
                 ) {
                     Ok(decoded) => value.ratio = decoded,
                     Err(mut field_diagnostics) => {
@@ -824,7 +824,7 @@ impl TerraneDocumentDecode for ServiceConfig {
                             "validation",
                             message,
                             source,
-                            "case.trn:13:1",
+                            "case.trn:12:1",
                         ),
                     );
             }
@@ -883,7 +883,7 @@ impl TerraneDocumentDecode for Waypoint {
             return Err(
                 vec![
                     __terrane_document_diagnostic(path, "waypoint", "invalid", "parse",
-                    input.message.clone(), source, "case.trn:27:1")
+                    input.message.clone(), source, "case.trn:26:1")
                 ],
             );
         }
@@ -893,7 +893,7 @@ impl TerraneDocumentDecode for Waypoint {
                 path,
                 "waypoint",
                 source,
-                "case.trn:27:1",
+                "case.trn:26:1",
             );
         }
         let mut value = Self::terrane_construct();
@@ -912,7 +912,7 @@ impl TerraneDocumentDecode for Waypoint {
                                 "unknown-field",
                                 format!("unknown field `{key}`"),
                                 source,
-                                "case.trn:27:1",
+                                "case.trn:26:1",
                             ),
                         );
                 }
@@ -927,7 +927,7 @@ impl TerraneDocumentDecode for Waypoint {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:28:5",
+                    "case.trn:27:5",
                 ) {
                     Ok(decoded) => value.x = decoded,
                     Err(mut field_diagnostics) => {
@@ -945,7 +945,7 @@ impl TerraneDocumentDecode for Waypoint {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:29:5",
+                    "case.trn:28:5",
                 ) {
                     Ok(decoded) => value.y = decoded,
                     Err(mut field_diagnostics) => {
@@ -999,7 +999,7 @@ impl TerraneDocumentDecode for Route {
             return Err(
                 vec![
                     __terrane_document_diagnostic(path, "route", "invalid", "parse",
-                    input.message.clone(), source, "case.trn:31:1")
+                    input.message.clone(), source, "case.trn:30:1")
                 ],
             );
         }
@@ -1009,7 +1009,7 @@ impl TerraneDocumentDecode for Route {
                 path,
                 "route",
                 source,
-                "case.trn:31:1",
+                "case.trn:30:1",
             );
         }
         let mut value = Self::terrane_construct();
@@ -1028,7 +1028,7 @@ impl TerraneDocumentDecode for Route {
                                 "unknown-field",
                                 format!("unknown field `{key}`"),
                                 source,
-                                "case.trn:31:1",
+                                "case.trn:30:1",
                             ),
                         );
                 }
@@ -1043,7 +1043,7 @@ impl TerraneDocumentDecode for Route {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:32:5",
+                    "case.trn:31:5",
                 ) {
                     Ok(decoded) => value.name = decoded,
                     Err(mut field_diagnostics) => {
@@ -1063,7 +1063,7 @@ impl TerraneDocumentDecode for Route {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:33:5",
+                    "case.trn:32:5",
                 ) {
                     Ok(decoded) => value.points = decoded,
                     Err(mut field_diagnostics) => {
@@ -1081,7 +1081,7 @@ impl TerraneDocumentDecode for Route {
                     &field_path,
                     allow_unknown,
                     source,
-                    "case.trn:34:5",
+                    "case.trn:33:5",
                 ) {
                     Ok(decoded) => value.active = decoded,
                     Err(mut field_diagnostics) => {
@@ -1128,8 +1128,8 @@ fn main() {
             &input,
             "$",
             false,
-            "case.trn:37:15",
-            "case.trn:37:15",
+            "case.trn:36:15",
+            "case.trn:36:15",
         ) {
             Ok(value) => {
                 TerraneDocumentDecodeOutcome {
@@ -1155,13 +1155,13 @@ fn main() {
         "{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(decoded.value
         .clone().ports
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        0 /* terrane-site: case.trn:39:12-39:34 */)), 0 /* terrane-site: case.trn:39:12-39:34 */)),
+        0 /* terrane-site: case.trn:38:12-38:34 */)), 0 /* terrane-site: case.trn:38:12-38:34 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(decoded.value.clone()
-        .labels.get_or_error(&String::from("tier")), 1 /* terrane-site: case.trn:39:36-39:64 */)),
+        .labels.get_or_error(&String::from("tier")), 1 /* terrane-site: case.trn:38:36-38:64 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(decoded.value.clone()
         .coordinates
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        2 /* terrane-site: case.trn:39:66-39:94 */)), 2 /* terrane-site: case.trn:39:66-39:94 */)), terrane_scalar_support::scalar_text(&decoded.value
+        2 /* terrane-site: case.trn:38:66-38:94 */)), 2 /* terrane-site: case.trn:38:66-38:94 */)), terrane_scalar_support::scalar_text(&decoded.value
         .clone().ratio)
     );
     malformed = {
@@ -1178,8 +1178,8 @@ fn main() {
             &input,
             "$",
             false,
-            "case.trn:41:17",
-            "case.trn:41:17",
+            "case.trn:40:17",
+            "case.trn:40:17",
         ) {
             Ok(value) => {
                 TerraneDocumentDecodeOutcome {
@@ -1220,11 +1220,11 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(malformed
         .diagnostics.clone()
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        3 /* terrane-site: case.trn:45:13-45:37 */)), 3 /* terrane-site: case.trn:45:13-45:37 */).source.clone().contains(&String::from("case.trn"))),
+        3 /* terrane-site: case.trn:44:13-44:37 */)), 3 /* terrane-site: case.trn:44:13-44:37 */).source.clone().contains(&String::from("case.trn"))),
         terrane_scalar_support::scalar_text(&__terrane_raised(malformed.diagnostics
         .clone()
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        4 /* terrane-site: case.trn:45:69-45:93 */)), 4 /* terrane-site: case.trn:45:69-45:93 */).field_source.clone()
+        4 /* terrane-site: case.trn:44:69-44:93 */)), 4 /* terrane-site: case.trn:44:69-44:93 */).field_source.clone()
         .contains(&String::from("case.trn")))
     );
     invalid = {
@@ -1241,8 +1241,8 @@ fn main() {
             &input,
             "$",
             false,
-            "case.trn:47:15",
-            "case.trn:47:15",
+            "case.trn:46:15",
+            "case.trn:46:15",
         ) {
             Ok(value) => {
                 TerraneDocumentDecodeOutcome {
@@ -1263,10 +1263,10 @@ fn main() {
         0)), terrane_scalar_support::scalar_text(&__terrane_raised(invalid.diagnostics
         .clone()
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        5 /* terrane-site: case.trn:48:28-48:50 */)), 5 /* terrane-site: case.trn:48:28-48:50 */).reason.to_owned()),
+        5 /* terrane-site: case.trn:47:28-47:50 */)), 5 /* terrane-site: case.trn:47:28-47:50 */).reason.to_owned()),
         terrane_scalar_support::scalar_text(&__terrane_raised(invalid.diagnostics.clone()
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        6 /* terrane-site: case.trn:48:59-48:81 */)), 6 /* terrane-site: case.trn:48:59-48:81 */).message.clone())
+        6 /* terrane-site: case.trn:47:59-47:81 */)), 6 /* terrane-site: case.trn:47:59-47:81 */).message.clone())
     );
     permissive = {
         let source = String::from(
@@ -1282,8 +1282,8 @@ fn main() {
             &input,
             "$",
             true,
-            "case.trn:50:18",
-            "case.trn:50:18",
+            "case.trn:49:18",
+            "case.trn:49:18",
         ) {
             Ok(value) => {
                 TerraneDocumentDecodeOutcome {
@@ -1316,8 +1316,8 @@ fn main() {
             &input,
             "$",
             false,
-            "case.trn:53:12",
-            "case.trn:53:12",
+            "case.trn:52:12",
+            "case.trn:52:12",
         ) {
             Ok(value) => {
                 TerraneDocumentDecodeOutcome {
@@ -1352,8 +1352,8 @@ fn main() {
             &input,
             "$",
             false,
-            "case.trn:56:15",
-            "case.trn:56:15",
+            "case.trn:55:15",
+            "case.trn:55:15",
         ) {
             Ok(value) => {
                 TerraneDocumentDecodeOutcome {
@@ -1375,7 +1375,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(journey.value.clone()
         .points
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        7 /* terrane-site: case.trn:57:48-57:71 */)), 7 /* terrane-site: case.trn:57:48-57:71 */).y), terrane_scalar_support::scalar_text(&journey.value
+        7 /* terrane-site: case.trn:56:48-56:71 */)), 7 /* terrane-site: case.trn:56:48-56:71 */).y), terrane_scalar_support::scalar_text(&journey.value
         .clone().active)
     );
 }

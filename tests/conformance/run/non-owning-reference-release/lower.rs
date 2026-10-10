@@ -418,8 +418,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/non-owning-reference-release::main"];
     pub static SITES: [Site; 1] = [
-        /* terrane-site-row: site 0: /non-owning-reference-release::main (case.trn:8:12-8:23) */
-        { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 23 } },
+        /* terrane-site-row: site 0: /non-owning-reference-release::main (case.trn:7:12-7:23) */
+        { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]
@@ -446,7 +446,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(observer.clone()
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:8:12-8:23 */)), 0 /* terrane-site: case.trn:8:12-8:23 */))
+        0 /* terrane-site: case.trn:7:12-7:23 */)), 0 /* terrane-site: case.trn:7:12-7:23 */))
     );
     let __terrane_replacement = String::from("replacement");
     drop(value);

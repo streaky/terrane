@@ -453,8 +453,8 @@ mod __terrane_trace {
         "/core/time::interval",
     ];
     pub static SITES: [Site; 15] = [
-        /* terrane-site-row: site 0: /app::main (case.trn:44:13-44:39) */
-        { Site { function: 0, file: 0, line: 44, column: 13, end_line: 44, end_column: 39 } },
+        /* terrane-site-row: site 0: /app::main (case.trn:43:13-43:39) */
+        { Site { function: 0, file: 0, line: 43, column: 13, end_line: 43, end_column: 39 } },
         /* terrane-site-row: site 1: /core/networking::lookup-dns (core/networking.trn:328:28-328:49) */
         { Site { function: 1, file: 1, line: 328, column: 28, end_line: 328, end_column: 49 } },
         /* terrane-site-row: site 2: /core/streams::read (core/streams.trn:188:23-188:50) */
@@ -626,7 +626,7 @@ fn main() {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&response
-            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:44:13-44:39 */))
+            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:43:13-43:39 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
         input_outcome = __terrane_await(scope.join(input_child)).await;

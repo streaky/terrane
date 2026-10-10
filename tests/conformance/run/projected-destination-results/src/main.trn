@@ -1,7 +1,6 @@
 namespace app
 from /deps/factory import default_value, renamed_bound_value, sample_numeric_rows, sample_rows, sample_value
 from /deps/terrane-generic-row-witness import row
-from /core/output import print
 
 class record
   value string = ''

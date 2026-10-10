@@ -463,24 +463,24 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::render", "/app::main"];
     pub static SITES: [Site; 9] = [
-        /* terrane-site-row: site 0: /app::render (src/main.trn:11:134-11:150) */
-        { Site { function: 0, file: 0, line: 11, column: 134, end_line: 11, end_column: 150 } },
-        /* terrane-site-row: site 1: /app::render (src/main.trn:11:118-11:151) */
-        { Site { function: 0, file: 0, line: 11, column: 118, end_line: 11, end_column: 151 } },
-        /* terrane-site-row: site 2: /app::render (src/main.trn:11:156-11:178) */
-        { Site { function: 0, file: 0, line: 11, column: 156, end_line: 11, end_column: 178 } },
-        /* terrane-site-row: site 3: /app::render (src/main.trn:11:31-11:179) */
-        { Site { function: 0, file: 0, line: 11, column: 31, end_line: 11, end_column: 179 } },
-        /* terrane-site-row: site 4: /app::render (src/main.trn:11:12-11:180) */
-        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 180 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:14:23-14:56) */
-        { Site { function: 1, file: 0, line: 14, column: 23, end_line: 14, end_column: 56 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:15:23-15:57) */
-        { Site { function: 1, file: 0, line: 15, column: 23, end_line: 15, end_column: 57 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:16:13-16:53) */
-        { Site { function: 1, file: 0, line: 16, column: 13, end_line: 16, end_column: 53 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:17:13-17:35) */
-        { Site { function: 1, file: 0, line: 17, column: 13, end_line: 17, end_column: 35 } },
+        /* terrane-site-row: site 0: /app::render (src/main.trn:10:134-10:150) */
+        { Site { function: 0, file: 0, line: 10, column: 134, end_line: 10, end_column: 150 } },
+        /* terrane-site-row: site 1: /app::render (src/main.trn:10:118-10:151) */
+        { Site { function: 0, file: 0, line: 10, column: 118, end_line: 10, end_column: 151 } },
+        /* terrane-site-row: site 2: /app::render (src/main.trn:10:156-10:178) */
+        { Site { function: 0, file: 0, line: 10, column: 156, end_line: 10, end_column: 178 } },
+        /* terrane-site-row: site 3: /app::render (src/main.trn:10:31-10:179) */
+        { Site { function: 0, file: 0, line: 10, column: 31, end_line: 10, end_column: 179 } },
+        /* terrane-site-row: site 4: /app::render (src/main.trn:10:12-10:180) */
+        { Site { function: 0, file: 0, line: 10, column: 12, end_line: 10, end_column: 180 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:13:23-13:56) */
+        { Site { function: 1, file: 0, line: 13, column: 23, end_line: 13, end_column: 56 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:14:23-14:57) */
+        { Site { function: 1, file: 0, line: 14, column: 23, end_line: 14, end_column: 57 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:15:13-15:53) */
+        { Site { function: 1, file: 0, line: 15, column: 13, end_line: 15, end_column: 53 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:16:13-16:35) */
+        { Site { function: 1, file: 0, line: 16, column: 13, end_line: 16, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]
@@ -533,17 +533,17 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
                                                 (&state).get_label())) { Ok(value) => Ok(value.to_owned()),
                                                 Err(payload) => Err(crate
                                                 ::__terrane_dependency_panic(payload, "witness",
-                                                "witness::State::get_label")) }, 0 /* terrane-site: src/main.trn:11:134-11:150 */)) } () { Ok(value) => value,
+                                                "witness::State::get_label")) }, 0 /* terrane-site: src/main.trn:10:134-10:150 */)) } () { Ok(value) => value,
                                                 Err(error) => std::panic::panic_any(error) }))) { Ok(value)
                                                 => Ok(value), Err(payload) => Err(crate
                                                 ::__terrane_dependency_panic(payload, "iced",
-                                                "iced::widget::text::<_, _>")) }, 1 /* terrane-site: src/main.trn:11:118-11:151 */)), __terrane_raised(match
+                                                "iced::widget::text::<_, _>")) }, 1 /* terrane-site: src/main.trn:10:118-10:151 */)), __terrane_raised(match
                                                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                                                 iced::widget::row:: < _, _, _ > (children.into_unique_vec()
                                                 .into_iter().map(Into::into).collect:: < Vec < _ > > ()))) {
                                                 Ok(value) => Ok(value), Err(payload) => Err(crate
                                                 ::__terrane_dependency_panic(payload, "iced",
-                                                "iced::widget::row::<_, _, _>")) }, 2 /* terrane-site: src/main.trn:11:156-11:178 */)
+                                                "iced::widget::row::<_, _, _>")) }, 2 /* terrane-site: src/main.trn:10:156-10:178 */)
                                             )
                                         }),
                                     ) {
@@ -558,7 +558,7 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
                                             )
                                         }
                                     },
-                                    3 /* terrane-site: src/main.trn:11:31-11:179 */,
+                                    3 /* terrane-site: src/main.trn:10:31-10:179 */,
                                 ),
                             )
                         }() {
@@ -578,7 +578,7 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
                         )
                     }
                 },
-                4 /* terrane-site: src/main.trn:11:12-11:180 */,
+                4 /* terrane-site: src/main.trn:10:12-10:180 */,
             )
             .into();
         value
@@ -592,23 +592,23 @@ fn main() {
         .append(
             __terrane_raised(
                 terrane_static_trn_5374617465_new(String::from("first borrowed leaf")),
-                5 /* terrane-site: src/main.trn:14:23-14:56 */,
+                5 /* terrane-site: src/main.trn:13:23-13:56 */,
             ),
         );
     children
         .append(
             __terrane_raised(
                 terrane_static_trn_5374617465_new(String::from("second borrowed leaf")),
-                6 /* terrane-site: src/main.trn:15:23-15:57 */,
+                6 /* terrane-site: src/main.trn:14:23-14:57 */,
             ),
         );
     state = __terrane_raised(
         terrane_static_trn_5374617465_branch(String::from("borrowed root"), children),
-        7 /* terrane-site: src/main.trn:16:13-16:53 */,
+        7 /* terrane-site: src/main.trn:15:13-15:53 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(inspect(&state,
-        render), 8 /* terrane-site: src/main.trn:17:13-17:35 */))
+        render), 8 /* terrane-site: src/main.trn:16:13-16:35 */))
     );
 }
 // Source: <terrane>/projected/deps/iced/widget.trn

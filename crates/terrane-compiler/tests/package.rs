@@ -164,7 +164,7 @@ fn package_compilation_parses_every_discovered_unit() {
     );
     package.write(
         "hello/main.trn",
-        "namespace hello\nfrom /core/output import print\nfunction main;\n  print; >package pipeline\n",
+        "namespace hello\nfunction main;\n  print; >package pipeline\n",
     );
 
     let loaded = Package::load(&package.0).unwrap();
@@ -187,7 +187,7 @@ fn package_compilation_emits_functions_and_bindings_from_every_unit() {
     );
     package.write(
         "src/main.trn",
-        "namespace hello\nfrom /core/output import print\nfunction main;\n  print; (helper;)\n",
+        "namespace hello\nfunction main;\n  print; (helper;)\n",
     );
     package.write(
         "src/support.trn",
@@ -224,7 +224,7 @@ fn package_entry_point_comes_from_resolved_function_declarations() {
     );
     package.write(
         "actual/main.trn",
-        "namespace actual\nfrom /core/output import print\nfunction main;\n  print; >real entry\n",
+        "namespace actual\nfunction main;\n  print; >real entry\n",
     );
 
     let compilation = compile_package(&Package::load(&package.0).unwrap()).unwrap();
@@ -264,7 +264,7 @@ fn syntax_failure_in_non_main_unit_stops_package_compilation() {
     );
     package.write(
         "src/main.trn",
-        "namespace hello\nfrom /core/output import print\nfunction main;\n  print; >unreachable\n",
+        "namespace hello\nfunction main;\n  print; >unreachable\n",
     );
     package.write("src/support.trn", "namespace hello\nvalue =\n");
 

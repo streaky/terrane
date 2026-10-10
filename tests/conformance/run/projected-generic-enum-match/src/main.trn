@@ -1,6 +1,5 @@
 namespace app
 from /deps/witness import Choice, score
-from /core/output import print
 
 function main;
     chosen Choice of int = instance Choice::Value; 41

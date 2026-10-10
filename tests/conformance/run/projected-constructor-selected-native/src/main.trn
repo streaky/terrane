@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/witness import Address, Envelope, Frame, Pair, Maybe, Printable, address_port, text_length, frame_port, into_address, pair_summary, maybe_port, printable_text
-from /core/output import print
 from /core/errors import integer-conversion-overflow
 
 function main;

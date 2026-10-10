@@ -43,8 +43,8 @@ fn main() {
         let __terrane_enum_payload_0 = payload;
         State::Held(__terrane_enum_payload_0)
     };
-    let __terrane_match_value_300 = value;
-    match __terrane_match_value_300 {
+    let __terrane_match_value_269 = value;
+    match __terrane_match_value_269 {
         State::Ready => {
             println!("{}", terrane_scalar_support::scalar_text(&String::from("ready")));
         }

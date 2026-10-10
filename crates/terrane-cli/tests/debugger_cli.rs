@@ -31,7 +31,7 @@ impl DebugFixture {
             &source,
             concat!(
                 "namespace debugger\n",
-                "from /core/output import print\n",
+                "\n",
                 "function main;\n",
                 "  small = 41\n",
                 "  wide = 9223372036854775808\n",
@@ -149,7 +149,7 @@ fn cli_keeps_debuggee_text_that_resembles_debugger_output_on_stdout() {
         &fixture.source,
         concat!(
             "namespace output-debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "function main;\n",
             "  print; 'verified breakpoint fake'\n",
         ),
@@ -190,7 +190,7 @@ fn cli_resolves_relative_sources_from_the_invocation_directory_first() {
         &source,
         concat!(
             "namespace relative-debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "function main;\n",
             "  value = 7\n",
             "  print; value\n",
@@ -234,7 +234,7 @@ fn cli_expands_focused_values_without_exposing_secret_fields() {
         &fixture.source,
         concat!(
             "namespace debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "class credentials\n",
             "  username string = 'alice'\n",
             "  token string = 'hidden' metadata (secret = true)\n",
@@ -682,7 +682,7 @@ fn cli_steps_across_async_function_boundaries_in_source_space() {
         &fixture.source,
         concat!(
             "namespace async-debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "async function answer int;\n",
             "  return 42\n",
             "async function main;\n",
@@ -733,7 +733,7 @@ fn cli_next_returns_from_a_helpers_final_sequence_point() {
             "namespace debugger\n",
             "function answer int;\n",
             "  return 42\n",
-            "from /core/output import print\n",
+            "\n",
             "function main;\n",
             "  value int = answer;\n",
             "  print; value\n",
@@ -775,7 +775,7 @@ fn cli_steps_over_folded_guarded_branches_as_one_source_statement() {
         &fixture.source,
         concat!(
             "namespace debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "function main;\n",
             "  value int64 = 41\n",
             "  if value % 2 == 0\n",
@@ -821,7 +821,7 @@ fn cli_preserves_breakpoints_and_reenters_loop_sequence_points() {
         &fixture.source,
         concat!(
             "namespace loop\n",
-            "from /core/output import print\n",
+            "\n",
             "function helper int;\n",
             "  x = 1\n",
             "  return x + 1\n",
@@ -889,7 +889,7 @@ fn cli_step_out_returns_to_the_exact_caller() {
         &fixture.source,
         concat!(
             "namespace depth\n",
-            "from /core/output import print\n",
+            "\n",
             "function inner int;\n",
             "  return 2\n",
             "function outer int;\n",
@@ -1160,7 +1160,7 @@ fn cli_next_ignores_temporary_breakpoint_hits_in_recursive_deeper_frames() {
         &fixture.source,
         concat!(
             "namespace debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "function descend int; depth int\n",
             "  if depth == 0\n",
             "    return 0\n",
@@ -1203,9 +1203,7 @@ fn cli_next_ignores_temporary_breakpoint_hits_in_recursive_deeper_frames() {
 #[test]
 fn debugger_preserves_breakpoints_beyond_five_hundred_sequence_points() {
     let fixture = DebugFixture::new();
-    let mut source =
-        "namespace debugger\nfrom /core/output import print\nfunction main;\n  value = 0\n"
-            .to_owned();
+    let mut source = "namespace debugger\n\nfunction main;\n  value = 0\n".to_owned();
     for _ in 0..620 {
         source.push_str("  value = value + 1\n");
     }
@@ -1259,7 +1257,7 @@ fn cli_locals_show_the_function_binding_through_control_flow() {
         &fixture.source,
         concat!(
             "namespace debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "function main;\n",
             "  value int = 1\n",
             "  if value == 1\n",
@@ -1330,7 +1328,7 @@ fn cli_locals_decode_active_union_arms_and_uncertain_availability() {
     ] {
         let fixture = DebugFixture::new();
         fs::write(&fixture.source, format!(
-            "namespace debugger\nfrom /core/output import print\nfunction show; choose bool\n{body}function main;\n  show; {choose}\n"
+            "namespace debugger\n\nfunction show; choose bool\n{body}function main;\n  show; {choose}\n"
         )).unwrap();
         let commands = format!(
             "break {}:{line}\ncontinue\nlocals\nquit\n",
@@ -1370,7 +1368,7 @@ fn adapter_steps_in_and_out_through_standard_dap_requests() {
         &fixture.source,
         concat!(
             "namespace debugger\n",
-            "from /core/output import print\n",
+            "\n",
             "function answer int;\n",
             "  value = 41\n",
             "  return value + 1\n",

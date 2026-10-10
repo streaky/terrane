@@ -418,8 +418,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/unused-catch-binding::main"];
     pub static SITES: [Site; 1] = [
-        /* terrane-site-row: site 0: /unused-catch-binding::main (case.trn:7:5-7:25) */
-        { Site { function: 0, file: 0, line: 7, column: 5, end_line: 7, end_column: 25 } },
+        /* terrane-site-row: site 0: /unused-catch-binding::main (case.trn:6:5-6:25) */
+        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 25 } },
     ];
     #[cold]
     #[inline(never)]
@@ -453,7 +453,7 @@ fn main() {
             return TerraneCompletion::Error(
                 TerraneError::raised(
                     TerraneErrorKind::CoercionError,
-                    0 /* terrane-site: case.trn:7:5-7:25 */,
+                    0 /* terrane-site: case.trn:6:5-6:25 */,
                 ),
             );
         })();

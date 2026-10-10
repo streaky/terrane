@@ -2,7 +2,6 @@ namespace app
 
 from /deps/http import HeaderValue
 from /deps/http/header import InvalidHeaderValue
-from /core/output import print
 
 function parse-twice int; text string
     try

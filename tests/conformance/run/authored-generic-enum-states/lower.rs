@@ -18,17 +18,17 @@ fn report(state: OperationState<String>) -> String {
         OperationState::Pending => {
             return String::from("pending");
         }
-        OperationState::Running(__terrane_pattern_338_progress) => {
-            progress = __terrane_pattern_338_progress;
+        OperationState::Running(__terrane_pattern_307_progress) => {
+            progress = __terrane_pattern_307_progress;
             println!("{}", terrane_scalar_support::scalar_text(&progress.clone()));
             return String::from("running");
         }
-        OperationState::Completed(__terrane_pattern_443_result) => {
-            result = __terrane_pattern_443_result;
+        OperationState::Completed(__terrane_pattern_412_result) => {
+            result = __terrane_pattern_412_result;
             return result.clone();
         }
-        OperationState::Failed(__terrane_pattern_517_error) => {
-            error = __terrane_pattern_517_error;
+        OperationState::Failed(__terrane_pattern_486_error) => {
+            error = __terrane_pattern_486_error;
             return error.clone();
         }
     }
@@ -43,12 +43,12 @@ fn optional_report(state: Option<OperationState<String>>) -> String {
         Some(OperationState::Running(_)) => {
             return String::from("running");
         }
-        Some(OperationState::Completed(__terrane_pattern_816_result)) => {
-            result = __terrane_pattern_816_result;
+        Some(OperationState::Completed(__terrane_pattern_785_result)) => {
+            result = __terrane_pattern_785_result;
             return result.clone();
         }
-        Some(OperationState::Failed(__terrane_pattern_890_error)) => {
-            error = __terrane_pattern_890_error;
+        Some(OperationState::Failed(__terrane_pattern_859_error)) => {
+            error = __terrane_pattern_859_error;
             return error.clone();
         }
         None => {
@@ -64,14 +64,14 @@ pub enum Decision {
 fn explain(choice: Decision) -> String {
     let explanation: String;
     let explanation_2: String;
-    let __terrane_match_value_1124 = choice.clone();
-    match __terrane_match_value_1124 {
-        Decision::Accepted(__terrane_pattern_1145_explanation) => {
-            explanation = __terrane_pattern_1145_explanation;
+    let __terrane_match_value_1093 = choice.clone();
+    match __terrane_match_value_1093 {
+        Decision::Accepted(__terrane_pattern_1114_explanation) => {
+            explanation = __terrane_pattern_1114_explanation;
             return explanation;
         }
-        Decision::Rejected(__terrane_pattern_1221_explanation) => {
-            explanation_2 = __terrane_pattern_1221_explanation;
+        Decision::Rejected(__terrane_pattern_1190_explanation) => {
+            explanation_2 = __terrane_pattern_1190_explanation;
             return explanation_2;
         }
     }

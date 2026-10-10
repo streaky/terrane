@@ -1,6 +1,5 @@
 namespace typed-document-decoding
 
-from /core/output import print
 from /core/documents import document-decodable, document-validatable
 from /core/documents/json import decode-typed-json, default-json-options
 from /core/documents/yaml import decode-typed-yaml, default-yaml-options

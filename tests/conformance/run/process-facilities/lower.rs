@@ -423,26 +423,26 @@ mod __terrane_trace {
         "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 15] = [
-        /* terrane-site-row: site 0: /conformance/process-facilities::main (case.trn:10:27-10:36) */
-        { Site { function: 0, file: 0, line: 10, column: 27, end_line: 10, end_column: 36 } },
-        /* terrane-site-row: site 1: /conformance/process-facilities::main (case.trn:10:43-10:52) */
-        { Site { function: 0, file: 0, line: 10, column: 43, end_line: 10, end_column: 52 } },
-        /* terrane-site-row: site 2: /conformance/process-facilities::main (case.trn:10:59-10:68) */
-        { Site { function: 0, file: 0, line: 10, column: 59, end_line: 10, end_column: 68 } },
-        /* terrane-site-row: site 3: /conformance/process-facilities::main (case.trn:10:78-10:87) */
-        { Site { function: 0, file: 0, line: 10, column: 78, end_line: 10, end_column: 87 } },
-        /* terrane-site-row: site 4: /conformance/process-facilities::main (case.trn:17:61-17:84) */
-        { Site { function: 0, file: 0, line: 17, column: 61, end_line: 17, end_column: 84 } },
-        /* terrane-site-row: site 5: /conformance/process-facilities::main (case.trn:18:39-18:60) */
-        { Site { function: 0, file: 0, line: 18, column: 39, end_line: 18, end_column: 60 } },
-        /* terrane-site-row: site 6: /conformance/process-facilities::main (case.trn:19:48-19:78) */
-        { Site { function: 0, file: 0, line: 19, column: 48, end_line: 19, end_column: 78 } },
-        /* terrane-site-row: site 7: /conformance/process-facilities::main (case.trn:19:80-19:109) */
-        { Site { function: 0, file: 0, line: 19, column: 80, end_line: 19, end_column: 109 } },
-        /* terrane-site-row: site 8: /conformance/process-facilities::main (case.trn:20:12-20:42) */
-        { Site { function: 0, file: 0, line: 20, column: 12, end_line: 20, end_column: 42 } },
-        /* terrane-site-row: site 9: /conformance/process-facilities::main (case.trn:20:44-20:73) */
-        { Site { function: 0, file: 0, line: 20, column: 44, end_line: 20, end_column: 73 } },
+        /* terrane-site-row: site 0: /conformance/process-facilities::main (case.trn:9:27-9:36) */
+        { Site { function: 0, file: 0, line: 9, column: 27, end_line: 9, end_column: 36 } },
+        /* terrane-site-row: site 1: /conformance/process-facilities::main (case.trn:9:43-9:52) */
+        { Site { function: 0, file: 0, line: 9, column: 43, end_line: 9, end_column: 52 } },
+        /* terrane-site-row: site 2: /conformance/process-facilities::main (case.trn:9:59-9:68) */
+        { Site { function: 0, file: 0, line: 9, column: 59, end_line: 9, end_column: 68 } },
+        /* terrane-site-row: site 3: /conformance/process-facilities::main (case.trn:9:78-9:87) */
+        { Site { function: 0, file: 0, line: 9, column: 78, end_line: 9, end_column: 87 } },
+        /* terrane-site-row: site 4: /conformance/process-facilities::main (case.trn:16:61-16:84) */
+        { Site { function: 0, file: 0, line: 16, column: 61, end_line: 16, end_column: 84 } },
+        /* terrane-site-row: site 5: /conformance/process-facilities::main (case.trn:17:39-17:60) */
+        { Site { function: 0, file: 0, line: 17, column: 39, end_line: 17, end_column: 60 } },
+        /* terrane-site-row: site 6: /conformance/process-facilities::main (case.trn:18:48-18:78) */
+        { Site { function: 0, file: 0, line: 18, column: 48, end_line: 18, end_column: 78 } },
+        /* terrane-site-row: site 7: /conformance/process-facilities::main (case.trn:18:80-18:109) */
+        { Site { function: 0, file: 0, line: 18, column: 80, end_line: 18, end_column: 109 } },
+        /* terrane-site-row: site 8: /conformance/process-facilities::main (case.trn:19:12-19:42) */
+        { Site { function: 0, file: 0, line: 19, column: 12, end_line: 19, end_column: 42 } },
+        /* terrane-site-row: site 9: /conformance/process-facilities::main (case.trn:19:44-19:73) */
+        { Site { function: 0, file: 0, line: 19, column: 44, end_line: 19, end_column: 73 } },
         /* terrane-site-row: site 10: /core/process::arguments (core/process.trn:45:49-45:63) */
         { Site { function: 1, file: 1, line: 45, column: 49, end_line: 45, end_column: 63 } },
         /* terrane-site-row: site 11: /core/process::environment (core/process.trn:54:40-54:54) */
@@ -485,16 +485,16 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(actual
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(actual
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:10:27-10:36 */)), 0 /* terrane-site: case.trn:10:27-10:36 */).text),
+        0 /* terrane-site: case.trn:9:27-9:36 */)), 0 /* terrane-site: case.trn:9:27-9:36 */).text),
         terrane_scalar_support::scalar_text(&__terrane_raised(actual
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        1 /* terrane-site: case.trn:10:43-10:52 */)), 1 /* terrane-site: case.trn:10:43-10:52 */).text),
+        1 /* terrane-site: case.trn:9:43-9:52 */)), 1 /* terrane-site: case.trn:9:43-9:52 */).text),
         terrane_scalar_support::scalar_text(&__terrane_raised(actual
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        2 /* terrane-site: case.trn:10:59-10:68 */)), 2 /* terrane-site: case.trn:10:59-10:68 */).is_text),
+        2 /* terrane-site: case.trn:9:59-9:68 */)), 2 /* terrane-site: case.trn:9:59-9:68 */).is_text),
         terrane_scalar_support::scalar_text(&(__terrane_raised(actual
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        3 /* terrane-site: case.trn:10:78-10:87 */)), 3 /* terrane-site: case.trn:10:78-10:87 */).raw.len() as i128))
+        3 /* terrane-site: case.trn:9:78-9:87 */)), 3 /* terrane-site: case.trn:9:78-9:87 */).raw.len() as i128))
     );
     ambient = environment();
     println!(
@@ -527,7 +527,7 @@ fn main() {
         .option_names.length())),
         terrane_scalar_support::scalar_text(&__terrane_raised(parsed.option_values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        4 /* terrane-site: case.trn:17:61-17:84 */)), 4 /* terrane-site: case.trn:17:61-17:84 */).text)
+        4 /* terrane-site: case.trn:16:61-16:84 */)), 4 /* terrane-site: case.trn:16:61-16:84 */).text)
     );
     println!(
         "{}{}",
@@ -535,7 +535,7 @@ fn main() {
         .positionals.length())),
         terrane_scalar_support::scalar_text(&__terrane_raised(parsed.positionals
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        5 /* terrane-site: case.trn:18:39-18:60 */)), 5 /* terrane-site: case.trn:18:39-18:60 */).text)
+        5 /* terrane-site: case.trn:17:39-17:60 */)), 5 /* terrane-site: case.trn:17:39-17:60 */).text)
     );
     println!(
         "{}{}{}",
@@ -543,19 +543,19 @@ fn main() {
         .diagnostic_arguments.length())),
         terrane_scalar_support::scalar_text(&__terrane_raised(parsed.diagnostic_arguments
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        6 /* terrane-site: case.trn:19:48-19:78 */)), 6 /* terrane-site: case.trn:19:48-19:78 */)),
+        6 /* terrane-site: case.trn:18:48-18:78 */)), 6 /* terrane-site: case.trn:18:48-18:78 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(parsed.diagnostic_messages
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        7 /* terrane-site: case.trn:19:80-19:109 */)), 7 /* terrane-site: case.trn:19:80-19:109 */))
+        7 /* terrane-site: case.trn:18:80-18:109 */)), 7 /* terrane-site: case.trn:18:80-18:109 */))
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(parsed
         .diagnostic_arguments
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        8 /* terrane-site: case.trn:20:12-20:42 */)), 8 /* terrane-site: case.trn:20:12-20:42 */)),
+        8 /* terrane-site: case.trn:19:12-19:42 */)), 8 /* terrane-site: case.trn:19:12-19:42 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(parsed.diagnostic_messages
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        9 /* terrane-site: case.trn:20:44-20:73 */)), 9 /* terrane-site: case.trn:20:44-20:73 */))
+        9 /* terrane-site: case.trn:19:44-19:73 */)), 9 /* terrane-site: case.trn:19:44-19:73 */))
     );
     success_code = 0;
     invalid_code = 256;

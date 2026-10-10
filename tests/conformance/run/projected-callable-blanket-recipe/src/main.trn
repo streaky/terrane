@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/terrane-callable-recipe-witness import accept, accepts_handler as accepts-handler, blank, compose, install, invoke, mutate, render, run_correlated as run-correlated, transform
-from /core/output import print
 
 function produce int;
     return 42

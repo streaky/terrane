@@ -463,10 +463,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 2] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:8:13-8:20) */
+        /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:20) */
+        { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 20 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:13-8:20) */
         { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 20 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:9:13-9:20) */
-        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 20 } },
     ];
     #[cold]
     #[inline(never)]
@@ -485,11 +485,11 @@ mod __terrane_trace {
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(launch(),
-        0 /* terrane-site: src/main.trn:8:13-8:20 */))
+        0 /* terrane-site: src/main.trn:7:13-7:20 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(nested(),
-        1 /* terrane-site: src/main.trn:9:13-9:20 */))
+        1 /* terrane-site: src/main.trn:8:13-8:20 */))
     );
 }
 // Source: <terrane>/projected/deps/terrane-namespace-value-witness.trn

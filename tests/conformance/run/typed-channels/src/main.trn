@@ -1,5 +1,4 @@
 namespace app
-from /core/output import print
 from /core/concurrency import channel, channel-block, channel-fail-send, channel-drop-newest, channel-drop-oldest
 from /core/collections import list
 from /deps/terrane-sink-witness import remotely_closed_sink, Outgoing

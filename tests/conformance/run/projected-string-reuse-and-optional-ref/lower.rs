@@ -469,16 +469,16 @@ mod __terrane_trace {
         "/app::main",
     ];
     pub static SITES: [Site; 5] = [
-        /* terrane-site-row: site 0: /app::parse-twice (src/main.trn:9:18-9:45) */
-        { Site { function: 0, file: 0, line: 9, column: 18, end_line: 9, end_column: 45 } },
-        /* terrane-site-row: site 1: /app::parse-twice (src/main.trn:13:23-13:50) */
-        { Site { function: 0, file: 0, line: 13, column: 23, end_line: 13, end_column: 50 } },
-        /* terrane-site-row: site 2: /app::sensitive (src/main.trn:21:12-21:32) */
-        { Site { function: 1, file: 0, line: 21, column: 12, end_line: 21, end_column: 32 } },
-        /* terrane-site-row: site 3: /app::mark-sensitive (src/main.trn:24:5-24:31) */
-        { Site { function: 2, file: 0, line: 24, column: 5, end_line: 24, end_column: 31 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:29:31-29:61) */
-        { Site { function: 3, file: 0, line: 29, column: 31, end_line: 29, end_column: 61 } },
+        /* terrane-site-row: site 0: /app::parse-twice (src/main.trn:8:18-8:45) */
+        { Site { function: 0, file: 0, line: 8, column: 18, end_line: 8, end_column: 45 } },
+        /* terrane-site-row: site 1: /app::parse-twice (src/main.trn:12:23-12:50) */
+        { Site { function: 0, file: 0, line: 12, column: 23, end_line: 12, end_column: 50 } },
+        /* terrane-site-row: site 2: /app::sensitive (src/main.trn:20:12-20:32) */
+        { Site { function: 1, file: 0, line: 20, column: 12, end_line: 20, end_column: 32 } },
+        /* terrane-site-row: site 3: /app::mark-sensitive (src/main.trn:23:5-23:31) */
+        { Site { function: 2, file: 0, line: 23, column: 5, end_line: 23, end_column: 31 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:28:31-28:61) */
+        { Site { function: 3, file: 0, line: 28, column: 31, end_line: 28, end_column: 61 } },
     ];
     #[cold]
     #[inline(never)]
@@ -514,7 +514,7 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                 .insert(
                     __terrane_raised_completion!(
                         terrane_static_trn_48656164657256616c7565_from_str(text.clone()),
-                        0 /* terrane-site: src/main.trn:9:18-9:45 */
+                        0 /* terrane-site: src/main.trn:8:18-8:45 */
                     ),
                 );
             let _ = &__trn_5f6669727374;
@@ -542,7 +542,7 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                                 .insert(
                                     __terrane_raised_completion!(
                                         terrane_static_trn_48656164657256616c7565_from_str(text
-                                        .clone()), 1 /* terrane-site: src/main.trn:13:23-13:50 */
+                                        .clone()), 1 /* terrane-site: src/main.trn:12:23-12:50 */
                                     ),
                                 );
                             let _ = &__trn_5f7365636f6e64;
@@ -635,7 +635,7 @@ fn sensitive(header: &HeaderValue) -> bool {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:21:12-21:32 */,
+        2 /* terrane-site: src/main.trn:20:12-20:32 */,
     );
 }
 fn mark_sensitive(header: &mut HeaderValue) {
@@ -656,7 +656,7 @@ fn mark_sensitive(header: &mut HeaderValue) {
                 )
             }
         },
-        3 /* terrane-site: src/main.trn:24:5-24:31 */,
+        3 /* terrane-site: src/main.trn:23:5-23:31 */,
     );
 }
 fn main() {
@@ -671,7 +671,7 @@ fn main() {
     header = Some(
         __terrane_raised(
             terrane_static_trn_48656164657256616c7565_from_str(String::from("value")),
-            4 /* terrane-site: src/main.trn:29:31-29:61 */,
+            4 /* terrane-site: src/main.trn:28:31-28:61 */,
         ),
     );
     if header.is_some() {

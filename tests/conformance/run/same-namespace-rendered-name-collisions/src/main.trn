@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 
 class foo-bar
     value int = 1

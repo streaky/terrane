@@ -1,5 +1,4 @@
 namespace app
-from /core/output import print
 from /left import response as left-response
 from /right import response as right-response
 

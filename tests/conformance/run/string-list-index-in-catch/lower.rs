@@ -418,12 +418,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:13:16-13:25) */
-        { Site { function: 0, file: 0, line: 13, column: 16, end_line: 13, end_column: 25 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:15:16-15:41) */
-        { Site { function: 0, file: 0, line: 15, column: 16, end_line: 15, end_column: 41 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:17:20-17:31) */
-        { Site { function: 0, file: 0, line: 17, column: 20, end_line: 17, end_column: 31 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:12:16-12:25) */
+        { Site { function: 0, file: 0, line: 12, column: 16, end_line: 12, end_column: 25 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:14:16-14:41) */
+        { Site { function: 0, file: 0, line: 14, column: 16, end_line: 14, end_column: 41 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:16:20-16:31) */
+        { Site { function: 0, file: 0, line: 16, column: 20, end_line: 16, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]
@@ -454,10 +454,10 @@ fn main() {
                 "{}", terrane_scalar_support::scalar_text(&__terrane_raised_completion!({
                 let __terrane_receiver = &fields; let __terrane_index =
                 __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-                0 /* terrane-site: src/main.trn:13:16-13:25 */); __terrane_receiver
+                0 /* terrane-site: src/main.trn:12:16-12:25 */); __terrane_receiver
                 .get(__terrane_index).cloned().ok_or_else(| |
                 terrane_collection_support::IndexError::from_usize(__terrane_index)) },
-                0 /* terrane-site: src/main.trn:13:16-13:25 */))
+                0 /* terrane-site: src/main.trn:12:16-12:25 */))
             );
             TerraneCompletion::Normal
         })();
@@ -477,10 +477,10 @@ fn main() {
                         terrane_scalar_support::scalar_text(&__terrane_raised_completion!({
                         let __terrane_receiver = &fields; let __terrane_index =
                         __terrane_raised_completion!(terrane_collection_support::index_from_int(&selected_index()),
-                        1 /* terrane-site: src/main.trn:15:16-15:41 */);
+                        1 /* terrane-site: src/main.trn:14:16-14:41 */);
                         __terrane_receiver.get(__terrane_index).cloned().ok_or_else(| |
                         terrane_collection_support::IndexError::from_usize(__terrane_index))
-                        }, 1 /* terrane-site: src/main.trn:15:16-15:41 */))
+                        }, 1 /* terrane-site: src/main.trn:14:16-14:41 */))
                     );
                     let __terrane_completion_1: TerraneCompletion<()> = (|| {
                         let __terrane_try_1: TerraneCompletion<()> = (|| {
@@ -489,10 +489,10 @@ fn main() {
                                 terrane_scalar_support::scalar_text(&__terrane_raised_completion!({
                                 let __terrane_receiver = &fields; let __terrane_index =
                                 __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(-
-                                1_i128)), 2 /* terrane-site: src/main.trn:17:20-17:31 */); __terrane_receiver
+                                1_i128)), 2 /* terrane-site: src/main.trn:16:20-16:31 */); __terrane_receiver
                                 .get(__terrane_index).cloned().ok_or_else(| |
                                 terrane_collection_support::IndexError::from_usize(__terrane_index))
-                                }, 2 /* terrane-site: src/main.trn:17:20-17:31 */))
+                                }, 2 /* terrane-site: src/main.trn:16:20-16:31 */))
                             );
                             TerraneCompletion::Normal
                         })();

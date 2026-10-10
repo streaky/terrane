@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/networking import ip-address-from-string, parse-host-name, network-cancellation-token, network-cancel-operation, network-operation-options, lookup-dns
 from /core/time import clock, duration
 

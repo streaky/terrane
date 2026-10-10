@@ -1,5 +1,4 @@
 namespace type-named-field
-from /core/output import print
 
 class sample
   type string = 'declared-field'

@@ -1,6 +1,5 @@
 namespace app
 
-from /core/output import print
 from /core/logging import memory-sink, default-logger, install-dependency-bridge, drain-memory
 from /deps/observability-witness import emit_log_event, emit_tracing_event
 

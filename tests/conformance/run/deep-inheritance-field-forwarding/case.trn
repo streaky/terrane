@@ -1,5 +1,4 @@
 namespace deep-inheritance-field-forwarding
-from /core/output import print
 
 class level0
     f0 int = 0

@@ -2,7 +2,6 @@ namespace app
 
 from /deps/witness import Batch, total
 from /core/collections import list
-from /core/output import print
 
 function main;
     numbers = list; 1, 2, 3

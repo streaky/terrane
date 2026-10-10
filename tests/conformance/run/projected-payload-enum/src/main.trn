@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/terrane-payload-enum-witness import Event, Event-Named, Event-Optional, Event-Pair, NonClonePayload, OpenEvent, OwnedEvent, consume_payload, future_event, non_clone_payload
-from /core/output import print
 
 function main;
   text = Event::Text; 'hello'

@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/terrane-opaque-result-witness import choose, consume, make, serve
-from /core/output import print
 
 function identity int; value int
     return value

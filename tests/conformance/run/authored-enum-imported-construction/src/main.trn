@@ -1,7 +1,6 @@
 namespace app
 
 from /model import state as workflow-state, unit-state as command-state
-from /core/output import print
 
 function report string; value workflow-state of string
     match ref value

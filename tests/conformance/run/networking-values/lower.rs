@@ -444,8 +444,8 @@ mod __terrane_trace {
         "/core/time::interval",
     ];
     pub static SITES: [Site; 11] = [
-        /* terrane-site-row: site 0: /app::main (case.trn:24:33-24:53) */
-        { Site { function: 0, file: 0, line: 24, column: 33, end_line: 24, end_column: 53 } },
+        /* terrane-site-row: site 0: /app::main (case.trn:23:33-23:53) */
+        { Site { function: 0, file: 0, line: 23, column: 33, end_line: 23, end_column: 53 } },
         /* terrane-site-row: site 1: /core/networking::lookup-dns (core/networking.trn:328:28-328:49) */
         { Site { function: 1, file: 1, line: 328, column: 28, end_line: 328, end_column: 49 } },
         /* terrane-site-row: site 2: /core/time::multiply (core/time.trn:62:13-62:45) */
@@ -514,7 +514,7 @@ fn main() {
         timeout = Clock::terrane_static_deadline(
             __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
-                0 /* terrane-site: case.trn:24:33-24:53 */,
+                0 /* terrane-site: case.trn:23:33-23:53 */,
             ),
         );
         cancellation = NetworkCancellationToken::terrane_construct();

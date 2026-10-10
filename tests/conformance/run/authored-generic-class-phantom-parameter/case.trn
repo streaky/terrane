@@ -1,5 +1,4 @@
 namespace authored-generic-class-phantom-parameter
-from /core/output import print
 
 class holder of (T)
     count int = 0

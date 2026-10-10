@@ -1,7 +1,6 @@
 namespace authored-generic-partial-construction
 from /core/streams import byte-reader, stdin
 from /core/errors import coercion-error
-from /core/output import print
 
 class connection
     input byte-reader = stdin;

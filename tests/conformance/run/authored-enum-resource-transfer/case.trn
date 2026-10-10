@@ -1,6 +1,5 @@
 namespace authored-enum-resource-transfer
 from /core/streams import byte-reader, stdin
-from /core/output import print
 
 class connection
     input byte-reader = stdin;

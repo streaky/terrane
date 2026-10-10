@@ -1,7 +1,6 @@
 namespace app
 
 from /deps/terrane-nested-outcome-witness import Fault, channel
-from /core/output import print
 
 function inspect-next; mode int64
   connection = channel; mode

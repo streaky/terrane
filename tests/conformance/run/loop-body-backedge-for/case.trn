@@ -1,6 +1,5 @@
 namespace conformance/loop-body-backedge-for
 
-from /core/output import print
 
 function main;
     first = true

@@ -1,6 +1,5 @@
 namespace structured-logging
 
-from /core/output import print
 from /core/collections import list
 from /core/documents import document-value, make-document-string
 from /core/logging import log-value, log-field, log-event, field, secret-field, log-text, log-error, memory-sink, console-sink, failing-sink, make-logger-options, make-logger, default-logger, with-field, with-span, make-event, write-event, emit, drain-memory, drain-fallback, debug-level, info-level, info

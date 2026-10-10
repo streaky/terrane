@@ -1,6 +1,5 @@
 namespace restricted-standard-capabilities
 
-from /core/output import print
 from /core/concurrency import int-mutex
 from /core/process import process-host-name
 

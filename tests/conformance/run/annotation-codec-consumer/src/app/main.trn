@@ -1,6 +1,5 @@
 namespace annotation-codec-consumer
 
-from /core/output import print
 from /core/errors import coercion-error
 from /core/documents/json import parse-json, default-json-options, canonical-json
 from /codec-model import account, profile

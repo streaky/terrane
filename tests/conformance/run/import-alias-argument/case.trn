@@ -1,5 +1,4 @@
 namespace later-coercion-alias-argument
-from /core/output import print
 
 function main;
   value int = 100

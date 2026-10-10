@@ -463,12 +463,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:7:19-7:33) */
-        { Site { function: 0, file: 0, line: 7, column: 19, end_line: 7, end_column: 33 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:8:13-8:27) */
-        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 27 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:9:13-9:35) */
-        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 35 } },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:6:19-6:33) */
+        { Site { function: 0, file: 0, line: 6, column: 19, end_line: 6, end_column: 33 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:7:13-7:27) */
+        { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 27 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:13-8:35) */
+        { Site { function: 0, file: 0, line: 8, column: 13, end_line: 8, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]
@@ -488,7 +488,7 @@ fn main() {
     let value: Value;
     value = __terrane_raised(
         terrane_static_trn_56616c7565_new(terrane_int_support::Int::from(37_i128)),
-        0 /* terrane-site: src/main.trn:7:19-7:33 */,
+        0 /* terrane-site: src/main.trn:6:19-6:33 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -496,7 +496,7 @@ fn main() {
         contract::Doubled > ::doubled(&value))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "provider", "provider::Value::doubled")) },
-        1 /* terrane-site: src/main.trn:8:13-8:27 */))
+        1 /* terrane-site: src/main.trn:7:13-7:27 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -504,7 +504,7 @@ fn main() {
         contract::Doubled > ::doubled(&provider::Value::BASE))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "provider", "provider::Value::doubled")) },
-        2 /* terrane-site: src/main.trn:9:13-9:35 */))
+        2 /* terrane-site: src/main.trn:8:13-8:35 */))
     );
 }
 // Source: <terrane>/projected/deps/provider.trn

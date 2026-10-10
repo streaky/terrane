@@ -1,7 +1,6 @@
 namespace conformance/document-json-yaml
 # Exact numeric and safety contracts share the same Terrane document model.
 
-from /core/output import print
 from /core/documents import document-mapping, decode-document, serializable
 from /core/documents import document-value, document-map-entries
 from /core/documents import make-document-none, make-document-string, make-document-integer, make-document-decimal

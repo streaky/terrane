@@ -1,7 +1,6 @@
 namespace annotation-cli-consumer
 
 from /annotation-cli import command, command-option
-from /core/output import print
 
 /**
  * Declaration summary.

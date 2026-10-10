@@ -418,8 +418,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collection-contextual-typing::main"];
     pub static SITES: [Site; 1] = [
-        /* terrane-site-row: site 0: /collection-contextual-typing::main (case.trn:8:10-8:19) */
-        { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 19 } },
+        /* terrane-site-row: site 0: /collection-contextual-typing::main (case.trn:7:10-7:19) */
+        { Site { function: 0, file: 0, line: 7, column: 10, end_line: 7, end_column: 19 } },
     ];
     #[cold]
     #[inline(never)]
@@ -451,7 +451,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(narrow
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:8:10-8:19 */)), 0 /* terrane-site: case.trn:8:10-8:19 */))
+        0 /* terrane-site: case.trn:7:10-7:19 */)), 0 /* terrane-site: case.trn:7:10-7:19 */))
     );
     if found.is_some() {
         println!(

@@ -1,6 +1,5 @@
 namespace app
 from /deps/terrane-sink-witness import duplex, drain_slowly, remotely_closed_sink, blocked_sink, queue_sink, Outgoing, Incoming
-from /core/output import print
 
 async function consume string; incoming Incoming
   return await drain_slowly; incoming

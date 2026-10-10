@@ -1,6 +1,5 @@
 namespace sample
 
-from /core/output import print
 
 private constant secret = 7
 public constant answer = 42

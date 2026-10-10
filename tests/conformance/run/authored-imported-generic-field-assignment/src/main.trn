@@ -3,7 +3,6 @@ namespace app
 from /model import state as workflow-state
 from /wrapper import job
 from /core/collections import list
-from /core/output import print
 
 function finish workflow-state of int; amount int
     return instance workflow-state::completed; value = amount

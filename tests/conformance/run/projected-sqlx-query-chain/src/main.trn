@@ -4,7 +4,6 @@ from /deps/sqlx-core import Error
 from /deps/sqlx-core/query import query
 from /deps/sqlx-sqlite import SqliteConnectOptions
 from /deps/sqlx-sqlite import SqliteRow
-from /core/output import print
 
 async function main;
   options = SqliteConnectOptions::new;

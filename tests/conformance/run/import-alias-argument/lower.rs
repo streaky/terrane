@@ -418,8 +418,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/later-coercion-alias-argument::main"];
     pub static SITES: [Site; 1] = [
-        /* terrane-site-row: site 0: /later-coercion-alias-argument::main (case.trn:6:11-6:16) */
-        { Site { function: 0, file: 0, line: 6, column: 11, end_line: 6, end_column: 16 } },
+        /* terrane-site-row: site 0: /later-coercion-alias-argument::main (case.trn:5:11-5:16) */
+        { Site { function: 0, file: 0, line: 5, column: 11, end_line: 5, end_column: 16 } },
     ];
     #[cold]
     #[inline(never)]
@@ -441,6 +441,6 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::coerce::
-        < i8 > (&value), 0 /* terrane-site: case.trn:6:11-6:16 */))
+        < i8 > (&value), 0 /* terrane-site: case.trn:5:11-5:16 */))
     );
 }

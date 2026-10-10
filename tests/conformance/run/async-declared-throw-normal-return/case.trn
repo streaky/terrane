@@ -1,7 +1,6 @@
 namespace sample
 
 from /core/errors import throwable
-from /core/output import print
 
 async function quiet none throws throwable;
   observed int = 42

@@ -1,7 +1,6 @@
 namespace app
 
 from /core/errors import index-error
-from /core/output import print
 
 function selected-index int;
     print; 'index evaluated'
