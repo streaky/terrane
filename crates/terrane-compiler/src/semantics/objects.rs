@@ -2721,7 +2721,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     let bindings = crate::compilation_progress::start("refreshing inferred bindings", &target);
     collect_initial_typed_bindings(package)?;
     bindings.finish();
-    let native = crate::compilation_progress::start("normalizing native constructors", &target);
+    let native = crate::compilation_progress::start("normalizing native type contracts", &target);
     super::native_constructors::normalize_contracts(package)?;
     native.finish();
     let specialization =

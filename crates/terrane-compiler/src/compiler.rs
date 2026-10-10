@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+mod cache;
 use crate::{
     AuthoredRustModule, Diagnostic, Package, RustDependency, ScalarType, SourceFile, Span,
     rust_ir::{RenderedFile, SourceAssociation},
@@ -8,7 +9,7 @@ use crate::{
     testing::{TestCase, TestPackage, TestTier, TestTierDiscovery},
 };
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
 pub enum DebugBuild {
     #[default]
     Disabled,
@@ -35,7 +36,7 @@ impl DebugBuild {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
     pub lint_name_style: bool,
@@ -47,7 +48,7 @@ pub struct CompilerOptions {
     clippy::struct_excessive_bools,
     reason = "compilation requirements are independent build facts"
 )]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Compilation {
     pub source: SourceFile,
     pub sources: Vec<SourceFile>,
@@ -66,9 +67,11 @@ pub struct Compilation {
     pub requires_blocking_runtime: bool,
     pub requires_runtime_sync: bool,
     pub requires_unsafe_code: bool,
+    #[serde(with = "cache::warnings")]
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
     pub dependency_containment: crate::rust_interop::projection::Containment,
+    native_dependency_identity: Option<String>,
     debug_symbols: Option<crate::debugging::DebugSymbols>,
     authored_rust_modules: Vec<AuthoredRustModule>,
 }
@@ -129,6 +132,13 @@ fn compilation_sources(
 }
 
 impl Compilation {
+    /// Exact resolved native input identity, including local dependency source contents.
+    ///
+    /// Native artifact caches must include this even when generated Rust is unchanged.
+    pub fn native_dependency_identity(&self) -> Option<&str> {
+        self.native_dependency_identity.as_deref()
+    }
+
     fn rendered_files_for(
         &self,
         entrypoint: &Path,
@@ -491,17 +501,32 @@ fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, Co
         }
         return Ok(None);
     }
-    let declarations = crate::compilation_progress::start(
-        "analyzing declarations for consumers",
-        &package.identity,
-    );
-    let semantic =
-        semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
-            source: failure.source,
-            diagnostics: failure.diagnostics,
-        })?;
-    declarations.finish();
-    let generated = crate::consumers::run(package, &semantic)?;
+    let key = cache::key(package, CompilerOptions::default());
+    let cached: Option<Vec<semantics::DeclarationMetadata>> = key
+        .as_deref()
+        .and_then(|key| cache::load(&package.root, "declarations", key));
+    let declarations = if let Some(declarations) = cached {
+        crate::compilation_progress::note("reusing declaration metadata", &package.identity);
+        declarations
+    } else {
+        let progress = crate::compilation_progress::start(
+            "analyzing declarations for consumers",
+            &package.identity,
+        );
+        let semantic =
+            semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
+                source: failure.source,
+                diagnostics: failure.diagnostics,
+            })?;
+        let declarations = semantic.declarations().cloned().collect::<Vec<_>>();
+        progress.finish();
+        if let Some(key) = cache::key(package, CompilerOptions::default()) {
+            cache::store(&package.root, "declarations", &key, &declarations);
+        }
+        declarations
+    };
+    // Execute arbitrary consumers every time and key compilation on their actual output.
+    let generated = crate::consumers::run(package, &declarations)?;
     let mut expanded = package.clone();
     crate::consumers::add_generated_sources(&mut expanded, generated)?;
     if expanded.units.len() == package.units.len() {
@@ -548,7 +573,18 @@ pub fn compile_package_with_options(
         crate::compilation_progress::start("preparing declaration consumers", &package.identity);
     let prepared = prepare_package_for_analysis(package)?;
     preparation.finish();
-    compile_package_without_consumers(prepared.as_ref().unwrap_or(package), options)
+    let package = prepared.as_ref().unwrap_or(package);
+    if let Some(key) = cache::key(package, options)
+        && let Some(compilation) = cache::load(&package.root, "compilation", &key)
+    {
+        crate::compilation_progress::note("reusing unchanged compilation", &package.identity);
+        return Ok(compilation);
+    }
+    let compilation = compile_package_without_consumers(package, options)?;
+    if let Some(key) = cache::key(package, options) {
+        cache::store(&package.root, "compilation", &key, &compilation);
+    }
+    Ok(compilation)
 }
 
 fn compile_package_without_consumers(
@@ -625,6 +661,8 @@ fn compile_analyzed_package(
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
+        native_dependency_identity: (!semantic.projection.dependencies.is_empty())
+            .then(|| semantic.projection.cache_identity.clone()),
         authored_rust_modules: package.authored_rust_modules.clone(),
     })
 }
@@ -915,6 +953,8 @@ pub fn compile_discovered_test_tier(
         warnings,
         rust_dependencies,
         dependency_containment: semantic.projection.containment,
+        native_dependency_identity: (!semantic.projection.dependencies.is_empty())
+            .then(|| semantic.projection.cache_identity.clone()),
     };
     Ok(crate::testing::TestTierCompilation {
         tier,

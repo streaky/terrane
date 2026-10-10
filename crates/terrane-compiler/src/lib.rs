@@ -1,4 +1,5 @@
 mod bundled;
+mod cache_identity;
 mod compilation_progress;
 mod compiler;
 mod consumers;

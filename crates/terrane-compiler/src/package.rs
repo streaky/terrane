@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 pub const MANIFEST_FILE_NAME: &str = "package.toml";
 pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SourceRole {
     Production,
     UnitTest,
@@ -34,7 +34,7 @@ impl SourceUnit {
         self.relative_path.to_string_lossy().replace('\\', "/")
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AuthoredRustModule {
     pub name: String,
     /// Normalized path relative to [`Package::root`].
@@ -120,7 +120,7 @@ impl CapabilityProfile {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RustDependency {
     pub name: String,
     pub package: String,

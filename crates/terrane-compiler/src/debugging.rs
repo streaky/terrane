@@ -161,7 +161,7 @@ pub struct DebugInformation {
     pub objects: Vec<DebugObject>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct DebugSymbols {
     sources: Vec<SourceIdentity>,
     functions: Vec<DebugFunction>,

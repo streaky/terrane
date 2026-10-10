@@ -210,7 +210,7 @@ impl SemanticPackage {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ElementType(Box<ValueType>);
 
 impl ElementType {
@@ -487,7 +487,7 @@ pub(super) fn iteration_target_bindings(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct ObjectIdentity {
     pub namespace: String,
     pub name: String,
@@ -691,7 +691,7 @@ impl PartialOrd for ObjectIdentity {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CallableModes {
     pub written: InvocationMode,
     pub exact: InvocationMode,
@@ -713,7 +713,7 @@ impl CallableModes {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CallableEffects {
     pub modes: CallableModes,
     pub upper_bound: Option<Box<ValueType>>,
@@ -754,7 +754,7 @@ impl CallableEffects {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum TaskTransferability {
     Local,
     /// The projected Rust future is required to be `Send`; generated Rust compilation proves it.
@@ -762,7 +762,7 @@ pub enum TaskTransferability {
     Transferable,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CallableParameterType {
     value_type: ElementType,
     variadic: bool,
@@ -819,7 +819,7 @@ impl CallableParameterType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum ValueType {
     Scalar(ScalarType),
     /// Canonically ordered alternatives produced by control-flow joins.
@@ -997,7 +997,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum TextUnit {
     Bytes,
     Scalars,

@@ -48,18 +48,17 @@ pub struct Program {
     pub modules: Vec<Module>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RenderedFile {
     pub path: String,
     pub contents: String,
     pub associations: Vec<SourceAssociation>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct RenderedProgram {
-    version: &'static str,
-    runtime_source_files: Vec<&'static str>,
-
+    version: std::borrow::Cow<'static, str>,
+    runtime_source_files: Vec<std::borrow::Cow<'static, str>>,
     support: RenderedFragment,
     standalone: RenderedFragment,
     application: RenderedFragment,
@@ -269,7 +268,7 @@ pub(crate) fn instantiate_rust_generics(
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 struct RenderedFragment {
     contents: String,
     associations: Vec<SourceAssociation>,
@@ -282,13 +281,12 @@ pub struct GeneratedModule {
     pub items: Vec<Item>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SourceAssociation {
     pub generated_start: usize,
     pub generated_end: usize,
     pub source: Span,
 }
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ModuleDestination {
     Support,
@@ -845,8 +843,8 @@ impl RenderedProgram {
         output
     }
 
-    fn runtime_source_files(&self) -> impl Iterator<Item = &'static str> + '_ {
-        self.runtime_source_files.iter().copied()
+    fn runtime_source_files(&self) -> impl Iterator<Item = &str> + '_ {
+        self.runtime_source_files.iter().map(|file| file.as_ref())
     }
 
     pub(crate) fn files(&self, entrypoint: &std::path::Path) -> Result<Vec<RenderedFile>, String> {
@@ -1005,8 +1003,9 @@ impl Program {
                 .runtime
                 .iter()
                 .flat_map(|module| module.source_files.iter().copied())
+                .map(std::borrow::Cow::Borrowed)
                 .collect(),
-            version: self.version,
+            version: self.version.into(),
             standalone: RenderedFragment {
                 contents: standalone,
                 associations: standalone_associations,

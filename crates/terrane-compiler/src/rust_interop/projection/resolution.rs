@@ -1,4 +1,5 @@
 //! Owns the end-to-end Rust dependency resolution transaction.
+use sha2::{Digest, Sha256};
 /// Resolves every declared Rust package and derives the shared Terrane projection.
 ///
 use std::collections::{BTreeMap, BTreeSet};
@@ -62,10 +63,8 @@ pub fn resolve(
     // review-visible bound-owner edges are injected. Once such edges exist, Cargo cannot accept
     // that deliberate manifest rewrite under `--locked`; offline resolution plus exact pins and
     // the projection content hash preserve the already-resolved graph without network drift.
-    // Path-dependency source and package-metadata contents are deliberately outside this identity:
-    // changing either without changing the consumer manifest or lock requires clearing the
-    // projection cache. Namespace-overlay metadata follows that existing invalidation boundary so
-    // warm cache hits remain metadata-free.
+    // Local path/patch source content participates in the identity as well as manifest/lock
+    // inputs: a same-version dependency edit must not reuse old projected contracts.
     let workspace = root.join(".trn/dependencies");
     let dependency_workspace =
         crate::compilation_progress::start("preparing dependency workspace", root.display());
@@ -99,6 +98,21 @@ pub fn resolve(
     let cache_check =
         crate::compilation_progress::start("validating projection cache", root.display());
     let (identity, target) = cache_identity(root, &workspace, dependencies, demands, sandbox)?;
+    let local_sources = crate::cache_identity::local_rust_sources(&workspace)
+        .map_err(|message| ProjectionError { message })?;
+    let mut source_identity = Sha256::new();
+    source_identity.update((identity.len() as u64).to_le_bytes());
+    source_identity.update(identity.as_bytes());
+    source_identity.update((local_sources.len() as u64).to_le_bytes());
+    source_identity.update(local_sources.as_bytes());
+    let identity = format!("{:x}", source_identity.finalize());
+    fs::write(
+        workspace.join("local-source-identity"),
+        local_sources.as_bytes(),
+    )
+    .map_err(|error| ProjectionError {
+        message: error.to_string(),
+    })?;
     let cache_path = workspace.join("projection.json");
     if let Ok(bytes) = fs::read(&cache_path) {
         let matches_identity = serde_json::from_slice::<ProjectionCacheIdentity<'_>>(&bytes)

@@ -1,7 +1,9 @@
 use std::fmt;
 
 /// Scalar types supported by the first Terrane compiler.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize,
+)]
 pub enum ScalarType {
     Bool,
     Int,

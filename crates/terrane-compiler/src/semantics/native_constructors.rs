@@ -1,8 +1,10 @@
-use std::collections::BTreeMap;
+#[path = "native_cache.rs"]
+mod cache;
 
 use super::model::{ObjectIdentity, SemanticPackage, ValueType};
 use super::objects::closed_projected_value_type;
 use crate::Span;
+use std::collections::BTreeMap;
 
 fn projected_contract<'a>(
     projection: &'a crate::rust_interop::projection::Projection,
@@ -130,6 +132,18 @@ pub(super) fn normalize_contracts(
             }
         }
     }
+    let target = crate::compilation_progress::owned_target(package.root.display());
+    let context = cache::query_key(&(
+        &package.projection.cache_identity,
+        &package.projection.dependencies,
+        &package.projection.native_owner_aliases,
+        package.projection.containment,
+        &package.projection.bound_dependencies,
+        &package.projection.removed,
+    ));
+    let mut native_cache = cache::NativeCache::load(&package.root, context);
+    let selection_gathering =
+        crate::compilation_progress::start("native selection gathering", &target);
     let mut selections = package
         .units
         .iter()
@@ -154,7 +168,8 @@ pub(super) fn normalize_contracts(
             {
                 return None;
             }
-            let ValueType::Object(selected) = closed_projected_value_type(package, &projected)?
+            let ValueType::Object(selected) =
+                cached_closed_projected_value_type(&mut native_cache, package, &projected)?
             else {
                 return None;
             };
@@ -262,7 +277,10 @@ pub(super) fn normalize_contracts(
         }
     }
 
+    selection_gathering.finish();
+    let bounds_validation = crate::compilation_progress::start("native bound validation", &target);
     validate_native_nominal_bounds(package, &selections, &sites)?;
+    bounds_validation.finish();
     for (unit_index, span, mut value_type) in written_types {
         normalize_type(&mut value_type, &selections);
         package.units[unit_index]
@@ -270,6 +288,8 @@ pub(super) fn normalize_contracts(
             .insert((span.file, span.start, span.end), value_type);
     }
     let mut signatures = Vec::new();
+    let projected_signature_reconciliation =
+        crate::compilation_progress::start("projected signature reconciliation", &target);
     for (unit_index, unit) in package.units.iter().enumerate() {
         for (function_index, function) in unit.functions.iter().enumerate() {
             let projected = projected_contract(&package.projection, &unit.namespace, function);
@@ -284,6 +304,7 @@ pub(super) fn normalize_contracts(
             {
                 if let Some(current) = &parameter.value_type
                     && let Some(mut selected) = selected_signature_type(
+                        &mut native_cache,
                         package,
                         current,
                         &native.ty,
@@ -298,14 +319,22 @@ pub(super) fn normalize_contracts(
                 }
             }
             if let Some(current) = &function.return_type
-                && let Some(mut selected) =
-                    selected_signature_type(package, current, &projected.result, None)
+                && let Some(mut selected) = selected_signature_type(
+                    &mut native_cache,
+                    package,
+                    current,
+                    &projected.result,
+                    None,
+                )
             {
                 normalize_type(&mut selected, &selections);
                 signatures.push((unit_index, function_index, None, selected));
             }
         }
     }
+    projected_signature_reconciliation.finish();
+    let contract_propagation =
+        crate::compilation_progress::start("native contract propagation", &target);
     // Fields are initially parsed before imported generic declarations are available.
     // Publish their final written types to both declarations and imported descriptor copies.
     let field_types = package
@@ -376,13 +405,21 @@ pub(super) fn normalize_contracts(
     }
     super::analysis::populate_function_aliases(package);
     super::analysis::populate_object_aliases(package);
-    populate_applied_native_signatures(package)?;
+    contract_propagation.finish();
+    let applied_signature_reconciliation =
+        crate::compilation_progress::start("applied native signatures", &target);
+    populate_applied_native_signatures(package, &mut native_cache)?;
+    applied_signature_reconciliation.finish();
+    let capability_proofs = crate::compilation_progress::start("native capability proofs", &target);
     super::capabilities::populate_native_capabilities(package)?;
+    capability_proofs.finish();
+    native_cache.finish();
     Ok(())
 }
 
 fn populate_applied_native_signatures(
     package: &mut SemanticPackage,
+    native_cache: &mut cache::NativeCache,
 ) -> Result<(), super::model::SemanticFailure> {
     use crate::syntax::{SyntaxKind, SyntaxNode};
 
@@ -453,9 +490,15 @@ fn populate_applied_native_signatures(
                 if resolved.is_some_and(|resolved| resolved.span != contract.span) {
                     continue;
                 }
-                if let Some(selected) =
-                    applied_native_signature(package, unit, node, contract, native, &owner)?
-                {
+                if let Some(selected) = applied_native_signature(
+                    native_cache,
+                    package,
+                    unit,
+                    node,
+                    contract,
+                    native,
+                    &owner,
+                )? {
                     selections.push((unit_index, node.span, contract.span, selected));
                 }
             }
@@ -472,6 +515,7 @@ fn populate_applied_native_signatures(
 }
 
 fn applied_native_signature(
+    native_cache: &mut cache::NativeCache,
     package: &SemanticPackage,
     unit: &super::model::SemanticUnit,
     application: &crate::syntax::SyntaxNode,
@@ -526,7 +570,7 @@ fn applied_native_signature(
     if result.contains_open_generic() {
         return Ok(None);
     }
-    let Some(result) = closed_projected_value_type(package, &result) else {
+    let Some(result) = cached_closed_projected_value_type(native_cache, package, &result) else {
         return Ok(None);
     };
     let parameters = contract
@@ -540,6 +584,7 @@ fn applied_native_signature(
                 .as_ref()
                 .map(|associated| specialize(&associated.ty));
             let selected = selected_signature_type(
+                native_cache,
                 package,
                 &current,
                 &specialize(&native.ty),
@@ -562,7 +607,105 @@ fn applied_native_signature(
     }))
 }
 
+fn cacheable_native_selection_input(value_type: &ValueType) -> bool {
+    fn identity(value: &ObjectIdentity) -> bool {
+        value
+            .application
+            .as_deref()
+            .is_none_or(cacheable_native_selection_input)
+            && value
+                .type_arguments
+                .iter()
+                .all(cacheable_native_selection_input)
+            && value
+                .native_arguments
+                .values()
+                .all(cacheable_native_selection_input)
+    }
+    match value_type {
+        ValueType::InvocationScopedNative { region, family, .. } => {
+            region.is_none() && identity(family)
+        }
+        ValueType::Object(value) => identity(value),
+        ValueType::Union(values) => values.iter().all(cacheable_native_selection_input),
+        ValueType::Optional(value) => cacheable_native_selection_input(value),
+        ValueType::Reference(value)
+        | ValueType::SharedReference(value)
+        | ValueType::List(value)
+        | ValueType::Set(value)
+        | ValueType::UnorderedSet(value)
+        | ValueType::Iterator(value)
+        | ValueType::IterationStep(value)
+        | ValueType::AsyncIterationStep(value)
+        | ValueType::ChannelPair(value)
+        | ValueType::ChannelSender(value)
+        | ValueType::ChannelReceiver(value)
+        | ValueType::ChannelSendOutcome(value)
+        | ValueType::ChannelReceiveOutcome(value)
+        | ValueType::DocumentDecodeOutcome(value)
+        | ValueType::Task(value, _)
+        | ValueType::ScopedTask(value, _)
+        | ValueType::TaskOutcome(value)
+        | ValueType::Tuple(value, _) => cacheable_native_selection_input(value.value_type_ref()),
+        ValueType::Map(key, value)
+        | ValueType::UnorderedMap(key, value)
+        | ValueType::Entry(key, value) => {
+            cacheable_native_selection_input(key.value_type_ref())
+                && cacheable_native_selection_input(value.value_type_ref())
+        }
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
+            parameters
+                .iter()
+                .all(|parameter| cacheable_native_selection_input(parameter.value_type_ref()))
+                && cacheable_native_selection_input(result.value_type_ref())
+        }
+        _ => true,
+    }
+}
+
+fn cached_closed_projected_value_type(
+    native_cache: &mut cache::NativeCache,
+    package: &SemanticPackage,
+    projected: &crate::rust_interop::projection::ProjectedType,
+) -> Option<ValueType> {
+    let key = cache::query_key(&(1_u32, projected));
+    if let Some(value) = native_cache.get(&key) {
+        return value;
+    }
+    let value = closed_projected_value_type(package, projected);
+    native_cache.insert(key, value.clone());
+    value
+}
+
 fn selected_signature_type(
+    native_cache: &mut cache::NativeCache,
+    package: &SemanticPackage,
+    current: &ValueType,
+    projected: &crate::rust_interop::projection::ProjectedType,
+    associated: Option<&crate::rust_interop::projection::ProjectedType>,
+) -> Option<ValueType> {
+    if !cacheable_native_selection_input(current) {
+        return selected_signature_type_uncached(
+            native_cache,
+            package,
+            current,
+            projected,
+            associated,
+        );
+    }
+    let key = cache::query_key(&(2_u32, current, projected, associated));
+    if let Some(value) = native_cache.get(&key) {
+        return value;
+    }
+    let value =
+        selected_signature_type_uncached(native_cache, package, current, projected, associated);
+    native_cache.insert(key, value.clone());
+    value
+}
+
+fn selected_signature_type_uncached(
+    native_cache: &mut cache::NativeCache,
     package: &SemanticPackage,
     current: &ValueType,
     projected: &crate::rust_interop::projection::ProjectedType,
@@ -570,8 +713,13 @@ fn selected_signature_type(
 ) -> Option<ValueType> {
     use crate::rust_interop::projection::{ProjectedKind, ProjectedType};
     if let ValueType::Reference(inner) | ValueType::SharedReference(inner) = current {
-        let selected =
-            selected_signature_type(package, inner.value_type_ref(), projected, associated)?;
+        let selected = selected_signature_type(
+            native_cache,
+            package,
+            inner.value_type_ref(),
+            projected,
+            associated,
+        )?;
         let element = super::model::ElementType::new(selected);
         return Some(if matches!(current, ValueType::Reference(_)) {
             ValueType::Reference(element)
@@ -586,7 +734,7 @@ fn selected_signature_type(
             .is_some_and(|item| matches!(item.kind, ProjectedKind::Interface(_)))
     {
         return Some(ValueType::Object(identity.clone().with_application(
-            closed_projected_value_type(package, associated)?,
+            cached_closed_projected_value_type(native_cache, package, associated)?,
         )));
     }
     if matches!(current, ValueType::InvocationScopedNative { .. }) {
@@ -621,12 +769,15 @@ fn selected_signature_type(
         return Some(current.clone());
     }
     if let ProjectedType::BoxedInterface { .. } = projected
-        && let Some(normalized) = closed_projected_value_type(package, projected)
+        && let Some(normalized) =
+            cached_closed_projected_value_type(native_cache, package, projected)
     {
         return match (normalized, associated) {
-            (ValueType::Object(identity), Some(associated)) => Some(ValueType::Object(
-                identity.with_application(closed_projected_value_type(package, associated)?),
-            )),
+            (ValueType::Object(identity), Some(associated)) => {
+                Some(ValueType::Object(identity.with_application(
+                    cached_closed_projected_value_type(native_cache, package, associated)?,
+                )))
+            }
             (normalized, _) => Some(normalized),
         };
     }
@@ -648,7 +799,7 @@ fn selected_signature_type(
         // Preserve authored nominal contracts; projected interface applications are normalized above.
         return Some(current.clone());
     }
-    closed_projected_value_type(package, projected)
+    cached_closed_projected_value_type(native_cache, package, projected)
 }
 
 fn collect_written_native_selections(

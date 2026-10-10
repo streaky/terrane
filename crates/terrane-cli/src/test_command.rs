@@ -500,6 +500,7 @@ fn build_native_compilation(
         compilation.dependency_containment,
         terrane_compiler::ArtifactKind::Executable,
         crate::CargoProfile::Debug,
+        compilation.native_dependency_identity(),
     )?
     .ok_or_else(|| CliFailure::backend("native build produced no executable".to_owned()))
 }

@@ -40,7 +40,7 @@ struct ConsumerDiagnostic {
 
 pub(crate) fn run(
     package: &Package,
-    semantic: &crate::SemanticPackage,
+    declarations: &[crate::semantics::DeclarationMetadata],
 ) -> Result<Vec<(String, String)>, crate::CompilationFailure> {
     let fallback = fallback_span(package);
     let mut generated = Vec::new();
@@ -57,7 +57,7 @@ pub(crate) fn run(
             ));
         }
         let (available, external_sources) =
-            prepare_declarations(package, semantic, config, fallback)?;
+            prepare_declarations(package, declarations, config, fallback)?;
         let input = consumer_input(package, config, &available, fallback)?;
         let progress = crate::compilation_progress::start(
             "running declaration consumer",
@@ -211,7 +211,7 @@ fn execute_consumer(
 }
 fn prepare_declarations(
     package: &Package,
-    semantic: &crate::SemanticPackage,
+    declarations: &[crate::semantics::DeclarationMetadata],
     config: &crate::package::ConsumerConfig,
     fallback: Span,
 ) -> Result<(DeclarationMap, ExternalSources), crate::CompilationFailure> {
@@ -219,7 +219,7 @@ fn prepare_declarations(
     let mut external_sources =
         std::collections::BTreeMap::<u32, (std::path::PathBuf, usize)>::new();
     let mut next_external_file = u32::MAX;
-    for declaration in semantic.declarations() {
+    for declaration in declarations {
         if available
             .insert(declaration.identity.clone(), declaration.clone())
             .is_some()
