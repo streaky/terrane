@@ -491,11 +491,16 @@ fn prepare_package_for_analysis(package: &Package) -> Result<Option<Package>, Co
         }
         return Ok(None);
     }
+    let declarations = crate::compilation_progress::start(
+        "analyzing declarations for consumers",
+        &package.identity,
+    );
     let semantic =
         semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
             source: failure.source,
             diagnostics: failure.diagnostics,
         })?;
+    declarations.finish();
     let generated = crate::consumers::run(package, &semantic)?;
     let mut expanded = package.clone();
     crate::consumers::add_generated_sources(&mut expanded, generated)?;
@@ -539,7 +544,10 @@ pub fn compile_package_with_options(
     package: &Package,
     options: CompilerOptions,
 ) -> Result<Compilation, CompilationFailure> {
+    let preparation =
+        crate::compilation_progress::start("preparing declaration consumers", &package.identity);
     let prepared = prepare_package_for_analysis(package)?;
+    preparation.finish();
     compile_package_without_consumers(prepared.as_ref().unwrap_or(package), options)
 }
 
@@ -547,7 +555,9 @@ fn compile_package_without_consumers(
     package: &Package,
     options: CompilerOptions,
 ) -> Result<Compilation, CompilationFailure> {
+    let analysis = crate::compilation_progress::start("semantic analysis", &package.identity);
     let semantic = analyze_prepared_package(package)?;
+    analysis.finish();
     compile_analyzed_package(package, &semantic, options)
 }
 
@@ -556,6 +566,7 @@ fn compile_analyzed_package(
     semantic: &semantics::SemanticPackage,
     options: CompilerOptions,
 ) -> Result<Compilation, CompilationFailure> {
+    let lowering = crate::compilation_progress::start("lowering to Rust", &package.identity);
     let (source, entry_span) = package_entry(semantic, package)?;
     let sources = compilation_sources(semantic, package);
     let warnings = collect_warnings(semantic, options)
@@ -573,14 +584,20 @@ fn compile_analyzed_package(
     let mut rust_ir = crate::lowering::lower(semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(semantic, failure))?;
     bind_tokio_runtime_alias(&mut rust_ir, &rust_dependencies, false);
+    lowering.finish();
+    let rendering = crate::compilation_progress::start("rendering Rust", &package.identity);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);
     standalone_file.contents.push_str(&embedded_authored_rust);
+    rendering.finish();
     if options.require_canonical_rust {
+        let validation =
+            crate::compilation_progress::start("validating canonical Rust", &package.identity);
         let canonical_files =
             canonical_authored_rust_files(standalone_file.clone(), &package.authored_rust_modules);
         validate_canonical_rust(&canonical_files, &sources, source, entry_span)?;
+        validation.finish();
     }
     let rust = standalone_file.contents.clone();
     let mut review_rust = rendered_rust.review_file();

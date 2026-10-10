@@ -1,0 +1,3 @@
+[term.progress]
+when = "always"
+width = 80

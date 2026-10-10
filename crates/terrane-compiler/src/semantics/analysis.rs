@@ -382,20 +382,24 @@ pub(super) fn parse_unit(
 }
 
 fn parse_authored_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
-    package
-        .units
-        .iter()
-        .map(|unit| {
-            parse_unit(
-                &unit.source,
-                unit.relative_path_text(),
-                unit.expected_namespace.as_deref(),
-                unit.prelude,
-                false,
-                unit.role,
-            )
-        })
-        .collect()
+    let mut units = Vec::with_capacity(package.units.len());
+    for unit in &package.units {
+        let stage = crate::compilation_progress::start(
+            "parsing authored source",
+            unit.source.path().display(),
+        );
+        let parsed = parse_unit(
+            &unit.source,
+            unit.relative_path_text(),
+            unit.expected_namespace.as_deref(),
+            unit.prelude,
+            false,
+            unit.role,
+        )?;
+        stage.finish();
+        units.push(parsed);
+    }
+    Ok(units)
 }
 fn validate_generated_projection_units(
     package: &Package,
@@ -500,11 +504,28 @@ fn persist_projection_inventory(
         })
 }
 
+fn augment_units_with_projection(
+    package: &Package,
+    projection: &crate::rust_interop::projection::Projection,
+    units: Vec<SemanticUnit>,
+    persist_inventory: bool,
+) -> Result<Vec<SemanticUnit>, SemanticFailure> {
+    let stage = crate::compilation_progress::start(
+        "projecting dependency declarations and imports",
+        package.root.display(),
+    );
+    let result = augment_units_with_projection_inner(package, projection, units, persist_inventory);
+    if result.is_ok() {
+        stage.finish();
+    }
+    result
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "unit projection applies removals and destination metadata atomically"
 )]
-fn augment_units_with_projection(
+fn augment_units_with_projection_inner(
     package: &Package,
     projection: &crate::rust_interop::projection::Projection,
     mut units: Vec<SemanticUnit>,
@@ -822,7 +843,12 @@ fn dependency_projection(
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
     let demands = dependency_demands_from_units(&units)?;
+    let stage = crate::compilation_progress::start(
+        "resolving dependency projection",
+        package.root.display(),
+    );
     let projection = dependency_projection(package, &demands)?;
+    stage.finish();
     analyze_parsed_with_projection(package, projection, units, true, false)
 }
 
@@ -856,6 +882,10 @@ fn analyze_parsed_with_projection(
     declarations_only: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
     let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
+    let declarations = crate::compilation_progress::start(
+        "resolving namespaces, declarations, and imports",
+        package.root.display(),
+    );
     for unit in &mut units {
         unit.comparable_foreign_objects = projection
             .dependencies
@@ -1194,14 +1224,26 @@ fn analyze_parsed_with_projection(
         import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
+    declarations.finish();
     if declarations_only {
+        let declarations = crate::compilation_progress::start(
+            "preparing consumer declaration metadata",
+            package.root.display(),
+        );
         super::objects::prepare_type_declarations(&mut semantic)?;
         super::annotations::populate_declaration_metadata(&mut semantic)?;
+        declarations.finish();
         return Ok(semantic);
     }
+    let stage = crate::compilation_progress::start("type inference", package.root.display());
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    stage.finish();
+    let references = crate::compilation_progress::start(
+        "validating references and enum matches",
+        package.root.display(),
+    );
     // Reaching facts resolve loop-carried locals before source-order name checks.
     validate_references(&semantic)?;
     super::enums::validate_enum_matches(&mut semantic)?;
@@ -1221,15 +1263,23 @@ fn analyze_parsed_with_projection(
             }
         }
     }
+    references.finish();
+    let stage = crate::compilation_progress::start(
+        "ownership, provenance, and effects",
+        package.root.display(),
+    );
     validate_shared_ownership_cycles(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     analyze_reference_provenance(&mut semantic)?;
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
+    stage.finish();
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
     record_binding_mutability(&mut semantic);
     populate_function_aliases(&mut semantic);
+    let stage =
+        crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
@@ -1255,6 +1305,7 @@ fn analyze_parsed_with_projection(
     }
     record_function_references(&mut semantic);
     super::annotations::populate_declaration_metadata(&mut semantic)?;
+    stage.finish();
     Ok(semantic)
 }
 

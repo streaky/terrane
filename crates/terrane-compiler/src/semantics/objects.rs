@@ -2703,16 +2703,33 @@ pub(super) fn prepare_type_declarations(
 }
 
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    let target = crate::compilation_progress::owned_target(package.root.display());
+    let stage = crate::compilation_progress::start("preparing type declarations", &target);
     prepare_type_declarations(package)?;
     validate_closed_projected_types(package)?;
     validate_descriptor_value_uses(package)?;
+    stage.finish();
 
+    let stage = crate::compilation_progress::start("inferring source types", &target);
+    let bindings = crate::compilation_progress::start("inferring initial bindings", &target);
     collect_initial_typed_bindings(package)?;
+    bindings.finish();
+    let projected = crate::compilation_progress::start("inferring projected call results", &target);
     super::enums::validate_enum_constructions(package)?;
     populate_projected_call_result_types(package)?;
+    projected.finish();
+    let bindings = crate::compilation_progress::start("refreshing inferred bindings", &target);
     collect_initial_typed_bindings(package)?;
+    bindings.finish();
+    let native = crate::compilation_progress::start("normalizing native constructors", &target);
     super::native_constructors::normalize_contracts(package)?;
+    native.finish();
+    let specialization =
+        crate::compilation_progress::start("specializing projected results", &target);
     specialize_projected_results(package)?;
+    specialization.finish();
+    let validation =
+        crate::compilation_progress::start("validating source type contracts", &target);
     for unit in &package.units {
         validate_invocation_only_members(unit)?;
     }
@@ -2721,6 +2738,8 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_closure_captures(package);
     infer_and_validate_invocation_modes(package)?;
     validate_object_conformance(package)?;
+    validation.finish();
+    stage.finish();
     Ok(())
 }
 pub(super) fn collect_initial_typed_bindings(
