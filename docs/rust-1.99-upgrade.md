@@ -73,6 +73,8 @@ Strict schema checks and toolchain/format cache identities remain in place. Revi
 
 The final unfiltered workspace outcome, revision, rustc identity and individual timings are recorded in the latest entry of [`test-scoreboard.yaml`](test-scoreboard.yaml) and the published test scoreboard. Golden updates are disabled for that verification run. Failed exploratory runs remain scorecard provenance rather than release instructions.
 
+Final unfiltered result on implementation revision **`d2a6a4db`**, using **Rust 1.99.0**: **1,656 passed, 0 failed, 0 ignored; exit code 0**. Cargo elapsed time was approximately **17m 48s**. This includes the complete conformance corpus, generated warning-denied Rust, CLI/debugger/profiler integrations, language-server tests, runtime support and doc-tests. Workspace formatting and Clippy with `-D warnings` also passed before this run.
+
 Tracked regressions exercise:
 
 - `c-variadic-callsite-unavailable`: an actual foreign C declaration rejects at the unsafe call site with `S2029`, not an unsafe-permission or unused-import diagnostic.
