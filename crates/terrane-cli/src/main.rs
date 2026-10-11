@@ -1318,27 +1318,22 @@ fn append_build_profiles(manifest: &mut String, panic: terrane_compiler::PanicPr
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }
 
-fn remove_obsolete_support_source(
+fn remove_obsolete_generated_sources(
     root: &Path,
-    entrypoint: &Path,
     files: &[terrane_compiler::rust_ir::RenderedFile],
 ) -> std::io::Result<()> {
-    if !files.iter().any(|file| Path::new(&file.path) == entrypoint) {
-        return Ok(());
-    }
-    let (Some(parent), Some(stem)) = (entrypoint.parent(), entrypoint.file_stem()) else {
-        return Ok(());
-    };
-    let sidecar_path = parent.join(format!("{}.support.rs", stem.to_string_lossy()));
-    if files
-        .iter()
-        .any(|file| Path::new(&file.path) == sidecar_path)
-    {
-        return Ok(());
-    }
-    let sidecar = root.join(sidecar_path);
-    if sidecar.is_file() {
-        fs::remove_file(sidecar)?;
+    for entry in fs::read_dir(root.join("src"))? {
+        let entry = entry?;
+        let path = entry.path();
+        let relative = path
+            .strip_prefix(root)
+            .expect("generated source entry belongs to its crate");
+        if path.extension().is_some_and(|extension| extension == "rs")
+            && entry.file_type()?.is_file()
+            && !files.iter().any(|file| Path::new(&file.path) == relative)
+        {
+            fs::remove_file(path)?;
+        }
     }
     Ok(())
 }
@@ -1352,13 +1347,8 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let entrypoint = Path::new(match options.artifact {
-        terrane_compiler::ArtifactKind::Executable => "src/main.rs",
-        terrane_compiler::ArtifactKind::DynamicLibrary
-        | terrane_compiler::ArtifactKind::Library => "src/lib.rs",
-    });
-    remove_obsolete_support_source(directory, entrypoint, rust_files)
-        .map_err(|error| CliFailure::backend(format!("cannot remove obsolete support: {error}")))?;
+    remove_obsolete_generated_sources(directory, rust_files)
+        .map_err(|error| CliFailure::backend(format!("cannot remove obsolete source: {error}")))?;
     if !options.uses_platform_support {
         for name in ["terrane-platform-support", "terrane-signal-support"] {
             let obsolete = directory.join("support").join(name);
