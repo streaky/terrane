@@ -3,7 +3,18 @@
     {
       "members": {
         "/deps/runtime/io": [
-          "ErrorKind"
+          "Error",
+          "Error.into",
+          "Error.kind",
+          "Error.raw_os_error",
+          "Error.try_into",
+          "Error::from",
+          "ErrorKind",
+          "Result",
+          "SeekFrom"
+        ],
+        "/deps/runtime/io/read-buf/readbuf": [
+          "assume_init"
         ],
         "/deps/runtime/macros": [
           "pin"
@@ -18,6 +29,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

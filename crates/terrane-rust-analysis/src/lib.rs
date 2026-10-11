@@ -22,7 +22,7 @@ pub use survey::{
 pub const BUILD_TOOLCHAIN: &str = env!("CARGO_PKG_RUST_VERSION");
 
 /// Nightly toolchain pinned to the Rustdoc JSON format and native probe cache identity.
-pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-10-02";
+pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-08-01";
 
 /// Rustdoc arguments shared by compiler projection and native ecosystem surveys.
 pub const RUSTDOC_JSON_ARGS: &[&str] = &["-Z", "unstable-options", "--output-format", "json"];

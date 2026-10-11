@@ -3,7 +3,7 @@ namespace app
 from /deps/tokio/net import TcpListener, TcpStream
 from /deps/terrane-static-witness import GenericFactory, available_loopback_address
 from /deps/terrane-static-consumer import consume_factory
-from /core/errors import dependency-error
+from /deps/tokio/io import Error
 
 async function main;
   address = available_loopback_address;
@@ -14,5 +14,5 @@ async function main;
   try
     occupied = await TcpListener::bind; chosen
     print; (occupied.ttl;)
-  catch dependency-error
+  catch Error
     print; 'occupied'

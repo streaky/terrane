@@ -479,9 +479,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/tokio/io::Error",
     ];
 }
 mod __terrane_trace {
@@ -649,5 +650,7 @@ pub fn available_loopback_address() -> Result<String, crate::TerraneForeignError
         }
     }
 }
+// Source: <terrane>/projected/deps/tokio/io.trn
+// Namespace: deps/tokio/io
 // Source: <terrane>/projected/deps/tokio/net.trn
 // Namespace: deps/tokio/net

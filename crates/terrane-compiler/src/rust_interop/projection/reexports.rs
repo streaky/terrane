@@ -500,7 +500,12 @@ pub(super) fn external_reexport_rustdocs(
             let Some(external) = document.external_crates.get(&summary.crate_id) else {
                 continue;
             };
-            if matches!(external.name.as_str(), "std" | "alloc") {
+            // IO errors retain their existing std-owned boundary policy even when
+            // rustdoc reports core as the defining crate. Other core types (such
+            // as network addresses) still need supplemental nominal declarations.
+            if matches!(external.name.as_str(), "std" | "alloc")
+                || rust_path.starts_with("std::io::")
+            {
                 continue;
             }
             let (package_spec, package_name) = if external.name == "core" {

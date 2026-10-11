@@ -358,6 +358,12 @@
     {
       "members": {
         "/deps/tokio/io": [
+          "Error",
+          "Error.into",
+          "Error.kind",
+          "Error.raw_os_error",
+          "Error.try_into",
+          "Error::from",
           "ErrorKind",
           "Interest",
           "Interest.add",
@@ -390,7 +396,20 @@
           "Ready.is_write_closed",
           "Ready.partial_cmp",
           "Ready.sub",
-          "Ready.try_into"
+          "Ready.try_into",
+          "Result",
+          "SeekFrom"
+        ],
+        "/deps/tokio/io/async-fd/asyncfdreadyguard": [
+          "clear_ready",
+          "clear_ready_matching"
+        ],
+        "/deps/tokio/io/async-fd/asyncfdreadymutguard": [
+          "clear_ready",
+          "clear_ready_matching"
+        ],
+        "/deps/tokio/io/read-buf/readbuf": [
+          "assume_init"
         ],
         "/deps/tokio/io/unix": [
           "AsyncFd",
@@ -843,6 +862,57 @@
           "ReuniteError.into",
           "ReuniteError.try_into"
         ],
+        "/deps/tokio/net/tcp/listener/tcplistener": [
+          "from_std",
+          "set_ttl"
+        ],
+        "/deps/tokio/net/tcp/socket/tcpsocket": [
+          "set_linger",
+          "set_nodelay",
+          "set_tos"
+        ],
+        "/deps/tokio/net/tcp/split-owned/ownedreadhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/tcp/split-owned/ownedwritehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/tcp/split/readhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/tcp/split/writehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/tcp/stream/tcpstream": [
+          "connect",
+          "from_std",
+          "readable",
+          "ready",
+          "set_linger",
+          "set_nodelay",
+          "set_ttl",
+          "writable"
+        ],
+        "/deps/tokio/net/udp/udpsocket": [
+          "bind",
+          "connect",
+          "from_std",
+          "join_multicast_v4",
+          "join_multicast_v6",
+          "peek_sender",
+          "readable",
+          "ready",
+          "set_broadcast",
+          "set_multicast_loop_v4",
+          "set_multicast_loop_v6",
+          "set_multicast_ttl_v4",
+          "set_tos",
+          "set_ttl",
+          "try_peek_sender",
+          "writable"
+        ],
         "/deps/tokio/net/unix": [
           "OwnedReadHalf",
           "OwnedReadHalf.as_ref",
@@ -890,6 +960,10 @@
           "pid_t",
           "uid_t"
         ],
+        "/deps/tokio/net/unix/listener/unixlistener": [
+          "bind",
+          "from_std"
+        ],
         "/deps/tokio/net/unix/pipe": [
           "OpenOptions",
           "OpenOptions.clone",
@@ -929,11 +1003,47 @@
           "Sender::from_owned_fd",
           "Sender::from_owned_fd_unchecked"
         ],
+        "/deps/tokio/net/unix/pipe/openoptions": [
+          "new",
+          "open_receiver",
+          "open_sender"
+        ],
+        "/deps/tokio/net/unix/pipe/receiver": [
+          "readable"
+        ],
+        "/deps/tokio/net/unix/pipe/sender": [
+          "writable"
+        ],
+        "/deps/tokio/net/unix/socket/unixsocket": [
+          "new_datagram",
+          "new_stream"
+        ],
         "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-std/os/unix/net/addr/socketaddr": [
           "from"
         ],
         "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-tokio/net/unix/socketaddr": [
           "from"
+        ],
+        "/deps/tokio/net/unix/split-owned/ownedreadhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/unix/split-owned/ownedwritehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/unix/split/readhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/unix/split/writehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/unix/stream/unixstream": [
+          "connect",
+          "from_std",
+          "readable",
+          "ready",
+          "writable"
         ]
       },
       "name": "tokio",
@@ -942,6 +1052,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

@@ -49,10 +49,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `dependency` member `tokio :: net :: TcpListener :: bind` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -98,10 +96,8 @@ fn main() {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
-                                                crate::TERRANE_DEPENDENCY_ERROR,
-                                                format!(
-                                                    "Rust dependency `dependency` member `tokio :: net :: TcpStream :: connect` failed: {error}"
-                                                ),
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
                                         ),
@@ -134,10 +130,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&client)
             .nodelay())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
             ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-            ::TERRANE_DEPENDENCY_ERROR,
-            format!("Rust dependency `tokio` member `tokio::net::TcpStream::nodelay` failed: {error}"),
-            crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "tokio",
+            ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
+            Err(payload) => Err(crate ::__terrane_dependency_panic(payload, "tokio",
             "tokio::net::TcpStream::nodelay")) }, 4 /* terrane-site: src/main.trn:13:11-13:26 */))
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
@@ -150,11 +144,9 @@ fn main() {
                             crate ::__terrane_dependency_await_unwind(__terrane_call).
                             await { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
                             Err(crate ::TerraneForeignError(crate
-                            ::TerraneError::custom_raised(crate
-                            ::TERRANE_DEPENDENCY_ERROR,
-                            format!("Rust dependency `dependency` member `tokio :: net :: TcpListener :: bind` failed: {error}"),
-                            crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                            ::__terrane_dependency_panic(payload, "dependency",
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                            Err(crate ::__terrane_dependency_panic(payload, "dependency",
                             "tokio :: net :: TcpListener :: bind")) } } }; async move {
                             __terrane_raised_err(__terrane_future. await,
                             5 /* terrane-site: src/main.trn:15:22-15:47 */) } }).
@@ -168,9 +160,8 @@ fn main() {
                     .as_ref().expect("flow-proven available binding")).ttl())) {
                     Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as
                     u128)), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
-                    format!("Rust dependency `tokio` member `tokio::net::TcpListener::ttl` failed: {error}"),
-                    crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+                    ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                    .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload, "tokio",
                     "tokio::net::TcpListener::ttl")) }, 6 /* terrane-site: src/main.trn:16:13-16:26 */))
                 );
@@ -188,7 +179,7 @@ fn main() {
                     let mut __terrane_handled_0 = false;
                     if !__terrane_handled_0
                         && __terrane_error_0.kind
-                            == TerraneErrorKind::Custom(DescriptorId(0))
+                            == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
                         println!(
