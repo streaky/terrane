@@ -235,7 +235,7 @@ fn terrane_test_time_advance(nanoseconds: terrane_int_support::Int) -> bool {
     };
 
     if TERRANE_TEST_TIME_NANOS
-        .fetch_update(
+        .try_update(
             std::sync::atomic::Ordering::AcqRel,
             std::sync::atomic::Ordering::Acquire,
             |current| current.checked_add(nanoseconds),
