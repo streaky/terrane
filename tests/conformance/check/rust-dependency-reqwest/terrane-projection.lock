@@ -420,6 +420,9 @@
           "borrowed-option.cloned",
           "borrowed-option.map"
         ],
+        "/deps/http/request/request": [
+          "method"
+        ],
         "/deps/http/response": [
           "Builder",
           "Builder.body",
@@ -450,6 +453,9 @@
           "InvalidStatusCode.into",
           "InvalidStatusCode.try_into",
           "InvalidStatusCode::from"
+        ],
+        "/deps/http/status/statuscode": [
+          "is_success"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq": [
           "eq"
@@ -1014,6 +1020,15 @@
         "/deps/reqwest/async-impl/client": [
           "Pending"
         ],
+        "/deps/reqwest/async-impl/client/clientbuilder": [
+          "use_rustls_tls"
+        ],
+        "/deps/reqwest/async-impl/request/requestbuilder": [
+          "build"
+        ],
+        "/deps/reqwest/async-impl/response/response": [
+          "headers"
+        ],
         "/deps/reqwest/blocking": [
           "Body",
           "Body.into",
@@ -1158,6 +1173,12 @@
         "/deps/reqwest/blocking/body/trait/core/convert/from-std/vec/vec-u8": [
           "from"
         ],
+        "/deps/reqwest/blocking/request/requestbuilder": [
+          "build"
+        ],
+        "/deps/reqwest/blocking/response/response": [
+          "headers"
+        ],
         "/deps/reqwest/body/trait/core/convert/from-bytes/bytes/bytes": [
           "from"
         ],
@@ -1264,6 +1285,9 @@
         "/deps/reqwest/method/trait/core/cmp/partialeq-str": [
           "eq"
         ],
+        "/deps/reqwest/proxy/proxy": [
+          "no_proxy"
+        ],
         "/deps/reqwest/redirect": [
           "Action",
           "Action.into",
@@ -1352,6 +1376,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

@@ -79,7 +79,7 @@ fn warm_compilation_tracks_content_and_source_membership_and_recovers_corruption
     .unwrap();
     let rejected = package.build();
     assert!(!rejected.status.success());
-    assert!(rejected.stdout.is_empty());
+    assert_eq!(rejected.stdout, b"");
     assert!(String::from_utf8_lossy(&rejected.stderr).contains("missing-binding"));
     fs::remove_file(package.0.join("src/extra.trn")).unwrap();
     assert_eq!(package.output(), "two\n");
@@ -118,7 +118,7 @@ fn changed_imported_contract_rechecks_unchanged_caller() {
     .unwrap();
     let rejected = package.build();
     assert!(!rejected.status.success());
-    assert!(rejected.stdout.is_empty());
+    assert_eq!(rejected.stdout, b"");
     let diagnostic = String::from_utf8_lossy(&rejected.stderr);
     assert!(
         diagnostic.contains("string") && diagnostic.contains("int"),
@@ -209,7 +209,7 @@ fn local_native_dependency_edits_invalidate_cached_projection_and_compilation() 
         .output()
         .unwrap();
     assert!(!emitted.status.success());
-    assert!(emitted.stdout.is_empty());
+    assert_eq!(emitted.stdout, b"");
 }
 
 #[test]
@@ -261,5 +261,5 @@ json.dump({"format": 1, "generated_sources": [{"identity": "value", "source": so
     fs::write(package.0.join("value"), "not an integer").unwrap();
     let failed = package.build();
     assert!(!failed.status.success());
-    assert!(failed.stdout.is_empty());
+    assert_eq!(failed.stdout, b"");
 }

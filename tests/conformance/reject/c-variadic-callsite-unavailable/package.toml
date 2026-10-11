@@ -1,0 +1,8 @@
+package = "c-variadic-callsite-unavailable"
+
+[namespaces]
+app = "."
+
+[rust-dependencies.terrane-c-variadic-witness]
+version = "=0.1.0"
+effects = ["build"]

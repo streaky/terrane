@@ -2011,6 +2011,16 @@
           "Vector4i::try_from_ffi",
           "real"
         ],
+        "/deps/godot/builtin/aabb/aabb": [
+          "intersects",
+          "intersects_exclude_borders"
+        ],
+        "/deps/godot/builtin/basis": [
+          "ExLookingAt",
+          "ExLookingAt.done",
+          "ExLookingAt.up",
+          "ExLookingAt.use_model_front"
+        ],
         "/deps/godot/builtin/basis/trait/core/ops/arith/mul": [
           "mul"
         ],
@@ -2019,6 +2029,63 @@
         ],
         "/deps/godot/builtin/basis/trait/core/ops/arith/mul-godot/builtin/vector3": [
           "mul"
+        ],
+        "/deps/godot/builtin/callable/callable": [
+          "is_custom",
+          "is_valid",
+          "object",
+          "object_id",
+          "unbind"
+        ],
+        "/deps/godot/builtin/collections/any-array/anyarray": [
+          "at",
+          "element_type",
+          "get",
+          "len",
+          "pop",
+          "remove",
+          "shrink",
+          "sort_unstable",
+          "sort_unstable_custom"
+        ],
+        "/deps/godot/builtin/collections/any-dictionary/anydictionary": [
+          "duplicate_shallow",
+          "get",
+          "key_element_type",
+          "remove",
+          "value_element_type"
+        ],
+        "/deps/godot/builtin/collections/any-dictionary/anydictiter": [
+          "typed"
+        ],
+        "/deps/godot/builtin/collections/any-dictionary/anydictkeys": [
+          "typed"
+        ],
+        "/deps/godot/builtin/collections/any-dictionary/anydictvalues": [
+          "typed"
+        ],
+        "/deps/godot/builtin/collections/array/array": [
+          "upcast_any_array"
+        ],
+        "/deps/godot/builtin/collections/dictionary/dictionary": [
+          "len"
+        ],
+        "/deps/godot/builtin/collections/packed-array/packedarray": [
+          "get_string_from_ascii",
+          "get_string_from_utf16",
+          "get_string_from_utf32",
+          "get_string_from_utf8",
+          "get_string_from_wchar",
+          "len",
+          "to_var_array"
+        ],
+        "/deps/godot/builtin/color-hsv/colorhsv": [
+          "to_rgb",
+          "try_to_rgb"
+        ],
+        "/deps/godot/builtin/color/color": [
+          "to_hsv",
+          "try_to_hsv"
         ],
         "/deps/godot/builtin/color/trait/core/ops/arith/mul": [
           "mul"
@@ -2031,6 +2098,42 @@
         ],
         "/deps/godot/builtin/color/trait/core/ops/arith/mulassign-f32": [
           "mul_assign"
+        ],
+        "/deps/godot/builtin/gstring": [
+          "ExFind",
+          "ExFind.done",
+          "ExFind.from",
+          "ExFind.n",
+          "ExFind.r",
+          "ExIsValidHexNumber",
+          "ExIsValidHexNumber.done",
+          "ExIsValidHexNumber.with_prefix",
+          "ExNum",
+          "ExNum.decimals",
+          "ExNum.done",
+          "ExNumInt64",
+          "ExNumInt64.base",
+          "ExNumInt64.capitalize_hex",
+          "ExNumInt64.done",
+          "ExNumUint64",
+          "ExNumUint64.base",
+          "ExNumUint64.capitalize_hex",
+          "ExNumUint64.done",
+          "ExSplit",
+          "ExSplit.disallow_empty",
+          "ExSplit.done",
+          "ExSplit.maxsplit",
+          "ExSplit.maxsplit_r",
+          "ExSplitFloats",
+          "ExSplitFloats.allow_empty",
+          "ExSplitFloats.done",
+          "ExStripEdges",
+          "ExStripEdges.done",
+          "ExStripEdges.left",
+          "ExStripEdges.right",
+          "ExXmlEscape",
+          "ExXmlEscape.done",
+          "ExXmlEscape.escape_quotes"
         ],
         "/deps/godot/builtin/gstring/trait/core/cmp/partialeq": [
           "eq"
@@ -2053,6 +2156,34 @@
         "/deps/godot/builtin/gstring/trait/godot/meta/asarg-godot/builtin/variant": [
           "into_arg"
         ],
+        "/deps/godot/builtin/iter": [
+          "DictIter-hash-h8e88d32148b17753a6d5419ab3e59dddcbb2fae3bd8200d8d0566c69adf72996",
+          "DictIter-hash-h8e88d32148b17753a6d5419ab3e59dddcbb2fae3bd8200d8d0566c69adf72996.typed",
+          "DictKeys-hash-h7dc6cd5d473692d2764ad9bb4d2fcb2fed8d44fcae42f5ebdaedc223a625cf4f",
+          "DictKeys-hash-h7dc6cd5d473692d2764ad9bb4d2fcb2fed8d44fcae42f5ebdaedc223a625cf4f.array",
+          "DictKeys-hash-h7dc6cd5d473692d2764ad9bb4d2fcb2fed8d44fcae42f5ebdaedc223a625cf4f.typed",
+          "DictValues-hash-h32c09bcfcd5631c7470b4bbb7747866477f38f3a7dd4541b7d2a6528775edbaa",
+          "DictValues-hash-h32c09bcfcd5631c7470b4bbb7747866477f38f3a7dd4541b7d2a6528775edbaa.typed"
+        ],
+        "/deps/godot/builtin/matrices/basis/basis": [
+          "col_a",
+          "col_b",
+          "col_c",
+          "determinant",
+          "get_euler",
+          "get_euler_with",
+          "inverse",
+          "looking_at_ex",
+          "set_col_a",
+          "set_col_b",
+          "set_col_c"
+        ],
+        "/deps/godot/builtin/matrices/transform2d/transform2d": [
+          "scale"
+        ],
+        "/deps/godot/builtin/matrices/transform3d/transform3d": [
+          "looking_at_ex"
+        ],
         "/deps/godot/builtin/nodepath/trait/core/convert/from-godot/builtin/gstring": [
           "from"
         ],
@@ -2074,6 +2205,11 @@
         "/deps/godot/builtin/projection/trait/core/ops/arith/mul-godot/builtin/vector4": [
           "mul"
         ],
+        "/deps/godot/builtin/quaternion/quaternion": [
+          "get_euler",
+          "get_euler_with",
+          "length_squared"
+        ],
         "/deps/godot/builtin/quaternion/trait/core/ops/arith/mul": [
           "mul"
         ],
@@ -2091,6 +2227,45 @@
         ],
         "/deps/godot/builtin/quaternion/trait/core/ops/arith/mulassign-f32": [
           "mul_assign"
+        ],
+        "/deps/godot/builtin/rect2/rect2": [
+          "to_rect2i"
+        ],
+        "/deps/godot/builtin/rect2i/rect2i": [
+          "to_rect2"
+        ],
+        "/deps/godot/builtin/signal/signal": [
+          "connect_flags",
+          "disconnect",
+          "is_connected",
+          "object",
+          "object_id"
+        ],
+        "/deps/godot/builtin/string-name": [
+          "ExFind",
+          "ExFind.done",
+          "ExFind.from",
+          "ExFind.n",
+          "ExFind.r",
+          "ExIsValidHexNumber",
+          "ExIsValidHexNumber.done",
+          "ExIsValidHexNumber.with_prefix",
+          "ExSplit",
+          "ExSplit.disallow_empty",
+          "ExSplit.done",
+          "ExSplit.maxsplit",
+          "ExSplit.maxsplit_r",
+          "ExSplitFloats",
+          "ExSplitFloats.allow_empty",
+          "ExSplitFloats.done",
+          "ExStripEdges",
+          "ExStripEdges.done",
+          "ExStripEdges.left",
+          "ExStripEdges.right",
+          "ExXmlEscape",
+          "ExXmlEscape.done",
+          "ExXmlEscape.escape_quotes",
+          "TransientStringNameOrd"
         ],
         "/deps/godot/builtin/stringname/trait/core/cmp/partialeq": [
           "eq"
@@ -2112,6 +2287,73 @@
         ],
         "/deps/godot/builtin/stringname/trait/godot/meta/asarg-godot/builtin/variant": [
           "into_arg"
+        ],
+        "/deps/godot/builtin/strings/gstring/gstring": [
+          "casecmp_to",
+          "chr",
+          "filecasecmp_to",
+          "filenocasecmp_to",
+          "find_ex",
+          "format",
+          "get_base_dir",
+          "get_slice",
+          "is_valid_hex_number_ex",
+          "is_valid_html_color",
+          "len",
+          "lpad",
+          "match_glob",
+          "naturalcasecmp_to",
+          "naturalnocasecmp_to",
+          "nocasecmp_to",
+          "num_ex",
+          "num_int64_ex",
+          "num_uint64_ex",
+          "rpad",
+          "split",
+          "split_ex",
+          "split_floats_ex",
+          "strip_edges_ex",
+          "to_ascii_buffer",
+          "to_float",
+          "to_utf16_buffer",
+          "to_utf32_buffer",
+          "to_utf8_buffer",
+          "to_wchar_buffer",
+          "uri_encode",
+          "xml_escape_ex"
+        ],
+        "/deps/godot/builtin/strings/node-path/nodepath": [
+          "get_as_property_path",
+          "get_name",
+          "get_subname",
+          "get_total_count"
+        ],
+        "/deps/godot/builtin/strings/string-name/stringname": [
+          "casecmp_to",
+          "filecasecmp_to",
+          "filenocasecmp_to",
+          "find_ex",
+          "format",
+          "get_slice",
+          "is_valid_hex_number_ex",
+          "is_valid_identifier",
+          "lpad",
+          "naturalcasecmp_to",
+          "naturalnocasecmp_to",
+          "nocasecmp_to",
+          "rpad",
+          "split",
+          "split_ex",
+          "split_floats_ex",
+          "strip_edges_ex",
+          "transient_ord",
+          "xml_escape_ex"
+        ],
+        "/deps/godot/builtin/transform-3d": [
+          "ExLookingAt",
+          "ExLookingAt.done",
+          "ExLookingAt.up",
+          "ExLookingAt.use_model_front"
         ],
         "/deps/godot/builtin/transform2d/trait/core/ops/arith/mul": [
           "mul"
@@ -2160,6 +2402,13 @@
         ],
         "/deps/godot/builtin/transform3d/trait/godot/builtin/xforminv-godot/builtin/vector3": [
           "xform_inv"
+        ],
+        "/deps/godot/builtin/variant/variant": [
+          "get_type",
+          "object_id",
+          "object_id_unchecked",
+          "try_to",
+          "try_to_relaxed"
         ],
         "/deps/godot/builtin/vector2/trait/core/iter/traits/accum/product": [
           "product"
@@ -2376,6 +2625,35 @@
         ],
         "/deps/godot/builtin/vector4i/trait/core/ops/arith/mulassign-i32": [
           "mul_assign"
+        ],
+        "/deps/godot/builtin/vectors/vector2/vector2": [
+          "angle",
+          "is_finite",
+          "is_normalized",
+          "length",
+          "to_vector2i"
+        ],
+        "/deps/godot/builtin/vectors/vector2i/vector2i": [
+          "length",
+          "to_vector2"
+        ],
+        "/deps/godot/builtin/vectors/vector3/vector3": [
+          "is_finite",
+          "is_normalized",
+          "length",
+          "octahedron_encode",
+          "to_vector3i"
+        ],
+        "/deps/godot/builtin/vectors/vector3i/vector3i": [
+          "length",
+          "to_vector3"
+        ],
+        "/deps/godot/builtin/vectors/vector4/vector4": [
+          "is_normalized",
+          "length"
+        ],
+        "/deps/godot/builtin/vectors/vector4i/vector4i": [
+          "length"
         ],
         "/deps/godot/classes": [
           "AStar2D",
@@ -31717,6 +31995,9 @@
           "EnumConstant.rust_name",
           "EnumConstant.value"
         ],
+        "/deps/godot/meta/inspect/element-type/elementscript": [
+          "script"
+        ],
         "/deps/godot/meta/shape": [
           "ClassHeritage",
           "EnumeratorShape",
@@ -31732,6 +32013,18 @@
           "GodotShape-Custom",
           "GodotShape-TypedArray",
           "GodotShape-TypedDictionary"
+        ],
+        "/deps/godot/meta/shape/godotelementshape": [
+          "into_outer"
+        ],
+        "/deps/godot/meta/shape/godotshape": [
+          "export_hint",
+          "param_metadata",
+          "to_export_property",
+          "to_method_signature_property",
+          "to_var_property",
+          "usage_flags",
+          "var_hint"
         ],
         "/deps/godot/obj": [
           "Base",
@@ -31851,6 +32144,20 @@
           "No",
           "Yes"
         ],
+        "/deps/godot/obj/gd/gd": [
+          "callable",
+          "dynamic_class",
+          "free",
+          "instance_id",
+          "instance_id_unchecked",
+          "is_dynamic_class",
+          "is_dynamic_class_of",
+          "is_instance_valid",
+          "upcast"
+        ],
+        "/deps/godot/obj/instance-id/instanceid": [
+          "lookup_validity"
+        ],
         "/deps/godot/obj/raw-gd": [
           "RawGd",
           "RawGd.adjust_refcount_on_ptrcall_return",
@@ -31872,6 +32179,10 @@
           "ValidatedObject::unvalidated",
           "ValidatedObject::validate",
           "raw_object_init"
+        ],
+        "/deps/godot/obj/rpc/builder/rpcbuilder": [
+          "call",
+          "call_id"
         ],
         "/deps/godot/obj/rtti": [
           "ObjectRtti",
@@ -32528,6 +32839,10 @@
           "PropertyUsageFlags::var_pub_get",
           "PropertyUsageFlags::var_pub_set"
         ],
+        "/deps/godot/register/info/method-info/methodinfo": [
+          "free_owned_method_sys",
+          "into_owned_method_sys"
+        ],
         "/deps/godot/register/property": [
           "PhantomVar",
           "PhantomVar.clone",
@@ -32562,6 +32877,10 @@
           "ConnectHandle.disconnect",
           "ConnectHandle.into",
           "ConnectHandle.is_connected"
+        ],
+        "/deps/godot/signal/connect-handle/connecthandle": [
+          "disconnect",
+          "is_connected"
         ],
         "/deps/godot/task": [
           "FallibleSignalFuture",
@@ -32599,6 +32918,10 @@
           "try_get_autoload_by_name",
           "try_load",
           "try_save"
+        ],
+        "/deps/godot/tools/gfile/gfile": [
+          "into_inner",
+          "set_big_endian"
         ]
       },
       "name": "godot",
@@ -32607,6 +32930,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

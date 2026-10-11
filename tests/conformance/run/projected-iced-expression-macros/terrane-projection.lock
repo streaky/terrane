@@ -597,6 +597,9 @@
           "Stack::default",
           "Stack::new"
         ],
+        "/deps/iced/advanced/graphics/layer/stack": [
+          "pop_transformation"
+        ],
         "/deps/iced/advanced/graphics/mesh": [
           "AttributeCount",
           "AttributeCount.clone",
@@ -771,6 +774,11 @@
           "Memory.into",
           "Memory.try_into",
           "allocate"
+        ],
+        "/deps/iced/advanced/image/handle": [
+          "from_bytes",
+          "from_path",
+          "from_rgba"
         ],
         "/deps/iced/advanced/input-method": [
           "Event",
@@ -1074,6 +1082,9 @@
         "/deps/iced/alignment/vertical/trait/core/convert/from-iced/alignment/vertical": [
           "from"
         ],
+        "/deps/iced/animation/animation": [
+          "interpolate"
+        ],
         "/deps/iced/application": [
           "Style",
           "Style.clone",
@@ -1088,6 +1099,9 @@
           "timed",
           "title",
           "window"
+        ],
+        "/deps/iced/application/application": [
+          "run"
         ],
         "/deps/iced/background/trait/core/convert/from-iced/color": [
           "from"
@@ -1865,6 +1879,12 @@
           "RenderBundle.into",
           "RenderBundle.partial_cmp",
           "RenderBundle.try_into",
+          "RenderBundleEncoder",
+          "RenderBundleEncoder.draw",
+          "RenderBundleEncoder.draw_indexed",
+          "RenderBundleEncoder.draw_indexed_indirect",
+          "RenderBundleEncoder.draw_indirect",
+          "RenderBundleEncoder.set_pipeline",
           "RenderPipeline",
           "RenderPipeline.clone",
           "RenderPipeline.cmp",
@@ -2003,6 +2023,93 @@
           "borrowed-option.cloned",
           "borrowed-option.map"
         ],
+        "/deps/iced/wgpu/api/blas/blas": [
+          "prepare_compaction_async",
+          "ready_for_compaction"
+        ],
+        "/deps/iced/wgpu/api/blas/tlasinstance": [
+          "set_blas"
+        ],
+        "/deps/iced/wgpu/api/buffer/buffer": [
+          "destroy",
+          "get_mapped_range",
+          "get_mapped_range_mut",
+          "map_async",
+          "slice",
+          "unmap"
+        ],
+        "/deps/iced/wgpu/api/buffer/bufferslice": [
+          "buffer",
+          "get_mapped_range",
+          "get_mapped_range_mut",
+          "map_async"
+        ],
+        "/deps/iced/wgpu/api/command-buffer/commandbuffer": [
+          "map_buffer_on_submit"
+        ],
+        "/deps/iced/wgpu/api/command-encoder/commandencoder": [
+          "begin_compute_pass",
+          "begin_render_pass",
+          "copy_buffer_to_buffer",
+          "finish",
+          "map_buffer_on_submit",
+          "transition_resources"
+        ],
+        "/deps/iced/wgpu/api/compute-pass/computepass": [
+          "forget_lifetime",
+          "map_buffer_on_submit"
+        ],
+        "/deps/iced/wgpu/api/compute-pipeline/computepipeline": [
+          "get_bind_group_layout"
+        ],
+        "/deps/iced/wgpu/api/device/device": [
+          "create_render_bundle_encoder",
+          "push_error_scope"
+        ],
+        "/deps/iced/wgpu/api/instance/instance": [
+          "create_surface",
+          "create_surface_unsafe",
+          "enabled_backend_features",
+          "poll_all"
+        ],
+        "/deps/iced/wgpu/api/pipeline-cache/pipelinecache": [
+          "get_data"
+        ],
+        "/deps/iced/wgpu/api/queue/queue": [
+          "get_timestamp_period",
+          "submit",
+          "write_buffer_with"
+        ],
+        "/deps/iced/wgpu/api/render-bundle-encoder/renderbundleencoder": [
+          "draw",
+          "draw_indexed"
+        ],
+        "/deps/iced/wgpu/api/render-pass/renderpass": [
+          "begin_occlusion_query",
+          "begin_pipeline_statistics_query",
+          "draw",
+          "draw_indexed",
+          "draw_mesh_tasks",
+          "end_occlusion_query",
+          "end_pipeline_statistics_query",
+          "execute_bundles",
+          "forget_lifetime",
+          "map_buffer_on_submit",
+          "set_viewport"
+        ],
+        "/deps/iced/wgpu/api/render-pipeline/renderpipeline": [
+          "get_bind_group_layout"
+        ],
+        "/deps/iced/wgpu/api/surface-texture/surfacetexture": [
+          "present"
+        ],
+        "/deps/iced/wgpu/api/surface/surface": [
+          "configure",
+          "get_current_texture"
+        ],
+        "/deps/iced/wgpu/api/texture/texture": [
+          "destroy"
+        ],
         "/deps/iced/wgpu/compilationinfo/trait/core/convert/from-naga/error/shadererror-naga/front/wgsl/error/parseerror": [
           "from"
         ],
@@ -2042,6 +2149,12 @@
           "is_browser_webgpu_supported",
           "new_instance_with_webgpu_detection",
           "pipeline_cache_key"
+        ],
+        "/deps/iced/wgpu/util/belt/stagingbelt": [
+          "allocate",
+          "finish",
+          "recall",
+          "write_buffer"
         ],
         "/deps/iced/wgpu/wgsllanguagefeatures": [
           "bits",
@@ -2540,6 +2653,9 @@
           "Internal.into",
           "Internal.try_into"
         ],
+        "/deps/iced/widget/pane-grid/state/state": [
+          "restore"
+        ],
         "/deps/iced/widget/pick-list": [
           "Handle",
           "Handle-Arrow",
@@ -2930,7 +3046,7 @@
         "/deps/iced/window/icon/error/trait/core/convert/from-iced-core/window/icon/error": [
           "from"
         ],
-        "/deps/iced/window/icon/error/trait/core/convert/from-std/io/error/error": [
+        "/deps/iced/window/icon/error/trait/core/convert/from-std/io/error": [
           "from"
         ],
         "/deps/iced/window/screenshot": [
@@ -2968,6 +3084,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

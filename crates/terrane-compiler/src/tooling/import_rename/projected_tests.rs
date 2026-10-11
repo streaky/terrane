@@ -65,7 +65,7 @@ fn projected_dependency_alias_rename_and_removal_update_only_its_bound_uses() {
                 .propose_rename(&snapshot.snapshot_id, &source_uri, offset, new_name)
                 .expect("projected dependency rename");
             assert!(proposal.semantic_reanalysis);
-            assert!(proposal.preview_diagnostics.is_empty());
+            assert_eq!(proposal.preview_diagnostics, Vec::new());
             let mut actual = source.to_owned();
             for replacement in proposal.replacements.iter().rev() {
                 assert_eq!(replacement.uri, source_uri);

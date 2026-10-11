@@ -275,7 +275,7 @@ fn authored_name_style_is_an_opt_in_warning() {
     );
     let semantic = analyze(&package).unwrap();
 
-    assert!(warnings(&semantic, false, false).is_empty());
+    assert_eq!(warnings(&semantic, false, false), Vec::new());
     let diagnostics = warnings(&semantic, true, false);
     assert!(diagnostics.iter().any(|diagnostic| {
         diagnostic.code.as_ref() == "S2018"
@@ -292,7 +292,7 @@ fn unused_top_level_function_warning_is_opt_in() {
     );
     let semantic = analyze(&package).unwrap();
 
-    assert!(warnings(&semantic, false, false).is_empty());
+    assert_eq!(warnings(&semantic, false, false), Vec::new());
     let diagnostics = warnings(&semantic, false, true);
     assert_eq!(
         diagnostics

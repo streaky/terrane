@@ -422,7 +422,7 @@ fn dynamic_library_builds_warning_free_and_rejects_execution_commands() {
         let input = command.map_or_else(|| package.0.join("package.toml"), |_| package.0.clone());
         let output = invocation.arg(input).output().unwrap();
         assert_eq!(output.status.code(), Some(2), "{command:?}: {output:?}");
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout, b"");
         assert!(
             String::from_utf8_lossy(&output.stderr)
                 .contains("`run`, `debug`, and `profile record` require an executable package"),
@@ -680,11 +680,11 @@ fn native_test_command_reports_isolated_cases_deterministically() {
         report["cases"][1]["cause"]["details"],
         serde_json::json!(["actual: 3", "expected: 4"])
     );
-    assert!(
-        !report["cases"][1]["cause"]["source_frames"]
+    assert_ne!(
+        report["cases"][1]["cause"]["source_frames"]
             .as_array()
-            .unwrap()
-            .is_empty()
+            .unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
     assert_eq!(
         report["cases"][1]["stdout"],
@@ -1081,11 +1081,9 @@ fn native_test_compile_failures_write_structured_reports() {
     assert_eq!(report["schema_version"], "1.2.0");
     assert_eq!(report["run"]["status"], "compile-failed");
     assert_eq!(report["discovery"]["status"], "compile-failed");
-    assert!(
-        !report["discovery"]["diagnostics"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+    assert_ne!(
+        report["discovery"]["diagnostics"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
     assert_eq!(
         report["compilation"]

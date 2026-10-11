@@ -406,6 +406,10 @@
         "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
+        "/deps/bytes/bytes-mut/bytesmut": [
+          "set_len",
+          "split_off"
+        ],
         "/deps/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -497,6 +501,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

@@ -1045,6 +1045,8 @@ mod tests {
             links: HashMap::new(),
             attrs: Vec::new(),
             deprecation: None,
+            const_stability: None,
+            stability: None,
             inner: ItemEnum::TypeAlias(rustdoc_types::TypeAlias {
                 type_: Type::ResolvedPath(rustdoc_types::Path {
                     path: "owner::Record".to_owned(),
@@ -1114,7 +1116,7 @@ mod tests {
             &[],
             &BTreeMap::new(),
         );
-        assert!(projection.dependencies[0].items.is_empty());
+        assert_eq!(projection.dependencies[0].items, Vec::new());
         assert_eq!(
             projection
                 .canonical_native_alias(&foreign("facade::Alias", Vec::new()))
@@ -1203,6 +1205,7 @@ mod tests {
                 abi: rustdoc_types::Abi::Rust,
             },
             has_body: true,
+            default_unstable: None,
         });
         document
             .index

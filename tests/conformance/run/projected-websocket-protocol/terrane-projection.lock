@@ -352,7 +352,15 @@
           "InvalidUtf8InPathParam.status",
           "InvalidUtf8InPathParam.try_into",
           "InvalidUtf8InPathParam.vzip",
-          "InvalidUtf8InPathParam::from"
+          "InvalidUtf8InPathParam::from",
+          "RawPathParamsIter"
+        ],
+        "/deps/axum/extract/path/failedtodeserializepathparams": [
+          "into_kind",
+          "kind"
+        ],
+        "/deps/axum/extract/path/rawpathparams": [
+          "iter"
         ],
         "/deps/axum/extract/rejection": [
           "BytesRejection",
@@ -693,6 +701,10 @@
         ],
         "/deps/axum/extract/ws/utf8bytes/trait/core/convert/tryfrom-std/vec/vec-u8": [
           "try_from"
+        ],
+        "/deps/axum/extract/ws/websocketupgrade": [
+          "on_failed_upgrade",
+          "set_selected_protocol"
         ],
         "/deps/axum/handler": [
           "HandlerService",
@@ -1120,6 +1132,9 @@
           "borrowed-option.cloned",
           "borrowed-option.map"
         ],
+        "/deps/axum/http/request/request": [
+          "method"
+        ],
         "/deps/axum/http/response": [
           "Builder",
           "Builder.body",
@@ -1150,6 +1165,9 @@
           "InvalidStatusCode.into",
           "InvalidStatusCode.try_into",
           "InvalidStatusCode::from"
+        ],
+        "/deps/axum/http/status/statuscode": [
+          "is_success"
         ],
         "/deps/axum/http/statuscode/trait/core/cmp/partialeq": [
           "eq"
@@ -1616,6 +1634,9 @@
         "/deps/axum/response/sse/duration/trait/core/ops/arith/mul-u32": [
           "mul"
         ],
+        "/deps/axum/response/sse/eventdatawriter": [
+          "into_event"
+        ],
         "/deps/axum/router": [
           "into_make_service_with_connect_info"
         ],
@@ -1733,6 +1754,9 @@
         "/deps/axum/routing/methodrouter/trait/axum/serviceext-r": [
           "into_make_service_with_connect_info"
         ],
+        "/deps/axum/routing/router": [
+          "has_routes"
+        ],
         "/deps/axum/serve": [
           "Serve",
           "Serve.into",
@@ -1800,6 +1824,9 @@
           "SizeHint::default",
           "SizeHint::new",
           "SizeHint::with_exact"
+        ],
+        "/deps/axum-core/body/body": [
+          "into_data_stream"
         ],
         "/deps/axum-core/body/body/trait/core/convert/from": [
           "from"
@@ -2344,6 +2371,10 @@
         "/deps/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
+        "/deps/bytes/bytes-mut/bytesmut": [
+          "set_len",
+          "split_off"
+        ],
         "/deps/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -2825,6 +2856,9 @@
           "borrowed-option.cloned",
           "borrowed-option.map"
         ],
+        "/deps/http/request/request": [
+          "method"
+        ],
         "/deps/http/response": [
           "Builder",
           "Builder.body",
@@ -2855,6 +2889,9 @@
           "InvalidStatusCode.into",
           "InvalidStatusCode.try_into",
           "InvalidStatusCode::from"
+        ],
+        "/deps/http/status/statuscode": [
+          "is_success"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq": [
           "eq"
@@ -3107,6 +3144,12 @@
           "Empty.into",
           "Empty.is_write_vectored",
           "Empty.try_into",
+          "Error",
+          "Error.into",
+          "Error.kind",
+          "Error.raw_os_error",
+          "Error.try_into",
+          "Error::from",
           "ErrorKind",
           "Interest",
           "Interest.add",
@@ -3163,6 +3206,8 @@
           "Repeat",
           "Repeat.into",
           "Repeat.try_into",
+          "Result",
+          "SeekFrom",
           "SimplexStream",
           "SimplexStream.into",
           "SimplexStream.is_write_vectored",
@@ -3194,11 +3239,22 @@
           "repeat",
           "sink"
         ],
+        "/deps/tokio/io/async-fd/asyncfdreadyguard": [
+          "clear_ready",
+          "clear_ready_matching"
+        ],
+        "/deps/tokio/io/async-fd/asyncfdreadymutguard": [
+          "clear_ready",
+          "clear_ready_matching"
+        ],
         "/deps/tokio/io/bufstream/trait/core/convert/from-tokio/io/bufreader-tokio/io/bufwriter-rw": [
           "from"
         ],
         "/deps/tokio/io/bufstream/trait/core/convert/from-tokio/io/bufwriter-tokio/io/bufreader-rw": [
           "from"
+        ],
+        "/deps/tokio/io/read-buf/readbuf": [
+          "assume_init"
         ],
         "/deps/tokio/io/unix": [
           "AsyncFd",
@@ -3231,6 +3287,12 @@
           "TryIoError",
           "TryIoError.into",
           "TryIoError.try_into"
+        ],
+        "/deps/tokio/io/util/lines/lines": [
+          "next_line"
+        ],
+        "/deps/tokio/io/util/mem/simplexstream": [
+          "new_unsplit"
         ],
         "/deps/tokio/macros": [
           "join",
@@ -3567,8 +3629,64 @@
           "ReuniteError.into",
           "ReuniteError.try_into"
         ],
+        "/deps/tokio/net/tcp/listener/tcplistener": [
+          "from_std",
+          "set_ttl"
+        ],
+        "/deps/tokio/net/tcp/socket/tcpsocket": [
+          "set_linger",
+          "set_nodelay",
+          "set_tclass_v6",
+          "set_tos_v4",
+          "set_zero_linger"
+        ],
+        "/deps/tokio/net/tcp/split-owned/ownedreadhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/tcp/split-owned/ownedwritehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/tcp/split/readhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/tcp/split/writehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/tcp/stream/tcpstream": [
+          "connect",
+          "from_std",
+          "readable",
+          "ready",
+          "set_linger",
+          "set_nodelay",
+          "set_quickack",
+          "set_ttl",
+          "set_zero_linger",
+          "writable"
+        ],
         "/deps/tokio/net/tcplistener": [
           "local_addr"
+        ],
+        "/deps/tokio/net/udp/udpsocket": [
+          "bind",
+          "connect",
+          "from_std",
+          "join_multicast_v4",
+          "join_multicast_v6",
+          "peek_sender",
+          "readable",
+          "ready",
+          "set_broadcast",
+          "set_multicast_loop_v4",
+          "set_multicast_loop_v6",
+          "set_multicast_ttl_v4",
+          "set_tclass_v6",
+          "set_tos_v4",
+          "set_ttl",
+          "try_peek_sender",
+          "writable"
         ],
         "/deps/tokio/net/unix": [
           "OwnedReadHalf",
@@ -3617,6 +3735,10 @@
           "pid_t",
           "uid_t"
         ],
+        "/deps/tokio/net/unix/listener/unixlistener": [
+          "bind",
+          "from_std"
+        ],
         "/deps/tokio/net/unix/pipe": [
           "OpenOptions",
           "OpenOptions.clone",
@@ -3658,11 +3780,49 @@
           "Sender::from_owned_fd",
           "Sender::from_owned_fd_unchecked"
         ],
+        "/deps/tokio/net/unix/pipe/openoptions": [
+          "new",
+          "open_receiver",
+          "open_sender"
+        ],
+        "/deps/tokio/net/unix/pipe/receiver": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/unix/pipe/sender": [
+          "ready",
+          "writable"
+        ],
+        "/deps/tokio/net/unix/socket/unixsocket": [
+          "new_datagram",
+          "new_stream"
+        ],
         "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-std/os/unix/net/addr/socketaddr": [
           "from"
         ],
         "/deps/tokio/net/unix/socketaddr/trait/core/convert/from-tokio/net/unix/socketaddr": [
           "from"
+        ],
+        "/deps/tokio/net/unix/split-owned/ownedreadhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/unix/split-owned/ownedwritehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/unix/split/readhalf": [
+          "readable",
+          "ready"
+        ],
+        "/deps/tokio/net/unix/split/writehalf": [
+          "writable"
+        ],
+        "/deps/tokio/net/unix/stream/unixstream": [
+          "connect",
+          "from_std",
+          "readable",
+          "ready",
+          "writable"
         ],
         "/deps/tokio/net/unixlistener": [
           "local_addr"
@@ -3760,6 +3920,40 @@
           "borrowed-option.cloned",
           "borrowed-option.map",
           "is_rt_shutdown_err"
+        ],
+        "/deps/tokio/runtime/builder/builder": [
+          "build",
+          "build_local",
+          "new_current_thread"
+        ],
+        "/deps/tokio/runtime/handle/handle": [
+          "block_on",
+          "enter",
+          "runtime_flavor",
+          "spawn_blocking"
+        ],
+        "/deps/tokio/runtime/runtime/runtime": [
+          "block_on",
+          "enter",
+          "handle",
+          "metrics",
+          "shutdown_background",
+          "shutdown_timeout",
+          "spawn",
+          "spawn_blocking"
+        ],
+        "/deps/tokio/runtime/task/abort/aborthandle": [
+          "abort",
+          "is_finished"
+        ],
+        "/deps/tokio/runtime/task/error/joinerror": [
+          "id",
+          "is_cancelled"
+        ],
+        "/deps/tokio/runtime/task/join/joinhandle": [
+          "abort",
+          "id",
+          "is_finished"
         ],
         "/deps/tokio/sync": [
           "AcquireError",
@@ -3923,6 +4117,12 @@
           "borrowed-option.cloned",
           "borrowed-option.map"
         ],
+        "/deps/tokio/sync/barrier/barrier": [
+          "wait"
+        ],
+        "/deps/tokio/sync/barrier/barrierwaitresult": [
+          "is_leader"
+        ],
         "/deps/tokio/sync/broadcast": [
           "Receiver",
           "Receiver.blocking_recv",
@@ -3969,6 +4169,9 @@
           "SendError.into",
           "SendError.try_into",
           "TryRecvError"
+        ],
+        "/deps/tokio/sync/broadcast/receiver": [
+          "len"
         ],
         "/deps/tokio/sync/futures": [
           "OwnedNotified",
@@ -4061,6 +4264,15 @@
           "WeakUnboundedSender.upgrade",
           "WeakUnboundedSender.weak_count"
         ],
+        "/deps/tokio/sync/mpsc/bounded/receiver": [
+          "capacity",
+          "close",
+          "max_capacity"
+        ],
+        "/deps/tokio/sync/mpsc/bounded/sender": [
+          "capacity",
+          "max_capacity"
+        ],
         "/deps/tokio/sync/mpsc/error": [
           "SendError",
           "SendError.clone",
@@ -4071,6 +4283,14 @@
           "SendTimeoutError",
           "TryRecvError",
           "TrySendError"
+        ],
+        "/deps/tokio/sync/mpsc/unbounded/unboundedreceiver": [
+          "close"
+        ],
+        "/deps/tokio/sync/notify/notify": [
+          "new",
+          "notify_one",
+          "notify_waiters"
         ],
         "/deps/tokio/sync/oneshot": [
           "Receiver",
@@ -4097,6 +4317,24 @@
           "RecvError.into",
           "RecvError.try_into",
           "TryRecvError"
+        ],
+        "/deps/tokio/sync/oneshot/receiver": [
+          "close",
+          "is_terminated"
+        ],
+        "/deps/tokio/sync/semaphore/semaphore": [
+          "acquire",
+          "acquire_many",
+          "add_permits",
+          "available_permits",
+          "close",
+          "forget_permits",
+          "is_closed",
+          "try_acquire",
+          "try_acquire_many"
+        ],
+        "/deps/tokio/sync/semaphore/semaphorepermit": [
+          "forget"
         ],
         "/deps/tokio/sync/watch": [
           "Receiver",
@@ -4141,6 +4379,14 @@
           "SendError.eq",
           "SendError.into",
           "SendError.try_into"
+        ],
+        "/deps/tokio/sync/watch/receiver": [
+          "changed",
+          "has_changed"
+        ],
+        "/deps/tokio/sync/watch/sender": [
+          "closed",
+          "is_closed"
         ],
         "/deps/tokio/task": [
           "AbortHandle",
@@ -4232,11 +4478,17 @@
           "has_budget_remaining",
           "unconstrained"
         ],
+        "/deps/tokio/task/coop/restoreonpending": [
+          "made_progress"
+        ],
         "/deps/tokio/task/futures": [
           "TaskLocalFuture",
           "TaskLocalFuture.drop",
           "TaskLocalFuture.into",
           "TaskLocalFuture.try_into"
+        ],
+        "/deps/tokio/task/join-set/joinset": [
+          "abort_all"
         ],
         "/deps/tokio/task/task-local": [
           "AccessError"
@@ -4377,6 +4629,10 @@
         ],
         "/deps/tokio/time/instant/trait/core/ops/arith/sub-core/time/duration": [
           "sub"
+        ],
+        "/deps/tokio/time/interval/interval": [
+          "set_missed_tick_behavior",
+          "tick"
         ]
       },
       "name": "tokio",
@@ -4390,6 +4646,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

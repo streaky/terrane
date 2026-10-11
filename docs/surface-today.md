@@ -84,7 +84,7 @@ Terrane package
 │   │   │   ├── decode-error                   compiler-owned throwable object
 │   │   │   ├── index-error                    compiler-owned throwable object
 │   │   │   ├── missing-key                    compiler-owned throwable object
-│   │   │   ├── dependency-error               dependency `Result::Err` throwable object
+│   │   │   ├── dependency-error               fallback native `Result::Err` throwable object
 │   │   │   └── dependency-panic               unwinding dependency-panic throwable object
 │   │   ├── /core/encodings
 │   │   │   ├── utf8                           encoding object
@@ -1244,9 +1244,12 @@ public `iced::Point` re-export all appear as `Point`, while exact native argumen
 paths remain compiler-owned semantic metadata used for specialization-specific member selection
 and generic Rust lowering. Other generic shapes retain distinct internal identities until
 equivalent correlation is proven. Universal projected-call panic translation is implicit and
-omitted from generated
-declarations; projected Rust `Result` errors retain an explicit `throws dependency-error`
-contract. Admitted nominal classes contain the union of members whose rendered declaration is
+omitted from generated declarations; projected Rust `Result` inventories use a generic
+`throws dependency-error` marker, while native admission metadata selects the actual typed
+error identity or supported standard-library fallback. Explicit public IO `Error`/`ErrorKind`
+reexports are admitted consistently across `std`/`core` defining-crate metadata; signature-only
+IO references do not manufacture facade exports. Admitted nominal classes contain the union
+of members whose rendered declaration is
 syntax-valid Terrane source, independent of current imports. Projection parses each
 candidate before admitting it; admitted members whose rendering is not syntax-valid remain inert
 with the exact parser rejection. Unsupported public members remain inert comments inside the owning
@@ -1270,8 +1273,10 @@ static member names grouped by namespace, exact injected private owner dependenc
 versions, source, rustdoc format, projection schema, exact cache identity, content hash, and
 resolution events. Formats 1-3 remain readable and migrate on write. A single admitted
 concrete generic instantiation keeps its readable Rust type name; hash suffixes are reserved for
-multiple admitted instantiations. `S2031` names removed members and their version change; a changed
-payload under one exact cache identity is rejected as replay drift. Completion, signature help, and
+multiple admitted instantiations. `S2031` names removed members and their previous/current
+dependency versions, including equal versions when source or toolchain inputs changed the
+projection. Reintroduction clears removal history. A changed payload under one exact cache
+identity is rejected as replay drift. Completion, signature help, and
 hover remain advisory; Cargo and rustc are authoritative.
 
 ## Compiler-backed source intelligence

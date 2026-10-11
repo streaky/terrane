@@ -976,6 +976,7 @@ fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: b
             "cache_identity",
             "content_hash",
             "projection_schema",
+            "rustdoc_format",
             "resolution"
         ]
         .iter()
@@ -1020,6 +1021,7 @@ fn stable_projection_history(path: &Path) -> serde_json::Value {
     object.remove("cache_identity");
     object.remove("content_hash");
     object.remove("projection_schema");
+    object.remove("rustdoc_format");
     // Cache hits and local regeneration must expose the same reviewed API.
     object.remove("resolution");
     history
@@ -1259,7 +1261,7 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .filter(|line| !line.is_empty())
         .map(|line| {
             let (pairs, remainder) = line.as_bytes().as_chunks::<2>();
-            assert!(remainder.is_empty(), "argument hex has an odd digit");
+            assert_eq!(remainder, [] as [u8; 0], "argument hex has an odd digit");
             let bytes = pairs
                 .iter()
                 .map(|pair| {

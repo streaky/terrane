@@ -1,0 +1,7 @@
+package = "explicit-io-error"
+[namespaces]
+app = "."
+[rust-dependencies.io-witness]
+package = "terrane-explicit-io-witness"
+version = "=0.1.0"
+effects = ["build"]

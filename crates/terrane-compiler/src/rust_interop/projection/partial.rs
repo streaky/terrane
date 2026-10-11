@@ -157,6 +157,9 @@ fn partial_function_projection(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
 ) -> Result<PartialProjection, String> {
+    if function.sig.is_c_variadic {
+        return Err("C-variadic functions are unavailable to Terrane".to_owned());
+    }
     let generics = function
         .generics
         .params

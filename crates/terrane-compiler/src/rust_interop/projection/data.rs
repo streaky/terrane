@@ -289,6 +289,7 @@ pub(super) fn project_struct_constructor(
             abi: rustdoc_types::Abi::Rust,
         },
         has_body: false,
+        default_unstable: None,
     };
     project_function_inner(
         &function,

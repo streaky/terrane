@@ -28,7 +28,18 @@
           "spawn"
         ],
         "/deps/tokio/io": [
-          "ErrorKind"
+          "Error",
+          "Error.into",
+          "Error.kind",
+          "Error.raw_os_error",
+          "Error.try_into",
+          "Error::from",
+          "ErrorKind",
+          "Result",
+          "SeekFrom"
+        ],
+        "/deps/tokio/io/read-buf/readbuf": [
+          "assume_init"
         ],
         "/deps/tokio/macros": [
           "pin",
@@ -185,8 +196,41 @@
           "borrowed-option.map",
           "is_rt_shutdown_err"
         ],
+        "/deps/tokio/runtime/builder/builder": [
+          "build",
+          "build_local",
+          "new_current_thread"
+        ],
         "/deps/tokio/runtime/duration/trait/core/ops/arith/mul-u32": [
           "mul"
+        ],
+        "/deps/tokio/runtime/handle/handle": [
+          "block_on",
+          "enter",
+          "runtime_flavor"
+        ],
+        "/deps/tokio/runtime/runtime/runtime": [
+          "block_on",
+          "enter",
+          "handle",
+          "metrics",
+          "shutdown_background",
+          "shutdown_timeout",
+          "spawn",
+          "spawn_blocking"
+        ],
+        "/deps/tokio/runtime/task/abort/aborthandle": [
+          "abort",
+          "is_finished"
+        ],
+        "/deps/tokio/runtime/task/error/joinerror": [
+          "id",
+          "is_cancelled"
+        ],
+        "/deps/tokio/runtime/task/join/joinhandle": [
+          "abort",
+          "id",
+          "is_finished"
         ],
         "/deps/tokio/task": [
           "AbortHandle",
@@ -279,11 +323,17 @@
           "has_budget_remaining",
           "unconstrained"
         ],
+        "/deps/tokio/task/coop/restoreonpending": [
+          "made_progress"
+        ],
         "/deps/tokio/task/futures": [
           "TaskLocalFuture",
           "TaskLocalFuture.drop",
           "TaskLocalFuture.into",
           "TaskLocalFuture.try_into"
+        ],
+        "/deps/tokio/task/join-set/joinset": [
+          "abort_all"
         ],
         "/deps/tokio/task/task-local": [
           "AccessError"
@@ -295,6 +345,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

@@ -1735,7 +1735,7 @@ fn missing_static_member_failure(
             &unit.source,
             "S2031",
             format!(
-                "Rust dependency member `{}::{member_name}` was projected by version {} but is absent from version {}",
+                "Rust dependency member `{}::{member_name}` was present in a previous projection at dependency version {}, but is absent from the current projection at version {}",
                 identity.name, removed.previous_version, removed.current_version
             ),
             member.span,

@@ -263,7 +263,7 @@ pub(super) fn project_methods(
             let Some(name) = item.name.as_deref() else {
                 continue;
             };
-            if let ItemEnum::AssocConst { type_, value } = &item.inner {
+            if let ItemEnum::AssocConst { type_, value, .. } = &item.inner {
                 if !inherent {
                     continue;
                 }

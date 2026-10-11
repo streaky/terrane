@@ -62,7 +62,7 @@ fn highlights_tail_and_block_strings_returned_directly() {
     let file = SourceFile::new(0, "returns.trn".into(), source.to_owned());
     let output = highlight(&file);
 
-    assert!(output.diagnostics.is_empty(), "{:#?}", output.diagnostics);
+    assert_eq!(output.diagnostics, Vec::new(), "{:#?}", output.diagnostics);
     for text in [">ok", ">>\n    first\n    second"] {
         assert!(output.highlights.iter().any(|item| {
             item.kind == HighlightKind::String && &source[item.span.start..item.span.end] == text

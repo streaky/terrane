@@ -3512,7 +3512,7 @@ mod tests {
         assert_eq!(syntax.source.content_hash, hash_text(text));
         assert!(syntax.tokens.iter().any(|token| token.text == "'é'"));
         assert!(syntax.trivia.iter().any(|trivia| trivia.text == "# note"));
-        assert!(!syntax.diagnostics.is_empty());
+        assert_ne!(syntax.diagnostics, Vec::new());
         assert_ne!(syntax.root.state, SyntaxState::Complete);
         assert_eq!(syntax.root.span.end, text.len());
         let without_recovery = engine
@@ -3619,7 +3619,7 @@ mod tests {
             )
             .expect("second page");
         assert!(second.complete);
-        assert!(!second.matches.is_empty());
+        assert_ne!(second.matches, Vec::new());
     }
 
     #[test]
@@ -3805,7 +3805,7 @@ mod tests {
                 }],
             )
             .expect("diagnostic proposal");
-        assert!(!invalid.preview_diagnostics.is_empty());
+        assert_ne!(invalid.preview_diagnostics, Vec::new());
         let error = engine
             .apply_edits(&invalid.proposal_id)
             .expect_err("diagnostic proposal must not apply");
@@ -4003,7 +4003,7 @@ mod tests {
         let interface_rename = engine
             .propose_rename(&metadata.snapshot_id, uri, method_offset, "execute")
             .expect("interface contract rename");
-        assert!(interface_rename.preview_diagnostics.is_empty());
+        assert_eq!(interface_rename.preview_diagnostics, Vec::new());
         assert!(interface_rename.semantic_reanalysis);
         assert_eq!(interface_rename.replacements.len(), 4);
         let concrete_rename = engine
@@ -4029,7 +4029,7 @@ mod tests {
             )
             .expect("diagnostic interface proposal");
         assert!(!broken.semantic_reanalysis);
-        assert!(!broken.preview_diagnostics.is_empty());
+        assert_ne!(broken.preview_diagnostics, Vec::new());
         let error = engine
             .apply_edits(&broken.proposal_id)
             .expect_err("diagnostic interface proposal must not be applicable");

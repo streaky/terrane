@@ -183,7 +183,7 @@
         "/deps/sqlx/error/trait/core/convert/from-sqlx/error": [
           "from"
         ],
-        "/deps/sqlx/error/trait/core/convert/from-std/io/error/error": [
+        "/deps/sqlx/error/trait/core/convert/from-std/io/error": [
           "from"
         ],
         "/deps/sqlx/pool": [
@@ -239,6 +239,9 @@
           "PoolOptions::default",
           "PoolOptions::new",
           "begin"
+        ],
+        "/deps/sqlx/pool/connection/poolconnection": [
+          "close"
         ],
         "/deps/sqlx/query": [
           "Query-hash-h4847f014eb029ee0b7097344543329a9823fee236545d15f73e0d7c11ccb07de",
@@ -789,6 +792,10 @@
         "/deps/sqlx-core/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
+        "/deps/sqlx-core/bytes/bytes-mut/bytesmut": [
+          "set_len",
+          "split_off"
+        ],
         "/deps/sqlx-core/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -1063,7 +1070,7 @@
         "/deps/sqlx-core/error/trait/core/convert/from-sqlx-core/migrate/migrateerror": [
           "from"
         ],
-        "/deps/sqlx-core/error/trait/core/convert/from-std/io/error/error": [
+        "/deps/sqlx-core/error/trait/core/convert/from-std/io/error": [
           "from"
         ],
         "/deps/sqlx-core/ext/async-stream": [
@@ -1304,6 +1311,9 @@
           "PoolOptions::default",
           "PoolOptions::new"
         ],
+        "/deps/sqlx-core/pool/connection/poolconnection": [
+          "close"
+        ],
         "/deps/sqlx-core/pool/pool": [
           "begin"
         ],
@@ -1439,6 +1449,10 @@
           "commit_ansi_transaction_sql",
           "rollback_ansi_transaction_sql"
         ],
+        "/deps/sqlx-core/transaction/transaction": [
+          "commit",
+          "rollback"
+        ],
         "/deps/sqlx-core/type-checking": [
           "ParamChecking"
         ],
@@ -1535,6 +1549,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

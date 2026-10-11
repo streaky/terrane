@@ -29,6 +29,8 @@ cargo build -p terrane-cli -p terrane-language-server
 ./target/debug/terrane --version
 ```
 
+The [Rust 1.99 upgrade and migration notes](docs/rust-1.99-upgrade.md) announce changes to projected dependency surfaces and error handling, not just the compiler version pin.
+
 Cargo builds from this checkout show a progress bar by default. Set
 `CARGO_TERM_PROGRESS_WHEN=never` to disable it (for example, in CI); explicit
 environment settings take precedence over the repository default.

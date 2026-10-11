@@ -1,0 +1,7 @@
+namespace app
+
+from /deps/terrane-c-variadic-witness import fixed_value
+
+function main;
+    value = fixed_value; 4
+    print; value

@@ -22,7 +22,7 @@ pub use survey::{
 pub const BUILD_TOOLCHAIN: &str = env!("CARGO_PKG_RUST_VERSION");
 
 /// Nightly toolchain pinned to the Rustdoc JSON format and native probe cache identity.
-pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
+pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-08-01";
 
 /// Rustdoc arguments shared by compiler projection and native ecosystem surveys.
 pub const RUSTDOC_JSON_ARGS: &[&str] = &["-Z", "unstable-options", "--output-format", "json"];
@@ -240,6 +240,8 @@ mod tests {
             links: HashMap::new(),
             attrs,
             deprecation: None,
+            const_stability: None,
+            stability: None,
             inner,
         }
     }
@@ -399,7 +401,7 @@ mod tests {
                 triple: "x86_64-unknown-linux-gnu".to_owned(),
                 target_features: Vec::new(),
             },
-            format_version: 57,
+            format_version: rustdoc_types::FORMAT_VERSION,
         };
         (document, Id(10), Id(11), Id(12))
     }
@@ -537,7 +539,7 @@ mod tests {
                 triple: "x86_64-unknown-linux-gnu".to_owned(),
                 target_features: Vec::new(),
             },
-            format_version: 57,
+            format_version: rustdoc_types::FORMAT_VERSION,
         };
 
         assert_eq!(

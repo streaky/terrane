@@ -1,0 +1,7 @@
+package = "signature-io-fallback"
+[namespaces]
+app = "."
+[rust-dependencies.io-witness]
+package = "terrane-signature-io-witness"
+version = "=0.1.0"
+effects = ["build"]

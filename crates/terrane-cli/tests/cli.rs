@@ -200,7 +200,7 @@ fn executable_shebang_script_runs_through_implicit_command() {
 
     assert!(output.status.success(), "{output:?}");
     assert_eq!(output.stdout, b"hello\n");
-    assert!(output.stderr.is_empty(), "{output:?}");
+    assert_eq!(output.stderr, b"", "{output:?}");
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn extensionless_source_and_package_paths_dispatch_consistently() {
 
     let directory_argument = Command::new(binary).arg(&package_root).output().unwrap();
     assert_eq!(directory_argument.status.code(), Some(2));
-    assert!(directory_argument.stdout.is_empty());
+    assert_eq!(directory_argument.stdout, b"");
 }
 
 #[test]
@@ -273,7 +273,7 @@ fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
         .unwrap();
 
     assert!(lowered.status.success(), "{lowered:?}");
-    assert!(lowered.stdout.is_empty());
+    assert_eq!(lowered.stdout, b"");
     let entrypoint = fs::read_to_string(&output).unwrap();
     let support = fs::read_to_string(output.with_file_name("application.support.rs")).unwrap();
     assert!(entrypoint.contains("include!(\"application.support.rs\");"));
@@ -556,7 +556,7 @@ fn canonical_rust_requirement_preserves_successful_rust_output() {
     assert!(ordinary.status.success());
     assert!(canonical.status.success());
     assert_eq!(canonical.stdout, ordinary.stdout);
-    assert!(canonical.stderr.is_empty());
+    assert_eq!(canonical.stderr, b"");
 }
 
 #[test]
@@ -685,7 +685,7 @@ fn external_tooling_clients_receive_versioned_protocol_frames() {
         .output()
         .unwrap();
     assert!(one_shot.status.success(), "{one_shot:?}");
-    assert!(one_shot.stderr.is_empty(), "{one_shot:?}");
+    assert_eq!(one_shot.stderr, b"", "{one_shot:?}");
     let responses = String::from_utf8(one_shot.stdout)
         .unwrap()
         .lines()
@@ -915,5 +915,5 @@ fn source_formatter_checks_then_applies_an_idempotent_edit() {
         .output()
         .unwrap();
     assert!(clean.status.success(), "{clean:?}");
-    assert!(clean.stdout.is_empty());
+    assert_eq!(clean.stdout, b"");
 }

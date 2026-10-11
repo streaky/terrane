@@ -287,9 +287,9 @@ fn survey_package_surface_with_policy(
     } else {
         fallback
     };
-    let complete_public_api = complete_public_api(&rustdoc_path, complete_surface)?;
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated survey rustdoc"))?;
     let document = parse_rustdoc(&selected.name, &bytes, RUSTDOC_TOOLCHAIN)?;
+    let complete_public_api = complete_public_api(&rustdoc_path, complete_surface)?;
     let paths = public_paths(&document);
     let source_root = package_source_root(selected)?;
     let (declarations, discovery_failures) =
@@ -453,42 +453,79 @@ fn load_core_rustdoc(
             ),
         });
     }
+    let cache_root = output_root.join("core");
+    fs::create_dir_all(&cache_root).map_err(io_error("create core survey cache root"))?;
+    // Keep the lock outside the replaceable directory so all processes lock one inode.
+    let cache_lock = fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(cache_root.join(format!("{target}.lock")))
+        .map_err(io_error("open core survey cache lock"))?;
+    cache_lock
+        .lock()
+        .map_err(io_error("lock core survey cache"))?;
     let output_directory = output_root.join("core").join(target);
-    fs::create_dir_all(&output_directory).map_err(io_error("create core survey directory"))?;
+    let identity_path = output_directory.join(".artifact-identity");
+    let identity = format!(
+        "build-toolchain={BUILD_TOOLCHAIN}\nrustdoc-toolchain={RUSTDOC_TOOLCHAIN}\nrustdoc-format={}\ntarget={target}\n",
+        rustdoc_types::FORMAT_VERSION
+    );
+    let cached_identity = match fs::read_to_string(&identity_path) {
+        Ok(value) => Some(value),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(io_error("read core survey identity")(error)),
+    };
     let rustdoc_path = output_directory.join("core.json");
-    if !rustdoc_path.is_file() {
-        let output = Command::new("rustdoc")
-            .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
-            .args([
-                "--crate-name",
-                "core",
-                "--edition",
-                "2024",
-                "-Z",
-                "unstable-options",
-                "--output-format",
-                "json",
-                "--target",
-                target,
-                "--out-dir",
-            ])
-            .arg(&output_directory)
-            .arg(&source)
-            .env_remove("RUSTFLAGS")
-            .env_remove("RUSTDOCFLAGS")
-            .output()
-            .map_err(io_error("run pinned Rustdoc for core survey"))?;
-        if !output.status.success() {
-            return Err(AnalysisError {
-                message: format!(
-                    "cannot generate pinned core Rustdoc: {}",
-                    String::from_utf8_lossy(&output.stderr).trim()
-                ),
-            });
+    if cached_identity.as_deref() == Some(identity.as_str()) {
+        match fs::read(&rustdoc_path) {
+            Ok(bytes) => {
+                if let Ok(document) = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN) {
+                    return Ok((document, source_root));
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(io_error("read cached core Rustdoc")(error)),
         }
+    }
+    if output_directory.exists() {
+        fs::remove_dir_all(&output_directory)
+            .map_err(io_error("remove obsolete core survey cache"))?;
+    }
+    fs::create_dir_all(&output_directory).map_err(io_error("create core survey directory"))?;
+    let output = Command::new("rustdoc")
+        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .args([
+            "--crate-name",
+            "core",
+            "--edition",
+            "2024",
+            "-Z",
+            "unstable-options",
+            "--output-format",
+            "json",
+            "--target",
+            target,
+            "--out-dir",
+        ])
+        .arg(&output_directory)
+        .arg(&source)
+        .env_remove("RUSTFLAGS")
+        .env_remove("RUSTDOCFLAGS")
+        .output()
+        .map_err(io_error("run pinned Rustdoc for core survey"))?;
+    if !output.status.success() {
+        return Err(AnalysisError {
+            message: format!(
+                "cannot generate pinned core Rustdoc: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        });
     }
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated core Rustdoc"))?;
     let document = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN)?;
+    fs::write(&identity_path, identity).map_err(io_error("write core survey identity"))?;
     Ok((document, source_root))
 }
 
@@ -1015,6 +1052,76 @@ mod tests {
     }
 
     #[test]
+    fn core_survey_rebuilds_unmarked_and_obsolete_caches() {
+        let directory = temporary_directory("stale-core-cache");
+        let target = host_target().unwrap();
+        let cache = directory.join("core").join(&target);
+        let marker = cache.join(".artifact-identity");
+        let current_identity = format!(
+            "build-toolchain={BUILD_TOOLCHAIN}\nrustdoc-toolchain={RUSTDOC_TOOLCHAIN}\nrustdoc-format={}\ntarget={target}\n",
+            rustdoc_types::FORMAT_VERSION
+        );
+        let unrelated = directory.join("unrelated-cache");
+        fs::write(&unrelated, "preserve").unwrap();
+        for stale_identity in [
+            None,
+            Some(current_identity.replace(BUILD_TOOLCHAIN, "1.98.1")),
+            Some(current_identity.replace(RUSTDOC_TOOLCHAIN, "nightly-2026-04-29")),
+            Some(current_identity.replace(
+                &format!("rustdoc-format={}", rustdoc_types::FORMAT_VERSION),
+                "rustdoc-format=57",
+            )),
+            Some(current_identity.replace(&target, "obsolete-target")),
+        ] {
+            fs::create_dir_all(&cache).unwrap();
+            fs::write(cache.join("core.json"), br#"{"format_version":57}"#).unwrap();
+            fs::write(cache.join("obsolete-output"), "obsolete").unwrap();
+            if let Some(stale_identity) = stale_identity {
+                fs::write(&marker, stale_identity).unwrap();
+            }
+            let document = core_rustdoc(&directory, &target).unwrap();
+            assert_eq!(document.format_version, rustdoc_types::FORMAT_VERSION);
+            assert!(
+                public_paths(&document)
+                    .values()
+                    .any(|path| path == "core::option::Option")
+            );
+            assert_eq!(fs::read_to_string(&marker).unwrap(), current_identity);
+            assert!(!cache.join("obsolete-output").exists());
+            assert_eq!(fs::read_to_string(&unrelated).unwrap(), "preserve");
+        }
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn core_survey_rebuilds_corrupt_json_with_a_current_marker() {
+        let directory = temporary_directory("corrupt-core-cache");
+        let target = host_target().unwrap();
+        core_rustdoc(&directory, &target).unwrap();
+        let cache = directory.join("core").join(&target);
+        let marker = fs::read(cache.join(".artifact-identity")).unwrap();
+        fs::write(cache.join("core.json"), br#"{"format_version":"#).unwrap();
+        fs::write(cache.join("interrupted-output"), "incomplete").unwrap();
+
+        let document = core_rustdoc(&directory, &target).unwrap();
+        assert!(
+            public_paths(&document)
+                .values()
+                .any(|path| path == "core::option::Option")
+        );
+        assert_eq!(fs::read(cache.join(".artifact-identity")).unwrap(), marker);
+        assert!(!cache.join("interrupted-output").exists());
+        let regenerated = fs::read(cache.join("core.json")).unwrap();
+        assert_eq!(
+            parse_rustdoc("core", &regenerated, RUSTDOC_TOOLCHAIN)
+                .unwrap()
+                .format_version,
+            rustdoc_types::FORMAT_VERSION
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn package_selection_requires_a_version_when_a_name_is_ambiguous() {
         let metadata = metadata(
             vec![
@@ -1225,6 +1332,8 @@ mod tests {
                     links: HashMap::new(),
                     attrs: Vec::new(),
                     deprecation: None,
+                    const_stability: None,
+                    stability: None,
                     inner: ItemEnum::Primitive(Primitive {
                         name: "local".to_owned(),
                         impls: Vec::new(),
@@ -1261,7 +1370,7 @@ mod tests {
                 triple: "x86_64-unknown-linux-gnu".to_owned(),
                 target_features: Vec::new(),
             },
-            format_version: 57,
+            format_version: rustdoc_types::FORMAT_VERSION,
         };
         let paths = BTreeMap::from([
             (local, "sample::Local".to_owned()),
@@ -1304,6 +1413,8 @@ mod tests {
                     links: HashMap::new(),
                     attrs: Vec::new(),
                     deprecation: None,
+                    const_stability: None,
+                    stability: None,
                     inner: ItemEnum::Primitive(Primitive {
                         name: "hidden_source".to_owned(),
                         impls: Vec::new(),
@@ -1316,12 +1427,12 @@ mod tests {
                 triple: "x86_64-unknown-linux-gnu".to_owned(),
                 target_features: Vec::new(),
             },
-            format_version: 57,
+            format_version: rustdoc_types::FORMAT_VERSION,
         };
         let paths = BTreeMap::from([(hidden, "sample::reexported_at_root".to_owned())]);
         let (declarations, failures) =
             declarations(&document, &paths, Path::new("/"), "package").unwrap();
-        assert!(failures.is_empty());
+        assert_eq!(failures, []);
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::reexported_at_root");
         assert_eq!(declarations[0].canonical_path, None);

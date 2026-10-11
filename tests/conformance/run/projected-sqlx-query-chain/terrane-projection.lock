@@ -406,6 +406,10 @@
         "/deps/sqlx-core/bytes/buf/uninitslice/trait/core/ops/index/indexmut-core/ops/range/rangetoinclusive-usize": [
           "index_mut"
         ],
+        "/deps/sqlx-core/bytes/bytes-mut/bytesmut": [
+          "set_len",
+          "split_off"
+        ],
         "/deps/sqlx-core/bytes/bytes/trait/core/cmp/partialeq": [
           "eq"
         ],
@@ -878,6 +882,9 @@
           "PoolOptions::default",
           "PoolOptions::new"
         ],
+        "/deps/sqlx-core/pool/connection/poolconnection": [
+          "close"
+        ],
         "/deps/sqlx-core/pool/pool": [
           "begin"
         ],
@@ -981,6 +988,10 @@
           "begin_ansi_transaction_sql",
           "commit_ansi_transaction_sql",
           "rollback_ansi_transaction_sql"
+        ],
+        "/deps/sqlx-core/transaction/transaction": [
+          "commit",
+          "rollback"
         ],
         "/deps/sqlx-core/type-checking": [
           "ParamChecking"
@@ -1401,6 +1412,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }

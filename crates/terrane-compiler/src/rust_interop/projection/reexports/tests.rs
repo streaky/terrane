@@ -61,71 +61,96 @@ fn external_owner_resolution_declines_ambiguous_library_targets() {
     assert!(reason.contains("owner-two@2.0.0"));
 }
 #[test]
-fn builtin_owner_reexports_never_request_supplemental_rustdoc() {
-    let root = Id(0);
-    let external_error = Id(1);
-    let dependency = dependency("facade", "facade", &[]);
-    let document = RustdocCrate {
-        root,
-        crate_version: Some("1.0.0".to_owned()),
-        includes_private: false,
-        index: HashMap::new(),
-        paths: HashMap::from([
-            (
-                root,
-                ItemSummary {
-                    crate_id: 0,
-                    path: vec!["facade".to_owned()],
-                    kind: ItemKind::Module,
+fn explicit_io_error_reexports_are_independent_of_the_defining_crate() {
+    for (owner, path, admitted) in [
+        ("std", vec!["std", "io", "Error"], true),
+        ("core", vec!["core", "io", "error", "Error"], true),
+        ("std", vec!["std", "io", "OtherError"], false),
+        ("std", vec!["std", "fs", "File"], false),
+    ] {
+        let root = Id(0);
+        let external_error = Id(1);
+        let dependency = dependency("facade", "facade", &[]);
+        let document = RustdocCrate {
+            root,
+            crate_version: Some("1.0.0".to_owned()),
+            includes_private: false,
+            index: HashMap::new(),
+            paths: HashMap::from([
+                (
+                    root,
+                    ItemSummary {
+                        crate_id: 0,
+                        path: vec!["facade".to_owned()],
+                        kind: ItemKind::Module,
+                    },
+                ),
+                (
+                    external_error,
+                    ItemSummary {
+                        crate_id: 1,
+                        path: path.iter().map(|segment| (*segment).to_owned()).collect(),
+                        kind: ItemKind::Struct,
+                    },
+                ),
+            ]),
+            external_crates: HashMap::from([(
+                1,
+                ExternalCrate {
+                    name: owner.to_owned(),
+                    html_root_url: None,
+                    path: std::path::PathBuf::from("/std.rlib"),
                 },
-            ),
-            (
-                external_error,
-                ItemSummary {
-                    crate_id: 1,
-                    path: vec!["std".to_owned(), "io".to_owned(), "Error".to_owned()],
-                    kind: ItemKind::Struct,
-                },
-            ),
-        ]),
-        external_crates: HashMap::from([(
-            1,
-            ExternalCrate {
-                name: "std".to_owned(),
-                html_root_url: None,
-                path: std::path::PathBuf::from("/std.rlib"),
+            )]),
+            target: Target {
+                triple: "x86_64-unknown-linux-gnu".to_owned(),
+                target_features: Vec::new(),
             },
-        )]),
-        target: Target {
-            triple: "x86_64-unknown-linux-gnu".to_owned(),
-            target_features: Vec::new(),
-        },
-        format_version: rustdoc_types::FORMAT_VERSION,
-    };
-    let rustdocs = vec![(
-        &dependency,
-        document,
-        BTreeMap::from([(external_error, "facade::Error".to_owned())]),
-    )];
-    let mut declines = vec![Vec::new()];
-    let workspace =
-        std::env::temp_dir().join(format!("terrane-builtin-owner-{}", std::process::id()));
+            format_version: rustdoc_types::FORMAT_VERSION,
+        };
+        let rustdocs = vec![(
+            &dependency,
+            document,
+            BTreeMap::from([(external_error, "facade::Error".to_owned())]),
+        )];
+        let mut declines = vec![Vec::new()];
+        let workspace = std::env::temp_dir().join(format!(
+            "terrane-builtin-owner-{}-{owner}-{}",
+            std::process::id(),
+            path.last().unwrap()
+        ));
 
-    let supplemental = external_reexport_rustdocs(
-        &workspace,
-        &rustdocs,
-        &[],
-        &json!({"packages": []}),
-        "x86_64-unknown-linux-gnu",
-        Containment::Unavailable,
-        None,
-        &mut declines,
-    )
-    .unwrap();
+        let supplemental = external_reexport_rustdocs(
+            &workspace,
+            &rustdocs,
+            &[],
+            &json!({"packages": []}),
+            "x86_64-unknown-linux-gnu",
+            Containment::Unavailable,
+            None,
+            &mut declines,
+        )
+        .unwrap();
 
-    assert!(supplemental.is_empty());
-    assert!(declines[0].is_empty());
-    assert!(!workspace.exists());
+        if admitted {
+            let provider = &supplemental[0].providers[0];
+            assert_eq!(
+                provider.rust_path_aliases["facade::Error"],
+                "std::io::Error"
+            );
+            assert!(
+                provider
+                    .public_paths
+                    .values()
+                    .any(|path| path == "facade::Error")
+            );
+            fs::remove_dir_all(&workspace).unwrap();
+        } else {
+            assert!(supplemental.is_empty());
+            assert!(!workspace.exists());
+        }
+        assert_eq!(declines[0], Vec::new());
+    }
 }
 #[test]
 fn owner_rustdoc_identity_mismatch_regenerates_usable_cache() {

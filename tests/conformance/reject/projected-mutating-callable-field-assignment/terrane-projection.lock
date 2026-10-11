@@ -354,6 +354,9 @@
           "borrowed-option.cloned",
           "borrowed-option.map"
         ],
+        "/deps/http/request/request": [
+          "method"
+        ],
         "/deps/http/response": [
           "Builder",
           "Builder.body",
@@ -383,6 +386,9 @@
           "InvalidStatusCode.into",
           "InvalidStatusCode.try_into",
           "InvalidStatusCode::from"
+        ],
+        "/deps/http/status/statuscode": [
+          "is_success"
         ],
         "/deps/http/statuscode/trait/core/cmp/partialeq": [
           "eq"
@@ -551,6 +557,5 @@
   ],
   "format": 4,
   "removed": [],
-  "rustdoc_format": 57,
   "source": "Local"
 }
