@@ -454,6 +454,20 @@ fn load_core_rustdoc(
         });
     }
     let output_directory = output_root.join("core").join(target);
+    let identity_path = output_directory.join(".artifact-identity");
+    let identity = format!(
+        "build-toolchain={BUILD_TOOLCHAIN}\nrustdoc-toolchain={RUSTDOC_TOOLCHAIN}\nrustdoc-format={}\ntarget={target}\n",
+        rustdoc_types::FORMAT_VERSION
+    );
+    let cached_identity = match fs::read_to_string(&identity_path) {
+        Ok(value) => Some(value),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(io_error("read core survey identity")(error)),
+    };
+    if cached_identity.as_deref() != Some(identity.as_str()) && output_directory.exists() {
+        fs::remove_dir_all(&output_directory)
+            .map_err(io_error("remove obsolete core survey cache"))?;
+    }
     fs::create_dir_all(&output_directory).map_err(io_error("create core survey directory"))?;
     let rustdoc_path = output_directory.join("core.json");
     if !rustdoc_path.is_file() {
@@ -489,6 +503,9 @@ fn load_core_rustdoc(
     }
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated core Rustdoc"))?;
     let document = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN)?;
+    if cached_identity.as_deref() != Some(identity.as_str()) {
+        fs::write(&identity_path, identity).map_err(io_error("write core survey identity"))?;
+    }
     Ok((document, source_root))
 }
 
@@ -1012,6 +1029,48 @@ mod tests {
         ));
         fs::create_dir_all(&path).unwrap();
         path
+    }
+
+    #[test]
+    fn core_survey_rebuilds_unmarked_and_obsolete_caches() {
+        let directory = temporary_directory("stale-core-cache");
+        let target = host_target().unwrap();
+        let cache = directory.join("core").join(&target);
+        let marker = cache.join(".artifact-identity");
+        let current_identity = format!(
+            "build-toolchain={BUILD_TOOLCHAIN}\nrustdoc-toolchain={RUSTDOC_TOOLCHAIN}\nrustdoc-format={}\ntarget={target}\n",
+            rustdoc_types::FORMAT_VERSION
+        );
+        let unrelated = directory.join("unrelated-cache");
+        fs::write(&unrelated, "preserve").unwrap();
+        for stale_identity in [
+            None,
+            Some(current_identity.replace(BUILD_TOOLCHAIN, "1.98.1")),
+            Some(current_identity.replace(RUSTDOC_TOOLCHAIN, "nightly-2026-04-29")),
+            Some(current_identity.replace(
+                &format!("rustdoc-format={}", rustdoc_types::FORMAT_VERSION),
+                "rustdoc-format=57",
+            )),
+            Some(current_identity.replace(&target, "obsolete-target")),
+        ] {
+            fs::create_dir_all(&cache).unwrap();
+            fs::write(cache.join("core.json"), br#"{"format_version":57}"#).unwrap();
+            fs::write(cache.join("obsolete-output"), "obsolete").unwrap();
+            if let Some(stale_identity) = stale_identity {
+                fs::write(&marker, stale_identity).unwrap();
+            }
+            let document = core_rustdoc(&directory, &target).unwrap();
+            assert_eq!(document.format_version, rustdoc_types::FORMAT_VERSION);
+            assert!(
+                public_paths(&document)
+                    .values()
+                    .any(|path| path == "core::option::Option")
+            );
+            assert_eq!(fs::read_to_string(&marker).unwrap(), current_identity);
+            assert!(!cache.join("obsolete-output").exists());
+            assert_eq!(fs::read_to_string(&unrelated).unwrap(), "preserve");
+        }
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

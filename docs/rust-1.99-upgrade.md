@@ -18,6 +18,8 @@ No published `public-api` release currently matches format 61. Its pinned auxili
 
 Projection admission policy now uses schema **260**, invalidating schema-259 artifacts even when manifest, package versions and toolchain selections are otherwise identical. A cache hit must not preserve the old defining-crate-dependent IO policy.
 
+Sysroot `core` surveys now check an adjacent `.artifact-identity` recording the stable Rust version, Rustdoc nightly, JSON format, and target before reusing `core.json`. A missing or mismatched marker automatically removes and regenerates that owned core cache directory, including legacy format-57 data. This applies to ordinary CLI and survey use, not just tests. Upgrading does not require deleting `.trn`; unrelated artifacts are preserved, and strict validation runs before writing the current marker.
+
 ## Source-breaking surface changes
 
 | Area | Change and migration |
@@ -73,7 +75,7 @@ Strict schema checks and toolchain/format cache identities remain in place. Revi
 
 The final unfiltered workspace outcome, revision, rustc identity and individual timings are recorded in the latest entry of [`test-scoreboard.yaml`](test-scoreboard.yaml) and the published test scoreboard. Golden updates are disabled for that verification run. Failed exploratory runs remain scorecard provenance rather than release instructions.
 
-Final unfiltered result on implementation revision **`d2a6a4db`**, using **Rust 1.99.0**: **1,656 passed, 0 failed, 0 ignored; exit code 0**. Cargo elapsed time was approximately **17m 48s**. This includes the complete conformance corpus, generated warning-denied Rust, CLI/debugger/profiler integrations, language-server tests, runtime support and doc-tests. Workspace formatting and Clippy with `-D warnings` also passed before this run.
+The latest full-workspace counts and tested implementation revision are recorded in the scoreboard linked above, alongside earlier upgrade runs. Workspace formatting and Clippy with `-D warnings` are also checked before collecting full-suite evidence.
 
 Tracked regressions exercise:
 
