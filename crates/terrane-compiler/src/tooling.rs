@@ -1387,6 +1387,12 @@ impl ToolingEngine {
             ));
         }
         let snapshot = self.snapshot(snapshot_id)?;
+        if let Some(replacements) =
+            import_binding_rename(snapshot, snapshot.document(uri)?, offset, new_name)?
+        {
+            let proposal = self.propose_edits(snapshot_id, replacements)?;
+            return self.validate_rename_proposal(proposal);
+        }
         let document = snapshot.document(uri)?;
         let Some(target) = target_at(snapshot, document, offset) else {
             return Err(ProtocolError::new(
@@ -1465,6 +1471,13 @@ impl ToolingEngine {
             }
         }
         let proposal = self.propose_edits(snapshot_id, replacements)?;
+        self.validate_rename_proposal(proposal)
+    }
+
+    fn validate_rename_proposal(
+        &mut self,
+        proposal: EditProposal,
+    ) -> Result<EditProposal, ProtocolError> {
         if !proposal.semantic_reanalysis || !proposal.preview_diagnostics.is_empty() {
             let message = proposal.preview_diagnostics.first().map_or_else(
                 || "rename candidate does not preserve valid package semantics".to_owned(),
@@ -2640,6 +2653,176 @@ fn semantic_optional_fact<T>(snapshot: &Snapshot, value: Option<T>) -> Availabil
         },
         Availability::Known,
     )
+}
+
+/// An existing selective-import alias has its own local rename boundary.
+fn import_binding_rename(
+    snapshot: &Snapshot,
+    document: &ParsedDocument,
+    offset: usize,
+    new_name: &str,
+) -> Result<Option<Vec<Replacement>>, ProtocolError> {
+    let Some(semantic) = &snapshot.semantic else {
+        return Ok(None);
+    };
+    let Some(unit) = semantic
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == document.source.id())
+    else {
+        return Ok(None);
+    };
+    let mut selected = None;
+    walk_nodes(&unit.tree.root, None, &mut |node, _, id| {
+        if node.kind == SyntaxKind::ObjectImport
+            && node.span.start <= offset
+            && offset < node.span.end
+        {
+            selected = Some(id);
+        }
+    });
+    if selected.is_none()
+        && let Some((node, _, _)) = smallest_node_at(&document.tree.root, offset, 0)
+        && node.kind == SyntaxKind::Name
+        && let Some(symbol) =
+            semantic.resolve_name_at(unit, node.span.start, node_text(&document.source, node))
+        && resolve_semantic_target(snapshot, document, node)
+            .is_some_and(|target| target.identity == symbol.identity)
+        && let Some(binding) = symbol.binding_span
+    {
+        walk_nodes(&unit.tree.root, None, &mut |node, _, id| {
+            if node.kind == SyntaxKind::ObjectImport && node.span == binding {
+                selected = Some(id);
+            }
+        });
+    }
+    let mut current = 0;
+    let Some(import) = selected.and_then(|id| node_by_id(&unit.tree.root, id, &mut current)) else {
+        return Ok(None);
+    };
+    let Some(export_name) = import.children.first() else {
+        return Ok(None);
+    };
+    let Some(alias_clause) = import
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::ImportAlias)
+    else {
+        return Ok(None);
+    };
+    let Some(alias) = alias_clause.children.first() else {
+        return Ok(None);
+    };
+    // Selecting the export token is not a request to rename its local alias.
+    if export_name.span.start <= offset && offset < export_name.span.end {
+        return Ok(None);
+    }
+    let local_name = node_text(&document.source, alias);
+    let remove_alias = new_name == node_text(&document.source, export_name);
+    let Some(symbol) = unit
+        .scopes
+        .iter()
+        .filter_map(|scope| scope.symbols.get(local_name))
+        .flatten()
+        .find(|symbol| symbol.binding_span == Some(import.span))
+    else {
+        return Ok(None);
+    };
+    if semantic
+        .resolve_name_at(unit, export_name.span.start, new_name)
+        .is_some_and(|candidate| {
+            candidate.identity != symbol.identity
+                || (!remove_alias && candidate.binding_span != Some(import.span))
+        })
+    {
+        return Err(ProtocolError::new(
+            "rename-capture",
+            format!("`{new_name}` would capture an existing symbol"),
+        ));
+    }
+    let source_uri = snapshot
+        .uri_for_file(unit.source.id())
+        .expect("document belongs to the snapshot");
+    let mut replacements = vec![Replacement {
+        uri: source_uri.to_owned(),
+        span: if remove_alias {
+            PublicSpan {
+                start: export_name.span.end,
+                end: alias.span.end,
+            }
+        } else {
+            alias.span.into()
+        },
+        text: if remove_alias {
+            // Keep comments in the gaps while dropping `as`, the alias and redundant spaces.
+            let before_as = &document.source.text()[export_name.span.end..alias_clause.span.start];
+            let after_as = &document.source.text()[alias_clause.span.start + 2..alias.span.start];
+            format!("{}{}", before_as.trim_end(), after_as.trim_end())
+        } else {
+            new_name.to_owned()
+        },
+    }];
+    let mut capture = false;
+    walk_import_uses(&unit.tree.root, &mut |node| {
+        if node.kind != SyntaxKind::Name {
+            return;
+        }
+        let name = node_text(&document.source, node);
+        let resolves_binding = semantic
+            .resolve_name_at(unit, node.span.start, local_name)
+            .is_some_and(|candidate| {
+                candidate.identity == symbol.identity && candidate.binding_span == Some(import.span)
+            });
+        if !resolves_binding {
+            return;
+        }
+        if name == local_name
+            && resolve_semantic_target(snapshot, document, node)
+                .is_some_and(|candidate| candidate.identity == symbol.identity)
+        {
+            capture |= semantic
+                .resolve_name_at(unit, node.span.start, new_name)
+                .is_some_and(|candidate| {
+                    candidate.identity != symbol.identity
+                        || (!remove_alias && candidate.binding_span != Some(import.span))
+                });
+            replacements.push(Replacement {
+                uri: source_uri.to_owned(),
+                span: node.span.into(),
+                text: new_name.to_owned(),
+            });
+        } else if name == new_name
+            && (!remove_alias
+                || semantic
+                    .resolve_name_at(unit, node.span.start, name)
+                    .is_some_and(|candidate| candidate.identity != symbol.identity))
+            && semantic
+                .resolve_name_at(unit, node.span.start, name)
+                .is_some_and(|symbol| {
+                    resolve_semantic_target(snapshot, document, node)
+                        .is_some_and(|target| target.identity == symbol.identity)
+                })
+        {
+            capture = true;
+        }
+    });
+    if capture {
+        return Err(ProtocolError::new(
+            "rename-capture",
+            format!("`{new_name}` would capture an existing symbol"),
+        ));
+    }
+    Ok(Some(replacements))
+}
+
+fn walk_import_uses(node: &SyntaxNode, visit: &mut impl FnMut(&SyntaxNode)) {
+    if node.kind == SyntaxKind::ImportDeclaration {
+        return;
+    }
+    visit(node);
+    for child in &node.children {
+        walk_import_uses(child, visit);
+    }
 }
 
 fn target_at(
@@ -3885,6 +4068,220 @@ mod tests {
             fs::read_to_string(&path).expect("read unchanged source"),
             original.replace('1', "3")
         );
+    }
+
+    #[test]
+    fn import_alias_rename_preserves_exports_other_aliases_and_shadowed_uses() {
+        let exporter =
+            "namespace library\npublic function Answer int;\n    return 42\npublic class Model\n";
+        let uri = "file:///workspace/consumer.trn";
+        for (export, use_site) in [("Answer", "_ = NAME;"), ("Model", "value NAME|none = none")] {
+            let name = "local-name";
+            let import = format!("{export} as {name}");
+            for nested in [false, true] {
+                let prefix = if nested { "function main;\n    " } else { "" };
+                let body = if nested { "" } else { "function main;\n" };
+                let shadow = if nested {
+                    format!("function shadow; {name} int\n    _ = {name}\n")
+                } else {
+                    String::new()
+                };
+                let source = format!(
+                    "namespace consumer\n{prefix}from /library import {import}, {export} as other-name\n{body}    {}\n    {}\n{shadow}",
+                    use_site.replace("NAME", name),
+                    use_site
+                        .replace("NAME", "other-name")
+                        .replace("value ", "other "),
+                );
+                for new_name in ["renamed", export] {
+                    let renamed_import = if new_name == export {
+                        export.to_owned()
+                    } else {
+                        format!("{export} as {new_name}")
+                    };
+                    let expected = format!(
+                        "namespace consumer\n{prefix}from /library import {renamed_import}, {export} as other-name\n{body}    {}\n    {}\n{shadow}",
+                        use_site.replace("NAME", new_name),
+                        use_site
+                            .replace("NAME", "other-name")
+                            .replace("value ", "other "),
+                    );
+                    let other = format!(
+                        "namespace other\nfrom /library import {export}\nfunction main;\n    {}\n",
+                        use_site.replace("NAME", export),
+                    );
+                    for offset in [
+                        source.find(name).unwrap(),
+                        source.find(&use_site.replace("NAME", name)).unwrap()
+                            + use_site.find("NAME").unwrap(),
+                    ] {
+                        let mut engine = ToolingEngine::default();
+                        let snapshot = engine
+                            .open_snapshot(
+                                vec![
+                                    SourceInput {
+                                        uri: uri.to_owned(),
+                                        text: source.clone(),
+                                    },
+                                    SourceInput {
+                                        uri: "file:///workspace/library.trn".to_owned(),
+                                        text: exporter.to_owned(),
+                                    },
+                                    SourceInput {
+                                        uri: "file:///workspace/other.trn".to_owned(),
+                                        text: other.clone(),
+                                    },
+                                ],
+                                None,
+                                None,
+                                SnapshotOptions {
+                                    semantic: true,
+                                    ..SnapshotOptions::default()
+                                },
+                            )
+                            .unwrap();
+                        let proposal = engine
+                            .propose_rename(&snapshot.snapshot_id, uri, offset, new_name)
+                            .expect("rename local import binding");
+                        let mut actual = source.clone();
+                        for replacement in proposal.replacements.iter().rev() {
+                            assert_eq!(replacement.uri, uri);
+                            actual.replace_range(
+                                replacement.span.start..replacement.span.end,
+                                &replacement.text,
+                            );
+                        }
+                        assert_eq!(actual, expected);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn removing_an_import_alias_preserves_comments_and_checks_capture() {
+        let uri = "file:///workspace/remove-alias.trn";
+        for (gap, expected_gap) in [
+            (" as local-int", ""),
+            (" /* retained */ as local-int", " /* retained */"),
+            (" as /* retained */ local-int", " /* retained */"),
+        ] {
+            let source = format!(
+                "namespace app\r\nfrom /core/types import int{gap}, string # retained suffix\r\nfunction main;\r\n    value local-int = 42\r\n"
+            );
+            let mut engine = ToolingEngine::default();
+            let snapshot = open(
+                &mut engine,
+                uri,
+                &source,
+                SnapshotOptions {
+                    semantic: true,
+                    ..SnapshotOptions::default()
+                },
+            );
+            let proposal = engine
+                .propose_rename(
+                    &snapshot.snapshot_id,
+                    uri,
+                    source.find("local-int").unwrap(),
+                    "int",
+                )
+                .expect("removing an alias preserves the imported identity");
+            let mut actual = source.clone();
+            for replacement in proposal.replacements.iter().rev() {
+                actual.replace_range(
+                    replacement.span.start..replacement.span.end,
+                    &replacement.text,
+                );
+            }
+            assert_eq!(
+                actual,
+                format!(
+                    "namespace app\r\nfrom /core/types import int{expected_gap}, string # retained suffix\r\nfunction main;\r\n    value int = 42\r\n"
+                )
+            );
+        }
+
+        let mut engine = ToolingEngine::default();
+        let source = "namespace app\nfrom /core/types import int as local-int\nfunction inspect; int string\n    value local-int = 42\n";
+        let snapshot = open(
+            &mut engine,
+            uri,
+            source,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        for document in engine
+            .snapshot(&snapshot.snapshot_id)
+            .unwrap()
+            .documents
+            .values()
+        {
+            assert!(
+                document.diagnostics.is_empty(),
+                "{:?}",
+                document.diagnostics
+            );
+        }
+        let error = engine
+            .propose_rename(
+                &snapshot.snapshot_id,
+                uri,
+                source.find("local-int").unwrap(),
+                "int",
+            )
+            .expect_err("alias removal must not capture an unrelated parameter");
+        assert_eq!(error.code, "rename-capture");
+    }
+
+    #[test]
+    fn rename_does_not_introduce_an_import_alias() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/no-alias.trn";
+        let source =
+            "namespace no-alias\nfrom /core/types import int\nfunction main;\n    value int = 42\n";
+        let snapshot = open(
+            &mut engine,
+            uri,
+            source,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        for offset in [source.find("int").unwrap(), source.rfind("int").unwrap()] {
+            let error = engine
+                .propose_rename(&snapshot.snapshot_id, uri, offset, "local-int")
+                .expect_err("an external export cannot be renamed by creating an alias");
+            assert_eq!(error.code, "invalid-rename");
+        }
+    }
+
+    #[test]
+    fn import_binding_rename_rejects_local_capture() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/capture.trn";
+        let source = "namespace capture\nfrom /core/types import int as number\nfunction main;\n    taken string = 'value'\n    value number = 1\n";
+        let snapshot = open(
+            &mut engine,
+            uri,
+            source,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        );
+        let error = engine
+            .propose_rename(
+                &snapshot.snapshot_id,
+                uri,
+                source.find("number").unwrap(),
+                "taken",
+            )
+            .expect_err("new alias must not capture a local");
+        assert_eq!(error.code, "rename-capture");
     }
 
     #[test]

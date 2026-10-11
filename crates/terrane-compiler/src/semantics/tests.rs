@@ -55,6 +55,24 @@ fn ambiguous_projection() -> Projection {
 }
 
 #[test]
+fn explicit_same_name_import_aliases_are_rejected_at_every_lexical_depth() {
+    for source in [
+        "namespace app\nfrom /core/types import int as int\n",
+        "namespace app\nfrom /core/types import string, int as int\n",
+        "namespace app\nfunction main;\n    from /core/types import int as int\n",
+    ] {
+        let package = Package::implicit("main.trn", source.to_owned());
+        let failure = analyze(&package).expect_err("an explicit alias must change the spelling");
+        assert_eq!(failure.diagnostics[0].code.as_ref(), "S2063");
+        let span = failure.diagnostics[0]
+            .primary
+            .expect("alias diagnostic span");
+        assert_eq!(&source[span.start..span.end], "int");
+        assert_eq!(span.start, source.rfind("int").unwrap());
+    }
+}
+
+#[test]
 fn ambiguous_projected_import_names_every_rust_identity() {
     let package = Package::implicit(
         "main.trn",

@@ -159,6 +159,7 @@ Rules:
 
 - `use` declares a build dependency; it does not automatically bind supplied names.
 - `from ... import x` binds ordinary `x` in the scope containing the import; `as` renames it. No declare-then-bind step.
+- An explicit alias must differ from the imported spelling: `from ... import x as x` is rejected with `S2063`; omit the alias to retain the original name.
 - `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace and private objects remain hidden. It checks the complete visible chain (lexical parents, namespace parents, globals, implicit `/core/types`, then prelude) and emits `W4004` before shadowing a different object. An authored top-level declaration in the importing namespace always retains its name, so the conflicting imported object is skipped with `W4004`.
 - Namespace-wide imports otherwise replace one another in source order; multi-file packages use normalized relative source-path order, and a replacement warning identifies the earlier import binding it invalidates. Identical reimports are silent. Namespace-wide imports have no alias clause. Retain both objects by establishing a selective `from ... import ... as ...` alias before the namespace-wide import. Selective same-scope collisions remain `S2011`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
 - Imports at every lexical depth load their bundled core package and contribute its capability requirements; discovery never leaks their names out of the declaring scope.
@@ -1278,6 +1279,8 @@ semantics: compiler resolution supplies canonical symbol/descriptor identity, de
 query: locate | definition | references | bounded structural find | exact-build generated association; deterministic URI/byte ordering, bounded pages, opaque snapshot/query-bound continuations, recovery matching opt-in
 transport: terrane tooling --stdio JSON-lines; terrane query --request <json-file> one-shot; request IDs, schema errors, cancellation and expiry explicit; protocol frames only on stdout
 edits: proposals carry snapshot + all affected hashes + non-overlapping byte replacements + preview diagnostics + semantic reanalysis state; apply preflights every hash and uses same-directory temporary replacement; rename follows canonical identity and rejects capture
+import_rename: introducing as x on an unaliased import is not rename; existing alias x or its bound use can rename to y with scoped uses updated and export preserved; original export token is not an alias target; no silent alias-creation fallback
+import_alias_removal: rename an existing alias to its original exported spelling; remove the as clause and rewrite its bound uses, preserving comments and rejecting capture; use an ordinary non-empty name, not null or an empty string; explicit x as x is S2063
 format: compiler lossless tree; terrane fmt [--check] and LSP formatting; canonical parser-proven assignment/infix spacing, safe trailing whitespace, idempotence, comments/multiline/newline style and malformed-region preservation
 lsp: shared snapshot IDs for diagnostics, semantic hover, definitions, references, rename, symbols and formatting; versioned workspace edits; negotiated UTF-8/UTF-16/UTF-32 boundary
 reference: docs/tooling-schema.md

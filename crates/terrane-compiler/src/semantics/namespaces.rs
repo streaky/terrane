@@ -368,7 +368,7 @@ pub(super) fn imports_from_syntax(
                 )
             })?;
         let imported = node_text(&unit.source, imported_node);
-        let alias = import_node
+        let alias_node = import_node
             .children
             .iter()
             .find(|child| child.kind == SyntaxKind::ImportAlias)
@@ -377,8 +377,25 @@ pub(super) fn imports_from_syntax(
                     .children
                     .iter()
                     .find(|child| child.kind == SyntaxKind::Name)
-            })
-            .map_or(imported, |alias| node_text(&unit.source, alias));
+            });
+        let alias = alias_node.map_or(imported, |alias| node_text(&unit.source, alias));
+        if let Some(alias_node) = alias_node
+            && alias == imported
+        {
+            return Err(SemanticFailure {
+                source: unit.source.clone(),
+                diagnostics: vec![
+                    Diagnostic::error(
+                        "S2063",
+                        "an explicit import alias must differ from the imported name",
+                        alias_node.span,
+                    )
+                    .with_help(format!(
+                        "remove `as {alias}` to import `{imported}` directly"
+                    )),
+                ],
+            });
+        }
         result.push(Import {
             source: unit.source.clone(),
             bundled: unit.bundled,
