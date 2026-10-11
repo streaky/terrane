@@ -1162,6 +1162,60 @@ Excluded: exposing concrete payloads through catch-all bindings, reflective or s
 error inspection, changes to throwable matching or propagation, and indexing beyond the
 annotation and selection lookups named above.
 
+### Milestone 31.9 — Investigate compiler-owned support dependency selection
+
+**Status:** planned investigation. Do not change support provisioning as part of the current
+split-lowering work. Establish the intended contract and implementation evidence before
+deciding whether a cutover is necessary.
+
+The compiler should automatically identify and provision the support crates needed to compile
+a generated program. Investigate whether the current compiler and build integration already
+provide that contract consistently, or whether callers and test infrastructure supply
+dependencies independently and thereby hide missing compiler-owned dependency information.
+
+The motivating case is `tests/conformance/check/cross-unit-object-types/lower.rs`: it references
+`terrane_int_support::Int` without needing a generated `lower.support.rs`. The conformance
+harness currently supplies vendored support crates through its generated Cargo manifest and
+copies their sources into its build workspace. A sidecar contains generated in-crate support
+code, not the implementation of every external support crate. Its absence therefore does not
+prove that a program has no support-crate dependencies.
+
+#### Investigation scope
+
+- Trace required support dependencies from lowering through compilation results, split output,
+  Cargo manifest generation, vendored source provisioning, and actual builds. Compare library
+  compiler consumers, conformance, and CLI `rust`, `check`, `build`, `run`, and native testing.
+- Determine whether the compiler records the exact required support-crate set, including
+  application-only references, generated runtime references, and transitive dependencies.
+  Distinguish automatically required compiler support from user-authored Rust dependencies.
+- Check whether conformance's broad support dependency provisioning masks missing dependency
+  selection or provisioning in production paths. Use the cross-unit object fixture as a
+  pressure case, alongside programs needing no support crates and programs needing generated
+  runtime support.
+- Decide which compiler-owned representation should drive dependency selection, provisioning,
+  and review metadata. Evaluate current rendered-Rust identifier detection against information
+  already available during lowering; do not establish a second independent dependency table.
+- Decide how generated artifacts expose required vendored crates when no support sidecar is
+  needed. Preserve the distinction between external crate dependencies and generated support
+  code; do not create an otherwise empty sidecar merely to assume the build is self-contained.
+- Clarify what compiling an exported split Rust program requires, including Cargo metadata,
+  vendored crate sources, authored modules, and offline/relocatable provisioning. Coordinate
+  distribution responsibilities with milestone 32.1 rather than duplicating its scope.
+
+#### Exit criteria
+
+- Record the current dependency/provisioning flow and a decision on the intended compiler-owned
+  contract, with observed evidence rather than assuming the conformance arrangement is correct.
+- Demonstrate representative programs through real generation and Cargo compilation, including
+  the integer-only case without a sidecar, a no-support case, and a runtime-support case.
+- If changes are justified, define separately reviewable implementation work and acceptance
+  criteria ensuring ordinary consumers automatically receive all required support dependencies,
+  without relying on conformance's blanket provisioning or manually maintained crate lists.
+- Update the authoritative documentation to explain the agreed artifact and dependency contract.
+
+Excluded from this investigation: an immediate support-crate or build-system redesign, changes
+to integer semantics, and unrelated projection/package distribution work.
+
 ### Milestone 31.10 — General correctness fixes
 
 **Status:** planned. This milestone collects small, independently fixable defects in existing
@@ -1473,6 +1527,9 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - give typed `catch` bindings their concrete payload type, retire the consumer protocol's static
   error origin, and measure (then index, if justified) annotation descriptor/node lookups
   (milestone 31.2);
+- investigate compiler-owned support-crate selection and provisioning across generated artifacts,
+  conformance, and production build paths, including dependencies without a support sidecar
+  (milestone 31.9);
 - fix small defects in existing contracts collected during review, starting with generic classes
   that implement an interface applied to their own type parameter (milestone 31.10);
 - complete the release hardening gate (milestone 32); and
