@@ -49,7 +49,7 @@ The initial October producer also emitted format 61 and accepted C-variadic defi
 - Typed IO regression: the filtered `projected-tokio-static-bind` case passed after migrating its catch to the now-projected native IO error; the occupied-address branch still prints `occupied`. The final workspace run does not use this filter or enable golden updates.
 - Atomic runtime regression: `native-testing-surface` compiled after regeneration. A disposable isolated Terrane unit test advanced its virtual clock to `7`, rejected an overflowing advance without changing the clock, then advanced it to `12`. It passed using the actual generated runtime with `try_update`; the smoke package was removed.
 - The initial scorecard invocation was interrupted by the command runner's 300-second deadline after the debugger binary passed all 33 tests and while package CLI tests were still running. It is not full-suite evidence. The replacement invocation disables the outer command deadline and retains the unfiltered workspace selection.
-- Full workspace outcome is recorded in the latest `runs[]` entry of `docs/test-scoreboard.yaml`, including revision, rustc, counts and exit status; its published HTML is refreshed alongside it.
+- Final unfiltered workspace run: **1,652 passed, 0 failed, 0 ignored**, exit code **0**, on revision **3cee8775** with `rustc 1.99.0 (b940084d7 2026-09-28)`. Cargo elapsed time was approximately **17m 31s**. This includes the complete conformance corpus, debugger/profiler integrations, native dependency cases, language server, runtime support crates and doc-tests; golden updates were disabled. The attributable run and individual timings are preserved in `docs/test-scoreboard.yaml`, with its published HTML refreshed alongside it.
 
 ## Sources
 
