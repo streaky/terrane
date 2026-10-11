@@ -1310,14 +1310,13 @@ fn analyze_parsed_with_projection(
     Ok(semantic)
 }
 
-pub(super) fn object_implements_identity(object: &DescriptorContract, target: &str) -> bool {
-    object
-        .interfaces
-        .iter()
-        .any(|interface| interface.qualified() == target)
-}
-
 pub(super) fn identity_implements(package: &SemanticPackage, identity: &str, target: &str) -> bool {
+    let Some((namespace, name)) = target.rsplit_once("::") else {
+        return false;
+    };
+    let (is_unsafe, name) = name
+        .strip_prefix("unsafe ")
+        .map_or((false, name), |name| (true, name));
     package.units.iter().any(|unit| {
         unit.descriptors.iter().any(|object| {
             package
@@ -1327,7 +1326,13 @@ pub(super) fn identity_implements(package: &SemanticPackage, identity: &str, tar
                 .any(|symbol| {
                     symbol.identity == identity && symbol.declaration_span == Some(object.span)
                 })
-                && object_implements_identity(object, target)
+                && effective_object_interfaces(package, object)
+                    .into_iter()
+                    .any(|interface| {
+                        interface.namespace == namespace
+                            && interface.name == name
+                            && interface.is_unsafe == is_unsafe
+                    })
         })
     })
 }

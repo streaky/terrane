@@ -1,0 +1,8 @@
+namespace throwable-message-render-uncaught
+from /core/errors import throwable
+class split-error implements throwable
+  message string = 'message field'
+  function render string;
+    return 'render text'
+function main;
+  throw split-error

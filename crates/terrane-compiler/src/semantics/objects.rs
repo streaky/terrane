@@ -1430,10 +1430,14 @@ pub(super) fn validate_object_conformance(
                     ));
                 }
                 if resolved_interface.identity == "/core/errors::throwable" {
-                    let has_message = object.fields.iter().any(|field| {
-                        field.name == "message"
-                            && field.value_type == ValueType::Scalar(ScalarType::String)
-                    });
+                    let has_message =
+                        effective_object_fields(package, object)
+                            .into_iter()
+                            .any(|field| {
+                                !field.is_static
+                                    && field.name == "message"
+                                    && field.value_type == ValueType::Scalar(ScalarType::String)
+                            });
                     if !has_message {
                         return Err(failure(
                             &declaration_unit.source,

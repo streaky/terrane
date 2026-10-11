@@ -213,7 +213,7 @@ call_marker: semicolon
 zero_arg: semicolon required
 member: receiver.member (no whitespace before dot) selects an instance member
 static_member: class::member selects a class/static member; '.' and '::' are never interchangeable
-construction: 'instance class; arguments'; semicolon required with zero arguments; class name invocation never constructs
+construction: ordinary class-value construction is 'instance class; arguments', with ';' required even for zero arguments; bare class invocation never constructs. Specialized 'throw throwable-class; arguments' constructs and throws, while 'throw throwable-class' and 'throw throwable-class;' use zero arguments.
 member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
@@ -648,6 +648,7 @@ function load string throws config-error; path string
   `render string`; compiler-supplied `cause throwable|none`, defaulting to `none`, in the runtime
   envelope. Runtime also retains the concrete descriptor and deterministic source-context chain.
   Descriptor identity, never message text, drives matching.
+- The envelope preserves the source class's `message` separately from its `render` result, captured once at the throw. Envelope `render` produces a full diagnostic using that display text plus descriptor, cause, and source context; rethrows preserve both texts. Catch bindings remain envelope-only: arbitrary source-instance fields and methods are not retained or exposed.
 - Generic throwable applications use the canonical base class descriptor for conformance, inferred escaping sets, throwable bounds, and runtime catch matching. `catch boxed-error` handles a thrown `boxed-error of int`; ordinary generic constructor type checks still apply. Import aliases retain the same identity. Executable coverage: `tests/conformance/run/generic-throwable/`.
 - `/core/errors` defines `throwable` and EXACTLY these language-mandated implementing classes:
 
@@ -809,11 +810,11 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `name` resolves through one lookup view; `value.name` selects an instance member; `class::name`
   selects a static/class member; calls are explicit with `;`. The `class` designator is a simple
   visible name (including an imported local name), or late-bound `self` inside a class method.
-- `instance class; arguments` is the only class-construction form. `instance` means semantic
-  instantiation, not allocation; bare class invocation never constructs.
+- Ordinary class-value construction uses `instance class; arguments`; `instance` means semantic instantiation, not allocation. Specialized `throw throwable-class; arguments` invokes the same constructor and throws its result; `throw throwable-class` and `throw throwable-class;` supply zero arguments. Classes are not generally callable outside that throw form.
 - `this` is the current instance and exists only in instance methods. `self` is the effective,
   late-bound class receiver, exists in instance and static methods, and may be used by
   `instance self;`.
+  Direct `throw self; arguments` uses that same late-bound class receiver and constructor path; `throw self` and `throw self;` supply no arguments.
 - Function/class/namespace/type objects are reflectable semantic objects.
 - `construct` is the conventional constructor method invoked by `instance`.
 - Protocol: unnamed structural operation shape; not a declaration, nominal type, or dispatch object.

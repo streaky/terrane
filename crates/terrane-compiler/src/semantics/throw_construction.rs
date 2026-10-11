@@ -1,4 +1,4 @@
-use super::{SemanticPackage, SemanticUnit, SymbolKind};
+use super::prelude::*;
 use crate::syntax::{SyntaxKind, SyntaxNode};
 
 /// Resolve class designators before inference, then reuse ordinary construction throughout
@@ -24,16 +24,18 @@ pub(super) fn normalize(package: &mut SemanticPackage) {
             } else {
                 designator
             };
-            if name.kind == SyntaxKind::Name
-                && package
-                    .resolve_name_at(
-                        unit,
-                        name.span.start,
-                        &unit.source.text()[name.span.start..name.span.end],
-                    )
-                    .is_some_and(|symbol| symbol.kind == SymbolKind::Class)
-            {
-                sites.push(node.span.start);
+            if name.kind == SyntaxKind::Name {
+                let name_text = &unit.source.text()[name.span.start..name.span.end];
+                let named_class = package
+                    .resolve_name_at(unit, name.span.start, name_text)
+                    .is_some_and(|symbol| symbol.kind == SymbolKind::Class);
+                // Function-owner identities are populated after this pass. Reuse lexical
+                // object ownership now; ordinary construction resolves late-bound self later.
+                let self_class =
+                    name_text == "self" && object_name_containing(unit, name.span).is_some();
+                if named_class || self_class {
+                    sites.push(node.span.start);
+                }
             }
         }
         for child in &node.children {

@@ -816,6 +816,11 @@ impl Emitter<'_> {
             let kind = self.rust_error_kind(error_node);
             if kind.starts_with("Custom(") {
                 let value = self.expression(error_node);
+                let message = if self.wrapped_object_field(error_node, "message") {
+                    "value.terrane_field_message()"
+                } else {
+                    "&value.message"
+                };
                 if matches!(
                     self.value_type(error_node),
                     Some(ValueType::Object(identity))
@@ -823,11 +828,11 @@ impl Emitter<'_> {
                 ) || self.is_builtin(error_node, "/core/testing::test-failure")
                 {
                     format!(
-                        "{{ let value = {value}; let details = value.details.clone().into_iter().collect(); TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}).with_structured_details(details) }}"
+                        "{{ let value = {value}; let rendered = value.render(); let original = {message}; let (message, rendered) = if &rendered == original {{ (rendered, None) }} else {{ (original.clone(), Some(rendered)) }}; let details = value.details.clone().into_iter().collect(); TerraneError::raised_with_rendered_message(TerraneErrorKind::{kind}, message, rendered, {origin}).with_structured_details(details) }}"
                     )
                 } else {
                     format!(
-                        "{{ let value = {value}; TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}) }}"
+                        "{{ let value = {value}; let rendered = value.render(); let original = {message}; let (message, rendered) = if &rendered == original {{ (rendered, None) }} else {{ (original.clone(), Some(rendered)) }}; TerraneError::raised_with_rendered_message(TerraneErrorKind::{kind}, message, rendered, {origin}) }}"
                     )
                 }
             } else {

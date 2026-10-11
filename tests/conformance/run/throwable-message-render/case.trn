@@ -1,0 +1,58 @@
+namespace throwable-message-render
+from /core/errors import throwable
+
+class split-error implements throwable
+  message string = ''
+  display string = ''
+  static renders int = 0
+  function construct; message string, display string
+    this.message = message
+    this.display = display
+  function render string;
+    self::renders = self::renders + 1
+    return this.display
+
+class wrapper-error implements throwable
+  message string = 'wrapper message'
+  function render string;
+    return 'wrapper display'
+
+function raise-original;
+  throw split-error; 'original message', 'original display'
+
+function main;
+  try
+    try
+      raise-original;
+    catch split-error as caught
+      print; caught.message
+      shown = caught.render;
+      print; (shown.contains; '::split-error: original display'), (shown.contains; 'original message')
+      throw
+  catch split-error as caught
+    print; caught.message
+    shown = caught.render;
+    print; (shown.contains; '::split-error: original display'), (shown.contains; '::raise-original (case.trn:')
+  try
+    try
+      raise-original;
+    catch split-error as caught
+      throw caught
+  catch split-error as caught
+    print; caught.message
+    print; ((caught.render;).contains; '::split-error: original display'), (caught.cause is a none)
+  try
+    try
+      raise-original;
+    catch split-error
+      throw wrapper-error
+  catch wrapper-error as outer
+    print; outer.message
+    cause = outer.cause
+    if cause != none
+      print; cause.message
+      shown = outer.render;
+      print; (shown.contains; '::wrapper-error: wrapper display'), (shown.contains; 'caused by: /throwable-message-render::split-error: original display')
+    else
+      print; 'missing cause'
+  print; split-error::renders

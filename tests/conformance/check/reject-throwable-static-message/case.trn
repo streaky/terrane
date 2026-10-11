@@ -1,0 +1,8 @@
+namespace reject-throwable-static-message
+from /core/errors import throwable
+class static-error implements throwable
+  static message string = 'not an instance field'
+  function render string;
+    return self::message
+function main;
+  throw static-error

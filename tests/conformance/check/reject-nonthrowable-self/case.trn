@@ -1,0 +1,6 @@
+namespace reject-nonthrowable-self
+class ordinary
+  static function raise;
+    throw self
+function main;
+  ordinary::raise;

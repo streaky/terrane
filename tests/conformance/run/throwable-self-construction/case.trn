@@ -1,0 +1,41 @@
+namespace throwable-self-construction
+from /core/errors import throwable
+
+class base-error implements throwable
+  message string = ''
+  function construct; message string
+    this.message = message
+  function render string;
+    return this.message
+  static function raise; message string
+    throw self; message
+
+class child-error extends base-error
+
+class zero-error implements throwable
+  message string = 'zero self'
+  function render string;
+    return this.message
+  static function raise-bare;
+    throw self
+  static function raise-empty;
+    throw self;
+
+function main;
+  try
+    base-error::raise; 'from self'
+  catch base-error as failure
+    print; failure.message
+  try
+    child-error::raise; 'inherited self'
+  catch child-error as failure
+    print; failure.message
+    print; ((failure.render;).contains; '::child-error: inherited self')
+  try
+    zero-error::raise-bare;
+  catch zero-error as failure
+    print; failure.message
+  try
+    zero-error::raise-empty;
+  catch zero-error as failure
+    print; failure.message

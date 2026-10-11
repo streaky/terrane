@@ -5,3 +5,7 @@ declared bound
 inferred effect
 typed callable bound
 imported alias
+int
+string
+catch-all
+string
