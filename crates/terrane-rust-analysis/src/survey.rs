@@ -453,6 +453,19 @@ fn load_core_rustdoc(
             ),
         });
     }
+    let cache_root = output_root.join("core");
+    fs::create_dir_all(&cache_root).map_err(io_error("create core survey cache root"))?;
+    // Keep the lock outside the replaceable directory so all processes lock one inode.
+    let cache_lock = fs::File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(cache_root.join(format!("{target}.lock")))
+        .map_err(io_error("open core survey cache lock"))?;
+    cache_lock
+        .lock()
+        .map_err(io_error("lock core survey cache"))?;
     let output_directory = output_root.join("core").join(target);
     let identity_path = output_directory.join(".artifact-identity");
     let identity = format!(
@@ -464,48 +477,55 @@ fn load_core_rustdoc(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(io_error("read core survey identity")(error)),
     };
-    if cached_identity.as_deref() != Some(identity.as_str()) && output_directory.exists() {
+    let rustdoc_path = output_directory.join("core.json");
+    if cached_identity.as_deref() == Some(identity.as_str()) {
+        match fs::read(&rustdoc_path) {
+            Ok(bytes) => {
+                if let Ok(document) = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN) {
+                    return Ok((document, source_root));
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(io_error("read cached core Rustdoc")(error)),
+        }
+    }
+    if output_directory.exists() {
         fs::remove_dir_all(&output_directory)
             .map_err(io_error("remove obsolete core survey cache"))?;
     }
     fs::create_dir_all(&output_directory).map_err(io_error("create core survey directory"))?;
-    let rustdoc_path = output_directory.join("core.json");
-    if !rustdoc_path.is_file() {
-        let output = Command::new("rustdoc")
-            .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
-            .args([
-                "--crate-name",
-                "core",
-                "--edition",
-                "2024",
-                "-Z",
-                "unstable-options",
-                "--output-format",
-                "json",
-                "--target",
-                target,
-                "--out-dir",
-            ])
-            .arg(&output_directory)
-            .arg(&source)
-            .env_remove("RUSTFLAGS")
-            .env_remove("RUSTDOCFLAGS")
-            .output()
-            .map_err(io_error("run pinned Rustdoc for core survey"))?;
-        if !output.status.success() {
-            return Err(AnalysisError {
-                message: format!(
-                    "cannot generate pinned core Rustdoc: {}",
-                    String::from_utf8_lossy(&output.stderr).trim()
-                ),
-            });
-        }
+    let output = Command::new("rustdoc")
+        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .args([
+            "--crate-name",
+            "core",
+            "--edition",
+            "2024",
+            "-Z",
+            "unstable-options",
+            "--output-format",
+            "json",
+            "--target",
+            target,
+            "--out-dir",
+        ])
+        .arg(&output_directory)
+        .arg(&source)
+        .env_remove("RUSTFLAGS")
+        .env_remove("RUSTDOCFLAGS")
+        .output()
+        .map_err(io_error("run pinned Rustdoc for core survey"))?;
+    if !output.status.success() {
+        return Err(AnalysisError {
+            message: format!(
+                "cannot generate pinned core Rustdoc: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        });
     }
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated core Rustdoc"))?;
     let document = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN)?;
-    if cached_identity.as_deref() != Some(identity.as_str()) {
-        fs::write(&identity_path, identity).map_err(io_error("write core survey identity"))?;
-    }
+    fs::write(&identity_path, identity).map_err(io_error("write core survey identity"))?;
     Ok((document, source_root))
 }
 
@@ -1070,6 +1090,34 @@ mod tests {
             assert!(!cache.join("obsolete-output").exists());
             assert_eq!(fs::read_to_string(&unrelated).unwrap(), "preserve");
         }
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn core_survey_rebuilds_corrupt_json_with_a_current_marker() {
+        let directory = temporary_directory("corrupt-core-cache");
+        let target = host_target().unwrap();
+        core_rustdoc(&directory, &target).unwrap();
+        let cache = directory.join("core").join(&target);
+        let marker = fs::read(cache.join(".artifact-identity")).unwrap();
+        fs::write(cache.join("core.json"), br#"{"format_version":"#).unwrap();
+        fs::write(cache.join("interrupted-output"), "incomplete").unwrap();
+
+        let document = core_rustdoc(&directory, &target).unwrap();
+        assert!(
+            public_paths(&document)
+                .values()
+                .any(|path| path == "core::option::Option")
+        );
+        assert_eq!(fs::read(cache.join(".artifact-identity")).unwrap(), marker);
+        assert!(!cache.join("interrupted-output").exists());
+        let regenerated = fs::read(cache.join("core.json")).unwrap();
+        assert_eq!(
+            parse_rustdoc("core", &regenerated, RUSTDOC_TOOLCHAIN)
+                .unwrap()
+                .format_version,
+            rustdoc_types::FORMAT_VERSION
+        );
         fs::remove_dir_all(directory).unwrap();
     }
 

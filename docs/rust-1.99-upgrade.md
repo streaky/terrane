@@ -20,6 +20,8 @@ Projection admission policy now uses schema **260**, invalidating schema-259 art
 
 Sysroot `core` surveys now check an adjacent `.artifact-identity` recording the stable Rust version, Rustdoc nightly, JSON format, and target before reusing `core.json`. A missing or mismatched marker automatically removes and regenerates that owned core cache directory, including legacy format-57 data. This applies to ordinary CLI and survey use, not just tests. Upgrading does not require deleting `.trn`; unrelated artifacts are preserved, and strict validation runs before writing the current marker.
 
+Core cache access also holds a per-target cross-process lock outside the directory being replaced. Concurrent builds and editor analysis therefore cannot delete or read each other's partially generated core cache. Missing or corrupt JSON under a current marker is rebuilt once automatically; fresh generation/decoding failures and filesystem I/O errors remain errors.
+
 ## Source-breaking surface changes
 
 | Area | Change and migration |
