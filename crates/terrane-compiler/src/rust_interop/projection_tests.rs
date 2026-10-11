@@ -404,7 +404,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
 
     assert_eq!(inventory.len(), 3);
     assert_eq!(inventory[0].rust_path, "witness::callback_gap");
-    assert!(inventory[0].required_by.is_empty());
+    assert_eq!(inventory[0].required_by, BTreeSet::new());
     assert_eq!(
         inventory[0].required_by_contracts,
         BTreeSet::from(["witness::required_gap".to_owned()])
@@ -415,7 +415,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
         BTreeSet::from(["src/main.trn:7:9".to_owned()])
     );
     assert_eq!(inventory[2].rust_path, "witness::unused_gap");
-    assert!(inventory[2].required_by.is_empty());
+    assert_eq!(inventory[2].required_by, BTreeSet::new());
 
     let document = projection.documented_inventory(&demands);
     let required_heading = document
@@ -466,7 +466,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
     ));
     assert!(!document.contains("interface callback-gap"));
     let units = generated_projection_units(&document).unwrap();
-    assert!(units.is_empty());
+    assert_eq!(units, Vec::new());
 }
 
 #[test]
@@ -663,6 +663,8 @@ fn static_reference_aliases_cannot_bypass_parameter_admission() {
         links: HashMap::new(),
         attrs: Vec::new(),
         deprecation: None,
+        const_stability: None,
+        stability: None,
         inner: rustdoc_types::ItemEnum::TypeAlias(rustdoc_types::TypeAlias {
             type_: reference("'static"),
             generics: generics.clone(),
@@ -689,6 +691,7 @@ fn static_reference_aliases_cannot_bypass_parameter_admission() {
             abi: rustdoc_types::Abi::Rust,
         },
         has_body: true,
+        default_unstable: None,
     };
     let index = HashMap::from([(alias_id, alias)]);
     let failure = super::project_function(

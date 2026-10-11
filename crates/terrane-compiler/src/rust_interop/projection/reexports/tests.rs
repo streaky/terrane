@@ -124,7 +124,7 @@ fn builtin_owner_reexports_never_request_supplemental_rustdoc() {
     .unwrap();
 
     assert!(supplemental.is_empty());
-    assert!(declines[0].is_empty());
+    assert_eq!(declines[0], Vec::new());
     assert!(!workspace.exists());
 }
 #[test]

@@ -537,11 +537,12 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     );
     let response = dap.response(clear_breakpoints);
     assert!(response["success"].as_bool().unwrap());
-    assert!(
+    assert_eq!(
         response["body"]["breakpoints"]
             .as_array()
             .unwrap()
-            .is_empty()
+            .as_slice(),
+        [] as [serde_json::Value; 0]
     );
 
     let continue_request = dap.send("continue", json!({"threadId": thread}));
@@ -807,7 +808,7 @@ fn cli_steps_over_folded_guarded_branches_as_one_source_statement() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(output.stdout.is_empty(), "{:?}", output.stdout);
+    assert_eq!(output.stdout, b"", "{:?}", output.stdout);
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert!(stderr.contains(">     9 |   print; value"), "{stderr}");
     assert!(!stderr.contains(">     6 |"), "{stderr}");

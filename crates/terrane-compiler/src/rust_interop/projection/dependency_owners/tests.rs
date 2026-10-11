@@ -76,7 +76,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
         false,
     )
     .unwrap();
-    assert!(undeclared[0].items.is_empty());
+    assert_eq!(undeclared[0].items, Vec::new());
     assert!(
         undeclared[0].declined[0]
             .reason

@@ -1098,7 +1098,7 @@ fn decompress_one(
             let mut decoder = zstd::stream::read::Decoder::new(input).map_err(|error| {
                 ResultValue::error(format!("zstd decompression failed: {error}"))
             })?;
-            let window_log = usize::BITS - output_limit.max(1).saturating_sub(1).leading_zeros();
+            let window_log = output_limit.max(1).saturating_sub(1).bit_width();
             decoder
                 .window_log_max(window_log.max(10))
                 .map_err(|error| {
@@ -2603,7 +2603,7 @@ mod tests {
     fn system_host_name_preserves_the_platform_string_contract() {
         let name = system_host_name();
         if name.failed {
-            assert!(!name.message.is_empty());
+            assert_ne!(name.message, "");
         } else {
             assert!(name.flag);
             assert!(name.text.starts_with("text:") || name.text.starts_with("raw:"));
@@ -2780,7 +2780,7 @@ mod tests {
         assert!(!result.failed, "{}", result.message);
         assert!(result.flag);
         assert!(result.number >= 0);
-        assert!(!result.entries.is_empty());
+        assert_ne!(result.entries, [] as [String; 0]);
         assert!(result.entries.windows(2).all(|pair| pair[0] < pair[1]));
     }
 

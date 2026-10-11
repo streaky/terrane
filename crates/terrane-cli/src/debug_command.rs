@@ -1469,6 +1469,6 @@ mod tests {
         let mut adapter = Adapter::default();
         adapter.variable_objects.insert(7, "object".to_owned());
         assert!(adapter.handle("continue", json!({"threadId": 1})).is_err());
-        assert!(adapter.variable_objects.is_empty());
+        assert_eq!(adapter.variable_objects, BTreeMap::new());
     }
 }

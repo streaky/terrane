@@ -107,7 +107,7 @@ fn inherited_fields_keep_origins_and_overrides_do_not_inherit_annotations() {
     let semantic = metadata(SOURCE);
     let base = declaration(&semantic, "parent");
     let child = declaration(&semantic, "child");
-    assert!(child.annotations.is_empty());
+    assert_eq!(child.annotations, Vec::new());
     let base_field = base
         .fields
         .iter()
@@ -125,10 +125,9 @@ fn inherited_fields_keep_origins_and_overrides_do_not_inherit_annotations() {
             .len(),
         1
     );
-    assert!(
-        declaration(&semantic, "override-child::inherited")
-            .annotations
-            .is_empty()
+    assert_eq!(
+        declaration(&semantic, "override-child::inherited").annotations,
+        Vec::new()
     );
     assert!(
         !semantic

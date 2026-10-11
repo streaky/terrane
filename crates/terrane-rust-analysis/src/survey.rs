@@ -1225,6 +1225,8 @@ mod tests {
                     links: HashMap::new(),
                     attrs: Vec::new(),
                     deprecation: None,
+                    const_stability: None,
+                    stability: None,
                     inner: ItemEnum::Primitive(Primitive {
                         name: "local".to_owned(),
                         impls: Vec::new(),
@@ -1261,7 +1263,7 @@ mod tests {
                 triple: "x86_64-unknown-linux-gnu".to_owned(),
                 target_features: Vec::new(),
             },
-            format_version: 57,
+            format_version: rustdoc_types::FORMAT_VERSION,
         };
         let paths = BTreeMap::from([
             (local, "sample::Local".to_owned()),
@@ -1304,6 +1306,8 @@ mod tests {
                     links: HashMap::new(),
                     attrs: Vec::new(),
                     deprecation: None,
+                    const_stability: None,
+                    stability: None,
                     inner: ItemEnum::Primitive(Primitive {
                         name: "hidden_source".to_owned(),
                         impls: Vec::new(),
@@ -1316,12 +1320,12 @@ mod tests {
                 triple: "x86_64-unknown-linux-gnu".to_owned(),
                 target_features: Vec::new(),
             },
-            format_version: 57,
+            format_version: rustdoc_types::FORMAT_VERSION,
         };
         let paths = BTreeMap::from([(hidden, "sample::reexported_at_root".to_owned())]);
         let (declarations, failures) =
             declarations(&document, &paths, Path::new("/"), "package").unwrap();
-        assert!(failures.is_empty());
+        assert_eq!(failures, []);
         assert_eq!(declarations.len(), 1);
         assert_eq!(declarations[0].public_path, "sample::reexported_at_root");
         assert_eq!(declarations[0].canonical_path, None);

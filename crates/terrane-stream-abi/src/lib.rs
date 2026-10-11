@@ -614,7 +614,7 @@ mod tests {
     fn zero_length_read_is_not_end_of_stream() {
         let handle = acquire_stdin();
         let outcome = read(handle, 0).unwrap();
-        assert!(outcome.data.is_empty());
+        assert_eq!(outcome.data, []);
         assert!(!outcome.end);
         close(handle).unwrap();
     }

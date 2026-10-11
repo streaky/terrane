@@ -132,6 +132,7 @@ fn project_interface_inner(
                 generics,
                 bounds,
                 type_,
+                ..
             } => {
                 if associated_type.is_some() {
                     return Err("trait closure contains more than one associated type".to_owned());

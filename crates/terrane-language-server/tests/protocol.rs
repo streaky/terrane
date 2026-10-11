@@ -160,7 +160,6 @@ fn serves_semantic_tokens_for_an_open_document() {
     );
     let tokens = receive_response(&mut stdout, 2);
     let data = tokens["result"]["data"].as_array().unwrap();
-    assert!(!data.is_empty());
     assert_eq!(data.len() % 5, 0);
     assert_eq!(tokens["result"]["resultId"], "1");
     assert_eq!(

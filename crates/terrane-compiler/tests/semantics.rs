@@ -289,7 +289,7 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
     );
 
     let disabled = analyze(&package(false, &[("main.trn", "namespace app\n")])).unwrap();
-    assert!(disabled.prelude_bindings.is_empty());
+    assert_eq!(disabled.prelude_bindings, std::collections::BTreeMap::new());
     assert_eq!(
         enabled.descriptor_constructs.len(),
         ScalarType::SOURCE_NAMES.len()

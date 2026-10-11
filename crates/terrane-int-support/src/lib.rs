@@ -1242,7 +1242,7 @@ fn exactly_representable_as_binary_float(magnitude: u128, precision: u32) -> boo
     if magnitude == 0 {
         return true;
     }
-    let bit_length = u128::BITS - magnitude.leading_zeros();
+    let bit_length = magnitude.bit_width();
     bit_length <= precision || magnitude.trailing_zeros() >= bit_length - precision
 }
 
@@ -1298,7 +1298,7 @@ pub fn exact_f64(value: &(impl IntegerSource + 'static)) -> Result<f64, Arithmet
             "the integer is not exactly representable",
         )
     };
-    let converted = integer.to_f64().ok_or_else(&error)?;
+    let converted = integer.to_f64().ok_or_else(error)?;
     (BigInt::from_f64(converted).as_ref() == Some(&integer))
         .then_some(converted)
         .ok_or_else(error)
@@ -1318,7 +1318,7 @@ pub fn exact_f32(value: &(impl IntegerSource + 'static)) -> Result<f32, Arithmet
             "the integer is not exactly representable",
         )
     };
-    let converted = integer.to_f32().ok_or_else(&error)?;
+    let converted = integer.to_f32().ok_or_else(error)?;
     (BigInt::from_f32(converted).as_ref() == Some(&integer))
         .then_some(converted)
         .ok_or_else(error)

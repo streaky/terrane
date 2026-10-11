@@ -59,7 +59,7 @@ pub const UNICODE_DATA_VERSION: &str = "16.0.0";
 const UNICODE_DATA_VERSION_COMPONENTS: (u64, u64, u64) = (16, 0, 0);
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const BUILD_TOOLCHAIN: &str = "1.98.1";
+pub const BUILD_TOOLCHAIN: &str = "1.99.0";
 
 #[must_use]
 pub fn platform_support_manifest() -> String {

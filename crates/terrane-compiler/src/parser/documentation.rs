@@ -181,7 +181,7 @@ mod tests {
         let parsed = parse_text(
             "/// Command.\n@[command; name = 'report']\nfunction report int; (\n    @[option; 'limit', help = 'Maximum'] limit int = 10,\n)\n    return limit\n",
         );
-        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        assert_eq!(parsed.diagnostics, Vec::new(), "{:?}", parsed.diagnostics);
         let function = &parsed.tree.root.children[0];
         assert_eq!(function.documentation(), Some("Command."));
         assert_eq!(function.annotations().count(), 1);

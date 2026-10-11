@@ -4726,7 +4726,7 @@ fn collect_projected_destinations(
                     crate::rust_ir::instantiate_rust_generics(bound, &owner_rust_replacements)
                 })
                 .collect();
-            generic.default = generic.default.as_ref().map(&specialize_owner);
+            generic.default = generic.default.as_ref().map(specialize_owner);
         }
         if let Some(destination_result) = &mut function.destination_result {
             destination_result.bound_roots = destination_result

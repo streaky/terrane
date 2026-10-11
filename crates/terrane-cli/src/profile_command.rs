@@ -2399,7 +2399,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
             (usize::MAX, 0),
         )
         .unwrap();
-        assert!(byte_limited.is_empty());
+        assert_eq!(byte_limited, []);
         assert_eq!(dropped_samples, 2);
         assert_eq!(samples.len(), 1);
 
@@ -2601,7 +2601,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
             samples: Vec::new(),
         };
         sample_process_memory(u32::MAX, Instant::now(), &mut timeline, true);
-        assert!(timeline.samples.is_empty());
+        assert_eq!(timeline.samples, []);
         assert_eq!(timeline.missed_intervals, 1);
     }
 }

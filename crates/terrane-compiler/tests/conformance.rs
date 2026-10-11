@@ -1259,7 +1259,7 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .filter(|line| !line.is_empty())
         .map(|line| {
             let (pairs, remainder) = line.as_bytes().as_chunks::<2>();
-            assert!(remainder.is_empty(), "argument hex has an odd digit");
+            assert_eq!(remainder, [] as [u8; 0], "argument hex has an odd digit");
             let bytes = pairs
                 .iter()
                 .map(|pair| {

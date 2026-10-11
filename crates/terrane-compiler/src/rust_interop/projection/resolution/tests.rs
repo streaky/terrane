@@ -119,7 +119,7 @@ fn dependency_free_resolution_records_its_outcome() {
         projection.resolution.outcome,
         ResolutionOutcome::NoDependencies
     );
-    assert!(projection.resolution.events.is_empty());
+    assert_eq!(projection.resolution.events, Vec::new());
     assert_eq!(
         projection.content_hash,
         projection_content_hash(&projection).unwrap()

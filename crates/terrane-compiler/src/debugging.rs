@@ -832,7 +832,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        assert!(!body_associations.is_empty());
+        assert_ne!(body_associations, [] as [&super::DebugAssociation; 0]);
         assert!(
             body_associations
                 .iter()

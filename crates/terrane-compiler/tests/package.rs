@@ -381,7 +381,6 @@ fn missing_namespace_directories_are_package_errors() {
 
     let errors = Package::load(package.0.join("package.toml")).unwrap_err();
 
-    assert!(!errors.is_empty());
     assert!(
         errors[0]
             .diagnostic

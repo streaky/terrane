@@ -218,6 +218,9 @@ pub(super) fn project_function_inner(
     supplied_generics: &BTreeMap<String, ProjectedType>,
     allow_lifetime_output: bool,
 ) -> Result<ProjectedFunction, String> {
+    if function.sig.is_c_variadic {
+        return Err("C-variadic functions are unavailable to Terrane".to_owned());
+    }
     let open_chain = open_chain_generics(function, index);
     let GenericMonomorphisations {
         types: generic_types,
@@ -897,5 +900,71 @@ fn safe_parameter_name(name: &str) -> String {
         format!("{name}_")
     } else {
         name.to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn c_variadic_tail_cannot_be_erased_into_a_fixed_arity_contract() {
+        let mut function = Function {
+            sig: rustdoc_types::FunctionSignature {
+                inputs: vec![("count".to_owned(), Type::Primitive("i32".to_owned()))],
+                output: Some(Type::Primitive("i32".to_owned())),
+                is_c_variadic: true,
+            },
+            generics: rustdoc_types::Generics {
+                params: Vec::new(),
+                where_predicates: Vec::new(),
+            },
+            header: rustdoc_types::FunctionHeader {
+                is_const: false,
+                is_unsafe: true,
+                is_async: false,
+                abi: rustdoc_types::Abi::C { unwind: false },
+            },
+            has_body: true,
+            default_unstable: None,
+        };
+        let project = |function: &Function| {
+            project_function(
+                function,
+                &HashMap::new(),
+                &HashMap::new(),
+                &BTreeMap::new(),
+                Some("sum"),
+                false,
+            )
+        };
+        assert!(project(&function).unwrap_err().contains("C-variadic"));
+        let item = Item {
+            id: Id(1),
+            crate_id: 0,
+            name: Some("sum".to_owned()),
+            span: None,
+            visibility: rustdoc_types::Visibility::Public,
+            docs: None,
+            links: HashMap::new(),
+            attrs: Vec::new(),
+            deprecation: None,
+            stability: None,
+            const_stability: None,
+            inner: ItemEnum::Function(function.clone()),
+        };
+        assert!(
+            super::super::partial::partial_projection(&item, &HashMap::new(), &HashMap::new())
+                .is_none()
+        );
+        function.sig.is_c_variadic = false;
+        let fixed = project(&function).unwrap();
+        assert_eq!(fixed.parameters[0].name, "count");
+        assert_eq!(
+            fixed.parameters[0].ty,
+            ProjectedType::RustInt("i32".to_owned())
+        );
+        assert_eq!(fixed.result, ProjectedType::RustInt("i32".to_owned()));
+        assert!(fixed.is_unsafe);
     }
 }
