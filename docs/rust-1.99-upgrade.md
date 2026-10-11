@@ -38,6 +38,7 @@ Schema migration adds stability metadata to synthetic Rustdoc items and default-
 - `cargo test --workspace --no-run`: passed, compiling all workspace test binaries.
 - Focused native-admission regression: passed; C-variadic signature declines, has no misleading partial callable, and the equivalent fixed-arity C signature preserves its native integer contracts and unsafe status.
 - Disposable native package smoke: a Rust 1.99-minimum dependency containing a stable C-variadic definition was projected with the new producer; its fixed-arity extern C function compiled and ran through Terrane, printing `42`. Generated `rust-toolchain.toml` selected `1.99.0`. Calling its variadic function reported source-oriented `S2029` with the explicit C-variadic decline. Importing an unused unavailable member alone is not an invocation error.
+- The initial scorecard invocation was interrupted by the command runner's 300-second deadline after the debugger binary passed all 33 tests and while package CLI tests were still running. It is not full-suite evidence. The replacement invocation disables the outer command deadline and retains the unfiltered workspace selection.
 - Full workspace outcome is recorded in the latest `runs[]` entry of `docs/test-scoreboard.yaml`, including revision, rustc, counts and exit status; its published HTML is refreshed alongside it.
 
 ## Sources
