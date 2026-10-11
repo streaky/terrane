@@ -14,6 +14,9 @@ use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
 use crate::tokens::{TokenKind, TriviaKind};
 use crate::{Diagnostic, SourceFile, Span};
 
+mod import_rename;
+mod rename;
+
 pub const SCHEMA_VERSION: &str = "1.0";
 const DEFAULT_MAX_SNAPSHOTS: usize = 32;
 const DEFAULT_MAX_BYTES: usize = 64 * 1024 * 1024;
@@ -1387,6 +1390,12 @@ impl ToolingEngine {
             ));
         }
         let snapshot = self.snapshot(snapshot_id)?;
+        if let Some(replacements) =
+            import_rename::propose(snapshot, snapshot.document(uri)?, offset, new_name)?
+        {
+            let proposal = self.propose_edits(snapshot_id, replacements)?;
+            return self.validate_rename_proposal(proposal);
+        }
         let document = snapshot.document(uri)?;
         let Some(target) = target_at(snapshot, document, offset) else {
             return Err(ProtocolError::new(
@@ -1394,77 +1403,15 @@ impl ToolingEngine {
                 "position does not resolve to a semantic symbol",
             ));
         };
-        let Some(semantic) = &snapshot.semantic else {
-            return Err(ProtocolError::new(
-                "semantic-unavailable",
-                "rename requires a complete semantic snapshot",
-            ));
-        };
-        let identities = rename_identity_family(semantic, &target);
-        let mut replacements = Vec::new();
-        for unit in semantic
-            .units
-            .iter()
-            .filter(|unit| !unit.source_path.starts_with("<terrane>"))
-        {
-            let Some(source_uri) = snapshot.uri_for_file(unit.source.id()) else {
-                continue;
-            };
-            let Some(document) = snapshot
-                .documents
-                .values()
-                .find(|document| document.source.id() == unit.source.id())
-            else {
-                continue;
-            };
-            walk_nodes(&unit.tree.root, None, &mut |node, _field, _id| {
-                if node.kind == SyntaxKind::Name
-                    && resolve_semantic_target(snapshot, document, node)
-                        .is_some_and(|candidate| identities.contains(&candidate.identity))
-                {
-                    replacements.push(Replacement {
-                        uri: source_uri.to_owned(),
-                        span: node.span.into(),
-                        text: new_name.to_owned(),
-                    });
-                }
-            });
-        }
-        if let Some(location) = declaration_location(snapshot, &target)
-            && !replacements.iter().any(|replacement| {
-                replacement.uri == location.uri && replacement.span == location.span
-            })
-        {
-            replacements.push(Replacement {
-                uri: location.uri,
-                span: location.span,
-                text: new_name.to_owned(),
-            });
-        }
-        for replacement in &replacements {
-            let Some(unit) = semantic.units.iter().find(|unit| {
-                snapshot.uri_for_file(unit.source.id()) == Some(replacement.uri.as_str())
-            }) else {
-                return Err(ProtocolError::new(
-                    "unknown-source",
-                    "rename source left the semantic snapshot",
-                ));
-            };
-            if rename_would_capture(
-                semantic,
-                unit,
-                &target,
-                &identities,
-                new_name,
-                replacement.span.start,
-            ) {
-                return Err(ProtocolError::new(
-                    "rename-capture",
-                    format!("`{new_name}` would capture an existing symbol"),
-                ));
-            }
-        }
+        let replacements = rename::replacements(snapshot, &target, new_name)?;
         let proposal = self.propose_edits(snapshot_id, replacements)?;
+        self.validate_rename_proposal(proposal)
+    }
+
+    fn validate_rename_proposal(
+        &mut self,
+        proposal: EditProposal,
+    ) -> Result<EditProposal, ProtocolError> {
         if !proposal.semantic_reanalysis || !proposal.preview_diagnostics.is_empty() {
             let message = proposal.preview_diagnostics.first().map_or_else(
                 || "rename candidate does not preserve valid package semantics".to_owned(),
@@ -2104,7 +2051,11 @@ fn resolve_semantic_target(
         .iter()
         .find(|unit| unit.source.id() == document.source.id())?;
     let name = node_text(&document.source, name_node);
-    if let Some(parent) = parent_node(&document.tree.root, name_node)
+    let parent = parent_node(&document.tree.root, name_node);
+    if let Some(import) = parent.filter(|node| node.kind == SyntaxKind::ObjectImport) {
+        return import_rename::export_target(semantic, unit, document, import);
+    }
+    if let Some(parent) = parent
         && matches!(
             parent.kind,
             SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
@@ -3490,10 +3441,10 @@ mod tests {
         assert!(explicit_signature.label.ends_with(" -> int"));
     }
 
-    struct TemporaryDirectory(PathBuf);
+    pub(super) struct TemporaryDirectory(PathBuf);
 
     impl TemporaryDirectory {
-        fn new(label: &str) -> Self {
+        pub(super) fn new(label: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
                 "terrane-{label}-{}-{}",
                 std::process::id(),
@@ -3505,7 +3456,7 @@ mod tests {
             Self(path)
         }
 
-        fn path(&self) -> &Path {
+        pub(super) fn path(&self) -> &Path {
             &self.0
         }
     }
@@ -4273,6 +4224,110 @@ mod tests {
             .propose_rename(&snapshot.snapshot_id, uri, declaration_offset, "computed")
             .expect("rename from declaration");
         assert_eq!(proposal.replacements.len(), 2);
+    }
+
+    #[test]
+    fn canonical_export_rename_follows_aliased_and_plain_consumers() {
+        let library_uri = "file:///workspace/library.trn";
+        let library = "namespace library\npublic function Answer int;\n    return 42\n";
+        let aliased_uri = "file:///workspace/aliased.trn";
+        let aliased = "namespace aliased\nfrom /library import Answer as local-name, Answer as other-name # retained\nfunction inspect;\n    _ = local-name;\n    _ = other-name;\n";
+        let plain_uri = "file:///workspace/plain.trn";
+        let plain =
+            "namespace plain\nfrom /library import Answer\nfunction inspect;\n    _ = Answer;\n";
+        let nested_uri = "file:///workspace/nested.trn";
+        let nested = "namespace nested\nfunction inspect;\n    from /library import Answer as nested-name\n    _ = nested-name;\n";
+        let unrelated_uri = "file:///workspace/unrelated.trn";
+        let unrelated = "namespace unrelated\nfunction Answer int;\n    return 7\nfunction inspect;\n    _ = Answer;\n";
+        let sources = [
+            (library_uri, library),
+            (aliased_uri, aliased),
+            (plain_uri, plain),
+            (nested_uri, nested),
+            (unrelated_uri, unrelated),
+        ];
+        let mut engine = ToolingEngine::default();
+        let snapshot = engine
+            .open_snapshot(
+                sources
+                    .iter()
+                    .map(|(uri, text)| SourceInput {
+                        uri: (*uri).to_owned(),
+                        text: (*text).to_owned(),
+                    })
+                    .collect(),
+                None,
+                None,
+                SnapshotOptions {
+                    semantic: true,
+                    ..SnapshotOptions::default()
+                },
+            )
+            .unwrap();
+        let Availability::Known(definition) = engine
+            .definition(
+                &snapshot.snapshot_id,
+                aliased_uri,
+                aliased.find("Answer").unwrap(),
+            )
+            .unwrap()
+        else {
+            panic!("aliased import export token must resolve");
+        };
+        assert_eq!(definition.uri, library_uri);
+        assert_eq!(definition.span.start, library.find("Answer").unwrap());
+        let Availability::Known(references) = engine
+            .references(
+                &snapshot.snapshot_id,
+                library_uri,
+                library.find("Answer").unwrap(),
+            )
+            .unwrap()
+        else {
+            panic!("canonical references must be available");
+        };
+        assert!(references.iter().any(|reference| {
+            reference.uri == aliased_uri && reference.span.start == aliased.find("Answer").unwrap()
+        }));
+        for new_name in ["Reply", "local-name"] {
+            let proposal = engine
+                .propose_rename(
+                    &snapshot.snapshot_id,
+                    library_uri,
+                    library.find("Answer").unwrap(),
+                    new_name,
+                )
+                .expect("canonical export rename must follow every import form");
+            let expected_alias = if new_name == "local-name" {
+                "local-name".to_owned()
+            } else {
+                format!("{new_name} as local-name")
+            };
+            let expected = [
+                library.replace("Answer", new_name),
+                format!(
+                    "namespace aliased\nfrom /library import {expected_alias}, {new_name} as other-name # retained\nfunction inspect;\n    _ = local-name;\n    _ = other-name;\n"
+                ),
+                plain.replace("Answer", new_name),
+                nested.replace("Answer", new_name),
+                unrelated.to_owned(),
+            ];
+            for ((uri, original), expected) in sources.iter().zip(expected) {
+                let mut actual = (*original).to_owned();
+                for replacement in proposal
+                    .replacements
+                    .iter()
+                    .rev()
+                    .filter(|edit| edit.uri == *uri)
+                {
+                    actual.replace_range(
+                        replacement.span.start..replacement.span.end,
+                        &replacement.text,
+                    );
+                }
+                assert_eq!(actual, expected);
+            }
+        }
     }
 
     #[test]

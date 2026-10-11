@@ -1,0 +1,5 @@
+namespace app
+from /core/types import int as int
+
+function main;
+    value int = 42

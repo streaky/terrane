@@ -248,6 +248,12 @@ or semantic diagnostics (`invalid-rename`); the latter error includes the first 
 explain which contract would be broken. Rejected rename proposals are not retained. A clean rename
 returns the ordinary edit-proposal shape only after successful semantic reanalysis.
 
+Introducing an alias (`from /namespace import f` → `from /namespace import f as x`) is not a rename operation. Rename must not silently add an `as` clause when an exported-symbol rename fails. Renaming an existing alias (`import f as x` → `import f as y`) instead targets `x` or a use bound through it and updates only that binding's scoped uses. The exported name `f`, other aliases and importers, and unrelated same-spelled names remain untouched. Selecting the original export token of an aliased import, including its end offset, is rejected with `import-export-rename`; its message directs the caller to the alias or the exporting declaration. The `as` keyword and internal import-clause whitespace after the export-token end select the alias. Alias introduction requires an explicit source edit or a separate refactoring, not this operation. The distinction applies equally to Terrane and projected dependency imports.
+
+To remove an existing alias, set `new_name` to the original imported spelling: renaming `x` to `f` in `import f as x` produces `import f` and updates its bound uses to `f`. The proposal preserves comments and rejects capture. Explicit `import f as f` is a language error (`S2063`), so removal deletes the alias clause rather than generating that form. Use the ordinary non-empty exported name; neither `null` nor an empty string is an alias-removal convention.
+
+Renaming at the exporting declaration updates its canonical name and every selective import's export token, including imports with explicit aliases. Plain import bindings and their uses follow the new name; explicit local aliases and their bound uses keep their spelling. If the new export name equals an existing alias, that import's redundant `as` clause is removed instead of emitting `x as x`. Import export tokens resolve to the exporting declaration for navigation and references even though initiating rename on an aliased import's export token is rejected.
+
 ### `apply-edits`
 
 Fields: `proposal_id`. Proposals carrying preview diagnostics fail with `invalid-proposal` and are
