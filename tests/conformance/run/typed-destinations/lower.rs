@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support
 // Source: case.trn
 // Namespace: typed-destinations
 fn answer() -> terrane_int_support::Int {

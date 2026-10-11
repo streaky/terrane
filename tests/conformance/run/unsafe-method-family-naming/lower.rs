@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: unsafe-method-family-naming
 #[derive(Clone)]

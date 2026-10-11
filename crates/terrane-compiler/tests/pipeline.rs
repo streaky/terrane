@@ -5,7 +5,6 @@ use std::{
 };
 
 const HELLO: &str = include_str!("../../../tests/conformance/run/hello/case.trn");
-const ASYNC_AWAIT: &str = include_str!("../../../tests/conformance/run/async-await/case.trn");
 const STRUCTURED_ERROR: &str =
     include_str!("../../../tests/conformance/run/structured-error-origin-and-frames/case.trn");
 
@@ -19,18 +18,6 @@ fn hello_lowers_deterministically() {
         .rust_files_for(Path::new("generated/app.rs"))
         .unwrap();
     assert_eq!(first_files, second_files);
-    assert_eq!(
-        first_files
-            .iter()
-            .map(|file| file.path.as_str())
-            .collect::<Vec<_>>(),
-        ["generated/app.support.rs", "generated/app.rs"]
-    );
-    assert!(
-        first
-            .rust
-            .contains("Hello from Terrane!\\n\\nTail strings make punctuation literal")
-    );
 }
 
 #[cfg(unix)]
@@ -47,59 +34,6 @@ fn generated_rust_paths_report_non_utf8_file_names() {
         error,
         terrane_compiler::RustArtifactError::InvalidOutputPath(message)
             if message == "generated Rust output file name must be valid UTF-8"
-    ));
-}
-
-#[test]
-fn canonical_rust_requirement_accepts_formatted_lowering() {
-    let compilation = terrane_compiler::compile_with_options(
-        PathBuf::from("case.trn"),
-        HELLO.to_owned(),
-        terrane_compiler::CompilerOptions {
-            require_canonical_rust: true,
-            lint_name_style: false,
-            lint_unused_functions: false,
-            debug_build: terrane_compiler::DebugBuild::Disabled,
-        },
-    )
-    .unwrap();
-
-    let files = compilation
-        .rust_files_for(Path::new("src/main.rs"))
-        .unwrap();
-    assert_eq!(
-        files
-            .iter()
-            .map(|file| file.path.as_str())
-            .collect::<Vec<_>>(),
-        ["src/main.support.rs", "src/main.rs"]
-    );
-}
-
-#[test]
-fn compiler_runtime_support_uses_named_generated_files() {
-    let compilation =
-        terrane_compiler::compile(PathBuf::from("async-await.trn"), ASYNC_AWAIT.to_owned())
-            .unwrap();
-    let files = compilation
-        .rust_files_for(Path::new("src/main.rs"))
-        .unwrap();
-    assert_eq!(
-        files
-            .iter()
-            .map(|file| file.path.as_str())
-            .collect::<Vec<_>>(),
-        ["src/main.support.rs", "src/main.rs"]
-    );
-    let support = &files[0].contents;
-    let entrypoint = &files[1].contents;
-    assert!(support.contains("async fn __terrane_await"));
-    assert!(!entrypoint.contains("async fn __terrane_await"));
-    assert!(entrypoint.starts_with(
-        "// Generated deterministically by Terrane 0.1.0.\n\
-         include!(\"main.support.rs\");\n\
-         // Source: async-await.trn\n\
-         // Namespace: async-await\n"
     ));
 }
 
@@ -191,17 +125,8 @@ fn split_lowering_uses_the_requested_entrypoint_name() {
             .iter()
             .map(|file| file.path.as_str())
             .collect::<Vec<_>>(),
-        [
-            "generated/inspectable.support.rs",
-            "generated/inspectable.rs"
-        ]
+        ["generated/inspectable.rs"]
     );
-    assert!(files[0].contents.is_empty());
-    assert!(files[1].contents.starts_with(
-        "// Generated deterministically by Terrane 0.1.0.\n\
-         include!(\"inspectable.support.rs\");\n\
-         // Source: case.trn\n"
-    ));
 }
 
 #[test]

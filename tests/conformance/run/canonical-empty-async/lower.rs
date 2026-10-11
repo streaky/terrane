@@ -1,6 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, executor_parallel.rs
-// Vendored support crates:
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: canonical-empty-async
 fn main() {

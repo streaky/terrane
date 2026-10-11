@@ -1255,8 +1255,9 @@ lock_change_diagnostic: machine-independent terrane-projection.lock history reco
   relative include, while `<entrypoint-stem>.support.rs` contains compiler prelude, runtime,
   structured-error and source-site infrastructure, selectively included bundled `/core`
   implementation code, and projected `/deps` lowering; user-authored package modules remain in the
-  entrypoint. The support sidecar is emitted even when empty, preserving a uniform
-  two-file artifact contract.
+  entrypoint. A nonempty support sidecar lists the generated program's vendored support crates.
+  When support is empty, no sidecar or relative include is emitted; regeneration removes an
+  obsolete generated support sidecar.
 
 ## NATIVE INTEROP
 

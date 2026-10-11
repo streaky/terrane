@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support
 // Source: case.trn
 // Namespace: milestone-representative
 fn main() {

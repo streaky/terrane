@@ -1,3 +1,4 @@
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -56,14 +57,16 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    rendered_message: Option<String>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
+    structured: Vec<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -90,10 +93,34 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_rendered_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        rendered_message: Option<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    rendered_message,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
                 }),
             ),
         }
@@ -104,13 +131,15 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -125,10 +154,12 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .frames
@@ -141,10 +172,52 @@ impl TerraneError {
             .and_then(|detail| detail.message.as_deref())
             .unwrap_or_else(|| self.kind.default_message())
     }
+    fn rendered_message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.rendered_message.as_deref())
+            .unwrap_or_else(|| self.message())
+    }
+    fn descriptor_name(&self) -> &str {
+        self.kind.display_name()
+    }
+    fn source_frames(&self) -> Vec<String> {
+        let mut frames = Vec::new();
+        if self.origin != TERRANE_NO_SITE {
+            frames.push(__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            frames
+                .extend(
+                    detail.frames.iter().map(|frame| __terrane_trace::render(*frame)),
+                );
+        }
+        frames
+    }
+    fn with_structured_details(mut self, structured: Vec<String>) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: None,
+                    rendered_message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
+                })
+            })
+            .structured = structured;
+        self
+    }
+    fn structured_details(&self) -> &[String] {
+        self.detail.as_deref().map_or(&[], |detail| detail.structured.as_slice())
+    }
     #[cold]
     #[inline(never)]
     fn render(&self) -> String {
-        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        let mut rendered = format!(
+            "{}: {}", self.kind.display_name(), self.rendered_message()
+        );
         if let Some(cause) = self
             .detail
             .as_ref()
@@ -377,205 +450,45 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/byte-index-and-slice::main"];
-    pub static SITES: [Site; 18] = [
-        {
-            /* terrane-site-row: site 0: /byte-index-and-slice::main (case.trn:9:10-9:17) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 10,
-                end_line: 9,
-                end_column: 17,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /byte-index-and-slice::main (case.trn:9:19-9:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 19,
-                end_line: 9,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /byte-index-and-slice::main (case.trn:10:23-10:34) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 23,
-                end_line: 10,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /byte-index-and-slice::main (case.trn:10:18-10:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 18,
-                end_line: 10,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /byte-index-and-slice::main (case.trn:11:11-11:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 11,
-                end_line: 11,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /byte-index-and-slice::main (case.trn:12:24-12:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 24,
-                end_line: 12,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /byte-index-and-slice::main (case.trn:12:19-12:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 19,
-                end_line: 12,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /byte-index-and-slice::main (case.trn:13:10-13:20) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 10,
-                end_line: 13,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /byte-index-and-slice::main (case.trn:13:22-13:32) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 22,
-                end_line: 13,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /byte-index-and-slice::main (case.trn:13:34-13:44) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 34,
-                end_line: 13,
-                end_column: 44,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /byte-index-and-slice::main (case.trn:14:22-14:53) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 22,
-                end_line: 14,
-                end_column: 53,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /byte-index-and-slice::main (case.trn:14:17-14:54) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 17,
-                end_line: 14,
-                end_column: 54,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /byte-index-and-slice::main (case.trn:16:22-16:41) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 16,
-                column: 22,
-                end_line: 16,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /byte-index-and-slice::main (case.trn:16:17-16:42) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 16,
-                column: 17,
-                end_line: 16,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /byte-index-and-slice::main (case.trn:17:10-17:18) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 10,
-                end_line: 17,
-                end_column: 18,
-            }
-        },
-        {
-            /* terrane-site-row: site 15: /byte-index-and-slice::main (case.trn:19:12-19:29) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 12,
-                end_line: 19,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 16: /byte-index-and-slice::main (case.trn:23:17-23:28) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 17,
-                end_line: 23,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 17: /byte-index-and-slice::main (case.trn:23:12-23:29) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 12,
-                end_line: 23,
-                end_column: 29,
-            }
-        },
+    pub static SITES: [Site; 19] = [
+        /* terrane-site-row: site 0: /byte-index-and-slice::main (case.trn:8:10-8:17) */
+        { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 17 } },
+        /* terrane-site-row: site 1: /byte-index-and-slice::main (case.trn:8:19-8:26) */
+        { Site { function: 0, file: 0, line: 8, column: 19, end_line: 8, end_column: 26 } },
+        /* terrane-site-row: site 2: /byte-index-and-slice::main (case.trn:9:23-9:34) */
+        { Site { function: 0, file: 0, line: 9, column: 23, end_line: 9, end_column: 34 } },
+        /* terrane-site-row: site 3: /byte-index-and-slice::main (case.trn:9:18-9:35) */
+        { Site { function: 0, file: 0, line: 9, column: 18, end_line: 9, end_column: 35 } },
+        /* terrane-site-row: site 4: /byte-index-and-slice::main (case.trn:10:11-10:30) */
+        { Site { function: 0, file: 0, line: 10, column: 11, end_line: 10, end_column: 30 } },
+        /* terrane-site-row: site 5: /byte-index-and-slice::main (case.trn:11:24-11:38) */
+        { Site { function: 0, file: 0, line: 11, column: 24, end_line: 11, end_column: 38 } },
+        /* terrane-site-row: site 6: /byte-index-and-slice::main (case.trn:11:19-11:39) */
+        { Site { function: 0, file: 0, line: 11, column: 19, end_line: 11, end_column: 39 } },
+        /* terrane-site-row: site 7: /byte-index-and-slice::main (case.trn:12:10-12:20) */
+        { Site { function: 0, file: 0, line: 12, column: 10, end_line: 12, end_column: 20 } },
+        /* terrane-site-row: site 8: /byte-index-and-slice::main (case.trn:12:22-12:32) */
+        { Site { function: 0, file: 0, line: 12, column: 22, end_line: 12, end_column: 32 } },
+        /* terrane-site-row: site 9: /byte-index-and-slice::main (case.trn:12:34-12:44) */
+        { Site { function: 0, file: 0, line: 12, column: 34, end_line: 12, end_column: 44 } },
+        /* terrane-site-row: site 10: /byte-index-and-slice::main (case.trn:13:22-13:53) */
+        { Site { function: 0, file: 0, line: 13, column: 22, end_line: 13, end_column: 53 } },
+        /* terrane-site-row: site 11: /byte-index-and-slice::main (case.trn:13:17-13:54) */
+        { Site { function: 0, file: 0, line: 13, column: 17, end_line: 13, end_column: 54 } },
+        /* terrane-site-row: site 12: /byte-index-and-slice::main (case.trn:15:22-15:41) */
+        { Site { function: 0, file: 0, line: 15, column: 22, end_line: 15, end_column: 41 } },
+        /* terrane-site-row: site 13: /byte-index-and-slice::main (case.trn:15:17-15:42) */
+        { Site { function: 0, file: 0, line: 15, column: 17, end_line: 15, end_column: 42 } },
+        /* terrane-site-row: site 14: /byte-index-and-slice::main (case.trn:16:10-16:18) */
+        { Site { function: 0, file: 0, line: 16, column: 10, end_line: 16, end_column: 18 } },
+        /* terrane-site-row: site 15: /byte-index-and-slice::main (case.trn:18:12-18:29) */
+        { Site { function: 0, file: 0, line: 18, column: 12, end_line: 18, end_column: 29 } },
+        /* terrane-site-row: site 16: /byte-index-and-slice::main (case.trn:22:17-22:28) */
+        { Site { function: 0, file: 0, line: 22, column: 17, end_line: 22, end_column: 28 } },
+        /* terrane-site-row: site 17: /byte-index-and-slice::main (case.trn:22:12-22:29) */
+        { Site { function: 0, file: 0, line: 22, column: 12, end_line: 22, end_column: 29 } },
+        /* terrane-site-row: site 18: /byte-index-and-slice::main (case.trn:26:12-26:21) */
+        { Site { function: 0, file: 0, line: 26, column: 12, end_line: 26, end_column: 21 } },
     ];
     #[cold]
     #[inline(never)]
@@ -588,4 +501,15 @@ mod __terrane_trace {
             site.end_column,
         )
     }
+}
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
 }

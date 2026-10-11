@@ -1,3 +1,4 @@
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -56,14 +57,16 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    rendered_message: Option<String>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
+    structured: Vec<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -90,10 +93,34 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_rendered_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        rendered_message: Option<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    rendered_message,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
                 }),
             ),
         }
@@ -104,13 +131,15 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -125,10 +154,12 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .frames
@@ -141,10 +172,52 @@ impl TerraneError {
             .and_then(|detail| detail.message.as_deref())
             .unwrap_or_else(|| self.kind.default_message())
     }
+    fn rendered_message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.rendered_message.as_deref())
+            .unwrap_or_else(|| self.message())
+    }
+    fn descriptor_name(&self) -> &str {
+        self.kind.display_name()
+    }
+    fn source_frames(&self) -> Vec<String> {
+        let mut frames = Vec::new();
+        if self.origin != TERRANE_NO_SITE {
+            frames.push(__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            frames
+                .extend(
+                    detail.frames.iter().map(|frame| __terrane_trace::render(*frame)),
+                );
+        }
+        frames
+    }
+    fn with_structured_details(mut self, structured: Vec<String>) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: None,
+                    rendered_message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
+                })
+            })
+            .structured = structured;
+        self
+    }
+    fn structured_details(&self) -> &[String] {
+        self.detail.as_deref().map_or(&[], |detail| detail.structured.as_slice())
+    }
     #[cold]
     #[inline(never)]
     fn render(&self) -> String {
-        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        let mut rendered = format!(
+            "{}: {}", self.kind.display_name(), self.rendered_message()
+        );
         if let Some(cause) = self
             .detail
             .as_ref()
@@ -378,61 +451,16 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/class-field-metadata::main"];
     pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /class-field-metadata::main (case.trn:12:12-12:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 12,
-                end_line: 12,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /class-field-metadata::main (case.trn:12:44-12:78) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 44,
-                end_line: 12,
-                end_column: 78,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /class-field-metadata::main (case.trn:13:12-13:41) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 12,
-                end_line: 13,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /class-field-metadata::main (case.trn:13:43-13:71) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 43,
-                end_line: 13,
-                end_column: 71,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /class-field-metadata::main (case.trn:13:73-13:99) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 73,
-                end_line: 13,
-                end_column: 99,
-            }
-        },
+        /* terrane-site-row: site 0: /class-field-metadata::main (case.trn:12:12-12:37) */
+        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 37 } },
+        /* terrane-site-row: site 1: /class-field-metadata::main (case.trn:12:44-12:78) */
+        { Site { function: 0, file: 0, line: 12, column: 44, end_line: 12, end_column: 78 } },
+        /* terrane-site-row: site 2: /class-field-metadata::main (case.trn:13:12-13:41) */
+        { Site { function: 0, file: 0, line: 13, column: 12, end_line: 13, end_column: 41 } },
+        /* terrane-site-row: site 3: /class-field-metadata::main (case.trn:13:43-13:71) */
+        { Site { function: 0, file: 0, line: 13, column: 43, end_line: 13, end_column: 71 } },
+        /* terrane-site-row: site 4: /class-field-metadata::main (case.trn:13:73-13:99) */
+        { Site { function: 0, file: 0, line: 13, column: 73, end_line: 13, end_column: 99 } },
     ];
     #[cold]
     #[inline(never)]
@@ -461,5 +489,6 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }

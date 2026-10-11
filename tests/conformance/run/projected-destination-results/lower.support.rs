@@ -1,3 +1,4 @@
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -61,14 +62,16 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    rendered_message: Option<String>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
+    structured: Vec<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -95,10 +98,34 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_rendered_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        rendered_message: Option<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    rendered_message,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
                 }),
             ),
         }
@@ -118,13 +145,15 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -139,10 +168,12 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .frames
@@ -155,10 +186,52 @@ impl TerraneError {
             .and_then(|detail| detail.message.as_deref())
             .unwrap_or_else(|| self.kind.default_message())
     }
+    fn rendered_message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.rendered_message.as_deref())
+            .unwrap_or_else(|| self.message())
+    }
+    fn descriptor_name(&self) -> &str {
+        self.kind.display_name()
+    }
+    fn source_frames(&self) -> Vec<String> {
+        let mut frames = Vec::new();
+        if self.origin != TERRANE_NO_SITE {
+            frames.push(__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            frames
+                .extend(
+                    detail.frames.iter().map(|frame| __terrane_trace::render(*frame)),
+                );
+        }
+        frames
+    }
+    fn with_structured_details(mut self, structured: Vec<String>) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: None,
+                    rendered_message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
+                })
+            })
+            .structured = structured;
+        self
+    }
+    fn structured_details(&self) -> &[String] {
+        self.detail.as_deref().map_or(&[], |detail| detail.structured.as_slice())
+    }
     #[cold]
     #[inline(never)]
     fn render(&self) -> String {
-        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        let mut rendered = format!(
+            "{}: {}", self.kind.display_name(), self.rendered_message()
+        );
         if let Some(cause) = self
             .detail
             .as_ref()
@@ -385,7 +458,7 @@ const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
     reason = "projected type methods may be imported without being crossed"
 )]
 fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
+    payload: std::boxed::Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
     member: &'static str,
 ) -> TerraneForeignError {
@@ -406,7 +479,10 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
+    pub static DESCRIPTORS: [&str; 2] = [
+        "/core/errors::dependency-error",
+        "/core/errors::dependency-panic",
+    ];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -425,171 +501,36 @@ mod __terrane_trace {
         "/app::main",
     ];
     pub static SITES: [Site; 15] = [
-        {
-            /* terrane-site-row: site 0: /app::load (src/main.trn:9:14-9:18) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 14,
-                end_line: 9,
-                end_column: 18,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::load (src/main.trn:10:18-10:33) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 18,
-                end_line: 10,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::decoded-value (src/main.trn:13:12-13:16) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 13,
-                column: 12,
-                end_line: 13,
-                end_column: 16,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /app::decoded-value (src/main.trn:14:10-14:25) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 14,
-                column: 10,
-                end_line: 14,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /app::make-number (src/main.trn:17:10-17:24) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 17,
-                column: 10,
-                end_line: 17,
-                end_column: 24,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /app::main (src/main.trn:24:25-24:38) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 24,
-                column: 25,
-                end_line: 24,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /app::main (src/main.trn:25:16-25:29) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 25,
-                column: 16,
-                end_line: 25,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /app::main (src/main.trn:26:26-26:39) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 26,
-                column: 26,
-                end_line: 26,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /app::main (src/main.trn:27:32-27:45) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 27,
-                column: 32,
-                end_line: 27,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /app::main (src/main.trn:28:24-28:37) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 28,
-                column: 24,
-                end_line: 28,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /app::main (src/main.trn:29:31-29:43) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 29,
-                column: 31,
-                end_line: 29,
-                end_column: 43,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /app::main (src/main.trn:30:38-30:58) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 30,
-                column: 38,
-                end_line: 30,
-                end_column: 58,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /app::main (src/main.trn:31:20-31:40) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 31,
-                column: 20,
-                end_line: 31,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /app::main (src/main.trn:32:12-32:16) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 32,
-                column: 12,
-                end_line: 32,
-                end_column: 16,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /app::main (src/main.trn:33:24-33:39) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 33,
-                column: 24,
-                end_line: 33,
-                end_column: 39,
-            }
-        },
+        /* terrane-site-row: site 0: /app::load (src/main.trn:8:14-8:18) */
+        { Site { function: 0, file: 0, line: 8, column: 14, end_line: 8, end_column: 18 } },
+        /* terrane-site-row: site 1: /app::load (src/main.trn:9:18-9:33) */
+        { Site { function: 0, file: 0, line: 9, column: 18, end_line: 9, end_column: 33 } },
+        /* terrane-site-row: site 2: /app::decoded-value (src/main.trn:12:12-12:16) */
+        { Site { function: 1, file: 0, line: 12, column: 12, end_line: 12, end_column: 16 } },
+        /* terrane-site-row: site 3: /app::decoded-value (src/main.trn:13:10-13:25) */
+        { Site { function: 1, file: 0, line: 13, column: 10, end_line: 13, end_column: 25 } },
+        /* terrane-site-row: site 4: /app::make-number (src/main.trn:16:10-16:24) */
+        { Site { function: 2, file: 0, line: 16, column: 10, end_line: 16, end_column: 24 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:23:25-23:38) */
+        { Site { function: 3, file: 0, line: 23, column: 25, end_line: 23, end_column: 38 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:24:16-24:29) */
+        { Site { function: 3, file: 0, line: 24, column: 16, end_line: 24, end_column: 29 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:25:26-25:39) */
+        { Site { function: 3, file: 0, line: 25, column: 26, end_line: 25, end_column: 39 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:26:32-26:45) */
+        { Site { function: 3, file: 0, line: 26, column: 32, end_line: 26, end_column: 45 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:27:24-27:37) */
+        { Site { function: 3, file: 0, line: 27, column: 24, end_line: 27, end_column: 37 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:28:31-28:43) */
+        { Site { function: 3, file: 0, line: 28, column: 31, end_line: 28, end_column: 43 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:29:38-29:58) */
+        { Site { function: 3, file: 0, line: 29, column: 38, end_line: 29, end_column: 58 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:30:20-30:40) */
+        { Site { function: 3, file: 0, line: 30, column: 20, end_line: 30, end_column: 40 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:31:12-31:16) */
+        { Site { function: 3, file: 0, line: 31, column: 12, end_line: 31, end_column: 16 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:32:24-32:39) */
+        { Site { function: 3, file: 0, line: 32, column: 24, end_line: 32, end_column: 39 } },
     ];
     #[cold]
     #[inline(never)]

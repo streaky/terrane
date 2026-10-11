@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-scalar-support
 // Source: src/main.trn
 // Namespace: app
 #[allow(dead_code)]

@@ -1,6 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, async_select.rs, executor_parallel.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: select-exclusive-case-move
 async fn one() -> terrane_int_support::Int {

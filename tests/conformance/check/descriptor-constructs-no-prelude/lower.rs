@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates:
 // Source: src/main.trn
 // Namespace: descriptor-constructs-no-prelude
 fn accepts(value: i8) -> i8 {

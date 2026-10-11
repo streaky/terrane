@@ -1,17 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, async_select.rs, executor_parallel.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support
-fn __terrane_uninitialized_binding(
-    name: &str,
-    path: &str,
-    line: usize,
-    column: usize,
-) -> ! {
-    eprintln!(
-        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
-    );
-    std::process::exit(1);
-}
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: heterogeneous-select
 fn mark(value: String) -> String {

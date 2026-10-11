@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-scalar-support
 // Source: case.trn
 // Namespace: negated-presence-narrowing
 #[allow(dead_code)]

@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support
 // Source: case.trn
 // Namespace: canonical-unused-parameter
 fn ignore(value: terrane_int_support::Int) {

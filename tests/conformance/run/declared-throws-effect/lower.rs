@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: declared-throws-effect
 fn declared() -> terrane_int_support::Int {

@@ -871,10 +871,15 @@ impl RenderedProgram {
         support_path: &str,
         support_name: &str,
     ) -> Vec<RenderedFile> {
+        let support_is_empty = self.support.contents.is_empty();
         let mut application = format!(
-            "// Generated deterministically by Terrane {}.\ninclude!(\"{support_name}\");\n",
+            "// Generated deterministically by Terrane {}.\n",
             self.version
         );
+        if !support_is_empty {
+            writeln!(application, "include!(\"{support_name}\");")
+                .expect("writing to a String cannot fail");
+        }
         let application_offset = application.len();
         application.push_str(&self.application.contents);
         let application_associations = self
@@ -887,18 +892,54 @@ impl RenderedProgram {
                 source: association.source,
             })
             .collect();
-        vec![
-            RenderedFile {
+        let mut files = Vec::with_capacity(if support_is_empty { 1 } else { 2 });
+        if !support_is_empty {
+            let tokens = self
+                .standalone
+                .contents
+                .parse::<TokenStream>()
+                .expect("compiler must produce syntactically valid Rust tokens");
+            let mut vendored_support = VENDORED_SUPPORT_CRATES
+                .iter()
+                .filter_map(|(rust_name, package_name)| {
+                    token_stream_contains_ident(tokens.clone(), rust_name).then_some(*package_name)
+                })
+                .collect::<Vec<_>>();
+            if self
+                .runtime_source_files()
+                .any(|path| path == "platform_signals.rs")
+            {
+                vendored_support.push("terrane-signal-support");
+            }
+            let mut support_contents = String::new();
+            push_manifest_line(
+                &mut support_contents,
+                "Vendored support crates",
+                &vendored_support,
+            );
+            let support_offset = support_contents.len();
+            support_contents.push_str(&self.support.contents);
+            files.push(RenderedFile {
                 path: support_path.to_owned(),
-                contents: self.support.contents.clone(),
-                associations: self.support.associations.clone(),
-            },
-            RenderedFile {
-                path: entrypoint.to_owned(),
-                contents: application,
-                associations: application_associations,
-            },
-        ]
+                contents: support_contents,
+                associations: self
+                    .support
+                    .associations
+                    .iter()
+                    .map(|association| SourceAssociation {
+                        generated_start: association.generated_start + support_offset,
+                        generated_end: association.generated_end + support_offset,
+                        source: association.source,
+                    })
+                    .collect(),
+            });
+        }
+        files.push(RenderedFile {
+            path: entrypoint.to_owned(),
+            contents: application,
+            associations: application_associations,
+        });
+        files
     }
 }
 

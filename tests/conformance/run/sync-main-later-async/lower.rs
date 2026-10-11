@@ -1,6 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support
+include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 #[allow(dead_code)]
