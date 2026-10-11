@@ -538,11 +538,8 @@ fn adapter_keeps_debuggee_output_framed_and_maps_stack_frames() {
     let response = dap.response(clear_breakpoints);
     assert!(response["success"].as_bool().unwrap());
     assert_eq!(
-        response["body"]["breakpoints"]
-            .as_array()
-            .unwrap()
-            .as_slice(),
-        [] as [serde_json::Value; 0]
+        response["body"]["breakpoints"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
 
     let continue_request = dap.send("continue", json!({"threadId": thread}));

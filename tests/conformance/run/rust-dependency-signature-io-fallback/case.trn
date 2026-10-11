@@ -1,0 +1,9 @@
+namespace app
+from /core/errors import dependency-error
+from /deps/io-witness import fail
+
+function main;
+    try
+        fail;
+    catch dependency-error as failure
+        print; failure.message

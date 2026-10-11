@@ -1115,7 +1115,7 @@ fn analyze_parsed_with_projection(
                     &import.source,
                     "S2031",
                     format!(
-                        "Rust dependency member `{}` in `{}` was removed when the projected dependency changed from version `{}` to `{}`",
+                        "Rust dependency member `{}` in `{}` was present in a previous projection at dependency version `{}`, but is absent from the current projection at version `{}`",
                         import.object,
                         import.target,
                         removed.previous_version,

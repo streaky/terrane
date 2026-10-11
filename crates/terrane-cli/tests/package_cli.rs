@@ -683,9 +683,8 @@ fn native_test_command_reports_isolated_cases_deterministically() {
     assert_ne!(
         report["cases"][1]["cause"]["source_frames"]
             .as_array()
-            .unwrap()
-            .as_slice(),
-        [] as [serde_json::Value; 0]
+            .unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
     assert_eq!(
         report["cases"][1]["stdout"],
@@ -1083,11 +1082,8 @@ fn native_test_compile_failures_write_structured_reports() {
     assert_eq!(report["run"]["status"], "compile-failed");
     assert_eq!(report["discovery"]["status"], "compile-failed");
     assert_ne!(
-        report["discovery"]["diagnostics"]
-            .as_array()
-            .unwrap()
-            .as_slice(),
-        [] as [serde_json::Value; 0]
+        report["discovery"]["diagnostics"].as_array().unwrap(),
+        &Vec::<serde_json::Value>::new()
     );
     assert_eq!(
         report["compilation"]

@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-c-variadic-witness = { path = "fixture-registry/terrane-c-variadic-witness-0.1.0" }

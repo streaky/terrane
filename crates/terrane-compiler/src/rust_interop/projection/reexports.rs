@@ -243,6 +243,10 @@ fn reexport_is_demanded(
         || demands.contains(&(format!("{namespace}/macros"), name.clone()))
 }
 
+fn is_std_io_error_path(path: &str) -> bool {
+    matches!(path, "std::io::Error" | "std::io::ErrorKind")
+}
+
 fn signature_foreign_aliases(
     dependency: &RustDependency,
     items: &[ProjectedItem],
@@ -338,6 +342,7 @@ pub(super) fn external_reexport_rustdocs(
             let Some(summary) = document.paths.get(id) else {
                 continue;
             };
+            let mut canonical_path = None;
             let owner_crate_name = if summary.crate_id == 0 {
                 if document.index.contains_key(id) {
                     continue;
@@ -352,10 +357,20 @@ pub(super) fn external_reexport_rustdocs(
                 let Some(external) = document.external_crates.get(&summary.crate_id) else {
                     continue;
                 };
-                if matches!(external.name.as_str(), "std" | "alloc") {
+                if external.name == "alloc" {
                     continue;
                 }
-                external.name.clone()
+                let path = canonicalize_rust_path(&summary.path.join("::"));
+                let io_error = is_std_io_error_path(&path);
+                if external.name == "std" && !io_error {
+                    continue;
+                }
+                canonical_path = Some(path);
+                if io_error {
+                    "core".to_owned()
+                } else {
+                    external.name.clone()
+                }
             };
             let demanded = reexport_is_demanded(
                 dependency,
@@ -391,7 +406,10 @@ pub(super) fn external_reexport_rustdocs(
                     });
                 let aliases = request.aliases.entry(dependency_index).or_default();
                 aliases
-                    .entry(summary.path.join("::"))
+                    .entry(
+                        canonical_path
+                            .unwrap_or_else(|| canonicalize_rust_path(&summary.path.join("::"))),
+                    )
                     .and_modify(|current| prefer_alias(current, public_path))
                     .or_insert_with(|| public_path.clone());
                 continue;
@@ -419,12 +437,15 @@ pub(super) fn external_reexport_rustdocs(
                 });
             let aliases = request.aliases.entry(dependency_index).or_default();
             aliases
-                .entry(summary.path.join("::"))
+                .entry(canonical_path.unwrap_or_else(|| summary.path.join("::")))
                 .and_modify(|current| prefer_alias(current, public_path))
                 .or_insert_with(|| public_path.clone());
         }
         for reexport in terrane_rust_analysis::external_reexports(document) {
-            if matches!(reexport.crate_name.as_str(), "std" | "alloc")
+            let canonical_path = canonicalize_rust_path(&reexport.canonical_path);
+            let io_error = is_std_io_error_path(&canonical_path);
+            if reexport.crate_name == "alloc"
+                || reexport.crate_name == "std" && !io_error
                 || reexport.crate_name == "core" && reexport.expands_descendants
                 || !reexport_is_demanded(
                     dependency,
@@ -435,7 +456,12 @@ pub(super) fn external_reexport_rustdocs(
             {
                 continue;
             }
-            let (package_spec, package_name) = if reexport.crate_name == "core" {
+            let owner_crate = if io_error {
+                "core"
+            } else {
+                &reexport.crate_name
+            };
+            let (package_spec, package_name) = if owner_crate == "core" {
                 (String::new(), "core".to_owned())
             } else {
                 match resolved_library_package(metadata, &reexport.crate_name) {
@@ -449,16 +475,17 @@ pub(super) fn external_reexport_rustdocs(
                     }
                 }
             };
-            let request = requests
-                .entry(reexport.crate_name)
-                .or_insert_with(|| ReexportRequest {
-                    package_spec,
-                    package_name,
-                    aliases: BTreeMap::new(),
-                    named_aliases: BTreeMap::new(),
-                    prefixes: BTreeMap::new(),
-                    signature_paths: BTreeMap::new(),
-                });
+            let request =
+                requests
+                    .entry(owner_crate.to_owned())
+                    .or_insert_with(|| ReexportRequest {
+                        package_spec,
+                        package_name,
+                        aliases: BTreeMap::new(),
+                        named_aliases: BTreeMap::new(),
+                        prefixes: BTreeMap::new(),
+                        signature_paths: BTreeMap::new(),
+                    });
             if reexport.expands_descendants {
                 request
                     .prefixes
@@ -470,7 +497,7 @@ pub(super) fn external_reexport_rustdocs(
                     .aliases
                     .entry(dependency_index)
                     .or_default()
-                    .entry(reexport.canonical_path.clone())
+                    .entry(canonical_path)
                     .and_modify(|current| prefer_alias(current, &reexport.public_path))
                     .or_insert_with(|| reexport.public_path.clone());
                 request
@@ -500,11 +527,10 @@ pub(super) fn external_reexport_rustdocs(
             let Some(external) = document.external_crates.get(&summary.crate_id) else {
                 continue;
             };
-            // IO errors retain their existing std-owned boundary policy even when
-            // rustdoc reports core as the defining crate. Other core types (such
-            // as network addresses) still need supplemental nominal declarations.
-            if matches!(external.name.as_str(), "std" | "alloc")
-                || rust_path.starts_with("std::io::")
+            // Canonical IO errors retain the std-owned boundary policy even when
+            // rustdoc reports core as the defining crate. Do not suppress unrelated
+            // types merely because they are nested under std::io.
+            if matches!(external.name.as_str(), "std" | "alloc") || is_std_io_error_path(&rust_path)
             {
                 continue;
             }
@@ -626,6 +652,7 @@ pub(super) fn external_reexport_rustdocs(
                             aliases
                                 .get(&canonical_path)
                                 .or_else(|| aliases.get(owner_path))
+                                .or_else(|| aliases.get(&canonicalize_rust_path(owner_path)))
                         }) {
                             record_canonical_alias(
                                 &mut canonical_public_paths,

@@ -1,0 +1,12 @@
+namespace app
+from /deps/io-witness import Error, make_error, is_occupied, fail
+
+function main;
+    original = make_error;
+    kind = original.kind;
+    occupied = is_occupied; kind
+    print; occupied
+    try
+        fail;
+    catch Error as failure
+        print; failure.message

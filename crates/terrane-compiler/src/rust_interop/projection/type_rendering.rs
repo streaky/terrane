@@ -58,8 +58,12 @@ fn render_generic_arguments(
 
 pub(super) fn canonicalize_rust_path(path: &str) -> String {
     match path {
-        "core::io::error::Error" | "core::io::Error" => "std::io::Error".to_owned(),
-        "core::io::error::ErrorKind" | "core::io::ErrorKind" => "std::io::ErrorKind".to_owned(),
+        "core::io::error::Error" | "core::io::Error" | "std::io::error::Error" => {
+            "std::io::Error".to_owned()
+        }
+        "core::io::error::ErrorKind" | "core::io::ErrorKind" | "std::io::error::ErrorKind" => {
+            "std::io::ErrorKind".to_owned()
+        }
         "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
         "core::task::wake::Context" => "core::task::Context".to_owned(),
         "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),

@@ -138,9 +138,6 @@ fn retain_removed_history_members(
         else {
             continue;
         };
-        if old.version == current.version {
-            continue;
-        }
         for (namespace, old_names) in &old.members {
             let current_names = current.members.get(namespace);
             for name in old_names

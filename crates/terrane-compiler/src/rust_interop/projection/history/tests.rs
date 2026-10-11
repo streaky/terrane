@@ -9,160 +9,166 @@ use crate::rust_interop::projection::*;
     reason = "the history regression records a complete two-generation cache transition"
 )]
 #[test]
-fn projection_history_retains_removed_members_across_checks() {
-    let directory =
-        std::env::temp_dir().join(format!("terrane-projection-history-{}", std::process::id()));
-    fs::create_dir_all(&directory).unwrap();
-    let dependency = |version: &str, items: Vec<ProjectedItem>| ProjectedDependency {
-        name: "fixture".to_owned(),
-        native_alias_identities: BTreeMap::new(),
-        package: "fixture".to_owned(),
-        version: version.to_owned(),
-        items,
-        declined: Vec::new(),
-        partial_declines: Vec::new(),
-    };
-    let item = ProjectedItem {
-        namespace: "/deps/fixture".to_owned(),
-        name: "removed".to_owned(),
-        rust_path: "fixture::removed".to_owned(),
-        docs: None,
-        kind: ProjectedKind::ForeignType {
-            constructor: None,
-            boundary: ProjectedBoundaryCapabilities::default(),
-            fields: Vec::new(),
-            borrowed_view: false,
-            native_view_type: None,
-            enum_payload: None,
-            generic_parameters: Vec::new(),
-            displayable: false,
-            methods: vec![ProjectedFunction {
-                native_owner: None,
-                native_path: None,
-                name: "read".to_owned(),
+fn projection_history_retains_removed_members_across_checks_and_same_version_changes() {
+    for version in ["1.0.0", "2.0.0"] {
+        let directory = std::env::temp_dir().join(format!(
+            "terrane-projection-history-{}-{version}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&directory).unwrap();
+        let dependency = |version: &str, items: Vec<ProjectedItem>| ProjectedDependency {
+            name: "fixture".to_owned(),
+            native_alias_identities: BTreeMap::new(),
+            package: "fixture".to_owned(),
+            version: version.to_owned(),
+            items,
+            declined: Vec::new(),
+            partial_declines: Vec::new(),
+        };
+        let item = ProjectedItem {
+            namespace: "/deps/fixture".to_owned(),
+            name: "removed".to_owned(),
+            rust_path: "fixture::removed".to_owned(),
+            docs: None,
+            kind: ProjectedKind::ForeignType {
+                constructor: None,
+                boundary: ProjectedBoundaryCapabilities::default(),
+                fields: Vec::new(),
+                borrowed_view: false,
+                native_view_type: None,
+                enum_payload: None,
                 generic_parameters: Vec::new(),
-                operation_owner_generics: Vec::new(),
-                rust_generic_arguments: Vec::new(),
-                parameters: Vec::new(),
-                result: ProjectedType::None,
-                destination_result: None,
-                error: None,
-                is_async: false,
-                is_unsafe: false,
-                into_future: false,
-                execution_requirements: None,
-                enum_operation: None,
-                error_optional_depth: 0,
-                chain_role: None,
-                receiver: Some(Receiver::Borrow),
-            }],
-            static_methods: vec![ProjectedFunction {
-                native_owner: None,
-                native_path: None,
-                name: "create".to_owned(),
-                generic_parameters: Vec::new(),
-                operation_owner_generics: Vec::new(),
-                rust_generic_arguments: Vec::new(),
-                parameters: Vec::new(),
-                result: ProjectedType::None,
-                destination_result: None,
-                error: None,
-                is_async: false,
-                is_unsafe: false,
-                into_future: false,
-                execution_requirements: None,
-                enum_operation: None,
-                error_optional_depth: 0,
-                chain_role: None,
-                receiver: None,
-            }],
-            constants: Vec::new(),
-            cloneable: false,
-            send: false,
-            sync: false,
-        },
-    };
-    let mut old = Projection {
-        native_owner_aliases: BTreeMap::default(),
-        cache_identity: "old".to_owned(),
-        content_hash: String::new(),
-        dependencies: vec![dependency("1.0.0", vec![item])],
-        bound_dependencies: Vec::new(),
-        containment: Containment::Unavailable,
-        source: ProjectionSource::Local,
-        probes: Vec::new(),
-        probe_wall_time_ms: 0,
-        resolution: ProjectionResolution::default(),
-        removed: Vec::new(),
-    };
-    old.content_hash = projection_content_hash(&old).unwrap();
-    apply_projection_history(&directory, &mut old).unwrap();
-    let lock_path = directory.join("terrane-projection.lock");
-    let mut reviewed: serde_json::Value =
-        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
-    let object = reviewed.as_object_mut().unwrap();
-    for field in [
-        "cache_identity",
-        "projection_schema",
-        "content_hash",
-        "resolution",
-    ] {
-        object.remove(field);
+                displayable: false,
+                methods: vec![ProjectedFunction {
+                    native_owner: None,
+                    native_path: None,
+                    name: "read".to_owned(),
+                    generic_parameters: Vec::new(),
+                    operation_owner_generics: Vec::new(),
+                    rust_generic_arguments: Vec::new(),
+                    parameters: Vec::new(),
+                    result: ProjectedType::None,
+                    destination_result: None,
+                    error: None,
+                    is_async: false,
+                    is_unsafe: false,
+                    into_future: false,
+                    execution_requirements: None,
+                    enum_operation: None,
+                    error_optional_depth: 0,
+                    chain_role: None,
+                    receiver: Some(Receiver::Borrow),
+                }],
+                static_methods: vec![ProjectedFunction {
+                    native_owner: None,
+                    native_path: None,
+                    name: "create".to_owned(),
+                    generic_parameters: Vec::new(),
+                    operation_owner_generics: Vec::new(),
+                    rust_generic_arguments: Vec::new(),
+                    parameters: Vec::new(),
+                    result: ProjectedType::None,
+                    destination_result: None,
+                    error: None,
+                    is_async: false,
+                    is_unsafe: false,
+                    into_future: false,
+                    execution_requirements: None,
+                    enum_operation: None,
+                    error_optional_depth: 0,
+                    chain_role: None,
+                    receiver: None,
+                }],
+                constants: Vec::new(),
+                cloneable: false,
+                send: false,
+                sync: false,
+            },
+        };
+        let mut old = Projection {
+            native_owner_aliases: BTreeMap::default(),
+            cache_identity: "old".to_owned(),
+            content_hash: String::new(),
+            dependencies: vec![dependency("1.0.0", vec![item])],
+            bound_dependencies: Vec::new(),
+            containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        old.content_hash = projection_content_hash(&old).unwrap();
+        apply_projection_history(&directory, &mut old).unwrap();
+        let lock_path = directory.join("terrane-projection.lock");
+        let mut reviewed: serde_json::Value =
+            serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+        let object = reviewed.as_object_mut().unwrap();
+        for field in [
+            "cache_identity",
+            "projection_schema",
+            "content_hash",
+            "resolution",
+        ] {
+            object.remove(field);
+        }
+        fs::write(&lock_path, serde_json::to_vec_pretty(&reviewed).unwrap()).unwrap();
+        let mut current = Projection {
+            native_owner_aliases: BTreeMap::default(),
+            cache_identity: "current".to_owned(),
+            content_hash: String::new(),
+            dependencies: vec![dependency(version, Vec::new())],
+            bound_dependencies: Vec::new(),
+            containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        current.content_hash = projection_content_hash(&current).unwrap();
+        apply_projection_history(&directory, &mut current).unwrap();
+        assert_eq!(
+            current
+                .removed
+                .iter()
+                .map(|item| item.name.as_str())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["removed", "removed.read", "removed::create"])
+        );
+        current.removed.clear();
+        apply_projection_history(&directory, &mut current).unwrap();
+        assert_eq!(current.removed.len(), 3);
+        let persisted: serde_json::Value =
+            serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+        assert_eq!(persisted["dependencies"][0]["version"], version);
+        assert_eq!(persisted["removed"].as_array().unwrap().len(), 3);
+        assert_eq!(persisted["removed"][0]["previous_version"], "1.0.0");
+        assert_eq!(persisted["removed"][0]["current_version"], version);
+        for field in [
+            "cache_identity",
+            "projection_schema",
+            "content_hash",
+            "resolution",
+        ] {
+            assert!(persisted.get(field).is_none(), "unexpected `{field}`");
+        }
+        assert_eq!(persisted["source"], "Local");
+        assert_eq!(persisted["rustdoc_format"], rustdoc_types::FORMAT_VERSION);
+        let reviewed_bytes = serde_json::to_vec(&persisted).unwrap();
+        fs::write(&lock_path, &reviewed_bytes).unwrap();
+        apply_projection_history(&directory, &mut current).unwrap();
+        assert_eq!(fs::read(&lock_path).unwrap(), reviewed_bytes);
+        current.dependencies[0].version = "2.0.1".to_owned();
+        current.content_hash = projection_content_hash(&current).unwrap();
+        apply_projection_history(&directory, &mut current).unwrap();
+        let updated: serde_json::Value =
+            serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+        assert_eq!(updated["dependencies"][0]["version"], "2.0.1");
+        assert_eq!(updated["removed"].as_array().unwrap().len(), 3);
+        assert!(updated.get("cache_identity").is_none());
+        fs::remove_dir_all(directory).unwrap();
     }
-    fs::write(&lock_path, serde_json::to_vec_pretty(&reviewed).unwrap()).unwrap();
-    let mut current = Projection {
-        native_owner_aliases: BTreeMap::default(),
-        cache_identity: "current".to_owned(),
-        content_hash: String::new(),
-        dependencies: vec![dependency("2.0.0", Vec::new())],
-        bound_dependencies: Vec::new(),
-        containment: Containment::Unavailable,
-        source: ProjectionSource::Local,
-        probes: Vec::new(),
-        probe_wall_time_ms: 0,
-        resolution: ProjectionResolution::default(),
-        removed: Vec::new(),
-    };
-    current.content_hash = projection_content_hash(&current).unwrap();
-    apply_projection_history(&directory, &mut current).unwrap();
-    assert_eq!(
-        current
-            .removed
-            .iter()
-            .map(|item| item.name.as_str())
-            .collect::<BTreeSet<_>>(),
-        BTreeSet::from(["removed", "removed.read", "removed::create"])
-    );
-    current.removed.clear();
-    apply_projection_history(&directory, &mut current).unwrap();
-    assert_eq!(current.removed.len(), 3);
-    let persisted: serde_json::Value =
-        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
-    assert_eq!(persisted["dependencies"][0]["version"], "2.0.0");
-    assert_eq!(persisted["removed"].as_array().unwrap().len(), 3);
-    for field in [
-        "cache_identity",
-        "projection_schema",
-        "content_hash",
-        "resolution",
-    ] {
-        assert!(persisted.get(field).is_none(), "unexpected `{field}`");
-    }
-    assert_eq!(persisted["source"], "Local");
-    assert_eq!(persisted["rustdoc_format"], rustdoc_types::FORMAT_VERSION);
-    let reviewed_bytes = serde_json::to_vec(&persisted).unwrap();
-    fs::write(&lock_path, &reviewed_bytes).unwrap();
-    apply_projection_history(&directory, &mut current).unwrap();
-    assert_eq!(fs::read(&lock_path).unwrap(), reviewed_bytes);
-    current.dependencies[0].version = "2.0.1".to_owned();
-    current.content_hash = projection_content_hash(&current).unwrap();
-    apply_projection_history(&directory, &mut current).unwrap();
-    let updated: serde_json::Value =
-        serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
-    assert_eq!(updated["dependencies"][0]["version"], "2.0.1");
-    assert_eq!(updated["removed"].as_array().unwrap().len(), 3);
-    assert!(updated.get("cache_identity").is_none());
-    fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]

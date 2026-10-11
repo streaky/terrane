@@ -287,9 +287,9 @@ fn survey_package_surface_with_policy(
     } else {
         fallback
     };
-    let complete_public_api = complete_public_api(&rustdoc_path, complete_surface)?;
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated survey rustdoc"))?;
     let document = parse_rustdoc(&selected.name, &bytes, RUSTDOC_TOOLCHAIN)?;
+    let complete_public_api = complete_public_api(&rustdoc_path, complete_surface)?;
     let paths = public_paths(&document);
     let source_root = package_source_root(selected)?;
     let (declarations, discovery_failures) =
