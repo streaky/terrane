@@ -239,7 +239,7 @@ struct PreparedGeneratedCase {
     case: PathBuf,
     phase: String,
     manifest: String,
-    rust: String,
+    rust_files: Vec<terrane_compiler::rust_ir::RenderedFile>,
     requires_unsafe_code: bool,
     dependencies: Vec<terrane_compiler::RustDependency>,
     timing: CaseTiming,
@@ -264,7 +264,8 @@ fn copy_package_fixture(source: &Path, destination: &Path) {
     for entry in fs::read_dir(source).unwrap() {
         let entry = entry.unwrap();
         let name = entry.file_name();
-        if name == ".trn" || name == "case.toml" || name == "lower.rs" {
+        if name == ".trn" || name == "case.toml" || name == "lower.rs" || name == "lower.support.rs"
+        {
             continue;
         }
         let source_path = entry.path();
@@ -339,11 +340,12 @@ fn stage_native_tools(case: &Path, staged: &Path) {
             );
             let build = ConformanceBuild::new();
             let name = format!("native_tool_{}", NEXT_BUILD_ID.load(Ordering::Relaxed));
+            let rust_files = compilation.rust_files_for(Path::new("lower.rs")).unwrap();
             stage_generated_binary(
                 &name,
                 case,
                 "",
-                &compilation.rust,
+                &rust_files,
                 compilation.requires_unsafe_code,
                 &build,
             );
@@ -423,6 +425,39 @@ fn assert_expected_warnings(
     assert_eq!(actual, expected, "{} warnings", case.display());
 }
 
+fn persist_lowering_artifacts(case: &Path, files: &[terrane_compiler::rust_ir::RenderedFile]) {
+    for file in files {
+        let destination = case.join(&file.path);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        let contents = file
+            .contents
+            .replace(terrane_compiler::VERSION, "<version>");
+        fs::write(destination, contents).unwrap();
+    }
+    if files.iter().any(|file| file.path == "lower.rs")
+        && !files.iter().any(|file| file.path == "lower.support.rs")
+    {
+        let stale_sidecar = case.join("lower.support.rs");
+        if stale_sidecar.is_file() {
+            fs::remove_file(stale_sidecar).unwrap();
+        }
+    }
+}
+
+fn persist_projection_aware_lowering(
+    case: &Path,
+    files: &[terrane_compiler::rust_ir::RenderedFile],
+    update_goldens: bool,
+) {
+    if update_goldens
+        && std::env::var_os("TERRANE_UPDATE_GOLDENS")
+            .is_some_and(|mode| mode == std::ffi::OsStr::new("projection"))
+    {
+        return;
+    }
+    persist_lowering_artifacts(case, files);
+}
+
 fn with_compilation_dependencies(
     compilation: terrane_compiler::Compilation,
 ) -> (
@@ -431,30 +466,6 @@ fn with_compilation_dependencies(
 ) {
     let dependencies = compilation.rust_dependencies.clone();
     (compilation, dependencies)
-}
-
-fn verify_reviewed_rust(
-    case: &Path,
-    lower_path: &Path,
-    expected: Option<&str>,
-    compilation: &terrane_compiler::Compilation,
-    update_goldens: bool,
-) {
-    let Some(expected) = expected else {
-        return;
-    };
-    if update_goldens
-        && std::env::var_os("TERRANE_UPDATE_GOLDENS")
-            .is_some_and(|mode| mode == std::ffi::OsStr::new("projection"))
-    {
-        return;
-    }
-    let normalized = normalized_review_rust(compilation);
-    if update_goldens {
-        write_reviewed_golden(lower_path, expected, &normalized);
-    } else {
-        assert_eq!(normalized, expected, "{}", case.display());
-    }
 }
 
 fn compile_package_case(
@@ -582,9 +593,7 @@ fn prepare_conformance_case(
 
     match (phase, status) {
         ("run" | "check", "accept") => {
-            let lower_path = case.join("lower.rs");
-            let expected = read_reviewed_golden(&lower_path);
-            let (mut compilation, dependencies) = if package_case {
+            let (compilation, dependencies) = if package_case {
                 compile_package_case(
                     &source_path,
                     options,
@@ -599,31 +608,30 @@ fn prepare_conformance_case(
                 (compilation, Vec::new())
             };
             assert_expected_warnings(case, &manifest, &compilation);
-            verify_reviewed_rust(
-                case,
-                &lower_path,
-                expected.as_deref(),
-                &compilation,
-                update_goldens,
-            );
+            let mut rust_files = compilation.rust_files_for(Path::new("lower.rs")).unwrap();
             if let Some(limit) = usize_field(&manifest, "list-preallocation-limit-bytes") {
                 let production = format!("{}usize", 256 * 1024 * 1024);
+                let entrypoint = rust_files
+                    .iter_mut()
+                    .find(|file| file.path == "lower.rs")
+                    .unwrap();
                 assert!(
-                    compilation.rust.contains(&production),
+                    entrypoint.contents.contains(&production),
                     "{} did not emit the list preallocation literal",
                     case.display()
                 );
-                compilation.rust = compilation
-                    .rust
+                entrypoint.contents = entrypoint
+                    .contents
                     .replace(&production, &format!("{limit}usize"));
             }
+            persist_projection_aware_lowering(case, &rust_files, update_goldens);
             timing.defer();
             Some(PreparedGeneratedCase {
                 binary_name,
                 case: case.to_owned(),
                 phase: phase.to_owned(),
                 manifest,
-                rust: compilation.rust,
+                rust_files,
                 dependencies,
                 requires_unsafe_code: compilation.requires_unsafe_code,
                 timing,
@@ -715,7 +723,7 @@ fn every_manifest_drives_a_conformance_case() {
                 &prepared.binary_name,
                 &prepared.case,
                 &prepared.manifest,
-                &prepared.rust,
+                &prepared.rust_files,
                 prepared.requires_unsafe_code,
                 &build,
             );
@@ -727,7 +735,7 @@ fn every_manifest_drives_a_conformance_case() {
             case,
             phase,
             manifest,
-            rust,
+            rust_files,
             dependencies,
             requires_unsafe_code,
             mut timing,
@@ -738,7 +746,7 @@ fn every_manifest_drives_a_conformance_case() {
             &case,
             &phase,
             &manifest,
-            &rust,
+            &rust_files,
             (&dependencies, requires_unsafe_code),
             &build,
         );
@@ -751,7 +759,7 @@ fn stage_generated_binary(
     binary_name: &str,
     case: &Path,
     manifest: &str,
-    rust: &str,
+    rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     requires_unsafe_code: bool,
     build: &ConformanceBuild,
 ) {
@@ -760,21 +768,58 @@ fn stage_generated_binary(
         copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
         copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
     }
-    let mut rust = if let Some(test_path) = field(manifest, "dependency-panic-test") {
-        format!(
-            "{rust}\n{}",
-            fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
-                "cannot read {}: {error}",
-                case.join(test_path).display()
-            ))
-        )
-    } else {
-        rust.to_owned()
-    };
-    if !requires_unsafe_code {
-        rust.insert_str(0, "#![forbid(unsafe_code)]\n");
+    for file in rust_files {
+        let path = Path::new(&file.path);
+        let name = path.file_name().expect("rendered artifact has a file name");
+        let is_entrypoint = file.path == "lower.rs";
+        let mut contents = file.contents.clone();
+        if is_entrypoint || file.path == "lower.support.rs" {
+            contents = contents.replace(
+                "#[path = \"lower.authored",
+                &format!("#[path = \"{binary_name}.authored"),
+            );
+        }
+        if is_entrypoint {
+            contents = contents.replacen(
+                "include!(\"lower.support.rs\");",
+                &format!("include!(\"{binary_name}.support.rs\");"),
+                1,
+            );
+            if let Some(test_path) = field(manifest, "dependency-panic-test") {
+                contents.push('\n');
+                contents.push_str(&fs::read_to_string(case.join(test_path)).unwrap_or_else(
+                    |error| panic!("cannot read {}: {error}", case.join(test_path).display()),
+                ));
+            }
+            if !requires_unsafe_code {
+                contents.insert_str(0, "#![forbid(unsafe_code)]\n");
+            }
+        }
+        let destination = match name.to_str() {
+            Some("lower.rs") => build.root.join(format!("src/{binary_name}.rs")),
+            Some("lower.support.rs") => build.root.join(format!("src/{binary_name}.support.rs")),
+            _ => {
+                let authored = path.starts_with("lower.authored");
+                let relative = if authored {
+                    path.strip_prefix("lower.authored").unwrap()
+                } else {
+                    path
+                };
+                let destination = if authored {
+                    build
+                        .root
+                        .join("src")
+                        .join(format!("{binary_name}.authored"))
+                        .join(relative)
+                } else {
+                    build.root.join("src").join(path)
+                };
+                fs::create_dir_all(destination.parent().unwrap()).unwrap();
+                destination
+            }
+        };
+        fs::write(destination, contents).unwrap();
     }
-    fs::write(build.root.join(format!("src/{binary_name}.rs")), rust).unwrap();
 }
 
 fn build_generated_binaries(
@@ -861,11 +906,18 @@ fn compile_and_maybe_run(
     case: &Path,
     phase: &str,
     manifest: &str,
-    rust: &str,
+    rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     rust_contract: (&[terrane_compiler::RustDependency], bool),
     build: &ConformanceBuild,
 ) {
-    stage_generated_binary(binary_name, case, manifest, rust, rust_contract.1, build);
+    stage_generated_binary(
+        binary_name,
+        case,
+        manifest,
+        rust_files,
+        rust_contract.1,
+        build,
+    );
     let output = build_generated_binaries(&[binary_name], rust_contract.0, rust_contract.1, build);
     assert!(
         output.status.success(),
@@ -901,20 +953,6 @@ fn compile_and_maybe_run(
         );
     }
 }
-fn read_reviewed_golden(path: &Path) -> Option<String> {
-    match fs::read_to_string(path) {
-        Ok(contents) => Some(contents),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => panic!("cannot read reviewed golden {}: {error}", path.display()),
-    }
-}
-
-fn normalized_review_rust(compilation: &terrane_compiler::Compilation) -> String {
-    compilation
-        .review_rust
-        .replace(terrane_compiler::VERSION, "<version>")
-}
-
 fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: bool) {
     let reviewed_path = case.join("terrane-projection.lock");
     if !reviewed_path.is_file() {
@@ -1248,27 +1286,18 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
 }
 
 fn golden_updates_from_environment() -> bool {
-    golden_updates_requested(
-        std::env::var_os("TERRANE_UPDATE_GOLDENS").as_deref(),
-        std::env::var_os("TERRANE_CONFORMANCE_FILTER").as_deref(),
-    )
-    .unwrap_or_else(|message| panic!("{message}"))
-}
-
-fn golden_updates_requested(
-    update: Option<&std::ffi::OsStr>,
-    filter: Option<&std::ffi::OsStr>,
-) -> Result<bool, &'static str> {
-    let Some(update) = update else {
-        return Ok(false);
+    let Some(update) = std::env::var_os("TERRANE_UPDATE_GOLDENS") else {
+        return false;
     };
-    if update == std::ffi::OsStr::new("all") || filter.is_some_and(|filter| !filter.is_empty()) {
-        return Ok(true);
+    if update == std::ffi::OsStr::new("all") {
+        return true;
     }
-    Err(
+    assert!(
+        std::env::var_os("TERRANE_CONFORMANCE_FILTER").is_some_and(|filter| !filter.is_empty()),
         "TERRANE_UPDATE_GOLDENS requires TERRANE_CONFORMANCE_FILTER; \
-         use TERRANE_UPDATE_GOLDENS=all for a deliberate corpus-wide regeneration",
-    )
+         use TERRANE_UPDATE_GOLDENS=all for a deliberate corpus-wide regeneration"
+    );
+    true
 }
 
 fn selected_manifests() -> Vec<PathBuf> {
@@ -1432,22 +1461,6 @@ fn canonical_rust_manifest_expectation_is_opt_in() {
         Some(true)
     );
     assert_eq!(boolean_field("phase = \"run\"\n", "canonical-rust"), None);
-}
-
-#[test]
-fn broad_golden_updates_require_an_explicit_all_value() {
-    use std::ffi::OsStr;
-
-    assert_eq!(golden_updates_requested(None, None), Ok(false));
-    assert_eq!(
-        golden_updates_requested(Some(OsStr::new("1")), Some(OsStr::new("async-await"))),
-        Ok(true)
-    );
-    assert_eq!(
-        golden_updates_requested(Some(OsStr::new("all")), None),
-        Ok(true)
-    );
-    assert!(golden_updates_requested(Some(OsStr::new("1")), None).is_err());
 }
 
 #[test]

@@ -285,6 +285,47 @@ fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
 }
 
 #[test]
+fn rust_output_removes_only_an_omitted_generated_support_sidecar() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let fixture = staged_fixture("structured-error-origin-and-frames");
+    let source = fixture.path().join("case.trn");
+    let directory = TemporaryDirectory::new("rust-output-empty-support");
+    let output = directory.path().join("application.rs");
+    let sidecar = directory.path().join("application.support.rs");
+    let unrelated = directory.path().join("notes.rs");
+
+    let with_support = Command::new(binary)
+        .args([
+            "rust",
+            "--output",
+            output.to_str().unwrap(),
+            source.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(with_support.status.success(), "{with_support:?}");
+    assert!(sidecar.is_file());
+
+    let hello = staged_hello();
+    fs::copy(hello.path().join("case.trn"), &source).unwrap();
+    fs::write(&unrelated, "keep me\n").unwrap();
+    let without_support = Command::new(binary)
+        .args([
+            "rust",
+            "--output",
+            output.to_str().unwrap(),
+            source.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(without_support.status.success(), "{without_support:?}");
+    assert!(output.is_file());
+    assert!(!sidecar.exists());
+    assert_eq!(fs::read_to_string(unrelated).unwrap(), "keep me\n");
+}
+
+#[test]
 fn invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect() {
     let fixture = staged_hello();
     let source = fixture.path().join("case.trn");

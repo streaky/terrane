@@ -1613,6 +1613,19 @@ fn adapter_debugs_relocated_exact_build_artifacts_and_sources() {
 #[test]
 fn adapter_renders_split_generated_support_from_exact_build() {
     let fixture = DebugFixture::new();
+    fs::write(
+        &fixture.source,
+        concat!(
+            "namespace debugger\n",
+            "from /core/errors import coercion-error\n",
+            "function main;\n",
+            "  try\n",
+            "    throw coercion-error\n",
+            "  catch coercion-error\n",
+            "    print; 42\n",
+        ),
+    )
+    .unwrap();
     let (executable, provenance_path) = fixture.build();
     let provenance: Value = serde_json::from_slice(&fs::read(&provenance_path).unwrap()).unwrap();
     let support = provenance["debug"]["generated_files"]

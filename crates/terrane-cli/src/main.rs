@@ -334,7 +334,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         .rust_files_for(rust_entrypoint)
         .map_err(CliFailure::rust_artifact)?;
     if command == CliCommand::Rust {
-        write_rust(&rust_files)?;
+        write_rust(rust_entrypoint, &rust_files)?;
         return Ok(ExitCode::SUCCESS);
     }
     ensure_rust_toolchain(package.build_toolchain)?;
@@ -931,7 +931,10 @@ fn print_rust(compilation: &terrane_compiler::Compilation) {
     );
 }
 
-fn write_rust(files: &[terrane_compiler::rust_ir::RenderedFile]) -> Result<(), CliFailure> {
+fn write_rust(
+    entrypoint: &Path,
+    files: &[terrane_compiler::rust_ir::RenderedFile],
+) -> Result<(), CliFailure> {
     for file in files {
         let path = Path::new(&file.path);
         if let Some(parent) = path
@@ -949,6 +952,24 @@ fn write_rust(files: &[terrane_compiler::rust_ir::RenderedFile]) -> Result<(), C
             CliFailure::backend(format!(
                 "cannot write generated Rust output {}: {error}",
                 path.display()
+            ))
+        })?;
+    }
+    if !files.iter().any(|file| Path::new(&file.path) == entrypoint) {
+        return Ok(());
+    }
+    let (Some(parent), Some(stem)) = (entrypoint.parent(), entrypoint.file_stem()) else {
+        return Ok(());
+    };
+    let sidecar = parent.join(format!("{}.support.rs", stem.to_string_lossy()));
+    if files.iter().any(|file| Path::new(&file.path) == sidecar) {
+        return Ok(());
+    }
+    if sidecar.is_file() {
+        fs::remove_file(&sidecar).map_err(|error| {
+            CliFailure::backend(format!(
+                "cannot remove obsolete generated Rust output {}: {error}",
+                sidecar.display()
             ))
         })?;
     }
@@ -1297,20 +1318,20 @@ fn append_build_profiles(manifest: &mut String, panic: terrane_compiler::PanicPr
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
 }
 
-fn remove_obsolete_sources(
+fn remove_obsolete_generated_sources(
     root: &Path,
-    directory: &Path,
     files: &[terrane_compiler::rust_ir::RenderedFile],
 ) -> std::io::Result<()> {
-    for entry in fs::read_dir(directory)? {
+    for entry in fs::read_dir(root.join("src"))? {
         let entry = entry?;
         let path = entry.path();
-        if entry.file_type()?.is_dir() {
-            remove_obsolete_sources(root, &path, files)?;
-        } else if !files.iter().any(|file| {
-            path.strip_prefix(root)
-                .is_ok_and(|relative| relative == Path::new(&file.path))
-        }) {
+        let relative = path
+            .strip_prefix(root)
+            .expect("generated source entry belongs to its crate");
+        if path.extension().is_some_and(|extension| extension == "rs")
+            && entry.file_type()?.is_file()
+            && !files.iter().any(|file| Path::new(&file.path) == relative)
+        {
             fs::remove_file(path)?;
         }
     }
@@ -1326,9 +1347,8 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    remove_obsolete_sources(directory, &directory.join("src"), rust_files).map_err(|error| {
-        CliFailure::backend(format!("cannot remove obsolete generated source: {error}"))
-    })?;
+    remove_obsolete_generated_sources(directory, rust_files)
+        .map_err(|error| CliFailure::backend(format!("cannot remove obsolete source: {error}")))?;
     if !options.uses_platform_support {
         for name in ["terrane-platform-support", "terrane-signal-support"] {
             let obsolete = directory.join("support").join(name);

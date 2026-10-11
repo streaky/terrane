@@ -310,6 +310,7 @@ pub(super) fn emit_error_support(
         #[derive(Clone, Debug, Eq, PartialEq)]
         struct TerraneErrorDetail {
             message: Option<String>,
+            rendered_message: Option<String>,
             cause: Option<std::boxed::Box<TerraneError>>,
             frames: Vec<TerraneSite>,
             structured: Vec<String>,
@@ -350,6 +351,27 @@ pub(super) fn emit_error_support(
                     origin,
                     detail: Some(std::boxed::Box::new(TerraneErrorDetail {
                         message: Some(message.into()),
+                        rendered_message: None,
+                        cause: None,
+                        frames: Vec::new(),
+                        structured: Vec::new(),
+                    })),
+                }
+            }
+            #[cold]
+            #[inline(never)]
+            fn raised_with_rendered_message(
+                kind: TerraneErrorKind,
+                message: impl Into<String>,
+                rendered_message: Option<String>,
+                origin: TerraneSite,
+            ) -> Self {
+                Self {
+                    kind,
+                    origin,
+                    detail: Some(std::boxed::Box::new(TerraneErrorDetail {
+                        message: Some(message.into()),
+                        rendered_message,
                         cause: None,
                         frames: Vec::new(),
                         structured: Vec::new(),
@@ -378,6 +400,7 @@ pub(super) fn emit_error_support(
                     .get_or_insert_with(|| {
                         std::boxed::Box::new(TerraneErrorDetail {
                             message: None,
+                            rendered_message: None,
                             cause: None,
                             frames: Vec::new(),
                             structured: Vec::new(),
@@ -400,6 +423,7 @@ pub(super) fn emit_error_support(
                     .get_or_insert_with(|| {
                         std::boxed::Box::new(TerraneErrorDetail {
                             message: None,
+                            rendered_message: None,
                             cause: None,
                             frames: Vec::new(),
                             structured: Vec::new(),
@@ -414,6 +438,12 @@ pub(super) fn emit_error_support(
                     .as_ref()
                     .and_then(|detail| detail.message.as_deref())
                     .unwrap_or_else(|| self.kind.default_message())
+            }
+            fn rendered_message(&self) -> &str {
+                self.detail
+                    .as_ref()
+                    .and_then(|detail| detail.rendered_message.as_deref())
+                    .unwrap_or_else(|| self.message())
             }
             fn descriptor_name(&self) -> &str {
                 self.kind.display_name()
@@ -438,6 +468,7 @@ pub(super) fn emit_error_support(
                     .get_or_insert_with(|| {
                         std::boxed::Box::new(TerraneErrorDetail {
                             message: None,
+                            rendered_message: None,
                             cause: None,
                             frames: Vec::new(),
                             structured: Vec::new(),
@@ -454,7 +485,7 @@ pub(super) fn emit_error_support(
             #[cold]
             #[inline(never)]
             fn render(&self) -> String {
-                let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+                let mut rendered = format!("{}: {}", self.kind.display_name(), self.rendered_message());
                 if let Some(cause) = self
                     .detail
                     .as_ref()

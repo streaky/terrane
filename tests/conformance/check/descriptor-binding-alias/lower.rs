@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates:
 // Source: case.trn
 // Namespace: descriptor-binding-alias
 fn main() {

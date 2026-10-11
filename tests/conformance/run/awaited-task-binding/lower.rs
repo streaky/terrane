@@ -1,6 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, executor_parallel.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: awaited-task-binding
 async fn answer() -> terrane_int_support::Int {

@@ -188,23 +188,35 @@ impl Compilation {
                 }],
             });
         }
-        declarations.push('\n');
+        let entrypoint_path = entrypoint.to_str().ok_or_else(|| {
+            RustArtifactError::InvalidOutputPath(
+                "generated Rust output path must be valid UTF-8".to_owned(),
+            )
+        })?;
         let entrypoint_file = files
-            .first_mut()
+            .iter_mut()
+            .find(|file| file.path == entrypoint_path)
             .expect("rendered program always has an entrypoint");
         for association in &mut entrypoint_file.associations {
             association.generated_start += declarations.len();
             association.generated_end += declarations.len();
         }
-        entrypoint_file.contents.insert_str(0, &declarations);
+        let header_end = entrypoint_file
+            .contents
+            .find('\n')
+            .expect("generated entrypoint has a metadata header")
+            + 1;
+        entrypoint_file
+            .contents
+            .insert_str(header_end, &declarations);
         Ok(files)
     }
 
-    /// Render the generated program as an entrypoint and sibling support file.
+    /// Render the generated program as an entrypoint with an optional support file.
     ///
-    /// The entrypoint contains the authored lowering and one relative `include!`;
-    /// compiler-owned runtime and error infrastructure is written to
-    /// `<entrypoint-stem>.support.rs`.
+    /// When runtime or error infrastructure is needed, the entrypoint includes
+    /// `<entrypoint-stem>.support.rs`, which lists the program's vendored support crates.
+    /// Empty support is omitted together with its include.
     ///
     /// # Errors
     ///

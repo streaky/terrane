@@ -552,7 +552,7 @@ pub(super) fn declared_value_type_with_visible_objects(
             let ValueType::Object(identity) = bound else {
                 unreachable!("throwable-compatible callable bound must be an object");
             };
-            effects.escaping.insert(identity.qualified());
+            effects.escaping.insert(identity.qualified_base());
         }
         return Ok(if has_qualifier("async") {
             ValueType::AsyncFunction(
@@ -1459,35 +1459,49 @@ pub(super) fn object_types_compatible(
     {
         return true;
     }
-    objects
-        .iter()
-        .find(|object| object.identity == *actual)
-        .is_some_and(|object| {
-            if object
-                .interfaces
-                .iter()
-                .any(|interface| same_applied_nominal(expected, interface))
+    // Prefer an exact applied contract (including projected interfaces); authored generic
+    // applications otherwise use their declaration's nominal conformance.
+    let descriptor_for = |identity: &ObjectIdentity| {
+        let mut declaration = None;
+        for object in objects {
+            if &object.identity == identity {
+                return Some(object);
+            }
+            if object.identity.type_arguments.is_empty()
+                && object.identity.namespace == identity.namespace
+                && object.identity.name == identity.name
+                && object.identity.is_unsafe == identity.is_unsafe
+            {
+                declaration = Some(object);
+            }
+        }
+        declaration
+    };
+    descriptor_for(actual).is_some_and(|object| {
+        if object
+            .interfaces
+            .iter()
+            .any(|interface| same_applied_nominal(expected, interface))
+        {
+            return true;
+        }
+        let mut base = object.base.as_ref();
+        while let Some(identity) = base {
+            let Some(base_object) = descriptor_for(identity) else {
+                break;
+            };
+            if same_applied_nominal(expected, &base_object.identity)
+                || base_object
+                    .interfaces
+                    .iter()
+                    .any(|interface| same_applied_nominal(expected, interface))
             {
                 return true;
             }
-            let mut base = object.base.as_ref();
-            while let Some(identity) = base {
-                let Some(base_object) = objects.iter().find(|object| object.identity == *identity)
-                else {
-                    break;
-                };
-                if same_applied_nominal(expected, &base_object.identity)
-                    || base_object
-                        .interfaces
-                        .iter()
-                        .any(|interface| same_applied_nominal(expected, interface))
-                {
-                    return true;
-                }
-                base = base_object.base.as_ref();
-            }
-            false
-        })
+            base = base_object.base.as_ref();
+        }
+        false
+    })
 }
 
 pub(super) fn reconcile_projected_native_arguments(

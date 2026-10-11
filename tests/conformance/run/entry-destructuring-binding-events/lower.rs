@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: entry-destructuring-binding-events
 fn main() {

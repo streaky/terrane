@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-scalar-support
 // Source: case.trn
 // Namespace: resolved-name-effects
 fn print(value: String) -> String {

@@ -1,3 +1,4 @@
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -61,14 +62,16 @@ impl TerraneErrorKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct TerraneErrorDetail {
     message: Option<String>,
-    cause: Option<Box<TerraneError>>,
+    rendered_message: Option<String>,
+    cause: Option<std::boxed::Box<TerraneError>>,
     frames: Vec<TerraneSite>,
+    structured: Vec<String>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
     kind: TerraneErrorKind,
     origin: TerraneSite,
-    detail: Option<Box<TerraneErrorDetail>>,
+    detail: Option<std::boxed::Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
@@ -95,10 +98,34 @@ impl TerraneError {
             kind,
             origin,
             detail: Some(
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: Some(message.into()),
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_rendered_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        rendered_message: Option<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    rendered_message,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
                 }),
             ),
         }
@@ -118,13 +145,15 @@ impl TerraneError {
         self
             .detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
-            .cause = Some(Box::new(cause));
+            .cause = Some(std::boxed::Box::new(cause));
         self
     }
     #[cold]
@@ -139,10 +168,12 @@ impl TerraneError {
     fn at(mut self, frame: TerraneSite) -> Self {
         self.detail
             .get_or_insert_with(|| {
-                Box::new(TerraneErrorDetail {
+                std::boxed::Box::new(TerraneErrorDetail {
                     message: None,
+                    rendered_message: None,
                     cause: None,
                     frames: Vec::new(),
+                    structured: Vec::new(),
                 })
             })
             .frames
@@ -155,10 +186,52 @@ impl TerraneError {
             .and_then(|detail| detail.message.as_deref())
             .unwrap_or_else(|| self.kind.default_message())
     }
+    fn rendered_message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.rendered_message.as_deref())
+            .unwrap_or_else(|| self.message())
+    }
+    fn descriptor_name(&self) -> &str {
+        self.kind.display_name()
+    }
+    fn source_frames(&self) -> Vec<String> {
+        let mut frames = Vec::new();
+        if self.origin != TERRANE_NO_SITE {
+            frames.push(__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            frames
+                .extend(
+                    detail.frames.iter().map(|frame| __terrane_trace::render(*frame)),
+                );
+        }
+        frames
+    }
+    fn with_structured_details(mut self, structured: Vec<String>) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                std::boxed::Box::new(TerraneErrorDetail {
+                    message: None,
+                    rendered_message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                    structured: Vec::new(),
+                })
+            })
+            .structured = structured;
+        self
+    }
+    fn structured_details(&self) -> &[String] {
+        self.detail.as_deref().map_or(&[], |detail| detail.structured.as_slice())
+    }
     #[cold]
     #[inline(never)]
     fn render(&self) -> String {
-        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        let mut rendered = format!(
+            "{}: {}", self.kind.display_name(), self.rendered_message()
+        );
         if let Some(cause) = self
             .detail
             .as_ref()
@@ -385,7 +458,7 @@ const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
     reason = "projected type methods may be imported without being crossed"
 )]
 fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
+    payload: std::boxed::Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
     member: &'static str,
 ) -> TerraneForeignError {
@@ -406,7 +479,11 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
+    pub static DESCRIPTORS: [&str; 3] = [
+        "/core/errors::dependency-error",
+        "/core/errors::dependency-panic",
+        "/deps/serde-json::Error",
+    ];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -420,17 +497,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:6:17-6:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 17,
-                end_line: 6,
-                end_column: 31,
-            }
-        },
+        /* terrane-site-row: site 0: /app::main (src/main.trn:5:17-5:31) */
+        { Site { function: 0, file: 0, line: 5, column: 17, end_line: 5, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]
@@ -449,7 +517,6 @@ mod __terrane_trace {
 pub fn from_str<T: for<'a> serde_core::de::Deserialize<'a>>(
     s: String,
 ) -> Result<T, crate::TerraneForeignError> {
-    let s = s;
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| serde_json::from_str::<T>(&s)),
     ) {
@@ -458,10 +525,8 @@ pub fn from_str<T: for<'a> serde_core::de::Deserialize<'a>>(
             Err(
                 crate::TerraneForeignError(
                     crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `serde-json` member `serde_json::from_str` failed: {error}"
-                        ),
+                        crate::DescriptorId(2),
+                        error.to_string(),
                         crate::TERRANE_NO_SITE,
                     ),
                 ),

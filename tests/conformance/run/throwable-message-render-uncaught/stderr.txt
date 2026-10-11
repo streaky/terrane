@@ -1,0 +1,2 @@
+/throwable-message-render-uncaught::split-error: render text
+at /throwable-message-render-uncaught::main (case.trn:8:3-8:20)

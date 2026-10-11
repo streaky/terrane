@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-scalar-support
 // Source: app/b-main.trn
 // Namespace: app
 fn greet_terrane_app() -> String {

@@ -1,0 +1,81 @@
+namespace generic-throwable
+from /core/errors import throwable
+from /generic-errors import imported-boxed-error as aliased-boxed-error
+
+class boxed-error of (T) implements throwable
+  message string = ''
+  payload T
+  function construct; message string, payload T
+    this.message = message
+    this.payload = payload
+  function render string;
+    return this.message
+
+function declared none throws boxed-error; failure boxed-error of int
+  throw failure
+
+function inferred none; failure boxed-error of int
+  throw failure
+
+function raise-direct none throws boxed-error of int;
+  throw boxed-error of int; 'typed callable bound', 7
+
+function invoke-typed none throws boxed-error; operation function to none throws boxed-error of int
+  operation;
+  return none
+
+function raise-application; use-string bool
+  if use-string
+    throw boxed-error of string; 'string', 'seven'
+  throw boxed-error of int; 'int', 7
+
+function catch-application; use-string bool
+  try
+    raise-application; use-string
+  catch boxed-error as failure
+    print; failure.message
+
+function main;
+  try
+    throw boxed-error of int; 'direct generic', 7
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    throw instance boxed-error of int; 'inline instance', 7
+  catch boxed-error as failure
+    print; failure.message
+
+  existing = instance boxed-error of int; 'existing instance', 7
+  try
+    throw existing
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    declared; (instance boxed-error of int; 'declared bound', 7)
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    inferred; (instance boxed-error of int; 'inferred effect', 7)
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    invoke-typed; raise-direct
+  catch boxed-error as failure
+    print; failure.message
+
+  try
+    throw aliased-boxed-error of int; 'imported alias'
+  catch aliased-boxed-error as failure
+    print; failure.message
+
+  catch-application; false
+  catch-application; true
+  try
+    raise-application; true
+  catch as failure
+    print; 'catch-all'
+    print; failure.message

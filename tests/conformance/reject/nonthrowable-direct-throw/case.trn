@@ -1,0 +1,7 @@
+namespace nonthrowable-direct-throw
+
+class plain-error
+  message string = 'not throwable'
+
+function fail;
+  throw plain-error

@@ -1,0 +1,5 @@
+from self
+inherited self
+true
+zero self
+zero self

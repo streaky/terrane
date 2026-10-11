@@ -1,6 +1,5 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support: async.rs, executor_parallel.rs
-// Vendored support crates: terrane-scalar-support
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: sample
 async fn quiet() {

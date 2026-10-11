@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-int-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: coercion-single-evaluation
 fn observed() -> terrane_int_support::Int {

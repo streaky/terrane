@@ -1,6 +1,4 @@
 // Generated deterministically by Terrane <version>.
-// Runtime support:
-// Vendored support crates: terrane-collection-support, terrane-scalar-support
 // Source: case.trn
 // Namespace: dead-store-warnings
 fn main() {

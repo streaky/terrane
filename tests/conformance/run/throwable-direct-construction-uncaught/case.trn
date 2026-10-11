@@ -1,0 +1,10 @@
+namespace throwable-direct-construction-uncaught
+from /core/errors import throwable
+
+class uncaught-error implements throwable
+  message string = 'uncaught direct message'
+  function render string;
+    return this.message
+
+function main;
+  throw uncaught-error

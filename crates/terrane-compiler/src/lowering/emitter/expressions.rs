@@ -1801,6 +1801,24 @@ impl Emitter<'_> {
     }
 
     pub(in crate::lowering) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
+        let mut construction = node;
+        while construction.kind == SyntaxKind::GroupExpression {
+            let Some(inner) = construction.children.first() else {
+                break;
+            };
+            construction = inner;
+        }
+        if construction.kind == SyntaxKind::CallExpression
+            && let Some(callee) = construction.children.first()
+            && callee.kind == SyntaxKind::ConstructionExpression
+            && let Some(designator) = callee.children.first()
+            && designator.kind == SyntaxKind::Name
+            && self.text(designator) == "self"
+            && let Some(identity) = &self.current_object
+        {
+            // Inherited bodies construct the currently emitted class, not their lexical owner.
+            return Some(ValueType::Object(identity.clone()));
+        }
         if let Some(value_type) =
             self.unit
                 .flow_types
