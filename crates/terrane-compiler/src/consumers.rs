@@ -216,10 +216,15 @@ fn prepare_declarations(
     fallback: Span,
 ) -> Result<(DeclarationMap, ExternalSources), crate::CompilationFailure> {
     let mut available = std::collections::BTreeMap::new();
+    let selected: std::collections::BTreeSet<_> =
+        config.declarations.iter().map(String::as_str).collect();
     let mut external_sources =
         std::collections::BTreeMap::<u32, (std::path::PathBuf, usize)>::new();
     let mut next_external_file = u32::MAX;
     for declaration in declarations {
+        if !selected.contains(declaration.identity.as_str()) {
+            continue;
+        }
         if available
             .insert(declaration.identity.clone(), declaration.clone())
             .is_some()
@@ -240,6 +245,7 @@ fn prepare_declarations(
             config,
             interface_path,
             fallback,
+            &selected,
             &mut available,
             &mut external_sources,
             &mut next_external_file,
@@ -252,6 +258,7 @@ fn merge_interface_metadata(
     config: &crate::package::ConsumerConfig,
     interface_path: &std::path::Path,
     fallback: Span,
+    selected: &std::collections::BTreeSet<&str>,
     available: &mut std::collections::BTreeMap<String, crate::semantics::DeclarationMetadata>,
     external_sources: &mut std::collections::BTreeMap<u32, (std::path::PathBuf, usize)>,
     next_external_file: &mut u32,
@@ -314,6 +321,9 @@ fn merge_interface_metadata(
         external_sources.insert(id, (std::path::PathBuf::from(source_path), 0));
     }
     for declaration in interface.declarations {
+        if !selected.contains(declaration.identity.as_str()) {
+            continue;
+        }
         let declaration = rebase_declaration(declaration, &remap, external_sources)
             .map_err(|message| {
                 failure(
@@ -968,6 +978,58 @@ mod tests {
             Package::implicit(root.join("main.trn"), String::new()),
             root,
         )
+    }
+
+    #[test]
+    fn consumer_selection_ignores_unselected_field_static_identity_collisions() {
+        let package = Package::implicit(
+            "consumer-selection.trn",
+            concat!(
+                "namespace consumer-selection\n",
+                "public class clock\n",
+                "    seconds int = 0\n",
+                "    static function seconds int;\n",
+                "        return 1\n",
+                "public function main;\n",
+            )
+            .to_owned(),
+        );
+        let semantic = crate::analyze(&package).expect("field and static callable coexist");
+        let declarations: Vec<_> = semantic.declarations().cloned().collect();
+        let mut config = crate::package::ConsumerConfig {
+            name: "selection".to_owned(),
+            executable: "unused".into(),
+            arguments: Vec::new(),
+            declarations: vec!["/consumer-selection::main".to_owned()],
+            interfaces: Vec::new(),
+        };
+        let (available, _) =
+            prepare_declarations(&package, &declarations, &config, fallback_span(&package))
+                .expect("unselected identity collisions do not enter the request");
+        let request: serde_json::Value = serde_json::from_slice(
+            &consumer_input(&package, &config, &available, fallback_span(&package)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            request["declarations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|record| record["identity"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["/consumer-selection::main"]
+        );
+
+        config.declarations = vec!["/consumer-selection::clock::seconds".to_owned()];
+        let error = prepare_declarations(&package, &declarations, &config, fallback_span(&package))
+            .err()
+            .expect("selected ambiguous identities remain errors");
+        assert_eq!(error.diagnostics[0].code.as_ref(), "S2060");
+        assert!(
+            error.diagnostics[0]
+                .message
+                .contains("duplicate canonical declaration identity")
+        );
     }
 
     #[test]
