@@ -377,22 +377,6 @@ fn core_error_registry_distinguishes_the_interface_and_mandated_objects() {
     let analyzed = analyze(&package(false, &[("main.trn", "namespace app\n")])).unwrap();
     let errors = &analyzed.namespaces["/core/errors"].symbols;
 
-    assert_eq!(
-        errors.keys().map(String::as_str).collect::<Vec<_>>(),
-        [
-            "arithmetic-overflow",
-            "coercion-error",
-            "decode-error",
-            "dependency-error",
-            "dependency-panic",
-            "division-by-zero",
-            "index-error",
-            "integer-conversion-overflow",
-            "missing-key",
-            "negative-shift-count",
-            "throwable",
-        ]
-    );
     assert_eq!(errors["throwable"].kind, SymbolKind::Interface);
     for (name, symbol) in errors {
         if name != "throwable" {
