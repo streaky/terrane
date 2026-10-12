@@ -178,23 +178,10 @@ pub(super) fn validate_assignment_block(
             | SyntaxKind::SwitchStatement => {
                 let incoming = assigned.clone();
                 let mut results = Vec::new();
-                let cases_start = usize::from(
-                    statement.kind == SyntaxKind::SwitchStatement
-                        && statement
-                            .children
-                            .first()
-                            .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
-                );
                 let mut exhaustive = statement.kind == SyntaxKind::SelectStatement
                     || statement.kind == SyntaxKind::SwitchStatement
-                        && statement.children.iter().any(|case| {
-                            case.kind == SyntaxKind::SwitchCase
-                                && case
-                                    .children
-                                    .first()
-                                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-                        });
-                for case in statement.children.iter().skip(cases_start) {
+                        && statement.switch_has_default();
+                for case in &statement.children {
                     if !matches!(
                         case.kind,
                         SyntaxKind::SelectCase
@@ -237,11 +224,6 @@ pub(super) fn validate_assignment_block(
                         } else if header.kind != SyntaxKind::MatchCatchAll {
                             validate_assigned_reads(unit, header, declared, &incoming)?;
                         }
-                    }
-                    if case.kind == SyntaxKind::SwitchCase
-                        && header.is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-                    {
-                        exhaustive = true;
                     }
                     if case.kind == SyntaxKind::MatchCase {
                         if case
@@ -476,19 +458,7 @@ pub(super) fn block_may_fall_through(block: &SyntaxNode) -> bool {
         }
         SyntaxKind::SelectStatement => statement.children.iter().any(block_may_fall_through),
         SyntaxKind::SwitchStatement => {
-            let has_default = statement.children.iter().any(|case| {
-                case.kind == SyntaxKind::SwitchCase
-                    && case
-                        .children
-                        .first()
-                        .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-            });
-            !has_default
-                || statement
-                    .children
-                    .iter()
-                    .filter(|case| case.kind == SyntaxKind::SwitchCase)
-                    .any(block_may_fall_through)
+            !statement.switch_has_default() || statement.switch_cases().any(block_may_fall_through)
         }
         SyntaxKind::MatchStatement => statement
             .children
@@ -588,30 +558,13 @@ pub(super) fn validate_flow_statement(
         }
 
         SyntaxKind::SwitchStatement => {
-            let cases_start = usize::from(
-                statement
-                    .children
-                    .first()
-                    .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
-            );
-            let cases = statement
-                .children
-                .iter()
-                .skip(cases_start)
-                .filter(|child| child.kind == SyntaxKind::SwitchCase)
-                .collect::<Vec<_>>();
-            let has_default = cases.iter().any(|case| {
-                case.children
-                    .first()
-                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-            });
-            let selector = statement.children.first().filter(|_| cases_start != 0);
+            let selector = statement.switch_selector();
             let selector_type = selector
                 .map(|selector| infer_value_type(unit, selector, bindings))
                 .transpose()?
                 .flatten();
-            let mut any_falls_through = !has_default;
-            for case in cases {
+            let mut any_falls_through = !statement.switch_has_default();
+            for case in statement.switch_cases() {
                 if let Some(header) = case.children.first()
                     && header.kind == SyntaxKind::ArgumentList
                 {

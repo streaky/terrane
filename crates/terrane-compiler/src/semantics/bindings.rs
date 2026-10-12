@@ -265,17 +265,25 @@ pub(super) fn validate_global_definite_assignment(
             node.kind,
             SyntaxKind::SelectStatement | SyntaxKind::MatchStatement | SyntaxKind::SwitchStatement
         ) {
-            let cases = if node.kind == SyntaxKind::SwitchStatement {
-                node.children
-                    .iter()
-                    .filter(|child| child.kind == SyntaxKind::SwitchCase)
-                    .collect::<Vec<_>>()
-            } else {
-                node.children.iter().collect::<Vec<_>>()
-            };
+            if node.kind == SyntaxKind::MatchStatement
+                && let Some(scrutinee) = node.children.first()
+            {
+                validate_node(package, unit, scrutinee, relevant, assigned)?;
+            }
+            if let Some(selector) = node.switch_selector() {
+                validate_node(package, unit, selector, relevant, assigned)?;
+            }
             let incoming = assigned.clone();
-            let mut branch_results = Vec::with_capacity(cases.len() + 1);
-            for case in cases {
+            let mut branch_results = Vec::with_capacity(node.children.len() + 1);
+            for case in node.children.iter().filter(|child| {
+                matches!(
+                    child.kind,
+                    SyntaxKind::SelectCase
+                        | SyntaxKind::MatchCase
+                        | SyntaxKind::ElseClause
+                        | SyntaxKind::SwitchCase
+                )
+            }) {
                 let Some(block) = case
                     .children
                     .last()
@@ -308,15 +316,7 @@ pub(super) fn validate_global_definite_assignment(
                 validate_node(package, unit, block, relevant, &mut branch_assigned)?;
                 branch_results.push(branch_assigned);
             }
-            if node.kind == SyntaxKind::SwitchStatement
-                && !node.children.iter().any(|case| {
-                    case.kind == SyntaxKind::SwitchCase
-                        && case
-                            .children
-                            .first()
-                            .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-                })
-            {
+            if node.kind == SyntaxKind::SwitchStatement && !node.switch_has_default() {
                 branch_results.push(incoming);
             }
             if let Some(first) = branch_results.first() {

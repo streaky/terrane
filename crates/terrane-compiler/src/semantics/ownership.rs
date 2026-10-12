@@ -654,23 +654,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
         if node.kind == SyntaxKind::SwitchStatement {
             let mut entry = moved.clone();
-            let cases_start = usize::from(
-                node.children
-                    .first()
-                    .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
-            );
-            if cases_start > 0 {
-                visit(
-                    package,
-                    unit,
-                    &node.children[0],
-                    &mut entry,
-                    false,
-                    resource_objects,
-                )?;
+            if let Some(selector) = node.switch_selector() {
+                visit(package, unit, selector, &mut entry, false, resource_objects)?;
             }
             let mut branches = Vec::new();
-            for case in node.children.iter().skip(cases_start) {
+            for case in node.switch_cases() {
                 if let Some(header) = case
                     .children
                     .first()
@@ -701,11 +689,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     }
                 }
             }
-            if !node.children.iter().skip(cases_start).any(|case| {
-                case.children
-                    .first()
-                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-            }) {
+            if !node.switch_has_default() {
                 branches.push(entry);
             }
             moved.clear();

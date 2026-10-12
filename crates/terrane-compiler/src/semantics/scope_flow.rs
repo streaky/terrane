@@ -850,7 +850,7 @@ fn flow_predicate_switch(
     paths: &mut FlowStates,
 ) {
     let mut branches = Vec::new();
-    for (index, case) in statement.children.iter().enumerate() {
+    for (index, case) in statement.switch_cases().enumerate() {
         let [header, body] = case.children.as_slice() else {
             continue;
         };
@@ -963,37 +963,19 @@ fn flow_cases(
     state: &FlowEnv,
     paths: &mut FlowStates,
 ) {
-    if statement.kind == SyntaxKind::SwitchStatement
-        && statement
-            .children
-            .first()
-            .is_some_and(|case| case.kind == SyntaxKind::SwitchCase)
-    {
+    if statement.kind == SyntaxKind::SwitchStatement && statement.switch_selector().is_none() {
         flow_predicate_switch(unit, statement, state, paths);
         return;
     }
-    let selector_index = usize::from(
-        statement.kind == SyntaxKind::SwitchStatement
-            && statement
-                .children
-                .first()
-                .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
-    );
-    if selector_index > 0 {
-        record_flow_reads(unit, &statement.children[0], state);
+    if let Some(selector) = statement.switch_selector() {
+        record_flow_reads(unit, selector, state);
     } else if statement.kind != SyntaxKind::SwitchStatement {
         record_flow_reads(unit, statement.children.first().unwrap_or(statement), state);
     }
     // Valid enum matches cover every variant; enum validation rejects
     // missing coverage (including guarded-only arms).
-    let exhaustive = statement.kind != SyntaxKind::SwitchStatement
-        || statement.children.iter().any(|case| {
-            case.kind == SyntaxKind::SwitchCase
-                && case
-                    .children
-                    .first()
-                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-        });
+    let exhaustive =
+        statement.kind != SyntaxKind::SwitchStatement || statement.switch_has_default();
     let mut cases = Vec::new();
     for case in &statement.children {
         if !matches!(

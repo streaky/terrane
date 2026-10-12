@@ -681,19 +681,9 @@ pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
             .iter()
             .any(|case| case.children.last().is_none_or(block_may_fall_through)),
         SyntaxKind::SwitchStatement => {
-            let cases = statement
-                .children
-                .iter()
-                .filter(|case| case.kind == SyntaxKind::SwitchCase)
-                .collect::<Vec<_>>();
-            let has_default = cases.iter().any(|case| {
-                case.children
-                    .first()
-                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-            });
-            !has_default
-                || cases
-                    .iter()
+            !statement.switch_has_default()
+                || statement
+                    .switch_cases()
                     .any(|case| case.children.last().is_none_or(block_may_fall_through))
         }
         SyntaxKind::TryStatement => {

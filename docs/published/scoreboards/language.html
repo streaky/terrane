@@ -221,10 +221,12 @@
           "manual/reference/records/language/expressions/operators.yaml"
         ]
       },
-      "notes": "The parser and semantic pipeline implement the version-one precedence and operator families used by the current surface.",
+      "notes": "Version-one precedence includes left-associated string + through canonical text display without reinterpreting numeric subexpressions.",
       "sources": [
         "docs/language-spec-concise.md#GRAMMAR",
-        "docs/compiler-plan.md#Milestone 4"
+        "docs/compiler-plan.md#Milestone 4",
+        "tests/conformance/run/string-display-composition/case.trn",
+        "tests/conformance/reject/string-addition-no-destination-coercion/case.trn"
       ]
     },
     {
@@ -969,6 +971,27 @@
       ]
     },
     {
+      "id": "switch-statements",
+      "name": "Ordered selector and predicate switch",
+      "category": "callables",
+      "status": "done",
+      "completion": 100,
+      "milestone": null,
+      "reference": {
+        "state": "documented",
+        "paths": [
+          "manual/reference/records/language/control-flow/branching-and-loops.yaml"
+        ]
+      },
+      "notes": "Single-evaluation selectors, lazy ordered equality alternatives or truth predicates, optional final default, no fallthrough, and ordinary function-owned branch joins.",
+      "sources": [
+        "docs/language-spec-concise.md#CONTROL",
+        "tests/conformance/run/switch-statements/case.trn",
+        "docs/compiler-plan.md#Bundled text composition and ordered branching",
+        "tests/conformance/run/switch-boundaries/case.trn"
+      ]
+    },
+    {
       "id": "structured-errors",
       "name": "Throw try catch finally",
       "category": "callables",
@@ -1073,7 +1096,7 @@
     },
     {
       "id": "scalar-display",
-      "name": "Canonical scalar display and print",
+      "name": "Canonical text display, to-string, and print",
       "category": "text-data",
       "status": "done",
       "completion": 100,
@@ -1084,10 +1107,15 @@
           "manual/reference/records/language/text/display.yaml"
         ]
       },
-      "notes": "Strings, numerics, booleans, and none render canonically; bytes deliberately lack arbitrary display.",
+      "notes": "Non-bytes scalars expose to-string; source classes supply safe synchronous shared parameterless string-returning methods. String +, concat, join, and print share rendering and throwable inference.",
       "sources": [
         "docs/language-spec-concise.md#TEXT DISPLAY",
-        "docs/compiler-plan.md#Milestone 4.6"
+        "docs/compiler-plan.md#Milestone 4.6",
+        "tests/conformance/run/string-display-composition/case.trn",
+        "tests/conformance/run/string-display-boundaries/case.trn",
+        "tests/conformance/run/string-display-generic/case.trn",
+        "tests/conformance/run/string-display-imported/src/main.trn",
+        "tests/conformance/run/switch-boundaries/case.trn"
       ]
     },
     {
@@ -1178,12 +1206,14 @@
           "manual/reference/records/language/text/transformation.yaml"
         ]
       },
-      "notes": "Trim, case, normalization, split, replace, concat, and join operate on specified grapheme boundaries; split results are iterable read-only lists.",
+      "notes": "Trim, case, normalization, and grapheme-aware scalar replacement coexist with non-cascading ordered multi-search replacement, paired or broadcast replacements, and typed replace-error on unequal lists; concat/join share text display.",
       "sources": [
         "docs/language-spec-concise.md#COLLECTION / TEXT",
         "docs/compiler-plan.md#Milestone 12",
         "tests/conformance/run/string-result-list-iteration/case.trn",
-        "tests/conformance/reject/string-result-list-mutation/case.trn"
+        "tests/conformance/reject/string-result-list-mutation/case.trn",
+        "tests/conformance/run/text-families/case.trn",
+        "tests/conformance/reject/string-replace-incompatible/src/main.trn"
       ]
     },
     {

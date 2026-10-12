@@ -701,6 +701,7 @@ features:
   category: callables
   status: done
   completion: 100
+  milestone: null
   reference:
     state: documented
     paths:
@@ -709,6 +710,7 @@ features:
   sources:
   - docs/language-spec-concise.md#CONTROL
   - tests/conformance/run/switch-statements/case.trn
+  - docs/compiler-plan.md#Bundled text composition and ordered branching
   - tests/conformance/run/switch-boundaries/case.trn
 - id: structured-errors
   name: Throw try catch finally

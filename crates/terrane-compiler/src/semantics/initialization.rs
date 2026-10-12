@@ -155,17 +155,9 @@ impl ConstructorAnalysis<'_> {
     fn branches(&self, node: &SyntaxNode, mut state: FieldState) -> Result<Flow, SemanticFailure> {
         let mut output = Flow::default();
         let mut normals = Vec::new();
-        let switch_default = node.kind == SyntaxKind::SwitchStatement
-            && node.children.iter().any(|child| {
-                child.kind == SyntaxKind::SwitchCase
-                    && child
-                        .children
-                        .first()
-                        .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
-            });
         let mut exhaustive = match node.kind {
             SyntaxKind::IfStatement => false,
-            SyntaxKind::SwitchStatement => switch_default,
+            SyntaxKind::SwitchStatement => node.switch_has_default(),
             _ => true,
         };
         for child in &node.children {
@@ -178,29 +170,19 @@ impl ConstructorAnalysis<'_> {
                     .find(|part| part.kind == SyntaxKind::Block)
             };
             if let Some(block) = block {
-                if child.kind == SyntaxKind::SwitchCase {
-                    exhaustive |= child
-                        .children
-                        .first()
-                        .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll);
-                    if let Some(header) = child
+                if child.kind == SyntaxKind::ElseClause && child.children.len() == 1 {
+                    exhaustive = true;
+                }
+                if child.kind == SyntaxKind::SwitchCase
+                    && let Some(header) = child
                         .children
                         .first()
                         .filter(|header| header.kind == SyntaxKind::ArgumentList)
-                    {
-                        for condition in &header.children {
-                            self.reads(condition, &mut state)?;
-                            if self.may_throw(condition) {
-                                output.failures.push(state.clone());
-                            }
-                        }
-                    } else if child
-                        .children
-                        .first()
-                        .is_some_and(|header| header.kind != SyntaxKind::MatchCatchAll)
-                    {
-                        for condition in &child.children[0].children {
-                            self.reads(condition, &mut state)?;
+                {
+                    for condition in &header.children {
+                        self.reads(condition, &mut state)?;
+                        if self.may_throw(condition) {
+                            output.failures.push(state.clone());
                         }
                     }
                 }

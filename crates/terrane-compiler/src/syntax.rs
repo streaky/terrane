@@ -200,6 +200,7 @@ impl SyntaxKind {
             (Self::SwitchCase, Self::MatchCatchAll, 0) => "default",
             (Self::MatchStatement, _, 0) => "scrutinee",
             (Self::MatchStatement, Self::MatchCase, _) => "case",
+            (Self::MatchCase, Self::ParameterList, _) => "bindings",
             (
                 Self::MatchCase,
                 Self::StaticMemberExpression | Self::Name | Self::MatchCatchAll,
@@ -268,6 +269,29 @@ impl SyntaxNode {
             documentation: None,
             is_unsafe_call: false,
         }
+    }
+
+    pub(crate) fn switch_selector(&self) -> Option<&SyntaxNode> {
+        if self.kind != SyntaxKind::SwitchStatement {
+            return None;
+        }
+        self.children
+            .first()
+            .filter(|child| child.kind != SyntaxKind::SwitchCase)
+    }
+
+    pub(crate) fn switch_cases(&self) -> impl Iterator<Item = &SyntaxNode> + Clone {
+        self.children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::SwitchCase)
+    }
+
+    pub(crate) fn switch_has_default(&self) -> bool {
+        self.switch_cases().any(|case| {
+            case.children
+                .first()
+                .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+        })
     }
 
     pub fn annotations(&self) -> impl Iterator<Item = &SyntaxNode> {

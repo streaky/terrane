@@ -1470,15 +1470,8 @@ impl Emitter<'_> {
     }
 
     pub(super) fn switch_statement(&mut self, node: &SyntaxNode) {
-        let selector = node
-            .children
-            .first()
-            .filter(|child| child.kind != SyntaxKind::SwitchCase);
-        let cases = node
-            .children
-            .iter()
-            .filter(|child| child.kind == SyntaxKind::SwitchCase)
-            .collect::<Vec<_>>();
+        let selector = node.switch_selector();
+        let cases = node.switch_cases();
         let name = format!("__terrane_switch_value_{}", node.span.start);
         let mut storage_type = selector.and_then(|selector| self.value_type(selector));
         if let Some(selector) = selector {
@@ -1489,7 +1482,7 @@ impl Emitter<'_> {
                         Some(Ok(_))
                     ))
                 && cases
-                    .iter()
+                    .clone()
                     .filter_map(|case| case.children.first())
                     .flat_map(|header| &header.children)
                     .all(|candidate| {

@@ -38,6 +38,23 @@ That list is the **first runnable outcome**, reached at milestone 6, not the bou
 
 Version one still does not need universal dynamic values, source-declared generics, general pattern matching, multiple class inheritance, generators, labels and `goto`, hot-code replacement, `no_std`, embedded targets, or kernel targets. Syntax for deferred features may be recognized only when doing so enables a precise “not supported in this compiler version” diagnostic; it must never be accepted and lowered incorrectly.
 
+### Bundled text composition and ordered branching
+
+The following completed language changes are bundled rather than assigned a new numbered milestone:
+
+- Pairwise, left-associated string `+` composition, preserving numeric subexpressions.
+- Structural `.to-string;` display shared by composition, printing, `.concat`, and `.join`, including normal renderer error propagation.
+- Original-input multi-search `.replace;` with paired or broadcast replacements and typed length-mismatch errors.
+- Ordered selector and predicate `switch` statements with no fallthrough.
+
+The canonical contracts live in the manual's [operators](../manual/reference/records/language/expressions/operators.yaml),
+[display](../manual/reference/records/language/text/display.yaml), [transformation](../manual/reference/records/language/text/transformation.yaml),
+and [branching](../manual/reference/records/language/control-flow/branching-and-loops.yaml) records.
+Executable evidence includes `string-display-composition`, `string-display-boundaries`,
+`string-display-generic`, `string-display-imported`, `text-families`, `switch-statements`, and
+`switch-boundaries` under `tests/conformance/run/`. The switch scoreboard entry therefore records
+an explicit null milestone rather than retroactively attributing this bundle to milestone 4.
+
 ## 3. Delivery principles
 
 1. **Tests define implemented behavior.** The design draft informs the implementation, but an executable conformance case is required before a feature is considered supported.

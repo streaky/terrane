@@ -1,0 +1,8 @@
+namespace global-switch-selector-unassigned
+global selected int
+function main;
+    switch selected
+        case 1
+            return
+        case else
+            return
