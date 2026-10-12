@@ -139,9 +139,8 @@ fn union_resource(choose: bool) {
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &item {
-        TerraneUnionF0S881::Arm0(__terrane_arm) => {
-        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
-        __terrane_text); }, TerraneUnionF0S881::Arm1(__terrane_arm) => {
+        TerraneUnionF0S881::Arm0(_) => unreachable!("flow-proven storage refinement"),
+        TerraneUnionF0S881::Arm1(__terrane_arm) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
         __terrane_text); }, TerraneUnionF0S881::Arm2(__terrane_arm) => {
         terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut

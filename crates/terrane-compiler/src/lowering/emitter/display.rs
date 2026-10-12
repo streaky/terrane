@@ -96,7 +96,7 @@ impl Emitter<'_> {
                     "match &({value}) {{ Some(__terrane_present) => {{ {present} }}, None => {output}.push_str(\"none\"), }}"
                 )
             }
-            ValueType::Union(_) => {
+            ValueType::Union(reaching) => {
                 let binding = self
                     .union_binding(node)
                     .expect("union display has canonical storage");
@@ -106,6 +106,11 @@ impl Emitter<'_> {
                     .iter()
                     .enumerate()
                     .map(|(index, arm)| {
+                        if !reaching.contains(arm) {
+                            return format!(
+                                "{name}::Arm{index}(_) => unreachable!(\"flow-proven storage refinement\")"
+                            );
+                        }
                         let write = self.write_display_value(node, arm, "__terrane_arm", output);
                         format!("{name}::Arm{index}(__terrane_arm) => {{ {write} }}")
                     })
