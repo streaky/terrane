@@ -1,0 +1,4 @@
+package = "string-replace-incompatible"
+
+[namespaces]
+app = "src"

@@ -65,8 +65,8 @@ impl Marker {
     }
     pub fn destruct(&mut self) {
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("drop ")),
-            terrane_scalar_support::scalar_text(&self.name)
+            "{}{}", String::from("drop "), terrane_scalar_support::scalar_text(&self
+            .name)
         );
     }
     pub fn consume_name(self) -> String {
@@ -84,12 +84,15 @@ impl Drop for Marker {
 fn replace_old() {
     let mut value: Marker;
     value = Marker::terrane_construct(String::from("old"));
-    value = Marker::terrane_construct(
-        format!(
-            "{}{}", terrane_scalar_support::scalar_text(&value.name),
-            terrane_scalar_support::scalar_text(&String::from("-replacement"))
-        ),
-    );
+    value = Marker::terrane_construct({
+        let mut __terrane_text = String::with_capacity(12);
+        terrane_scalar_support::ScalarDisplay::write_scalar(
+            &value.name,
+            &mut __terrane_text,
+        );
+        __terrane_text.push_str("-replacement");
+        __terrane_text
+    });
     println!("{}", terrane_scalar_support::scalar_text(&value.name));
 }
 fn moved_replacement() {
@@ -134,7 +137,16 @@ fn union_resource(choose: bool) {
     } else {
         item = TerraneUnionF0S881::Arm2(String::from("union-replacement"));
     }
-    println!("{}", terrane_scalar_support::scalar_text(&item));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &item {
+        TerraneUnionF0S881::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S881::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S881::Arm2(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn move_union_resource(choose: bool) -> String {
     let item: TerraneUnionF0S1151;
@@ -167,5 +179,5 @@ fn main() {
     union_resource(false);
     println!("{}", terrane_scalar_support::scalar_text(&move_union_resource(true)));
     println!("{}", terrane_scalar_support::scalar_text(&move_union_resource(false)));
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("end")));
+    println!("{}", String::from("end"));
 }

@@ -284,7 +284,7 @@ pub(super) fn populate_node(
                 }
             }
         }
-        SyntaxKind::SelectCase | SyntaxKind::MatchCase => {
+        SyntaxKind::SelectCase | SyntaxKind::MatchCase | SyntaxKind::SwitchCase => {
             if node.kind == SyntaxKind::SelectCase
                 && let Some(binding) = node
                     .children
@@ -349,6 +349,7 @@ pub(super) fn populate_node(
                         | SyntaxKind::CatchClause
                         | SyntaxKind::FinallyClause
                         | SyntaxKind::SelectCase
+                        | SyntaxKind::SwitchCase
                         | SyntaxKind::ForStatement
                 ) {
                     populate_node(unit, context, scopes, index, child)?;

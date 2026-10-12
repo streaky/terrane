@@ -95,6 +95,93 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod replace_tests {
+    use super::{replace, replace_broadcast, replace_many};
+
+    #[test]
+    fn scalar_replace_preserves_grapheme_empty_pattern_behavior() {
+        assert_eq!(replace("e\u{301}x", "", "-"), "-e\u{301}-x-");
+    }
+
+    #[test]
+    fn multi_replace_uses_original_input_and_list_priority() {
+        assert_eq!(
+            replace_many("aaa", &["aa".into(), "a".into()], &["X".into(), "Y".into()]).unwrap(),
+            "XY"
+        );
+        assert_eq!(
+            replace_many(
+                "&<",
+                &["&".into(), "<".into()],
+                &["&amp;".into(), "&lt;".into()],
+            )
+            .unwrap(),
+            "&amp;&lt;"
+        );
+        assert_eq!(
+            replace_many(
+                "&<",
+                &["<".into(), "&".into()],
+                &["&lt;".into(), "&amp;".into()],
+            )
+            .unwrap(),
+            "&amp;&lt;"
+        );
+        assert_eq!(
+            replace_many(
+                "ab",
+                &["a".into(), "ab".into()],
+                &["first".into(), "second".into()],
+            )
+            .unwrap(),
+            "firstb"
+        );
+        assert_eq!(
+            replace_many("abc", &["b".into()], &["abc".into()]).unwrap(),
+            "aabcc"
+        );
+        assert_eq!(
+            replace_broadcast("one two", &["one".into(), "two".into()], "x"),
+            "x x"
+        );
+        assert_eq!(
+            replace_many(
+                "ab",
+                &[String::new(), "a".into()],
+                &["-".into(), "X".into()]
+            )
+            .unwrap(),
+            "-a-b-"
+        );
+        assert_eq!(
+            replace_many(
+                "ab",
+                &["a".into(), String::new()],
+                &["X".into(), "-".into()]
+            )
+            .unwrap(),
+            "X-b-"
+        );
+    }
+
+    #[test]
+    fn empty_list_and_empty_pattern_are_defined() {
+        assert_eq!(replace_many("text", &[], &[]).unwrap(), "text");
+        assert_eq!(
+            replace_many("e\u{301}x", &[String::new()], &["-".into()]).unwrap(),
+            "-e\u{301}-x-"
+        );
+        assert_eq!(
+            replace_many("x", &["a".into()], &[]).unwrap_err(),
+            super::ReplaceError {
+                searches: 1,
+                replacements: 0,
+            }
+        );
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TextRange {
     source: Arc<str>,
@@ -369,4 +456,115 @@ pub fn replace(value: &str, pattern: &str, replacement: &str) -> String {
         return result;
     }
     value.replace(pattern, replacement)
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReplaceError {
+    pub searches: usize,
+    pub replacements: usize,
+}
+
+impl std::fmt::Display for ReplaceError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "replace received {} searches and {} replacements",
+            self.searches, self.replacements
+        )
+    }
+}
+
+impl std::error::Error for ReplaceError {}
+
+/// Replaces original-input matches with list-priority, left-to-right semantics.
+///
+/// Empty patterns compete in list order at original grapheme boundaries. An
+/// empty winner inserts its replacement and advances one original scalar
+/// unchanged. Matching never examines replacement text.
+///
+/// # Errors
+///
+/// Returns [`ReplaceError`] when the two lists have different lengths.
+pub fn replace_many(
+    value: &str,
+    patterns: &[String],
+    replacements: &[String],
+) -> Result<String, ReplaceError> {
+    if patterns.len() != replacements.len() {
+        return Err(ReplaceError {
+            searches: patterns.len(),
+            replacements: replacements.len(),
+        });
+    }
+    Ok(replace_patterns(value, patterns, |index| {
+        replacements[index].as_str()
+    }))
+}
+
+/// Replaces each listed search with the same replacement string.
+#[must_use]
+pub fn replace_broadcast(value: &str, patterns: &[String], replacement: &str) -> String {
+    replace_patterns(value, patterns, |_| replacement)
+}
+
+fn replace_patterns<'a>(
+    value: &str,
+    patterns: &[String],
+    replacement: impl Fn(usize) -> &'a str,
+) -> String {
+    if patterns.is_empty() {
+        return value.to_owned();
+    }
+    // Nonempty patterns match at scalar boundaries; only empty patterns need
+    // grapheme segmentation. No replacement text enters this scan.
+    let mut boundaries = patterns.iter().any(String::is_empty).then(|| {
+        value
+            .grapheme_indices(true)
+            .map(|(index, _)| index)
+            .chain(std::iter::once(value.len()))
+    });
+    let mut boundary = boundaries.as_mut().and_then(Iterator::next);
+    let mut output = String::with_capacity(value.len());
+    let mut cursor = 0;
+    let mut unchanged = 0;
+    loop {
+        while boundary.is_some_and(|boundary| boundary < cursor) {
+            boundary = boundaries.as_mut().and_then(Iterator::next);
+        }
+        let remaining = &value[cursor..];
+        if let Some((index, pattern)) = patterns.iter().enumerate().find(|(_, pattern)| {
+            if pattern.is_empty() {
+                boundary == Some(cursor)
+            } else {
+                remaining.starts_with(pattern.as_str())
+            }
+        }) {
+            output.push_str(&value[unchanged..cursor]);
+            output.push_str(replacement(index));
+            unchanged = cursor;
+            if !pattern.is_empty() {
+                cursor += pattern.len();
+                unchanged = cursor;
+                continue;
+            }
+            // An empty match wins this position but cannot consume input.
+            // Copy one original scalar to advance without trying another
+            // pattern at the same position or skipping inside-grapheme matches.
+            if let Some(character) = remaining.chars().next() {
+                let end = cursor + character.len_utf8();
+                output.push_str(&value[cursor..end]);
+                cursor = end;
+                unchanged = cursor;
+                continue;
+            }
+            break;
+        }
+        if let Some(character) = remaining.chars().next() {
+            cursor += character.len_utf8();
+        } else {
+            break;
+        }
+    }
+    output.push_str(&value[unchanged..]);
+    output
 }

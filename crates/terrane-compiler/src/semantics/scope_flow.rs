@@ -436,7 +436,9 @@ fn flow_block(unit: &mut SemanticUnit, block: &SyntaxNode, initial: FlowEnv) -> 
             SyntaxKind::IfStatement => {
                 flow_if(unit, statement, &state, &mut paths);
             }
-            SyntaxKind::SelectStatement | SyntaxKind::MatchStatement => {
+            SyntaxKind::SelectStatement
+            | SyntaxKind::MatchStatement
+            | SyntaxKind::SwitchStatement => {
                 flow_cases(unit, statement, &state, &mut paths);
             }
             SyntaxKind::WhileStatement | SyntaxKind::ForStatement => {
@@ -841,96 +843,174 @@ fn flow_if(
     merge_into_paths(unit, statement.span, paths, joined);
 }
 
+fn flow_predicate_switch(
+    unit: &mut SemanticUnit,
+    statement: &SyntaxNode,
+    state: &FlowEnv,
+    paths: &mut FlowStates,
+) {
+    let mut branches = Vec::new();
+    for (index, case) in statement.children.iter().enumerate() {
+        let [header, body] = case.children.as_slice() else {
+            continue;
+        };
+        if index == 0 {
+            if header.kind == SyntaxKind::MatchCatchAll {
+                let joined = flow_block(unit, body, state.clone());
+                if let Some(env) = joined.get(&FlowExit::Normal) {
+                    record_join_for_env(unit, statement, env);
+                }
+                merge_into_paths(unit, statement.span, paths, joined);
+                return;
+            }
+            branches.extend([header.children[0].clone(), body.clone()]);
+        } else {
+            let children = if header.kind == SyntaxKind::MatchCatchAll {
+                vec![body.clone()]
+            } else {
+                vec![header.children[0].clone(), body.clone()]
+            };
+            branches.push(SyntaxNode::new(
+                SyntaxKind::ElseClause,
+                case.span,
+                case.token_range.clone(),
+                children,
+            ));
+        }
+    }
+    let conditional = SyntaxNode::new(
+        SyntaxKind::IfStatement,
+        statement.span,
+        statement.token_range.clone(),
+        branches,
+    );
+    flow_if(unit, &conditional, state, paths);
+}
+
+fn flow_case(unit: &mut SemanticUnit, case: &SyntaxNode, state: &FlowEnv) -> Option<FlowStates> {
+    let header = case
+        .children
+        .iter()
+        .find(|child| child.kind != SyntaxKind::Block);
+    let body = case
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Block)?;
+    let mut arm = state.clone();
+    if let Some(header) = header {
+        if header.kind == SyntaxKind::Binding {
+            if let Some(value) = header.children.iter().rev().find(|child| {
+                child.kind != SyntaxKind::Name && child.kind != SyntaxKind::TypeExpression
+            }) {
+                record_flow_reads(unit, value, state);
+            }
+            if case.kind == SyntaxKind::SelectCase
+                && let Some(binding) = unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == header.span)
+            {
+                let identity = state
+                    .binding_ids
+                    .get(&binding.name)
+                    .copied()
+                    .unwrap_or(binding.span);
+                if let Some(previous) = state.binding_ids.get(&binding.name).copied() {
+                    unit.flow_replacements.insert(header.span, previous);
+                }
+                unit.flow_binding_ids.insert(
+                    (header.span.file, header.span.start, header.span.end),
+                    identity,
+                );
+                arm.types
+                    .insert(binding.name.clone(), binding.value_type.clone());
+                arm.uncertain.remove(&binding.name);
+                arm.binding_ids.insert(binding.name.clone(), identity);
+                arm.origins
+                    .insert(binding.name.clone(), BTreeSet::from([identity]));
+            }
+        } else {
+            record_flow_reads(unit, header, state);
+        }
+    }
+    if case.kind == SyntaxKind::MatchCase
+        && let Some(parameters) = case
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::ParameterList)
+    {
+        for parameter in &parameters.children {
+            if let Some(binding) = unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == parameter.span)
+            {
+                arm.types
+                    .insert(binding.name.clone(), binding.value_type.clone());
+                arm.binding_ids.insert(binding.name.clone(), binding.span);
+                arm.origins
+                    .insert(binding.name.clone(), BTreeSet::from([binding.span]));
+                arm.uncertain.remove(&binding.name);
+            }
+        }
+    }
+    Some(flow_block(unit, body, arm))
+}
+
 fn flow_cases(
     unit: &mut SemanticUnit,
     statement: &SyntaxNode,
     state: &FlowEnv,
     paths: &mut FlowStates,
 ) {
-    record_flow_reads(unit, statement.children.first().unwrap_or(statement), state);
+    if statement.kind == SyntaxKind::SwitchStatement
+        && statement
+            .children
+            .first()
+            .is_some_and(|case| case.kind == SyntaxKind::SwitchCase)
+    {
+        flow_predicate_switch(unit, statement, state, paths);
+        return;
+    }
+    let selector_index = usize::from(
+        statement.kind == SyntaxKind::SwitchStatement
+            && statement
+                .children
+                .first()
+                .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
+    );
+    if selector_index > 0 {
+        record_flow_reads(unit, &statement.children[0], state);
+    } else if statement.kind != SyntaxKind::SwitchStatement {
+        record_flow_reads(unit, statement.children.first().unwrap_or(statement), state);
+    }
     // Valid enum matches cover every variant; enum validation rejects
     // missing coverage (including guarded-only arms).
+    let exhaustive = statement.kind != SyntaxKind::SwitchStatement
+        || statement.children.iter().any(|case| {
+            case.kind == SyntaxKind::SwitchCase
+                && case
+                    .children
+                    .first()
+                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+        });
     let mut cases = Vec::new();
     for case in &statement.children {
         if !matches!(
             case.kind,
-            SyntaxKind::SelectCase | SyntaxKind::MatchCase | SyntaxKind::ElseClause
+            SyntaxKind::SelectCase
+                | SyntaxKind::MatchCase
+                | SyntaxKind::ElseClause
+                | SyntaxKind::SwitchCase
         ) {
             continue;
         }
-        let header = case
-            .children
-            .iter()
-            .find(|child| child.kind != SyntaxKind::Block);
-        let body = case
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Block)
-            .or_else(|| {
-                case.children
-                    .last()
-                    .filter(|child| child.kind == SyntaxKind::Block)
-            });
-        let Some(body) = body else { continue };
-        let mut arm = state.clone();
-        if let Some(header) = header {
-            if header.kind == SyntaxKind::Binding {
-                if let Some(value) = header.children.iter().rev().find(|child| {
-                    child.kind != SyntaxKind::Name && child.kind != SyntaxKind::TypeExpression
-                }) {
-                    record_flow_reads(unit, value, state);
-                }
-                if case.kind == SyntaxKind::SelectCase
-                    && let Some(binding) = unit
-                        .typed_bindings
-                        .iter()
-                        .find(|binding| binding.span == header.span)
-                {
-                    let identity = state
-                        .binding_ids
-                        .get(&binding.name)
-                        .copied()
-                        .unwrap_or(binding.span);
-                    if let Some(previous) = state.binding_ids.get(&binding.name).copied() {
-                        unit.flow_replacements.insert(header.span, previous);
-                    }
-                    unit.flow_binding_ids.insert(
-                        (header.span.file, header.span.start, header.span.end),
-                        identity,
-                    );
-                    arm.types
-                        .insert(binding.name.clone(), binding.value_type.clone());
-                    arm.uncertain.remove(&binding.name);
-                    arm.binding_ids.insert(binding.name.clone(), identity);
-                    arm.origins
-                        .insert(binding.name.clone(), BTreeSet::from([identity]));
-                }
-            } else {
-                record_flow_reads(unit, header, state);
-            }
+        if let Some(branch) = flow_case(unit, case, state) {
+            cases.push(branch);
         }
-        if case.kind == SyntaxKind::MatchCase
-            && let Some(parameters) = case
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::ParameterList)
-        {
-            for parameter in &parameters.children {
-                if let Some(binding) = unit
-                    .typed_bindings
-                    .iter()
-                    .find(|binding| binding.span == parameter.span)
-                {
-                    arm.types
-                        .insert(binding.name.clone(), binding.value_type.clone());
-                    arm.binding_ids.insert(binding.name.clone(), binding.span);
-                    arm.origins
-                        .insert(binding.name.clone(), BTreeSet::from([binding.span]));
-                    arm.uncertain.remove(&binding.name);
-                }
-            }
-        }
-        cases.push(flow_block(unit, body, arm));
+    }
+    if !exhaustive {
+        cases.push(FlowStates::from([(FlowExit::Normal, state.clone())]));
     }
     let joined = merge_flow_states(unit, statement.span, cases);
     if let Some(env) = joined.get(&FlowExit::Normal) {

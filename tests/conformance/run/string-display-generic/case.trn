@@ -1,0 +1,25 @@
+namespace string-display-generic
+
+interface displayable
+    function to-string string;
+
+class label implements displayable
+    text string
+    function construct; text string
+        this.text = text
+    function to-string string;
+        return this.text
+
+function decorate of (T implements displayable) string; value T
+    print; value
+    return 'generic:' + value
+
+function compose of (T implements displayable) string; value T
+    return ('prefix '.concat; value) + '|' + (':'.join; value, value)
+
+function main;
+    value = instance label; 'label'
+    print; (decorate; value)
+    print; (compose; value)
+    erased displayable = value
+    print; 'interface:' + erased

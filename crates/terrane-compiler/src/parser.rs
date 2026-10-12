@@ -185,6 +185,7 @@ impl Parser<'_> {
             "while" => self.parse_while(),
             "for" => self.parse_for(),
             "select" => self.parse_select(),
+            "switch" => self.parse_switch(),
             "match" => self.parse_match(),
             "return" => self.parse_simple_value_statement(SyntaxKind::ReturnStatement),
             "throw" => self.parse_simple_value_statement(SyntaxKind::ThrowStatement),
@@ -461,6 +462,121 @@ impl Parser<'_> {
             ));
         }
         self.node(SyntaxKind::EnumVariant, start, self.position, children)
+    }
+
+    fn parse_switch(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let selector = if self.at_line_end() {
+            None
+        } else {
+            Some(self.require_expression("switch selector"))
+        };
+        self.expect(
+            TokenKind::Newline,
+            "S1023",
+            "expected a newline before switch cases",
+        );
+        self.skip_newlines();
+        let mut children = selector.into_iter().collect::<Vec<_>>();
+        let case_start = children.len();
+        if self.eat(TokenKind::Indent) {
+            self.block_depth += 1;
+            self.skip_newlines();
+            while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
+                if self.at_text("case") {
+                    children.push(self.parse_switch_case());
+                    self.finish_statement();
+                } else {
+                    self.error_here("S1110", "a switch body may contain only `case` clauses");
+                    self.recover_line();
+                }
+                self.skip_newlines();
+            }
+            self.block_depth -= 1;
+            self.expect(
+                TokenKind::Dedent,
+                "S1024",
+                "expected the end of the indented switch",
+            );
+        }
+        if children.len() == case_start {
+            self.diagnostics.push(Diagnostic::error(
+                "S1111",
+                "`switch` requires at least one `case` clause",
+                self.tokens[start].span,
+            ));
+        }
+        let cases = &children[case_start..];
+        if case_start == 0 {
+            for case in cases {
+                if let Some(header) = case.children.first()
+                    && header.kind == SyntaxKind::ArgumentList
+                    && header.children.len() != 1
+                {
+                    self.diagnostics.push(Diagnostic::error(
+                        "S1116",
+                        "a selectorless switch case requires exactly one condition",
+                        header.span,
+                    ));
+                }
+            }
+        }
+        let defaults = cases
+            .iter()
+            .filter(|case| {
+                case.children
+                    .first()
+                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+            })
+            .collect::<Vec<_>>();
+        if defaults.len() > 1 {
+            self.diagnostics.push(Diagnostic::error(
+                "S1112",
+                "`switch` permits only one `case else`",
+                defaults[1].span,
+            ));
+        }
+        if defaults
+            .first()
+            .is_some_and(|default| cases.last().is_some_and(|last| last.span != default.span))
+        {
+            self.diagnostics.push(Diagnostic::error(
+                "S1113",
+                "`case else` must be the final switch clause",
+                defaults[0].span,
+            ));
+        }
+        self.node(SyntaxKind::SwitchStatement, start, self.position, children)
+    }
+
+    fn parse_switch_case(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let header = if self.eat_text("else") {
+            self.node(SyntaxKind::MatchCatchAll, start, self.position, Vec::new())
+        } else {
+            let mut expressions = vec![self.require_expression("switch case expression")];
+            while self.eat(TokenKind::Comma) {
+                if self.at_line_end() {
+                    self.error_here("S1114", "expected an expression after `,`");
+                    break;
+                }
+                expressions.push(self.require_expression("switch case expression"));
+            }
+            self.node(SyntaxKind::ArgumentList, start, self.position, expressions)
+        };
+        if !self.at_line_end() {
+            self.error_here("S1115", "unexpected content after switch case header");
+            self.recover_line();
+        }
+        let block = self.parse_block();
+        self.node(
+            SyntaxKind::SwitchCase,
+            start,
+            self.position,
+            vec![header, block],
+        )
     }
 
     fn parse_match(&mut self) -> SyntaxNode {

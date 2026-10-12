@@ -115,8 +115,7 @@ async fn choose(
                 value = received.value;
                 if value.is_some() {
                     println!(
-                        "{}{}",
-                        terrane_scalar_support::scalar_text(&String::from("left")),
+                        "{}{}", String::from("left"),
                         terrane_scalar_support::scalar_text(&match &value { Some(value)
                         => value, _ => unreachable!("flow-proven storage refinement") })
                     );
@@ -129,8 +128,7 @@ async fn choose(
                 value = received.value;
                 if value.is_some() {
                     println!(
-                        "{}{}",
-                        terrane_scalar_support::scalar_text(&String::from("right")),
+                        "{}{}", String::from("right"),
                         terrane_scalar_support::scalar_text(&match &value { Some(value)
                         => value, _ => unreachable!("flow-proven storage refinement") })
                     );

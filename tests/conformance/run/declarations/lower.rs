@@ -18,7 +18,7 @@ fn main() {
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&block_value.as_ref().unwrap_or_else(|
-        | __terrane_uninitialized_binding("block-value", "case.trn", 10, 10)).clone())
+        | __terrane_uninitialized_binding("block-value", "case.trn", 10, 10)))
     );
     if local_value < 0 {
         else_value = 100;

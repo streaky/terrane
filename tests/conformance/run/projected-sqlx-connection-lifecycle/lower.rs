@@ -72,10 +72,7 @@ fn main() {
                             }). await, 4 /* terrane-site: src/main.trn:13:32-13:56 */
                         ),
                     );
-                println!(
-                    "{}",
-                    terrane_scalar_support::scalar_text(&String::from("unexpected-open"))
-                );
+                println!("{}", String::from("unexpected-open"));
                 __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future = { let __terrane_call = <
                     sqlx_sqlite::SqliteConnection as sqlx_core::connection::Connection
@@ -108,10 +105,7 @@ fn main() {
                             == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("missing"))
-                        );
+                        println!("{}", String::from("missing"));
                     }
                     if !__terrane_handled_0 {
                         return TerraneCompletion::Error(__terrane_error_0);
@@ -259,9 +253,6 @@ fn main() {
                 .await,
             10 /* terrane-site: src/main.trn:22:9-22:26 */,
         );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("created-and-closed"))
-        );
+        println!("{}", String::from("created-and-closed"));
     });
 }

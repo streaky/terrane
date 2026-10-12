@@ -547,7 +547,7 @@ fn main() {
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "witness",
             "witness::consume")) }, 35 /* terrane-site: src/main.trn:50:13-50:32 */)),
-            terrane_scalar_support::scalar_text(&String::from(" ")),
+            String::from(" "),
             terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&async_member))) { Ok(value) =>

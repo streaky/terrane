@@ -203,10 +203,34 @@ impl Emitter<'_> {
                     values[0]
                 )
             }
-            ("replace", _) => format!(
-                "terrane_string_support::replace(&({receiver}), &({}), &({}))",
-                values[0], values[1]
-            ),
+            ("replace", _) => {
+                let argument_nodes = arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument))
+                    .collect::<Vec<_>>();
+                let first_type = self.value_type(argument_nodes[0]);
+                let second_type = self.value_type(argument_nodes[1]);
+                if first_type == Some(ValueType::Scalar(ScalarType::String)) {
+                    format!(
+                        "terrane_string_support::replace(&({receiver}), &({}), &({}))",
+                        values[0], values[1]
+                    )
+                } else if second_type == Some(ValueType::Scalar(ScalarType::String)) {
+                    format!(
+                        "terrane_string_support::replace_broadcast(&({receiver}), ({}).as_slice(), &({}))",
+                        values[0], values[1]
+                    )
+                } else {
+                    self.fallible(
+                        format!(
+                            "terrane_string_support::replace_many(&({receiver}), ({}).as_slice(), ({}).as_slice())",
+                            values[0], values[1]
+                        ),
+                        node,
+                    )
+                }
+            }
             ("encode", _) => {
                 format!(
                     "terrane_string_support::encode(&({receiver}), {})",

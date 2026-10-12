@@ -78,7 +78,7 @@ fn main() {
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* impossible.as_ref()
+                "{}", terrane_scalar_support::scalar_text(&impossible.as_ref()
                 .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
@@ -94,10 +94,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("integer overflow caught"))
-                    );
+                    println!("{}", String::from("integer overflow caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -124,7 +121,7 @@ fn main() {
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* impossible.as_ref()
+                "{}", terrane_scalar_support::scalar_text(&impossible.as_ref()
                 .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
@@ -140,10 +137,7 @@ fn main() {
                     && __terrane_error_1.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_1 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("float overflow caught"))
-                    );
+                    println!("{}", String::from("float overflow caught"));
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);

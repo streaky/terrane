@@ -27,9 +27,7 @@ fn main() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("finally ran"))
-        );
+        println!("{}", String::from("finally ran"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {

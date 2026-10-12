@@ -5,5 +5,5 @@ fn main() {
     let unused: String;
     unused = String::from("x");
     let _ = &unused;
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("built")));
+    println!("{}", String::from("built"));
 }

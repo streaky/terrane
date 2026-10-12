@@ -17,6 +17,7 @@ enum TerraneErrorKind {
     NegativeShiftCount,
     CoercionError,
     DecodeError,
+    ReplaceError,
     IndexError,
     MissingKey,
     ResourceError,
@@ -32,6 +33,7 @@ impl TerraneErrorKind {
             Self::NegativeShiftCount => "negative-shift-count",
             Self::CoercionError => "coercion-error",
             Self::DecodeError => "decode-error",
+            Self::ReplaceError => "replace-error",
             Self::IndexError => "index-error",
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
@@ -49,6 +51,9 @@ impl TerraneErrorKind {
             Self::NegativeShiftCount => "negative integer shift count",
             Self::CoercionError => "coercion has no compatible result",
             Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::ReplaceError => {
+                "replacement search and replacement lists have different lengths"
+            }
             Self::IndexError => "collection index is out of range",
             Self::MissingKey => "collection key is absent",
             Self::ResourceError => {
@@ -315,6 +320,15 @@ impl TerraneRaised for terrane_string_support::DecodeError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
         TerraneError::raised_with_message(
             TerraneErrorKind::DecodeError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_string_support::ReplaceError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::ReplaceError,
             self.to_string(),
             origin,
         )
@@ -1336,19 +1350,25 @@ pub fn fail_comparison(
     let mut failure: TestFailure;
     details = terrane_collection_support::List::<String>::new(Vec::new());
     details
-        .append(
-            format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("actual: ")),
-                terrane_scalar_support::scalar_text(&actual)
-            ),
-        );
+        .append({
+            let mut __terrane_text = String::with_capacity(8);
+            __terrane_text.push_str("actual: ");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &actual,
+                &mut __terrane_text,
+            );
+            __terrane_text
+        });
     details
-        .append(
-            format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("expected: ")),
-                terrane_scalar_support::scalar_text(&expected)
-            ),
-        );
+        .append({
+            let mut __terrane_text = String::with_capacity(10);
+            __terrane_text.push_str("expected: ");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &expected,
+                &mut __terrane_text,
+            );
+            __terrane_text
+        });
     failure = TestFailure::terrane_construct(failure_message);
     failure.details = details;
     return Err({
@@ -1390,27 +1410,35 @@ pub fn fail_near(
     let mut failure: TestFailure;
     details = terrane_collection_support::List::<String>::new(Vec::new());
     details
-        .append(
-            format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("actual: ")),
-                terrane_scalar_support::scalar_text(&terrane_test_render_float64(actual))
-            ),
-        );
+        .append({
+            let mut __terrane_text = String::with_capacity(8);
+            __terrane_text.push_str("actual: ");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &terrane_test_render_float64(actual),
+                &mut __terrane_text,
+            );
+            __terrane_text
+        });
     details
-        .append(
-            format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("expected: ")),
-                terrane_scalar_support::scalar_text(&terrane_test_render_float64(expected))
-            ),
-        );
+        .append({
+            let mut __terrane_text = String::with_capacity(10);
+            __terrane_text.push_str("expected: ");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &terrane_test_render_float64(expected),
+                &mut __terrane_text,
+            );
+            __terrane_text
+        });
     details
-        .append(
-            format!(
-                "{}{}",
-                terrane_scalar_support::scalar_text(&String::from("tolerance: ")),
-                terrane_scalar_support::scalar_text(&terrane_test_render_float64(tolerance))
-            ),
-        );
+        .append({
+            let mut __terrane_text = String::with_capacity(11);
+            __terrane_text.push_str("tolerance: ");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &terrane_test_render_float64(tolerance),
+                &mut __terrane_text,
+            );
+            __terrane_text
+        });
     failure = TestFailure::terrane_construct(
         String::from("floating values differ beyond tolerance"),
     );
@@ -1680,13 +1708,16 @@ pub fn assert_near(
     let mut difference: f64;
     if tolerance < 0.0 {
         __terrane_traced_err(
-            fail(
-                format!(
-                    "{}{}",
-                    terrane_scalar_support::scalar_text(&String::from("near-equality tolerance must not be negative: ")),
-                    terrane_scalar_support::scalar_text(&terrane_test_render_float64(tolerance))
-                ),
-            ),
+            fail({
+                let mut __terrane_text = String::with_capacity(46);
+                __terrane_text
+                    .push_str("near-equality tolerance must not be negative: ");
+                terrane_scalar_support::ScalarDisplay::write_scalar(
+                    &terrane_test_render_float64(tolerance),
+                    &mut __terrane_text,
+                );
+                __terrane_text
+            }),
             37 /* terrane-site: core/testing.trn:181:9-181:111 */,
         )?;
     }
@@ -1735,13 +1766,14 @@ pub fn assert_throws(
                         return TerraneCompletion::Return(());
                     }
                     __terrane_traced_completion!(
-                        fail(format!("{}{}{}{}",
-                        terrane_scalar_support::scalar_text(&String::from("expected throwable descriptor ")),
-                        terrane_scalar_support::scalar_text(&expected_descriptor),
-                        terrane_scalar_support::scalar_text(&String::from(" but received ")),
-                        terrane_scalar_support::scalar_text(&error.as_ref()
-                        .expect("flow-proven available binding").clone()
-                        .descriptor_name().to_owned()))), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
+                        fail({ let mut __terrane_text = String::with_capacity(44);
+                        __terrane_text.push_str("expected throwable descriptor ");
+                        terrane_scalar_support::ScalarDisplay::write_scalar(&expected_descriptor,
+                        &mut __terrane_text); __terrane_text.push_str(" but received ");
+                        terrane_scalar_support::ScalarDisplay::write_scalar(&error
+                        .as_ref().expect("flow-proven available binding").clone()
+                        .descriptor_name().to_owned(), &mut __terrane_text);
+                        __terrane_text }), 40 /* terrane-site: core/testing.trn:195:9-195:113 */
                     );
                 }
                 if !__terrane_handled_0 {
@@ -1760,13 +1792,15 @@ pub fn assert_throws(
         }
     }
     __terrane_traced_err(
-        fail(
-            format!(
-                "{}{}",
-                terrane_scalar_support::scalar_text(&String::from("expected callback to throw ")),
-                terrane_scalar_support::scalar_text(&expected_descriptor)
-            ),
-        ),
+        fail({
+            let mut __terrane_text = String::with_capacity(27);
+            __terrane_text.push_str("expected callback to throw ");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &expected_descriptor,
+                &mut __terrane_text,
+            );
+            __terrane_text
+        }),
         41 /* terrane-site: core/testing.trn:196:5-196:70 */,
     )?;
     return Ok(());
@@ -2324,14 +2358,24 @@ pub fn parse_command_line(
                 __terrane_list_append_3
                     .push(String::from("command-line option is not Unicode text"));
             } else {
-                flag_entry = format!(
-                    "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
-                );
-                value_entry = format!(
-                    "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
-                );
+                flag_entry = {
+                    let mut __terrane_text = String::with_capacity(5);
+                    __terrane_text.push_str("flag:");
+                    terrane_scalar_support::ScalarDisplay::write_scalar(
+                        &argument.text,
+                        &mut __terrane_text,
+                    );
+                    __terrane_text
+                };
+                value_entry = {
+                    let mut __terrane_text = String::with_capacity(6);
+                    __terrane_text.push_str("value:");
+                    terrane_scalar_support::ScalarDisplay::write_scalar(
+                        &argument.text,
+                        &mut __terrane_text,
+                    );
+                    __terrane_text
+                };
                 if schema_has(schema.clone(), flag_entry) {
                     __terrane_list_append_4.push(argument.text.clone());
                 } else if schema_has(schema.clone(), value_entry) {

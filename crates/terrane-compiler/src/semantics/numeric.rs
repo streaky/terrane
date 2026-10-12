@@ -571,7 +571,7 @@ pub(super) fn infer_binary_type(
     clippy::too_many_lines,
     reason = "binary result validation keeps optional equality and numeric promotion auditable"
 )]
-fn infer_binary_result_type(
+pub(super) fn infer_binary_result_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
@@ -588,6 +588,23 @@ fn infer_binary_result_type(
         .find(|value| matches!(value, ValueType::ProjectedGeneric(_)))
     {
         return Ok(generic.clone());
+    }
+    if operator == "+"
+        && [left, right]
+            .into_iter()
+            .flatten()
+            .any(|value| *value == ValueType::Scalar(ScalarType::String))
+    {
+        for value in [left, right].into_iter().flatten() {
+            if !super::display::supports_display(unit, value, node.span.start) {
+                return Err(operator_failure(
+                    unit,
+                    node,
+                    format!("string concatenation requires text display, found `{value}`"),
+                ));
+            }
+        }
+        return Ok(ValueType::Scalar(ScalarType::String));
     }
     let optional_origin = |mut operand: &SyntaxNode| {
         while operand.kind == SyntaxKind::GroupExpression

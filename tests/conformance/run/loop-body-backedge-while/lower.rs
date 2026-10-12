@@ -10,7 +10,7 @@ fn main() {
         if index.clone() > terrane_int_support::Int::from(0_i128) {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&item.as_ref().unwrap_or_else(|
-                | __terrane_uninitialized_binding("item", "case.trn", 8, 20)).clone())
+                | __terrane_uninitialized_binding("item", "case.trn", 8, 20)))
             );
         }
         if index.clone() == terrane_int_support::Int::from(0_i128) {

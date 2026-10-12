@@ -126,7 +126,7 @@ fn main() {
                             );
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&number.as_ref()
-                            .expect("flow-proven available binding").clone())
+                            .expect("flow-proven available binding"))
                         );
                     }
                     1 => {

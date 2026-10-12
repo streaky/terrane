@@ -24,11 +24,11 @@ fn main() {
     enabled = Gate::terrane_construct(true);
     disabled = Gate::terrane_construct(false);
     if enabled.truth() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("enabled")));
+        println!("{}", String::from("enabled"));
     }
     if disabled.truth() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("unexpected")));
+        println!("{}", String::from("unexpected"));
     } else {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("disabled")));
+        println!("{}", String::from("disabled"));
     }
 }

@@ -63,7 +63,7 @@ async fn blocked() -> String {
                             );
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&inner.as_ref()
-                            .expect("flow-proven available binding").clone())
+                            .expect("flow-proven available binding"))
                         );
                         TerraneCompletion::Normal
                     }
@@ -131,7 +131,7 @@ async fn blocked() -> String {
             );
         println!(
             "{}", terrane_scalar_support::scalar_text(&outer.as_ref()
-            .expect("flow-proven available binding").clone())
+            .expect("flow-proven available binding"))
         );
         TerraneCompletion::Normal
     }

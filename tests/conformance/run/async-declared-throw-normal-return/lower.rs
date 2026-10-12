@@ -13,6 +13,6 @@ fn main() {
         let ignored: ();
         ignored = __terrane_await(quiet()).await;
         let _ = &ignored;
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("completed")));
+        println!("{}", String::from("completed"));
     });
 }

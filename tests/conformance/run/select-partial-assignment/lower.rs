@@ -117,17 +117,14 @@ fn main() {
                     let _ = __terrane_select_result_152_1
                         .take()
                         .expect("selected case owns its ready result");
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("second"))
-                    );
+                    println!("{}", String::from("second"));
                 }
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
         println!(
             "{}", terrane_scalar_support::scalar_text(&selected.as_ref().unwrap_or_else(|
-            | __terrane_uninitialized_binding("selected", "case.trn", 16, 10)).clone())
+            | __terrane_uninitialized_binding("selected", "case.trn", 16, 10)))
         );
     });
 }

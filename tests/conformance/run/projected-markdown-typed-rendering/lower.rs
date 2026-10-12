@@ -29,7 +29,7 @@ fn main() {
                 );
             println!(
                 "{}", terrane_scalar_support::scalar_text(&invalid.as_ref()
-                .expect("flow-proven available binding").clone())
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();

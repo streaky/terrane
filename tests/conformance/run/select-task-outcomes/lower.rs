@@ -146,8 +146,7 @@ async fn cancelled_winner() {
                     .take()
                     .expect("selected case owns its ready result");
                 println!(
-                    "{}{}{}",
-                    terrane_scalar_support::scalar_text(&String::from("cancelled")),
+                    "{}{}{}", String::from("cancelled"),
                     terrane_scalar_support::scalar_text(&outcome.completed),
                     terrane_scalar_support::scalar_text(&outcome.cancelled)
                 );
@@ -314,8 +313,7 @@ async fn deadline_winner() {
                     .take()
                     .expect("selected case owns its ready result");
                 println!(
-                    "{}{}{}",
-                    terrane_scalar_support::scalar_text(&String::from("deadline")),
+                    "{}{}{}", String::from("deadline"),
                     terrane_scalar_support::scalar_text(&outcome.completed),
                     terrane_scalar_support::scalar_text(&outcome.cancelled)
                 );

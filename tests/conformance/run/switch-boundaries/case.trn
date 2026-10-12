@@ -1,0 +1,62 @@
+namespace switch-boundaries
+
+class marker
+    name string
+    function construct; name string
+        this.name = name
+    function to-string string;
+        return this.name
+    consuming function destruct;
+        print; 'drop:' + this.name
+
+class required-value
+    text string
+    function construct; text string
+        this.text = text
+
+class configured
+    slot required-value
+    function construct; value string
+        switch value
+            case 'a'
+                this.slot = instance required-value; 'first'
+            case else
+                this.slot = instance required-value; 'other'
+
+function consume bool; item marker
+    print; 'consumed:' + item
+    return false
+
+function absent string|none;
+    print; 'none-expression'
+    return none
+
+function resource-case; ready bool
+    item = instance marker; 'retained'
+    switch
+        case ready
+            print; 'resource:' + item
+            print; item
+            print; (''.concat; item)
+            print; ('|'.join; item, item)
+        case (consume; move item)
+            print; 'wrong'
+
+function main;
+    selector uint8 = 255
+    other uint16 = 511
+    switch selector
+        case other
+            print; 'wrong-truncated'
+        case 255
+            print; 'wide-comparison'
+    switch (absent;)
+        case none
+            print; 'optional-none'
+    switch none
+        case (absent;)
+            print; 'none-both'
+    first = instance configured; 'a'
+    second = instance configured; 'b'
+    print; first.slot.text, '|', second.slot.text
+    resource-case; true

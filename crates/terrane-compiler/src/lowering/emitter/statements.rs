@@ -26,7 +26,7 @@ impl Emitter<'_> {
             .retain(|binding| !referenced.contains(binding));
     }
 
-    pub(super) fn statement(&mut self, node: &SyntaxNode) {
+    fn statement_debug_point(&mut self, node: &SyntaxNode) {
         if matches!(
             node.kind,
             SyntaxKind::Binding
@@ -38,6 +38,7 @@ impl Emitter<'_> {
                 | SyntaxKind::WhileStatement
                 | SyntaxKind::ForStatement
                 | SyntaxKind::SelectStatement
+                | SyntaxKind::SwitchStatement
                 | SyntaxKind::ReturnStatement
                 | SyntaxKind::ThrowStatement
                 | SyntaxKind::TryStatement
@@ -46,9 +47,14 @@ impl Emitter<'_> {
         ) {
             self.debug_point(node, "user");
         }
+    }
+
+    pub(super) fn statement(&mut self, node: &SyntaxNode) {
+        self.statement_debug_point(node);
         let referenced_fresh_lists = self.statement_fresh_list_references(node);
         match node.kind {
             SyntaxKind::MatchStatement => self.enum_match_statement(node),
+            SyntaxKind::SwitchStatement => self.switch_statement(node),
             SyntaxKind::Binding => {
                 if !self.global_assignment(node) {
                     self.binding(node);
@@ -1461,6 +1467,140 @@ impl Emitter<'_> {
             return self.fallible(format!("terrane_int_support::{helper}({value}, 1)"), node);
         }
         unreachable!("semantic analysis validated postfix integer target");
+    }
+
+    pub(super) fn switch_statement(&mut self, node: &SyntaxNode) {
+        let selector = node
+            .children
+            .first()
+            .filter(|child| child.kind != SyntaxKind::SwitchCase);
+        let cases = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::SwitchCase)
+            .collect::<Vec<_>>();
+        let name = format!("__terrane_switch_value_{}", node.span.start);
+        let mut storage_type = selector.and_then(|selector| self.value_type(selector));
+        if let Some(selector) = selector {
+            if storage_type == Some(ValueType::Scalar(ScalarType::Int))
+                && (self.small_int_binding(selector).is_some()
+                    || matches!(
+                        contextual_constant(self.source, selector, ScalarType::Int64),
+                        Some(Ok(_))
+                    ))
+                && cases
+                    .iter()
+                    .filter_map(|case| case.children.first())
+                    .flat_map(|header| &header.children)
+                    .all(|candidate| {
+                        self.small_int_binding(candidate).is_some()
+                            || matches!(
+                                contextual_constant(self.source, candidate, ScalarType::Int64),
+                                Some(Ok(_))
+                            )
+                    })
+            {
+                storage_type = Some(ValueType::Scalar(ScalarType::Int64));
+            }
+            let value = match &storage_type {
+                Some(ValueType::Scalar(scalar)) if scalar.is_integer() || is_numeric(*scalar) => {
+                    self.expression_as(selector, ValueType::Scalar(*scalar))
+                }
+                _ => self.receiver_guard_expression(selector),
+            };
+            self.line(&format!("let {name} = &({value});"));
+        }
+        let mut conditional = false;
+        for case in cases {
+            let [header, body] = case.children.as_slice() else {
+                continue;
+            };
+            if header.kind == SyntaxKind::MatchCatchAll {
+                if conditional {
+                    self.line("else {");
+                } else {
+                    self.block(body);
+                    continue;
+                }
+            } else {
+                let condition = if let Some(selector) = selector {
+                    header
+                        .children
+                        .iter()
+                        .map(|candidate| {
+                            self.switch_comparison(
+                                selector,
+                                candidate,
+                                &name,
+                                storage_type.as_ref(),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" || ")
+                } else {
+                    self.control_condition(&header.children[0])
+                };
+                let keyword = if conditional { "else if" } else { "if" };
+                self.line(&format!("{keyword} {condition} {{"));
+                conditional = true;
+            }
+            self.indent += 1;
+            self.block(body);
+            self.indent -= 1;
+            self.line("}");
+        }
+    }
+
+    fn switch_comparison(
+        &mut self,
+        selector: &SyntaxNode,
+        candidate: &SyntaxNode,
+        name: &str,
+        storage_type: Option<&ValueType>,
+    ) -> String {
+        if storage_type == Some(&ValueType::Scalar(ScalarType::String)) {
+            let right = self.string_comparison_operand(candidate);
+            return format!("{name}.as_str() == {right}");
+        }
+        if matches!(storage_type, Some(ValueType::Optional(_)))
+            && self.value_type(candidate) == Some(ValueType::Scalar(ScalarType::None))
+        {
+            let right = self.receiver_guard_expression(candidate);
+            return format!("{{ let _ = {right}; {name}.is_none() }}");
+        }
+        if storage_type == Some(&ValueType::Scalar(ScalarType::None))
+            && matches!(self.value_type(candidate), Some(ValueType::Optional(_)))
+        {
+            let right = self.receiver_guard_expression(candidate);
+            return format!("({right}).is_none()");
+        }
+        if storage_type == Some(&ValueType::Scalar(ScalarType::None))
+            && self.value_type(candidate) == Some(ValueType::Scalar(ScalarType::None))
+        {
+            let right = self.receiver_guard_expression(candidate);
+            return format!("{{ let _ = {right}; true }}");
+        }
+        let operation_type = if storage_type == Some(&ValueType::Scalar(ScalarType::Int64))
+            && self.value_type(selector) == Some(ValueType::Scalar(ScalarType::Int))
+        {
+            Some(ScalarType::Int64)
+        } else {
+            self.numeric_operation_type(selector, candidate)
+        };
+        if let Some(operation_type) = operation_type {
+            let right = self.expression_as(candidate, ValueType::Scalar(operation_type));
+            let left = if storage_type == Some(&ValueType::Scalar(operation_type)) {
+                name.to_owned()
+            } else if operation_type == ScalarType::Int {
+                format!("&terrane_int_support::Int::from(*{name} as i128)")
+            } else {
+                let rust_type = rust_type(operation_type);
+                format!("&(*{name} as {rust_type})")
+            };
+            return format!("{left} == &({right})");
+        }
+        let right = self.receiver_guard_expression(candidate);
+        format!("{name} == &({right})")
     }
 
     pub(super) fn if_statement(&mut self, node: &SyntaxNode) {

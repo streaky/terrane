@@ -236,7 +236,7 @@ fn main() {
                                 .expect("selected case owns its ready result"),
                         );
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
+                        "{}", terrane_scalar_support::scalar_text(&value.as_ref()
                         .expect("flow-proven available binding"))
                     );
                 }
@@ -248,7 +248,7 @@ fn main() {
                                 .expect("selected case owns its ready result"),
                         );
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
+                        "{}", terrane_scalar_support::scalar_text(&value.as_ref()
                         .expect("flow-proven available binding"))
                     );
                 }

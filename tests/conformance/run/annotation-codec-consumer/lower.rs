@@ -211,10 +211,7 @@ fn main() {
             ),
         );
     }
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&String::from("invalid inputs rejected"))
-    );
+    println!("{}", String::from("invalid inputs rejected"));
     profile_value = Profile::terrane_construct();
     profile_value.handle = String::from("works");
     profile_encoded = encode_profile(profile_value);
@@ -432,13 +429,15 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
             && key.as_str() != "active" && key.as_str() != "age"
             && key.as_str() != "nickname"
         {
-            return fail_decoded_terrane_generated_annotation_codec_codec_model_account(
-                format!(
-                    "{}{}",
-                    terrane_scalar_support::scalar_text(&String::from("unknown or inaccessible field: ")),
-                    terrane_scalar_support::scalar_text(&key)
-                ),
-            );
+            return fail_decoded_terrane_generated_annotation_codec_codec_model_account({
+                let mut __terrane_text = String::with_capacity(31);
+                __terrane_text.push_str("unknown or inaccessible field: ");
+                terrane_scalar_support::ScalarDisplay::write_scalar(
+                    &key,
+                    &mut __terrane_text,
+                );
+                __terrane_text
+            });
         }
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -659,12 +658,15 @@ fn encode_account(value: Account) -> AccountEncoded {
             String::from("accountId violates maximum"),
         );
     }
-    encoded_value0 = make_document_integer(
-        format!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("")),
-            terrane_scalar_support::scalar_text(&value.account_id)
-        ),
-    );
+    encoded_value0 = make_document_integer({
+        let mut __terrane_text = String::with_capacity(0);
+        __terrane_text.push_str("");
+        terrane_scalar_support::ScalarDisplay::write_scalar(
+            &value.account_id,
+            &mut __terrane_text,
+        );
+        __terrane_text
+    });
     if encoded_value0.failed {
         return fail_encoded_terrane_generated_annotation_codec_codec_model_account(
             encoded_value0.message.clone(),
@@ -676,13 +678,18 @@ fn encode_account(value: Account) -> AccountEncoded {
     entries.append(String::from("active"), make_document_bool(value.active));
     value_field3 = value.age;
     if value_field3.is_some() {
-        encoded_value3 = make_document_integer(
-            format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("")),
-                terrane_scalar_support::scalar_text(&* match &value_field3 { Some(value)
-                => value, _ => unreachable!("flow-proven storage refinement") })
-            ),
-        );
+        encoded_value3 = make_document_integer({
+            let mut __terrane_text = String::with_capacity(0);
+            __terrane_text.push_str("");
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &*match &value_field3 {
+                    Some(value) => value,
+                    _ => unreachable!("flow-proven storage refinement"),
+                },
+                &mut __terrane_text,
+            );
+            __terrane_text
+        });
         if encoded_value3.failed {
             return fail_encoded_terrane_generated_annotation_codec_codec_model_account(
                 encoded_value3.message.clone(),
@@ -784,13 +791,15 @@ fn decode_profile(document: DocumentValue) -> ProfileDecoded {
     while index.clone() < key_count.clone() {
         key = document.key(index.clone());
         if key.as_str() != "handle" {
-            return fail_decoded_terrane_generated_annotation_codec_codec_model_profile(
-                format!(
-                    "{}{}",
-                    terrane_scalar_support::scalar_text(&String::from("unknown or inaccessible field: ")),
-                    terrane_scalar_support::scalar_text(&key)
-                ),
-            );
+            return fail_decoded_terrane_generated_annotation_codec_codec_model_profile({
+                let mut __terrane_text = String::with_capacity(31);
+                __terrane_text.push_str("unknown or inaccessible field: ");
+                terrane_scalar_support::ScalarDisplay::write_scalar(
+                    &key,
+                    &mut __terrane_text,
+                );
+                __terrane_text
+            });
         }
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }

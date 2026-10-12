@@ -82,6 +82,7 @@ Terrane package
 │   │   │   ├── resource-error                 compiler-owned throwable object
 │   │   │   ├── coercion-error                 compiler-owned throwable object
 │   │   │   ├── decode-error                   compiler-owned throwable object
+│   │   │   ├── replace-error                  unequal paired replacement lists
 │   │   │   ├── index-error                    compiler-owned throwable object
 │   │   │   ├── missing-key                    compiler-owned throwable object
 │   │   │   ├── dependency-error               fallback native `Result::Err` throwable object
@@ -545,7 +546,13 @@ string value
     └── value is a string -> bool
 ```
 
-`.concat` accepts zero or more values, converts each through Terrane's canonical scalar display, and appends them without a separator. `.join` accepts the same values but interleaves the receiver as the separator; an empty call yields the empty string and a singleton call adds no separator. String transformation, search, normalization, and case folding lower through the pinned support runtime. Empty-pattern search, split, and replacement use logical extended-grapheme boundaries: `find.all` includes both ends, `split` returns the graphemes without synthetic empty strings, and `replace` inserts at every boundary. The compiler-owned read-only lists returned by `split` and `find.all` expose `.length` and support `for` iteration; `split` results additionally support indexing.
+String `+` uses ordinary additive precedence and left association. A statically string operand selects concatenation through the shared text-display protocol; purely numeric pairs remain arithmetic. For example, `2 + 3 + ' items'` produces `'5 items'`, while `'items: ' + 2 + 3` produces `'items: 23'`. Group the arithmetic explicitly to produce `'items: 5'`.
+
+Non-bytes built-in scalars expose `.to-string;`. Source classes opt into the same representation used by string `+`, `.concat`, `.join`, and `print` with a safe, synchronous, non-static, shared, parameterless, nongeneric `to-string` method returning `string`. Inherited and trait methods participate. Throwing renderers propagate their ordinary inferred throwable set and may be caught; unsupported values have no fallback rendering.
+
+`.replace` accepts two scalar strings, a list of searches with a corresponding list of replacements, or a list of searches with one broadcast replacement. Multi-search matches only the original input with earliest-list priority at a shared starting position. Unequal paired lengths throw `/core/errors::replace-error`. Empty patterns compete only at unconsumed original grapheme boundaries; when one wins it inserts and advances one original scalar unchanged.
+
+`.concat` accepts zero or more values, converts each through Terrane's canonical text display, and appends them without a separator. `.join` accepts the same values but interleaves the receiver as the separator; an empty call yields the empty string and a singleton call adds no separator. String transformation, search, normalization, and case folding lower through the pinned support runtime. Empty-pattern search, split, and replacement use logical extended-grapheme boundaries: `find.all` includes both ends, `split` returns the graphemes without synthetic empty strings, and `replace` inserts at every boundary. The compiler-owned read-only lists returned by `split` and `find.all` expose `.length` and support `for` iteration; `split` results additionally support indexing.
 
 ### `none`
 
@@ -557,7 +564,7 @@ none value
     └── value is a none -> bool
 ```
 
-`none` is also the absent arm of `.coerce.checked`. No other operations on `none` are implemented.
+`none` is also the absent arm of `.coerce.checked`. Its `.to-string;` conversion produces `'none'`, using the same canonical representation as implicit text display.
 
 ### `bytes`
 
@@ -671,8 +678,8 @@ print; values... -> none
   semantically rather than deferred to generated Rust.
 - Converts each argument with canonical text display, concatenates the results without separators,
   and writes one trailing newline.
-- Every usable scalar type and `none` implements that display contract. `bytes`, member-family
-  objects, and result objects do not.
+- Supported built-in scalars and `none` implement that display contract. Source classes may provide
+  `to-string`; every finite alternative must support display. Arbitrary `bytes` remain unsupported.
 
 ### Source-declared functions
 
@@ -732,7 +739,6 @@ successful construction path must initialize them exactly once before observatio
 Partial failure drops initialized fields without invoking an incomplete object's user destructor.
 Projected native records instead retain their admitted storage and construction recipes.
 
-
 ## Source object and name model
 
 Terrane resolves every bare name through one ordered view:
@@ -749,7 +755,7 @@ A top-level plain assignment creates a namespace variable. Functions cannot read
 
 `constant` declarations are non-rebindable at every supported identity tier. In one lexical scope, an ordinary assignment to an already initialized local creates a replacement binding; its initializer sees the earlier binding, and its inferred type may change. Assignment to an uninitialized local, an enclosing-scope binding, or a parameter remains mutation. Generated Rust marks only genuinely mutated storage mutable.
 
-Only named and anonymous functions introduce lexical scopes. `if`/`else`, `select`, `while`, and `for` share their function's variables and replacement rules; loop targets remain visible afterward. Flow joins form ordinary finite unions of reaching types. Only uncertain variables represent uncertainty, checked at uncertain uses. Proven uses need no source-level availability check, though native lowering may safely assert the compiler invariant when that variable needs uncertainty storage elsewhere. Owned values are released on replacement or function exit, not control-block exit.
+Only named and anonymous functions introduce lexical scopes. `if`/`else`, `switch`, `match`, `select`, `while`, and `for` share their function's variables and replacement rules; loop targets remain visible afterward. Flow joins form ordinary finite unions of reaching types. Only uncertain variables represent uncertainty, checked at uncertain uses. Proven uses need no source-level availability check, though native lowering may safely assert the compiler invariant when that variable needs uncertainty storage elsewhere. Owned values are released on replacement or function exit, not control-block exit.
 
 ## Classes, interfaces, traits, and references
 

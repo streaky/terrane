@@ -93,26 +93,11 @@ fn run_command() -> terrane_int_support::Int {
         terrane_int_support::Int::from(parsed.flags.length()),
     ) > terrane_int_support::Int::from(0_i128)
     {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("Usage: greet [options]"))
-        );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("Configured command summary"))
-        );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("  --name <string>  Name to greet"))
-        );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("  --limit <int> (default: 10)  Greeting limit"))
-        );
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("  --help  Show this help"))
-        );
+        println!("{}", String::from("Usage: greet [options]"));
+        println!("{}", String::from("Configured command summary"));
+        println!("{}", String::from("  --name <string>  Name to greet"));
+        println!("{}", String::from("  --limit <int> (default: 10)  Greeting limit"));
+        println!("{}", String::from("  --help  Show this help"));
         return terrane_int_support::Int::from(0_i128);
     }
     name = String::from("");
@@ -180,8 +165,7 @@ fn run_command() -> terrane_int_support::Int {
                         {
                             __terrane_handled_0 = true;
                             println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("invalid integer value for --limit"))
+                                "{}", String::from("invalid integer value for --limit")
                             );
                             return TerraneCompletion::Return(
                                 terrane_int_support::Int::from(2_i128),
@@ -205,10 +189,7 @@ fn run_command() -> terrane_int_support::Int {
         option_index = option_index.clone() + terrane_int_support::Int::from(1_i128);
     }
     if !seen_name {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("missing required option --name"))
-        );
+        println!("{}", String::from("missing required option --name"));
         return terrane_int_support::Int::from(2_i128);
     }
     return greet(name, limit.clone());

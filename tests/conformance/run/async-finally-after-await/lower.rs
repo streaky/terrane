@@ -16,7 +16,7 @@ fn main() {
                         let _ = value.insert(__terrane_await(step()).await);
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&value.as_ref()
-                            .expect("flow-proven available binding").clone())
+                            .expect("flow-proven available binding"))
                         );
                         TerraneCompletion::Normal
                     }
@@ -43,9 +43,7 @@ fn main() {
         let mut __terrane_completion_0 = __terrane_maybe_completion_0
             .unwrap_or(TerraneCompletion::Normal);
         let __terrane_finally_0: TerraneCompletion<()> = (|| {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("cleanup"))
-            );
+            println!("{}", String::from("cleanup"));
             TerraneCompletion::Normal
         })();
         match __terrane_finally_0 {

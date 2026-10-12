@@ -90,8 +90,7 @@ fn main() {
         1 /* terrane-site: src/main.trn:13:16-13:40 */,
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&value),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        "{}{}{}", terrane_scalar_support::scalar_text(&value), String::from(":"),
         terrane_scalar_support::scalar_text(&size)
     );
 }

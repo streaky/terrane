@@ -585,10 +585,7 @@ fn main() {
                 if !__terrane_handled_8 {
                     __terrane_handled_8 = true;
                     let _ = failure_8.insert(__terrane_error_8.clone());
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("catch-all"))
-                    );
+                    println!("{}", String::from("catch-all"));
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&failure_8.as_ref()
                         .expect("flow-proven available binding").clone().message()

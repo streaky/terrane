@@ -16,16 +16,17 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&seen
         .clone()) as i128))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&seen.clone()));
+    println!("{}", terrane_scalar_support::scalar_text(&* seen));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&format!("{}{}",
-        terrane_scalar_support::scalar_text(&seen.clone()),
-        terrane_scalar_support::scalar_text(&String::from("!"))))
+        "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
+        String::with_capacity(1); terrane_scalar_support::ScalarDisplay::write_scalar(&*
+        seen, &mut __terrane_text); __terrane_text.push_str("!"); __terrane_text })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&vec![terrane_scalar_support::scalar_text(&String::from("x")),
-        terrane_scalar_support::scalar_text(&String::from("y"))] .join(&seen.clone()))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_separator = &seen
+        .clone(); let mut __terrane_text = String::with_capacity(2); __terrane_text
+        .push_str("x"); __terrane_text.push_str(__terrane_separator); __terrane_text
+        .push_str("y"); __terrane_text })
     );
     encoded = terrane_string_support::encode(
         &text,
@@ -40,9 +41,9 @@ fn main() {
     number = std::sync::Arc::new(std::sync::Mutex::new(7));
     observed = std::sync::Arc::downgrade(&number.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed
-        .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })
+        "{}", { let __terrane_owner = observed.upgrade().expect("reference expired");
+        terrane_scalar_support::scalar_text(&* __terrane_owner.lock()
+        .expect("reference lock poisoned")) }
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
@@ -71,8 +72,8 @@ fn main() {
     );
     owner = number.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = owner.lock()
-        .expect("shared reference lock poisoned").clone(); __terrane_value })
+        "{}", terrane_scalar_support::scalar_text(&* owner.lock()
+        .expect("shared reference lock poisoned"))
     );
     println!(
         "{}",

@@ -209,27 +209,7 @@ pub(super) fn validate_call_nodes<'a>(
             let value_type =
                 transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
             let printable = |value_type: &ValueType| {
-                matches!(
-                    value_type,
-                    ValueType::Scalar(
-                        ScalarType::Bool
-                            | ScalarType::Int
-                            | ScalarType::Int8
-                            | ScalarType::Int16
-                            | ScalarType::Int32
-                            | ScalarType::Int64
-                            | ScalarType::Int128
-                            | ScalarType::Uint8
-                            | ScalarType::Uint16
-                            | ScalarType::Uint32
-                            | ScalarType::Uint64
-                            | ScalarType::Uint128
-                            | ScalarType::Float32
-                            | ScalarType::Float64
-                            | ScalarType::String
-                            | ScalarType::None
-                    ) | ValueType::Descriptor(_)
-                )
+                super::display::supports_display(unit, value_type, value.span.start)
             };
             if !value_type
                 .as_ref()
@@ -242,7 +222,7 @@ pub(super) fn validate_call_nodes<'a>(
                     &unit.source,
                     "T0035",
                     format!(
-                        "`print` requires a text-displayable scalar value, found {}",
+                        "`print` requires a text-displayable value, found {}",
                         value_type.map_or_else(|| "unknown".to_owned(), |ty| ty.to_string())
                     ),
                     value.span,

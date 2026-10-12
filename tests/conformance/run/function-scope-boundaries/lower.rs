@@ -108,7 +108,7 @@ fn borrow_match(item: Choice) -> terrane_int_support::Int {
         }
         Choice::Label(__terrane_pattern_238_value) => {
             value_2 = __terrane_pattern_238_value;
-            println!("{}", terrane_scalar_support::scalar_text(&value_2.clone()));
+            println!("{}", terrane_scalar_support::scalar_text(&* value_2));
             result = terrane_int_support::Int::from(
                 terrane_string_support::length(&value_2.clone()) as i128,
             );
@@ -136,7 +136,14 @@ fn move_match(item: Choice) {
             result = TerraneUnionF0S442::Arm1(value_2);
         }
     }
-    println!("{}", terrane_scalar_support::scalar_text(&result));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &result {
+        TerraneUnionF0S442::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S442::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn closure_boundary() -> terrane_int_support::Int {
     let outer: i64;

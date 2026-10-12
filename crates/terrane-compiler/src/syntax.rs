@@ -35,6 +35,7 @@ pub const KEYWORDS: &[&str] = &[
     "is",
     "label",
     "match",
+    "switch",
     "move",
     "namespace",
     "not",
@@ -126,6 +127,8 @@ pub enum SyntaxKind {
     ForTarget,
     SelectStatement,
     SelectCase,
+    SwitchStatement,
+    SwitchCase,
     MatchStatement,
     MatchCase,
     MatchCatchAll,
@@ -191,6 +194,10 @@ impl SyntaxKind {
             (Self::TypeParameter, Self::TypeExpression, _) => "bound",
             (Self::EnumDeclaration, Self::Block, _) => "variants",
             (Self::EnumVariant, Self::ParameterList, _) => "payload",
+            (Self::SwitchStatement, Self::SwitchCase, _) => "case",
+            (Self::SwitchStatement, _, 0) => "selector",
+            (Self::SwitchCase, Self::ArgumentList, 0) => "conditions",
+            (Self::SwitchCase, Self::MatchCatchAll, 0) => "default",
             (Self::MatchStatement, _, 0) => "scrutinee",
             (Self::MatchStatement, Self::MatchCase, _) => "case",
             (
@@ -198,7 +205,6 @@ impl SyntaxKind {
                 Self::StaticMemberExpression | Self::Name | Self::MatchCatchAll,
                 0,
             ) => "variant",
-            (Self::MatchCase, Self::ParameterList, _) => "bindings",
             (Self::Binding, Self::TypeExpression, _) => "type",
             (Self::Binding, _, _)
             | (Self::Assignment, _, 1)
@@ -223,7 +229,8 @@ impl SyntaxKind {
                 Self::FunctionDeclaration
                 | Self::IfStatement
                 | Self::WhileStatement
-                | Self::MatchCase,
+                | Self::MatchCase
+                | Self::SwitchCase,
                 Self::Block,
                 _,
             ) => "body",

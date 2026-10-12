@@ -9,8 +9,5 @@ fn describe(enabled: bool, payload: Vec<u8>, small: i8) -> String {
 }
 fn main() {
     describe(true, Vec::from([97, 98, 99]), 1);
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&String::from("core namespace import works"))
-    );
+    println!("{}", String::from("core namespace import works"));
 }

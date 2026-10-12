@@ -173,14 +173,34 @@ pub(super) fn validate_assignment_block(
                         });
                 }
             }
-            SyntaxKind::SelectStatement | SyntaxKind::MatchStatement => {
+            SyntaxKind::SelectStatement
+            | SyntaxKind::MatchStatement
+            | SyntaxKind::SwitchStatement => {
                 let incoming = assigned.clone();
                 let mut results = Vec::new();
-                let mut exhaustive = statement.kind == SyntaxKind::SelectStatement;
-                for case in &statement.children {
+                let cases_start = usize::from(
+                    statement.kind == SyntaxKind::SwitchStatement
+                        && statement
+                            .children
+                            .first()
+                            .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
+                );
+                let mut exhaustive = statement.kind == SyntaxKind::SelectStatement
+                    || statement.kind == SyntaxKind::SwitchStatement
+                        && statement.children.iter().any(|case| {
+                            case.kind == SyntaxKind::SwitchCase
+                                && case
+                                    .children
+                                    .first()
+                                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+                        });
+                for case in statement.children.iter().skip(cases_start) {
                     if !matches!(
                         case.kind,
-                        SyntaxKind::SelectCase | SyntaxKind::MatchCase | SyntaxKind::ElseClause
+                        SyntaxKind::SelectCase
+                            | SyntaxKind::MatchCase
+                            | SyntaxKind::ElseClause
+                            | SyntaxKind::SwitchCase
                     ) {
                         continue;
                     }
@@ -195,7 +215,14 @@ pub(super) fn validate_assignment_block(
                     let mut case_declared = declared.clone();
                     let mut case_assigned = incoming.clone();
                     if let Some(header) = header {
-                        if case.kind == SyntaxKind::SelectCase && header.kind == SyntaxKind::Binding
+                        if case.kind == SyntaxKind::SwitchCase
+                            && header.kind == SyntaxKind::ArgumentList
+                        {
+                            for expression in &header.children {
+                                validate_assigned_reads(unit, expression, declared, &incoming)?;
+                            }
+                        } else if case.kind == SyntaxKind::SelectCase
+                            && header.kind == SyntaxKind::Binding
                         {
                             if let Some(value) = header.children.iter().rev().find(|child| {
                                 child.kind != SyntaxKind::Name
@@ -207,9 +234,14 @@ pub(super) fn validate_assignment_block(
                                 case_declared.insert(name.clone());
                                 case_assigned.insert(name);
                             }
-                        } else {
+                        } else if header.kind != SyntaxKind::MatchCatchAll {
                             validate_assigned_reads(unit, header, declared, &incoming)?;
                         }
+                    }
+                    if case.kind == SyntaxKind::SwitchCase
+                        && header.is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+                    {
+                        exhaustive = true;
                     }
                     if case.kind == SyntaxKind::MatchCase {
                         if case
@@ -443,6 +475,21 @@ pub(super) fn block_may_fall_through(block: &SyntaxNode) -> bool {
             block_may_fall_through(statement)
         }
         SyntaxKind::SelectStatement => statement.children.iter().any(block_may_fall_through),
+        SyntaxKind::SwitchStatement => {
+            let has_default = statement.children.iter().any(|case| {
+                case.kind == SyntaxKind::SwitchCase
+                    && case
+                        .children
+                        .first()
+                        .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+            });
+            !has_default
+                || statement
+                    .children
+                    .iter()
+                    .filter(|case| case.kind == SyntaxKind::SwitchCase)
+                    .any(block_may_fall_through)
+        }
         SyntaxKind::MatchStatement => statement
             .children
             .iter()
@@ -540,6 +587,70 @@ pub(super) fn validate_flow_statement(
             Ok(any_falls_through)
         }
 
+        SyntaxKind::SwitchStatement => {
+            let cases_start = usize::from(
+                statement
+                    .children
+                    .first()
+                    .is_some_and(|child| child.kind != SyntaxKind::SwitchCase),
+            );
+            let cases = statement
+                .children
+                .iter()
+                .skip(cases_start)
+                .filter(|child| child.kind == SyntaxKind::SwitchCase)
+                .collect::<Vec<_>>();
+            let has_default = cases.iter().any(|case| {
+                case.children
+                    .first()
+                    .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+            });
+            let selector = statement.children.first().filter(|_| cases_start != 0);
+            let selector_type = selector
+                .map(|selector| infer_value_type(unit, selector, bindings))
+                .transpose()?
+                .flatten();
+            let mut any_falls_through = !has_default;
+            for case in cases {
+                if let Some(header) = case.children.first()
+                    && header.kind == SyntaxKind::ArgumentList
+                {
+                    for expression in &header.children {
+                        if let Some(selector) = selector {
+                            let comparison = SyntaxNode::new(
+                                SyntaxKind::BinaryExpression,
+                                expression.span,
+                                expression.token_range.clone(),
+                                vec![selector.clone(), expression.clone()],
+                            );
+                            let candidate = infer_value_type(unit, expression, bindings)?;
+                            super::numeric::infer_binary_result_type(
+                                unit,
+                                &comparison,
+                                bindings,
+                                (selector, expression),
+                                "==",
+                                selector_type.as_ref(),
+                                candidate.as_ref(),
+                            )?;
+                        } else {
+                            validate_bool_condition(unit, expression, bindings)?;
+                        }
+                    }
+                }
+                if let Some(block) = case.children.last() {
+                    any_falls_through |= validate_flow_block(
+                        unit,
+                        block,
+                        contract,
+                        bindings,
+                        loop_depth,
+                        unreachable,
+                    )?;
+                }
+            }
+            Ok(any_falls_through)
+        }
         SyntaxKind::TryStatement => {
             let try_falls_through = if let Some(block) = statement.children.first() {
                 validate_flow_block(unit, block, contract, bindings, loop_depth, unreachable)?

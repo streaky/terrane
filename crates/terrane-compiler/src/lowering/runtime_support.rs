@@ -253,6 +253,7 @@ pub(super) fn emit_error_support(
             NegativeShiftCount,
             CoercionError,
             DecodeError,
+            ReplaceError,
             IndexError,
             MissingKey,
             ResourceError,
@@ -272,6 +273,7 @@ pub(super) fn emit_error_support(
                     Self::NegativeShiftCount => "negative-shift-count",
                     Self::CoercionError => "coercion-error",
                     Self::DecodeError => "decode-error",
+                    Self::ReplaceError => "replace-error",
                     Self::IndexError => "index-error",
                     Self::MissingKey => "missing-key",
                     Self::ResourceError => "resource-error",
@@ -293,6 +295,7 @@ pub(super) fn emit_error_support(
                     Self::NegativeShiftCount => "negative integer shift count",
                     Self::CoercionError => "coercion has no compatible result",
                     Self::DecodeError => "invalid byte sequence for selected encoding",
+                    Self::ReplaceError => "replacement search and replacement lists have different lengths",
                     Self::IndexError => "collection index is out of range",
                     Self::MissingKey => "collection key is absent",
                     Self::ResourceError => {
@@ -584,6 +587,15 @@ pub(super) fn emit_error_support(
             fn raised(self, origin: TerraneSite) -> TerraneError {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::DecodeError,
+                    self.to_string(),
+                    origin,
+                )
+            }
+        }
+        impl TerraneRaised for terrane_string_support::ReplaceError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::ReplaceError,
                     self.to_string(),
                     origin,
                 )

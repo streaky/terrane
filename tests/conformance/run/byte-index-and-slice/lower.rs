@@ -124,9 +124,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::IndexError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&String::from("index"))
-                    );
+                    println!("{}", String::from("index"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -165,9 +163,7 @@ fn main() {
                     && __terrane_error_1.kind == TerraneErrorKind::IndexError
                 {
                     __terrane_handled_1 = true;
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&String::from("slice"))
-                    );
+                    println!("{}", String::from("slice"));
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);

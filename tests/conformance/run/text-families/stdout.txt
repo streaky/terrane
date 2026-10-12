@@ -11,3 +11,11 @@ truetrue
 1
 XéX
 321
+&amp;&lt;
+&amp;&lt;
+x and x
+firstb
+aabcc
+text
+-é-
+replacement-list-mismatch

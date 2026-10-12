@@ -63,10 +63,7 @@ fn main() {
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught"))
-                    );
+                    println!("{}", String::from("caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -76,7 +73,7 @@ fn main() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("finally")));
+        println!("{}", String::from("finally"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {

@@ -119,11 +119,7 @@ fn main() {
         },
         5 /* terrane-site: src/main.trn:18:21-18:36 */,
     );
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(i128::from(*
-        &record.value)))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&record.value));
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
     observed = __terrane_raised(
         match std::panic::catch_unwind(
@@ -349,8 +345,5 @@ fn main() {
         let _ = &value;
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&String::from("empty collection selected"))
-    );
+    println!("{}", String::from("empty collection selected"));
 }

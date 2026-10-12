@@ -152,6 +152,13 @@ fn main() {
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        println!("{}", terrane_scalar_support::scalar_text(&selected));
+        println!(
+            "{}", { let mut __terrane_text = String::new(); match &selected {
+            TerraneUnionF0S155::Arm0(__terrane_arm) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+            __terrane_text); }, TerraneUnionF0S155::Arm1(__terrane_arm) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+            __terrane_text); } } __terrane_text }
+        );
     });
 }

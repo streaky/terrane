@@ -54,7 +54,14 @@ fn parameter_carrier(
         let value_3 = value_3.clone();
         let value_2 = value_2.clone();
         std::sync::Arc::new(move || -> () {
-            println!("{}", terrane_scalar_support::scalar_text(&value_3));
+            println!(
+                "{}", { let mut __terrane_text = String::new(); match &value_3 {
+                TerraneUnionF0S367::Arm0(__terrane_arm) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+                __terrane_text); }, TerraneUnionF0S367::Arm1(__terrane_arm) => {
+                terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+                __terrane_text); } } __terrane_text }
+            );
             println!("{}", terrane_scalar_support::scalar_text(&value_2));
             ()
         })

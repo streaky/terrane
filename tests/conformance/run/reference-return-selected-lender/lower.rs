@@ -25,5 +25,5 @@ fn main() {
     left = &left_value;
     right = &right_value;
     chosen = relay(left, right);
-    println!("{}", terrane_scalar_support::scalar_text(&chosen.clone()));
+    println!("{}", terrane_scalar_support::scalar_text(&* chosen));
 }

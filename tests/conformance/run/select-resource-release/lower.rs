@@ -20,9 +20,7 @@ impl Marker {
         value
     }
     pub fn destruct(&mut self) {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("resource-released"))
-        );
+        println!("{}", String::from("resource-released"));
     }
 }
 impl Drop for Marker {
@@ -76,9 +74,7 @@ async fn failing_loser(
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("loser-cleanup"))
-        );
+        println!("{}", String::from("loser-cleanup"));
         return TerraneCompletion::Error(
             TerraneError::raised(
                 TerraneErrorKind::CoercionError,
@@ -256,10 +252,7 @@ fn main() {
                                 .expect("selected case owns its ready result"),
                                 2 /* terrane-site: case.trn:25:18-25:48 */
                             );
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected loser"))
-                            );
+                            println!("{}", String::from("unexpected loser"));
                         }
                         1 => {
                             let _ = selected
@@ -292,10 +285,7 @@ fn main() {
                         && __terrane_error_1.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_1 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("caught-cleanup-error"))
-                        );
+                        println!("{}", String::from("caught-cleanup-error"));
                     }
                     if !__terrane_handled_1 {
                         return TerraneCompletion::Error(__terrane_error_1);

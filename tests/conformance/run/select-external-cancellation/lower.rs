@@ -181,17 +181,13 @@ async fn wait_for_either(
                 let _ = __terrane_select_result_517_0
                     .take()
                     .expect("selected case owns its ready result");
-                println!(
-                    "{}", terrane_scalar_support::scalar_text(&String::from("a-won"))
-                );
+                println!("{}", String::from("a-won"));
             }
             1 => {
                 let _ = __terrane_select_result_517_1
                     .take()
                     .expect("selected case owns its ready result");
-                println!(
-                    "{}", terrane_scalar_support::scalar_text(&String::from("b-won"))
-                );
+                println!("{}", String::from("b-won"));
             }
             _ => unreachable!("selected winner is within the case count"),
         }

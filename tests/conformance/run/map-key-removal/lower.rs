@@ -26,8 +26,8 @@ impl Marker {
     }
     pub fn destruct(&mut self) {
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("drop-")),
-            terrane_scalar_support::scalar_text(&self.name)
+            "{}{}", String::from("drop-"), terrane_scalar_support::scalar_text(&self
+            .name)
         );
     }
 }
@@ -138,10 +138,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::MissingKey
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("missing"))
-                    );
+                    println!("{}", String::from("missing"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -197,8 +194,8 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&pair.key),
-            terrane_scalar_support::scalar_text(&pair.value)
+            "{}{}", terrane_scalar_support::scalar_text(&pair.key.clone()),
+            terrane_scalar_support::scalar_text(&pair.value.clone())
         );
     }
     unordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
@@ -213,9 +210,9 @@ fn main() {
         };
         let _ = &pair;
         println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&String::from("reinserted-")),
-            terrane_scalar_support::scalar_text(&pair.key),
-            terrane_scalar_support::scalar_text(&pair.value)
+            "{}{}{}", String::from("reinserted-"),
+            terrane_scalar_support::scalar_text(&pair.key.clone()),
+            terrane_scalar_support::scalar_text(&pair.value.clone())
         );
     }
     unordered_markers = terrane_collection_support::UnorderedMap::<
@@ -231,9 +228,7 @@ fn main() {
         unordered_markers.remove(&String::from("item")),
         3 /* terrane-site: case.trn:40:3-40:35 */,
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&String::from("after-unordered"))
-    );
+    println!("{}", String::from("after-unordered"));
     unique = terrane_collection_support::Map::<
         String,
         Marker,
@@ -247,7 +242,7 @@ fn main() {
         unique.remove(&String::from("item")),
         4 /* terrane-site: case.trn:44:3-44:24 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-unique")));
+    println!("{}", String::from("after-unique"));
     shared = terrane_collection_support::Map::<
         String,
         Marker,
@@ -263,11 +258,11 @@ fn main() {
         5 /* terrane-site: case.trn:49:29-49:50 */,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&String::from("removed-")),
+        "{}{}", String::from("removed-"),
         terrane_scalar_support::scalar_text(&removed_marker.name)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&String::from("alias-")),
+        "{}{}", String::from("alias-"),
         terrane_scalar_support::scalar_text(&__terrane_raised(shared_alias
         .get_or_error(&String::from("item")), 6 /* terrane-site: case.trn:51:20-51:40 */).name)
     );

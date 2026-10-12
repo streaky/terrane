@@ -39,9 +39,7 @@ fn main() {
         let field = field;
         std::sync::Arc::new(move || -> () {
             consume(field);
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("captured"))
-            );
+            println!("{}", String::from("captured"));
             ()
         })
     };
@@ -72,9 +70,9 @@ fn main() {
     };
     returned = pass(element);
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&field.clone()),
-        terrane_scalar_support::scalar_text(&element.clone()),
-        terrane_scalar_support::scalar_text(&returned.clone())
+        "{}{}{}", terrane_scalar_support::scalar_text(&* field),
+        terrane_scalar_support::scalar_text(&* element),
+        terrane_scalar_support::scalar_text(&* returned)
     );
     borrowed = &values;
     let __terrane_iterable_0 = borrowed;
@@ -84,6 +82,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&item.clone()));
+        println!("{}", terrane_scalar_support::scalar_text(&* item));
     }
 }

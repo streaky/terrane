@@ -892,8 +892,7 @@ impl Emitter<'_> {
             }
             let values = argument_values
                 .iter()
-                .map(|value| self.display_expression(value))
-                .map(|value| format!("terrane_scalar_support::scalar_text(&({value}))"))
+                .map(|value| self.text_display(value))
                 .collect::<Vec<_>>();
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
@@ -1590,6 +1589,31 @@ impl Emitter<'_> {
         let native_macro_path =
             crate::semantics::projected_macro_for_call(self.package, self.unit, callee)
                 .map(|item| item.rust_path.clone());
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+        {
+            let member_name = self.text(member);
+            let receiver_type = self.receiver_value_type(receiver);
+            if member_name == "to-string"
+                && matches!(receiver_type, Some(ValueType::Scalar(scalar)) if scalar != ScalarType::Bytes)
+            {
+                return self.text_display(receiver);
+            }
+            if receiver_type == Some(ValueType::Scalar(ScalarType::String))
+                && matches!(member_name, "concat" | "join")
+            {
+                let parts = arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument))
+                    .collect::<Vec<_>>();
+                if member_name == "join" {
+                    return self.compose_text(&parts, Some(receiver));
+                }
+                let parts = std::iter::once(receiver).chain(parts).collect::<Vec<_>>();
+                return self.compose_text(&parts, None);
+            }
+        }
         let mut values = argument_values
             .into_iter()
             .map(|value| {
@@ -1600,22 +1624,6 @@ impl Emitter<'_> {
                 }
             })
             .collect::<Vec<_>>();
-        if callee.kind == SyntaxKind::MemberExpression
-            && callee
-                .children
-                .get(1)
-                .is_some_and(|member| self.text(member) == "join")
-        {
-            let separator = self.receiver_expression(&callee.children[0]);
-            let values = values
-                .into_iter()
-                .map(|value| format!("terrane_scalar_support::scalar_text(&({value}))"))
-                .collect::<Vec<_>>();
-            if values.is_empty() {
-                return format!("{{ let _ = {separator}; String::new() }}");
-            }
-            return format!("vec![{}].join(&({separator}))", values.join(", "));
-        }
         if callee.kind == SyntaxKind::MemberExpression
             && callee
                 .children
@@ -1646,13 +1654,6 @@ impl Emitter<'_> {
                     "{{ let mut bytes = {receiver}; {bindings} let additional = match [{part_lengths}].into_iter().try_fold(0usize, usize::checked_add) {{ Some(length) => length, None => std::process::abort() }}; if bytes.try_reserve(additional).is_err() {{ std::process::abort(); }} {extensions} bytes }}"
                 );
             }
-            values.insert(0, receiver);
-            let values = values
-                .into_iter()
-                .map(|value| format!("terrane_scalar_support::scalar_text(&({value}))"))
-                .collect::<Vec<_>>();
-            let format = "{}".repeat(values.len());
-            return format!("format!(\"{format}\", {})", values.join(", "));
         }
         let specialization = self.unit.projected_call_specializations.get(&(
             node.span.file,

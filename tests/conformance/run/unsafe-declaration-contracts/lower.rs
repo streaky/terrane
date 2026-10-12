@@ -209,6 +209,6 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&__terrane_await(unsafe { later()
             }). await)
         );
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("ok")));
+        println!("{}", String::from("ok"));
     });
 }

@@ -155,7 +155,19 @@ impl ConstructorAnalysis<'_> {
     fn branches(&self, node: &SyntaxNode, mut state: FieldState) -> Result<Flow, SemanticFailure> {
         let mut output = Flow::default();
         let mut normals = Vec::new();
-        let mut exhaustive = node.kind != SyntaxKind::IfStatement;
+        let switch_default = node.kind == SyntaxKind::SwitchStatement
+            && node.children.iter().any(|child| {
+                child.kind == SyntaxKind::SwitchCase
+                    && child
+                        .children
+                        .first()
+                        .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+            });
+        let mut exhaustive = match node.kind {
+            SyntaxKind::IfStatement => false,
+            SyntaxKind::SwitchStatement => switch_default,
+            _ => true,
+        };
         for child in &node.children {
             let block = if child.kind == SyntaxKind::Block {
                 Some(child)
@@ -166,8 +178,31 @@ impl ConstructorAnalysis<'_> {
                     .find(|part| part.kind == SyntaxKind::Block)
             };
             if let Some(block) = block {
-                if child.kind == SyntaxKind::ElseClause && child.children.len() == 1 {
-                    exhaustive = true;
+                if child.kind == SyntaxKind::SwitchCase {
+                    exhaustive |= child
+                        .children
+                        .first()
+                        .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll);
+                    if let Some(header) = child
+                        .children
+                        .first()
+                        .filter(|header| header.kind == SyntaxKind::ArgumentList)
+                    {
+                        for condition in &header.children {
+                            self.reads(condition, &mut state)?;
+                            if self.may_throw(condition) {
+                                output.failures.push(state.clone());
+                            }
+                        }
+                    } else if child
+                        .children
+                        .first()
+                        .is_some_and(|header| header.kind != SyntaxKind::MatchCatchAll)
+                    {
+                        for condition in &child.children[0].children {
+                            self.reads(condition, &mut state)?;
+                        }
+                    }
                 }
                 for condition in child
                     .children
@@ -204,9 +239,10 @@ impl ConstructorAnalysis<'_> {
     )]
     fn statement(&self, node: &SyntaxNode, mut state: FieldState) -> Result<Flow, SemanticFailure> {
         match node.kind {
-            SyntaxKind::IfStatement | SyntaxKind::MatchStatement | SyntaxKind::SelectStatement => {
-                self.branches(node, state)
-            }
+            SyntaxKind::IfStatement
+            | SyntaxKind::MatchStatement
+            | SyntaxKind::SelectStatement
+            | SyntaxKind::SwitchStatement => self.branches(node, state),
             SyntaxKind::WhileStatement | SyntaxKind::ForStatement => {
                 let mut output = Flow::default();
                 for child in node

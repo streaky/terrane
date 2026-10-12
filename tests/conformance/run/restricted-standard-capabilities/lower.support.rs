@@ -17,6 +17,7 @@ enum TerraneErrorKind {
     NegativeShiftCount,
     CoercionError,
     DecodeError,
+    ReplaceError,
     IndexError,
     MissingKey,
     ResourceError,
@@ -31,6 +32,7 @@ impl TerraneErrorKind {
             Self::NegativeShiftCount => "negative-shift-count",
             Self::CoercionError => "coercion-error",
             Self::DecodeError => "decode-error",
+            Self::ReplaceError => "replace-error",
             Self::IndexError => "index-error",
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
@@ -45,6 +47,9 @@ impl TerraneErrorKind {
             Self::NegativeShiftCount => "negative integer shift count",
             Self::CoercionError => "coercion has no compatible result",
             Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::ReplaceError => {
+                "replacement search and replacement lists have different lengths"
+            }
             Self::IndexError => "collection index is out of range",
             Self::MissingKey => "collection key is absent",
             Self::ResourceError => {
@@ -301,6 +306,15 @@ impl TerraneRaised for terrane_string_support::DecodeError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
         TerraneError::raised_with_message(
             TerraneErrorKind::DecodeError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_string_support::ReplaceError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::ReplaceError,
             self.to_string(),
             origin,
         )
@@ -1343,14 +1357,24 @@ pub fn parse_command_line(
                 __terrane_list_append_3
                     .push(String::from("command-line option is not Unicode text"));
             } else {
-                flag_entry = format!(
-                    "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
-                );
-                value_entry = format!(
-                    "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
-                    terrane_scalar_support::scalar_text(&argument.text)
-                );
+                flag_entry = {
+                    let mut __terrane_text = String::with_capacity(5);
+                    __terrane_text.push_str("flag:");
+                    terrane_scalar_support::ScalarDisplay::write_scalar(
+                        &argument.text,
+                        &mut __terrane_text,
+                    );
+                    __terrane_text
+                };
+                value_entry = {
+                    let mut __terrane_text = String::with_capacity(6);
+                    __terrane_text.push_str("value:");
+                    terrane_scalar_support::ScalarDisplay::write_scalar(
+                        &argument.text,
+                        &mut __terrane_text,
+                    );
+                    __terrane_text
+                };
                 if schema_has(schema.clone(), flag_entry) {
                     __terrane_list_append_4.push(argument.text.clone());
                 } else if schema_has(schema.clone(), value_entry) {

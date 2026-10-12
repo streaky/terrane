@@ -31,8 +31,8 @@ impl CountedValue {
     }
     pub fn render(&self) -> DocumentValue {
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("rendered:")),
-            terrane_scalar_support::scalar_text(&self.value)
+            "{}{}", String::from("rendered:"), terrane_scalar_support::scalar_text(&self
+            .value)
         );
         return make_document_string(self.value.clone());
     }

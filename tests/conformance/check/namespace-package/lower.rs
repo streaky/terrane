@@ -2,9 +2,7 @@
 // Source: app/main.trn
 // Namespace: app
 fn main() {
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&String::from(" namespace package"))
-    );
+    println!("{}", String::from(" namespace package"));
 }
 // Source: app/support/support.trn
 // Namespace: app/support

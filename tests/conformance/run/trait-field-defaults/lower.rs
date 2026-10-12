@@ -31,8 +31,7 @@ fn main() {
     let descriptor: TerraneDescriptor;
     value = User::terrane_construct();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&value.slot),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        "{}{}{}", terrane_scalar_support::scalar_text(&value.slot), String::from(":"),
         terrane_scalar_support::scalar_text(&value.payload.value)
     );
     descriptor = TerraneDescriptor {
@@ -60,12 +59,11 @@ fn main() {
     println!(
         "{}{}{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor
-        .fields.len() as i128)), terrane_scalar_support::scalar_text(&String::from(":")),
+        .fields.len() as i128)), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:17:39-17:68 */)), 0 /* terrane-site: case.trn:17:39-17:68 */)),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        0 /* terrane-site: case.trn:17:39-17:68 */)), 0 /* terrane-site: case.trn:17:39-17:68 */)), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
         .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),

@@ -2,7 +2,7 @@
 // Source: case.trn
 // Namespace: coercion-single-evaluation
 fn observed() -> terrane_int_support::Int {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("once")));
+    println!("{}", String::from("once"));
     return terrane_int_support::Int::from(300_i128);
 }
 fn main() {

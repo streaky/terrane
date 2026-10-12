@@ -45,7 +45,7 @@ fn guarded() -> terrane_int_support::Int {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("F")));
+        println!("{}", String::from("F"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {

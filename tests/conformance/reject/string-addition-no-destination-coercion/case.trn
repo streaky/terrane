@@ -1,0 +1,4 @@
+namespace string-addition-no-destination-coercion
+function main;
+    value string = 2 + 3
+    print; value

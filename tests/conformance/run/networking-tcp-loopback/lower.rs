@@ -135,10 +135,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
         input_outcome = __terrane_await(scope.join(input_child)).await;
         if !input_outcome.completed {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&String::from("stdin task did not complete"))
-            );
+            println!("{}", String::from("stdin task did not complete"));
         }
         client.close();
     });

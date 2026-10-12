@@ -70,8 +70,7 @@ fn main() {
         0 /* terrane-site: case.trn:12:12-12:37 */); __terrane_receiver
         .get(__terrane_index).cloned().ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index)) },
-        0 /* terrane-site: case.trn:12:12-12:37 */)),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        0 /* terrane-site: case.trn:12:12-12:37 */)), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_receiver =
         &descriptor.fields.iter().map(| field | field.external_name.to_owned()).collect::
         < Vec < String > > (); let __terrane_index =

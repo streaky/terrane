@@ -742,8 +742,8 @@ fn main() {
         };
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&diagnostic.path.clone()),
-            terrane_scalar_support::scalar_text(&String::from(":")),
-            terrane_scalar_support::scalar_text(&diagnostic.reason.to_owned())
+            String::from(":"), terrane_scalar_support::scalar_text(&diagnostic.reason
+            .to_owned())
         );
     }
     println!(

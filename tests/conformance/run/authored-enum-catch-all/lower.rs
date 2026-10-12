@@ -17,7 +17,7 @@ impl Resource {
         value
     }
     pub fn destruct(&mut self) {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("cleaned")));
+        println!("{}", String::from("cleaned"));
     }
 }
 impl Drop for Resource {
@@ -44,10 +44,10 @@ fn main() {
     let __terrane_match_value_269 = value;
     match __terrane_match_value_269 {
         State::Ready => {
-            println!("{}", terrane_scalar_support::scalar_text(&String::from("ready")));
+            println!("{}", String::from("ready"));
         }
         _ => {
-            println!("{}", terrane_scalar_support::scalar_text(&String::from("other")));
+            println!("{}", String::from("other"));
         }
     }
 }

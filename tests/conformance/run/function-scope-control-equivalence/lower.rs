@@ -150,7 +150,14 @@ fn branched_single(choose: bool) {
     } else {
         x = TerraneUnionF0S441::Arm1(String::from("cat"));
     }
-    println!("{}", terrane_scalar_support::scalar_text(&x));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &x {
+        TerraneUnionF0S441::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S441::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn loop_replacement(mut count: terrane_int_support::Int) {
     let mut x: TerraneUnionF0S539;
@@ -159,7 +166,14 @@ fn loop_replacement(mut count: terrane_int_support::Int) {
         x = TerraneUnionF0S539::Arm1(String::from("cat"));
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
-    println!("{}", terrane_scalar_support::scalar_text(&x));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &x {
+        TerraneUnionF0S539::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S539::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn loop_int(mut count: terrane_int_support::Int) {
     let mut x: i64;
@@ -209,7 +223,14 @@ fn for_join(text: String) {
             unreachable!("flow-proven storage refinement") })
         );
     }
-    println!("{}", terrane_scalar_support::scalar_text(&last));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &last {
+        TerraneUnionF0S1017::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S1017::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn control_declared_function(choose: bool) -> terrane_int_support::Int {
     fn helper() -> terrane_int_support::Int {
@@ -252,7 +273,16 @@ fn nested_join(outer: bool, inner: bool) {
     } else {
         x = TerraneUnionF0S1487::Arm0(false);
     }
-    println!("{}", terrane_scalar_support::scalar_text(&x));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &x {
+        TerraneUnionF0S1487::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S1487::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S1487::Arm2(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn returned_branch(choose: bool) -> terrane_int_support::Int {
     let x: i64;
@@ -269,11 +299,25 @@ fn loop_backedge() {
     x = TerraneUnionF0S1725::Arm0(terrane_int_support::Int::from(3_i128));
     count = terrane_int_support::Int::from(0_i128);
     while count.clone() < terrane_int_support::Int::from(2_i128) {
-        println!("{}", terrane_scalar_support::scalar_text(&x));
+        println!(
+            "{}", { let mut __terrane_text = String::new(); match &x {
+            TerraneUnionF0S1725::Arm0(__terrane_arm) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+            __terrane_text); }, TerraneUnionF0S1725::Arm1(__terrane_arm) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+            __terrane_text); } } __terrane_text }
+        );
         x = TerraneUnionF0S1725::Arm1(String::from("cat"));
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
-    println!("{}", terrane_scalar_support::scalar_text(&x));
+    println!(
+        "{}", { let mut __terrane_text = String::new(); match &x {
+        TerraneUnionF0S1725::Arm0(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); }, TerraneUnionF0S1725::Arm1(__terrane_arm) => {
+        terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+        __terrane_text); } } __terrane_text }
+    );
 }
 fn main() {
     let mut last: String;

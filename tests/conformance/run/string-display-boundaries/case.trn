@@ -1,0 +1,42 @@
+namespace string-display-boundaries
+
+class label
+    unsafe function to-string string;
+        return 'unsafe'
+    function to-string string;
+        return 'label'
+
+class child extends label
+    extra int = 3
+
+function describe-borrow string; value ref label
+    return 'borrowed:' + value
+
+function describe-text string; value ref string
+    return 'ref:' + value + '|' + (value.to-string;)
+
+function main;
+    item = instance child;
+    print; 'inherited:' + item
+    print; 'again:' + item
+    optional label|none = none
+    print; 'optional:' + optional
+    optional = instance label;
+    print; 'optional:' + optional
+    mixed = 7
+    if item.extra == 3
+        mixed label = instance label;
+    print; 'union:' + mixed
+    value = 42
+    render = value.to-string
+    value = 99
+    print; 'bound:', (render;), '|current:', value
+    borrowed = instance label;
+    print; (describe-borrow; ref borrowed)
+    text = 'text'
+    print; (describe-text; ref text)
+    shared-text = 'text'
+    shared shared ref string = shared ref shared-text
+    print; 'shared:' + shared
+    print; (shared.to-string;)
+    print; shared

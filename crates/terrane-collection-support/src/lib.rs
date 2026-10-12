@@ -209,6 +209,11 @@ impl<T> List<T> {
     pub fn new(items: Vec<T>) -> Self {
         Self(Arc::new(items))
     }
+    /// Borrows the existing backing storage without separating or copying it.
+    #[must_use]
+    pub fn as_slice(&self) -> &[T] {
+        self.0.as_slice()
+    }
     #[must_use]
     pub fn length(&self) -> i128 {
         self.0.len() as i128

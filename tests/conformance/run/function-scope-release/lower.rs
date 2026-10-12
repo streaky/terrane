@@ -25,8 +25,8 @@ impl Marker {
     }
     pub fn destruct(&mut self) {
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("released ")),
-            terrane_scalar_support::scalar_text(&self.name)
+            "{}{}", String::from("released "), terrane_scalar_support::scalar_text(&self
+            .name)
         );
     }
 }
@@ -45,19 +45,19 @@ fn main() {
     let retained: Marker;
     value = Marker::terrane_construct(String::from("first"));
     println!("{}", terrane_scalar_support::scalar_text(&value.name));
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-if")));
+    println!("{}", String::from("after-if"));
     count = terrane_int_support::Int::from(0_i128);
     while count.clone() < terrane_int_support::Int::from(2_i128) {
         value = Marker::terrane_construct(String::from("loop"));
         println!("{}", terrane_scalar_support::scalar_text(&value.name));
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-loop")));
+    println!("{}", String::from("after-loop"));
     let __terrane_replacement = String::from("done");
     drop(value);
     value_2 = __terrane_replacement;
     println!("{}", terrane_scalar_support::scalar_text(&value_2));
     retained = Marker::terrane_construct(String::from("retained"));
     println!("{}", terrane_scalar_support::scalar_text(&retained.name));
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("function-end")));
+    println!("{}", String::from("function-end"));
 }

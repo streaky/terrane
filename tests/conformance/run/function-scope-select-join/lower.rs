@@ -131,10 +131,7 @@ fn main() {
                             .take()
                             .expect("selected case owns its ready result"),
                     );
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("integer"))
-                    );
+                    println!("{}", String::from("integer"));
                 }
                 1 => {
                     result = TerraneUnionF0S184::Arm1(
@@ -142,14 +139,18 @@ fn main() {
                             .take()
                             .expect("selected case owns its ready result"),
                     );
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("string"))
-                    );
+                    println!("{}", String::from("string"));
                 }
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        println!("{}", terrane_scalar_support::scalar_text(&result));
+        println!(
+            "{}", { let mut __terrane_text = String::new(); match &result {
+            TerraneUnionF0S184::Arm0(__terrane_arm) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+            __terrane_text); }, TerraneUnionF0S184::Arm1(__terrane_arm) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_arm, &mut
+            __terrane_text); } } __terrane_text }
+        );
     });
 }
