@@ -32,10 +32,7 @@ fn main() {
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught"))
-                    );
+                    println!("{}", String::from("caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -52,5 +49,5 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after")));
+    println!("{}", String::from("after"));
 }

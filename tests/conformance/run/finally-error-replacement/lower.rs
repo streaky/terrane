@@ -101,7 +101,7 @@ fn main() {
                 );
             println!(
                 "{}", terrane_scalar_support::scalar_text(&second.as_ref()
-                .expect("flow-proven available binding").clone())
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();
@@ -116,10 +116,7 @@ fn main() {
                     && __terrane_error_2.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_2 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("replaced"))
-                    );
+                    println!("{}", String::from("replaced"));
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);

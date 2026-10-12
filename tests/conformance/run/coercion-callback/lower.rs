@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: coercion-callback
 fn source() -> terrane_int_support::Int {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("source")));
+    println!("{}", String::from("source"));
     return terrane_int_support::Int::from(7_i128);
 }
 fn render(__trn_5f76616c7565: terrane_int_support::Int) -> String {
@@ -90,10 +90,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught"))
-                    );
+                    println!("{}", String::from("caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

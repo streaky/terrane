@@ -124,10 +124,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("construction failed"))
-                    );
+                    println!("{}", String::from("construction failed"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

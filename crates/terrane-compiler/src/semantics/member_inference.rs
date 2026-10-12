@@ -670,6 +670,15 @@ fn infer_member_type(
             member.span,
         ));
     }
+    if member_name == "to-string"
+        && matches!(receiver_type, Some(ValueType::Scalar(scalar)) if scalar != ScalarType::Bytes)
+    {
+        return Ok(Some(ValueType::Function(
+            Vec::new(),
+            ElementType::new(ValueType::Scalar(ScalarType::String)),
+            CallableEffects::infallible(),
+        )));
+    }
     if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes)) && member_name == "concat" {
         return Ok(Some(ValueType::Function(
             vec![CallableParameterType::variadic(ElementType::new(
@@ -996,6 +1005,31 @@ pub(super) fn infer_string_call_type(
             format!("`.{family}` received the wrong number of arguments"),
             node.span,
         ));
+    }
+    if operation == "string.replace" {
+        let first = arguments[0].children.last().unwrap_or(&arguments[0]);
+        let second = arguments[1].children.last().unwrap_or(&arguments[1]);
+        let first_type = infer_value_type(unit, first, bindings)?;
+        let second_type = infer_value_type(unit, second, bindings)?;
+        let string = ValueType::Scalar(ScalarType::String);
+        let list_of_strings = |value: &ValueType| match value {
+            ValueType::StringList => true,
+            ValueType::List(item) => item.value_type_ref() == &string,
+            _ => false,
+        };
+        let valid = (first_type.as_ref() == Some(&string) && second_type.as_ref() == Some(&string))
+            || (list_of_strings(first_type.as_ref().unwrap_or(&string))
+                && (list_of_strings(second_type.as_ref().unwrap_or(&string))
+                    || second_type.as_ref() == Some(&string)));
+        if !valid {
+            return Err(failure(
+                &unit.source,
+                "T0033",
+                "`.replace` expects two strings, or a list of string searches and a string/list replacement",
+                first.span,
+            ));
+        }
+        return Ok(Some(ValueType::Scalar(ScalarType::String)));
     }
     for argument in arguments {
         let argument = argument.children.last().unwrap_or(argument);

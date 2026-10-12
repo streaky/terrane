@@ -261,17 +261,63 @@ pub(super) fn validate_global_definite_assignment(
             }
             return Ok(());
         }
-        if node.kind == SyntaxKind::SelectStatement {
+        if matches!(
+            node.kind,
+            SyntaxKind::SelectStatement | SyntaxKind::MatchStatement | SyntaxKind::SwitchStatement
+        ) {
+            if node.kind == SyntaxKind::MatchStatement
+                && let Some(scrutinee) = node.children.first()
+            {
+                validate_node(package, unit, scrutinee, relevant, assigned)?;
+            }
+            if let Some(selector) = node.switch_selector() {
+                validate_node(package, unit, selector, relevant, assigned)?;
+            }
             let incoming = assigned.clone();
-            let mut branch_results = Vec::with_capacity(node.children.len());
-            for case in &node.children {
-                let Some([header, block]) = case.children.get(..2) else {
+            let mut branch_results = Vec::with_capacity(node.children.len() + 1);
+            for case in node.children.iter().filter(|child| {
+                matches!(
+                    child.kind,
+                    SyntaxKind::SelectCase
+                        | SyntaxKind::MatchCase
+                        | SyntaxKind::ElseClause
+                        | SyntaxKind::SwitchCase
+                )
+            }) {
+                let Some(block) = case
+                    .children
+                    .last()
+                    .filter(|child| child.kind == SyntaxKind::Block)
+                else {
                     continue;
                 };
-                validate_node(package, unit, header, relevant, assigned)?;
+                if let Some(header) = case.children.first() {
+                    if node.kind == SyntaxKind::SwitchStatement
+                        && header.kind == SyntaxKind::ArgumentList
+                    {
+                        for expression in &header.children {
+                            validate_node(
+                                package,
+                                unit,
+                                expression,
+                                relevant,
+                                &mut assigned.clone(),
+                            )?;
+                        }
+                    } else if node.kind == SyntaxKind::SwitchStatement
+                        && header.kind != SyntaxKind::MatchCatchAll
+                    {
+                        validate_node(package, unit, header, relevant, &mut assigned.clone())?;
+                    } else if case.kind == SyntaxKind::SelectCase {
+                        validate_node(package, unit, header, relevant, assigned)?;
+                    }
+                }
                 let mut branch_assigned = incoming.clone();
                 validate_node(package, unit, block, relevant, &mut branch_assigned)?;
                 branch_results.push(branch_assigned);
+            }
+            if node.kind == SyntaxKind::SwitchStatement && !node.switch_has_default() {
+                branch_results.push(incoming);
             }
             if let Some(first) = branch_results.first() {
                 *assigned = branch_results
@@ -536,6 +582,7 @@ pub(super) fn binding_event_child_region(
     if (node.kind == SyntaxKind::SelectStatement && child.kind == SyntaxKind::SelectCase)
         || (node.kind == SyntaxKind::MatchStatement
             && matches!(child.kind, SyntaxKind::MatchCase | SyntaxKind::ElseClause))
+        || (node.kind == SyntaxKind::SwitchStatement && child.kind == SyntaxKind::SwitchCase)
     {
         return Some(ControlRegion {
             statement: node.span,

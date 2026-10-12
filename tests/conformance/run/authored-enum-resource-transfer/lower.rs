@@ -10,9 +10,7 @@ impl Connection {
         Self { input: stdin() }
     }
     pub fn destruct(&mut self) {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("connection closed"))
-        );
+        println!("{}", String::from("connection closed"));
     }
 }
 impl Drop for Connection {

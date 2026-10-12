@@ -21,7 +21,7 @@ fn main() {
     let value: Operations;
     value = Operations::terrane_construct();
     value.change.call(());
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("changed")));
+    println!("{}", String::from("changed"));
     value.finish.call(());
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("finished")));
+    println!("{}", String::from("finished"));
 }

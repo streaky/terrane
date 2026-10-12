@@ -62,8 +62,8 @@ fn main() {
         2 /* terrane-site: case.trn:10:33-10:52 */,
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&grouped.clone()),
-        terrane_scalar_support::scalar_text(&ordered_value.clone()),
-        terrane_scalar_support::scalar_text(&unordered_value.clone())
+        "{}{}{}", terrane_scalar_support::scalar_text(&* grouped),
+        terrane_scalar_support::scalar_text(&* ordered_value),
+        terrane_scalar_support::scalar_text(&* unordered_value)
     );
 }

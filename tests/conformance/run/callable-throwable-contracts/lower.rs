@@ -442,10 +442,7 @@ fn main() {
                         && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_0 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("async-caught"))
-                        );
+                        println!("{}", String::from("async-caught"));
                     }
                     if !__terrane_handled_0 {
                         return TerraneCompletion::Error(__terrane_error_0);
@@ -533,10 +530,7 @@ fn main() {
                             == TerraneErrorKind::Custom(DescriptorId(0))
                     {
                         __terrane_handled_1 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("custom-caught"))
-                        );
+                        println!("{}", String::from("custom-caught"));
                     }
                     if !__terrane_handled_1 {
                         return TerraneCompletion::Error(__terrane_error_1);

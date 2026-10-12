@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-scalar-support
+// Vendored support crates:
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
     impl Future for YieldOnce {

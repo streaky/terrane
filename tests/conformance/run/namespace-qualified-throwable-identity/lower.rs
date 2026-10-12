@@ -22,20 +22,14 @@ fn main() {
                         == TerraneErrorKind::Custom(DescriptorId(0))
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("wrong class"))
-                    );
+                    println!("{}", String::from("wrong class"));
                 }
                 if !__terrane_handled_0
                     && __terrane_error_0.kind
                         == TerraneErrorKind::Custom(DescriptorId(1))
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught-left"))
-                    );
+                    println!("{}", String::from("caught-left"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

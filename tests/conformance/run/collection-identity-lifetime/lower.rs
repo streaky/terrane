@@ -26,8 +26,8 @@ impl Marker {
     }
     pub fn destruct(&mut self) {
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("drop-")),
-            terrane_scalar_support::scalar_text(&self.name)
+            "{}{}", String::from("drop-"), terrane_scalar_support::scalar_text(&self
+            .name)
         );
     }
 }
@@ -67,7 +67,7 @@ fn release_order() {
             ),
         0 /* terrane-site: case.trn:17:3-17:50 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-set")));
+    println!("{}", String::from("after-set"));
     removed = __terrane_raised(
         values
             .remove(
@@ -81,10 +81,10 @@ fn release_order() {
         1 /* terrane-site: case.trn:20:22-20:38 */,
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&String::from("after-remove-")),
+        "{}{}", String::from("after-remove-"),
         terrane_scalar_support::scalar_text(&removed.name)
     );
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-block")));
+    println!("{}", String::from("after-block"));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_raised_completion!(
@@ -105,10 +105,7 @@ fn release_order() {
                     && __terrane_error_0.kind == TerraneErrorKind::IndexError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("remove-index"))
-                    );
+                    println!("{}", String::from("remove-index"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -134,7 +131,7 @@ fn release_order() {
         ],
     );
     cleared.clear();
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-clear")));
+    println!("{}", String::from("after-clear"));
     original = terrane_collection_support::List::<
         Marker,
     >::new(vec![Marker::terrane_construct(String::from("cow-original"))]);
@@ -160,7 +157,7 @@ fn release_order() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         5 /* terrane-site: case.trn:34:28-34:40 */)), 5 /* terrane-site: case.trn:34:28-34:40 */).name)
     );
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after-cow")));
+    println!("{}", String::from("after-cow"));
 }
 fn main() {
     let left: std::sync::Arc<std::sync::Mutex<Marker>>;

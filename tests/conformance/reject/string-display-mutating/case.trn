@@ -1,0 +1,9 @@
+namespace string-display-mutating
+class counter
+    value int = 0
+    mutable function to-string string;
+        this.value = this.value + 1
+        return 'counter'
+function main;
+    value = instance counter;
+    print; 'value: ' + value

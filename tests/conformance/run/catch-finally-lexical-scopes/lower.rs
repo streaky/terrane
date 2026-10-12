@@ -28,7 +28,7 @@ fn typed_catch() {
                     let _ = caught.insert(1);
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
-                        .expect("flow-proven available binding").clone())
+                        .expect("flow-proven available binding"))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -42,7 +42,7 @@ fn typed_catch() {
         let _ = completed.insert(2);
         println!(
             "{}", terrane_scalar_support::scalar_text(&completed.as_ref()
-            .expect("flow-proven available binding").clone())
+            .expect("flow-proven available binding"))
         );
         TerraneCompletion::Normal
     })();
@@ -82,7 +82,7 @@ fn catch_all() {
                     let _ = caught.insert(3);
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
-                        .expect("flow-proven available binding").clone())
+                        .expect("flow-proven available binding"))
                     );
                 }
                 if !__terrane_handled_1 {

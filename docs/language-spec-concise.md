@@ -80,7 +80,7 @@ numeric_literal:
   dot_rule: "'.' joins a literal only before a digit; 1.type stays member access"
 member_dot: no whitespace: value.member; '.' has NO other role in the language
 invalid_adjacency: 'value member'
-structural_statement_start_words: [if, for, while, select, try, throw, return, break, continue]
+structural_statement_start_words: [if, for, while, select, switch, match, try, throw, return, break, continue]
 structural_word_resolution: a structural word at statement start does not resolve an ordinary binding of the same name
 newline: normally ends statement; grammar-defined continuation only
 ```
@@ -250,6 +250,7 @@ or
 ```
 
 - Arithmetic/shift/bitwise/`and`/`or` associate left.
+- Binary `+` concatenates when either operand has type `string` and the other supports text display; otherwise numeric `+` retains ordinary arithmetic. The rule is pairwise and left-associated: `2 + 3 + ' items'` is `'5 items'`, while `'items: ' + 2 + 3` is `'items: 23'`. Neither a later string nor a string destination reinterprets earlier arithmetic; string contents are never parsed as numbers.
 - Prefix operators associate right.
 - Comparisons do not chain: use `a < b and b < c`.
 - Unary `+` absent.
@@ -620,8 +621,11 @@ for i = 0; i < limit; i++
 
 - Three-clause calls require grouping: `for i = (start-at; limit); ...`.
 - `++`/`--` are statement/update operations on compatible mutable numeric bindings. They produce NO value and cannot appear in expression position; grammar places them in `update-statement`, not `postfix-expression`, and they are permitted in a three-clause `for` clause.
-- Labels/goto function-local; cannot enter deeper scope or cross initialization/lifetime/cleanup unsafely.
-- `match` reserved shape but outside minimum compiler milestone.
+- `switch selector` evaluates its selector once, then compares each case's comma-separated alternatives with ordinary equality in source order; only the first matching case executes.
+- Bare `switch` uses one ordinary truth-protocol predicate per case, evaluating cases lazily in source order. Predicate bodies retain ordinary conditional narrowing.
+- Both switch forms require at least one case and permit a unique final `case else`; no fallthrough. Bodies belong to the surrounding function, with ordinary availability/type/effect/ownership joins including the unmatched path when no default exists.
+- `match` is closed enum statement decomposition with checked variant coverage and payload binding, not arbitrary value or predicate dispatch. Value-producing and finite-union matches remain unsupported.
+- `label` and `goto` remain reserved and unsupported.
 
 ## ERROR / CALLABLE
 
@@ -781,6 +785,7 @@ concat: 'a.concat; b, c' -> 'abc'; appends arguments to the receiver, NO separat
 join: "': '.join; a, b, c" -> 'a: b: c'; the RECEIVER is the separator
 join_bounds: zero args -> ''; one arg -> that arg with no separator; separator never precedes the first or follows the last part
 composition_display: every argument converts through canonical text display; no display protocol is a typed error, never a silent rendering
+explicit_display: non-bytes builtin scalars expose parameterless `.to-string;`; source classes opt in via safe sync non-static shared parameterless nongeneric `to-string` returning string; inherited/trait methods participate and ordinary throwable inference/catching applies
 composition_purity: neither member mutates the receiver; both return a new string
 concat_vs_join: distinct operations sharing a subject, not modes of one; two members, not a family
 trim: 'text.trim;' both ends | trim.start | trim.end
@@ -797,6 +802,8 @@ case_mapping: upper/lower default, .first, and upper.words are locale-independen
 normalise: explicit nfc/nfd/nfkc/nfkd children
 unicode_profile: version one pins every compiler-owned Unicode table to Unicode 16.0.0; case folding, normalization, word/grapheme segmentation, and affected support crates update together; generated manifest records version; pinned/system Rust choice does not alter it
 split_replace: literal, left-to-right, non-overlapping; empty split -> grapheme list without synthetic empties; empty replace -> insert at every grapheme boundary including ends
+multi_replace: list of string searches plus paired list of strings or one broadcast string; original-input, left-to-right, non-overlapping, earliest-list priority, never reprocess inserted text; empty list is no-op; unequal paired lengths throw replace-error
+multi_replace_empty: empty patterns compete in ordinary list priority only at unconsumed original grapheme boundaries; an empty winner inserts and advances one original scalar unchanged; nonempty matches skip interior boundaries
 family_rule: a family is modes of ONE operation, not a bucket of related operations; group by subject uses a namespace instead
 case_search: no case-insensitive child; apply explicit case-fold to both operands
 regex: never a child of contains; regex stays match/matches; no member dispatches on whether its argument is a pattern object

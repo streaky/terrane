@@ -1,0 +1,7 @@
+namespace switch-default-order
+function main none
+    switch 1
+        case else
+            print; 'default'
+        case 1
+            print; 'late'

@@ -1,0 +1,4 @@
+first|second|other
+first
+other
+first|other

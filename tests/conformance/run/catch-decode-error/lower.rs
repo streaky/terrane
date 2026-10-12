@@ -17,7 +17,7 @@ fn main() {
                 );
             println!(
                 "{}", terrane_scalar_support::scalar_text(&decoded.as_ref()
-                .expect("flow-proven available binding").clone())
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();
@@ -32,10 +32,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::DecodeError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught decode"))
-                    );
+                    println!("{}", String::from("caught decode"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

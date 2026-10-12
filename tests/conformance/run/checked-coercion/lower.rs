@@ -16,7 +16,7 @@ fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
     return Ok(result);
 }
 fn helper() {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("helper")));
+    println!("{}", String::from("helper"));
 }
 fn main() {
     let value: i64;

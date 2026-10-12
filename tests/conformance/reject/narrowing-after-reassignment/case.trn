@@ -1,7 +1,0 @@
-namespace narrowing-after-reassignment
-function main;
-    small int8 = 120
-    result = small.add.checked; 1
-    if result != none
-        result = small.add.checked; 10
-        print; result

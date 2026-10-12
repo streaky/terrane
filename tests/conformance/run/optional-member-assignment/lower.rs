@@ -26,6 +26,6 @@ fn main() {
             value, _ => unreachable!("flow-proven storage refinement") })
         );
     } else {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("none")));
+        println!("{}", String::from("none"));
     }
 }

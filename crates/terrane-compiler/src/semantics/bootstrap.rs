@@ -6,6 +6,7 @@ pub(super) const BUILTIN_ERROR_NAMES: &[&str] = &[
     "negative-shift-count",
     "coercion-error",
     "decode-error",
+    "replace-error",
     "index-error",
     "missing-key",
     "dependency-error",

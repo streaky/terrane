@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "main.trn"
+code = "S1113"
+contains = "case else"

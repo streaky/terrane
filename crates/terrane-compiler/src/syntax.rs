@@ -35,6 +35,7 @@ pub const KEYWORDS: &[&str] = &[
     "is",
     "label",
     "match",
+    "switch",
     "move",
     "namespace",
     "not",
@@ -126,6 +127,8 @@ pub enum SyntaxKind {
     ForTarget,
     SelectStatement,
     SelectCase,
+    SwitchStatement,
+    SwitchCase,
     MatchStatement,
     MatchCase,
     MatchCatchAll,
@@ -191,14 +194,18 @@ impl SyntaxKind {
             (Self::TypeParameter, Self::TypeExpression, _) => "bound",
             (Self::EnumDeclaration, Self::Block, _) => "variants",
             (Self::EnumVariant, Self::ParameterList, _) => "payload",
+            (Self::SwitchStatement, Self::SwitchCase, _) => "case",
+            (Self::SwitchStatement, _, 0) => "selector",
+            (Self::SwitchCase, Self::ArgumentList, 0) => "conditions",
+            (Self::SwitchCase, Self::MatchCatchAll, 0) => "default",
             (Self::MatchStatement, _, 0) => "scrutinee",
             (Self::MatchStatement, Self::MatchCase, _) => "case",
+            (Self::MatchCase, Self::ParameterList, _) => "bindings",
             (
                 Self::MatchCase,
                 Self::StaticMemberExpression | Self::Name | Self::MatchCatchAll,
                 0,
             ) => "variant",
-            (Self::MatchCase, Self::ParameterList, _) => "bindings",
             (Self::Binding, Self::TypeExpression, _) => "type",
             (Self::Binding, _, _)
             | (Self::Assignment, _, 1)
@@ -223,7 +230,8 @@ impl SyntaxKind {
                 Self::FunctionDeclaration
                 | Self::IfStatement
                 | Self::WhileStatement
-                | Self::MatchCase,
+                | Self::MatchCase
+                | Self::SwitchCase,
                 Self::Block,
                 _,
             ) => "body",
@@ -261,6 +269,29 @@ impl SyntaxNode {
             documentation: None,
             is_unsafe_call: false,
         }
+    }
+
+    pub(crate) fn switch_selector(&self) -> Option<&SyntaxNode> {
+        if self.kind != SyntaxKind::SwitchStatement {
+            return None;
+        }
+        self.children
+            .first()
+            .filter(|child| child.kind != SyntaxKind::SwitchCase)
+    }
+
+    pub(crate) fn switch_cases(&self) -> impl Iterator<Item = &SyntaxNode> + Clone {
+        self.children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::SwitchCase)
+    }
+
+    pub(crate) fn switch_has_default(&self) -> bool {
+        self.switch_cases().any(|case| {
+            case.children
+                .first()
+                .is_some_and(|header| header.kind == SyntaxKind::MatchCatchAll)
+        })
     }
 
     pub fn annotations(&self) -> impl Iterator<Item = &SyntaxNode> {

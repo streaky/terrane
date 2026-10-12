@@ -46,12 +46,10 @@ fn main() {
     let __terrane_match_value_696 = bare.clone();
     match __terrane_match_value_696 {
         UnitState::Rejected => {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("rejected"))
-            );
+            println!("{}", String::from("rejected"));
         }
         _ => {
-            println!("{}", terrane_scalar_support::scalar_text(&String::from("other")));
+            println!("{}", String::from("other"));
         }
     }
 }

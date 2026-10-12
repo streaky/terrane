@@ -278,10 +278,7 @@ fn positive_lower_bound(input: i8) {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("lower-caught"))
-                    );
+                    println!("{}", String::from("lower-caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -373,10 +370,7 @@ fn main() {
                     && __terrane_error_1.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_1 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("upper-caught"))
-                    );
+                    println!("{}", String::from("upper-caught"));
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);
@@ -430,10 +424,7 @@ fn main() {
                     && __terrane_error_2.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_2 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("intermediate-caught"))
-                    );
+                    println!("{}", String::from("intermediate-caught"));
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);
@@ -463,8 +454,8 @@ fn main() {
     shared_value = std::sync::Arc::new(std::sync::Mutex::new(41));
     observer = shared_value.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = observer
-        .lock().expect("shared reference lock poisoned").clone(); __terrane_value })
+        "{}", terrane_scalar_support::scalar_text(&* observer.lock()
+        .expect("shared reference lock poisoned"))
     );
     if {
         let __terrane_value = shared_value
@@ -510,7 +501,7 @@ fn main() {
         );
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = shared_value
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })
+        "{}", terrane_scalar_support::scalar_text(&* shared_value.lock()
+        .expect("reference lock poisoned"))
     );
 }

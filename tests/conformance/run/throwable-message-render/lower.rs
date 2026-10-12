@@ -416,10 +416,7 @@ fn main() {
                             .contains(&String::from("caused by: /throwable-message-render::split-error: original display")))
                         );
                     } else {
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("missing cause"))
-                        );
+                        println!("{}", String::from("missing cause"));
                     }
                 }
                 if !__terrane_handled_4 {

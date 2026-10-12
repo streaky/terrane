@@ -26,10 +26,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&first.message));
     }
     if first.completed.clone() != terrane_int_support::Int::from(3_i128) || first.end {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("unexpected first read"))
-        );
+        println!("{}", String::from("unexpected first read"));
     }
     remainder = reader.read_all(terrane_int_support::Int::from(100_i128));
     if remainder.failed {
@@ -38,10 +35,7 @@ fn main() {
     if remainder.completed.clone() != terrane_int_support::Int::from(4_i128)
         || !remainder.end
     {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("unexpected remainder"))
-        );
+        println!("{}", String::from("unexpected remainder"));
     }
     output = stdout();
     writer = output;
@@ -64,10 +58,7 @@ fn main() {
     if prefix.completed.clone() != terrane_int_support::Int::from(1_i128)
         || resumed.completed.clone() != terrane_int_support::Int::from(3_i128)
     {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("unexpected resumed write"))
-        );
+        println!("{}", String::from("unexpected resumed write"));
     }
     flushed = writer.flush();
     if flushed.failed {
@@ -75,17 +66,11 @@ fn main() {
     }
     synced = writer.sync_data();
     if !synced.failed {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("unexpected standard stream sync"))
-        );
+        println!("{}", String::from("unexpected standard stream sync"));
     }
     fully_synced = writer.sync_all();
     if !fully_synced.failed {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("unexpected standard stream full sync"))
-        );
+        println!("{}", String::from("unexpected standard stream full sync"));
     }
     input_closed = reader.close();
     if input_closed.failed {

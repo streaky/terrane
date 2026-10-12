@@ -44,9 +44,7 @@ fn main() {
     skipped = terrane_int_support::Int::from(7_i128);
     '__terrane_break_2: while skipped.clone() < terrane_int_support::Int::from(7_i128) {
         '__terrane_continue_2: {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("unreachable"))
-            );
+            println!("{}", String::from("unreachable"));
         }
         skipped = skipped.clone() + terrane_int_support::Int::from(1_i128);
     }

@@ -32,11 +32,11 @@ pub enum Pair {
     Values(terrane_int_support::Int, terrane_int_support::Int),
 }
 fn first() -> terrane_int_support::Int {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("first")));
+    println!("{}", String::from("first"));
     return terrane_int_support::Int::from(11_i128);
 }
 fn second() -> terrane_int_support::Int {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("second")));
+    println!("{}", String::from("second"));
     return terrane_int_support::Int::from(23_i128);
 }
 fn main() {

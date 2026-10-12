@@ -315,6 +315,20 @@ pub(super) fn collect_typed_bindings(
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
         return Ok(());
     }
+    if node.kind == SyntaxKind::SwitchCase {
+        let [header, block] = node.children.as_slice() else {
+            return Ok(());
+        };
+        if header.kind == SyntaxKind::ArgumentList {
+            for expression in &header.children {
+                infer_value_type(unit, expression, visible_bindings)?;
+            }
+        } else if header.kind != SyntaxKind::MatchCatchAll {
+            infer_value_type(unit, header, visible_bindings)?;
+        }
+        collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
+        return Ok(());
+    }
     if node.kind == SyntaxKind::MatchStatement {
         let payloads = matches.bindings(unit, node, visible_bindings)?;
         visible_bindings.extend(payloads.iter().cloned());
@@ -1011,6 +1025,42 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         node: &SyntaxNode,
     ) -> BTreeSet<String> {
         let mut errors = call_argument_errors(package, unit, node);
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && node_text(&unit.source, member) == "replace"
+            && infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten()
+                == Some(ValueType::Scalar(ScalarType::String))
+            && let Some(arguments) = node.children.get(1)
+            && arguments.children.len() == 2
+        {
+            let first = arguments.children[0]
+                .children
+                .last()
+                .unwrap_or(&arguments.children[0]);
+            let second = arguments.children[1]
+                .children
+                .last()
+                .unwrap_or(&arguments.children[1]);
+            let first_type = infer_value_type(unit, first, &unit.typed_bindings)
+                .ok()
+                .flatten();
+            let second_type = infer_value_type(unit, second, &unit.typed_bindings)
+                .ok()
+                .flatten();
+            let string = ValueType::Scalar(ScalarType::String);
+            let is_string_list = |value: Option<&ValueType>| match value {
+                Some(ValueType::StringList) => true,
+                Some(ValueType::List(item)) => item.value_type_ref() == &string,
+                _ => false,
+            };
+            if is_string_list(first_type.as_ref()) && is_string_list(second_type.as_ref()) {
+                errors.insert("/core/errors::replace-error".to_owned());
+            }
+        }
         if node.kind == SyntaxKind::BinaryExpression
             && let [left, right] = node.children.as_slice()
             && matches!(
@@ -1182,7 +1232,15 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         if node.kind == SyntaxKind::ThrowStatement {
             return direct_errors(package, unit, node);
         }
-        let local_errors = local_builtin_errors(package, unit, node);
+        let mut local_errors = local_builtin_errors(package, unit, node);
+        for method in super::display::implicit_display_methods(package, unit, node) {
+            local_errors.extend(
+                inferred
+                    .get(&key(method.span))
+                    .cloned()
+                    .unwrap_or_else(|| method.escaping_throwables.clone()),
+            );
+        }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
@@ -1335,6 +1393,26 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             .iter()
             .filter(|contract| contract.span.file == unit.source.id())
         {
+            if contract.owner_identity.as_ref().is_some_and(|owner| {
+                unit.descriptors.iter().any(|descriptor| {
+                    descriptor.identity == *owner && descriptor.kind == ObjectKind::Interface
+                })
+            }) {
+                // An interface signature has no implementation to infer. Its written
+                // throwable bound is the dispatch ABI and the caller's possible set.
+                inferred_throwables.insert(
+                    key(contract.span),
+                    contract
+                        .thrown_types
+                        .iter()
+                        .filter_map(|value| match value {
+                            ValueType::Object(identity) => Some(identity.qualified_base()),
+                            _ => None,
+                        })
+                        .collect(),
+                );
+                continue;
+            }
             let Some(function) = find_node_by_span(&unit.tree.root, contract.span) else {
                 continue;
             };

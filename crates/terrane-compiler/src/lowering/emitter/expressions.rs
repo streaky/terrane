@@ -1066,6 +1066,19 @@ impl Emitter<'_> {
                 } else {
                     ""
                 };
+                if self.text(member) == "to-string"
+                    && matches!(receiver_type, ValueType::Scalar(scalar) if scalar != ScalarType::Bytes)
+                {
+                    let body = "terrane_scalar_support::scalar_text(&receiver)";
+                    let body = if expected_throws {
+                        format!("Ok({body})")
+                    } else {
+                        body.to_owned()
+                    };
+                    return format!(
+                        "{{ let receiver = {receiver}; {constructor}(move |{declarations}| {body}) }}"
+                    );
+                }
                 if let ValueType::Scalar(float_type @ (ScalarType::Float32 | ScalarType::Float64)) =
                     receiver_type
                     && let Some(body) = self.float_call(
@@ -1472,7 +1485,7 @@ impl Emitter<'_> {
             format!("{{ let _ = &{value}; {result} }}")
         })
     }
-    fn string_comparison_operand(&mut self, node: &SyntaxNode) -> String {
+    pub(super) fn string_comparison_operand(&mut self, node: &SyntaxNode) -> String {
         if node.kind == SyntaxKind::Literal {
             crate::lowering::helpers::native_macro_literal(self.text(node))
         } else {
@@ -1489,6 +1502,11 @@ impl Emitter<'_> {
             return String::new();
         };
         let source_operator = self.source.text()[left.span.end..right.span.start].trim();
+        if source_operator == "+"
+            && self.value_type(node) == Some(ValueType::Scalar(ScalarType::String))
+        {
+            return self.string_addition(node);
+        }
         if source_operator == "is" {
             let left_type = self.value_type(left);
             let right_type = self.value_type(right);

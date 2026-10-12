@@ -1,0 +1,4 @@
+label
+generic:label
+prefix label|label:label
+interface:label

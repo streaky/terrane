@@ -1,0 +1,71 @@
+namespace string-display-composition
+
+from /core/errors import throwable
+
+class render-error implements throwable
+    message string = 'cannot render'
+    function render string;
+        return this.message
+
+class label
+    text string
+    function construct; text string
+        this.text = text
+    function to-string string;
+        print; 'render:', this.text
+        return this.text
+
+interface displayable
+    function to-string string throws throwable;
+
+class broken implements displayable
+    function to-string string;
+        throw instance render-error;
+
+class calm implements displayable
+    function to-string string;
+        return 'calm'
+
+function number int; value int
+    print; 'number:', value
+    return value
+
+function render-generic of (T implements displayable) string; value T
+    return 'generic:' + value
+
+function main;
+    print; 2 + 3 + ' items'
+    print; 'items: ' + 2 + 3
+    print; 'items: ' + (2 + 3)
+    print; '2' + 3, '|', 3 + '2'
+    print; (true.to-string;), '|', (none.to-string;), '|', (42.to-string;)
+    item = instance label; 'label'
+    print; (item.to-string;)
+    print; 'before ' + item + ' after'
+    print; item
+    print; ('prefix '.concat; item, 7)
+    print; (':'.join; item, 7)
+    print; 'ordered ' + (number; 2) + item + (number; 3)
+    try
+        print; 'broken ' + (instance broken;)
+    catch render-error
+        print; 'caught addition'
+    try
+        print; (instance broken;)
+    catch render-error
+        print; 'caught print'
+    try
+        _ = ''.concat; (instance broken;)
+    catch render-error
+        print; 'caught concat'
+    try
+        _ = ':'.join; (instance broken;)
+    catch render-error
+        print; 'caught join'
+    try
+        print; (render-generic; (instance broken;))
+    catch render-error
+        print; 'caught generic'
+    print; (render-generic; (instance calm;))
+    erased displayable = instance calm;
+    print; 'interface:' + erased

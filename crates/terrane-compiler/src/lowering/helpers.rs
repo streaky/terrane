@@ -680,6 +680,12 @@ pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
             .children
             .iter()
             .any(|case| case.children.last().is_none_or(block_may_fall_through)),
+        SyntaxKind::SwitchStatement => {
+            !statement.switch_has_default()
+                || statement
+                    .switch_cases()
+                    .any(|case| case.children.last().is_none_or(block_may_fall_through))
+        }
         SyntaxKind::TryStatement => {
             let try_falls_through = statement
                 .children
@@ -716,6 +722,7 @@ pub(super) fn rust_builtin_error_kind(kind: &str) -> Option<&'static str> {
         "negative-shift-count" => Some("NegativeShiftCount"),
         "coercion-error" => Some("CoercionError"),
         "decode-error" => Some("DecodeError"),
+        "replace-error" => Some("ReplaceError"),
         "index-error" => Some("IndexError"),
         "missing-key" => Some("MissingKey"),
         "resource-error" => Some("ResourceError"),

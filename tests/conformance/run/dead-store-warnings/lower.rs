@@ -27,7 +27,7 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         let _ = &ignored;
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("tick")));
+        println!("{}", String::from("tick"));
     }
     let __terrane_iterable_1 = String::from("ab");
     let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(

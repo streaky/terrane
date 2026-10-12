@@ -7,5 +7,5 @@ fn helper(value: terrane_int_support::Int) -> String {
     return String::from("unused");
 }
 fn main() {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("ok")));
+    println!("{}", String::from("ok"));
 }

@@ -39,7 +39,7 @@ fn main() {
     let mut item: terrane_int_support::Int;
     value = Gate::terrane_construct();
     if value.truth() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("truth")));
+        println!("{}", String::from("truth"));
     }
     source = Values::terrane_construct();
     let __terrane_iterable_0 = source;
@@ -51,5 +51,5 @@ fn main() {
         };
         println!("{}", terrane_scalar_support::scalar_text(&item));
     }
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("end")));
+    println!("{}", String::from("end"));
 }

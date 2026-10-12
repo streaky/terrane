@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-platform-support
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-platform-support
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
 #[allow(dead_code)]

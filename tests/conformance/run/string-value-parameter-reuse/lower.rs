@@ -3,8 +3,7 @@
 // Namespace: string-value-parameter-reuse
 fn consume(value: String) {
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&String::from("consume:")),
-        terrane_scalar_support::scalar_text(&value)
+        "{}{}", String::from("consume:"), terrane_scalar_support::scalar_text(&value)
     );
 }
 #[derive(Clone)]
@@ -20,7 +19,7 @@ impl MessageBox {
     pub fn construct(&mut self, message: String) {
         self.message = message.clone();
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&String::from("parameter:")),
+            "{}{}", String::from("parameter:"),
             terrane_scalar_support::scalar_text(&message)
         );
     }
@@ -52,15 +51,13 @@ fn main() {
         value = __terrane_item_0.value;
         consume(key.clone());
         println!(
-            "{}{}{}{}", terrane_scalar_support::scalar_text(&String::from("key:")),
-            terrane_scalar_support::scalar_text(&key),
-            terrane_scalar_support::scalar_text(&String::from("=")),
-            terrane_scalar_support::scalar_text(&value)
+            "{}{}{}{}", String::from("key:"), terrane_scalar_support::scalar_text(&key),
+            String::from("="), terrane_scalar_support::scalar_text(&value)
         );
     }
     holder = MessageBox::terrane_construct(String::from("saved"));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&String::from("field:")),
-        terrane_scalar_support::scalar_text(&holder.message)
+        "{}{}", String::from("field:"), terrane_scalar_support::scalar_text(&holder
+        .message)
     );
 }

@@ -1,0 +1,16 @@
+namespace model
+
+from /core/errors import throwable
+
+class render-error implements throwable
+    message string = 'imported renderer failed'
+    function render string;
+        return this.message
+
+class label
+    function to-string string;
+        return 'imported'
+
+class broken
+    function to-string string;
+        throw instance render-error;

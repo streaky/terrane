@@ -15,10 +15,7 @@ impl Tag {
         __terrane_constructed_value
     }
     pub fn construct(&mut self) {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("ANNOTATION CONSTRUCTOR MUST NOT RUN"))
-        );
+        println!("{}", String::from("ANNOTATION CONSTRUCTOR MUST NOT RUN"));
     }
 }
 #[derive(Clone)]
@@ -230,10 +227,8 @@ fn main() {
     println!(
         "{}{}{}{}{}",
         terrane_scalar_support::scalar_text(&helper(terrane_int_support::Int::from(4_i128))),
-        terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&item
-        .inherited(terrane_int_support::Int::from(3_i128))),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        String::from(":"), terrane_scalar_support::scalar_text(&item
+        .inherited(terrane_int_support::Int::from(3_i128))), String::from(":"),
         terrane_scalar_support::scalar_text(&override_item
         .inherited(terrane_int_support::Int::from(3_i128)))
     );

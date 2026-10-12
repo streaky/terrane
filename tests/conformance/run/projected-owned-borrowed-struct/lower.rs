@@ -31,13 +31,10 @@ fn main() {
     );
     descriptor.offset = 36;
     println!(
-        "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&first),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&first), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&owned),
-        1 /* terrane-site: src/main.trn:11:25-11:47 */)),
-        terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&owned.count),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        1 /* terrane-site: src/main.trn:11:25-11:47 */)), String::from(":"),
+        terrane_scalar_support::scalar_text(&owned.count), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(consume(descriptor),
         2 /* terrane-site: src/main.trn:11:74-11:93 */))
     );

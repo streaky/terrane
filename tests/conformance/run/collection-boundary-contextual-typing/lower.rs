@@ -21,9 +21,9 @@ fn take_entry_map(
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(values
         .get_or_error(&String::from("a")), 1 /* terrane-site: case.trn:8:10-8:21 */)
-        .key), terrane_scalar_support::scalar_text(&__terrane_raised(values
+        .key.clone()), terrane_scalar_support::scalar_text(&__terrane_raised(values
         .get_or_error(&String::from("a")), 2 /* terrane-site: case.trn:8:27-8:38 */)
-        .value)
+        .value.clone())
     );
 }
 fn make_entry_map() -> terrane_collection_support::Map<
@@ -138,15 +138,15 @@ fn main() {
     made = make();
     made_entries = make_entry_map();
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair.value),
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair.value.clone()),
         terrane_scalar_support::scalar_text(&__terrane_raised(keyed.get_or_error(&5),
         9 /* terrane-site: case.trn:27:22-27:30 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(made
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         10 /* terrane-site: case.trn:27:32-27:39 */)), 10 /* terrane-site: case.trn:27:32-27:39 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(made_entries
-        .get_or_error(&String::from("a")), 11 /* terrane-site: case.trn:27:41-27:58 */).key),
+        .get_or_error(&String::from("a")), 11 /* terrane-site: case.trn:27:41-27:58 */).key.clone()),
         terrane_scalar_support::scalar_text(&__terrane_raised(made_entries
-        .get_or_error(&String::from("a")), 12 /* terrane-site: case.trn:27:64-27:81 */).value)
+        .get_or_error(&String::from("a")), 12 /* terrane-site: case.trn:27:64-27:81 */).value.clone())
     );
 }

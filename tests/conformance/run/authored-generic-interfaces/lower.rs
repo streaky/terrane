@@ -181,7 +181,7 @@ fn main() {
     input.next();
     second = input.next();
     if second.is_none() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("none")));
+        println!("{}", String::from("none"));
     }
     peer = Address::terrane_construct();
     erased = choose::<

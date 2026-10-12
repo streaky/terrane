@@ -42,11 +42,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(address_port(&envelope),
         1 /* terrane-site: src/main.trn:9:13-9:35 */))
     );
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(i128::from(*
-        &envelope.payload.port)))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&envelope.payload.port));
     envelope.payload = witness::Address { port: 8081 };
     println!(
         "{}",
@@ -103,11 +99,7 @@ fn main() {
         into_address(envelope),
         7 /* terrane-site: src/main.trn:17:16-17:43 */,
     );
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(i128::from(*
-        &restored.port)))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&restored.port));
     pair = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| witness::Pair::<String, witness::Address> {
@@ -299,10 +291,7 @@ fn main() {
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("native range rejected"))
-                    );
+                    println!("{}", String::from("native range rejected"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -319,11 +308,7 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(i128::from(*
-        &numeric.payload)))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&numeric.payload));
     explicit = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| witness::Envelope::<witness::Address> {
@@ -367,9 +352,5 @@ fn main() {
         },
         21 /* terrane-site: src/main.trn:41:16-41:52 */,
     );
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(i128::from(*
-        &selected.0.port)))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&selected.0.port));
 }

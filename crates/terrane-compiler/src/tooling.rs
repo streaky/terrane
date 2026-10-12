@@ -3499,6 +3499,38 @@ mod tests {
     }
 
     #[test]
+    fn syntax_queries_find_match_payload_bindings() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/match-bindings.trn";
+        let text = "namespace match-bindings\n\nenum result\n    value; text string\n\nfunction main;\n    item = result::value; 'payload'\n    match item\n        case result::value; content\n            print; content\n";
+        let metadata = open(&mut engine, uri, text, SnapshotOptions::default());
+        let page = engine
+            .find(
+                &metadata.snapshot_id,
+                &Selector {
+                    kind: Some("ParameterList".to_owned()),
+                    child_field: Some("bindings".to_owned()),
+                    containing: None,
+                    text: None,
+                    token_kind: None,
+                    symbol_identity: None,
+                    descriptor_identity: None,
+                    include_recovery: false,
+                },
+                Some(MAX_PAGE_SIZE),
+                None,
+            )
+            .expect("query match payload bindings");
+        let bindings = page
+            .matches
+            .iter()
+            .map(|item| &text[item.span.start..item.span.end])
+            .collect::<Vec<_>>();
+        assert_eq!(bindings, ["content"]);
+        assert!(page.complete);
+    }
+
+    #[test]
     fn lossless_syntax_preserves_unicode_crlf_trivia_and_recovery() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/incomplete.trn";

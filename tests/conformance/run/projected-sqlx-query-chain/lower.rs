@@ -497,10 +497,7 @@ fn main() {
                             == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("query-error"))
-                        );
+                        println!("{}", String::from("query-error"));
                     }
                     if !__terrane_handled_0 {
                         return TerraneCompletion::Error(__terrane_error_0);
@@ -564,6 +561,6 @@ fn main() {
                 .await,
             15 /* terrane-site: src/main.trn:33:9-33:26 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("complete")));
+        println!("{}", String::from("complete"));
     });
 }

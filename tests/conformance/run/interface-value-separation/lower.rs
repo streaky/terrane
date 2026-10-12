@@ -46,7 +46,7 @@ impl Counter {
         return self.value.clone();
     }
     pub fn destruct(&mut self) {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("destruct")));
+        println!("{}", String::from("destruct"));
     }
 }
 impl ReadableProtocol for Counter {

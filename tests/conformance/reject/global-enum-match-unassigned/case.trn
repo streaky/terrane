@@ -1,0 +1,12 @@
+namespace global-enum-match-unassigned
+enum state
+    ready
+    waiting
+
+global selected state
+function main;
+    match selected
+        case state::ready
+            return
+        case else
+            return

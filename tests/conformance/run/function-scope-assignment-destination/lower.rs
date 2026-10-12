@@ -46,7 +46,7 @@ fn fallible_initialization(fail: bool) {
                 );
             println!(
                 "{}", terrane_scalar_support::scalar_text(&value.as_ref()
-                .expect("flow-proven available binding").clone())
+                .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
         })();
@@ -61,10 +61,7 @@ fn fallible_initialization(fail: bool) {
                     && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("failed"))
-                    );
+                    println!("{}", String::from("failed"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -88,7 +85,7 @@ fn main() {
     let present: Option<String>;
     absent = optional_result(false);
     if absent.is_none() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("absent")));
+        println!("{}", String::from("absent"));
     }
     present = optional_result(true);
     if present.is_some() {

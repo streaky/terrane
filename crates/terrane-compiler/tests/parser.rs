@@ -23,6 +23,30 @@ fn rejected(text: &str, code: &str) {
 }
 
 #[test]
+fn rejects_invalid_switch_clause_shapes() {
+    for (body, code) in [
+        ("switch 1\n    print; 'not a case'\n", "S1110"),
+        ("switch 1\n", "S1111"),
+        (
+            "switch 1\n    case else\n        return\n    case else\n        return\n",
+            "S1112",
+        ),
+        (
+            "switch 1\n    case else\n        return\n    case 1\n        return\n",
+            "S1113",
+        ),
+        ("switch 1\n    case 1,\n        return\n", "S1114"),
+        (
+            "switch 1\n    case else unexpected\n        return\n",
+            "S1115",
+        ),
+        ("switch\n    case true, false\n        return\n", "S1116"),
+    ] {
+        rejected(body, code);
+    }
+}
+
+#[test]
 fn returns_recovered_tree_and_tokens_with_diagnostics() {
     let source = SourceFile::new(0, "case.trn".into(), "value =\nnext = 1\n".to_owned());
     let lexed = lex(&source).unwrap();

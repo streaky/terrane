@@ -99,10 +99,10 @@ fn main() {
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&match pair.as_ref()
             .expect("flow-proven available binding") { TerraneUnionF0S446::Arm0(value) =>
-            value, _ => unreachable!("flow-proven storage refinement") } .key),
+            value, _ => unreachable!("flow-proven storage refinement") } .key.clone()),
             terrane_scalar_support::scalar_text(&match pair.as_ref()
             .expect("flow-proven available binding") { TerraneUnionF0S446::Arm0(value) =>
-            value, _ => unreachable!("flow-proven storage refinement") } .value)
+            value, _ => unreachable!("flow-proven storage refinement") } .value.clone())
         );
     }
     println!(
@@ -141,8 +141,8 @@ fn main() {
         terrane_int_support::Int,
     >::new(String::from("key"), terrane_int_support::Int::from(7_i128));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&explicit.key),
-        terrane_scalar_support::scalar_text(&explicit.value)
+        "{}{}", terrane_scalar_support::scalar_text(&explicit.key.clone()),
+        terrane_scalar_support::scalar_text(&explicit.value.clone())
     );
     numbers = __terrane_raised(
         terrane_collection_support::Range::new(
@@ -223,9 +223,7 @@ fn main() {
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&String::from("zero"))
-                    );
+                    println!("{}", String::from("zero"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -280,7 +278,7 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match pair.as_ref()
             .expect("flow-proven available binding") { TerraneUnionF0S446::Arm0(value) =>
-            value, _ => unreachable!("flow-proven storage refinement") } .key)
+            value, _ => unreachable!("flow-proven storage refinement") } .key.clone())
         );
     }
     deterministic_set = terrane_collection_support::UnorderedSet::<

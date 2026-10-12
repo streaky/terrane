@@ -1278,12 +1278,17 @@ impl<'a> Emitter<'a> {
                             } else {
                                 call
                             };
-                            write!(
-                                self.output,
-                                "{call}{}",
-                                if method.is_async { ".await" } else { "" }
-                            )
-                            .unwrap();
+                            let call = if method.is_async {
+                                format!("{call}.await")
+                            } else {
+                                call
+                            };
+                            let call = if method.throws && !implementation.throws {
+                                format!("Ok({call})")
+                            } else {
+                                call
+                            };
+                            write!(self.output, "{call}").unwrap();
                         } else {
                             let projected_item = self
                                 .package

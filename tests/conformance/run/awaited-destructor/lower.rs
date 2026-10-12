@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: awaited-destructor
 async fn close_native() {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("closed")));
+    println!("{}", String::from("closed"));
 }
 #[derive(Clone)]
 pub struct Resource {
@@ -40,6 +40,6 @@ fn main() {
         let value: Resource;
         value = Resource::terrane_construct();
         let _ = &value;
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("body")));
+        println!("{}", String::from("body"));
     });
 }

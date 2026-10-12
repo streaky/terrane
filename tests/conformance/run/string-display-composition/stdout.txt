@@ -1,0 +1,26 @@
+5 items
+items: 23
+items: 5
+23|32
+true|none|42
+render:label
+label
+render:label
+before label after
+render:label
+label
+render:label
+prefix label7
+render:label
+label:7
+number:2
+render:label
+number:3
+ordered 2label3
+caught addition
+caught print
+caught concat
+caught join
+caught generic
+generic:calm
+interface:calm

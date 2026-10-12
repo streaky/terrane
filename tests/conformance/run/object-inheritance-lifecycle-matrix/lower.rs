@@ -50,9 +50,7 @@ impl BaseStorage {
         self.value = value.clone();
     }
     pub fn destruct(&mut self) {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
-        );
+        println!("{}", String::from("base-destruct"));
     }
 }
 #[derive(Clone)]
@@ -145,14 +143,10 @@ impl Child {
         self.value = value.clone();
     }
     pub fn destruct(&mut self) {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("child-destruct"))
-        );
+        println!("{}", String::from("child-destruct"));
     }
     pub fn terrane_destruct_0(&mut self) {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
-        );
+        println!("{}", String::from("base-destruct"));
     }
 }
 impl NamedProtocol for Child {

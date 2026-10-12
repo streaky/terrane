@@ -97,10 +97,7 @@ async fn socket_session(mut socket: WebSocket) {
                             .clone()
                             .as_str() == "shutdown"
                         {
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("close-sent"))
-                            );
+                            println!("{}", String::from("close-sent"));
                             __terrane_traced_completion!(
                                 __terrane_await({ let __terrane_future = { let
                                 __terrane_call = (&mut socket)
@@ -126,10 +123,9 @@ async fn socket_session(mut socket: WebSocket) {
                             return TerraneCompletion::Return(());
                         }
                         println!(
-                            "{}{}",
-                            terrane_scalar_support::scalar_text(&String::from("text")),
+                            "{}{}", String::from("text"),
                             terrane_scalar_support::scalar_text(&value.as_ref()
-                            .expect("flow-proven available binding").clone())
+                            .expect("flow-proven available binding"))
                         );
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
@@ -173,8 +169,7 @@ async fn socket_session(mut socket: WebSocket) {
                                 ),
                             );
                         println!(
-                            "{}{}",
-                            terrane_scalar_support::scalar_text(&String::from("binary")),
+                            "{}{}", String::from("binary"),
                             terrane_scalar_support::scalar_text(&__terrane_raised_completion!(match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                             (&payload.as_ref().expect("flow-proven available binding"))
@@ -226,8 +221,7 @@ async fn socket_session(mut socket: WebSocket) {
                                 ),
                             );
                         println!(
-                            "{}{}",
-                            terrane_scalar_support::scalar_text(&String::from("ping")),
+                            "{}{}", String::from("ping"),
                             terrane_scalar_support::scalar_text(&__terrane_raised_completion!(match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                             (&payload.as_ref().expect("flow-proven available binding"))
@@ -279,8 +273,7 @@ async fn socket_session(mut socket: WebSocket) {
                                 ),
                             );
                         println!(
-                            "{}{}",
-                            terrane_scalar_support::scalar_text(&String::from("pong")),
+                            "{}{}", String::from("pong"),
                             terrane_scalar_support::scalar_text(&__terrane_raised_completion!(match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                             (&payload.as_ref().expect("flow-proven available binding"))
@@ -296,15 +289,10 @@ async fn socket_session(mut socket: WebSocket) {
                         .clone()
                         .as_str() == "Close"
                     {
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("close"))
-                        );
+                        println!("{}", String::from("close"));
                     }
                 } else {
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(&String::from("end"))
-                    );
+                    println!("{}", String::from("end"));
                     return TerraneCompletion::Return(());
                 }
             }
@@ -323,10 +311,7 @@ async fn socket_session(mut socket: WebSocket) {
                         == TerraneErrorKind::Custom(DescriptorId(2))
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("failure"))
-                    );
+                    println!("{}", String::from("failure"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

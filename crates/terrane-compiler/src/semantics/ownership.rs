@@ -652,6 +652,50 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             moved.extend(branches.into_iter().flatten());
             return Ok(());
         }
+        if node.kind == SyntaxKind::SwitchStatement {
+            let mut entry = moved.clone();
+            if let Some(selector) = node.switch_selector() {
+                visit(package, unit, selector, &mut entry, false, resource_objects)?;
+            }
+            let mut branches = Vec::new();
+            for case in node.switch_cases() {
+                if let Some(header) = case
+                    .children
+                    .first()
+                    .filter(|header| header.kind == SyntaxKind::ArgumentList)
+                {
+                    for expression in &header.children {
+                        visit(
+                            package,
+                            unit,
+                            expression,
+                            &mut entry,
+                            false,
+                            resource_objects,
+                        )?;
+                    }
+                } else if let Some(header) = case
+                    .children
+                    .first()
+                    .filter(|header| header.kind != SyntaxKind::MatchCatchAll)
+                {
+                    visit(package, unit, header, &mut entry, false, resource_objects)?;
+                }
+                let mut branch = entry.clone();
+                if let Some(body) = case.children.last() {
+                    visit(package, unit, body, &mut branch, false, resource_objects)?;
+                    if super::scope_validation::block_may_fall_through(body) {
+                        branches.push(branch);
+                    }
+                }
+            }
+            if !node.switch_has_default() {
+                branches.push(entry);
+            }
+            moved.clear();
+            moved.extend(branches.into_iter().flatten());
+            return Ok(());
+        }
         if node.kind == SyntaxKind::SelectStatement {
             let mut entry = moved.clone();
             for case in &node.children {

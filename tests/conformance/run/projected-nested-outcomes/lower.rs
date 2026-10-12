@@ -33,9 +33,7 @@ fn inspect_next(mode: i64) {
                     unreachable!("flow-proven storage refinement") })
                 );
             } else {
-                println!(
-                    "{}", terrane_scalar_support::scalar_text(&String::from("end"))
-                );
+                println!("{}", String::from("end"));
             }
             TerraneCompletion::Normal
         })();
@@ -105,9 +103,7 @@ fn inspect_outer(mode: i64) {
                     unreachable!("flow-proven storage refinement") })
                 );
             } else {
-                println!(
-                    "{}", terrane_scalar_support::scalar_text(&String::from("absent"))
-                );
+                println!("{}", String::from("absent"));
             }
             TerraneCompletion::Normal
         })();

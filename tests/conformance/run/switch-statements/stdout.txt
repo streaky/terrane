@@ -1,0 +1,11 @@
+selector
+candidate:1
+candidate:2
+selected
+selectors:1
+condition:first
+condition:second
+predicate
+joined
+small|empty|large
+absent|present

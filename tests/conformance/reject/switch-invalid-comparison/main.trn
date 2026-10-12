@@ -1,0 +1,7 @@
+namespace switch-invalid-comparison
+from /core/collections import list
+function main;
+    selector = list; 1
+    switch selector
+        case selector
+            return

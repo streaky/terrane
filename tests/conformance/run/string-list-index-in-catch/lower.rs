@@ -3,9 +3,7 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn selected_index() -> terrane_int_support::Int {
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&String::from("index evaluated"))
-    );
+    println!("{}", String::from("index evaluated"));
     return terrane_int_support::Int::from(0_i128);
 }
 fn main() {
@@ -74,10 +72,7 @@ fn main() {
                                     && __terrane_error_1.kind == TerraneErrorKind::IndexError
                                 {
                                     __terrane_handled_1 = true;
-                                    println!(
-                                        "{}",
-                                        terrane_scalar_support::scalar_text(&String::from("invalid index caught"))
-                                    );
+                                    println!("{}", String::from("invalid index caught"));
                                 }
                                 if !__terrane_handled_1 {
                                     return TerraneCompletion::Error(__terrane_error_1);

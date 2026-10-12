@@ -170,6 +170,9 @@ fn add_scalar_family_members(result: &mut BTreeSet<String>, scalar: ScalarType) 
 
 fn scalar_members(scalar: ScalarType) -> BTreeSet<String> {
     let mut result = members(&["type"]);
+    if scalar != ScalarType::Bytes {
+        result.insert("to-string".to_owned());
+    }
     if scalar.is_integer() {
         add_integer_members(&mut result, scalar);
     }

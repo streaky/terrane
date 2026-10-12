@@ -18,8 +18,7 @@ fn main() {
     let value: Fancy;
     value = Fancy::terrane_construct();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&value.value),
-        terrane_scalar_support::scalar_text(&String::from(":")),
+        "{}{}{}", terrane_scalar_support::scalar_text(&value.value), String::from(":"),
         terrane_scalar_support::scalar_text(&value.extra)
     );
 }

@@ -145,10 +145,7 @@ fn validate_throw() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("throw-caught"))
-                    );
+                    println!("{}", String::from("throw-caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

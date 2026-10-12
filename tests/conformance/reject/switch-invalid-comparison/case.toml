@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "main.trn"
+code = "T0011"
+contains = "operator"

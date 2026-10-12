@@ -50,14 +50,10 @@ fn main() {
         outcome = __terrane_await(scope.join(child)).await;
         value = outcome.value.clone();
         if value.is_some() {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("present"))
-            );
+            println!("{}", String::from("present"));
         }
         if value.is_none() {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("missing"))
-            );
+            println!("{}", String::from("missing"));
         }
     });
 }

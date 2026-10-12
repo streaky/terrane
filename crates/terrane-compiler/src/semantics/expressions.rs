@@ -1548,6 +1548,23 @@ fn infer_nonbinary_value_type(
         {
             let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
             if receiver_type == Some(ValueType::Scalar(ScalarType::String)) {
+                if let Some(arguments) = node.children.get(1) {
+                    for argument in &arguments.children {
+                        let value = argument.children.last().unwrap_or(argument);
+                        if let Some(actual) = infer_value_type(unit, value, bindings)?
+                            && !super::display::supports_display(unit, &actual, value.span.start)
+                        {
+                            return Err(failure(
+                                &unit.source,
+                                "T0035",
+                                format!(
+                                    "string composition requires text display, found `{actual}`"
+                                ),
+                                value.span,
+                            ));
+                        }
+                    }
+                }
                 return Ok(Some(ValueType::Scalar(ScalarType::String)));
             }
             if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes))

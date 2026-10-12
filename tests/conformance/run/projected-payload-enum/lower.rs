@@ -248,7 +248,7 @@ fn main() {
         9 /* terrane-site: src/main.trn:21:32-21:47 */,
     );
     if pair_value.is_some() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("pair")));
+        println!("{}", String::from("pair"));
     }
     named_payload = EventNamed::terrane_construct(42);
     println!("{}", terrane_scalar_support::scalar_text(&named_payload.value));
@@ -301,7 +301,7 @@ fn main() {
         11 /* terrane-site: src/main.trn:27:34-27:51 */,
     );
     if named_value.is_some() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("named")));
+        println!("{}", String::from("named"));
     }
     optional_payload = EventOptional::terrane_construct(42, None::<String>);
     optional = __terrane_raised(
@@ -358,7 +358,7 @@ fn main() {
         13 /* terrane-site: src/main.trn:32:40-32:63 */,
     );
     if optional_value.is_some() {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("optional")));
+        println!("{}", String::from("optional"));
     }
     owned = Some(
         __terrane_raised(
@@ -428,7 +428,7 @@ fn main() {
             println!("{}", terrane_scalar_support::scalar_text(&text_2));
         }
         _ => {
-            println!("{}", terrane_scalar_support::scalar_text(&String::from("future")));
+            println!("{}", String::from("future"));
         }
     }
 }

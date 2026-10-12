@@ -143,7 +143,7 @@ fn main() {
                     );
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&rejected.as_ref()
-                    .expect("flow-proven available binding").clone())
+                    .expect("flow-proven available binding"))
                 );
                 TerraneCompletion::Normal
             }
@@ -162,10 +162,7 @@ fn main() {
                             == TerraneErrorKind::Custom(DescriptorId(2))
                     {
                         __terrane_handled_0 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("caught projected async failure"))
-                        );
+                        println!("{}", String::from("caught projected async failure"));
                     }
                     if !__terrane_handled_0 {
                         return TerraneCompletion::Error(__terrane_error_0);
@@ -332,10 +329,7 @@ fn main() {
                     let _ = __terrane_select_result_1059_1
                         .take()
                         .expect("selected case owns its ready result");
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("unexpected receive"))
-                    );
+                    println!("{}", String::from("unexpected receive"));
                 }
                 _ => unreachable!("selected winner is within the case count"),
             }
@@ -815,10 +809,7 @@ fn main() {
                             .expect("selected case owns its ready result"),
                         9 /* terrane-site: src/main.trn:46:16-46:29 */,
                     );
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("unexpected projected winner"))
-                    );
+                    println!("{}", String::from("unexpected projected winner"));
                 }
                 1 => {
                     selection_polls = __terrane_traced(
@@ -828,8 +819,7 @@ fn main() {
                         10 /* terrane-site: src/main.trn:48:38-48:55 */,
                     );
                     println!(
-                        "{}{}",
-                        terrane_scalar_support::scalar_text(&String::from("selection-polls")),
+                        "{}{}", String::from("selection-polls"),
                         terrane_scalar_support::scalar_text(&selection_polls)
                     );
                 }

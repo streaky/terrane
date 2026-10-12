@@ -12,7 +12,7 @@ async fn inspect() -> terrane_int_support::Int {
     value = terrane_int_support::Int::from(7_i128);
     observed = &value;
     result = __terrane_await(answer()).await;
-    println!("{}", terrane_scalar_support::scalar_text(&observed.clone()));
+    println!("{}", terrane_scalar_support::scalar_text(&* observed));
     return result.clone();
 }
 fn main() {

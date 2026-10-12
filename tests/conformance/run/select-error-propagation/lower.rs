@@ -53,9 +53,7 @@ async fn cleanup_coercion(
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("cleanup-coercion"))
-        );
+        println!("{}", String::from("cleanup-coercion"));
         return TerraneCompletion::Error(
             TerraneError::raised(
                 TerraneErrorKind::CoercionError,
@@ -124,9 +122,7 @@ async fn cleanup_missing(
     let mut __terrane_completion_1 = __terrane_maybe_completion_1
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_1: TerraneCompletion<()> = (|| {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("cleanup-missing"))
-        );
+        println!("{}", String::from("cleanup-missing"));
         return TerraneCompletion::Error(
             TerraneError::raised(
                 TerraneErrorKind::MissingKey,
@@ -167,10 +163,7 @@ fn construction_failure() -> Result<terrane_int_support::Int, TerraneError> {
     );
 }
 fn late_construction() -> terrane_int_support::Int {
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&String::from("unexpected late construction"))
-    );
+    println!("{}", String::from("unexpected late construction"));
     return terrane_int_support::Int::from(1_i128);
 }
 async fn blocked(receiver: TerraneChannelReceiver<terrane_int_support::Int>) {
@@ -211,10 +204,7 @@ async fn blocked(receiver: TerraneChannelReceiver<terrane_int_support::Int>) {
     let mut __terrane_completion_2 = __terrane_maybe_completion_2
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_2: TerraneCompletion<()> = (|| {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("cleanup-before-error"))
-        );
+        println!("{}", String::from("cleanup-before-error"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_2 {
@@ -389,10 +379,7 @@ fn main() {
                             let _ = __terrane_select_result_1164_0
                                 .take()
                                 .expect("selected case owns its ready result");
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected"))
-                            );
+                            println!("{}", String::from("unexpected"));
                         }
                         1 => {
                             let _ = value
@@ -405,7 +392,7 @@ fn main() {
                                 );
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&value.as_ref()
-                                .expect("flow-proven available binding").clone())
+                                .expect("flow-proven available binding"))
                             );
                         }
                         _ => unreachable!("selected winner is within the case count"),
@@ -427,10 +414,7 @@ fn main() {
                         && __terrane_error_3.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_3 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("caught"))
-                        );
+                        println!("{}", String::from("caught"));
                     }
                     if !__terrane_handled_3 {
                         return TerraneCompletion::Error(__terrane_error_3);
@@ -676,10 +660,7 @@ fn main() {
                                 .expect("selected case owns its ready result"),
                                 9 /* terrane-site: case.trn:59:18-59:60 */
                             );
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected coercion"))
-                            );
+                            println!("{}", String::from("unexpected coercion"));
                         }
                         1 => {
                             let _ = __terrane_traced_completion!(
@@ -687,10 +668,7 @@ fn main() {
                                 .expect("selected case owns its ready result"),
                                 8 /* terrane-site: case.trn:61:18-61:58 */
                             );
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected missing"))
-                            );
+                            println!("{}", String::from("unexpected missing"));
                         }
                         2 => {
                             let _ = winner
@@ -701,7 +679,7 @@ fn main() {
                                 );
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&winner.as_ref()
-                                .expect("flow-proven available binding").clone())
+                                .expect("flow-proven available binding"))
                             );
                         }
                         _ => unreachable!("selected winner is within the case count"),
@@ -723,10 +701,7 @@ fn main() {
                         && __terrane_error_4.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_4 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("cleanup-error-replaced"))
-                        );
+                        println!("{}", String::from("cleanup-error-replaced"));
                     }
                     if !__terrane_handled_4 {
                         return TerraneCompletion::Error(__terrane_error_4);
@@ -981,28 +956,21 @@ fn main() {
                                 .expect("selected case owns its ready result"),
                                 12 /* terrane-site: case.trn:71:18-71:64 */
                             );
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected cleanup winner"))
-                            );
+                            println!("{}", String::from("unexpected cleanup winner"));
                         }
                         1 => {
                             let _ = __terrane_select_result_1828_1
                                 .take()
                                 .expect("selected case owns its ready result");
                             println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected construction winner"))
+                                "{}", String::from("unexpected construction winner")
                             );
                         }
                         2 => {
                             let _ = __terrane_select_result_1828_2
                                 .take()
                                 .expect("selected case owns its ready result");
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("unexpected late winner"))
-                            );
+                            println!("{}", String::from("unexpected late winner"));
                         }
                         _ => unreachable!("selected winner is within the case count"),
                     }
@@ -1023,10 +991,7 @@ fn main() {
                         && __terrane_error_5.kind == TerraneErrorKind::CoercionError
                     {
                         __terrane_handled_5 = true;
-                        println!(
-                            "{}",
-                            terrane_scalar_support::scalar_text(&String::from("construction-cleanup-replaced"))
-                        );
+                        println!("{}", String::from("construction-cleanup-replaced"));
                     }
                     if !__terrane_handled_5 {
                         return TerraneCompletion::Error(__terrane_error_5);

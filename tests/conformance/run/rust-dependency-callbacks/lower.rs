@@ -319,10 +319,7 @@ impl DropAwareValue {
         return String::from("drop-aware");
     }
     pub fn destruct(&mut self) {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("drop-aware-destruct"))
-        );
+        println!("{}", String::from("drop-aware-destruct"));
     }
 }
 impl terrane_callback_witness::DropAware for DropAwareValue {

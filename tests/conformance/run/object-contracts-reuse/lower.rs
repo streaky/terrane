@@ -33,10 +33,15 @@ impl BaseStorage {
         }
     }
     pub fn describe(&self, prefix: String) -> String {
-        return format!(
-            "{}{}", terrane_scalar_support::scalar_text(&prefix),
-            terrane_scalar_support::scalar_text(&String::from("base"))
-        );
+        return {
+            let mut __terrane_text = String::with_capacity(4);
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &prefix,
+                &mut __terrane_text,
+            );
+            __terrane_text.push_str("base");
+            __terrane_text
+        };
     }
 }
 #[derive(Clone)]
@@ -82,10 +87,15 @@ impl Child {
         }
     }
     pub fn describe(&self, prefix: String) -> String {
-        return format!(
-            "{}{}", terrane_scalar_support::scalar_text(&prefix),
-            terrane_scalar_support::scalar_text(&String::from("child"))
-        );
+        return {
+            let mut __terrane_text = String::with_capacity(5);
+            terrane_scalar_support::ScalarDisplay::write_scalar(
+                &prefix,
+                &mut __terrane_text,
+            );
+            __terrane_text.push_str("child");
+            __terrane_text
+        };
     }
     pub fn tagged_value(&self) -> String {
         return self.tag.clone();

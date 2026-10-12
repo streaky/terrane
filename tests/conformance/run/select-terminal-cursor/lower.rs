@@ -226,10 +226,7 @@ fn main() {
                             && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                         {
                             __terrane_handled_0 = true;
-                            println!(
-                                "{}",
-                                terrane_scalar_support::scalar_text(&String::from("error"))
-                            );
+                            println!("{}", String::from("error"));
                         }
                         if !__terrane_handled_0 {
                             return TerraneCompletion::Error(__terrane_error_0);

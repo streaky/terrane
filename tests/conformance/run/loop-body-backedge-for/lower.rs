@@ -20,7 +20,7 @@ fn main() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&previous.as_ref()
                 .unwrap_or_else(| | __terrane_uninitialized_binding("previous",
-                "case.trn", 8, 20)).clone())
+                "case.trn", 8, 20)))
             );
         }
         let _ = previous.insert(item);

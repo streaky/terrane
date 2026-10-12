@@ -1,0 +1,34 @@
+namespace constructor-if-initialization
+
+class required-value
+    text string
+    function construct; text string
+        this.text = text
+
+class configured
+    slot required-value
+    function construct; value string
+        if value == 'a'
+            this.slot = instance required-value; 'first'
+        else if value == 'b'
+            this.slot = instance required-value; 'second'
+        else
+            this.slot = instance required-value; 'other'
+
+class configured-with-read
+    slot required-value
+    function construct; value string
+        if value == 'a'
+            this.slot = instance required-value; 'first'
+        else
+            this.slot = instance required-value; 'other'
+        print; this.slot.text
+
+function main;
+    first = instance configured; 'a'
+    second = instance configured; 'b'
+    third = instance configured; 'c'
+    print; first.slot.text, '|', second.slot.text, '|', third.slot.text
+    read-first = instance configured-with-read; 'a'
+    read-other = instance configured-with-read; 'b'
+    print; read-first.slot.text, '|', read-other.slot.text

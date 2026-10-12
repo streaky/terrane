@@ -1,4 +1,8 @@
 namespace text-families
+
+from /core/collections import list
+from /core/errors import replace-error
+
 function main;
   text string = '  Straße  '
   print; (text.trim;)
@@ -16,3 +20,24 @@ function main;
   print; (decomposed.split; '').length
   print; (decomposed.replace; '', 'X')
   print; decomposed.bytes.length, decomposed.scalars.length, decomposed.graphemes.length
+  searches list of string = list; '&', '<'
+  html-replacements list of string = list; '&amp;', '&lt;'
+  print; ('&<'.replace; searches, html-replacements)
+  reversed-searches list of string = list; '<', '&'
+  reversed-replacements list of string = list; '&lt;', '&amp;'
+  print; ('&<'.replace; reversed-searches, reversed-replacements)
+  broadcast-searches list of string = list; 'one', 'two'
+  print; ('one and two'.replace; broadcast-searches, 'x')
+  priority-searches list of string = list; 'a', 'ab'
+  priority-replacements list of string = list; 'first', 'second'
+  print; ('ab'.replace; priority-searches, priority-replacements)
+  print; ('abc'.replace; (list; 'b'), (list; 'abc'))
+  no-searches list of string = list
+  no-replacements list of string = list
+  print; ('text'.replace; no-searches, no-replacements)
+  print; (decomposed.replace; (list; ''), (list; '-'))
+  mismatch-searches list of string = list; 'x'
+  try
+    print; ('x'.replace; mismatch-searches, no-replacements)
+  catch replace-error
+    print; 'replacement-list-mismatch'

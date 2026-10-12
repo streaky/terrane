@@ -1,0 +1,12 @@
+namespace app
+
+from /model import label as display-label, broken, render-error as representation-error
+
+function main;
+    value = instance display-label;
+    print; 'value:' + value
+    print; ('|'.join; value, value)
+    try
+        print; 'broken:' + (instance broken;)
+    catch representation-error
+        print; 'caught imported renderer'

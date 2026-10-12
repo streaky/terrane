@@ -71,8 +71,7 @@ async fn loser(
         let _ = released
             .insert(__terrane_await(Box::pin(cleanup_release.receive())).await);
         println!(
-            "{}{}{}",
-            terrane_scalar_support::scalar_text(&String::from("cleanup-finished")),
+            "{}{}{}", String::from("cleanup-finished"),
             terrane_scalar_support::scalar_text(&cleaning.as_ref()
             .expect("flow-proven available binding").clone().accepted),
             terrane_scalar_support::scalar_text(&released.as_ref()
@@ -104,7 +103,7 @@ async fn winner(started: TerraneChannelReceiver<terrane_int_support::Int>) {
     let observed: TerraneChannelReceiveOutcome<terrane_int_support::Int>;
     observed = __terrane_await(Box::pin(started.receive())).await;
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&String::from("winner-ready")),
+        "{}{}", String::from("winner-ready"),
         terrane_scalar_support::scalar_text(&observed.available)
     );
 }
@@ -212,19 +211,13 @@ async fn selecting(
                 let _ = __terrane_select_result_909_0
                     .take()
                     .expect("selected case owns its ready result");
-                println!(
-                    "{}",
-                    terrane_scalar_support::scalar_text(&String::from("unexpected loser"))
-                );
+                println!("{}", String::from("unexpected loser"));
             }
             1 => {
                 let _ = __terrane_select_result_909_1
                     .take()
                     .expect("selected case owns its ready result");
-                println!(
-                    "{}",
-                    terrane_scalar_support::scalar_text(&String::from("winner-body"))
-                );
+                println!("{}", String::from("winner-body"));
             }
             _ => unreachable!("selected winner is within the case count"),
         }

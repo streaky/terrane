@@ -16,7 +16,7 @@ fn main() {
                     ),
                 );
             println!(
-                "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
+                "{}", terrane_scalar_support::scalar_text(&value.as_ref()
                 .expect("flow-proven available binding"))
             );
             TerraneCompletion::Normal
@@ -32,10 +32,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught"))
-                    );
+                    println!("{}", String::from("caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -45,7 +42,7 @@ fn main() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("finally")));
+        println!("{}", String::from("finally"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {

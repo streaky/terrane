@@ -74,10 +74,7 @@ fn main() {
                     ),
                 );
             let _ = &__trn_5f696e76616c6964;
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&String::from("unexpected parse success"))
-            );
+            println!("{}", String::from("unexpected parse success"));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -92,10 +89,7 @@ fn main() {
                         == TerraneErrorKind::Custom(DescriptorId(2))
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("invalid address caught"))
-                    );
+                    println!("{}", String::from("invalid address caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);

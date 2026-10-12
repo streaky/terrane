@@ -22,9 +22,7 @@ fn early() -> terrane_int_support::Int {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("return finally"))
-        );
+        println!("{}", String::from("return finally"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -75,9 +73,7 @@ fn caught() -> terrane_int_support::Int {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_1: TerraneCompletion<terrane_int_support::Int> = (|| {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&String::from("catch finally"))
-        );
+        println!("{}", String::from("catch finally"));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_1 {
@@ -133,9 +129,7 @@ fn main() {
             TerraneCompletion::Normal
         })();
         let __terrane_finally_2: TerraneCompletion<()> = (|| {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&String::from("loop finally"))
-            );
+            println!("{}", String::from("loop finally"));
             TerraneCompletion::Normal
         })();
         match __terrane_finally_2 {
@@ -150,5 +144,5 @@ fn main() {
             TerraneCompletion::Continue => continue,
         }
     }
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("done")));
+    println!("{}", String::from("done"));
 }

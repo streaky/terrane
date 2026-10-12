@@ -129,10 +129,7 @@ fn main() {
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("fixed conversion caught"))
-                    );
+                    println!("{}", String::from("fixed conversion caught"));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -170,10 +167,7 @@ fn main() {
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
                     __terrane_handled_1 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("float narrowing caught"))
-                    );
+                    println!("{}", String::from("float narrowing caught"));
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);
@@ -210,10 +204,7 @@ fn main() {
                     && __terrane_error_2.kind == TerraneErrorKind::DivisionByZero
                 {
                     __terrane_handled_2 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("int division caught"))
-                    );
+                    println!("{}", String::from("int division caught"));
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);
@@ -250,10 +241,7 @@ fn main() {
                     && __terrane_error_3.kind == TerraneErrorKind::DivisionByZero
                 {
                     __terrane_handled_3 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("int remainder caught"))
-                    );
+                    println!("{}", String::from("int remainder caught"));
                 }
                 if !__terrane_handled_3 {
                     return TerraneCompletion::Error(__terrane_error_3);
@@ -291,10 +279,7 @@ fn main() {
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
                     __terrane_handled_4 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("rounding caught"))
-                    );
+                    println!("{}", String::from("rounding caught"));
                 }
                 if !__terrane_handled_4 {
                     return TerraneCompletion::Error(__terrane_error_4);
@@ -332,10 +317,7 @@ fn main() {
                         == TerraneErrorKind::IntegerConversionOverflow
                 {
                     __terrane_handled_5 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("argument conversion caught"))
-                    );
+                    println!("{}", String::from("argument conversion caught"));
                 }
                 if !__terrane_handled_5 {
                     return TerraneCompletion::Error(__terrane_error_5);
@@ -352,5 +334,5 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after")));
+    println!("{}", String::from("after"));
 }

@@ -1,0 +1,5 @@
+package = "string-display-imported"
+
+[namespaces]
+app = "src"
+model = "model"

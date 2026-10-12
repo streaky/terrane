@@ -187,9 +187,6 @@ fn main() {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") }))
         );
     } else {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("unexpected absence"))
-        );
+        println!("{}", String::from("unexpected absence"));
     }
 }

@@ -22,7 +22,7 @@ fn main() {
             0 /* terrane-site: case.trn:9:20-9:45 */,
         );
         before = Clock::terrane_static_monotonic();
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("ready")));
+        println!("{}", String::from("ready"));
         first = __terrane_traced(
             __terrane_await((&mut subscription).next()).await,
             1 /* terrane-site: case.trn:12:19-12:37 */,

@@ -25,7 +25,7 @@ fn scalar(mut v: terrane_int_support::Int) {
 }
 fn unused(v: terrane_collection_support::List<terrane_int_support::Int>) {
     let _ = &v;
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("ignored")));
+    println!("{}", String::from("ignored"));
 }
 fn optional(v: terrane_int_support::Int) {
     println!("{}", terrane_scalar_support::scalar_text(&v));

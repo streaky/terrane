@@ -1,0 +1,11 @@
+inherited:label
+again:label
+optional:none
+optional:label
+union:label
+bound:42|current:99
+borrowed:label
+ref:text|text
+shared:text
+text
+text
