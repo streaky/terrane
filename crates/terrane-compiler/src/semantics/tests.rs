@@ -345,3 +345,82 @@ fn arbitrary_object_optional_types_are_semantic_values() {
             if matches!(inner.as_ref(), ValueType::Object(identity) if identity.name == "widget")
     ));
 }
+
+#[test]
+fn source_map_application_does_not_select_unrelated_native_map() {
+    use crate::rust_interop::projection::{
+        ProjectedFunction, ProjectedGenericParameter, ProjectedType,
+    };
+
+    let mut projection = ambiguous_projection();
+    projection.dependencies.truncate(1);
+    projection.dependencies[0].items = vec![ProjectedItem {
+        namespace: "/deps/one".to_owned(),
+        name: "map".to_owned(),
+        rust_path: "one::map".to_owned(),
+        docs: None,
+        kind: ProjectedKind::Function(ProjectedFunction {
+            native_owner: None,
+            native_path: None,
+            name: "map".to_owned(),
+            generic_parameters: ["K", "V"]
+                .into_iter()
+                .map(|name| ProjectedGenericParameter {
+                    name: name.to_owned(),
+                    input_selected: true,
+                    rust_bounds: Vec::new(),
+                    default: None,
+                })
+                .collect(),
+            operation_owner_generics: Vec::new(),
+            rust_generic_arguments: Vec::new(),
+            parameters: Vec::new(),
+            result: ProjectedType::None,
+            destination_result: None,
+            error: None,
+            is_async: false,
+            is_unsafe: false,
+            into_future: false,
+            execution_requirements: None,
+            enum_operation: None,
+            error_optional_depth: 0,
+            chain_role: None,
+            receiver: None,
+        }),
+    }];
+    let mut package = Package::implicit(
+        "main.trn",
+        concat!(
+            "namespace app\n",
+            "from /core/collections import map\n",
+            "from /deps/one import map as native-map\n",
+            "class widget\n",
+            "function read widget; fields map of string, widget\n",
+            "    found = fields['one']\n",
+            "    return found\n",
+        )
+        .to_owned(),
+    );
+    package.rust_dependencies.push(RustDependency {
+        name: "one".to_owned(),
+        package: "one".to_owned(),
+        version: "=1.0.0".to_owned(),
+        features: Vec::new(),
+        default_features: false,
+        target: None,
+        effects: Vec::new(),
+    });
+    let semantic = analyze_with_projection(&package, projection)
+        .expect("a source map descriptor is not a same-named native callable");
+    let found = semantic
+        .units
+        .iter()
+        .filter(|unit| !unit.bundled)
+        .flat_map(|unit| &unit.typed_bindings)
+        .find(|binding| binding.name == "found")
+        .unwrap();
+    assert_eq!(
+        found.value_type,
+        ValueType::Object(ObjectIdentity::new("/app", "widget")),
+    );
+}
