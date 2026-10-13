@@ -6,23 +6,20 @@ fn main() {
     __terrane_run(async move {
         let reader: ByteReader;
         let writer: ByteWriter;
-        let cancelled: NetworkCancellationToken;
-        let cancelled_options: NetworkOperationOptions;
+        let cancelled: CancellationToken;
+        let cancelled_options: IoOperationOptions;
         let cancelled_read: ReadResult;
         let expired: Deadline;
-        let expired_options: NetworkOperationOptions;
+        let expired_options: IoOperationOptions;
         let expired_read: ReadResult;
-        let live_options: NetworkOperationOptions;
+        let live_options: IoOperationOptions;
         let live_read: ReadResult;
         let output: WriteResult;
         reader = stdin();
         writer = stdout();
-        cancelled = NetworkCancellationToken::terrane_construct();
-        network_cancel_operation(cancelled.clone());
-        cancelled_options = NetworkOperationOptions::terrane_construct(
-            None,
-            Some(cancelled),
-        );
+        cancelled = CancellationToken::terrane_construct();
+        cancel_operation(cancelled.clone());
+        cancelled_options = IoOperationOptions::terrane_construct(None, Some(cancelled));
         cancelled_read = __terrane_await(
                 (&reader)
                     .read_async(
@@ -40,10 +37,7 @@ fn main() {
                 0 /* terrane-site: case.trn:16:33-16:57 */,
             ),
         );
-        expired_options = NetworkOperationOptions::terrane_construct(
-            Some(expired),
-            None,
-        );
+        expired_options = IoOperationOptions::terrane_construct(Some(expired), None);
         expired_read = __terrane_await(
                 (&reader)
                     .read_async(
@@ -56,18 +50,18 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&(expired_read.failed
             &&expired_read.deadline_exceeded))
         );
-        live_options = NetworkOperationOptions::terrane_construct(
+        live_options = IoOperationOptions::terrane_construct(
             Some(
                 Clock::terrane_static_deadline(
                     __terrane_traced(
                         Duration::terrane_static_seconds(
                             terrane_int_support::Int::from(5_i128),
                         ),
-                        1 /* terrane-site: case.trn:21:75-21:95 */,
+                        1 /* terrane-site: case.trn:21:70-21:90 */,
                     ),
                 ),
             ),
-            Some(NetworkCancellationToken::terrane_construct()),
+            Some(CancellationToken::terrane_construct()),
         );
         live_read = __terrane_await(
                 (&reader)

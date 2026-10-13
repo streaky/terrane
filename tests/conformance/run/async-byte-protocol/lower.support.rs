@@ -591,7 +591,7 @@ impl TerraneCancellation {
                 }
                 std::task::Poll::Pending
             })
-            .await
+            .await;
     }
 }
 trait TerraneTaskCleanup: Send + Sync {
@@ -700,7 +700,7 @@ impl TerraneFinalizerState {
                 }
                 std::task::Poll::Pending
             })
-            .await
+            .await;
     }
     fn depth(&self) -> usize {
         self.depth.load(std::sync::atomic::Ordering::Acquire)
@@ -2462,7 +2462,7 @@ impl TcpStream {
     pub async fn read_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> ReadResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -2490,7 +2490,7 @@ impl TcpStream {
     pub async fn write_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> WriteResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -2518,7 +2518,7 @@ impl TcpStream {
     pub async fn write_all_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> WriteResult {
         let mut progress: WriteProgress;
         let mut operation_timeout: terrane_int_support::Int;
@@ -2551,7 +2551,7 @@ impl TcpStream {
     pub async fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> ReadResult {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
@@ -2598,7 +2598,7 @@ impl TcpStream {
         &self,
         buffer: OwnedReadBuffer,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> BufferedReadResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -2634,26 +2634,26 @@ impl TcpStream {
             deadline_exceeded,
         );
     }
-    pub fn configure(&self, options: TcpOptions) -> NetworkOperationResult {
+    pub fn configure(&self, options: TcpOptions) -> IoOperationResult {
         let raw: TerranePlatformResult;
         raw = terrane_platform_tcp_configure(
             &self.handle.as_ref().expect("required field initialized"),
             options.no_delay,
             options.ttl,
         );
-        return NetworkOperationResult::terrane_construct(
+        return IoOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn shutdown(&self, direction: String) -> NetworkOperationResult {
+    pub fn shutdown(&self, direction: String) -> IoOperationResult {
         let raw: TerranePlatformResult;
         raw = terrane_platform_tcp_shutdown(
             &self.handle.as_ref().expect("required field initialized"),
             direction,
         );
-        return NetworkOperationResult::terrane_construct(
+        return IoOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
@@ -2680,14 +2680,14 @@ impl AsyncByteReaderProtocol for TcpStream {
     fn read_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>> {
         Box::pin(async move { TcpStream::read_async(&*self, count, options).await })
     }
     fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>> {
         Box::pin(async move {
             TcpStream::read_exact_async(&*self, count, options).await
@@ -2697,7 +2697,7 @@ impl AsyncByteReaderProtocol for TcpStream {
         &self,
         buffer: OwnedReadBuffer,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = BufferedReadResult> + Send + '_>,
     > {
@@ -2718,14 +2718,14 @@ impl AsyncByteWriterProtocol for TcpStream {
     fn write_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>> {
         Box::pin(async move { TcpStream::write_async(&*self, data, options).await })
     }
     fn write_all_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>> {
         Box::pin(async move { TcpStream::write_all_async(&*self, data, options).await })
     }
@@ -2789,7 +2789,7 @@ impl StreamResult {
 }
 pub async fn connect_tcp(
     address: SocketAddress,
-    options: Option<NetworkOperationOptions>,
+    options: Option<IoOperationOptions>,
     tcp: Option<TcpOptions>,
 ) -> StreamResult {
     let settings: TcpOptions;
@@ -2832,7 +2832,7 @@ pub async fn connect_tcp(
 pub async fn connect_host(
     host: NetworkHostName,
     port: terrane_int_support::Int,
-    options: Option<NetworkOperationOptions>,
+    options: Option<IoOperationOptions>,
     tcp: Option<TcpOptions>,
 ) -> StreamResult {
     let settings: TcpOptions;
@@ -2892,10 +2892,7 @@ impl TcpListener {
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
         self.handle = Some(resource);
     }
-    pub async fn accept(
-        &self,
-        options: Option<NetworkOperationOptions>,
-    ) -> StreamResult {
+    pub async fn accept(&self, options: Option<IoOperationOptions>) -> StreamResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
         let raw: TerranePlatformResult;
@@ -2919,12 +2916,12 @@ impl TcpListener {
             stream,
         );
     }
-    pub fn close(self) -> NetworkOperationResult {
+    pub fn close(self) -> IoOperationResult {
         let raw: TerranePlatformResult;
         raw = terrane_platform_capability_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
-        return NetworkOperationResult::terrane_construct(
+        return IoOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
@@ -3101,7 +3098,7 @@ impl UdpSocket {
         &self,
         data: Vec<u8>,
         address: SocketAddress,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> DatagramIoResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -3131,7 +3128,7 @@ impl UdpSocket {
     pub async fn receive_from(
         &self,
         limit: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> DatagramIoResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -3157,25 +3154,25 @@ impl UdpSocket {
             terrane_platform_result_text(&raw),
         );
     }
-    pub fn configure(&self, options: UdpOptions) -> NetworkOperationResult {
+    pub fn configure(&self, options: UdpOptions) -> IoOperationResult {
         let raw: TerranePlatformResult;
         raw = terrane_platform_udp_configure(
             &self.handle.as_ref().expect("required field initialized"),
             options.broadcast,
             options.ttl,
         );
-        return NetworkOperationResult::terrane_construct(
+        return IoOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn close(self) -> NetworkOperationResult {
+    pub fn close(self) -> IoOperationResult {
         let raw: TerranePlatformResult;
         raw = terrane_platform_capability_close(
             &self.handle.as_ref().expect("required field initialized"),
         );
-        return NetworkOperationResult::terrane_construct(
+        return IoOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
@@ -3349,7 +3346,7 @@ pub fn parse_host_name(text: String) -> NetworkHostNameResult {
 pub async fn lookup_dns(
     host: NetworkHostName,
     port: terrane_int_support::Int,
-    options: Option<NetworkOperationOptions>,
+    options: Option<IoOperationOptions>,
 ) -> DnsResult {
     let operation_timeout: terrane_int_support::Int;
     let operation_token: Option<TerranePlatformCapability>;
@@ -3900,18 +3897,18 @@ pub trait AsyncByteReaderProtocol: Send + Sync {
     fn read_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>>;
     fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>>;
     fn read_into_async(
         &self,
         buffer: OwnedReadBuffer,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = BufferedReadResult> + Send + '_>,
     >;
@@ -3922,14 +3919,14 @@ impl AsyncByteReader {
     pub async fn read_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> ReadResult {
         self.0.read_async(count, options).await
     }
     pub async fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> ReadResult {
         self.0.read_exact_async(count, options).await
     }
@@ -3937,7 +3934,7 @@ impl AsyncByteReader {
         &self,
         buffer: OwnedReadBuffer,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> BufferedReadResult {
         self.0.read_into_async(buffer, count, options).await
     }
@@ -3949,12 +3946,12 @@ pub trait AsyncByteWriterProtocol: Send + Sync {
     fn write_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>>;
     fn write_all_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>>;
     fn close(self: Box<Self>) -> StreamOperationResult;
 }
@@ -3963,14 +3960,14 @@ impl AsyncByteWriter {
     pub async fn write_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> WriteResult {
         self.0.write_async(data, options).await
     }
     pub async fn write_all_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> WriteResult {
         self.0.write_all_async(data, options).await
     }
@@ -4123,7 +4120,7 @@ impl ByteReader {
     pub async fn read_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> ReadResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -4151,7 +4148,7 @@ impl ByteReader {
     pub async fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> ReadResult {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
@@ -4198,7 +4195,7 @@ impl ByteReader {
         &self,
         buffer: OwnedReadBuffer,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> BufferedReadResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -4261,14 +4258,14 @@ impl AsyncByteReaderProtocol for ByteReader {
     fn read_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>> {
         Box::pin(async move { ByteReader::read_async(&*self, count, options).await })
     }
     fn read_exact_async(
         &self,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ReadResult> + Send + '_>> {
         Box::pin(async move {
             ByteReader::read_exact_async(&*self, count, options).await
@@ -4278,7 +4275,7 @@ impl AsyncByteReaderProtocol for ByteReader {
         &self,
         buffer: OwnedReadBuffer,
         count: terrane_int_support::Int,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = BufferedReadResult> + Send + '_>,
     > {
@@ -4394,7 +4391,7 @@ impl ByteWriter {
     pub async fn write_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> WriteResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -4422,7 +4419,7 @@ impl ByteWriter {
     pub async fn write_all_async(
         &self,
         mut data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> WriteResult {
         let mut progress: WriteProgress;
         let mut operation_timeout: terrane_int_support::Int;
@@ -4513,14 +4510,14 @@ impl AsyncByteWriterProtocol for ByteWriter {
     fn write_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>> {
         Box::pin(async move { ByteWriter::write_async(&*self, data, options).await })
     }
     fn write_all_async(
         &self,
         data: Vec<u8>,
-        options: Option<NetworkOperationOptions>,
+        options: Option<IoOperationOptions>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = WriteResult> + Send + '_>> {
         Box::pin(async move { ByteWriter::write_all_async(&*self, data, options).await })
     }
@@ -4961,10 +4958,10 @@ pub fn stderr() -> ByteWriter {
 // Source: core/io.trn
 // Namespace: core/io
 #[derive(Clone)]
-pub struct NetworkCancellationToken {
+pub struct CancellationToken {
     pub handle: TerranePlatformCapability,
 }
-impl NetworkCancellationToken {
+impl CancellationToken {
     pub fn terrane_construct() -> Self {
         Self {
             handle: terrane_platform_cancellation_token(),
@@ -4972,12 +4969,12 @@ impl NetworkCancellationToken {
     }
 }
 #[derive(Clone)]
-pub struct NetworkOperationResult {
+pub struct IoOperationResult {
     pub failed: bool,
     pub deadline_exceeded: bool,
     pub message: String,
 }
-impl NetworkOperationResult {
+impl IoOperationResult {
     pub fn terrane_construct(
         failed: bool,
         deadline_exceeded: bool,
@@ -4997,26 +4994,24 @@ impl NetworkOperationResult {
         self.message = message;
     }
 }
-pub fn network_cancel_operation(
-    cancellation: NetworkCancellationToken,
-) -> NetworkOperationResult {
+pub fn cancel_operation(cancellation: CancellationToken) -> IoOperationResult {
     let raw: TerranePlatformResult;
     raw = terrane_platform_cancel(&cancellation.handle);
-    return NetworkOperationResult::terrane_construct(
+    return IoOperationResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
     );
 }
 #[derive(Clone)]
-pub struct NetworkOperationOptions {
+pub struct IoOperationOptions {
     pub deadline: Option<Deadline>,
-    pub cancellation: Option<NetworkCancellationToken>,
+    pub cancellation: Option<CancellationToken>,
 }
-impl NetworkOperationOptions {
+impl IoOperationOptions {
     pub fn terrane_construct(
         requested: Option<Deadline>,
-        cancellation: Option<NetworkCancellationToken>,
+        cancellation: Option<CancellationToken>,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
             deadline: None,
@@ -5028,16 +5023,16 @@ impl NetworkOperationOptions {
     pub fn construct(
         &mut self,
         requested: Option<Deadline>,
-        cancellation: Option<NetworkCancellationToken>,
+        cancellation: Option<CancellationToken>,
     ) {
         self.deadline = requested;
         self.cancellation = cancellation;
     }
 }
 pub fn operation_cancellation(
-    options: Option<NetworkOperationOptions>,
+    options: Option<IoOperationOptions>,
 ) -> Option<TerranePlatformCapability> {
-    let selected: Option<NetworkCancellationToken>;
+    let selected: Option<CancellationToken>;
     if options.is_some() {
         selected = match &options {
             Some(value) => value,
@@ -5059,7 +5054,7 @@ pub fn operation_cancellation(
     return None;
 }
 pub fn operation_deadline(
-    options: Option<NetworkOperationOptions>,
+    options: Option<IoOperationOptions>,
 ) -> terrane_int_support::Int {
     let selected: Option<Deadline>;
     let remaining: Option<Duration>;

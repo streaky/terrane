@@ -3,7 +3,7 @@ namespace core/networking
 from /core/collections import list
 from /core/streams import async-byte-reader, async-byte-writer, stream-operation-result, read-result, write-result, owned-read-buffer, buffered-read-result
 from /core/streams import exact-read-progress, write-progress
-from /core/io import network-cancellation-token, network-operation-options, network-operation-result, network-cancel-operation, operation-cancellation, operation-deadline
+from /core/io import cancellation-token, io-operation-options, io-operation-result, cancel-operation, operation-cancellation, operation-deadline
 
 class tcp-options
     no-delay bool = false
@@ -111,19 +111,19 @@ class tcp-stream implements async-byte-reader, async-byte-writer
         this.handle = resource
 
 
-    async function read-async read-result; count int, options network-operation-options|none = none
+    async function read-async read-result; count int, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-tcp-read-async; this.handle, count, operation-timeout, operation-token
         return instance read-result; (host-result-bytes; raw), (host-result-int; raw), (host-result-bool; raw), (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
 
-    async function write-async write-result; data bytes, options network-operation-options|none = none
+    async function write-async write-result; data bytes, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-tcp-write-async; this.handle, data, 0, operation-timeout, operation-token
         return instance write-result; data, (host-result-int; raw), (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
 
-    async function write-all-async write-result; data bytes, options network-operation-options|none = none
+    async function write-all-async write-result; data bytes, options io-operation-options|none = none
         progress = instance write-progress;
         while progress.pending; data.length
             operation-timeout = operation-deadline; options
@@ -133,7 +133,7 @@ class tcp-stream implements async-byte-reader, async-byte-writer
         return progress.result; move data
 
 
-    async function read-exact-async read-result; count int, options network-operation-options|none = none
+    async function read-exact-async read-result; count int, options io-operation-options|none = none
         if count < 0
             return await this.read-async; count, options
         progress = instance exact-read-progress; count
@@ -143,7 +143,7 @@ class tcp-stream implements async-byte-reader, async-byte-writer
             data = data.concat; part.data
             progress.advance; part.completed, part.end, part.failed, part.deadline-exceeded, part.message
         return progress.result; move data
-    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options network-operation-options|none = none
+    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-tcp-read-into-async; this.handle, buffer.handle, count, operation-timeout, operation-token
@@ -154,13 +154,13 @@ class tcp-stream implements async-byte-reader, async-byte-writer
         deadline-exceeded = host-result-deadline-exceeded; raw
         return instance buffered-read-result; move buffer, completed, end, failed, message, deadline-exceeded
 
-    function configure network-operation-result; options tcp-options
+    function configure io-operation-result; options tcp-options
         raw = host-tcp-configure; this.handle, options.no-delay, options.ttl
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function shutdown network-operation-result; direction string
+    function shutdown io-operation-result; direction string
         raw = host-tcp-shutdown; this.handle, direction
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     consuming function close stream-operation-result;
         raw = host-close; this.handle
@@ -184,7 +184,7 @@ class stream-result
         this.peer = peer
         this.value = stream
 
-async function connect-tcp stream-result; address socket-address, options network-operation-options|none = none, tcp tcp-options|none = none
+async function connect-tcp stream-result; address socket-address, options io-operation-options|none = none, tcp tcp-options|none = none
     settings tcp-options
     if tcp != none
         settings = tcp
@@ -196,7 +196,7 @@ async function connect-tcp stream-result; address socket-address, options networ
     stream = instance tcp-stream; (host-result-resource; raw)
     return instance stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), '', stream
 
-async function connect-host stream-result; host network-host-name, port int, options network-operation-options|none = none, tcp tcp-options|none = none
+async function connect-host stream-result; host network-host-name, port int, options io-operation-options|none = none, tcp tcp-options|none = none
     settings tcp-options
     if tcp != none
         settings = tcp
@@ -215,16 +215,16 @@ class tcp-listener
         this.handle = resource
     local-address string = ''
 
-    async function accept stream-result; options network-operation-options|none = none
+    async function accept stream-result; options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-tcp-accept-async; this.handle, operation-timeout, operation-token
         stream = instance tcp-stream; (host-result-resource; raw)
         return instance stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-text; raw), stream
 
-    consuming function close network-operation-result;
+    consuming function close io-operation-result;
         raw = host-close; this.handle
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     consuming function destruct;
         host-close; this.handle
@@ -278,25 +278,25 @@ class udp-socket
         this.handle = resource
     local-address string = ''
 
-    async function send-to datagram-io-result; data bytes, address socket-address, options network-operation-options|none = none
+    async function send-to datagram-io-result; data bytes, address socket-address, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-udp-send-to-async; this.handle, data, address.value, operation-timeout, operation-token
         return instance datagram-io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), ''
 
-    async function receive-from datagram-io-result; limit int, options network-operation-options|none = none
+    async function receive-from datagram-io-result; limit int, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-udp-receive-from-async; this.handle, limit, operation-timeout, operation-token
         return instance datagram-io-result; (host-result-failed; raw), (host-result-truncated; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), (host-result-text; raw)
 
-    function configure network-operation-result; options udp-options
+    function configure io-operation-result; options udp-options
         raw = host-udp-configure; this.handle, options.broadcast, options.ttl
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    consuming function close network-operation-result;
+    consuming function close io-operation-result;
         raw = host-close; this.handle
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     consuming function destruct;
         host-close; this.handle
@@ -359,7 +359,7 @@ function parse-host-name network-host-name-result; text string
     host = instance network-host-name; raw
     return instance network-host-name-result; failed, message, host
 
-async function lookup-dns dns-result; host network-host-name, port int, options network-operation-options|none = none
+async function lookup-dns dns-result; host network-host-name, port int, options io-operation-options|none = none
     operation-timeout = operation-deadline; options
     operation-token = operation-cancellation; options
     raw = await host-dns-lookup-async; host.value, port, operation-timeout, operation-token

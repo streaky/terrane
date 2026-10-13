@@ -123,7 +123,24 @@ impl Emitter<'_> {
                     ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
                     _ => false,
                 });
+        if contract.is_none()
+            && let Some(binding) = self.local_typed_binding(operand)
+            && matches!(binding.value_type, ValueType::Task(_, _))
+            && let Some(initializer) =
+                Self::binding_initializer_at(&self.unit.tree.root, binding.span)
+        {
+            return self.awaited_throws(initializer);
+        }
         projected || contract.is_some_and(|contract| contract.throws) || function_value_throws
+    }
+
+    fn binding_initializer_at(node: &SyntaxNode, span: crate::Span) -> Option<&SyntaxNode> {
+        if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) && node.span == span {
+            return node.children.last();
+        }
+        node.children
+            .iter()
+            .find_map(|child| Self::binding_initializer_at(child, span))
     }
 
     pub(super) fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {

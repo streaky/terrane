@@ -53,7 +53,6 @@ impl TerraneTaskScope {
     dead_code,
     reason = "task result ABI is emitted before per-variant usage shaping"
 )]
-
 enum TerraneTaskResult<T> {
     Completed(T),
     Failed(TerraneError),

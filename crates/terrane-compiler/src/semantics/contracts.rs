@@ -1221,7 +1221,10 @@ pub(super) fn escaping_throwables(
     node: &SyntaxNode,
     inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
 ) -> BTreeSet<String> {
-    if node.kind == SyntaxKind::FunctionDeclaration {
+    if matches!(
+        node.kind,
+        SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+    ) {
         return BTreeSet::new();
     }
     if node.kind == SyntaxKind::ThrowStatement {
@@ -1305,18 +1308,40 @@ pub(super) fn escaping_throwables(
         );
         return errors;
     }
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("await")
+        && let Some(task) = node.children.last()
+        && task.kind == SyntaxKind::Name
+        && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, task)
+                && binding.is_visible_at(unit.source.id(), task.span.start)
+                && matches!(binding.value_type, ValueType::Task(_, _))
+        })
+        && let Some(initializer) = find_binding_initializer(&unit.tree.root, binding.span)
+    {
+        let mut errors = local_errors;
+        let task_effects = if initializer.kind == SyntaxKind::CallExpression {
+            initializer
+                .children
+                .first()
+                .map_or_else(BTreeSet::new, |callee| {
+                    callable_expression_errors(unit, callee, inferred)
+                })
+        } else {
+            escaping_throwables(package, unit, initializer, inferred)
+        };
+        errors.extend(task_effects);
+        return errors;
+    }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
         && matches!(callee.kind, SyntaxKind::Name | SyntaxKind::MemberExpression)
-        && let Ok(Some(callable)) = infer_value_type(unit, callee, &unit.typed_bindings)
-        && let Some(effects) = match callable {
-            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
-                Some(effects)
-            }
-            _ => None,
-        }
+        && matches!(
+            infer_value_type(unit, callee, &unit.typed_bindings),
+            Ok(Some(ValueType::Function(..) | ValueType::AsyncFunction(..)))
+        )
     {
-        let mut errors = effects.possible_throwables();
+        let mut errors = callable_expression_errors(unit, callee, inferred);
         errors.extend(local_errors);
         errors.extend(
             node.children

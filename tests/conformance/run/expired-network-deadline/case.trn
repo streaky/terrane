@@ -2,7 +2,7 @@ namespace app
 
 from /core/networking import ip-address-from-string, socket-address-from-ip
 from /core/networking import tcp-listener, listener-result, stream-result, bind-tcp
-from /core/io import network-operation-options
+from /core/io import io-operation-options
 from /core/time import clock, duration
 
 async function main;
@@ -11,7 +11,7 @@ async function main;
     bound listener-result = bind-tcp; bind-address.value
     listener tcp-listener = move bound.value
 
-    expired-options = instance network-operation-options; (clock::deadline; (duration::nanoseconds; 0))
+    expired-options = instance io-operation-options; (clock::deadline; (duration::nanoseconds; 0))
     expired stream-result = await listener.accept; expired-options
     print; expired.failed
     print; expired.deadline-exceeded

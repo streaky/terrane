@@ -1563,6 +1563,10 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
             include_bytes!("../../terrane-platform-support/src/networking_state.rs"),
         )?;
         write_if_changed(
+            &platform.join("src/networking_transport.rs"),
+            include_bytes!("../../terrane-platform-support/src/networking_transport.rs"),
+        )?;
+        write_if_changed(
             &platform.join("src/networking_buffers.rs"),
             include_bytes!("../../terrane-platform-support/src/networking_buffers.rs"),
         )?;

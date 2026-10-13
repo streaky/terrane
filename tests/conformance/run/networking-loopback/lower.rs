@@ -9,9 +9,9 @@ fn main() {
         let bound: UdpResult;
         let socket: UdpSocket;
         let destination: SocketResult;
-        let configured: NetworkOperationResult;
-        let cancellation: NetworkCancellationToken;
-        let options: NetworkOperationOptions;
+        let configured: IoOperationResult;
+        let cancellation: CancellationToken;
+        let options: IoOperationOptions;
         let sent: DatagramIoResult;
         let received: DatagramIoResult;
         let bytes_output: ByteWriter;
@@ -32,15 +32,15 @@ fn main() {
                     terrane_int_support::Int::from(32_i128),
                 ),
             );
-        cancellation = NetworkCancellationToken::terrane_construct();
-        options = NetworkOperationOptions::terrane_construct(
+        cancellation = CancellationToken::terrane_construct();
+        options = IoOperationOptions::terrane_construct(
             Some(
                 Clock::terrane_static_deadline(
                     __terrane_traced(
                         Duration::terrane_static_seconds(
                             terrane_int_support::Int::from(1_i128),
                         ),
-                        0 /* terrane-site: case.trn:17:70-17:90 */,
+                        0 /* terrane-site: case.trn:17:65-17:85 */,
                     ),
                 ),
             ),

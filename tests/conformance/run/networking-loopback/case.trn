@@ -2,7 +2,7 @@ namespace app
 
 from /core/encodings import utf8
 from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, udp-options, udp-result, bind-udp
-from /core/io import network-cancellation-token, network-operation-options
+from /core/io import cancellation-token, io-operation-options
 from /core/streams import stdout
 from /core/time import clock, duration
 
@@ -13,8 +13,8 @@ async function main;
     socket = move bound.value
     destination = socket-address-from-string; socket.local-address
     configured = socket.configure; (instance udp-options; false, 32)
-    cancellation = instance network-cancellation-token;
-    options = instance network-operation-options; (clock::deadline; (duration::seconds; 1)), cancellation
+    cancellation = instance cancellation-token;
+    options = instance io-operation-options; (clock::deadline; (duration::seconds; 1)), cancellation
     sent = await socket.send-to; b'terrane', destination.value, options
     received = await socket.receive-from; 32, options
     print; not configured.failed

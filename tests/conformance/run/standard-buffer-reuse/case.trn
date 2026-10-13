@@ -1,13 +1,13 @@
 namespace standard-buffer-reuse
 from /core/streams import stdin, make-read-buffer
-from /core/io import network-operation-options
+from /core/io import io-operation-options
 from /core/time import clock, duration
 
 async function main;
     reader = stdin;
     allocated = make-read-buffer; 4
     expired = clock::deadline; (duration::nanoseconds; 0)
-    options = instance network-operation-options; expired
+    options = instance io-operation-options; expired
     rejected = await reader.read-into-async; move allocated.value, 2, options
     print; rejected.failed and rejected.deadline-exceeded and rejected.completed == 0
     first = await reader.read-into-async; move rejected.buffer, 2

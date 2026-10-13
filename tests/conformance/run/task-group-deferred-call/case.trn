@@ -1,0 +1,19 @@
+namespace task-group-deferred-call
+from /core/errors import throwable, coercion-error
+
+function risky int throws throwable;
+    throw coercion-error
+
+async function child int;
+    return 1
+
+async function main;
+    group = task-group; int
+    group.spawn; (child;)
+    later = function int;
+        return (risky;)
+    _ = await group.drain;
+    try
+        print; (later;)
+    catch throwable
+        print; 'handled'

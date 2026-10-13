@@ -8,7 +8,7 @@ fn main() {
         let bind_address: SocketResult;
         let bound: ListenerResult;
         let listener: TcpListener;
-        let expired_options: NetworkOperationOptions;
+        let expired_options: IoOperationOptions;
         let expired: StreamResult;
         loopback = ip_address_from_string(String::from("127.0.0.1"));
         bind_address = socket_address_from_ip(
@@ -17,14 +17,14 @@ fn main() {
         );
         bound = bind_tcp(bind_address.value, None);
         listener = bound.value;
-        expired_options = NetworkOperationOptions::terrane_construct(
+        expired_options = IoOperationOptions::terrane_construct(
             Some(
                 Clock::terrane_static_deadline(
                     __terrane_traced(
                         Duration::terrane_static_nanoseconds(
                             terrane_int_support::Int::from(0_i128),
                         ),
-                        0 /* terrane-site: case.trn:14:78-14:102 */,
+                        0 /* terrane-site: case.trn:14:73-14:97 */,
                     ),
                 ),
             ),

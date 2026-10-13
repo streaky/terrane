@@ -1,6 +1,6 @@
 namespace core/streams
 
-from /core/io import network-operation-options, operation-cancellation, operation-deadline
+from /core/io import io-operation-options, operation-cancellation, operation-deadline
 
 from /core/encodings import utf8
 from /core/errors import decode-error
@@ -200,14 +200,14 @@ class write-progress
         return instance write-result; data, this.completed, this.failed, this.message, this.deadline-exceeded
 
 interface async-byte-reader
-    async function read-async read-result; count int, options network-operation-options|none = none
-    async function read-exact-async read-result; count int, options network-operation-options|none = none
-    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options network-operation-options|none = none
+    async function read-async read-result; count int, options io-operation-options|none = none
+    async function read-exact-async read-result; count int, options io-operation-options|none = none
+    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options io-operation-options|none = none
     consuming function close stream-operation-result;
 
 interface async-byte-writer
-    async function write-async write-result; data bytes, options network-operation-options|none = none
-    async function write-all-async write-result; data bytes, options network-operation-options|none = none
+    async function write-async write-result; data bytes, options io-operation-options|none = none
+    async function write-all-async write-result; data bytes, options io-operation-options|none = none
     consuming function close stream-operation-result;
 
 
@@ -259,13 +259,13 @@ class byte-reader implements async-byte-reader
                 failed = true
                 message = 'stream read made no progress'
         return instance read-result; data, completed, end, failed, message
-    async function read-async read-result; count int, options network-operation-options|none = none
+    async function read-async read-result; count int, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-read-async; this.handle, count, operation-timeout, operation-token
         return instance read-result; raw.data, raw.completed, raw.end, raw.failed, raw.message, (host-result-deadline-exceeded; raw)
 
-    async function read-exact-async read-result; count int, options network-operation-options|none = none
+    async function read-exact-async read-result; count int, options io-operation-options|none = none
         if count < 0
             return await this.read-async; count, options
         progress = instance exact-read-progress; count
@@ -275,7 +275,7 @@ class byte-reader implements async-byte-reader
             data = data.concat; part.data
             progress.advance; part.completed, part.end, part.failed, part.deadline-exceeded, part.message
         return progress.result; move data
-    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options network-operation-options|none = none
+    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-stream-read-into-async; this.handle, buffer.handle, count, operation-timeout, operation-token
@@ -327,14 +327,14 @@ class byte-writer implements async-byte-writer
         raw = host-write; this.handle, prior.data, prior.completed
         return instance write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 
-    async function write-async write-result; data bytes, options network-operation-options|none = none
+    async function write-async write-result; data bytes, options io-operation-options|none = none
         operation-timeout = operation-deadline; options
         operation-token = operation-cancellation; options
         raw = await host-write-async; this.handle, move data, 0, operation-timeout, operation-token
         return instance write-result; raw.data, raw.completed, raw.failed, raw.message, (host-result-deadline-exceeded; raw)
 
 
-    async function write-all-async write-result; data bytes, options network-operation-options|none = none
+    async function write-all-async write-result; data bytes, options io-operation-options|none = none
         progress = instance write-progress;
         while progress.pending; data.length
             operation-timeout = operation-deadline; options

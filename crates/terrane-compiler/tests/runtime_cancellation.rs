@@ -2,7 +2,7 @@
     clippy::missing_panics_doc,
     clippy::must_use_candidate,
     clippy::return_self_not_must_use,
-    reason = "the test includes the generated task ABI verbatim rather than exposing a library API"
+    reason = "the test includes generated task ABIs verbatim rather than exposing a library API"
 )]
 
 use std::{
@@ -21,6 +21,86 @@ pub struct TerraneError;
 
 fn terrane_time_deadline_expired(_deadline: &terrane_int_support::Int) -> bool {
     false
+}
+
+#[expect(
+    dead_code,
+    reason = "this fixture embeds the complete native task ABI but exercises defensive group drop only"
+)]
+mod native_group_drop {
+    use super::TerraneError;
+    include!("../src/runtime/time_inactive.rs");
+    include!("../src/runtime/async_native.rs");
+    include!("../src/runtime/tasks_native_parallel.rs");
+    include!("../src/runtime/task_groups_native.rs");
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn dropping_undrained_group_requests_cancellation_before_boundary_cleanup_joins_child() {
+        let proof = async {
+            let (parent_continued, parent_continued_rx) = tokio::sync::oneshot::channel();
+            let (child_started, child_started_rx) = tokio::sync::oneshot::channel();
+            let (child_finalizer_entered, child_finalizer_entered_rx) =
+                tokio::sync::oneshot::channel();
+            let (release_finalizer, release_finalizer_rx) = tokio::sync::oneshot::channel();
+            let (child_finalizer_finished, child_finalizer_finished_rx) =
+                tokio::sync::oneshot::channel();
+
+            let (finish_parent, finish_parent_rx) = tokio::sync::oneshot::channel();
+            let boundary = __terrane_async_entry(async move {
+                let group = TerraneTaskGroup::<()>::new();
+                let scope = group.scope();
+                group.spawn(TerraneScopedTask::spawn(async move {
+                    let _ = child_started.send(());
+                    scope.cancellation.cancelled().await;
+                    let _ = child_finalizer_entered.send(());
+                    let _ = release_finalizer_rx.await;
+                    let _ = child_finalizer_finished.send(());
+                    TerraneTaskResult::Cancelled
+                }));
+                child_started_rx
+                    .await
+                    .expect("child starts before group drop");
+                drop(group);
+                parent_continued
+                    .send(())
+                    .expect("parent observes continuation before cleanup");
+                finish_parent_rx
+                    .await
+                    .expect("parent remains alive until drop cancellation is observed");
+            });
+            tokio::pin!(boundary);
+
+            tokio::select! {
+                () = &mut boundary => panic!("parent cannot finish before the continuation gate"),
+                continued = parent_continued_rx => continued.expect("parent continues after group drop"),
+            }
+            tokio::select! {
+                () = &mut boundary => panic!("parent must remain alive while drop cancellation is observed"),
+                entered = child_finalizer_entered_rx => entered.expect("drop requests cancellation promptly"),
+            }
+            finish_parent
+                .send(())
+                .expect("parent remains suspended after drop cancellation");
+            std::future::poll_fn(|context| {
+                assert!(
+                    boundary.as_mut().poll(context).is_pending(),
+                    "boundary must join the gated child cleanup"
+                );
+                std::task::Poll::Ready(())
+            })
+            .await;
+            release_finalizer
+                .send(())
+                .expect("child finalizer is still waiting");
+            boundary.await;
+            child_finalizer_finished_rx
+                .await
+                .expect("boundary returns only after child finalizer completes");
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(5), proof)
+            .await
+            .expect("group drop and joined cleanup must make progress");
+    }
 }
 
 include!("../src/runtime/async.rs");

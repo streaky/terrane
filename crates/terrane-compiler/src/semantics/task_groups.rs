@@ -99,8 +99,16 @@ impl<'a> Flow<'a> {
         live: &mut Live,
         awaited: bool,
         finalizers: &[&'a SyntaxNode],
+        deferred: bool,
     ) -> Result<(), SemanticFailure> {
-        self.implicit_exit(node, live, awaited, finalizers)?;
+        let deferred = deferred
+            || matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            );
+        if !deferred {
+            self.implicit_exit(node, live, awaited, finalizers)?;
+        }
         if factory(self.unit, node).is_some() {
             return Err(failure(
                 &self.unit.source,
@@ -113,7 +121,7 @@ impl<'a> Flow<'a> {
             && unary_operator_text(self.unit, node).as_deref() == Some("await")
         {
             if let Some(value) = node.children.last() {
-                self.expression(value, live, true, finalizers)?;
+                self.expression(value, live, true, finalizers, deferred)?;
             }
             return Ok(());
         }
@@ -154,7 +162,7 @@ impl<'a> Flow<'a> {
                 }
             }
             for child in node.children.iter().skip(1) {
-                self.expression(child, live, false, finalizers)?;
+                self.expression(child, live, false, finalizers, deferred)?;
             }
             return Ok(());
         }
@@ -173,6 +181,7 @@ impl<'a> Flow<'a> {
                 live,
                 awaited && node.kind == SyntaxKind::GroupExpression,
                 finalizers,
+                deferred,
             )?;
         }
         Ok(())
@@ -235,10 +244,10 @@ impl<'a> Flow<'a> {
                     if let Some(value) = node.children.last() {
                         if let Some(call) = factory(self.unit, value) {
                             for arguments in call.children.iter().skip(1) {
-                                self.expression(arguments, live, false, finalizers)?;
+                                self.expression(arguments, live, false, finalizers, false)?;
                             }
                         } else {
-                            self.expression(value, live, false, finalizers)?;
+                            self.expression(value, live, false, finalizers, false)?;
                         }
                     }
                     self.seen.insert(owner.span);
@@ -248,7 +257,7 @@ impl<'a> Flow<'a> {
             }
             SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => {
                 for child in &node.children {
-                    self.expression(child, live, false, finalizers)?;
+                    self.expression(child, live, false, finalizers, false)?;
                 }
                 self.exit(live, finalizers, node.span)?;
                 live.clear();
@@ -262,7 +271,7 @@ impl<'a> Flow<'a> {
             }
             SyntaxKind::IfStatement => {
                 if let Some(condition) = node.children.first() {
-                    self.expression(condition, live, false, finalizers)?;
+                    self.expression(condition, live, false, finalizers, false)?;
                 }
                 let entry = live.clone();
                 let mut paths = Vec::new();
@@ -280,7 +289,13 @@ impl<'a> Flow<'a> {
                             .iter()
                             .filter(|child| child.kind != SyntaxKind::Block)
                         {
-                            self.expression(condition, &mut entry.clone(), false, finalizers)?;
+                            self.expression(
+                                condition,
+                                &mut entry.clone(),
+                                false,
+                                finalizers,
+                                false,
+                            )?;
                         }
                         branch
                             .children
@@ -311,7 +326,7 @@ impl<'a> Flow<'a> {
                             return Err(undrained(self.unit, node.span));
                         }
                     } else {
-                        self.expression(child, live, false, finalizers)?;
+                        self.expression(child, live, false, finalizers, false)?;
                     }
                 }
                 return Ok(true);
@@ -380,13 +395,13 @@ impl<'a> Flow<'a> {
                             .iter()
                             .filter(|child| child.kind != SyntaxKind::Block)
                         {
-                            self.expression(header, &mut path, false, finalizers)?;
+                            self.expression(header, &mut path, false, finalizers, false)?;
                         }
                         if self.block(body, &mut path, finalizers, loop_entry, true)? {
                             paths.push(path);
                         }
                     } else {
-                        self.expression(case, live, false, finalizers)?;
+                        self.expression(case, live, false, finalizers, false)?;
                     }
                 }
                 if node.kind == SyntaxKind::SwitchStatement && !node.switch_has_default() {
@@ -397,7 +412,7 @@ impl<'a> Flow<'a> {
             SyntaxKind::FunctionDeclaration => return Ok(true),
             _ => {}
         }
-        self.expression(node, live, false, finalizers)?;
+        self.expression(node, live, false, finalizers, false)?;
         Ok(true)
     }
 

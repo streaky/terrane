@@ -7,7 +7,7 @@ fn main() {
         let reader: ByteReader;
         let allocated: ReadBufferResult;
         let expired: Deadline;
-        let options: NetworkOperationOptions;
+        let options: IoOperationOptions;
         let mut rejected: BufferedReadResult;
         let mut first: BufferedReadResult;
         let first_bytes: BufferBytesResult;
@@ -27,7 +27,7 @@ fn main() {
                 0 /* terrane-site: case.trn:9:33-9:57 */,
             ),
         );
-        options = NetworkOperationOptions::terrane_construct(Some(expired), None);
+        options = IoOperationOptions::terrane_construct(Some(expired), None);
         rejected = __terrane_await(
                 (&reader)
                     .read_into_async(

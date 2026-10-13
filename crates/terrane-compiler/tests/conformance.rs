@@ -1232,6 +1232,11 @@ fn write_support_crates(directory: &Path) {
     )
     .unwrap();
     fs::write(
+        platform.join("src/networking_transport.rs"),
+        include_bytes!("../../terrane-platform-support/src/networking_transport.rs"),
+    )
+    .unwrap();
+    fs::write(
         platform.join("src/networking_buffers.rs"),
         include_bytes!("../../terrane-platform-support/src/networking_buffers.rs"),
     )
