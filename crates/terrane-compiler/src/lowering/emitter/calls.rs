@@ -223,13 +223,25 @@ impl Emitter<'_> {
         let allow_unknown = self.expression_as(values[3], ValueType::Scalar(ScalarType::Bool));
         let (line, column) = self.source.line_column(node.span.start);
         let source_site = format!("{}:{line}:{column}", self.unit.source_path);
+        let declaration_unit = self
+            .package
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == object.span.file)
+            .expect("typed document class retains its declaring source");
+        let (class_line, class_column) = declaration_unit.source.line_column(object.span.start);
+        let class_site = format!(
+            "{}:{class_line}:{class_column}",
+            declaration_unit.source_path
+        );
         let parse = if identity == "/core/documents/json::decode-typed-json" {
-            "terrane_document_support::parse_json(&source, terrane_limit(&options.max_depth), terrane_limit(&options.max_bytes))".to_owned()
+            "terrane_document_support::parse_json_document(__terrane_document_source, terrane_limit(&__terrane_document_options.max_depth), terrane_limit(&__terrane_document_options.max_bytes))".to_owned()
         } else {
-            "terrane_document_support::parse_yaml(&source, terrane_limit(&options.max_depth), terrane_limit(&options.max_bytes), terrane_limit(&options.max_alias_nodes))".to_owned()
+            "terrane_document_support::parse_yaml_document(__terrane_document_source, terrane_limit(&__terrane_document_options.max_depth), terrane_limit(&__terrane_document_options.max_bytes), terrane_limit(&__terrane_document_options.max_alias_nodes))".to_owned()
         };
         format!(
-            "{{ let source = {source}; let options = {options}; let input = {parse}; match <{destination_type} as TerraneDocumentDecode>::terrane_decode_document(&input, \"$\", {allow_unknown}, {source_site:?}, {source_site:?}) {{ Ok(value) => TerraneDocumentDecodeOutcome {{ value, diagnostics: terrane_collection_support::List::new(Vec::new()) }}, Err(diagnostics) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(diagnostics) }} }} }}"
+            "{{ let __terrane_document_source = &{source}; let __terrane_document_options = &{options}; let __terrane_document_allow_unknown = {allow_unknown}; let __terrane_document_path = TerraneDocumentPath::Root(\"$\"); match {parse} {{ Ok(mut input) => match <{destination_type} as TerraneDocumentDecode>::terrane_decode_document(&mut input, &__terrane_document_path, __terrane_document_allow_unknown, {source_site:?}, {source_site:?}) {{ Ok(value) => TerraneDocumentDecodeOutcome {{ value, diagnostics: terrane_collection_support::List::new(Vec::new()) }}, Err(diagnostics) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(diagnostics) }} }}, Err(error) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(vec![__terrane_document_diagnostic(&__terrane_document_path, {:?}, \"invalid\", \"parse\", error.message, {source_site:?}, {class_site:?})]) }} }} }}",
+            object.name
         )
     }
     fn structured_log_emit_call(

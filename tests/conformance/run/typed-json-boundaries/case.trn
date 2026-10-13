@@ -1,0 +1,62 @@
+namespace typed-json-boundaries
+from /core/documents import document-decodable
+from /core/documents/json import decode-typed-json, default-json-options, json-options
+from /core/collections import tuple
+from /core/errors import throwable
+
+class policy-error implements throwable
+    message string = 'policy-error'
+    function render string;
+        return this.message
+
+function unknown-policy bool;
+    throw instance policy-error;
+
+class numbers implements document-decodable
+    signed int128 = 0
+    unsigned uint128 = 0
+    adaptive int = 0
+    integral int64 = 0
+    real float64 = 0
+    narrow float32 = 0
+    optional int64|none = none
+
+class item implements document-decodable
+    amount int64 = 0
+
+class envelope implements document-decodable
+    children list of item metadata (external-name = 'odd.key')
+    keyed map of string, item
+    pair tuple of int64 = tuple; 0, 0
+
+function main;
+    options = default-json-options;
+    good = decode-typed-json; '{"signed":-170141183460469231731687303715884105728,"unsigned":340282366920938463463374607431768211455,"adaptive":1e40,"integral":1.2e2,"real":1e308,"narrow":3.4e38,"optional":null}', numbers, options, false
+    print; good.value.signed
+    print; good.value.unsigned
+    print; good.value.adaptive
+    print; good.value.integral
+    print; good.value.real > 1.0 and good.value.narrow > 0.0
+    print; good.value.optional
+    bad = decode-typed-json; '{"signed":-170141183460469231731687303715884105729,"unsigned":340282366920938463463374607431768211456,"adaptive":1.5,"real":1e309,"narrow":3.5e38,"optional":false}', numbers, options, false
+    print; bad.diagnostics.length
+    for diagnostic in bad.diagnostics
+        print; diagnostic.path, '|', diagnostic.actual-kind, '|', diagnostic.reason
+    nested = decode-typed-json; '{"odd.key":[{"amount":"no"}],"keyed":{"a.b":{"amount":false}},"pair":["bad"],"spare":true}', envelope, options, false
+    for diagnostic in nested.diagnostics
+        print; diagnostic.path, '|', diagnostic.actual-kind, '|', diagnostic.reason
+    duplicate = decode-typed-json; '{"integral":1,"integral":2}', numbers, options, false
+    trailing = decode-typed-json; '{"integral":1} true', numbers, options, false
+    too-deep = decode-typed-json; '{"odd.key":[{"amount":1}]}', envelope, (instance json-options; 2, 128), false
+    too-large = decode-typed-json; '{"integral":12345}', numbers, (instance json-options; 4, 8), false
+    print; duplicate.failed and duplicate.diagnostics[0].reason == 'parse' and trailing.failed and trailing.diagnostics[0].reason == 'parse' and too-deep.failed and too-deep.diagnostics[0].reason == 'parse' and too-large.failed and too-large.diagnostics[0].reason == 'parse'
+    source bool = true
+    text string = '{"integral":7,"future":{"anything":[1,2,3]}}'
+    rejected = decode-typed-json; text, numbers, options, false
+    unknown = decode-typed-json; text, numbers, options, source
+    print; rejected.failed, unknown.value.integral
+    try
+        decoded = decode-typed-json; 'not json', numbers, options, (unknown-policy;)
+        print; decoded.diagnostics[0].reason
+    catch policy-error as error
+        print; error.message
