@@ -478,18 +478,20 @@ fn populate_applied_native_signatures(
             let Some(contracts) = candidates.get(name) else {
                 continue;
             };
-            let resolved = super::namespaces::function_contract_for_call_with_safety(
+            let Some(resolved) = super::namespaces::function_contract_for_call_with_safety(
                 package,
                 unit,
                 node,
                 crate::syntax::call_is_unsafe(node),
-            );
+            ) else {
+                continue;
+            };
             let owner = super::objects::projected_call_owner_substitutions(package, unit, node)
                 .map_err(|reason| {
                     super::diagnostics::failure(&unit.source, "T0118", reason, node.span)
                 })?;
             for &(contract, native) in contracts {
-                if resolved.is_some_and(|resolved| resolved.span != contract.span) {
+                if resolved.span != contract.span {
                     continue;
                 }
                 if let Some(selected) = applied_native_signature(
