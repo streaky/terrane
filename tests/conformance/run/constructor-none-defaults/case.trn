@@ -1,0 +1,28 @@
+namespace constructor-none-defaults
+
+class payload
+    value int = 7
+
+class holder
+    tag string
+    value payload|none
+
+    function construct; tag string = 'default', value payload|none = none
+        this.tag = tag
+        this.value = value
+
+function describe string; value payload|none = none
+    if value != none
+        return 'value=' + value.value
+    return 'missing'
+
+function main;
+    omitted = instance holder;
+    partial = instance holder; 'partial'
+    present = instance holder; 'present', (instance payload;)
+    print; omitted.tag, ':', omitted.value == none
+    print; partial.tag, ':', partial.value == none
+    owned = present.value
+    if owned != none
+        print; present.tag, ':', owned.value
+    print; (describe;), ':', (describe; none), ':', (describe; (instance payload;))

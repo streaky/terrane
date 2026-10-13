@@ -948,15 +948,10 @@ impl<'unit> Emitter<'unit> {
             return;
         };
         for (index, parameter) in parameters.children.iter().enumerate() {
-            if values[index].is_some() {
+            if values[index].is_some() || !contract.parameters[index].optional {
                 continue;
             }
-            if let Some(default) = parameter.children.last().filter(|child| {
-                !matches!(
-                    child.kind,
-                    SyntaxKind::Name | SyntaxKind::TypeExpression | SyntaxKind::VariadicMarker
-                )
-            }) {
+            if let Some(default) = parameter.children.last() {
                 let destination = contract.parameters[index].value_type.clone();
                 let value = destination
                     .and_then(|destination| match destination {
@@ -964,6 +959,12 @@ impl<'unit> Emitter<'unit> {
                             contextual_constant(&owner.source, default, destination)
                                 .and_then(Result::ok)
                                 .map(|constant| lower_contextual_constant(constant, destination))
+                        }
+                        ValueType::Optional(_)
+                            if &owner.source.text()[default.span.start..default.span.end]
+                                == "none" =>
+                        {
+                            Some("None".to_owned())
                         }
                         _ => None,
                     })
