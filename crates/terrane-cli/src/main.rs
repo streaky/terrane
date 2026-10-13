@@ -1555,6 +1555,14 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
             include_bytes!("../../terrane-platform-support/src/observability.rs"),
         )?;
         write_if_changed(
+            &platform.join("src/networking_state.rs"),
+            include_bytes!("../../terrane-platform-support/src/networking_state.rs"),
+        )?;
+        write_if_changed(
+            &platform.join("src/networking_buffers.rs"),
+            include_bytes!("../../terrane-platform-support/src/networking_buffers.rs"),
+        )?;
+        write_if_changed(
             &platform.join("src/signals.rs"),
             include_bytes!("../../terrane-platform-support/src/signals.rs"),
         )?;

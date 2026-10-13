@@ -1,0 +1,45 @@
+namespace core/networking/io
+
+from /core/time import deadline
+
+class network-cancellation-token
+    private handle host-platform-capability = host-cancellation-token;
+
+class network-operation-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+
+    function construct; failed bool, deadline-exceeded bool, message string
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+
+function network-cancel-operation network-operation-result; cancellation network-cancellation-token
+    raw = host-cancel; cancellation.handle
+    return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+class network-operation-options
+    deadline deadline|none = none
+    cancellation network-cancellation-token|none = none
+
+    function construct; requested deadline|none = none, cancellation network-cancellation-token|none = none
+        this.deadline = requested
+        this.cancellation = cancellation
+
+function operation-cancellation host-platform-capability|none; options network-operation-options|none
+    if options != none
+        selected = options.cancellation
+        if selected != none
+            return selected.handle
+    return none
+
+function operation-deadline int; options network-operation-options|none
+    if options != none
+        selected = options.deadline
+        if selected != none
+            remaining = selected.remaining;
+            if remaining != none
+                return remaining.total-nanoseconds
+            return 0
+    return -1

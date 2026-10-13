@@ -1,6 +1,7 @@
 namespace app
 
-from /core/networking import ip-address-from-string, parse-host-name, network-cancellation-token, network-cancel-operation, network-operation-options, lookup-dns
+from /core/networking import ip-address-from-string, parse-host-name, lookup-dns
+from /core/networking/io import network-cancellation-token, network-cancel-operation, network-operation-options
 from /core/time import clock, duration
 
 async function main;

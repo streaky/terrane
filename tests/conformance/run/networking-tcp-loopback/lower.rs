@@ -2,20 +2,36 @@
 include!("lower.support.rs");
 // Source: case.trn
 // Namespace: app
-async fn serve(listener: TcpListener, options: NetworkOperationOptions) {
+async fn serve(listener: TcpListener) {
     let accepted: StreamResult;
     let stream: TcpStream;
-    let request: IoResult;
-    let written: IoResult;
-    accepted = __terrane_await((&listener).accept(options.clone())).await;
+    let buffer_result: ReadBufferResult;
+    let request_buffer: OwnedReadBuffer;
+    let request: BufferedReadResult;
+    let request_bytes: BufferBytesResult;
+    let written: WriteResult;
+    accepted = __terrane_await((&listener).accept(None)).await;
     stream = accepted.value;
+    buffer_result = make_read_buffer(terrane_int_support::Int::from(16_i128));
+    request_buffer = buffer_result.value;
     request = __terrane_await(
-            (&stream).read(terrane_int_support::Int::from(7_i128), options.clone()),
+            (&stream)
+                .read_into_async(
+                    request_buffer,
+                    terrane_int_support::Int::from(7_i128),
+                    None,
+                ),
         )
         .await;
-    if request.data == Vec::from([116, 101, 114, 114, 97, 110, 101]) {
+    request_bytes = request
+        .buffer
+        .as_ref()
+        .expect("required field initialized")
+        .filled_bytes();
+    if request_bytes.value == Vec::<u8>::from([116, 101, 114, 114, 97, 110, 101]) {
         written = __terrane_await(
-                (&stream).write(Vec::from([114, 101, 112, 108, 121]), options),
+                (&stream)
+                    .write_all_async(Vec::<u8>::from([114, 101, 112, 108, 121]), None),
             )
             .await;
         if !written.failed {
@@ -25,45 +41,54 @@ async fn serve(listener: TcpListener, options: NetworkOperationOptions) {
     stream.close();
     return ();
 }
-async fn read_input(input: ByteReader) -> ReadResult {
-    return __terrane_await((&input).read_async(terrane_int_support::Int::from(1_i128)))
+async fn read_input(input: ByteReader) -> BufferedReadResult {
+    let allocated: ReadBufferResult;
+    let buffer: OwnedReadBuffer;
+    allocated = make_read_buffer(terrane_int_support::Int::from(8_i128));
+    buffer = allocated.value;
+    return __terrane_await(
+            (&input)
+                .read_into_async(buffer, terrane_int_support::Int::from(1_i128), None),
+        )
         .await;
 }
 fn main() {
     __terrane_run(async move {
         let loopback: IpResult;
         let bind_address: SocketResult;
+        let server_settings: TcpListenerOptions;
         let bound: ListenerResult;
         let listener: TcpListener;
         let endpoint_text: String;
-        let server_options: NetworkOperationOptions;
         let server_task;
         let scope: TerraneTaskScope;
         let input: ByteReader;
         let input_task;
-        let input_child: TerraneScopedTask<ReadResult>;
+        let input_child: TerraneScopedTask<BufferedReadResult>;
         let child: TerraneScopedTask<()>;
         let destination: SocketResult;
-        let client_options: NetworkOperationOptions;
+        let client_settings: TcpOptions;
         let connected: StreamResult;
         let client: TcpStream;
-        let sent: IoResult;
-        let response: IoResult;
+        let sent: WriteResult;
+        let response: ReadResult;
         let outcome: TerraneTaskOutcome<()>;
-        let input_outcome: TerraneTaskOutcome<ReadResult>;
+        let input_outcome: TerraneTaskOutcome<BufferedReadResult>;
         loopback = ip_address_from_string(String::from("127.0.0.1"));
         bind_address = socket_address_from_ip(
             loopback.value,
             terrane_int_support::Int::from(0_i128),
         );
-        bound = bind_tcp(bind_address.value);
+        server_settings = TcpListenerOptions::terrane_construct(
+            terrane_int_support::Int::from(32_i128),
+            true,
+            true,
+            terrane_int_support::Int::from(64_i128),
+        );
+        bound = bind_tcp(bind_address.value, Some(server_settings));
         listener = bound.value;
         endpoint_text = listener.local_address.clone();
-        server_options = NetworkOperationOptions::terrane_construct(
-            None,
-            NetworkCancellationToken::terrane_construct(),
-        );
-        server_task = serve(listener, server_options);
+        server_task = serve(listener);
         scope = TerraneTaskScope::new(None);
         input = stdin();
         input_task = read_input(input);
@@ -104,25 +129,25 @@ fn main() {
             })
         };
         destination = socket_address_from_string(endpoint_text);
-        client_options = NetworkOperationOptions::terrane_construct(
-            None,
-            NetworkCancellationToken::terrane_construct(),
+        client_settings = TcpOptions::terrane_construct(
+            false,
+            terrane_int_support::Int::from(64_i128),
         );
         connected = __terrane_await(
-                connect_tcp(destination.value, client_options.clone()),
+                connect_tcp(destination.value, None, Some(client_settings)),
             )
             .await;
         client = connected.value;
         sent = __terrane_await(
                 (&client)
-                    .write(
-                        Vec::from([116, 101, 114, 114, 97, 110, 101]),
-                        client_options.clone(),
+                    .write_all_async(
+                        Vec::<u8>::from([116, 101, 114, 114, 97, 110, 101]),
+                        None,
                     ),
             )
             .await;
         response = __terrane_await(
-                (&client).read(terrane_int_support::Int::from(5_i128), client_options),
+                (&client).read_exact_async(terrane_int_support::Int::from(5_i128), None),
             )
             .await;
         outcome = __terrane_await(scope.join(child)).await;
@@ -130,7 +155,7 @@ fn main() {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&response
-            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:43:13-43:39 */))
+            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:48:13-48:39 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
         input_outcome = __terrane_await(scope.join(input_child)).await;

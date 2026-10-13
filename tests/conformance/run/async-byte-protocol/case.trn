@@ -1,0 +1,33 @@
+namespace async-byte-protocol
+from /core/networking import tcp-listener, bind-tcp, connect-tcp, socket-address-from-string
+from /core/streams import async-byte-reader
+
+async function consume none; reader async-byte-reader
+    first = await reader.read-exact-async; 2
+    tail = await reader.read-exact-async; 4
+    print; first.completed == 2 and not first.failed
+    print; tail.completed == 1 and tail.end and tail.failed
+    print; first.data == b'ab'
+    print; tail.data == b'c'
+    reader.close;
+    return none
+
+async function serve none; listener tcp-listener
+    accepted = await listener.accept;
+    stream = move accepted.value
+    _ = await stream.write-all-async; b'abc'
+    stream.shutdown; 'write'
+    stream.close;
+    listener.close;
+    return none
+
+async function main;
+    parsed = socket-address-from-string; '127.0.0.1:0'
+    bound = bind-tcp; parsed.value
+    address = socket-address-from-string; bound.value.local-address
+    scope = task-scope;
+    server = scope.spawn; (serve; move bound.value)
+    connected = await connect-tcp; address.value
+    await consume; move connected.value
+    outcome = await scope.join; server
+    print; outcome.completed

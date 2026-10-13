@@ -40,6 +40,7 @@ fn value_type_contains_callable(
         | ValueType::Task(value, _)
         | ValueType::ScopedTask(value, _)
         | ValueType::TaskOutcome(value)
+        | ValueType::TaskGroup(value)
         | ValueType::Reference(value)
         | ValueType::SharedReference(value) => {
             value_type_contains_callable(value.value_type_ref(), predicate)
@@ -362,9 +363,24 @@ fn lower_with_tests(
     });
     let has_select = package.units.iter().any(|unit| !unit.selections.is_empty());
     let has_async_finally = package_has_async_finally(package);
+    let has_task_groups = package.units.iter().any(|unit| {
+        unit.typed_bindings
+            .iter()
+            .any(|binding| matches!(binding.value_type, ValueType::TaskGroup(_)))
+    });
     let native_cancellation = package_uses_task_scope(package) && has_async_entry
         || projected_async_entry
-        || has_async_finally;
+        || package.units.iter().any(|unit| {
+            matches!(
+                unit.namespace.as_str(),
+                "/core/streams"
+                    | "/core/networking"
+                    | "/core/networking/io"
+                    | "/core/networking/tls"
+            )
+        })
+        || has_async_finally
+        || has_task_groups;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.descriptors.iter().any(|object| {
@@ -432,6 +448,10 @@ fn lower_with_tests(
             support.push_str(include_str!("../../runtime/async_cancellable.rs"));
             source_files.push("async_cancellable.rs");
         }
+        if package_uses_task_scope(package) && (has_async_entry || has_task_groups) {
+            support.push_str(include_str!("../../runtime/task_groups_native.rs"));
+            source_files.push("task_groups_native.rs");
+        }
         runtime.push(GeneratedModule {
             name: "async",
             source_files,
@@ -439,7 +459,7 @@ fn lower_with_tests(
         });
     }
     if package_uses_task_scope(package) {
-        let (support, source_file) = if has_async_entry {
+        let (support, source_file) = if has_async_entry || has_task_groups {
             match package.execution_strategy {
                 crate::execution::ExecutionStrategy::Local => (
                     include_str!("../../runtime/tasks_native_local.rs"),
@@ -498,7 +518,7 @@ fn lower_with_tests(
             "/core/codecs" => uses_codecs = true,
             "/core/compression" => uses_compression = true,
             "/core/random/uuid" => uses_uuid = true,
-            "/core/networking" => uses_networking = true,
+            "/core/networking" | "/core/networking/io" => uses_networking = true,
             "/core/networking/tls" => uses_tls = true,
             "/core/concurrency" => uses_concurrency = true,
             "/core/logging" | "/core/logging/async" => uses_logging = true,
@@ -873,7 +893,10 @@ fn lower_with_tests(
     Ok(Program {
         version: crate::VERSION,
         requires_platform_support,
-        requires_async_runtime: has_async_entry || projected_async_entry || has_async_finally,
+        requires_async_runtime: has_async_entry
+            || projected_async_entry
+            || has_async_finally
+            || has_task_groups,
         requires_blocking_runtime: uses_streams || uses_filesystem || uses_networking,
         requires_runtime_sync: has_async_mutable_callables || (has_async && native_cancellation),
         runtime,

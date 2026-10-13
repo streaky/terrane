@@ -47,12 +47,13 @@ fn main() {
     if second_write.failed {
         println!("{}", terrane_scalar_support::scalar_text(&second_write.message));
     }
-    prefix = writer.write(Vec::from([100]));
+    prefix = writer.write(Vec::<u8>::from([100]));
     partial = WriteResult::terrane_construct(
-        Vec::from([100, 101, 102]),
+        Vec::<u8>::from([100, 101, 102]),
         terrane_int_support::Int::from(1_i128),
         false,
         String::from(""),
+        false,
     );
     resumed = writer.resume(partial);
     if prefix.completed.clone() != terrane_int_support::Int::from(1_i128)

@@ -15,6 +15,7 @@ mod namespaces;
 mod scope_flow;
 mod scope_validation;
 mod scopes;
+mod task_groups;
 
 pub(crate) use scope_flow::constant_boolean;
 // Type contracts and expression-family inference.

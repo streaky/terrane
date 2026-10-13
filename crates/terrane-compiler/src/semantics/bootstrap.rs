@@ -25,7 +25,11 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     );
     namespaces.insert(
         "/core/async".to_owned(),
-        namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
+        namespace_with_objects(
+            "/core/async",
+            ["task-scope", "task-group"],
+            SymbolKind::Function,
+        ),
     );
     add_private_host_bindings(
         &mut namespaces,
@@ -240,6 +244,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "tcp-connect-host-async",
             "tcp-accept-async",
             "tcp-read-async",
+            "tcp-read-into-async",
             "tcp-write-async",
             "udp-send-to-async",
             "udp-receive-from-async",
@@ -339,6 +344,36 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "result-capability",
         ],
     );
+    for namespace in ["/core/networking/io", "/core/streams"] {
+        add_private_host_bindings(
+            &mut namespaces,
+            namespace,
+            "capabilities",
+            [
+                "platform-resource-handle",
+                "platform-capability",
+                "platform-result",
+                "no-capability",
+                "no-resource",
+                "cancellation-token",
+                "cancel",
+                "buffer-create",
+                "buffer-clear",
+                "buffer-close",
+                "buffer-filled-bytes",
+                "buffer-filled-text",
+                "stream-read-into-async",
+                "result-failed",
+                "result-message",
+                "result-int",
+                "result-bool",
+                "result-bytes",
+                "result-text",
+                "result-resource",
+                "result-deadline-exceeded",
+            ],
+        );
+    }
     add_private_host_bindings(
         &mut namespaces,
         "/core/streams",
@@ -351,6 +386,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "read",
             "read-async",
             "write",
+            "write-async",
             "flush",
             "sync-data",
             "sync-all",
@@ -372,6 +408,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "tls-client-async",
             "tls-read-async",
             "tls-write-async",
+            "tls-read-into-async",
             "tls-shutdown-async",
             "close",
             "result-failed",

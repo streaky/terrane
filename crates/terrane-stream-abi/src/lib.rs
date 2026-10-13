@@ -31,6 +31,15 @@ impl StdinReader {
         Self { stdin: io::stdin() }
     }
 
+    /// Performs at most one host read directly into caller-owned reusable storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when the host read fails.
+    pub fn read_into(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        self.stdin.read(buffer)
+    }
+
     /// Performs at most one host read, preserving partial completion and EOF.
     ///
     /// # Errors
@@ -38,7 +47,7 @@ impl StdinReader {
     /// Returns an I/O error when the host read fails.
     pub fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
         let mut data = vec![0; limit];
-        let completed = self.stdin.read(&mut data)?;
+        let completed = self.read_into(&mut data)?;
         data.truncate(completed);
         Ok(ReadOutcome {
             data,
@@ -155,7 +164,15 @@ impl FileStream {
             end: completed == 0,
         })
     }
-
+    fn read_into(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        if !self.readable {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file is not readable",
+            ));
+        }
+        self.file.read(buffer)
+    }
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         if !self.writable {
             return Err(io::Error::new(
@@ -426,19 +443,54 @@ pub fn open_file_beneath(_: StreamHandle, _: &str, _: FileOpenOptions) -> io::Re
 ///
 /// Returns an I/O error for an invalid or non-readable handle, or when the host read fails.
 pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
-    if limit == 0 {
-        return Ok(ReadOutcome {
-            data: Vec::new(),
-            end: false,
-        });
-    }
     let stream = registered_stream(handle)?;
     let mut stream = stream
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if limit == 0 {
+        return match &*stream {
+            StandardStream::Stdin(_) | StandardStream::File(_) => Ok(ReadOutcome {
+                data: Vec::new(),
+                end: false,
+            }),
+            StandardStream::Stdout(_) | StandardStream::Stderr(_) => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "stream is not readable",
+            )),
+        };
+    }
     match &mut *stream {
         StandardStream::Stdin(reader) => reader.read(limit),
         StandardStream::File(file) => file.read(limit),
+        StandardStream::Stdout(_) | StandardStream::Stderr(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "stream is not readable",
+        )),
+    }
+}
+
+/// Reads directly into caller-owned reusable storage through a registered stream handle.
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid or non-readable handle, or when the host read fails.
+pub fn read_into(handle: StreamHandle, buffer: &mut [u8]) -> io::Result<usize> {
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if buffer.is_empty() {
+        return match &*stream {
+            StandardStream::Stdin(_) | StandardStream::File(_) => Ok(0),
+            StandardStream::Stdout(_) | StandardStream::Stderr(_) => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "stream is not readable",
+            )),
+        };
+    }
+    match &mut *stream {
+        StandardStream::Stdin(reader) => reader.read_into(buffer),
+        StandardStream::File(file) => file.read_into(buffer),
         StandardStream::Stdout(_) | StandardStream::Stderr(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not readable",
@@ -617,6 +669,28 @@ mod tests {
         assert_eq!(outcome.data, []);
         assert!(!outcome.end);
         close(handle).unwrap();
+    }
+
+    #[test]
+    fn zero_length_reads_validate_handle_and_readability() {
+        assert_eq!(
+            read(StreamHandle(0), 0).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
+        assert_eq!(
+            read_into(StreamHandle(0), &mut []).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
+        let writer = acquire_stdout();
+        assert_eq!(
+            read(writer, 0).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            read_into(writer, &mut []).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        close(writer).unwrap();
     }
 
     #[test]

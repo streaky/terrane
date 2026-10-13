@@ -26,42 +26,18 @@ impl MutableCounter {
     }
 }
 pub trait ConsumingLabelProtocol: Send + Sync {
-    fn clone_box(&self) -> Box<dyn ConsumingLabelProtocol>;
-    fn separate_box(&self) -> Box<dyn ConsumingLabelProtocol>;
     fn label(self: Box<Self>) -> String;
 }
-impl Clone for Box<dyn ConsumingLabelProtocol> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
 pub struct ConsumingLabel(Box<dyn ConsumingLabelProtocol>);
-impl Clone for ConsumingLabel {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
 impl ConsumingLabel {
     pub fn label(self) -> String {
         self.0.label()
     }
 }
 pub trait ConsumingCounterProtocol: Send + Sync {
-    fn clone_box(&self) -> Box<dyn ConsumingCounterProtocol>;
-    fn separate_box(&self) -> Box<dyn ConsumingCounterProtocol>;
     fn redeem(self: Box<Self>) -> terrane_int_support::Int;
 }
-impl Clone for Box<dyn ConsumingCounterProtocol> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
 pub struct ConsumingCounter(Box<dyn ConsumingCounterProtocol>);
-impl Clone for ConsumingCounter {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
 impl ConsumingCounter {
     pub fn redeem(self) -> terrane_int_support::Int {
         self.0.redeem()
@@ -101,12 +77,6 @@ impl From<Sample> for MutableCounter {
     }
 }
 impl ConsumingLabelProtocol for Sample {
-    fn clone_box(&self) -> Box<dyn ConsumingLabelProtocol> {
-        Box::new(self.clone())
-    }
-    fn separate_box(&self) -> Box<dyn ConsumingLabelProtocol> {
-        Box::new(self.clone())
-    }
     fn label(self: Box<Self>) -> String {
         Sample::label(&*self)
     }
@@ -132,12 +102,6 @@ impl MutableSample {
     }
 }
 impl ConsumingCounterProtocol for MutableSample {
-    fn clone_box(&self) -> Box<dyn ConsumingCounterProtocol> {
-        Box::new(self.clone())
-    }
-    fn separate_box(&self) -> Box<dyn ConsumingCounterProtocol> {
-        Box::new(self.clone())
-    }
     fn redeem(mut self: Box<Self>) -> terrane_int_support::Int {
         MutableSample::redeem(&mut *self)
     }

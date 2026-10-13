@@ -37,7 +37,12 @@ pub(super) fn package_uses_task_scope(package: &SemanticPackage) -> bool {
                     callee.span.start,
                     &unit.source.text()[callee.span.start..callee.span.end],
                 )
-                .is_some_and(|symbol| symbol.identity == "/core/async::task-scope")
+                .is_some_and(|symbol| {
+                    matches!(
+                        symbol.identity.as_str(),
+                        "/core/async::task-scope" | "/core/async::task-group"
+                    )
+                })
         {
             return true;
         }
@@ -124,6 +129,7 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
         | ValueType::Task(inner, _)
         | ValueType::ScopedTask(inner, _)
         | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
         | ValueType::Reference(inner)
         | ValueType::SharedReference(inner) => {
             value_type_contains_throwable(inner.value_type_ref())

@@ -177,17 +177,17 @@ Rules:
 Version-one default ordinary program-global bindings EXACTLY:
 
 ```text
-print task-scope utf8 utf16-le utf16-be utf32-le utf32-be
+print task-scope task-group utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-- These seven need no import. `print; value` is a complete statement and `scope = task-scope;` creates a structured-concurrency scope in a program with no import lines at all.
+- These eight need no import. `print; value` is a complete statement, `scope = task-scope;` creates a structured-concurrency scope, and `group = task-group; int` creates a typed structured task group without import lines.
 - Prelude may be disabled.
 - Explicit `/core` object imports still work and may shadow/replace defaults deliberately.
 - Library facilities such as `map`, `list`, `range`, and filesystem tools are NOT implicit prelude bindings; import them.
 - Every `/core/types` descriptor — scalar, fixed-width, abstract category, `string`, `bytes`, and `none` — is construct vocabulary available without import independently of prelude selection.
 
 ```yaml
-prelude_bindings: the seven ordinary program-globals listed above
+prelude_bindings: the eight ordinary program-globals listed above
 descriptor_constructs: every descriptor registered under /core/types
 construct_availability: usable in construct position without import ('value int8 = 42')
 construct_value_use: still rejected in value position; a construct is not a runtime value
@@ -907,6 +907,9 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `task-outcome of T`: `completed bool`, `cancelled bool`, `value T|none` present exactly on completion, `error throwable|none` present exactly on failure.
 - Cancellation is cooperative at defined points, but observation while suspended promptly drops the in-flight operation. A wakeable compiler-owned signal—not timer polling—drives native observation. Lowered async `try` regions install nested finalization guards: the innermost active guard drops its operation, runs compiler-separated `finally` state exactly once, and then exposes the request to its parent. Async cleanup remains protected until the outermost guard releases cancellation to the task boundary. Guard state is non-catchable and uses no Rust panic/unwind control flow. Owned foreign operation state runs Rust `Drop`; cleanup-owned state survives until cleanup. Reject overlapping exclusive ownership, insufficient-lifetime borrows, or other captures that cannot split operation and cleanup state.
 - Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true. A cleanup error replaces pending cancellation under ordinary `finally` rules while cancellation remains observable.
+- `task-group; T` owns a flat collection of typed child tasks. `group.spawn; (work; args)` transfers a child into the group without exposing a linear child handle. `await group.drain;` consumes the group and returns spawn-ordered `task-outcome of T` values; an empty group drains to an empty list. Failure cancels siblings, and parent cancellation waits for every child's finalizers. Every exit path must consume the group through an awaited drain; aliases, escaping groups, and untransferable child results are rejected.
+- `/core/networking/io` supplies shared operation options with optional deadlines and cancellation tokens. TCP, TLS, and asynchronous byte-stream operations accept omitted or `none` options without creating a cancellation token. `/core/streams` supplies owning `async-byte-reader` and `async-byte-writer` protocols with `read-async`, `read-exact-async`, `read-into-async`, `write-async`, `write-all-async`, and consuming close. Exact reads preserve partial progress and fail on premature EOF; zero-length reads are not EOF. Read-into transfers and returns an `owned-read-buffer`, appending within its capacity; clear resets contents without discarding storage.
+- TCP creation accepts optional `tcp-options` (no-delay false, TTL unchanged). Listener creation accepts optional `tcp-listener-options` (backlog 128, address reuse false, accepted-socket no-delay false, accepted TTL unchanged). TCP transport registration lasts for the resource lifetime; synchronously bound listeners register lazily on first asynchronous use.
 - Deadlines use the same cancellation transition and are not hard kills. Cleanup may suspend beyond a deadline; join remains pending, and no liveness is promised for a foreign cleanup future that never wakes.
 - `/core/time` requires `clocks`. `duration` is an exact non-negative value with canonical
   `seconds`, `nanoseconds`, and arbitrary-precision `total-nanoseconds`; factories reject known

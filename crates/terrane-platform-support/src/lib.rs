@@ -10,9 +10,12 @@
     clippy::semicolon_if_nothing_returned,
     clippy::struct_excessive_bools
 )]
+mod networking_buffers;
+mod networking_state;
 mod observability;
 #[cfg(unix)]
 mod signals;
+use networking_state::{ListenerState, TcpSettings, TcpState, UdpState};
 
 pub use observability::{LogEventInput, LogFieldInput};
 // The host ABI deliberately uses one flat result envelope and opaque heterogeneous capability
@@ -94,6 +97,28 @@ thread_local! {
         RefCell::new(HashMap::new());
 }
 
+struct ReadBuffer {
+    bytes: Vec<u8>,
+    filled: usize,
+    closed: bool,
+}
+
+type AsyncTlsStream = tokio_rustls::client::TlsStream<tokio::net::TcpStream>;
+
+struct AsyncTlsState {
+    reader: tokio::sync::Mutex<Option<tokio::io::ReadHalf<AsyncTlsStream>>>,
+    writer: tokio::sync::Mutex<Option<tokio::io::WriteHalf<AsyncTlsStream>>>,
+}
+
+impl AsyncTlsState {
+    fn new(stream: AsyncTlsStream) -> Self {
+        let (reader, writer) = tokio::io::split(stream);
+        Self {
+            reader: tokio::sync::Mutex::new(Some(reader)),
+            writer: tokio::sync::Mutex::new(Some(writer)),
+        }
+    }
+}
 #[derive(Clone)]
 pub struct Capability(Arc<CapabilityInner>);
 
@@ -107,12 +132,13 @@ enum CapabilityInner {
     IntMutex(Mutex<i128>),
     IntRwLock(RwLock<i128>),
     AtomicI64(AtomicI64),
-    AsyncTls(tokio::sync::Mutex<Option<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>>),
+    AsyncTls(AsyncTlsState),
     ThreadLocalInt(ThreadLocalInt),
-    Listener(RwLock<Option<TcpListener>>),
-    Tcp(Mutex<Option<TcpStream>>),
-    Udp(Mutex<Option<UdpSocket>>),
+    Listener(ListenerState),
+    Tcp(TcpState),
+    Udp(UdpState),
     Tls(Mutex<Option<rustls::StreamOwned<rustls::ClientConnection, TcpStream>>>),
+    Buffer(tokio::sync::Mutex<ReadBuffer>),
     #[cfg(unix)]
     SignalSubscription(Arc<signals::Subscription>),
 }
@@ -406,8 +432,6 @@ fn deadline_error(message: &str) -> ResultValue {
     }
 }
 
-const CANCELLATION_QUANTUM: Duration = Duration::from_millis(10);
-
 fn operation_deadline(nanoseconds: i128, label: &str) -> Result<Option<Instant>, ResultValue> {
     let Some(duration) = timeout(nanoseconds)? else {
         return Ok(None);
@@ -669,12 +693,16 @@ fn is_cancelled(token: &Capability) -> Result<bool, ResultValue> {
     Ok(state.cancelled.load(Ordering::Acquire))
 }
 
-fn cancellation_error(token: &Capability) -> Option<ResultValue> {
-    match is_cancelled(token) {
+fn cancellation_error(token: Option<&Capability>) -> Option<ResultValue> {
+    match is_cancelled(token?) {
         Ok(true) => Some(ResultValue::error("operation cancelled")),
         Ok(false) => None,
         Err(error) => Some(error),
     }
+}
+
+pub fn check_cancellation(token: Option<&Capability>) -> ResultValue {
+    cancellation_error(token).unwrap_or_default()
 }
 
 async fn cancellation_wait(token: &Capability) -> ResultValue {
@@ -689,29 +717,41 @@ async fn cancellation_wait(token: &Capability) -> ResultValue {
     ResultValue::error("operation cancelled")
 }
 
-async fn readiness_operation(
+async fn readiness_operation<'a>(
     operation: impl Future<Output = ResultValue>,
     deadline_nanos: i128,
     deadline_message: &'static str,
-    cancellation: &Capability,
+    cancellation: impl Into<Option<&'a Capability>>,
 ) -> ResultValue {
     let duration = match timeout(deadline_nanos) {
         Ok(value) => value,
         Err(error) => return error,
     };
-    if let Some(duration) = duration {
+    if duration.is_some_and(|duration| duration.is_zero()) {
+        return deadline_error(deadline_message);
+    }
+    if let Some(cancellation) = cancellation.into() {
+        if let Some(duration) = duration {
+            tokio::select! {
+                biased;
+                cancelled = cancellation_wait(cancellation) => cancelled,
+                result = operation => result,
+                () = tokio::time::sleep(duration) => deadline_error(deadline_message),
+            }
+        } else {
+            tokio::select! {
+                biased;
+                cancelled = cancellation_wait(cancellation) => cancelled,
+                result = operation => result,
+            }
+        }
+    } else if let Some(duration) = duration {
         tokio::select! {
-            biased;
-            cancelled = cancellation_wait(cancellation) => cancelled,
             result = operation => result,
             () = tokio::time::sleep(duration) => deadline_error(deadline_message),
         }
     } else {
-        tokio::select! {
-            biased;
-            cancelled = cancellation_wait(cancellation) => cancelled,
-            result = operation => result,
-        }
+        operation.await
     }
 }
 
@@ -1248,27 +1288,90 @@ fn io_error(operation: &str, error: &std::io::Error) -> ResultValue {
     }
 }
 
-pub fn tcp_bind(address: &str) -> ResultValue {
-    match TcpListener::bind(address) {
-        Ok(listener) => {
-            let text = listener
-                .local_addr()
-                .map_or_else(|_| String::new(), |value| value.to_string());
-            if let Err(error) = listener.set_nonblocking(true) {
-                return io_error("TCP listener configuration", &error);
-            }
-            ResultValue {
-                text,
-                capability: Some(Capability(Arc::new(CapabilityInner::Listener(
-                    RwLock::new(Some(listener)),
-                )))),
-                ..ResultValue::default()
-            }
-        }
-        Err(error) => ResultValue::error(format!("TCP bind failed: {error}")),
+pub fn tcp_bind(
+    address: &str,
+    backlog: i128,
+    reuse_address: bool,
+    accepted_no_delay: bool,
+    accepted_ttl: i128,
+) -> ResultValue {
+    let Ok(address) = address.parse::<SocketAddr>() else {
+        return ResultValue::error("invalid socket address");
+    };
+    let Some(backlog) = i32::try_from(backlog).ok().filter(|value| *value >= 0) else {
+        return ResultValue::error("TCP backlog must be in 0..=2147483647");
+    };
+    let ttl = match tcp_ttl(accepted_ttl) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let domain = if address.is_ipv4() {
+        socket2::Domain::IPV4
+    } else {
+        socket2::Domain::IPV6
+    };
+    let socket =
+        match socket2::Socket::new(domain, socket2::Type::STREAM, Some(socket2::Protocol::TCP)) {
+            Ok(socket) => socket,
+            Err(error) => return io_error("TCP socket creation", &error),
+        };
+    if let Err(error) = socket.set_reuse_address(reuse_address) {
+        return io_error("TCP reuse-address configuration", &error);
+    }
+    if let Err(error) = socket
+        .bind(&address.into())
+        .and_then(|()| socket.listen(backlog))
+    {
+        return io_error("TCP bind", &error);
+    }
+    let listener: TcpListener = socket.into();
+    let text = listener
+        .local_addr()
+        .map_or_else(|_| String::new(), |value| value.to_string());
+    if let Err(error) = listener.set_nonblocking(true) {
+        return io_error("TCP listener configuration", &error);
+    }
+    ResultValue {
+        text,
+        capability: Some(Capability(Arc::new(CapabilityInner::Listener(
+            ListenerState::new(
+                listener,
+                TcpSettings {
+                    no_delay: accepted_no_delay,
+                    ttl,
+                },
+            ),
+        )))),
+        ..ResultValue::default()
     }
 }
-pub fn tcp_connect(address: &str, deadline_nanos: i128, cancellation: &Capability) -> ResultValue {
+fn tcp_ttl(ttl: i128) -> Result<Option<u32>, ResultValue> {
+    if ttl == -1 {
+        return Ok(None);
+    }
+    u32::try_from(ttl)
+        .map(Some)
+        .map_err(|_| ResultValue::error("TCP TTL must be -1 (unchanged) or in 0..=4294967295"))
+}
+
+fn configure_connected_tcp(
+    stream: &TcpStream,
+    no_delay: bool,
+    ttl: i128,
+) -> Result<(), ResultValue> {
+    TcpSettings {
+        no_delay,
+        ttl: tcp_ttl(ttl)?,
+    }
+    .apply_std(stream)
+}
+pub fn tcp_connect(
+    address: &str,
+    no_delay: bool,
+    ttl: i128,
+    deadline_nanos: i128,
+    cancellation: Option<&Capability>,
+) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
@@ -1285,6 +1388,9 @@ pub fn tcp_connect(address: &str, deadline_nanos: i128, cancellation: &Capabilit
     );
     match connected {
         Ok(stream) => {
+            if let Err(error) = configure_connected_tcp(&stream, no_delay, ttl) {
+                return error;
+            }
             if let Err(error) = stream.set_read_timeout(duration) {
                 return io_error("TCP read timeout configuration", &error);
             }
@@ -1292,8 +1398,8 @@ pub fn tcp_connect(address: &str, deadline_nanos: i128, cancellation: &Capabilit
                 return io_error("TCP write timeout configuration", &error);
             }
             ResultValue {
-                capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
-                    Some(stream),
+                capability: Some(Capability(Arc::new(CapabilityInner::Tcp(TcpState::new(
+                    stream,
                 ))))),
                 ..ResultValue::default()
             }
@@ -1305,8 +1411,10 @@ pub fn tcp_connect(address: &str, deadline_nanos: i128, cancellation: &Capabilit
 pub fn tcp_connect_host(
     host: &str,
     port: i128,
+    no_delay: bool,
+    ttl: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -1360,7 +1468,7 @@ pub fn tcp_connect_host(
                         None => break Err(ResultValue::error("all TCP connection candidates failed")),
                     },
                     () = tokio::time::sleep(Duration::from_millis(10)) => {
-                        if is_cancelled(cancellation).unwrap_or(true) {
+                        if cancellation.is_some_and(|token| is_cancelled(token).unwrap_or(true)) {
                             break Err(ResultValue::error("operation cancelled"));
                         }
                     }
@@ -1398,10 +1506,13 @@ pub fn tcp_connect_host(
     if let Err(error) = stream.set_nonblocking(false) {
         return io_error("TCP connect configuration", &error);
     }
+    if let Err(error) = configure_connected_tcp(&stream, no_delay, ttl) {
+        return error;
+    }
     ResultValue {
         text: peer.to_string(),
-        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
-            Some(stream),
+        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(TcpState::new(
+            stream,
         ))))),
         ..ResultValue::default()
     }
@@ -1409,56 +1520,60 @@ pub fn tcp_connect_host(
 pub fn tcp_accept(
     listener: &Capability,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let CapabilityInner::Listener(listener) = listener.0.as_ref() else {
+    let CapabilityInner::Listener(state) = listener.0.as_ref() else {
         return ResultValue::error("capability is not a TCP listener");
     };
-    let deadline = match operation_deadline(deadline_nanos, "TCP accept deadline") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let guard = listener.read().expect("listener lock poisoned");
-    let Some(listener) = guard.as_ref() else {
-        return ResultValue::error("listener is closed");
-    };
-    loop {
-        if let Some(error) = cancellation_error(cancellation) {
-            return error;
-        }
-        match listener.accept() {
-            Ok((stream, peer)) => {
-                return ResultValue {
-                    text: peer.to_string(),
-                    capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
-                        Some(stream),
-                    ))))),
-                    ..ResultValue::default()
-                };
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
-                if let Some(deadline) = deadline {
-                    let now = Instant::now();
-                    if now >= deadline {
-                        return deadline_error("TCP accept deadline exceeded");
+    if let Err(error) = operation_deadline(deadline_nanos, "TCP accept deadline") {
+        return error;
+    }
+    let settings = state.accepted;
+    match network_block_on(readiness_operation(
+        async move {
+            let listener = match state.readiness() {
+                Ok(listener) => listener,
+                Err(error) => return error,
+            };
+            match listener.accept().await {
+                Ok((stream, peer)) => {
+                    let stream = match stream.into_std() {
+                        Ok(stream) => stream,
+                        Err(error) => return io_error("TCP accept", &error),
+                    };
+                    if let Err(error) = stream.set_nonblocking(false) {
+                        return io_error("TCP accept configuration", &error);
                     }
-                    std::thread::sleep((deadline - now).min(CANCELLATION_QUANTUM));
-                } else {
-                    std::thread::sleep(CANCELLATION_QUANTUM);
+                    if let Err(error) = settings.apply_std(&stream) {
+                        return error;
+                    }
+                    ResultValue {
+                        text: peer.to_string(),
+                        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                            TcpState::new(stream),
+                        )))),
+                        ..ResultValue::default()
+                    }
                 }
+                Err(error) => io_error("TCP accept", &error),
             }
-            Err(error) => return io_error("TCP accept", &error),
-        }
+        },
+        deadline_nanos,
+        "TCP accept deadline exceeded",
+        cancellation,
+    )) {
+        Ok(result) => result,
+        Err(error) => error,
     }
 }
 pub fn tcp_read(
     stream: &Capability,
     limit: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -1467,103 +1582,104 @@ pub fn tcp_read(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let duration = match timeout(deadline_nanos) {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
     let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
         return ResultValue::error("capability is not a TCP stream");
     };
-    let mut guard = stream.lock().expect("stream lock poisoned");
-    let Some(stream) = guard.as_mut() else {
-        return ResultValue::error("stream is closed");
-    };
-    if let Err(error) = stream.set_read_timeout(duration) {
-        return io_error("TCP read timeout configuration", &error);
-    }
-    let mut data = vec![0; size];
-    match stream.read(&mut data) {
-        Ok(count) => {
-            data.truncate(count);
-            ResultValue {
-                data,
-                number: count as i128,
-                flag: count == 0,
-                ..ResultValue::default()
-            }
+    if size == 0 {
+        if !stream.is_open() {
+            return ResultValue::error("stream is closed");
         }
-        Err(error) => io_error("TCP read", &error),
+        return ResultValue::default();
+    }
+    match network_block_on(readiness_operation(
+        async {
+            let stream = match stream.readiness() {
+                Ok(value) => value,
+                Err(error) => return error,
+            };
+            let mut data = vec![0; size];
+            match networking_state::read(&stream, &mut data).await {
+                Ok(count) => {
+                    data.truncate(count);
+                    ResultValue {
+                        data,
+                        number: count as i128,
+                        flag: count == 0,
+                        ..ResultValue::default()
+                    }
+                }
+                Err(error) => io_error("TCP read", &error),
+            }
+        },
+        deadline_nanos,
+        "TCP read deadline exceeded",
+        cancellation,
+    )) {
+        Ok(result) => result,
+        Err(error) => error,
     }
 }
 pub fn tcp_write(
     stream: &Capability,
     data: &[u8],
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
-    let duration = match timeout(deadline_nanos) {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
     let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
         return ResultValue::error("capability is not a TCP stream");
     };
-    let mut guard = stream.lock().expect("stream lock poisoned");
-    let Some(stream) = guard.as_mut() else {
-        return ResultValue::error("stream is closed");
-    };
-    if let Err(error) = stream.set_write_timeout(duration) {
-        return io_error("TCP write timeout configuration", &error);
-    }
-    match stream.write(data) {
-        Ok(count) => ResultValue {
-            number: count as i128,
-            ..ResultValue::default()
+    match network_block_on(readiness_operation(
+        async {
+            let stream = match stream.readiness() {
+                Ok(value) => value,
+                Err(error) => return error,
+            };
+            match networking_state::write(&stream, data).await {
+                Ok(count) => ResultValue {
+                    number: count as i128,
+                    ..ResultValue::default()
+                },
+                Err(error) => io_error("TCP write", &error),
+            }
         },
-        Err(error) => io_error("TCP write", &error),
+        deadline_nanos,
+        "TCP write deadline exceeded",
+        cancellation,
+    )) {
+        Ok(result) => result,
+        Err(error) => error,
     }
 }
 pub fn tcp_shutdown(stream: &Capability, direction: &str) -> ResultValue {
-    let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
-        return ResultValue::error("capability is not a TCP stream");
-    };
-    let guard = stream.lock().expect("stream lock poisoned");
-    let Some(stream) = guard.as_ref() else {
-        return ResultValue::error("stream is closed");
-    };
     let direction = match direction {
         "read" => Shutdown::Read,
         "write" => Shutdown::Write,
         "both" => Shutdown::Both,
         _ => return ResultValue::error("shutdown direction must be read, write, or both"),
     };
+    let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
+        return ResultValue::error("capability is not a TCP stream");
+    };
     match stream.shutdown(direction) {
         Ok(()) => ResultValue::default(),
-        Err(error) => ResultValue::error(error.to_string()),
+        Err(error) => io_error("TCP shutdown", &error),
     }
 }
 
 pub fn tcp_configure(stream: &Capability, no_delay: bool, ttl: i128) -> ResultValue {
-    let Ok(ttl) = u32::try_from(ttl) else {
-        return ResultValue::error("TCP TTL must be in 0..=4294967295");
+    let ttl = match tcp_ttl(ttl) {
+        Ok(value) => value,
+        Err(error) => return error,
     };
     let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
         return ResultValue::error("capability is not a TCP stream");
     };
-    let guard = stream.lock().expect("stream lock poisoned");
-    let Some(stream) = guard.as_ref() else {
-        return ResultValue::error("stream is closed");
-    };
-    if let Err(error) = stream.set_nodelay(no_delay) {
-        return ResultValue::error(format!("cannot set TCP no-delay option: {error}"));
-    }
-    match stream.set_ttl(ttl) {
-        Ok(()) => ResultValue::default(),
-        Err(error) => ResultValue::error(format!("cannot set TCP TTL: {error}")),
-    }
+    stream
+        .configure(TcpSettings { no_delay, ttl })
+        .map_or_else(|error| error, |()| ResultValue::default())
 }
 
 pub fn udp_bind(address: &str) -> ResultValue {
@@ -1574,8 +1690,8 @@ pub fn udp_bind(address: &str) -> ResultValue {
                 .map_or_else(|_| String::new(), |value| value.to_string());
             ResultValue {
                 text,
-                capability: Some(Capability(Arc::new(CapabilityInner::Udp(Mutex::new(
-                    Some(socket),
+                capability: Some(Capability(Arc::new(CapabilityInner::Udp(UdpState::new(
+                    socket,
                 ))))),
                 ..ResultValue::default()
             }
@@ -1591,7 +1707,7 @@ pub fn udp_configure(socket: &Capability, broadcast: bool, ttl: i128) -> ResultV
     let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
         return ResultValue::error("capability is not a UDP socket");
     };
-    let guard = socket.lock().expect("socket lock poisoned");
+    let guard = socket.lock();
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
@@ -1608,7 +1724,7 @@ pub fn udp_send_to(
     data: &[u8],
     address: &str,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -1620,7 +1736,7 @@ pub fn udp_send_to(
     let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
         return ResultValue::error("capability is not a UDP socket");
     };
-    let guard = socket.lock().expect("socket lock poisoned");
+    let guard = socket.lock();
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
@@ -1639,7 +1755,7 @@ pub fn udp_receive_from(
     socket: &Capability,
     limit: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -1655,7 +1771,7 @@ pub fn udp_receive_from(
     let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
         return ResultValue::error("capability is not a UDP socket");
     };
-    let guard = socket.lock().expect("socket lock poisoned");
+    let guard = socket.lock();
     let Some(socket) = guard.as_ref() else {
         return ResultValue::error("socket is closed");
     };
@@ -1679,85 +1795,56 @@ pub fn udp_receive_from(
     }
 }
 
-fn readiness_tcp_stream(stream: &Capability) -> Result<tokio::net::TcpStream, ResultValue> {
+fn readiness_tcp_stream(stream: &Capability) -> Result<Arc<tokio::net::TcpStream>, ResultValue> {
     let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
         return Err(ResultValue::error("capability is not a TCP stream"));
     };
-    let guard = stream.lock().expect("stream lock poisoned");
-    let Some(stream) = guard.as_ref() else {
-        return Err(ResultValue::error("stream is closed"));
-    };
-    let stream = stream
-        .try_clone()
-        .map_err(|error| io_error("TCP stream clone", &error))?;
-    stream
-        .set_nonblocking(true)
-        .map_err(|error| io_error("TCP readiness configuration", &error))?;
-    tokio::net::TcpStream::from_std(stream)
-        .map_err(|error| io_error("TCP readiness registration", &error))
+    stream.readiness()
 }
 
-fn readiness_listener(listener: &Capability) -> Result<tokio::net::TcpListener, ResultValue> {
+fn readiness_listener(listener: &Capability) -> Result<Arc<tokio::net::TcpListener>, ResultValue> {
     let CapabilityInner::Listener(listener) = listener.0.as_ref() else {
         return Err(ResultValue::error("capability is not a TCP listener"));
     };
-    let guard = listener.read().expect("listener lock poisoned");
-    let Some(listener) = guard.as_ref() else {
-        return Err(ResultValue::error("listener is closed"));
-    };
-    let listener = listener
-        .try_clone()
-        .map_err(|error| io_error("TCP listener clone", &error))?;
-    listener
-        .set_nonblocking(true)
-        .map_err(|error| io_error("TCP listener readiness configuration", &error))?;
-    tokio::net::TcpListener::from_std(listener)
-        .map_err(|error| io_error("TCP listener readiness registration", &error))
+    listener.readiness()
 }
 
-fn readiness_udp_socket(socket: &Capability) -> Result<tokio::net::UdpSocket, ResultValue> {
+fn readiness_udp_socket(socket: &Capability) -> Result<Arc<tokio::net::UdpSocket>, ResultValue> {
     let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
         return Err(ResultValue::error("capability is not a UDP socket"));
     };
-    let guard = socket.lock().expect("socket lock poisoned");
-    let Some(socket) = guard.as_ref() else {
-        return Err(ResultValue::error("socket is closed"));
-    };
-    let socket = socket
-        .try_clone()
-        .map_err(|error| io_error("UDP socket clone", &error))?;
-    socket
-        .set_nonblocking(true)
-        .map_err(|error| io_error("UDP readiness configuration", &error))?;
-    tokio::net::UdpSocket::from_std(socket)
-        .map_err(|error| io_error("UDP readiness registration", &error))
+    socket.readiness()
 }
 
 pub async fn tcp_connect_async(
     address: &str,
+    no_delay: bool,
+    ttl: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let Ok(address) = address.parse::<SocketAddr>() else {
         return ResultValue::error("invalid socket address");
     };
+    let ttl = match tcp_ttl(ttl) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let settings = TcpSettings { no_delay, ttl };
     readiness_operation(
         async move {
             match tokio::net::TcpStream::connect(address).await {
-                Ok(stream) => match stream.into_std() {
-                    Ok(stream) => {
-                        if let Err(error) = stream.set_nonblocking(false) {
-                            return io_error("TCP connect configuration", &error);
-                        }
-                        ResultValue {
-                            capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
-                                Mutex::new(Some(stream)),
-                            )))),
-                            ..ResultValue::default()
-                        }
+                Ok(stream) => {
+                    if let Err(error) = settings.apply_async(&stream) {
+                        return error;
                     }
-                    Err(error) => io_error("TCP connect", &error),
-                },
+                    ResultValue {
+                        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                            TcpState::from_async(stream),
+                        )))),
+                        ..ResultValue::default()
+                    }
+                }
                 Err(error) => io_error("TCP connect", &error),
             }
         },
@@ -1771,23 +1858,30 @@ pub async fn tcp_connect_async(
 pub async fn tcp_connect_host_async(
     host: &str,
     port: i128,
+    no_delay: bool,
+    ttl: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let Ok(port) = u16::try_from(port) else {
         return ResultValue::error("port must be in 0..=65535");
     };
+    let ttl = match tcp_ttl(ttl) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let settings = TcpSettings { no_delay, ttl };
     if timeout(deadline_nanos).is_err() {
         return ResultValue::error("deadline must be positive");
     }
     let host = host.to_owned();
-    let cancellation_for_dns = cancellation.clone();
+    let cancellation_for_dns = cancellation.cloned();
     let resolved = tokio::task::spawn_blocking(move || {
         dns_lookup(
             &host,
             i128::from(port),
             deadline_nanos,
-            &cancellation_for_dns,
+            cancellation_for_dns.as_ref(),
         )
     })
     .await
@@ -1818,21 +1912,17 @@ pub async fn tcp_connect_host_async(
             }
             while let Some(joined) = tasks.join_next().await {
                 if let Ok(Some((stream, peer))) = joined {
+                    if let Err(error) = settings.apply_async(&stream) {
+                        tasks.abort_all();
+                        return error;
+                    }
                     tasks.abort_all();
-                    return match stream.into_std() {
-                        Ok(stream) => {
-                            if let Err(error) = stream.set_nonblocking(false) {
-                                return io_error("TCP connect configuration", &error);
-                            }
-                            ResultValue {
-                                text: peer.to_string(),
-                                capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
-                                    Mutex::new(Some(stream)),
-                                )))),
-                                ..ResultValue::default()
-                            }
-                        }
-                        Err(error) => io_error("TCP connect", &error),
+                    return ResultValue {
+                        text: peer.to_string(),
+                        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                            TcpState::from_async(stream),
+                        )))),
+                        ..ResultValue::default()
                     };
                 }
             }
@@ -1848,8 +1938,12 @@ pub async fn tcp_connect_host_async(
 pub async fn tcp_accept_async(
     listener: &Capability,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
+    let CapabilityInner::Listener(state) = listener.0.as_ref() else {
+        return ResultValue::error("capability is not a TCP listener");
+    };
+    let settings = state.accepted;
     let listener = match readiness_listener(listener) {
         Ok(value) => value,
         Err(error) => return error,
@@ -1857,21 +1951,18 @@ pub async fn tcp_accept_async(
     readiness_operation(
         async move {
             match listener.accept().await {
-                Ok((stream, peer)) => match stream.into_std() {
-                    Ok(stream) => {
-                        if let Err(error) = stream.set_nonblocking(false) {
-                            return io_error("TCP accept configuration", &error);
-                        }
-                        ResultValue {
-                            text: peer.to_string(),
-                            capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
-                                Mutex::new(Some(stream)),
-                            )))),
-                            ..ResultValue::default()
-                        }
+                Ok((stream, peer)) => {
+                    if let Err(error) = settings.apply_async(&stream) {
+                        return error;
                     }
-                    Err(error) => io_error("TCP accept", &error),
-                },
+                    ResultValue {
+                        text: peer.to_string(),
+                        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                            TcpState::from_async(stream),
+                        )))),
+                        ..ResultValue::default()
+                    }
+                }
                 Err(error) => io_error("TCP accept", &error),
             }
         },
@@ -1886,21 +1977,23 @@ pub async fn tcp_read_async(
     stream: &Capability,
     limit: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let size = match count(limit, "read limit") {
         Ok(value) => value,
         Err(error) => return error,
     };
-    let mut stream = match readiness_tcp_stream(stream) {
+    let stream = match readiness_tcp_stream(stream) {
         Ok(value) => value,
         Err(error) => return error,
     };
+    if size == 0 {
+        return ResultValue::default();
+    }
     readiness_operation(
         async move {
-            use tokio::io::AsyncReadExt as _;
             let mut data = vec![0; size];
-            match stream.read(&mut data).await {
+            match networking_state::read(&stream, &mut data).await {
                 Ok(count) => {
                     data.truncate(count);
                     ResultValue {
@@ -1924,17 +2017,15 @@ pub async fn tcp_write_async(
     stream: &Capability,
     data: &[u8],
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
-    let mut stream = match readiness_tcp_stream(stream) {
+    let stream = match readiness_tcp_stream(stream) {
         Ok(value) => value,
         Err(error) => return error,
     };
-    let data = data.to_vec();
     readiness_operation(
         async move {
-            use tokio::io::AsyncWriteExt as _;
-            match stream.write(&data).await {
+            match networking_state::write(&stream, data).await {
                 Ok(count) => ResultValue {
                     number: count as i128,
                     ..ResultValue::default()
@@ -1954,17 +2045,15 @@ pub async fn udp_send_to_async(
     data: &[u8],
     address: &str,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let socket = match readiness_udp_socket(socket) {
         Ok(value) => value,
         Err(error) => return error,
     };
-    let data = data.to_vec();
-    let address = address.to_owned();
     readiness_operation(
         async move {
-            match socket.send_to(&data, &address).await {
+            match socket.send_to(data, address).await {
                 Ok(count) => ResultValue {
                     number: count as i128,
                     ..ResultValue::default()
@@ -1983,7 +2072,7 @@ pub async fn udp_receive_from_async(
     socket: &Capability,
     limit: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let size = match count(limit, "datagram limit") {
         Ok(value) => value,
@@ -2035,7 +2124,7 @@ pub fn dns_lookup(
     host: &str,
     port: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -2052,23 +2141,20 @@ pub fn dns_lookup(
         Err(error) => return error,
     };
     let lookup = match network_block_on(async {
-        let cancellation_wait = async {
-            loop {
-                if is_cancelled(cancellation).unwrap_or(true) {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(10)).await;
+        let lookup = async {
+            if let Some(duration) = duration {
+                tokio::time::timeout(duration, resolver.lookup_ip(host)).await
+            } else {
+                Ok(resolver.lookup_ip(host).await)
             }
         };
-        tokio::select! {
-            result = async {
-                if let Some(duration) = duration {
-                    tokio::time::timeout(duration, resolver.lookup_ip(host)).await
-                } else {
-                    Ok(resolver.lookup_ip(host).await)
-                }
-            } => Some(result),
-            () = cancellation_wait => None,
+        if let Some(cancellation) = cancellation {
+            tokio::select! {
+                result = lookup => Some(result),
+                _ = cancellation_wait(cancellation) => None,
+            }
+        } else {
+            Some(lookup.await)
         }
     }) {
         Ok(value) => value,
@@ -2102,7 +2188,7 @@ pub fn tls_client(
     stream: &Capability,
     server_name: &str,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let roots = webpki_roots::TLS_SERVER_ROOTS
         .iter()
@@ -2124,7 +2210,7 @@ fn tls_client_with_config(
     stream: &Capability,
     server_name: &str,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
     config: Arc<rustls::ClientConfig>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
@@ -2137,9 +2223,9 @@ fn tls_client_with_config(
     let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
         return ResultValue::error("TLS requires a TCP stream");
     };
-    let mut guard = stream.lock().expect("stream lock poisoned");
-    let Some(tcp) = guard.take() else {
-        return ResultValue::error("stream is closed");
+    let tcp = match stream.take_std() {
+        Ok(stream) => stream,
+        Err(error) => return error,
     };
     if let Err(error) = tcp.set_read_timeout(duration) {
         return io_error("TLS read timeout configuration", &error);
@@ -2176,7 +2262,7 @@ pub fn tls_read(
     stream: &Capability,
     limit: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -2217,7 +2303,7 @@ pub fn tls_write(
     stream: &Capability,
     data: &[u8],
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -2247,7 +2333,7 @@ pub fn tls_write(
 pub fn tls_shutdown(
     stream: &Capability,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
@@ -2277,22 +2363,14 @@ fn take_readiness_tcp_stream(stream: &Capability) -> Result<tokio::net::TcpStrea
     let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
         return Err(ResultValue::error("TLS requires a TCP stream"));
     };
-    let mut guard = stream.lock().expect("stream lock poisoned");
-    let Some(stream) = guard.take() else {
-        return Err(ResultValue::error("stream is closed"));
-    };
-    stream
-        .set_nonblocking(true)
-        .map_err(|error| io_error("TLS readiness configuration", &error))?;
-    tokio::net::TcpStream::from_std(stream)
-        .map_err(|error| io_error("TLS readiness registration", &error))
+    stream.take_async()
 }
 
 pub async fn tls_client_async(
     stream: &Capability,
     server_name: &str,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let roots = webpki_roots::TLS_SERVER_ROOTS
         .iter()
@@ -2315,7 +2393,7 @@ async fn tls_client_async_with_config(
     stream: &Capability,
     server_name: &str,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
     config: Arc<rustls::ClientConfig>,
 ) -> ResultValue {
     let stream = match take_readiness_tcp_stream(stream) {
@@ -2340,7 +2418,7 @@ async fn tls_client_async_with_config(
                     ResultValue {
                         text: version.to_owned(),
                         capability: Some(Capability(Arc::new(CapabilityInner::AsyncTls(
-                            tokio::sync::Mutex::new(Some(stream)),
+                            AsyncTlsState::new(stream),
                         )))),
                         ..ResultValue::default()
                     }
@@ -2359,7 +2437,7 @@ pub async fn tls_read_async(
     stream: &Capability,
     limit: i128,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let size = match count(limit, "TLS read limit") {
         Ok(value) => value,
@@ -2368,10 +2446,13 @@ pub async fn tls_read_async(
     let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
         return ResultValue::error("capability is not an asynchronous TLS stream");
     };
-    let mut guard = stream.lock().await;
+    let mut guard = stream.reader.lock().await;
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
+    if size == 0 {
+        return ResultValue::default();
+    }
     readiness_operation(
         async {
             use tokio::io::AsyncReadExt as _;
@@ -2400,12 +2481,12 @@ pub async fn tls_write_async(
     stream: &Capability,
     data: &[u8],
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
         return ResultValue::error("capability is not an asynchronous TLS stream");
     };
-    let mut guard = stream.lock().await;
+    let mut guard = stream.writer.lock().await;
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
@@ -2426,16 +2507,25 @@ pub async fn tls_write_async(
     )
     .await
 }
+pub async fn tls_read_into_async(
+    stream: &Capability,
+    buffer: &Capability,
+    limit: i128,
+    deadline_nanos: i128,
+    cancellation: Option<&Capability>,
+) -> ResultValue {
+    networking_buffers::tls_read_into(stream, buffer, limit, deadline_nanos, cancellation).await
+}
 
 pub async fn tls_shutdown_async(
     stream: &Capability,
     deadline_nanos: i128,
-    cancellation: &Capability,
+    cancellation: Option<&Capability>,
 ) -> ResultValue {
     let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
         return ResultValue::error("capability is not an asynchronous TLS stream");
     };
-    let mut guard = stream.lock().await;
+    let mut guard = stream.writer.lock().await;
     let Some(stream) = guard.as_mut() else {
         return ResultValue::error("TLS stream is closed");
     };
@@ -2454,30 +2544,201 @@ pub async fn tls_shutdown_async(
     .await
 }
 
+pub fn buffer_create(capacity: i128) -> ResultValue {
+    let capacity = match count(capacity, "buffer capacity") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let mut bytes = Vec::new();
+    if let Err(error) = bytes.try_reserve_exact(capacity) {
+        return ResultValue::limit(format!("cannot allocate read buffer: {error}"));
+    }
+    bytes.resize(capacity, 0);
+    ResultValue {
+        capability: Some(Capability(Arc::new(CapabilityInner::Buffer(
+            tokio::sync::Mutex::new(ReadBuffer {
+                bytes,
+                filled: 0,
+                closed: false,
+            }),
+        )))),
+        ..ResultValue::default()
+    }
+}
+
+pub fn buffer_clear(buffer: &Capability) -> ResultValue {
+    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
+        return ResultValue::error("capability is not a read buffer");
+    };
+    match buffer.try_lock() {
+        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
+        Ok(mut buffer) => {
+            buffer.filled = 0;
+            ResultValue::default()
+        }
+        Err(_) => ResultValue::error("read buffer is busy"),
+    }
+}
+
+pub fn buffer_capacity(buffer: &Capability) -> ResultValue {
+    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
+        return ResultValue::error("capability is not a read buffer");
+    };
+    match buffer.try_lock() {
+        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
+        Ok(buffer) => ResultValue {
+            number: buffer.bytes.len() as i128,
+            ..ResultValue::default()
+        },
+        Err(_) => ResultValue::error("read buffer is busy"),
+    }
+}
+
+pub fn buffer_filled_bytes(buffer: &Capability) -> ResultValue {
+    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
+        return ResultValue::error("capability is not a read buffer");
+    };
+    match buffer.try_lock() {
+        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
+        Ok(buffer) => ResultValue {
+            data: buffer.bytes[..buffer.filled].to_vec(),
+            ..ResultValue::default()
+        },
+        Err(_) => ResultValue::error("read buffer is busy"),
+    }
+}
+
+pub fn buffer_filled_text(buffer: &Capability) -> ResultValue {
+    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
+        return ResultValue::error("capability is not a read buffer");
+    };
+    match buffer.try_lock() {
+        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
+        Ok(buffer) => match std::str::from_utf8(&buffer.bytes[..buffer.filled]) {
+            Ok(text) => ResultValue {
+                text: text.to_owned(),
+                ..ResultValue::default()
+            },
+            Err(_) => ResultValue::error("read buffer contents are not valid UTF-8"),
+        },
+        Err(_) => ResultValue::error("read buffer is busy"),
+    }
+}
+pub fn buffer_read_with(
+    buffer: &Capability,
+    read: impl FnOnce(&mut [u8]) -> std::io::Result<usize>,
+) -> ResultValue {
+    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
+        return ResultValue::error("capability is not a read buffer");
+    };
+    let mut buffer = buffer.blocking_lock();
+    if buffer.closed {
+        return ResultValue::error("read buffer is closed");
+    }
+    let offset = buffer.filled;
+    let remaining = buffer.bytes.len() - offset;
+    match read(&mut buffer.bytes[offset..]) {
+        Ok(filled) if filled <= remaining => {
+            buffer.filled += filled;
+            ResultValue {
+                number: filled as i128,
+                flag: filled == 0 && remaining != 0,
+                ..ResultValue::default()
+            }
+        }
+        Ok(_) => ResultValue::error("read operation returned a count larger than buffer capacity"),
+        Err(error) => io_error("stream read", &error),
+    }
+}
+
+pub async fn tcp_read_into_async(
+    stream: &Capability,
+    buffer: &Capability,
+    limit: i128,
+    deadline_nanos: i128,
+    cancellation: Option<&Capability>,
+) -> ResultValue {
+    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
+        return ResultValue::error("capability is not a read buffer");
+    };
+    let mut buffer = buffer.lock().await;
+    if buffer.closed {
+        return ResultValue::error("read buffer is closed");
+    }
+    let offset = buffer.filled;
+    let limit = match count(limit, "read limit") {
+        Ok(limit) if limit <= buffer.bytes.len() - offset => limit,
+        Ok(_) => return ResultValue::error("read limit exceeds remaining buffer capacity"),
+        Err(error) => return error,
+    };
+    let stream = match readiness_tcp_stream(stream) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    if limit == 0 {
+        return ResultValue::default();
+    }
+    readiness_operation(
+        async {
+            match networking_state::read(&stream, &mut buffer.bytes[offset..offset + limit]).await {
+                Ok(count) => {
+                    buffer.filled += count;
+                    ResultValue {
+                        number: count as i128,
+                        flag: count == 0,
+                        ..ResultValue::default()
+                    }
+                }
+                Err(error) => io_error("TCP read", &error),
+            }
+        },
+        deadline_nanos,
+        "TCP read deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub fn buffer_take_bytes(buffer: &Capability) -> ResultValue {
+    networking_buffers::take_bytes(buffer)
+}
+
 pub fn close(capability: &Capability) -> ResultValue {
     match capability.0.as_ref() {
         CapabilityInner::Listener(value) => {
-            value.write().expect("listener lock poisoned").take();
+            value.close();
             ResultValue::default()
         }
         CapabilityInner::Tcp(value) => {
-            value.lock().expect("stream lock poisoned").take();
+            value.close();
             ResultValue::default()
         }
         CapabilityInner::Udp(value) => {
-            value.lock().expect("socket lock poisoned").take();
+            value.close();
             ResultValue::default()
         }
         CapabilityInner::Tls(value) => {
             value.lock().expect("TLS lock poisoned").take();
             ResultValue::default()
         }
-        CapabilityInner::AsyncTls(value) => match value.try_lock() {
-            Ok(mut value) => {
-                value.take();
+        CapabilityInner::AsyncTls(value) => {
+            match (value.reader.try_lock(), value.writer.try_lock()) {
+                (Ok(mut reader), Ok(mut writer)) => {
+                    reader.take();
+                    writer.take();
+                    ResultValue::default()
+                }
+                _ => ResultValue::error("TLS stream is busy"),
+            }
+        }
+        CapabilityInner::Buffer(buffer) => match buffer.try_lock() {
+            Ok(mut buffer) => {
+                buffer.closed = true;
+                buffer.bytes = Vec::new();
+                buffer.filled = 0;
                 ResultValue::default()
             }
-            Err(_) => ResultValue::error("TLS stream is busy"),
+            Err(_) => ResultValue::error("read buffer is busy"),
         },
         _ => ResultValue::error("capability is not a closeable resource"),
     }
@@ -2491,6 +2752,40 @@ mod tests {
         result.capability.expect("successful capability result")
     }
 
+    #[test]
+    fn owned_read_buffer_reuses_storage_and_exposes_filled_text() {
+        let buffer = result_capability(buffer_create(8));
+        assert_eq!(buffer_capacity(&buffer).number, 8);
+        let read = buffer_read_with(&buffer, |storage| {
+            storage[..5].copy_from_slice(b"hello");
+            Ok(5)
+        });
+        assert_eq!(read.number, 5);
+        assert_eq!(buffer_filled_text(&buffer).text, "hello");
+        assert!(!buffer_clear(&buffer).failed);
+        assert_eq!(buffer_filled_bytes(&buffer).data, b"");
+        assert!(!close(&buffer).failed);
+    }
+
+    #[test]
+    fn read_buffer_take_preserves_storage_and_closed_buffer_rejects_use() {
+        let buffer = result_capability(buffer_create(4));
+        assert_eq!(
+            buffer_read_with(&buffer, |bytes| {
+                bytes[..3].copy_from_slice(b"abc");
+                Ok(3)
+            })
+            .number,
+            3
+        );
+        assert_eq!(buffer_take_bytes(&buffer).data, b"abc");
+        assert_eq!(buffer_capacity(&buffer).number, 4);
+        assert_eq!(buffer_filled_bytes(&buffer).data, b"");
+        assert!(!close(&buffer).failed);
+        assert!(buffer_capacity(&buffer).failed);
+        assert!(buffer_clear(&buffer).failed);
+        assert!(buffer_take_bytes(&buffer).failed);
+    }
     #[test]
     fn concurrency_capabilities_share_state_and_isolate_thread_locals() {
         let mutex = result_capability(int_mutex(2));
@@ -2612,55 +2907,47 @@ mod tests {
 
     #[test]
     fn loopback_tcp_exchanges_under_deadline() {
-        let listener = tcp_bind("127.0.0.1:0");
+        let listener = tcp_bind("127.0.0.1:0", 128, true, false, 64);
         assert!(!listener.failed);
         let address = listener.text.clone();
         let cancellation = cancellation_token();
-        let client = tcp_connect(&address, 1_000_000_000, &cancellation);
+        let client = tcp_connect(&address, false, 64, 1_000_000_000, Some(&cancellation));
         assert!(!client.failed);
         let server = tcp_accept(
             listener.capability.as_ref().unwrap(),
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert!(!server.failed);
         let sent = tcp_write(
             client.capability.as_ref().unwrap(),
             b"terrane",
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert_eq!(sent.number, 7);
         let received = tcp_read(
             server.capability.as_ref().unwrap(),
             7,
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert_eq!(received.data, b"terrane");
     }
 
     #[test]
     fn concurrent_accepts_share_a_listener_without_serializing_on_its_lock() {
-        let listener = tcp_bind("127.0.0.1:0");
+        let listener = tcp_bind("127.0.0.1:0", 128, true, false, 64);
         assert!(!listener.failed);
         let listener = listener.capability.unwrap();
         let first_listener = listener.clone();
         let second_listener = listener.clone();
-        let first = std::thread::spawn(move || {
-            tcp_accept(&first_listener, 1_000_000_000, &cancellation_token())
-        });
-        let second = std::thread::spawn(move || {
-            tcp_accept(&second_listener, 1_000_000_000, &cancellation_token())
-        });
+        let first = std::thread::spawn(move || tcp_accept(&first_listener, 1_000_000_000, None));
+        let second = std::thread::spawn(move || tcp_accept(&second_listener, 1_000_000_000, None));
         let address = match listener.0.as_ref() {
-            CapabilityInner::Listener(listener) => listener
-                .read()
-                .unwrap()
-                .as_ref()
-                .unwrap()
-                .local_addr()
-                .unwrap(),
+            CapabilityInner::Listener(listener) => {
+                listener.read().as_ref().unwrap().local_addr().unwrap()
+            }
             _ => unreachable!(),
         };
         let first_client = TcpStream::connect(address).unwrap();
@@ -2685,14 +2972,14 @@ mod tests {
             b"oversized",
             &receiver.text,
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert_eq!(sent.number, 9);
         let datagram = udp_receive_from(
             receiver.capability.as_ref().unwrap(),
             4,
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert!(datagram.truncated);
         assert_eq!(datagram.data, b"over");
@@ -2700,10 +2987,10 @@ mod tests {
 
     #[test]
     fn blocking_operations_observe_expired_deadlines_and_cancellation() {
-        let listener = tcp_bind("127.0.0.1:0");
+        let listener = tcp_bind("127.0.0.1:0", 128, true, false, 64);
         assert!(!listener.failed);
         let cancellation = cancellation_token();
-        let expired = tcp_accept(listener.capability.as_ref().unwrap(), 0, &cancellation);
+        let expired = tcp_accept(listener.capability.as_ref().unwrap(), 0, None);
         assert!(expired.failed);
         assert!(expired.deadline_exceeded);
 
@@ -2711,7 +2998,7 @@ mod tests {
         let cancelled = tcp_accept(
             listener.capability.as_ref().unwrap(),
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert!(cancelled.failed);
         assert!(!cancelled.deadline_exceeded);
@@ -2730,20 +3017,109 @@ mod tests {
 
     #[test]
     fn connect_host_races_resolved_loopback_candidates() {
-        let listener = tcp_bind("127.0.0.1:0");
+        let listener = tcp_bind("127.0.0.1:0", 128, true, false, 64);
         assert!(!listener.failed);
         let port = listener.text.parse::<SocketAddr>().unwrap().port();
         let cancellation = cancellation_token();
-        let client = tcp_connect_host("localhost", i128::from(port), 1_000_000_000, &cancellation);
+        let client = tcp_connect_host(
+            "localhost",
+            i128::from(port),
+            false,
+            64,
+            1_000_000_000,
+            Some(&cancellation),
+        );
         assert!(!client.failed, "{}", client.message);
         let server = tcp_accept(
             listener.capability.as_ref().unwrap(),
             1_000_000_000,
-            &cancellation,
+            Some(&cancellation),
         );
         assert!(!server.failed, "{}", server.message);
         assert!(!tcp_configure(client.capability.as_ref().unwrap(), true, 32).failed);
-        assert!(tcp_configure(client.capability.as_ref().unwrap(), false, -1).failed);
+        assert!(tcp_configure(client.capability.as_ref().unwrap(), false, -2).failed);
+    }
+
+    #[test]
+    fn asynchronous_connections_support_blocking_and_async_io_on_the_same_transport() {
+        let listener = result_capability(tcp_bind("127.0.0.1:0", 128, false, false, -1));
+        let address = listener.0.as_ref();
+        let address = match address {
+            CapabilityInner::Listener(state) => state
+                .read()
+                .as_ref()
+                .unwrap()
+                .local_addr()
+                .unwrap()
+                .to_string(),
+            _ => unreachable!(),
+        };
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        let (client, server) = runtime.block_on(async {
+            let (client, server) = tokio::join!(
+                tcp_connect_async(&address, false, -1, 1_000_000_000, None),
+                tcp_accept_async(&listener, 1_000_000_000, None),
+            );
+            (result_capability(client), result_capability(server))
+        });
+        assert!(!tcp_configure(&client, true, -1).failed);
+        assert_eq!(tcp_write(&client, b"sync", 1_000_000_000, None).number, 4);
+        assert_eq!(tcp_read(&server, 4, 1_000_000_000, None).data, b"sync");
+        runtime.block_on(async {
+            let (written, read) = tokio::join!(
+                tcp_write_async(&server, b"async", 1_000_000_000, None),
+                tcp_read_async(&client, 5, 1_000_000_000, None),
+            );
+            assert_eq!(written.number, 5);
+            assert_eq!(read.data, b"async");
+        });
+    }
+
+    #[test]
+    fn tcp_read_distinguishes_zero_length_from_peer_eof_and_closed_state() {
+        let listener = tcp_bind("127.0.0.1:0", 16, false, false, 64);
+        assert!(!listener.failed);
+        let address = listener.text.clone();
+        let listener = listener.capability.unwrap();
+        let client = result_capability(tcp_connect(&address, false, 64, 1_000_000_000, None));
+        let accepted = result_capability(tcp_accept(&listener, 1_000_000_000, None));
+        let CapabilityInner::Tcp(accepted_state) = accepted.0.as_ref() else {
+            unreachable!();
+        };
+        assert!(!tcp_read(&accepted, 0, 1_000_000_000, None).failed);
+        assert!(!tcp_shutdown(&client, "write").failed);
+        let eof = tcp_read(&accepted, 1, 1_000_000_000, None);
+        assert!(!eof.failed);
+        assert!(eof.flag);
+        accepted_state.close();
+        assert!(accepted_state.readiness().is_err());
+    }
+
+    #[test]
+    fn blocking_tcp_read_does_not_hold_up_concurrent_write() {
+        let listener = tcp_bind("127.0.0.1:0", 16, true, true, 32);
+        let address = listener.text.clone();
+        let listener = listener.capability.unwrap();
+        let client = result_capability(tcp_connect(&address, false, 64, 1_000_000_000, None));
+        let accepted = result_capability(tcp_accept(&listener, 1_000_000_000, None));
+        let accepted_for_read = accepted.clone();
+        let reading =
+            std::thread::spawn(move || tcp_read(&accepted_for_read, 1, 2_000_000_000, None));
+        let written = tcp_write(&client, b"x", 1_000_000_000, None);
+        assert_eq!(written.number, 1);
+        let received = reading.join().unwrap();
+        assert_eq!(received.data, b"x");
+        let CapabilityInner::Tcp(state) = accepted.0.as_ref() else {
+            unreachable!()
+        };
+        let socket = state.read();
+        let socket = socket.as_ref().unwrap();
+        assert!(socket.nodelay().unwrap());
+        assert_eq!(socket.ttl().unwrap(), 32);
     }
 
     #[test]
@@ -2776,7 +3152,7 @@ mod tests {
 
     #[test]
     fn dns_lookup_projects_ordered_candidates_and_ttl() {
-        let result = dns_lookup("localhost", 443, 1_000_000_000, &cancellation_token());
+        let result = dns_lookup("localhost", 443, 1_000_000_000, None);
         assert!(!result.failed, "{}", result.message);
         assert!(result.flag);
         assert!(result.number >= 0);
@@ -2818,27 +3194,22 @@ mod tests {
 
     #[test]
     fn accept_reports_an_expired_deadline_structurally() {
-        let listener = tcp_bind("127.0.0.1:0");
+        let listener = tcp_bind("127.0.0.1:0", 128, true, false, 64);
         assert!(!listener.failed);
-        let result = tcp_accept(
-            listener.capability.as_ref().unwrap(),
-            1,
-            &cancellation_token(),
-        );
+        let result = tcp_accept(listener.capability.as_ref().unwrap(), 1, None);
         assert!(result.failed);
         assert!(result.deadline_exceeded);
     }
 
     #[test]
     fn accept_preserves_the_listener_nonblocking_descriptor_state() {
-        let listener = tcp_bind("127.0.0.1:0");
+        let listener = tcp_bind("127.0.0.1:0", 128, true, false, 64);
         assert!(!listener.failed);
         let listener = listener.capability.unwrap();
         let would_block = || match listener.0.as_ref() {
             CapabilityInner::Listener(listener) => {
                 listener
                     .read()
-                    .unwrap()
                     .as_ref()
                     .unwrap()
                     .accept()
@@ -2849,7 +3220,7 @@ mod tests {
             _ => false,
         };
         assert!(would_block());
-        let accepted = tcp_accept(&listener, 1, &cancellation_token());
+        let accepted = tcp_accept(&listener, 1, None);
         assert!(accepted.deadline_exceeded);
         assert!(would_block());
     }
@@ -2879,22 +3250,17 @@ mod tests {
         let config = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
-        let tcp = tcp_connect(&address.to_string(), 1_000_000_000, &cancellation_token());
+        let tcp = tcp_connect(&address.to_string(), false, 64, 1_000_000_000, None);
         let result = tls_client_with_config(
             tcp.capability.as_ref().unwrap(),
             "localhost",
             1_000_000_000,
-            &cancellation_token(),
+            None,
             Arc::new(config),
         );
         assert!(!result.failed, "{}", result.message);
         assert_eq!(result.text, "TLS 1.3");
-        let read = tls_read(
-            result.capability.as_ref().unwrap(),
-            1,
-            1_000_000_000,
-            &cancellation_token(),
-        );
+        let read = tls_read(result.capability.as_ref().unwrap(), 1, 1_000_000_000, None);
         assert_eq!(read.data, b"x");
         server.join().unwrap();
     }
@@ -2926,22 +3292,17 @@ mod tests {
             rustls::ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
                 .with_root_certificates(roots)
                 .with_no_client_auth();
-        let tcp = tcp_connect(&address.to_string(), 1_000_000_000, &cancellation_token());
+        let tcp = tcp_connect(&address.to_string(), false, 64, 1_000_000_000, None);
         let result = tls_client_with_config(
             tcp.capability.as_ref().unwrap(),
             "localhost",
             1_000_000_000,
-            &cancellation_token(),
+            None,
             Arc::new(config),
         );
         assert!(!result.failed, "{}", result.message);
         assert_eq!(result.text, "TLS 1.2");
-        let read = tls_read(
-            result.capability.as_ref().unwrap(),
-            1,
-            1_000_000_000,
-            &cancellation_token(),
-        );
+        let read = tls_read(result.capability.as_ref().unwrap(), 1, 1_000_000_000, None);
         assert_eq!(read.data, b"x");
         server.join().unwrap();
     }
@@ -2973,21 +3334,18 @@ mod tests {
         let config = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
-        let tcp = tcp_connect(&address.to_string(), 1_000_000_000, &cancellation_token());
+        let tcp = tcp_connect(&address.to_string(), false, 64, 1_000_000_000, None);
         let tls = tls_client_with_config(
             tcp.capability.as_ref().unwrap(),
             "localhost",
             1_000_000_000,
-            &cancellation_token(),
+            None,
             Arc::new(config),
         );
         assert!(!tls.failed, "{}", tls.message);
         let tls = tls.capability.unwrap();
-        assert_eq!(
-            tls_write(&tls, b"x", 1_000_000_000, &cancellation_token()).number,
-            1
-        );
-        let shutdown = tls_shutdown(&tls, 1_000_000_000, &cancellation_token());
+        assert_eq!(tls_write(&tls, b"x", 1_000_000_000, None).number, 1);
+        let shutdown = tls_shutdown(&tls, 1_000_000_000, None);
         assert!(!shutdown.failed, "{}", shutdown.message);
         server.join().unwrap();
     }
@@ -3012,13 +3370,8 @@ mod tests {
             let _ = stream.flush();
         });
         let client = TcpStream::connect(address).unwrap();
-        let capability = Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(Some(client)))));
-        let result = tls_client(
-            &capability,
-            "localhost",
-            1_000_000_000,
-            &cancellation_token(),
-        );
+        let capability = Capability(Arc::new(CapabilityInner::Tcp(TcpState::new(client))));
+        let result = tls_client(&capability, "localhost", 1_000_000_000, None);
         assert!(result.failed);
         assert!(result.message.starts_with("TLS handshake failed:"));
         server.join().unwrap();
@@ -3032,12 +3385,11 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(async {
-            let bound = tcp_bind("127.0.0.1:0");
+            let bound = tcp_bind("127.0.0.1:0", 128, true, false, 64);
             let listener = result_capability(bound);
             let address = match listener.0.as_ref() {
                 CapabilityInner::Listener(listener) => listener
                     .read()
-                    .unwrap()
                     .as_ref()
                     .unwrap()
                     .local_addr()
@@ -3049,12 +3401,11 @@ mod tests {
             let mut connects = tokio::task::JoinSet::new();
             for _ in 0..32 {
                 let listener = listener.clone();
-                accepts.spawn(async move {
-                    tcp_accept_async(&listener, 5_000, &cancellation_token()).await
-                });
+                accepts
+                    .spawn(async move { tcp_accept_async(&listener, 5_000_000_000, None).await });
                 let address = address.clone();
                 connects.spawn(async move {
-                    tcp_connect_async(&address, 5_000, &cancellation_token()).await
+                    tcp_connect_async(&address, false, 64, 5_000_000_000, None).await
                 });
             }
             while let Some(result) = connects.join_next().await {
@@ -3071,7 +3422,7 @@ mod tests {
                 let cancellation = cancellation_token();
                 let cancellation_for_task = cancellation.clone();
                 let task = tokio::spawn(async move {
-                    tcp_accept_async(&listener, 5_000, &cancellation_for_task).await
+                    tcp_accept_async(&listener, 5_000_000_000, Some(&cancellation_for_task)).await
                 });
                 tokio::task::yield_now().await;
                 cancel(&cancellation);
@@ -3084,7 +3435,7 @@ mod tests {
             assert!(cancelled.failed);
             assert_eq!(cancelled.message, "operation cancelled");
 
-            let deadline = tcp_accept_async(&listener, 1, &cancellation_token()).await;
+            let deadline = tcp_accept_async(&listener, 1, None).await;
             assert!(deadline.failed);
             assert!(deadline.deadline_exceeded);
         });
@@ -3125,24 +3476,27 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(async {
-            let tcp =
-                tcp_connect_async(&address.to_string(), 1_000_000_000, &cancellation_token()).await;
+            let tcp = tcp_connect_async(&address.to_string(), false, 64, 1_000_000_000, None).await;
             let tls = tls_client_async_with_config(
                 tcp.capability.as_ref().unwrap(),
                 "localhost",
                 1_000_000_000,
-                &cancellation_token(),
+                None,
                 Arc::new(client_config),
             )
             .await;
             assert!(!tls.failed, "{}", tls.message);
             assert_eq!(tls.text, "TLS 1.3");
             let tls = tls.capability.unwrap();
-            let write = tls_write_async(&tls, b"x", 1_000_000_000, &cancellation_token()).await;
+            let read_cancellation = cancellation_token();
+            let write_cancellation = cancellation_token();
+            let (read, write) = tokio::join!(
+                tls_read_async(&tls, 1, 1_000_000_000, Some(&read_cancellation)),
+                tls_write_async(&tls, b"x", 1_000_000_000, Some(&write_cancellation)),
+            );
             assert_eq!(write.number, 1);
-            let read = tls_read_async(&tls, 1, 1_000_000_000, &cancellation_token()).await;
             assert_eq!(read.data, b"y");
-            let shutdown = tls_shutdown_async(&tls, 1_000_000_000, &cancellation_token()).await;
+            let shutdown = tls_shutdown_async(&tls, 1_000_000_000, None).await;
             assert!(!shutdown.failed, "{}", shutdown.message);
         });
         server.join().unwrap();

@@ -1059,6 +1059,49 @@ fn infer_nonbinary_value_type(
             }
             if callee.kind == SyntaxKind::Name
                 && resolved_compiler_identity(unit, callee)
+                    .is_some_and(|identity| identity == "/core/async::task-group")
+            {
+                let values = arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument))
+                    .collect::<Vec<_>>();
+                let [descriptor] = values.as_slice() else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0074",
+                        "`task-group` requires one child result type descriptor",
+                        node.span,
+                    ));
+                };
+                let name = match infer_value_type(unit, descriptor, bindings)? {
+                    Some(ValueType::Descriptor(name)) => name,
+                    Some(ValueType::Scalar(ScalarType::None))
+                        if node_text(&unit.source, descriptor) == "none" =>
+                    {
+                        "none".to_owned()
+                    }
+                    _ => {
+                        return Err(failure(
+                            &unit.source,
+                            "T0074",
+                            "`task-group` requires a concrete child result type descriptor",
+                            descriptor.span,
+                        ));
+                    }
+                };
+                let element = channel_item_descriptor_type(unit, &name).ok_or_else(|| {
+                    failure(
+                        &unit.source,
+                        "T0074",
+                        "`task-group` child result must be a concrete transferable type",
+                        descriptor.span,
+                    )
+                })?;
+                return Ok(Some(ValueType::TaskGroup(ElementType::new(element))));
+            }
+            if callee.kind == SyntaxKind::Name
+                && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/async::task-scope")
             {
                 if let Some(argument) = arguments.children.first() {
@@ -1100,6 +1143,12 @@ fn infer_nonbinary_value_type(
                         )));
                     }
                     "intrinsic:streams::write" => Some(ValueType::PlatformWriteResult),
+                    "intrinsic:streams::write-async" => {
+                        return Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::PlatformWriteResult),
+                            TaskTransferability::Local,
+                        )));
+                    }
                     "intrinsic:streams::flush"
                     | "intrinsic:streams::sync-data"
                     | "intrinsic:streams::sync-all"
@@ -1147,6 +1196,7 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:capabilities::pseudo-random"
                     | "intrinsic:capabilities::secret-buffer"
                     | "intrinsic:capabilities::result-capability"
+                    | "intrinsic:capabilities::no-capability"
                     | "intrinsic:concurrency::platform-capability"
                     | "intrinsic:concurrency::no-capability"
                     | "intrinsic:process-signals::process-signal-result-capability"
@@ -1162,6 +1212,9 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:capabilities::tcp-accept-async"
                     | "intrinsic:capabilities::tcp-read-async"
                     | "intrinsic:capabilities::tcp-write-async"
+                    | "intrinsic:capabilities::tcp-read-into-async"
+                    | "intrinsic:capabilities::tls-read-into-async"
+                    | "intrinsic:capabilities::stream-read-into-async"
                     | "intrinsic:capabilities::udp-send-to-async"
                     | "intrinsic:capabilities::udp-receive-from-async"
                     | "intrinsic:capabilities::dns-lookup-async"
@@ -1174,6 +1227,13 @@ fn infer_nonbinary_value_type(
                             ElementType::new(ValueType::PlatformResult),
                             TaskTransferability::Local,
                         )));
+                    }
+                    "intrinsic:capabilities::buffer-create"
+                    | "intrinsic:capabilities::buffer-clear"
+                    | "intrinsic:capabilities::buffer-close"
+                    | "intrinsic:capabilities::buffer-filled-bytes"
+                    | "intrinsic:capabilities::buffer-filled-text" => {
+                        Some(ValueType::PlatformResult)
                     }
                     "intrinsic:capabilities::failed-result"
                     | "intrinsic:capabilities::random-bytes"
@@ -1424,6 +1484,61 @@ fn infer_nonbinary_value_type(
                         "T0109",
                         format!("invalid channel `{operation}` invocation"),
                         node.span,
+                    )),
+                };
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && let Some(ValueType::TaskGroup(result)) =
+                    infer_value_type(unit, receiver, bindings)?
+            {
+                return match node_text(&unit.source, member) {
+                    "spawn" => {
+                        let [argument] = arguments.children.as_slice() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-group.spawn` requires one async callable or task",
+                                node.span,
+                            ));
+                        };
+                        let value = argument.children.last().unwrap_or(argument);
+                        let actual = infer_value_type(unit, value, bindings)?;
+                        let child = match actual {
+                            Some(ValueType::AsyncFunction(parameters, child, _, _))
+                                if parameters.is_empty() =>
+                            {
+                                Some(child)
+                            }
+                            Some(ValueType::Task(child, _)) => Some(child),
+                            _ => None,
+                        };
+                        if child.as_ref() != Some(&result) {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                format!(
+                                    "`task-group.spawn` requires an async child returning {result}"
+                                ),
+                                value.span,
+                            ));
+                        }
+                        Ok(Some(ValueType::Scalar(ScalarType::None)))
+                    }
+                    "drain" if arguments.children.is_empty() => Ok(Some(ValueType::Task(
+                        ElementType::new(ValueType::List(ElementType::new(
+                            ValueType::TaskOutcome(result),
+                        ))),
+                        TaskTransferability::Local,
+                    ))),
+                    "cancel" if arguments.children.is_empty() => {
+                        Ok(Some(ValueType::Scalar(ScalarType::None)))
+                    }
+                    _ => Err(failure(
+                        &unit.source,
+                        "T0074",
+                        "task group supports `spawn`, `cancel`, and consuming `drain`",
+                        member.span,
                     )),
                 };
             }

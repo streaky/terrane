@@ -1,7 +1,8 @@
 namespace app
 
-from /core/networking import ip-address-from-string, socket-address-from-ip, network-cancellation-token, network-operation-options
-from /core/networking import tcp-listener, listener-result, stream-result, bind-tcp, network-cancel-operation
+from /core/networking import ip-address-from-string, socket-address-from-ip
+from /core/networking/io import network-cancellation-token, network-operation-options, network-cancel-operation
+from /core/networking import tcp-listener, listener-result, stream-result, bind-tcp
 from /core/time import clock, duration
 
 async function main;

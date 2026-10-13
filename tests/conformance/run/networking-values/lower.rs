@@ -35,21 +35,21 @@ fn main() {
         timeout = Clock::terrane_static_deadline(
             __terrane_traced(
                 Duration::terrane_static_seconds(terrane_int_support::Int::from(1_i128)),
-                0 /* terrane-site: case.trn:23:33-23:53 */,
+                0 /* terrane-site: case.trn:24:33-24:53 */,
             ),
         );
         cancellation = NetworkCancellationToken::terrane_construct();
         network_cancel_operation(cancellation.clone());
         cancelled = NetworkOperationOptions::terrane_construct(
             Some(timeout),
-            cancellation,
+            Some(cancellation),
         );
         host = parse_host_name(String::from("localhost"));
         lookup = __terrane_await(
                 lookup_dns(
                     host.value,
                     terrane_int_support::Int::from(port as i128),
-                    cancelled,
+                    Some(cancelled),
                 ),
             )
             .await;

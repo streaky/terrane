@@ -18,7 +18,7 @@ fn main() {
             loopback.value,
             terrane_int_support::Int::from(0_i128),
         );
-        bound = bind_tcp(bind_address.value);
+        bound = bind_tcp(bind_address.value, None);
         listener = bound.value;
         deadline_options = NetworkOperationOptions::terrane_construct(
             Some(
@@ -27,13 +27,13 @@ fn main() {
                         Duration::terrane_static_nanoseconds(
                             terrane_int_support::Int::from(1_i128),
                         ),
-                        0 /* terrane-site: case.trn:13:79-13:103 */,
+                        0 /* terrane-site: case.trn:14:79-14:103 */,
                     ),
                 ),
             ),
-            NetworkCancellationToken::terrane_construct(),
+            Some(NetworkCancellationToken::terrane_construct()),
         );
-        expired = __terrane_await((&listener).accept(deadline_options)).await;
+        expired = __terrane_await((&listener).accept(Some(deadline_options))).await;
         println!("{}", terrane_scalar_support::scalar_text(&expired.failed));
         println!("{}", terrane_scalar_support::scalar_text(&expired.deadline_exceeded));
         cancellation = NetworkCancellationToken::terrane_construct();
@@ -45,13 +45,13 @@ fn main() {
                         Duration::terrane_static_seconds(
                             terrane_int_support::Int::from(1_i128),
                         ),
-                        1 /* terrane-site: case.trn:20:80-20:100 */,
+                        1 /* terrane-site: case.trn:21:80-21:100 */,
                     ),
                 ),
             ),
-            cancellation,
+            Some(cancellation),
         );
-        cancelled = __terrane_await((&listener).accept(cancelled_options)).await;
+        cancelled = __terrane_await((&listener).accept(Some(cancelled_options))).await;
         println!("{}", terrane_scalar_support::scalar_text(&cancelled.failed));
         println!("{}", terrane_scalar_support::scalar_text(&cancelled.message));
         listener.close();

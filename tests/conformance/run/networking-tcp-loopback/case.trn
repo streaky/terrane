@@ -1,43 +1,48 @@
 namespace app
 
 from /core/encodings import utf8
-from /core/streams import stdin, byte-reader, read-result
-from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
+from /core/streams import stdin, byte-reader, read-result, make-read-buffer, read-buffer-result, buffered-read-result
+from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, tcp-listener, tcp-listener-options, tcp-options, listener-result, stream-result, bind-tcp, connect-tcp
 
-async function serve none; listener tcp-listener, options network-operation-options
-    accepted stream-result = await listener.accept; options
+async function serve none; listener tcp-listener
+    accepted stream-result = await listener.accept;
     stream = move accepted.value
-    request = await stream.read; 7, options
-    if request.data == b'terrane'
-        written = await stream.write; b'reply', options
+    buffer-result read-buffer-result = make-read-buffer; 16
+    request-buffer = move buffer-result.value
+    request buffered-read-result = await stream.read-into-async; move request-buffer, 7
+    request-bytes = request.buffer.filled-bytes;
+    if request-bytes.value == b'terrane'
+        written = await stream.write-all-async; b'reply'
         if not written.failed
             stream.shutdown; 'both'
     stream.close;
     return none
 
-async function read-input read-result; input byte-reader
-    return await input.read-async; 1
 
+async function read-input buffered-read-result; input byte-reader
+    allocated read-buffer-result = make-read-buffer; 8
+    buffer = move allocated.value
+    return await input.read-into-async; move buffer, 1
 
 async function main;
     loopback = ip-address-from-string; '127.0.0.1'
     bind-address = socket-address-from-ip; loopback.value, 0
-    bound listener-result = bind-tcp; bind-address.value
+    server-settings = instance tcp-listener-options; 32, true, true, 64
+    bound listener-result = bind-tcp; bind-address.value, server-settings
     listener = move bound.value
     endpoint-text string = listener.local-address
-    server-options = instance network-operation-options; none, (instance network-cancellation-token;)
-    server-task = serve; move listener, server-options
+    server-task = serve; move listener
     scope = task-scope;
     input = stdin;
     input-task = read-input; move input
     input-child = scope.spawn; input-task
     child = scope.spawn; server-task
     destination = socket-address-from-string; endpoint-text
-    client-options = instance network-operation-options; none, (instance network-cancellation-token;)
-    connected stream-result = await connect-tcp; destination.value, client-options
+    client-settings = instance tcp-options; false, 64
+    connected stream-result = await connect-tcp; destination.value, none, client-settings
     client = move connected.value
-    sent = await client.write; b'terrane', client-options
-    response = await client.read; 5, client-options
+    sent = await client.write-all-async; b'terrane'
+    response = await client.read-exact-async; 5
     outcome = await scope.join; child
     print; sent.completed
     print; (response.data.decode; utf8)

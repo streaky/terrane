@@ -294,6 +294,7 @@ pub(crate) fn value_type_contains_nonclone_foreign(
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::ChannelReceiveOutcome(item)
         | ValueType::ChannelSendOutcome(item)
         | ValueType::Reference(item)
@@ -886,6 +887,7 @@ pub enum ValueType {
     Descriptor(String),
     Task(ElementType, TaskTransferability),
     ScopedTask(ElementType, TaskTransferability),
+    TaskGroup(ElementType),
     TaskScope,
     TaskOutcome(ElementType),
     FilesystemAuthority,
@@ -981,6 +983,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::Descriptor(_)
         | ValueType::Task(_, _)
         | ValueType::ScopedTask(_, _)
+        | ValueType::TaskGroup(_)
         | ValueType::TaskScope
         | ValueType::TaskOutcome(_)
         | ValueType::FilesystemAuthority
@@ -1195,6 +1198,7 @@ impl std::fmt::Display for ValueType {
             Self::Descriptor(_) => formatter.write_str("descriptor"),
             Self::Object(identity) => identity.fmt(formatter),
             Self::ScopedTask(result, _) => write!(formatter, "scoped task of {result}"),
+            Self::TaskGroup(result) => write!(formatter, "task-group of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
             Self::DocumentDecodeOutcome(value) => {

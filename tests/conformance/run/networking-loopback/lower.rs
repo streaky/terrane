@@ -12,8 +12,8 @@ fn main() {
         let configured: NetworkOperationResult;
         let cancellation: NetworkCancellationToken;
         let options: NetworkOperationOptions;
-        let sent: IoResult;
-        let received: IoResult;
+        let sent: DatagramIoResult;
+        let received: DatagramIoResult;
         let bytes_output: ByteWriter;
         let output: TextWriter;
         let written: WriteResult;
@@ -40,23 +40,24 @@ fn main() {
                         Duration::terrane_static_seconds(
                             terrane_int_support::Int::from(1_i128),
                         ),
-                        0 /* terrane-site: case.trn:16:70-16:90 */,
+                        0 /* terrane-site: case.trn:17:70-17:90 */,
                     ),
                 ),
             ),
-            cancellation,
+            Some(cancellation),
         );
         sent = __terrane_await(
                 (&socket)
                     .send_to(
-                        Vec::from([116, 101, 114, 114, 97, 110, 101]),
+                        Vec::<u8>::from([116, 101, 114, 114, 97, 110, 101]),
                         destination.value,
-                        options.clone(),
+                        Some(options.clone()),
                     ),
             )
             .await;
         received = __terrane_await(
-                (&socket).receive_from(terrane_int_support::Int::from(32_i128), options),
+                (&socket)
+                    .receive_from(terrane_int_support::Int::from(32_i128), Some(options)),
             )
             .await;
         println!("{}", terrane_scalar_support::scalar_text(&! configured.failed));
@@ -70,7 +71,7 @@ fn main() {
                         &received.data,
                         terrane_string_support::Encoding::Utf8,
                     ),
-                    1 /* terrane-site: case.trn:23:29-23:55 */,
+                    1 /* terrane-site: case.trn:24:29-24:55 */,
                 ),
             );
         if written.failed {

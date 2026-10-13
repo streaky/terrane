@@ -25,6 +25,7 @@ fn open_projected_associated_interface(unit: &SemanticUnit, value_type: &ValueTy
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item) => {
             open_projected_associated_interface(unit, item.value_type_ref())
@@ -1191,6 +1192,7 @@ pub(super) fn diagnostic_value_type(
         ValueType::Task(result, _) => format!("task of {}", nested(result)),
         ValueType::ScopedTask(result, _) => format!("scoped task of {}", nested(result)),
         ValueType::TaskOutcome(result) => format!("task-outcome of {}", nested(result)),
+        ValueType::TaskGroup(result) => format!("task-group of {}", nested(result)),
         ValueType::Reference(item) => format!("ref {}", nested(item)),
         ValueType::SharedReference(item) => format!("shared ref {}", nested(item)),
         _ => value_type.to_string(),

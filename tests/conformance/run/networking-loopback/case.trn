@@ -1,7 +1,8 @@
 namespace app
 
 from /core/encodings import utf8
-from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, udp-options, udp-result, bind-udp
+from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, udp-options, udp-result, bind-udp
+from /core/networking/io import network-cancellation-token, network-operation-options
 from /core/streams import stdout
 from /core/time import clock, duration
 

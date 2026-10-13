@@ -1,0 +1,4 @@
+namespace task-group-missing-drain
+async function main;
+    group = task-group; int
+    group.cancel;

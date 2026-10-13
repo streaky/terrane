@@ -723,7 +723,9 @@ impl Emitter<'_> {
         {
             let guard = self.receiver_guard_expression(receiver);
             let field = self.native_field_name(receiver_type.as_ref(), self.text(member));
-            let access = if required_field {
+            let access = if self.assignment_target && !required_field && !wrapped_field {
+                format!("({guard}).{field}")
+            } else if required_field {
                 if wrapped_field && required_field_copy {
                     format!("*({guard}).terrane_field_{field}()")
                 } else if wrapped_field {

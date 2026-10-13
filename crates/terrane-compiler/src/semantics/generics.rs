@@ -692,7 +692,8 @@ fn bind_generic_type_inner(
         | (ValueType::DocumentDecodeOutcome(l), ValueType::DocumentDecodeOutcome(r))
         | (ValueType::Task(l, _), ValueType::Task(r, _))
         | (ValueType::ScopedTask(l, _), ValueType::ScopedTask(r, _))
-        | (ValueType::TaskOutcome(l), ValueType::TaskOutcome(r)) => bind_generic_type_inner(
+        | (ValueType::TaskOutcome(l), ValueType::TaskOutcome(r))
+        | (ValueType::TaskGroup(l), ValueType::TaskGroup(r)) => bind_generic_type_inner(
             l.value_type_ref(),
             r.value_type_ref(),
             bindings,
@@ -838,6 +839,7 @@ pub(crate) fn substitute_value_type(
             ValueType::ScopedTask(element(item, substitutions), *transferable)
         }
         ValueType::TaskOutcome(item) => ValueType::TaskOutcome(element(item, substitutions)),
+        ValueType::TaskGroup(item) => ValueType::TaskGroup(element(item, substitutions)),
         ValueType::Function(parameters, result, effects) => ValueType::Function(
             parameters
                 .iter()

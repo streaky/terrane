@@ -30,7 +30,7 @@ pub(super) fn literal(text: &str) -> String {
     if trimmed.starts_with("b'") && trimmed.ends_with('\'') {
         let value = crate::lexer::unescape_bytes(&trimmed[2..trimmed.len() - 1])
             .expect("lexer rejects malformed byte escapes before lowering");
-        return format!("Vec::from({value:?})");
+        return format!("Vec::<u8>::from({value:?})");
     }
     let compact = trimmed.replace('_', "");
     if let Some(value) = integer_literal(&compact) {
@@ -553,6 +553,9 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         }
         ValueType::ScopedTask(result, _) => {
             format!("TerraneScopedTask<{}>", rust_element_type(package, result))
+        }
+        ValueType::TaskGroup(result) => {
+            format!("TerraneTaskGroup<{}>", rust_element_type(package, result))
         }
         ValueType::TaskScope => "TerraneTaskScope".to_owned(),
         ValueType::TaskOutcome(result) => {

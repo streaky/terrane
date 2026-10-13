@@ -380,13 +380,28 @@ pub(super) fn analyze_descriptor_contracts(
                 ));
             }
         }
-        let resource_owning = kind == ObjectKind::Class
-            && fields.iter().any(|field| {
+        let resource_owning = match kind {
+            ObjectKind::Class => fields.iter().any(|field| {
                 matches!(
                     field.value_type,
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
                 )
-            });
+            }),
+            // Consuming interfaces erase one owner; their implementers need not be copyable.
+            ObjectKind::Interface => node
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Block)
+                .flat_map(|body| &body.children)
+                .any(|method| {
+                    method.kind == SyntaxKind::FunctionDeclaration
+                        && method.children.iter().any(|qualifier| {
+                            qualifier.kind == SyntaxKind::DeclarationQualifier
+                                && node_text(&unit.source, qualifier) == "consuming"
+                        })
+                }),
+            _ => false,
+        };
         let methods = unit
             .functions
             .iter()
@@ -527,6 +542,7 @@ pub(super) fn value_type_owns_resource(
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::ChannelReceiveOutcome(item)
         | ValueType::ChannelSendOutcome(item)
         | ValueType::Reference(item)
@@ -617,6 +633,7 @@ fn value_type_contains_nonclone_foreign(package: &SemanticPackage, value_type: &
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::ChannelReceiveOutcome(item)
         | ValueType::ChannelSendOutcome(item)
         | ValueType::Reference(item)
@@ -801,6 +818,7 @@ pub(crate) fn application_is_resource_owning(
                 parameters,
                 visiting,
             ),
+            ValueType::TaskGroup(_) => return true,
             ValueType::Map(key, value)
             | ValueType::Entry(key, value)
             | ValueType::UnorderedMap(key, value) => {
@@ -882,6 +900,9 @@ pub(super) fn propagate_resource_ownership(
             let has_copyable_object_contract = object.base.is_some()
                 || !object.traits.is_empty()
                 || object.interfaces.iter().any(|interface| {
+                    if resource_identities.contains(&interface.qualified()) {
+                        return false;
+                    }
                     !package
                         .projection
                         .item(&interface.namespace, &interface.name)
@@ -893,10 +914,18 @@ pub(super) fn propagate_resource_ownership(
                         })
                 });
             if object.resource_owning && has_copyable_object_contract {
+                let source = package
+                    .units
+                    .iter()
+                    .find(|owner| owner.source.id() == object.span.file)
+                    .map_or(&unit.source, |owner| &owner.source);
                 return Err(failure(
-                    &unit.source,
+                    source,
                     "T0098",
-                    "a resource-owning class cannot extend or use a copyable object contract",
+                    format!(
+                        "resource-owning class `{}` cannot extend or use a copyable object contract",
+                        object.name
+                    ),
                     object.span,
                 ));
             }
@@ -1027,6 +1056,7 @@ pub(super) fn bind_projected_associated_type(
             ValueType::ScopedTask(element(item), *transferability)
         }
         ValueType::TaskOutcome(item) => ValueType::TaskOutcome(element(item)),
+        ValueType::TaskGroup(item) => ValueType::TaskGroup(element(item)),
         ValueType::Reference(item) => ValueType::Reference(element(item)),
         ValueType::SharedReference(item) => ValueType::SharedReference(element(item)),
         _ => value.clone(),
@@ -2147,7 +2177,8 @@ pub(super) fn infer_and_validate_invocation_modes(
         })
         .collect::<BTreeMap<_, _>>();
 
-    for unit in &mut package.units {
+    let mut invalid_contract = None;
+    'contracts: for unit in &mut package.units {
         for contract in &mut unit.functions {
             if let Some(mode) = inferred.get(&span_key(contract.span)) {
                 contract.exact_invocation_mode = *mode;
@@ -2157,18 +2188,26 @@ pub(super) fn infer_and_validate_invocation_modes(
                 .accepts(contract.exact_invocation_mode)
             {
                 let required = contract.exact_invocation_mode.reflection_name();
-                return Err(failure(
-                    &unit.source,
-                    "T0120",
+                invalid_contract = Some((
+                    contract.span,
                     format!(
                         "callable `{}` requires {required} invocation because its body uses {required} access; declare `{}function`",
                         contract.name,
                         contract.exact_invocation_mode.source_prefix()
                     ),
-                    contract.span,
                 ));
+                break 'contracts;
             }
         }
+    }
+    if let Some((span, message)) = invalid_contract {
+        let source = &package
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == span.file)
+            .expect("callable declaration has an owning source")
+            .source;
+        return Err(failure(source, "T0120", message, span));
     }
     let binding_modes = package
         .units
@@ -2234,6 +2273,7 @@ fn open_projected_interface<'a>(
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item) => {
             open_projected_interface(projection, item.value_type_ref())
@@ -6338,6 +6378,7 @@ pub(super) fn canonicalize_native_value_type(
         | ValueType::Task(inner, _)
         | ValueType::ScopedTask(inner, _)
         | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
         | ValueType::ChannelPair(inner)
         | ValueType::ChannelSender(inner)
         | ValueType::ChannelReceiver(inner)

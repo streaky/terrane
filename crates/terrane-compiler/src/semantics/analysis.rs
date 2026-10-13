@@ -1298,6 +1298,7 @@ fn analyze_parsed_with_projection(
     validate_projected_callback_arguments(&semantic)?;
     validate_suspension_ownership(&semantic)?;
     validate_task_consumption(&semantic)?;
+    super::task_groups::validate_task_groups(&semantic)?;
     validate_task_transferability(&semantic)?;
     let unreachable_units = validate_control_flow(&semantic)?;
     for (unit, unreachable_spans) in semantic.units.iter_mut().zip(unreachable_units) {
@@ -1682,6 +1683,7 @@ fn enqueue_value_type_object_dependencies(value_type: &ValueType, queue: &mut Ve
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item) => {
             enqueue_value_type_object_dependencies(item.value_type_ref(), queue);

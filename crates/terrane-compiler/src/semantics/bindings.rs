@@ -839,6 +839,12 @@ pub(crate) fn binding_requires_mutable_storage(
     initially_assigned: bool,
     closure_writes: ClosureWrites,
 ) -> bool {
+    if unit.typed_bindings.iter().any(|binding| {
+        binding.span == declaration_span
+            && matches!(binding.value_type, ValueType::SharedReference(_))
+    }) {
+        return binding_storage_is_replaced(package, unit, declaration_span, closure_writes, false);
+    }
     if initially_assigned {
         return binding_span_is_mutated(package, unit, declaration_span, true, closure_writes);
     }

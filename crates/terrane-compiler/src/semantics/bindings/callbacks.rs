@@ -496,6 +496,7 @@ fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRe
         | ValueType::Task(inner, _)
         | ValueType::ScopedTask(inner, _)
         | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
         | ValueType::ChannelPair(inner)
         | ValueType::ChannelSender(inner)
         | ValueType::ChannelReceiver(inner)

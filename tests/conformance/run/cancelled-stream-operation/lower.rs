@@ -7,7 +7,7 @@ async fn read_one() -> ReadResult {
     let pending;
     let result: ReadResult;
     input = stdin();
-    pending = (&input).read_async(terrane_int_support::Int::from(2_i128));
+    pending = (&input).read_async(terrane_int_support::Int::from(2_i128), None);
     result = __terrane_await(pending).await;
     input.close();
     return result;

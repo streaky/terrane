@@ -309,7 +309,11 @@ impl<'a> Emitter<'a> {
                 } else if projected_requirements.is_some_and(|item| item.sync) {
                     " : Sync"
                 } else {
-                    ""
+                    if object.resource_owning && methods.iter().any(|method| method.is_async) {
+                        " : Send + Sync"
+                    } else {
+                        ""
+                    }
                 };
                 let has_unsafe_methods = methods.iter().any(|method| method.is_unsafe);
                 if object.is_unsafe || has_unsafe_methods {
@@ -320,10 +324,12 @@ impl<'a> Emitter<'a> {
                     if object.is_unsafe { "unsafe " } else { "" }
                 ));
                 self.indent += 1;
-                self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol_use}>;"));
-                self.line(&format!(
-                    "fn separate_box(&self) -> Box<dyn {protocol_use}>;"
-                ));
+                if !object.resource_owning {
+                    self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol_use}>;"));
+                    self.line(&format!(
+                        "fn separate_box(&self) -> Box<dyn {protocol_use}>;"
+                    ));
+                }
                 for method in &methods {
                     self.line_start();
                     let receiver = match method.written_invocation_mode {
@@ -369,9 +375,11 @@ impl<'a> Emitter<'a> {
                 }
                 self.indent -= 1;
                 self.line("}");
-                self.line(&format!(
+                if !object.resource_owning {
+                    self.line(&format!(
                     "impl{generic_declaration} Clone for Box<dyn {protocol_use}> {{ fn clone(&self) -> Self {{ self.clone_box() }} }}"
                 ));
+                }
                 if methods.is_empty() {
                     self.line(
                         "#[allow(dead_code, reason = \"marker interface storage is materialized only when a value is erased to that marker\")]",
@@ -380,9 +388,11 @@ impl<'a> Emitter<'a> {
                 self.line(&format!(
                     "pub struct {name}{generic_declaration}(Box<dyn {protocol_use}>);"
                 ));
-                self.line(&format!(
+                if !object.resource_owning {
+                    self.line(&format!(
                     "impl{generic_declaration} Clone for {name}{generic_use} {{ fn clone(&self) -> Self {{ Self(self.0.clone()) }} }}"
                 ));
+                }
                 if projected_requirements.is_some_and(|item| item.requires_drop) {
                     self.line(&format!(
                         "impl{generic_declaration} Drop for {name}{generic_use} {{ fn drop(&mut self) {{}} }}"
@@ -1150,17 +1160,19 @@ impl<'a> Emitter<'a> {
                         if interface.is_unsafe { "unsafe " } else { "" }
                     ));
                     self.indent += 1;
-                    self.line(&format!(
+                    if !interface.resource_owning {
+                        self.line(&format!(
                         "fn clone_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                     ));
-                    if self.object_requires_separation(&object.identity) {
-                        self.line(&format!(
+                        if self.object_requires_separation(&object.identity) {
+                            self.line(&format!(
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.terrane_separate()) }}"
                         ));
-                    } else {
-                        self.line(&format!(
+                        } else {
+                            self.line(&format!(
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                         ));
+                        }
                     }
                     let substitutions = interface
                         .generic_parameters

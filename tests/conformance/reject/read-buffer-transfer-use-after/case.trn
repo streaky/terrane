@@ -1,0 +1,10 @@
+namespace read-buffer-transfer-use-after
+
+from /core/streams import stdin, byte-reader, make-read-buffer, read-buffer-result, buffered-read-result
+
+async function main;
+    input = stdin;
+    allocated read-buffer-result = make-read-buffer; 8
+    buffer = move allocated.value
+    result buffered-read-result = await input.read-into-async; move buffer, 1
+    buffer.clear;

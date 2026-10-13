@@ -24,7 +24,8 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
 }
 
 #[allow(
-    dead_code, clippy::unused_async,
+    dead_code,
+    clippy::unused_async,
     reason = "executor shutdown uses one hook for both simple and cancellation-aware runtimes"
 )]
 async fn __terrane_wait_projected_cleanups() {}
@@ -49,4 +50,12 @@ where
             .join()
             .expect("Terrane awaited destructor must not panic");
     });
+}
+
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
 }

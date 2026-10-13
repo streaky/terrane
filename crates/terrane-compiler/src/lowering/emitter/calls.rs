@@ -383,6 +383,18 @@ impl Emitter<'_> {
                 .expect("semantic logging error adapter has one argument");
             return format!("terrane_log_error(({}).clone())", self.expression(argument));
         }
+        if callee.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity == "/core/async::task-group")
+            && let Some(ValueType::TaskGroup(item)) = self.value_type(node)
+        {
+            return format!(
+                "TerraneTaskGroup::<{}>::new()",
+                rust_element_type(self.package, item)
+            );
+        }
         if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
             let deadline = arguments.children.first().map_or_else(
                 || "None".to_owned(),
@@ -415,24 +427,48 @@ impl Emitter<'_> {
         }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
-            && self.receiver_value_type(receiver) == Some(ValueType::TaskScope)
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::TaskScope | ValueType::TaskGroup(_))
+            )
         {
+            let is_group = matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::TaskGroup(_))
+            );
             let receiver = self.expression(receiver);
+            let scope = if is_group {
+                format!("({receiver}).scope()")
+            } else {
+                format!("({receiver}).clone()")
+            };
+            let deadline = if is_group {
+                "__terrane_scope.deadline.clone()"
+            } else {
+                "__terrane_scope.deadline"
+            };
+            let cancel_failure = if is_group {
+                "__terrane_scope.cancel(); "
+            } else {
+                ""
+            };
             return match self.text(member) {
                 "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
                     let callable = argument.children.last().unwrap_or(argument);
                     let callable_type = self.value_type(callable);
                     let direct_contract = self.contract_for_call(callable, false);
-                    let throws = direct_contract.map_or_else(
+                    let throws = if matches!(callable_type, Some(ValueType::Task(_, _))) {
+                        self.awaited_throws(callable)
+                    } else { direct_contract.map_or_else(
                         || {
                             matches!(
-                                callable_type,
-                                Some(ValueType::AsyncFunction(_, _, _, ref effects))
+                                &callable_type,
+                                Some(ValueType::AsyncFunction(_, _, _, effects))
                                     if effects.requires_throwing_abi()
                             )
                         },
                         |contract| contract.throws,
-                    );
+                    ) };
                     let foreign_error = callable.kind == SyntaxKind::Name
                         && self
                             .package
@@ -452,20 +488,26 @@ impl Emitter<'_> {
                         } else {
                             (String::new(), format!("({callable})()"))
                         };
-                    if foreign_error {
+                    let spawn = if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = {scope}; let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = {deadline}; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => {{ {cancel_failure}TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)) }}, None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else if throws {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = {scope}; let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = {deadline}; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => {{ {cancel_failure}TerraneTaskResult::Failed(error) }}, None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = {scope}; let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = {deadline}; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
+                    };
+                    if is_group {
+                        format!("{{ let __terrane_child = {spawn}; ({receiver}).spawn(__terrane_child); }}")
+                    } else {
+                        spawn
                     }
                 }),
+                "drain" if is_group => format!("std::boxed::Box::pin(({receiver}).prepare_drain())"),
                 "join" => arguments.children.first().map_or_else(String::new, |argument| {
                     let task = argument.children.last().unwrap_or(argument);
                     format!("({receiver}).join({})", self.expression(task))
@@ -1199,7 +1241,44 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
+        let buffer_call = [
+            ("buffer-create", "platform_buffer_create"),
+            ("buffer-clear", "platform_buffer_clear"),
+            ("buffer-close", "platform_buffer_close"),
+            ("buffer-filled-bytes", "platform_buffer_filled_bytes"),
+            ("buffer-filled-text", "platform_buffer_filled_text"),
+            ("tcp-read-into-async", "platform_tcp_read_into_async"),
+            ("tls-read-into-async", "platform_tls_read_into_async"),
+            ("stream-read-into-async", "platform_stream_read_into_async"),
+        ]
+        .into_iter()
+        .find_map(|(source, rust)| {
+            self.is_builtin(callee, &format!("intrinsic:capabilities::{source}"))
+                .then_some(rust)
+        });
+        if let Some(function) = buffer_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, node)| {
+                    if function == "platform_buffer_create" {
+                        return format!("&({})", self.native_receiver_expression(node, false));
+                    }
+                    let value = self.expression(node);
+                    if function.ends_with("_async") && index == argument_values.len() - 1 {
+                        format!("({value}).as_ref()")
+                    } else if index == 0 || function.ends_with("_async") && index == 1 {
+                        format!("&({value})")
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_{function}({values})");
+        }
         let capability_call = [
+            ("no-capability", "platform_no_resource"),
             ("secure-random", "platform_secure_random"),
             ("pseudo-random", "platform_pseudo_random"),
             ("secret-buffer", "platform_secret_buffer"),
@@ -1280,10 +1359,31 @@ impl Emitter<'_> {
                 .then_some(rust)
         });
         if let Some(function) = capability_call {
+            if function == "platform_result_deadline_exceeded"
+                && let Some(value) = argument_values.first()
+                && matches!(
+                    self.value_type(value),
+                    Some(ValueType::PlatformReadResult | ValueType::PlatformWriteResult)
+                )
+            {
+                return format!(
+                    "({}).deadline_exceeded",
+                    self.native_receiver_expression(value, false)
+                );
+            }
             let values = argument_values
                 .iter()
                 .enumerate()
                 .map(|(index, value)| {
+                    if self.value_type(value).is_some_and(|ty| matches!(&ty, ValueType::Optional(inner) if matches!(**inner, ValueType::PlatformCapability))) {
+                        return format!("({}).as_ref()", self.expression(value));
+                    }
+                    if function.ends_with("_async") && index == 1 && matches!(function, "platform_tcp_write_async" | "platform_tls_write_async") {
+                        return format!("&({})", self.native_receiver_expression(value, false));
+                    }
+                    if index == 2 && matches!(function, "platform_tcp_write_async" | "platform_tls_write_async") {
+                        return self.adaptive_expression(value);
+                    }
                     let value = self.expression(value);
                     let borrowed = matches!(
                         (function, index),
@@ -1322,35 +1422,6 @@ impl Emitter<'_> {
                                 | "platform_destroy_secret",
                             0,
                         ) | ("platform_parse_socket" | "platform_hmac", 1)
-                            | (
-                                "platform_tcp_connect"
-                                    | "platform_tcp_connect_async"
-                                    | "platform_tcp_accept"
-                                    | "platform_tcp_accept_async"
-                                    | "platform_tls_shutdown"
-                                    | "platform_tls_shutdown_async",
-                                2
-                            )
-                            | (
-                                "platform_tcp_connect_host"
-                                    | "platform_tcp_connect_host_async"
-                                    | "platform_tcp_read"
-                                    | "platform_tcp_read_async"
-                                    | "platform_tcp_write"
-                                    | "platform_tcp_write_async"
-                                    | "platform_udp_receive_from"
-                                    | "platform_udp_receive_from_async"
-                                    | "platform_dns_lookup"
-                                    | "platform_dns_lookup_async"
-                                    | "platform_tls_client"
-                                    | "platform_tls_client_async"
-                                    | "platform_tls_read"
-                                    | "platform_tls_read_async"
-                                    | "platform_tls_write"
-                                    | "platform_tls_write_async",
-                                3,
-                            )
-                            | ("platform_udp_send_to" | "platform_udp_send_to_async", 4)
                     ) || function.starts_with("platform_result_") && index == 0;
                     if borrowed {
                         format!("&({value})")
@@ -1549,6 +1620,7 @@ impl Emitter<'_> {
             ("read", "read"),
             ("read-async", "read_async"),
             ("write", "write"),
+            ("write-async", "write_async"),
             ("flush", "flush"),
             ("sync-data", "sync_data"),
             ("sync-all", "sync_all"),
@@ -1576,6 +1648,19 @@ impl Emitter<'_> {
                     "terrane_platform_write(&({}), &({}), terrane_int_support::Int::from(({}).clone()))",
                     values[0], values[1], values[2]
                 );
+            }
+            if matches!(function, "read_async" | "write_async") {
+                let mut arguments = vec![format!("&({})", values[0])];
+                arguments.extend(values[1..values.len() - 1].iter().cloned());
+                if function == "write_async" {
+                    arguments[2] = self.adaptive_expression(argument_values[2]);
+                }
+                let cancellation = self.expression_as(
+                    argument_values.last().expect("async stream cancellation"),
+                    ValueType::Optional(Box::new(ValueType::PlatformCapability)),
+                );
+                arguments.push(format!("({cancellation}).as_ref()"));
+                return format!("terrane_platform_{function}({})", arguments.join(", "));
             }
             let Some((handle, arguments)) = values.split_first() else {
                 unreachable!("validated platform operation has a stream handle");

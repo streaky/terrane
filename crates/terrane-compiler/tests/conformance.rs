@@ -605,7 +605,8 @@ fn prepare_conformance_case(
                 let source = fs::read_to_string(&source_path).unwrap();
                 let compilation =
                     terrane_compiler::compile_with_options(&source_path, source, options).unwrap();
-                (compilation, Vec::new())
+                let dependencies = compilation.rust_dependencies.clone();
+                (compilation, dependencies)
             };
             assert_expected_warnings(case, &manifest, &compilation);
             let mut rust_files = compilation.rust_files_for(Path::new("lower.rs")).unwrap();
@@ -1219,6 +1220,16 @@ fn write_support_crates(directory: &Path) {
     fs::write(
         platform.join("src/observability.rs"),
         include_bytes!("../../terrane-platform-support/src/observability.rs"),
+    )
+    .unwrap();
+    fs::write(
+        platform.join("src/networking_state.rs"),
+        include_bytes!("../../terrane-platform-support/src/networking_state.rs"),
+    )
+    .unwrap();
+    fs::write(
+        platform.join("src/networking_buffers.rs"),
+        include_bytes!("../../terrane-platform-support/src/networking_buffers.rs"),
     )
     .unwrap();
     fs::write(

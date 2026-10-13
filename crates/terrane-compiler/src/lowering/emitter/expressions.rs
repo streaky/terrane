@@ -582,10 +582,23 @@ impl Emitter<'_> {
             let actual = self.value_type(node);
             return if actual == Some(ValueType::Optional(inner.clone())) {
                 let expression = self.expression(node);
-                if node.kind == SyntaxKind::MemberExpression
-                    && !rust_value_is_copy(inner.as_ref())
-                    && let [receiver, member] = node.children.as_slice()
-                    && self.object_field(receiver, self.text(member))
+                let reused = match node.kind {
+                    SyntaxKind::Name => {
+                        self.binding_value_is_reused(node) || self.non_consuming_capture_read(node)
+                    }
+                    SyntaxKind::MemberExpression => node
+                        .children
+                        .as_slice()
+                        .first()
+                        .zip(node.children.get(1))
+                        .is_some_and(|(receiver, member)| {
+                            self.object_field(receiver, self.text(member))
+                        }),
+                    _ => false,
+                };
+                if !rust_value_is_copy(inner.as_ref())
+                    && !self.value_type_owns_resource(inner.as_ref())
+                    && reused
                 {
                     format!("({expression}).clone()")
                 } else {
@@ -848,7 +861,9 @@ impl Emitter<'_> {
                 rust_empty_collection(self.package, &value_type)
                     .expect("unordered map is an empty collection constructor")
             }
-            ValueType::PlatformStreamHandle if node.kind == SyntaxKind::MemberExpression => {
+            ValueType::PlatformStreamHandle | ValueType::PlatformCapability
+                if node.kind == SyntaxKind::MemberExpression =>
+            {
                 format!("({}).clone()", self.expression(node))
             }
             ValueType::Object(_)

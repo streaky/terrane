@@ -1080,6 +1080,9 @@ impl<'unit> Emitter<'unit> {
         else {
             return false;
         };
+        if object.resource_owning {
+            return false;
+        }
         effective_object_methods(self.unit, object)
             .iter()
             .any(|method| method.name == "destruct")
