@@ -74,6 +74,8 @@ fn main() {
         let response: ReadResult;
         let outcome: TerraneTaskOutcome<()>;
         let input_outcome: TerraneTaskOutcome<BufferedReadResult>;
+        let empty: ReadResult;
+        let short: ReadResult;
         loopback = ip_address_from_string(String::from("127.0.0.1"));
         bind_address = socket_address_from_ip(
             loopback.value,
@@ -162,6 +164,24 @@ fn main() {
         if !input_outcome.completed {
             println!("{}", String::from("stdin task did not complete"));
         }
+        empty = __terrane_await(
+                (&client).read_exact_async(terrane_int_support::Int::from(0_i128), None),
+            )
+            .await;
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&(! empty.failed &&! empty.end
+            &&empty.completed.clone() == terrane_int_support::Int::from(0_i128) &&empty
+            .data == Vec:: < u8 > ::from([])))
+        );
+        short = __terrane_await(
+                (&client).read_exact_async(terrane_int_support::Int::from(1_i128), None),
+            )
+            .await;
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&(short.failed &&short.end &&short
+            .completed.clone() == terrane_int_support::Int::from(0_i128) &&short.data ==
+            Vec:: < u8 > ::from([])))
+        );
         client.close();
     });
 }

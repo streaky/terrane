@@ -16,7 +16,7 @@ use std::{
     task::{Context, Poll},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TerraneError;
 
 fn terrane_time_deadline_expired(_deadline: &terrane_int_support::Int) -> bool {

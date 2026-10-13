@@ -1435,9 +1435,11 @@ pub fn terrane_platform_i128(
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {
     terrane_int_support::coerce::<i128>(value)
-        .map_err(|_| TerranePlatformResult::error(
-            format!("{label} is outside the signed 128-bit platform range"),
-        ))
+        .map_err(|_| {
+            TerranePlatformResult::error(
+                format!("{label} is outside the signed 128-bit platform range"),
+            )
+        })
 }
 pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
     if value < terrane_int_support::Int::from(0_i128) {

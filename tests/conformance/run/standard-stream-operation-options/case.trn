@@ -1,0 +1,26 @@
+namespace standard-stream-operation-options
+from /core/streams import stdin, stdout
+from /core/io import network-cancellation-token, network-operation-options, network-cancel-operation
+from /core/time import clock, duration
+
+async function main;
+    reader = stdin;
+    writer = stdout;
+
+    cancelled = instance network-cancellation-token;
+    network-cancel-operation; cancelled
+    cancelled-options = instance network-operation-options; none, cancelled
+    cancelled-read = await reader.read-async; 1, cancelled-options
+    print; cancelled-read.failed
+
+    expired = clock::deadline; (duration::nanoseconds; 0)
+    expired-options = instance network-operation-options; expired
+    expired-read = await reader.read-async; 1, expired-options
+    print; expired-read.failed and expired-read.deadline-exceeded
+
+    live-options = instance network-operation-options; (clock::deadline; (duration::seconds; 5)), (instance network-cancellation-token;)
+    live-read = await reader.read-async; 1, live-options
+    print; not live-read.failed and live-read.completed == 1 and live-read.data == b'z'
+
+    output = await writer.write-all-async; b'accepted\n', live-options
+    print; not output.failed and output.completed == 9

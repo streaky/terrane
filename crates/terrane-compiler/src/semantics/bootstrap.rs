@@ -344,7 +344,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "result-capability",
         ],
     );
-    for namespace in ["/core/networking/io", "/core/streams"] {
+    for namespace in ["/core/io", "/core/streams"] {
         add_private_host_bindings(
             &mut namespaces,
             namespace,
@@ -358,6 +358,8 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "cancellation-token",
                 "cancel",
                 "buffer-create",
+                "buffer-capacity",
+                "buffer-completed",
                 "buffer-clear",
                 "buffer-close",
                 "buffer-filled-bytes",

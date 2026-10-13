@@ -24,6 +24,7 @@ class mutable-sample implements consuming-counter
     this.total = this.total + 1
     return this.total
 
+
 function main;
   mutable-view mutable-counter = instance sample;
   consuming-view consuming-label = instance sample;

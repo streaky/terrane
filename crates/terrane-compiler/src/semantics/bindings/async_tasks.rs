@@ -592,6 +592,10 @@ pub(in crate::semantics) fn validate_suspension_ownership(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keeps task consumption traversal and its diagnostics together."
+)]
 pub(in crate::semantics) fn validate_task_consumption(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {

@@ -296,10 +296,27 @@ fn lower_with_tests(
         unit.namespace.starts_with("/deps/")
             && unit.functions.iter().any(|function| function.is_async)
     });
+    let simple_standard_streams = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/core/streams")
+        && !package_uses_advanced_streams(package);
     let has_async = package
         .units
         .iter()
-        .any(|unit| unit.functions.iter().any(|function| function.is_async));
+        .filter(|unit| {
+            !simple_standard_streams
+                || !matches!(
+                    unit.namespace.as_str(),
+                    "/core/streams" | "/core/io" | "/core/time"
+                )
+        })
+        .any(|unit| {
+            unit.functions
+                .iter()
+                .filter(|function| function.span.file == unit.source.id())
+                .any(|function| function.is_async)
+        });
     let has_async_entry = tests.into_iter().flatten().any(|test| test.is_async)
         || package
             .units
@@ -368,19 +385,18 @@ fn lower_with_tests(
             .iter()
             .any(|binding| matches!(binding.value_type, ValueType::TaskGroup(_)))
     });
-    let native_cancellation = package_uses_task_scope(package) && has_async_entry
-        || projected_async_entry
-        || package.units.iter().any(|unit| {
+    let advanced_streams = !simple_standard_streams
+        && package.units.iter().any(|unit| {
             matches!(
                 unit.namespace.as_str(),
-                "/core/streams"
-                    | "/core/networking"
-                    | "/core/networking/io"
-                    | "/core/networking/tls"
+                "/core/streams" | "/core/filesystem"
             )
-        })
+        });
+    let native_cancellation = package_uses_task_scope(package) && has_async_entry
+        || projected_async_entry
         || has_async_finally
-        || has_task_groups;
+        || has_task_groups
+        || advanced_streams;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.descriptors.iter().any(|object| {
@@ -505,7 +521,9 @@ fn lower_with_tests(
     let mut uses_logging = false;
     let mut uses_time = false;
     let mut uses_process_signals = false;
-    for unit in &package.units {
+    for unit in package.units.iter().filter(|unit| {
+        !simple_standard_streams || !matches!(unit.namespace.as_str(), "/core/io" | "/core/time")
+    }) {
         match unit.namespace.as_str() {
             "/core/streams" => uses_streams = true,
             "/core/filesystem" => uses_filesystem = true,
@@ -518,7 +536,7 @@ fn lower_with_tests(
             "/core/codecs" => uses_codecs = true,
             "/core/compression" => uses_compression = true,
             "/core/random/uuid" => uses_uuid = true,
-            "/core/networking" | "/core/networking/io" => uses_networking = true,
+            "/core/networking" => uses_networking = true,
             "/core/networking/tls" => uses_tls = true,
             "/core/concurrency" => uses_concurrency = true,
             "/core/logging" | "/core/logging/async" => uses_logging = true,
@@ -526,6 +544,9 @@ fn lower_with_tests(
             "/core/process-signals" => uses_process_signals = true,
             _ => {}
         }
+    }
+    if simple_standard_streams {
+        uses_time = false;
     }
     if uses_time {
         let (source_file, source) = if tests.is_some() {
@@ -560,7 +581,7 @@ fn lower_with_tests(
         || uses_logging
         || uses_time
         || uses_process_signals;
-    let requires_platform_support = uses_streams
+    let requires_platform_support = (uses_streams && advanced_streams)
         || uses_filesystem
         || uses_process
         || uses_documents
@@ -569,10 +590,16 @@ fn lower_with_tests(
         || uses_urls
         || uses_platform_capabilities;
     if uses_streams || uses_filesystem {
-        let mut source_files = vec!["platform_streams.rs"];
+        let mut source_files = vec!["platform_streams_sync.rs"];
         let mut items = vec![Item::generated(include_str!(
-            "../../runtime/platform_streams.rs"
+            "../../runtime/platform_streams_sync.rs"
         ))];
+        if uses_streams && advanced_streams {
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_streams.rs"
+            )));
+            source_files.push("platform_streams.rs");
+        }
         if uses_streams {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_standard_streams.rs"
@@ -693,11 +720,24 @@ fn lower_with_tests(
             || uses_networking
             || uses_tls
             || uses_concurrency
+            || advanced_streams
         {
             items.push(Item::generated(include_str!(
                 "../../runtime/platform_int_conversion.rs"
             )));
             source_files.push("platform_int_conversion.rs");
+        }
+        if uses_random
+            || uses_compression
+            || uses_uuid
+            || uses_networking
+            || uses_tls
+            || uses_concurrency
+        {
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_int_conversion_macro.rs"
+            )));
+            source_files.push("platform_int_conversion_macro.rs");
         }
         items.push(Item::generated(include_str!(
             "../../runtime/platform_capability_base.rs"
@@ -773,6 +813,10 @@ fn lower_with_tests(
     let mut modules = package
         .units
         .iter()
+        .filter(|unit| {
+            !simple_standard_streams
+                || !matches!(unit.namespace.as_str(), "/core/io" | "/core/time")
+        })
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
                 let mut emitter = Emitter::new(&registry, package, unit, debug_information);
@@ -897,7 +941,7 @@ fn lower_with_tests(
             || projected_async_entry
             || has_async_finally
             || has_task_groups,
-        requires_blocking_runtime: uses_streams || uses_filesystem || uses_networking,
+        requires_blocking_runtime: advanced_streams || uses_filesystem || uses_networking,
         requires_runtime_sync: has_async_mutable_callables || (has_async && native_cancellation),
         runtime,
         globals: (!globals.is_empty())

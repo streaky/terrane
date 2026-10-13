@@ -527,8 +527,8 @@ fn infer_member_type(
             (
                 ValueType::PlatformReadResult | ValueType::PlatformWriteResult,
                 "deadline-exceeded",
-            ) => Some(ValueType::Scalar(ScalarType::Bool)),
-            (ValueType::PlatformReadResult, "end")
+            )
+            | (ValueType::PlatformReadResult, "end")
             | (
                 ValueType::PlatformOpenResult
                 | ValueType::PlatformReadResult

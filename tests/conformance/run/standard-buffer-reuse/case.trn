@@ -1,6 +1,6 @@
 namespace standard-buffer-reuse
 from /core/streams import stdin, make-read-buffer
-from /core/networking/io import network-operation-options
+from /core/io import network-operation-options
 from /core/time import clock, duration
 
 async function main;
@@ -12,15 +12,15 @@ async function main;
     print; rejected.failed and rejected.deadline-exceeded and rejected.completed == 0
     first = await reader.read-into-async; move rejected.buffer, 2
     first-bytes = first.buffer.filled-bytes;
-    print; first.completed == 2 and first.buffer.completed == 2 and first-bytes.value == b'ab'
+    print; first.completed == 2 and (first.buffer.completed;) == 2 and first-bytes.value == b'ab'
     second = await reader.read-into-async; move first.buffer, 2
     all-bytes = second.buffer.filled-bytes;
-    print; second.completed == 2 and second.buffer.completed == 4 and all-bytes.value == b'abcd'
+    print; second.completed == 2 and (second.buffer.completed;) == 4 and all-bytes.value == b'abcd'
     zero = await reader.read-into-async; move second.buffer, 0
     print; not zero.failed and not zero.end and zero.completed == 0
     buffer = move zero.buffer
     cleared = buffer.clear;
-    print; not cleared.failed and buffer.completed == 0
+    print; not cleared.failed and (buffer.completed;) == 0
     empty = buffer.filled-bytes;
     print; empty.value == b''
     reader.close;

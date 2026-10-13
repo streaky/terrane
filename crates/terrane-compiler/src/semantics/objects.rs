@@ -387,19 +387,6 @@ pub(super) fn analyze_descriptor_contracts(
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
                 )
             }),
-            // Consuming interfaces erase one owner; their implementers need not be copyable.
-            ObjectKind::Interface => node
-                .children
-                .iter()
-                .filter(|child| child.kind == SyntaxKind::Block)
-                .flat_map(|body| &body.children)
-                .any(|method| {
-                    method.kind == SyntaxKind::FunctionDeclaration
-                        && method.children.iter().any(|qualifier| {
-                            qualifier.kind == SyntaxKind::DeclarationQualifier
-                                && node_text(&unit.source, qualifier) == "consuming"
-                        })
-                }),
             _ => false,
         };
         let methods = unit
@@ -818,7 +805,6 @@ pub(crate) fn application_is_resource_owning(
                 parameters,
                 visiting,
             ),
-            ValueType::TaskGroup(_) => return true,
             ValueType::Map(key, value)
             | ValueType::Entry(key, value)
             | ValueType::UnorderedMap(key, value) => {
@@ -837,6 +823,7 @@ pub(crate) fn application_is_resource_owning(
                 )
             }
             ValueType::PlatformStreamHandle
+            | ValueType::TaskGroup(_)
             | ValueType::PlatformResourceHandle
             | ValueType::ChannelPair(_)
             | ValueType::ChannelSender(_)
@@ -860,7 +847,6 @@ pub(crate) fn application_is_resource_owning(
         &mut BTreeSet::new(),
     )
 }
-
 pub(super) fn propagate_resource_ownership(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -2650,6 +2636,10 @@ fn prepare_source_enums(package: &mut SemanticPackage) -> Result<(), SemanticFai
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keeps the ordered type-declaration preparation pipeline together."
+)]
 pub(super) fn prepare_type_declarations(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -2707,7 +2697,6 @@ pub(super) fn prepare_type_declarations(
             }
         }
     }
-    propagate_resource_ownership(package)?;
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut alias_history = descriptor_construct_alias_history(package, unit);
@@ -2737,6 +2726,17 @@ pub(super) fn prepare_type_declarations(
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
     }
+    for unit in &mut package.units {
+        for descriptor in &mut unit.descriptors {
+            if descriptor.kind == ObjectKind::Interface {
+                descriptor.resource_owning = unit.functions.iter().any(|method| {
+                    method.owner_identity.as_ref() == Some(&descriptor.identity)
+                        && method.written_invocation_mode == InvocationMode::Consuming
+                });
+            }
+        }
+    }
+    propagate_resource_ownership(package)?;
     super::native_constructors::normalize_contracts(package)?;
     materialize_projected_interface_applications(package);
     populate_namespace_function_contracts(package);

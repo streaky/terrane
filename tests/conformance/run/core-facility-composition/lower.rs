@@ -9,7 +9,11 @@ fn main() {
         false,
         String::from(""),
     );
-    stream_result = StreamOperationResult::terrane_construct(false, String::from(""));
+    stream_result = StreamOperationResult::terrane_construct(
+        false,
+        String::from(""),
+        false,
+    );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(! filesystem_result.failed &&!
         stream_result.failed))

@@ -1,7 +1,8 @@
 namespace core/networking/tls
 
+from /core/streams import exact-read-progress, write-progress
 from /core/networking import tcp-stream, network-host-name
-from /core/networking/io import network-operation-result, network-operation-options, operation-cancellation, operation-deadline
+from /core/io import network-operation-result, network-operation-options, operation-cancellation, operation-deadline
 from /core/streams import async-byte-reader, async-byte-writer, stream-operation-result, read-result, write-result, owned-read-buffer, buffered-read-result
 
 class tls-stream implements async-byte-reader, async-byte-writer
@@ -24,51 +25,27 @@ class tls-stream implements async-byte-reader, async-byte-writer
     async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options network-operation-options|none = none
         cancellation = operation-cancellation; options
         raw = await host-tls-read-into-async; this.handle, buffer.handle, count, (operation-deadline; options), cancellation
-        buffer.completed = buffer.completed + (host-result-int; raw)
         return instance buffered-read-result; move buffer, (host-result-int; raw), (host-result-bool; raw), (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
+
+
+    async function write-all-async write-result; data bytes, options network-operation-options|none = none
+        progress = instance write-progress;
+        while progress.pending; data.length
+            part = await host-tls-write-async; this.handle, data, progress.completed, (operation-deadline; options), (operation-cancellation; options)
+            progress.advance; (host-result-int; part), (host-result-failed; part), (host-result-deadline-exceeded; part), (host-result-message; part)
+        return progress.result; move data
 
 
     async function read-exact-async read-result; count int, options network-operation-options|none = none
         if count < 0
             return await this.read-async; count, options
+        progress = instance exact-read-progress; count
         data bytes = b''
-        completed int = 0
-        end bool = false
-        failed bool = false
-        deadline-exceeded bool = false
-        message string = ''
-        while completed < count and not end and not failed and not deadline-exceeded
-            part = await this.read-async; count - completed, options
+        while progress.pending;
+            part = await this.read-async; (progress.remaining;), options
             data = data.concat; part.data
-            completed = completed + part.completed
-            end = part.end
-            failed = part.failed
-            deadline-exceeded = part.deadline-exceeded
-            message = part.message
-            if part.completed == 0 and not part.end and not part.failed and not part.deadline-exceeded
-                failed = true
-                message = 'stream read made no progress'
-        if end and completed < count and not failed and not deadline-exceeded
-            failed = true
-            message = 'stream ended before exact byte count'
-        return instance read-result; data, completed, end, failed, message, deadline-exceeded
-
-    async function write-all-async write-result; data bytes, options network-operation-options|none = none
-        completed int = 0
-        failed bool = false
-        deadline-exceeded bool = false
-        message string = ''
-        while completed < data.length and not failed and not deadline-exceeded
-            part = await host-tls-write-async; this.handle, data, completed, (operation-deadline; options), (operation-cancellation; options)
-            completed = completed + (host-result-int; part)
-            failed = host-result-failed; part
-            deadline-exceeded = host-result-deadline-exceeded; part
-            message = host-result-message; part
-            if (host-result-int; part) == 0 and not failed and not deadline-exceeded
-                failed = true
-                message = 'stream write made no progress'
-        return instance write-result; data, completed, failed, message, deadline-exceeded
-
+            progress.advance; part.completed, part.end, part.failed, part.deadline-exceeded, part.message
+        return progress.result; move data
     consuming function close stream-operation-result;
         raw = host-close; this.handle
         return instance stream-operation-result; (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)

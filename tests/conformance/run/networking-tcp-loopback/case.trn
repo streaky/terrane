@@ -42,7 +42,7 @@ async function main;
     connected stream-result = await connect-tcp; destination.value, none, client-settings
     client = move connected.value
     sent = await client.write-all-async; b'terrane'
-    response = await client.read-exact-async; 5
+    response = await client.read-exact-async; count = 5
     outcome = await scope.join; child
     print; sent.completed
     print; (response.data.decode; utf8)
@@ -50,4 +50,8 @@ async function main;
     input-outcome = await scope.join; input-child
     if not input-outcome.completed
         print; 'stdin task did not complete'
+    empty = await client.read-exact-async; count = 0
+    print; not empty.failed and not empty.end and empty.completed == 0 and empty.data == b''
+    short = await client.read-exact-async; count = 1
+    print; short.failed and short.end and short.completed == 0 and short.data == b''
     client.close;

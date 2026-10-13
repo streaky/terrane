@@ -11,6 +11,8 @@
     clippy::struct_excessive_bools
 )]
 mod networking_buffers;
+#[cfg(test)]
+mod networking_review_tests;
 mod networking_state;
 mod observability;
 #[cfg(unix)]
@@ -1236,6 +1238,9 @@ fn timeout(nanoseconds: i128) -> Result<Option<Duration>, ResultValue> {
     Ok(Some(Duration::from_nanos(value)))
 }
 
+// Synchronous networking is supported off-runtime or via block_in_place on a
+// multithread executor. A current-thread executor must delegate blocking work
+// explicitly: blocking its sole reactor thread would deadlock readiness waits.
 fn network_block_on<F: std::future::Future>(future: F) -> Result<F::Output, ResultValue> {
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
         if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread {
@@ -1726,29 +1731,15 @@ pub fn udp_send_to(
     deadline_nanos: i128,
     cancellation: Option<&Capability>,
 ) -> ResultValue {
-    if let Some(error) = cancellation_error(cancellation) {
-        return error;
-    }
-    let duration = match timeout(deadline_nanos) {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
-        return ResultValue::error("capability is not a UDP socket");
-    };
-    let guard = socket.lock();
-    let Some(socket) = guard.as_ref() else {
-        return ResultValue::error("socket is closed");
-    };
-    if let Err(error) = socket.set_write_timeout(duration) {
-        return io_error("UDP write timeout configuration", &error);
-    }
-    match socket.send_to(data, address) {
-        Ok(count) => ResultValue {
-            number: count as i128,
-            ..ResultValue::default()
-        },
-        Err(error) => io_error("UDP send", &error),
+    match network_block_on(udp_send_to_async(
+        socket,
+        data,
+        address,
+        deadline_nanos,
+        cancellation,
+    )) {
+        Ok(result) => result,
+        Err(error) => error,
     }
 }
 pub fn udp_receive_from(
@@ -1764,34 +1755,48 @@ pub fn udp_receive_from(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let duration = match timeout(deadline_nanos) {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
     let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
         return ResultValue::error("capability is not a UDP socket");
     };
-    let guard = socket.lock();
-    let Some(socket) = guard.as_ref() else {
-        return ResultValue::error("socket is closed");
-    };
-    if let Err(error) = socket.set_read_timeout(duration) {
-        return io_error("UDP read timeout configuration", &error);
-    }
-    let mut data = vec![0; size.saturating_add(1)];
-    match socket.recv_from(&mut data) {
-        Ok((count, peer)) => {
-            let truncated = count > size;
-            data.truncate(count.min(size));
-            ResultValue {
-                data,
-                text: peer.to_string(),
-                number: count.min(size) as i128,
-                truncated,
-                ..ResultValue::default()
+    match network_block_on(readiness_operation(
+        async {
+            let socket = match socket.readiness() {
+                Ok(socket) => socket,
+                Err(error) => return error,
+            };
+            let mut data = vec![0; size.saturating_add(1)];
+            loop {
+                match socket.try_recv_from(&mut data) {
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        if let Err(error) = socket.readable().await {
+                            return io_error("UDP receive", &error);
+                        }
+                    }
+                    result => {
+                        return match result {
+                            Ok((count, peer)) => {
+                                let truncated = count > size;
+                                data.truncate(count.min(size));
+                                ResultValue {
+                                    data,
+                                    text: peer.to_string(),
+                                    number: count.min(size) as i128,
+                                    truncated,
+                                    ..ResultValue::default()
+                                }
+                            }
+                            Err(error) => io_error("UDP receive", &error),
+                        };
+                    }
+                }
             }
-        }
-        Err(error) => io_error("UDP receive", &error),
+        },
+        deadline_nanos,
+        "UDP receive deadline exceeded",
+        cancellation,
+    )) {
+        Ok(result) => result,
+        Err(error) => error,
     }
 }
 
@@ -2545,112 +2550,12 @@ pub async fn tls_shutdown_async(
 }
 
 pub fn buffer_create(capacity: i128) -> ResultValue {
-    let capacity = match count(capacity, "buffer capacity") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let mut bytes = Vec::new();
-    if let Err(error) = bytes.try_reserve_exact(capacity) {
-        return ResultValue::limit(format!("cannot allocate read buffer: {error}"));
-    }
-    bytes.resize(capacity, 0);
-    ResultValue {
-        capability: Some(Capability(Arc::new(CapabilityInner::Buffer(
-            tokio::sync::Mutex::new(ReadBuffer {
-                bytes,
-                filled: 0,
-                closed: false,
-            }),
-        )))),
-        ..ResultValue::default()
-    }
+    networking_buffers::buffer_create(capacity)
 }
 
 pub fn buffer_clear(buffer: &Capability) -> ResultValue {
-    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
-        return ResultValue::error("capability is not a read buffer");
-    };
-    match buffer.try_lock() {
-        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
-        Ok(mut buffer) => {
-            buffer.filled = 0;
-            ResultValue::default()
-        }
-        Err(_) => ResultValue::error("read buffer is busy"),
-    }
+    networking_buffers::buffer_clear(buffer)
 }
-
-pub fn buffer_capacity(buffer: &Capability) -> ResultValue {
-    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
-        return ResultValue::error("capability is not a read buffer");
-    };
-    match buffer.try_lock() {
-        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
-        Ok(buffer) => ResultValue {
-            number: buffer.bytes.len() as i128,
-            ..ResultValue::default()
-        },
-        Err(_) => ResultValue::error("read buffer is busy"),
-    }
-}
-
-pub fn buffer_filled_bytes(buffer: &Capability) -> ResultValue {
-    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
-        return ResultValue::error("capability is not a read buffer");
-    };
-    match buffer.try_lock() {
-        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
-        Ok(buffer) => ResultValue {
-            data: buffer.bytes[..buffer.filled].to_vec(),
-            ..ResultValue::default()
-        },
-        Err(_) => ResultValue::error("read buffer is busy"),
-    }
-}
-
-pub fn buffer_filled_text(buffer: &Capability) -> ResultValue {
-    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
-        return ResultValue::error("capability is not a read buffer");
-    };
-    match buffer.try_lock() {
-        Ok(buffer) if buffer.closed => ResultValue::error("read buffer is closed"),
-        Ok(buffer) => match std::str::from_utf8(&buffer.bytes[..buffer.filled]) {
-            Ok(text) => ResultValue {
-                text: text.to_owned(),
-                ..ResultValue::default()
-            },
-            Err(_) => ResultValue::error("read buffer contents are not valid UTF-8"),
-        },
-        Err(_) => ResultValue::error("read buffer is busy"),
-    }
-}
-pub fn buffer_read_with(
-    buffer: &Capability,
-    read: impl FnOnce(&mut [u8]) -> std::io::Result<usize>,
-) -> ResultValue {
-    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
-        return ResultValue::error("capability is not a read buffer");
-    };
-    let mut buffer = buffer.blocking_lock();
-    if buffer.closed {
-        return ResultValue::error("read buffer is closed");
-    }
-    let offset = buffer.filled;
-    let remaining = buffer.bytes.len() - offset;
-    match read(&mut buffer.bytes[offset..]) {
-        Ok(filled) if filled <= remaining => {
-            buffer.filled += filled;
-            ResultValue {
-                number: filled as i128,
-                flag: filled == 0 && remaining != 0,
-                ..ResultValue::default()
-            }
-        }
-        Ok(_) => ResultValue::error("read operation returned a count larger than buffer capacity"),
-        Err(error) => io_error("stream read", &error),
-    }
-}
-
 pub async fn tcp_read_into_async(
     stream: &Capability,
     buffer: &Capability,
@@ -2658,51 +2563,35 @@ pub async fn tcp_read_into_async(
     deadline_nanos: i128,
     cancellation: Option<&Capability>,
 ) -> ResultValue {
-    let CapabilityInner::Buffer(buffer) = buffer.0.as_ref() else {
-        return ResultValue::error("capability is not a read buffer");
-    };
-    let mut buffer = buffer.lock().await;
-    if buffer.closed {
-        return ResultValue::error("read buffer is closed");
-    }
-    let offset = buffer.filled;
-    let limit = match count(limit, "read limit") {
-        Ok(limit) if limit <= buffer.bytes.len() - offset => limit,
-        Ok(_) => return ResultValue::error("read limit exceeds remaining buffer capacity"),
-        Err(error) => return error,
-    };
-    let stream = match readiness_tcp_stream(stream) {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    if limit == 0 {
-        return ResultValue::default();
-    }
-    readiness_operation(
-        async {
-            match networking_state::read(&stream, &mut buffer.bytes[offset..offset + limit]).await {
-                Ok(count) => {
-                    buffer.filled += count;
-                    ResultValue {
-                        number: count as i128,
-                        flag: count == 0,
-                        ..ResultValue::default()
-                    }
-                }
-                Err(error) => io_error("TCP read", &error),
-            }
-        },
-        deadline_nanos,
-        "TCP read deadline exceeded",
-        cancellation,
-    )
-    .await
+    networking_buffers::tcp_read_into(stream, buffer, limit, deadline_nanos, cancellation).await
 }
 
-pub fn buffer_take_bytes(buffer: &Capability) -> ResultValue {
-    networking_buffers::take_bytes(buffer)
+pub fn platform_buffer_capacity(buffer: &Capability) -> ResultValue {
+    networking_buffers::buffer_capacity(buffer)
 }
 
+pub fn platform_buffer_completed(buffer: &Capability) -> ResultValue {
+    networking_buffers::buffer_completed(buffer)
+}
+
+pub fn buffer_filled_bytes(buffer: &Capability) -> ResultValue {
+    networking_buffers::buffer_filled_bytes(buffer)
+}
+
+pub fn buffer_filled_text(buffer: &Capability) -> ResultValue {
+    networking_buffers::buffer_filled_text(buffer)
+}
+
+pub fn buffer_read_with(
+    buffer: &Capability,
+    read: impl FnOnce(&mut [u8]) -> std::io::Result<usize>,
+) -> ResultValue {
+    networking_buffers::buffer_read_with(buffer, read)
+}
+
+// Native aliases may keep a TLS half borrowed by a pending operation. Close is
+// nonblocking and reports busy without disturbing either half; finish/cancel and
+// join that operation before retrying. Source consuming calls exclude such borrows.
 pub fn close(capability: &Capability) -> ResultValue {
     match capability.0.as_ref() {
         CapabilityInner::Listener(value) => {
@@ -2755,7 +2644,7 @@ mod tests {
     #[test]
     fn owned_read_buffer_reuses_storage_and_exposes_filled_text() {
         let buffer = result_capability(buffer_create(8));
-        assert_eq!(buffer_capacity(&buffer).number, 8);
+        assert_eq!(platform_buffer_capacity(&buffer).number, 8);
         let read = buffer_read_with(&buffer, |storage| {
             storage[..5].copy_from_slice(b"hello");
             Ok(5)
@@ -2768,8 +2657,10 @@ mod tests {
     }
 
     #[test]
-    fn read_buffer_take_preserves_storage_and_closed_buffer_rejects_use() {
+    fn read_buffer_metadata_tracks_mutation_and_closed_state() {
         let buffer = result_capability(buffer_create(4));
+        assert_eq!(platform_buffer_capacity(&buffer).number, 4);
+        assert_eq!(platform_buffer_completed(&buffer).number, 0);
         assert_eq!(
             buffer_read_with(&buffer, |bytes| {
                 bytes[..3].copy_from_slice(b"abc");
@@ -2778,13 +2669,13 @@ mod tests {
             .number,
             3
         );
-        assert_eq!(buffer_take_bytes(&buffer).data, b"abc");
-        assert_eq!(buffer_capacity(&buffer).number, 4);
-        assert_eq!(buffer_filled_bytes(&buffer).data, b"");
+        assert_eq!(platform_buffer_completed(&buffer).number, 3);
+        assert_eq!(buffer_filled_bytes(&buffer).data, b"abc");
+        assert!(!buffer_clear(&buffer).failed);
+        assert_eq!(platform_buffer_completed(&buffer).number, 0);
         assert!(!close(&buffer).failed);
-        assert!(buffer_capacity(&buffer).failed);
-        assert!(buffer_clear(&buffer).failed);
-        assert!(buffer_take_bytes(&buffer).failed);
+        assert!(platform_buffer_capacity(&buffer).failed);
+        assert!(platform_buffer_completed(&buffer).failed);
     }
     #[test]
     fn concurrency_capabilities_share_state_and_isolate_thread_locals() {
@@ -3488,6 +3379,18 @@ mod tests {
             assert!(!tls.failed, "{}", tls.message);
             assert_eq!(tls.text, "TLS 1.3");
             let tls = tls.capability.unwrap();
+            let pending_cancellation = cancellation_token();
+            let mut pending =
+                std::pin::pin!(tls_read_async(&tls, 1, -1, Some(&pending_cancellation)));
+            std::future::poll_fn(|context| {
+                assert!(std::future::Future::poll(pending.as_mut(), context).is_pending());
+                std::task::Poll::Ready(())
+            })
+            .await;
+            assert!(close(&tls).failed);
+            assert!(!cancel(&pending_cancellation).failed);
+            let canceled = pending.await;
+            assert!(canceled.failed && !canceled.deadline_exceeded);
             let read_cancellation = cancellation_token();
             let write_cancellation = cancellation_token();
             let (read, write) = tokio::join!(

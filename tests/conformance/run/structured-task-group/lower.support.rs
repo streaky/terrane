@@ -1152,6 +1152,7 @@ impl<T: Send + 'static> Drop for TerraneTaskGroup<T> {
         if self.drained {
             return;
         }
+        self.state.state.lock().scope.cancel();
         if TERRANE_CANCELLATION_CONTEXT
             .try_with(|context| {
                 context.finalizers.retain_task_group(self.state.clone());

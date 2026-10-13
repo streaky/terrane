@@ -532,6 +532,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 #[derive(Clone)]
 struct TerraneSelectControl {
     requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -581,7 +588,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .build()
         .expect("Terrane async runtime must initialize")
         .block_on(async move {
-            let output = future.await;
+            let output = __terrane_async_entry(future).await;
             __terrane_wait_projected_cleanups().await;
             output
         })

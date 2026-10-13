@@ -719,6 +719,10 @@ pub(crate) fn binding_span_has_interior_mutation(
     ) > 0
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keeps exhaustive mutation detection for one binding in one traversal."
+)]
 fn binding_mutation_count(
     package: &SemanticPackage,
     unit: &SemanticUnit,

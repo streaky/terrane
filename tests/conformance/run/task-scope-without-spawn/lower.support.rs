@@ -572,6 +572,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 fn __terrane_block_on_cancellable<F: Future>(
     future: F,
     cancelled: impl Fn() -> bool,
@@ -719,6 +726,57 @@ impl<T: Send + 'static> TerraneScopedTask<T> {
         }
     }
 }
+pub struct TerraneTaskGroup<T: Send + 'static> {
+    scope: TerraneTaskScope,
+    tasks: parking_lot::Mutex<Vec<TerraneScopedTask<T>>>,
+}
+impl<T: Send + 'static> Default for TerraneTaskGroup<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl<T: Send + 'static> TerraneTaskGroup<T> {
+    pub fn new() -> Self {
+        Self {
+            scope: TerraneTaskScope::new(None),
+            tasks: parking_lot::Mutex::new(Vec::new()),
+        }
+    }
+    pub fn scope(&self) -> TerraneTaskScope {
+        self.scope.clone()
+    }
+    pub fn cancel(&self) {
+        self.scope.cancel();
+    }
+    pub fn spawn(&self, task: TerraneScopedTask<T>) {
+        self.tasks.lock().push(task);
+    }
+    pub async fn prepare_drain(
+        self,
+    ) -> terrane_collection_support::List<TerraneTaskOutcome<T>> {
+        terrane_collection_support::List::new(self.drain().await)
+    }
+    #[expect(
+        clippy::unused_async,
+        clippy::unused_async_trait_impl,
+        reason = "uniform drain future defers blocking thread joins until the future is polled"
+    )]
+    pub async fn drain(self) -> Vec<TerraneTaskOutcome<T>> {
+        let tasks = std::mem::take(&mut *self.tasks.lock());
+        tasks.into_iter().map(|task| self.scope.join(task)).collect()
+    }
+}
+impl<T: Send + 'static> Drop for TerraneTaskGroup<T> {
+    fn drop(&mut self) {
+        self.scope.cancel();
+        for task in self.tasks.get_mut().drain(..) {
+            if let Some(handle) = task.handle {
+                let _ = handle.join();
+            }
+        }
+    }
+}
+#[derive(Clone)]
 pub struct TerraneTaskOutcome<T> {
     pub completed: bool,
     pub cancelled: bool,

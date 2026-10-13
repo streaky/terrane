@@ -1471,6 +1471,10 @@ fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::R
     manifest.push_str(&dependency.cargo_dependency_spec());
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "generated support publication keeps the complete deterministic crate inventory together"
+)]
 fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
     let int = directory.join("support/terrane-int-support");
     let collection = directory.join("support/terrane-collection-support");

@@ -1,4 +1,4 @@
-namespace core/networking/io
+namespace core/io
 
 from /core/time import deadline
 

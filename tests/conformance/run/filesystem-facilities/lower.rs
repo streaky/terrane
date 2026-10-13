@@ -52,7 +52,7 @@ fn main() {
     written = filesystem_write_atomic(
         fs.clone(),
         target.clone(),
-        Vec::from([99, 111, 110, 116, 101, 110, 116]),
+        Vec::<u8>::from([99, 111, 110, 116, 101, 110, 116]),
     );
     println!("{}", terrane_scalar_support::scalar_text(&written.failed));
     exists = filesystem_exists(fs.clone(), target.clone());
@@ -149,7 +149,7 @@ fn main() {
     partial = file_write(
         fs.clone(),
         &partial_target,
-        Vec::from([97, 98, 99]),
+        Vec::<u8>::from([97, 98, 99]),
         terrane_int_support::Int::from(1_i128),
     );
     println!(

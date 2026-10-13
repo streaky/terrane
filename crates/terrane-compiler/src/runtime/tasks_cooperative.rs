@@ -123,8 +123,6 @@ impl<T> TerraneTaskGroup<T> {
 impl<T> Drop for TerraneTaskGroup<T> {
     fn drop(&mut self) {
         self.scope.cancel();
-        if let Ok(tasks) = self.tasks.get_mut() {
-            tasks.clear();
-        }
+        self.tasks.get_mut().clear();
     }
 }

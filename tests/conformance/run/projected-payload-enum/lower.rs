@@ -109,7 +109,7 @@ fn main() {
     binary = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::Event::Binary(
-                Vec::from([65, 66]),
+                Vec::<u8>::from([65, 66]),
             )),
         ) {
             Ok(value) => Ok(value),

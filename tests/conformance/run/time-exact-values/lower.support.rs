@@ -586,6 +586,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 #[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
 fn terrane_time_domain() -> terrane_int_support::Int {
     terrane_int_support::Int::from(1_i128)

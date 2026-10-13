@@ -761,7 +761,7 @@ pub(super) fn resolved_compiler_identity<'a>(
             })
         })
         .map(Symbol::compiler_identity)
-        .or_else(|| match (unit.prelude, name) {
+        .or(match (unit.prelude, name) {
             (true, "task-scope") => Some("/core/async::task-scope"),
             (true, "task-group") => Some("/core/async::task-group"),
             _ => None,

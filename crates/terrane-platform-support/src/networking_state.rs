@@ -1,7 +1,8 @@
-use super::{Arc, ResultValue, TcpListener, TcpStream, UdpSocket, io_error};
+use super::{ResultValue, TcpListener, TcpStream, UdpSocket, io_error};
 use parking_lot::{Mutex, RwLock};
 use std::io;
 use std::ops::Deref;
+use std::sync::Arc;
 
 #[derive(Clone, Copy)]
 pub(super) struct TcpSettings {
@@ -225,6 +226,9 @@ impl Deref for TcpState {
     }
 }
 
+// Cloning a registered socket does not provide a separate blocking descriptor: O_NONBLOCK is
+// shared by the underlying file description. Synchronous UDP therefore waits on readiness and
+// never changes socket-wide mode or timeout options after async registration.
 pub(super) struct UdpState {
     socket: Mutex<Option<UdpSocket>>,
     readiness: Mutex<Option<Arc<tokio::net::UdpSocket>>>,

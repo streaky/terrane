@@ -34,6 +34,18 @@ fn collect_local_functions<'a>(node: &'a SyntaxNode, output: &mut Vec<&'a Syntax
 }
 impl Emitter<'_> {
     pub(in crate::lowering::emitter) fn function(&mut self, node: &SyntaxNode) {
+        if self.unit.bundled
+            && self.unit.namespace == "/core/streams"
+            && !crate::lowering::helpers::package_uses_advanced_streams(self.package)
+            && self
+                .unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == node.span)
+                .is_some_and(|contract| contract.is_async || contract.name == "make-read-buffer")
+        {
+            return;
+        }
         self.emit_function(node, None);
     }
 

@@ -99,6 +99,7 @@ impl<T: Send + 'static> Drop for TerraneTaskGroup<T> {
         if self.drained {
             return;
         }
+        self.state.state.lock().scope.cancel();
         if TERRANE_CANCELLATION_CONTEXT
             .try_with(|context| {
                 context.finalizers.retain_task_group(self.state.clone());
@@ -107,6 +108,8 @@ impl<T: Send + 'static> Drop for TerraneTaskGroup<T> {
         {
             return;
         }
+        // Foreign callers without an async cancellation context cannot join here.
+        // Cancel cooperatively before aborting retained handles as a last resort.
         let mut state = self.state.state.lock();
         state.scope.cancel();
         for task in state.tasks.drain(..) {
