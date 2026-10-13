@@ -20,11 +20,10 @@ fn main() {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = fail();
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        std::sync::Arc::new(move || -> std::pin::Pin<
-                            Box<dyn Future<Output = _> + Send>,
-                        > { Box::pin(fail()) })(),
+                        __terrane_spawned_task,
                         __terrane_cancel,
                         __terrane_deadline,
                     )

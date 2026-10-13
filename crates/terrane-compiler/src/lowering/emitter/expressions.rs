@@ -880,6 +880,21 @@ impl Emitter<'_> {
             {
                 format!("({}).terrane_separate()", self.expression(node))
             }
+            ValueType::Object(ref name)
+                if node.kind == SyntaxKind::MemberExpression
+                    && !self.value_type_owns_resource(&value_type)
+                    && node.children.first().is_some_and(|receiver| {
+                        self.binding_value_is_reused(receiver)
+                            || self.non_consuming_capture_read(receiver)
+                    }) =>
+            {
+                let expression = self.expression(node);
+                if self.object_requires_separation(name) {
+                    format!("({expression}).terrane_separate()")
+                } else {
+                    format!("({expression}).clone()")
+                }
+            }
 
             ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
             | ValueType::List(_)
