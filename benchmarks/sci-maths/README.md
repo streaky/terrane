@@ -18,6 +18,13 @@ python3 benchmarks/sci-maths/run.py report
 python3 benchmarks/sci-maths/run.py report --cold-builds
 ```
 
+The language-neutral implementation lives in `benchmarks/runner.py`; each suite has a thin
+`run.py` entry point that selects its own `suite.toml`. Run the shared runner through one of
+those entry points so it can resolve suite paths and repository-relative tools correctly.
+
+Shared runner regression checks live in `benchmarks/tests/` and run with
+`python3 -m unittest discover -s benchmarks/tests -v`.
+
 Global group, problem, and lane selectors go before the command and may be repeated:
 
 ```console

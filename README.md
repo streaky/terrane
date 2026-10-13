@@ -152,6 +152,7 @@ The [Terrane manual](https://github.com/streaky/terrane-manual) is maintained in
 - [Rust dependency design](docs/rust-deps.md) — projection architecture and design background.
 - [Legacy specification/architecture draft](docs/language-spec-and-compiler-architecture-draft.md) — historical inventory, **not authority over the current manual or executable conformance**.
 - [Scientific math benchmarks](benchmarks/sci-maths/) — cross-language correctness, runtime, and peak-memory evidence.
+- [Practical benchmarks](benchmarks/practical/) — HTTP/1 workloads with standalone Terrane source and attributed Go/Rust references.
 
 ## Developing the compiler
 

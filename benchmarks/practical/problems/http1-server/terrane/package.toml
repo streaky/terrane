@@ -1,0 +1,9 @@
+package = "benchmark-http1-server"
+executor = "threaded"
+
+[profile]
+name = "benchmark"
+capabilities = ["process", "networking"]
+
+[namespaces]
+benchmark-http1-server = "src"

@@ -1,0 +1,25 @@
+format = 2
+name = "Terrane practical workloads"
+
+[measurement]
+warmups = 2
+runs = 7
+setup-timeout-seconds = 600
+runtime-timeout-seconds = 60
+
+[[lanes]]
+path = "lanes/terrane.toml"
+
+[[lanes]]
+path = "lanes/go.toml"
+
+[[lanes]]
+path = "lanes/rust.toml"
+
+[[groups]]
+id = "http1"
+name = "HTTP/1 workloads"
+lanes = ["terrane", "go", "rust"]
+
+[[groups.problems]]
+path = "problems/http1-server"

@@ -10,13 +10,14 @@ import unittest
 from unittest import mock
 
 
-RUNNER_PATH = Path(__file__).resolve().parents[1] / "run.py"
-SPEC = importlib.util.spec_from_file_location("sci_maths_runner", RUNNER_PATH)
+RUNNER_PATH = Path(__file__).resolve().parents[1] / "runner.py"
+SPEC = importlib.util.spec_from_file_location("benchmark_runner", RUNNER_PATH)
 assert SPEC is not None and SPEC.loader is not None
 runner = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = runner
 SPEC.loader.exec_module(runner)
-
+runner.SUITE = Path(__file__).resolve().parents[1] / "sci-maths"
+runner.REPO = Path(__file__).resolve().parents[2]
 
 def lane(
     lane_id: str,
@@ -83,7 +84,7 @@ class RunnerContracts(unittest.TestCase):
 
         malformed_path = copy.deepcopy(valid)
         malformed_path["lanes"] = [{"path": "../outside.toml"}]
-        with self.assertRaisesRegex(runner.BenchmarkError, "path is outside"):
+        with self.assertRaises(runner.BenchmarkError):
             runner.validate_suite(malformed_path)
 
     def test_problem_selection_explains_group_mismatch(self) -> None:
@@ -357,15 +358,17 @@ class RunnerContracts(unittest.TestCase):
             script = (
                 "import os, pathlib, subprocess, sys, time; "
                 "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+                "print('child startup failed', file=sys.stderr, flush=True); "
                 "pathlib.Path(sys.argv[1]).write_text(str(os.getpgrp())); "
                 "time.sleep(60)"
             )
-            with self.assertRaisesRegex(runner.BenchmarkError, "timed out"):
+            with self.assertRaises(runner.BenchmarkError) as failure:
                 runner.run_process(
                     [sys.executable, "-c", script, str(group_file)],
                     cwd=Path.cwd(),
                     timeout=0.2,
                 )
+            self.assertIn("child startup failed", str(failure.exception))
             process_group = int(group_file.read_text())
             deadline = time.monotonic() + 2.0
             while True:

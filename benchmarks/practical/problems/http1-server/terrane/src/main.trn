@@ -1,0 +1,143 @@
+namespace benchmark-http1-server
+
+from /core/streams import make-read-buffer
+from /core/process import arguments, exit, make-exit-status
+from /core/networking import tcp-stream, tcp-listener, socket-address, socket-address-from-string, bind-tcp, connect-tcp
+from /core/documents/json import decode-typed-json, json-options
+from /core/documents import document-decodable
+from /core/errors import throwable
+
+class benchmark-failure implements throwable
+    message string = 'HTTP benchmark failed'
+    function render string;
+        return this.message
+
+class payload implements document-decodable
+    value uint64 = 0
+
+# This is a bounded loopback benchmark, not a general-purpose HTTP implementation.
+# Connections carry one Content-Length-framed HTTP/1.1 exchange and then close.
+class http-connection
+    stream tcp-stream
+
+    function construct; stream tcp-stream
+        this.stream = move stream
+
+    async function read-message string; start-line string
+        allocated = make-read-buffer; 4096
+        if allocated.failed
+            throw instance benchmark-failure;
+        buffer = move allocated.value
+        body-length int = -1
+        header-length int = 0
+        while buffer.completed < buffer.capacity
+            remaining = buffer.capacity - buffer.completed
+            received = await this.stream.read-into-async; move buffer, remaining
+            buffer = move received.buffer
+            if received.failed or received.end
+                throw instance benchmark-failure;
+            filled = buffer.filled-text;
+            if filled.failed
+                throw instance benchmark-failure;
+            text = filled.value
+            parts = text.split; '\r\n\r\n'
+            if parts.length > 1
+                if body-length < 0
+                    headers = parts[0].split; '\r\n'
+                    if headers[0] != start-line
+                        throw instance benchmark-failure;
+                    for header in headers
+                        if header.contains.start; 'Content-Length:'
+                            length-text = header.trim.start; 'Content-Length:'
+                            body-length = (length-text.trim;).radix; 10
+                    if body-length < 0
+                        exit; (make-exit-status; 1)
+                    header-length = parts[0].bytes.length + 4
+                if buffer.completed >= header-length + body-length
+                    return parts[1]
+        throw instance benchmark-failure;
+
+    consuming function close;
+        stream = move this.stream
+        stream.close;
+
+async function handle-request none throws throwable; stream tcp-stream
+    connection = instance http-connection; move stream
+    body = await connection.read-message; 'POST /api HTTP/1.1'
+    parsed = decode-typed-json; body, payload, (instance json-options; 4, 128), true
+    if parsed.failed
+        exit; (make-exit-status; 1)
+    text = parsed.value.value.to-string;
+    response = 'HTTP/1.1 200 OK\r\nContent-Length: '.concat; text.bytes.length, '\r\nConnection: close\r\n\r\n', text
+    written = await connection.stream.write-all-async; (response.encode; utf8)
+    if written.failed
+        throw instance benchmark-failure;
+    connection.close;
+    return none
+
+async function serve none throws throwable; listener tcp-listener, count int
+    handlers = task-group; none
+    index int = 0
+    while index < count
+        accepted = await listener.accept;
+        if accepted.failed
+            exit; (make-exit-status; 1)
+        handlers.spawn; (handle-request; move accepted.value)
+        index = index + 1
+    listener.close;
+    outcomes = await handlers.drain;
+    for outcome in outcomes
+        if not outcome.completed
+            exit; (make-exit-status; 1)
+    return none
+
+async function send-one int throws throwable; address socket-address, value int
+    connected = await connect-tcp; address
+    if connected.failed
+        exit; (make-exit-status; 1)
+    connection = instance http-connection; move connected.value
+    payload = '{"value":'.concat; value, '}'
+    request = 'POST /api HTTP/1.1\r\nHost: localhost\r\nContent-Length: '.concat; payload.bytes.length, '\r\nConnection: close\r\n\r\n', payload
+    written = await connection.stream.write-all-async; (request.encode; utf8)
+    if written.failed
+        throw instance benchmark-failure;
+    response = await connection.read-message; 'HTTP/1.1 200 OK'
+    connection.close;
+    decoded int = response.radix; 10
+    if decoded != value
+        throw instance benchmark-failure;
+    return decoded
+
+
+async function main;
+    supplied = arguments;
+    if supplied.length != 1
+        exit; (make-exit-status; 2)
+    count int = supplied[0].text.radix; 10
+    if count <= 0
+        exit; (make-exit-status; 2)
+    endpoint = socket-address-from-string; '127.0.0.1:0'
+    bound = bind-tcp; endpoint.value
+    if bound.failed
+        exit; (make-exit-status; 1)
+    listener = move bound.value
+    destination = socket-address-from-string; listener.local-address
+    scope = task-scope;
+    server = scope.spawn; (serve; move listener, count)
+    requests = task-group; int
+    index int = 1
+    while index <= count
+        requests.spawn; (send-one; destination.value, index)
+        index = index + 1
+    outcomes = await requests.drain;
+    total int = 0
+    for result in outcomes
+        value = result.value
+        if not result.completed or value == none
+            exit; (make-exit-status; 1)
+        if value != none
+            total = total + value
+    outcome = await scope.join; server
+    if not outcome.completed
+        exit; (make-exit-status; 1)
+    print; total

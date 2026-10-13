@@ -1,0 +1,12 @@
+id = "http1-server"
+title = "Concurrent HTTP/1 JSON request-response workload"
+result = "integer"
+dataset = "For size N, concurrently POST N JSON requests to /api, with request {\"value\":i} for i from 1 through N; each handler returns i as decimal text and the process prints the sum N*(N+1)/2."
+
+[profiles.correctness]
+size = 10
+expected = 55
+
+[profiles.performance]
+size = 1000
+expected = 500500
