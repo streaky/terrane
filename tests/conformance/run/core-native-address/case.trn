@@ -1,0 +1,15 @@
+namespace app
+
+from /core/networking/native import native-socket-address
+
+function make-address native-socket-address;
+    return rust
+        std::net::SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 1234)
+
+function port uint16; address ref native-socket-address
+    return rust
+        address.port()
+
+function main;
+    address = make-address;
+    print; (port; ref address)

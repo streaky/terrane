@@ -486,6 +486,7 @@ fn websocket_route(
 async fn run_server() -> Result<(), TerraneError> {
     let mut router: axum::Router<()>;
     let listener: TcpListener;
+    let native: NativeTcpListener;
     router = __terrane_raised_err(
         terrane_static_trn_526f75746572_new::<()>(),
         25 /* terrane-site: src/main.trn:57:12-57:24 */,
@@ -568,55 +569,17 @@ async fn run_server() -> Result<(), TerraneError> {
         }),
     );
     listener = __terrane_traced_err(
-        __terrane_await({
-                let __terrane_future = {
-                    let __terrane_call = tokio::net::TcpListener::bind(
-                        String::from("127.0.0.1:38765"),
-                    );
-                    async move {
-                        match crate::__terrane_dependency_await_unwind(__terrane_call)
-                            .await
-                        {
-                            Ok(Ok(value)) => Ok(value),
-                            Ok(Err(error)) => {
-                                Err(
-                                    crate::TerraneForeignError(
-                                        crate::TerraneError::custom_raised(
-                                            crate::TERRANE_DEPENDENCY_ERROR,
-                                            format!(
-                                                "Rust dependency `dependency` member `tokio :: net :: TcpListener :: bind` failed: {error}"
-                                            ),
-                                            crate::TERRANE_NO_SITE,
-                                        ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "dependency",
-                                        "tokio :: net :: TcpListener :: bind",
-                                    ),
-                                )
-                            }
-                        }
-                    }
-                };
-                async move {
-                    __terrane_raised_err(
-                        __terrane_future.await,
-                        28 /* terrane-site: src/main.trn:60:20-60:56 */,
-                    )
-                }
-            })
-            .await,
-        28 /* terrane-site: src/main.trn:60:20-60:56 */,
+        __terrane_await(listen_tcp(String::from("127.0.0.1:38765"), None)).await,
+        28 /* terrane-site: src/main.trn:60:20-60:49 */,
+    )?;
+    native = __terrane_traced_err(
+        listener.into_native(),
+        29 /* terrane-site: src/main.trn:61:12-61:33 */,
     )?;
     __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
-                    let __terrane_call = axum::serve(listener, router);
+                    let __terrane_call = axum::serve(native, router);
                     async move {
                         match crate::__terrane_dependency_await_unwind(
                                 std::future::IntoFuture::into_future(__terrane_call),
@@ -652,12 +615,12 @@ async fn run_server() -> Result<(), TerraneError> {
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        29 /* terrane-site: src/main.trn:61:10-61:43 */,
+                        30 /* terrane-site: src/main.trn:62:10-62:41 */,
                     )
                 }
             })
             .await,
-        30 /* terrane-site: src/main.trn:61:9-61:44 */,
+        31 /* terrane-site: src/main.trn:62:9-62:42 */,
     )?;
     Ok(())
 }
@@ -692,12 +655,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            31 /* terrane-site: src/main.trn:66:9-66:20 */,
+                            32 /* terrane-site: src/main.trn:67:9-67:20 */,
                         )
                     }
                 })
                 .await,
-            31 /* terrane-site: src/main.trn:66:9-66:20 */,
+            32 /* terrane-site: src/main.trn:67:9-67:20 */,
         );
         scope.cancel();
         {

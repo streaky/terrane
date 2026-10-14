@@ -1,0 +1,6 @@
+namespace app
+
+from /core/networking/native import native-tcp-stream
+
+function main;
+    stream = instance native-tcp-stream;

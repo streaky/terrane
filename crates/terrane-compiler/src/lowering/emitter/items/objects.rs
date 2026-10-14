@@ -269,6 +269,15 @@ impl<'a> Emitter<'a> {
             .iter()
             .find(|object| object.span == node.span)
             .expect("analyzed object declaration must have a semantic contract");
+        if let Some(native) = crate::rust_interop::projection::core_native::rust_type(
+            &object.identity.namespace,
+            &object.identity.name,
+        ) {
+            let name = rust_object_type_name(self.package, &object.identity);
+            let native = self.package.projection.canonical_native_type(native);
+            self.line(&format!("pub type {name} = {native};"));
+            return;
+        }
         let advanced_streams = self.unit.namespace != "/core/streams"
             || crate::lowering::helpers::package_uses_advanced_streams(self.package);
         if Self::omit_advanced_stream_object(advanced_streams, self.unit, object) {
@@ -1172,17 +1181,20 @@ impl<'a> Emitter<'a> {
                         self.projected_interface_implementation(object, interface_identity);
                         continue;
                     }
-                    let interface_unit = self
+                    let (interface_unit, interface) = self
                         .package
                         .units
                         .iter()
-                        .find(|candidate| candidate.namespace == interface_identity.namespace)
-                        .expect("resolved interface namespace");
-                    let interface = interface_unit
-                        .descriptors
-                        .iter()
-                        .find(|candidate| candidate.identity.base() == interface_identity.base())
-                        .expect("validated interface contract");
+                        .find_map(|unit| {
+                            unit.descriptors
+                                .iter()
+                                .find(|candidate| {
+                                    candidate.span.file == unit.source.id()
+                                        && candidate.identity.base() == interface_identity.base()
+                                })
+                                .map(|interface| (unit, interface))
+                        })
+                        .expect("validated interface declaration");
                     let interface_type =
                         rust_source_type_application(self.package, interface_identity);
                     let interface_base =

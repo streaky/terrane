@@ -1,0 +1,469 @@
+{
+  "bound_dependencies": [
+    {
+      "name": "__terrane_recursive_libc",
+      "package": "libc",
+      "version": "=0.2.190"
+    }
+  ],
+  "dependencies": [
+    {
+      "members": {
+        "/deps/socket2": [
+          "Domain",
+          "Domain.clone",
+          "Domain.eq",
+          "Domain.into",
+          "Domain.try_into",
+          "Domain::for_address",
+          "Duration",
+          "Duration.abs_diff",
+          "Duration.add",
+          "Duration.add_assign",
+          "Duration.as_micros",
+          "Duration.as_millis",
+          "Duration.as_millis_f32",
+          "Duration.as_millis_f64",
+          "Duration.as_nanos",
+          "Duration.as_secs",
+          "Duration.as_secs_f32",
+          "Duration.as_secs_f64",
+          "Duration.checked_add",
+          "Duration.checked_div",
+          "Duration.checked_mul",
+          "Duration.checked_sub",
+          "Duration.clone",
+          "Duration.cmp",
+          "Duration.div",
+          "Duration.div_assign",
+          "Duration.div_duration_ceil",
+          "Duration.div_duration_f32",
+          "Duration.div_duration_f64",
+          "Duration.div_duration_floor",
+          "Duration.div_f32",
+          "Duration.div_f64",
+          "Duration.eq",
+          "Duration.into",
+          "Duration.is_zero",
+          "Duration.mul_assign",
+          "Duration.mul_f32",
+          "Duration.mul_f64",
+          "Duration.partial_cmp",
+          "Duration.saturating_add",
+          "Duration.saturating_mul",
+          "Duration.saturating_sub",
+          "Duration.sub",
+          "Duration.sub_assign",
+          "Duration.subsec_micros",
+          "Duration.subsec_millis",
+          "Duration.subsec_nanos",
+          "Duration.try_into",
+          "Duration::default",
+          "Duration::from_days",
+          "Duration::from_hours",
+          "Duration::from_micros",
+          "Duration::from_millis",
+          "Duration::from_mins",
+          "Duration::from_nanos",
+          "Duration::from_nanos_u128",
+          "Duration::from_secs",
+          "Duration::from_secs_f32",
+          "Duration::from_secs_f64",
+          "Duration::from_weeks",
+          "Duration::new",
+          "Duration::try_from_secs_f32",
+          "Duration::try_from_secs_f64",
+          "InterfaceIndexOrAddress",
+          "Ipv4Addr",
+          "Ipv4Addr.clone",
+          "Ipv4Addr.cmp",
+          "Ipv4Addr.into",
+          "Ipv4Addr.is_benchmarking",
+          "Ipv4Addr.is_broadcast",
+          "Ipv4Addr.is_documentation",
+          "Ipv4Addr.is_global",
+          "Ipv4Addr.is_link_local",
+          "Ipv4Addr.is_loopback",
+          "Ipv4Addr.is_multicast",
+          "Ipv4Addr.is_private",
+          "Ipv4Addr.is_reserved",
+          "Ipv4Addr.is_shared",
+          "Ipv4Addr.is_unspecified",
+          "Ipv4Addr.to_bits",
+          "Ipv4Addr.to_ipv6_compatible",
+          "Ipv4Addr.to_ipv6_mapped",
+          "Ipv4Addr.try_into",
+          "Ipv4Addr::backward_checked",
+          "Ipv4Addr::backward_unchecked",
+          "Ipv4Addr::forward_checked",
+          "Ipv4Addr::forward_unchecked",
+          "Ipv4Addr::from_bits",
+          "Ipv4Addr::from_str",
+          "Ipv4Addr::new",
+          "Ipv6Addr",
+          "Ipv6Addr.clone",
+          "Ipv6Addr.cmp",
+          "Ipv6Addr.into",
+          "Ipv6Addr.is_benchmarking",
+          "Ipv6Addr.is_documentation",
+          "Ipv6Addr.is_global",
+          "Ipv6Addr.is_ipv4_mapped",
+          "Ipv6Addr.is_loopback",
+          "Ipv6Addr.is_multicast",
+          "Ipv6Addr.is_unicast",
+          "Ipv6Addr.is_unicast_global",
+          "Ipv6Addr.is_unicast_link_local",
+          "Ipv6Addr.is_unique_local",
+          "Ipv6Addr.is_unspecified",
+          "Ipv6Addr.multicast_scope",
+          "Ipv6Addr.to_bits",
+          "Ipv6Addr.to_canonical",
+          "Ipv6Addr.to_ipv4",
+          "Ipv6Addr.to_ipv4_mapped",
+          "Ipv6Addr.try_into",
+          "Ipv6Addr::backward_checked",
+          "Ipv6Addr::backward_unchecked",
+          "Ipv6Addr::forward_checked",
+          "Ipv6Addr::forward_unchecked",
+          "Ipv6Addr::from_bits",
+          "Ipv6Addr::from_str",
+          "Ipv6Addr::new",
+          "Protocol",
+          "Protocol.clone",
+          "Protocol.eq",
+          "Protocol.into",
+          "Protocol.try_into",
+          "RecvFlags",
+          "RecvFlags.clone",
+          "RecvFlags.eq",
+          "RecvFlags.into",
+          "RecvFlags.is_end_of_record",
+          "RecvFlags.is_out_of_band",
+          "RecvFlags.is_truncated",
+          "RecvFlags.try_into",
+          "SockAddr",
+          "SockAddr.as_pathname",
+          "SockAddr.as_socket",
+          "SockAddr.as_socket_ipv4",
+          "SockAddr.as_socket_ipv6",
+          "SockAddr.as_storage",
+          "SockAddr.as_unix",
+          "SockAddr.clone",
+          "SockAddr.domain",
+          "SockAddr.eq",
+          "SockAddr.family",
+          "SockAddr.into",
+          "SockAddr.is_ipv4",
+          "SockAddr.is_ipv6",
+          "SockAddr.is_unix",
+          "SockAddr.is_unnamed",
+          "SockAddr.len",
+          "SockAddr.set_length",
+          "SockAddr.try_into",
+          "SockAddr::new",
+          "SockAddr::unix",
+          "SockAddrStorage",
+          "SockAddrStorage.into",
+          "SockAddrStorage.size_of",
+          "SockAddrStorage.try_into",
+          "SockAddrStorage.view_as",
+          "SockAddrStorage::zeroed",
+          "Socket",
+          "Socket.as_fd",
+          "Socket.as_raw_fd",
+          "Socket.bind",
+          "Socket.broadcast",
+          "Socket.connect",
+          "Socket.connect_timeout",
+          "Socket.into",
+          "Socket.into_raw_fd",
+          "Socket.join_multicast_v4",
+          "Socket.join_multicast_v4_n",
+          "Socket.join_multicast_v6",
+          "Socket.join_ssm_v4",
+          "Socket.keepalive",
+          "Socket.leave_multicast_v4",
+          "Socket.leave_multicast_v4_n",
+          "Socket.leave_multicast_v6",
+          "Socket.leave_ssm_v4",
+          "Socket.linger",
+          "Socket.listen",
+          "Socket.local_addr",
+          "Socket.multicast_hops_v6",
+          "Socket.multicast_if_v4",
+          "Socket.multicast_if_v6",
+          "Socket.multicast_loop_v4",
+          "Socket.multicast_loop_v6",
+          "Socket.multicast_ttl_v4",
+          "Socket.only_v6",
+          "Socket.out_of_band_inline",
+          "Socket.passcred",
+          "Socket.peek_sender",
+          "Socket.peer_addr",
+          "Socket.read_timeout",
+          "Socket.recv_buffer_size",
+          "Socket.recv_tclass_v6",
+          "Socket.recv_tos_v4",
+          "Socket.reuse_address",
+          "Socket.send_buffer_size",
+          "Socket.set_broadcast",
+          "Socket.set_keepalive",
+          "Socket.set_linger",
+          "Socket.set_multicast_hops_v6",
+          "Socket.set_multicast_if_v4",
+          "Socket.set_multicast_if_v6",
+          "Socket.set_multicast_loop_v4",
+          "Socket.set_multicast_loop_v6",
+          "Socket.set_multicast_ttl_v4",
+          "Socket.set_nonblocking",
+          "Socket.set_only_v6",
+          "Socket.set_out_of_band_inline",
+          "Socket.set_passcred",
+          "Socket.set_read_timeout",
+          "Socket.set_recv_buffer_size",
+          "Socket.set_recv_tclass_v6",
+          "Socket.set_recv_tos_v4",
+          "Socket.set_reuse_address",
+          "Socket.set_send_buffer_size",
+          "Socket.set_tcp_keepalive",
+          "Socket.set_tcp_nodelay",
+          "Socket.set_tos_v4",
+          "Socket.set_ttl_v4",
+          "Socket.set_unicast_hops_v6",
+          "Socket.set_write_timeout",
+          "Socket.shutdown",
+          "Socket.take_error",
+          "Socket.tcp_nodelay",
+          "Socket.tos_v4",
+          "Socket.try_clone",
+          "Socket.try_into",
+          "Socket.ttl_v4",
+          "Socket.type",
+          "Socket.unicast_hops_v6",
+          "Socket.write_timeout",
+          "Socket::from_raw_fd",
+          "Socket::new",
+          "Socket::new_raw",
+          "SocketAddr",
+          "SocketAddrV4",
+          "SocketAddrV4.clone",
+          "SocketAddrV4.cmp",
+          "SocketAddrV4.eq",
+          "SocketAddrV4.into",
+          "SocketAddrV4.ip",
+          "SocketAddrV4.partial_cmp",
+          "SocketAddrV4.port",
+          "SocketAddrV4.set_ip",
+          "SocketAddrV4.set_port",
+          "SocketAddrV4.try_into",
+          "SocketAddrV4::from",
+          "SocketAddrV4::from_str",
+          "SocketAddrV4::new",
+          "SocketAddrV6",
+          "SocketAddrV6.clone",
+          "SocketAddrV6.cmp",
+          "SocketAddrV6.eq",
+          "SocketAddrV6.flowinfo",
+          "SocketAddrV6.into",
+          "SocketAddrV6.ip",
+          "SocketAddrV6.partial_cmp",
+          "SocketAddrV6.port",
+          "SocketAddrV6.scope_id",
+          "SocketAddrV6.set_flowinfo",
+          "SocketAddrV6.set_ip",
+          "SocketAddrV6.set_port",
+          "SocketAddrV6.set_scope_id",
+          "SocketAddrV6.try_into",
+          "SocketAddrV6::from",
+          "SocketAddrV6::from_str",
+          "SocketAddrV6::new",
+          "TcpKeepalive",
+          "TcpKeepalive.clone",
+          "TcpKeepalive.into",
+          "TcpKeepalive.try_into",
+          "TcpKeepalive.with_interval",
+          "TcpKeepalive.with_time",
+          "TcpKeepalive::new",
+          "Type",
+          "Type.clone",
+          "Type.eq",
+          "Type.into",
+          "Type.try_into",
+          "borrowed-option",
+          "borrowed-option.and_then",
+          "borrowed-option.cloned",
+          "borrowed-option.map",
+          "sa_family_t",
+          "socklen_t"
+        ],
+        "/deps/socket2/domain/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/socket2/domain/trait/core/convert/from-socket2/domain": [
+          "from"
+        ],
+        "/deps/socket2/duration/trait/core/ops/arith/mul-u32": [
+          "mul"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/cmp/partialeq-socket2/ipv4addr": [
+          "eq"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/cmp/partialeq-std/net/ipaddr": [
+          "eq"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/cmp/partialord-socket2/ipv4addr": [
+          "partial_cmp"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/cmp/partialord-std/net/ipaddr": [
+          "partial_cmp"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/convert/from-u32": [
+          "from"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/ops/bit/bitand": [
+          "bitand"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/ops/bit/bitandassign": [
+          "bitand_assign"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/ops/bit/bitandassign-socket2/ipv4addr": [
+          "bitand_assign"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/ops/bit/bitor": [
+          "bitor"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/ops/bit/bitorassign": [
+          "bitor_assign"
+        ],
+        "/deps/socket2/ipv4addr/trait/core/ops/bit/bitorassign-socket2/ipv4addr": [
+          "bitor_assign"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/cmp/partialeq": [
+          "eq"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/cmp/partialeq-socket2/ipv6addr": [
+          "eq"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/cmp/partialeq-std/net/ipaddr": [
+          "eq"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/cmp/partialord": [
+          "partial_cmp"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/cmp/partialord-socket2/ipv6addr": [
+          "partial_cmp"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/cmp/partialord-std/net/ipaddr": [
+          "partial_cmp"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/convert/from-u128": [
+          "from"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/ops/bit/bitand": [
+          "bitand"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/ops/bit/bitandassign": [
+          "bitand_assign"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/ops/bit/bitandassign-socket2/ipv6addr": [
+          "bitand_assign"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/ops/bit/bitor": [
+          "bitor"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/ops/bit/bitorassign": [
+          "bitor_assign"
+        ],
+        "/deps/socket2/ipv6addr/trait/core/ops/bit/bitorassign-socket2/ipv6addr": [
+          "bitor_assign"
+        ],
+        "/deps/socket2/protocol/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/socket2/protocol/trait/core/convert/from-socket2/protocol": [
+          "from"
+        ],
+        "/deps/socket2/sockaddr/sockaddr": [
+          "new"
+        ],
+        "/deps/socket2/sockaddr/trait/core/convert/from-core/net/socket-addr/socketaddrv4": [
+          "from"
+        ],
+        "/deps/socket2/sockaddr/trait/core/convert/from-core/net/socket-addr/socketaddrv6": [
+          "from"
+        ],
+        "/deps/socket2/sockaddr/trait/core/convert/from-std/net/socketaddr": [
+          "from"
+        ],
+        "/deps/socket2/socket/socket": [
+          "bind",
+          "connect",
+          "join_multicast_v4",
+          "join_multicast_v4_n",
+          "join_multicast_v6",
+          "join_ssm_v4",
+          "new",
+          "new_raw",
+          "out_of_band_inline",
+          "peek_sender",
+          "set_broadcast",
+          "set_keepalive",
+          "set_linger",
+          "set_multicast_hops_v6",
+          "set_multicast_if_v4",
+          "set_multicast_if_v6",
+          "set_multicast_loop_v4",
+          "set_multicast_loop_v6",
+          "set_multicast_ttl_v4",
+          "set_only_v6",
+          "set_out_of_band_inline",
+          "set_passcred",
+          "set_recv_buffer_size",
+          "set_recv_tclass_v6",
+          "set_recv_tos_v4",
+          "set_reuse_address",
+          "set_send_buffer_size",
+          "set_tcp_keepalive",
+          "set_tcp_nodelay",
+          "set_tos_v4",
+          "set_ttl_v4"
+        ],
+        "/deps/socket2/socket/trait/core/convert/from-std/net/tcp/tcplistener": [
+          "from"
+        ],
+        "/deps/socket2/socket/trait/core/convert/from-std/net/tcp/tcpstream": [
+          "from"
+        ],
+        "/deps/socket2/socket/trait/core/convert/from-std/net/udp/udpsocket": [
+          "from"
+        ],
+        "/deps/socket2/socket/trait/core/convert/from-std/os/fd/owned/ownedfd": [
+          "from"
+        ],
+        "/deps/socket2/socketaddr/trait/core/convert/from-socket2/socketaddrv4": [
+          "from"
+        ],
+        "/deps/socket2/socketaddr/trait/core/convert/from-socket2/socketaddrv6": [
+          "from"
+        ],
+        "/deps/socket2/type/trait/core/convert/from-i32": [
+          "from"
+        ],
+        "/deps/socket2/type/trait/core/convert/from-socket2/type": [
+          "from"
+        ]
+      },
+      "name": "socket2",
+      "version": "0.6.5"
+    }
+  ],
+  "format": 4,
+  "removed": [],
+  "source": "Local"
+}

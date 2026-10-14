@@ -349,20 +349,28 @@ fn compilation_rust_dependencies(
             dependency
         })
         .collect::<Vec<_>>();
-    dependencies.extend(
-        projection
-            .bound_dependencies
-            .iter()
-            .map(|dependency| RustDependency {
+    for dependency in &projection.bound_dependencies {
+        if let Some(existing) = dependencies
+            .iter_mut()
+            .find(|existing| existing.name == dependency.name)
+        {
+            existing
+                .features
+                .extend(dependency.features.iter().cloned());
+            existing.features.sort();
+            existing.features.dedup();
+        } else {
+            dependencies.push(RustDependency {
                 name: dependency.name.clone(),
                 package: dependency.package.clone(),
                 version: dependency.version.clone(),
-                features: Vec::new(),
+                features: dependency.features.clone(),
                 default_features: false,
                 target: None,
                 effects: Vec::new(),
-            }),
-    );
+            });
+        }
+    }
     dependencies
 }
 

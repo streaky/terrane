@@ -1,0 +1,48 @@
+namespace core-native-transport
+
+from /core/networking import listen-tcp, tcp-listener-options, socket-address-from-string, connect-tcp, network-error
+from /core/networking/native import native-tcp-listener, native-tcp-stream
+from /core/process import exit, make-exit-status
+
+async function serve-one none; listener native-tcp-listener
+    return await serve-borrowed; ref listener
+
+async function serve-borrowed none; listener ref native-tcp-listener
+    return rust
+        crate::native::serve_one(listener).await
+
+async function exchange string; stream ref native-tcp-stream
+    return rust
+        crate::native::exchange(stream).await
+
+async function main none throws network-error;
+    options = instance tcp-listener-options; -1, false, true, 23
+    listener = await listen-tcp; 'localhost:0', options
+    address = socket-address-from-string; listener.local-address
+    if address.failed
+        exit; (make-exit-status; 1)
+    exported-listener = listener.into-native;
+    servers = task-group; none
+    servers.spawn; (serve-one; move exported-listener)
+    completed bool = false
+    try
+        connected = await connect-tcp; address.value
+        if connected.failed
+            exit; (make-exit-status; 2)
+        stream = (move connected).value
+        exported = stream.into-native;
+        response = await exchange; ref exported
+        print; response
+        completed = true
+    finally
+        if not completed
+            servers.cancel;
+        outcomes = await servers.drain;
+        for outcome in outcomes
+            if outcome.error != none
+                exit; (make-exit-status; 3)
+    try
+        _ = await listen-tcp; 'missing-port'
+    catch network-error
+        print; 'invalid-address'
+    return none

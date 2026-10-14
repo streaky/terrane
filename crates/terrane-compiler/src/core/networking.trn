@@ -4,6 +4,17 @@ from /core/collections import list
 from /core/streams import async-byte-reader, async-byte-writer, stream-operation-result, read-result, write-result, owned-read-buffer, buffered-read-result
 from /core/streams import exact-read-progress, write-progress
 from /core/io import cancellation-token, io-operation-options, io-operation-result, cancel-operation, operation-cancellation, operation-deadline
+from /core/networking/native import native-tcp-listener, native-tcp-stream
+from /core/errors import throwable
+
+class network-error implements throwable
+    message string = ''
+
+    function construct; message string
+        this.message = message
+
+    function render string;
+        return this.message
 
 class tcp-options
     no-delay bool = false
@@ -109,6 +120,11 @@ class tcp-stream implements async-byte-reader, async-byte-writer
 
     private function construct; resource host-platform-resource-handle
         this.handle = resource
+    consuming function into-native native-tcp-stream throws network-error;
+        raw = host-tcp-stream-into-native; this.handle
+        if host-native-result-failed; raw
+            throw instance network-error; (host-native-result-message; raw)
+        return host-native-stream-value; raw
 
 
     async function read-async read-result; count int, options io-operation-options|none = none
@@ -214,6 +230,11 @@ class tcp-listener
     private function construct; resource host-platform-resource-handle
         this.handle = resource
     local-address string = ''
+    consuming function into-native native-tcp-listener throws network-error;
+        raw = host-tcp-listener-into-native; this.handle
+        if host-native-result-failed; raw
+            throw instance network-error; (host-native-result-message; raw)
+        return host-native-listener-value; raw
 
     async function accept stream-result; options io-operation-options|none = none
         operation-timeout = operation-deadline; options
@@ -252,6 +273,19 @@ function bind-tcp listener-result; address socket-address, options tcp-listener-
     if not (host-result-failed; raw)
         listener.local-address = host-result-text; raw
     return instance listener-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), listener
+
+async function listen-tcp tcp-listener throws network-error; address string, options tcp-listener-options|none = none
+    settings tcp-listener-options
+    if options != none
+        settings = options
+    else
+        settings = instance tcp-listener-options;
+    raw = await host-tcp-listen-async; address, settings.backlog, settings.reuse-address, settings.accepted-no-delay, settings.accepted-ttl
+    if host-result-failed; raw
+        throw instance network-error; (host-result-message; raw)
+    listener = instance tcp-listener; (host-result-resource; raw)
+    listener.local-address = host-result-text; raw
+    return listener
 
 class datagram-io-result
     failed bool = false

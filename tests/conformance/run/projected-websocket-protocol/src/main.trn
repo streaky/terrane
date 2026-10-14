@@ -6,7 +6,7 @@ from /deps/axum/routing import get
 from /deps/axum/extract import WebSocketUpgrade
 from /deps/axum/extract/ws import Message, WebSocket
 from /deps/axum-core import Error
-from /deps/tokio/net import TcpListener
+from /core/networking import listen-tcp
 from /deps/terrane-websocket-peer-witness import drive_peer
 
 async function socket-session; socket WebSocket
@@ -57,8 +57,9 @@ async function run-server;
   router = Router::new;
   router = router.route; '/health', (get; health)
   router = websocket-route; move router, '/ws', socket-session
-  listener = await TcpListener::bind; '127.0.0.1:38765'
-  await (serve; move listener, move router)
+  listener = await listen-tcp; '127.0.0.1:38765'
+  native = listener.into-native;
+  await (serve; move native, move router)
 
 async function main;
   scope = task-scope;

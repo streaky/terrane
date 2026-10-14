@@ -1,0 +1,9 @@
+namespace app
+
+from /core/networking import listen-tcp, network-error
+
+async function main throws network-error;
+    listener = await listen-tcp; '127.0.0.1:0'
+    native = listener.into-native;
+    first = native
+    second = native

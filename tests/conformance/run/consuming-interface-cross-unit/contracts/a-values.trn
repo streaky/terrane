@@ -1,0 +1,4 @@
+namespace contracts
+
+function offset int;
+    return 2

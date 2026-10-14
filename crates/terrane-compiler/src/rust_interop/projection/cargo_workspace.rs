@@ -36,18 +36,28 @@ pub(super) fn write_workspace_with_bound_dependencies(
     bound_dependencies: &[ProjectedBoundDependency],
 ) -> Result<(), ProjectionError> {
     let mut dependencies = dependencies.to_vec();
-    dependencies.extend(bound_dependencies.iter().map(|dependency| RustDependency {
-        name: dependency.name.clone(),
-        package: dependency.package.clone(),
-        // This private edge makes an already-resolved recursive signature or bound owner
-        // nameable to generated Rust. Empty feature lists prevent widening; the original
-        // locked transitive edges retain every active feature.
-        version: dependency.version.clone(),
-        features: Vec::new(),
-        default_features: false,
-        target: None,
-        effects: Vec::new(),
-    }));
+    for dependency in bound_dependencies {
+        if let Some(existing) = dependencies
+            .iter_mut()
+            .find(|existing| existing.name == dependency.name)
+        {
+            existing
+                .features
+                .extend(dependency.features.iter().cloned());
+            existing.features.sort();
+            existing.features.dedup();
+        } else {
+            dependencies.push(RustDependency {
+                name: dependency.name.clone(),
+                package: dependency.package.clone(),
+                version: dependency.version.clone(),
+                features: dependency.features.clone(),
+                default_features: false,
+                target: None,
+                effects: Vec::new(),
+            });
+        }
+    }
     write_workspace(workspace, &dependencies)?;
     run_cargo(
         workspace,

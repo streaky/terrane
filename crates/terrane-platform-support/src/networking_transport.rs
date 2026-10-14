@@ -132,6 +132,34 @@ pub(super) fn io_error(operation: &str, error: &std::io::Error) -> ResultValue {
     }
 }
 
+pub async fn tcp_listen_async(
+    address: &str,
+    backlog: i128,
+    reuse_address: bool,
+    accepted_no_delay: bool,
+    accepted_ttl: i128,
+) -> ResultValue {
+    let addresses = match tokio::net::lookup_host(address).await {
+        Ok(addresses) => addresses,
+        Err(error) => return io_error("TCP listen address resolution", &error),
+    };
+    let mut last_error = None;
+    for address in addresses {
+        let result = tcp_bind_address(
+            address,
+            backlog,
+            reuse_address,
+            accepted_no_delay,
+            accepted_ttl,
+        );
+        if !result.failed {
+            return result;
+        }
+        last_error = Some(result);
+    }
+    last_error.unwrap_or_else(|| ResultValue::error("TCP listen address resolved to no addresses"))
+}
+
 pub fn tcp_bind(
     address: &str,
     backlog: i128,
@@ -142,6 +170,22 @@ pub fn tcp_bind(
     let Ok(address) = address.parse::<SocketAddr>() else {
         return ResultValue::error("invalid socket address");
     };
+    tcp_bind_address(
+        address,
+        backlog,
+        reuse_address,
+        accepted_no_delay,
+        accepted_ttl,
+    )
+}
+
+fn tcp_bind_address(
+    address: SocketAddr,
+    backlog: i128,
+    reuse_address: bool,
+    accepted_no_delay: bool,
+    accepted_ttl: i128,
+) -> ResultValue {
     let backlog = match resolve_tcp_backlog(backlog) {
         Ok(value) => value,
         Err(error) => return error,
@@ -163,13 +207,24 @@ pub fn tcp_bind(
     if let Err(error) = socket.set_reuse_address(reuse_address) {
         return io_error("TCP reuse-address configuration", &error);
     }
+    if accepted_no_delay && let Err(error) = socket.set_tcp_nodelay(true) {
+        return io_error("TCP accepted-socket configuration", &error);
+    }
+    let listener: TcpListener = socket.into();
+    if let Some(ttl) = ttl
+        && let Err(error) = listener.set_ttl(ttl)
+    {
+        return io_error("TCP accepted-socket TTL configuration", &error);
+    }
+    // Children can enter the accept queue before a native handoff. Configure
+    // inherited policy before listen, rather than only on future accepts.
+    let socket = socket2::SockRef::from(&listener);
     if let Err(error) = socket
         .bind(&address.into())
         .and_then(|()| socket.listen(backlog))
     {
         return io_error("TCP bind", &error);
     }
-    let listener: TcpListener = socket.into();
     let text = listener
         .local_addr()
         .map_or_else(|_| String::new(), |value| value.to_string());

@@ -21,10 +21,6 @@ effects = ["build"]
 version = "=1.12.1"
 effects = ["build"]
 
-[rust-dependencies.tokio]
-version = "=1.53.0"
-features = ["net"]
-effects = ["build", "networking", "threads"]
 
 [rust-dependencies.tower-service]
 version = "=0.3.3"

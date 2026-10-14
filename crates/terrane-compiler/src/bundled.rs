@@ -91,6 +91,11 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/networking.trn"),
     },
     BundledSource {
+        namespace: "/core/networking/native",
+        path: "core/networking_native.trn",
+        text: include_str!("core/networking_native.trn"),
+    },
+    BundledSource {
         namespace: "/core/networking/tls",
         path: "core/tls.trn",
         text: include_str!("core/tls.trn"),

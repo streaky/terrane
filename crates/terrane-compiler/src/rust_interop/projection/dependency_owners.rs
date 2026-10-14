@@ -777,6 +777,7 @@ fn resolved_projected_dependencies(
             name: root,
             package: package.clone(),
             version: format!("={version}"),
+            features: Vec::new(),
         });
     }
     Ok(dependencies)

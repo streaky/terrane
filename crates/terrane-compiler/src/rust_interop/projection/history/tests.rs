@@ -189,6 +189,7 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
             name: "serde_core".to_owned(),
             package: "serde_core".to_owned(),
             version: "1.0.229".to_owned(),
+            features: Vec::new(),
         }],
         containment: Containment::Unavailable,
         source: ProjectionSource::Local,

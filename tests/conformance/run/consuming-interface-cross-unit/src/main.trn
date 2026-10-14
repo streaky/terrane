@@ -1,0 +1,17 @@
+namespace app
+
+from /contracts import counter, offset
+
+class tally implements counter
+    value int = 40
+
+    consuming function finish int;
+        return this.value + (offset;)
+
+function finish int; value counter
+    return value.finish;
+
+function main;
+    item = instance tally;
+    erased counter = item
+    print; (finish; move erased)
