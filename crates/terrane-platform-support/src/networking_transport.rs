@@ -3,9 +3,81 @@ use super::{
     Capability, CapabilityInner, ResultValue, cancellation_error, cancellation_wait, count,
     is_cancelled, networking_state, operation_deadline, readiness_operation, timeout,
 };
+#[cfg(any(target_os = "linux", test))]
+use std::io::Read;
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
+
+const DEFAULT_TCP_BACKLOG: i32 = 128;
+#[cfg(any(target_os = "linux", test))]
+const MAX_SOMAXCONN_BYTES: usize = 64;
+
+#[cfg(any(target_os = "linux", test))]
+fn parse_somaxconn(bytes: &[u8]) -> Option<i32> {
+    let text = std::str::from_utf8(bytes).ok()?.trim();
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let mut value = 0_i32;
+    for byte in text.bytes() {
+        value = value
+            .saturating_mul(10)
+            .saturating_add(i32::from(byte - b'0'));
+    }
+    (value > 0).then_some(value)
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn read_somaxconn<R: Read>(reader: &mut R) -> Option<i32> {
+    let mut bytes = [0_u8; MAX_SOMAXCONN_BYTES + 1];
+    let mut len = 0;
+    loop {
+        match reader.read(&mut bytes[len..]) {
+            Ok(0) => return parse_somaxconn(&bytes[..len]),
+            Ok(count) => {
+                len += count;
+                if len > MAX_SOMAXCONN_BYTES {
+                    return None;
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(_) => return None,
+        }
+    }
+}
+
+fn discovered_tcp_backlog() -> Option<i32> {
+    #[cfg(target_os = "linux")]
+    {
+        std::fs::File::open("/proc/sys/net/core/somaxconn")
+            .ok()
+            .and_then(|mut file| read_somaxconn(&mut file))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+fn resolve_tcp_backlog_with(
+    backlog: i128,
+    discover: impl FnOnce() -> Option<i32>,
+) -> Result<i32, ResultValue> {
+    if backlog == -1 {
+        return Ok(discover()
+            .filter(|value| *value > 0)
+            .unwrap_or(DEFAULT_TCP_BACKLOG));
+    }
+    i32::try_from(backlog)
+        .ok()
+        .filter(|value| *value >= 0)
+        .ok_or_else(|| ResultValue::error("TCP backlog must be -1 or in 0..=2147483647"))
+}
+
+fn resolve_tcp_backlog(backlog: i128) -> Result<i32, ResultValue> {
+    resolve_tcp_backlog_with(backlog, discovered_tcp_backlog)
+}
 
 // Synchronous networking is supported off-runtime or via block_in_place on a
 // multithread executor. A current-thread executor must delegate blocking work
@@ -72,8 +144,9 @@ pub fn tcp_bind(
     let Ok(address) = address.parse::<SocketAddr>() else {
         return ResultValue::error("invalid socket address");
     };
-    let Some(backlog) = i32::try_from(backlog).ok().filter(|value| *value >= 0) else {
-        return ResultValue::error("TCP backlog must be in 0..=2147483647");
+    let backlog = match resolve_tcp_backlog(backlog) {
+        Ok(value) => value,
+        Err(error) => return error,
     };
     let ttl = match tcp_ttl(accepted_ttl) {
         Ok(value) => value,
@@ -955,5 +1028,132 @@ pub fn dns_lookup(
             message: "DNS lookup deadline exceeded".to_owned(),
             ..ResultValue::default()
         },
+    }
+}
+
+#[cfg(test)]
+mod backlog_tests {
+    use super::*;
+    use std::io::{self, Cursor};
+
+    #[test]
+    fn automatic_policy_parses_and_clamps_configured_capacity() {
+        for (input, expected) in [
+            (b" \t4096\r\n".as_slice(), 4096),
+            (b"2147483648\n".as_slice(), i32::MAX),
+            (b"999999999999999999999999\n".as_slice(), i32::MAX),
+        ] {
+            let mut reader = Cursor::new(input);
+            assert_eq!(
+                resolve_tcp_backlog_with(-1, || read_somaxconn(&mut reader))
+                    .unwrap_or_else(|error| panic!("{}", error.message)),
+                expected,
+            );
+        }
+    }
+
+    struct BrokenReader;
+    impl Read for BrokenReader {
+        fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+            Err(io::ErrorKind::PermissionDenied.into())
+        }
+    }
+
+    #[test]
+    fn automatic_policy_falls_back_for_unavailable_or_invalid_settings() {
+        assert_eq!(
+            resolve_tcp_backlog_with(-1, || None)
+                .unwrap_or_else(|error| panic!("{}", error.message)),
+            128,
+        );
+        assert_eq!(
+            resolve_tcp_backlog_with(-1, || read_somaxconn(&mut BrokenReader))
+                .unwrap_or_else(|error| panic!("{}", error.message)),
+            128,
+        );
+        for input in [
+            b"".as_slice(),
+            b"\n",
+            b"0\n",
+            b"-1\n",
+            b"+2\n",
+            b"12x\n",
+            b"12 34\n",
+            b"\xff",
+        ] {
+            let mut reader = Cursor::new(input);
+            assert_eq!(
+                resolve_tcp_backlog_with(-1, || read_somaxconn(&mut reader))
+                    .unwrap_or_else(|error| panic!("{}", error.message)),
+                128,
+            );
+        }
+    }
+
+    struct Chunked<'a> {
+        remaining: &'a [u8],
+        chunk: usize,
+        read_bytes: usize,
+        interrupt_after: usize,
+        interrupted: bool,
+    }
+
+    impl Read for Chunked<'_> {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            if !self.interrupted && self.read_bytes == self.interrupt_after {
+                self.interrupted = true;
+                return Err(io::ErrorKind::Interrupted.into());
+            }
+            let count = self.remaining.len().min(buffer.len()).min(self.chunk);
+            buffer[..count].copy_from_slice(&self.remaining[..count]);
+            self.remaining = &self.remaining[count..];
+            self.read_bytes += count;
+            Ok(count)
+        }
+    }
+
+    #[test]
+    fn bounded_reader_handles_fragmentation_and_interrupted_boundary_probe() {
+        let mut fragmented = Chunked {
+            remaining: b"4096\n",
+            chunk: 1,
+            read_bytes: 0,
+            interrupt_after: 2,
+            interrupted: false,
+        };
+        assert_eq!(read_somaxconn(&mut fragmented), Some(4096));
+        for length in [MAX_SOMAXCONN_BYTES, MAX_SOMAXCONN_BYTES + 1] {
+            let bytes = [b'1'; MAX_SOMAXCONN_BYTES + 1];
+            let mut reader = Chunked {
+                remaining: &bytes[..length],
+                chunk: MAX_SOMAXCONN_BYTES,
+                read_bytes: 0,
+                interrupt_after: MAX_SOMAXCONN_BYTES,
+                interrupted: false,
+            };
+            let expected = if length == MAX_SOMAXCONN_BYTES {
+                Some(i32::MAX)
+            } else {
+                None
+            };
+            assert_eq!(read_somaxconn(&mut reader), expected);
+        }
+    }
+
+    #[test]
+    fn explicit_backlogs_preserve_boundaries_without_discovery() {
+        for value in [0, 16, i128::from(i32::MAX)] {
+            assert_eq!(
+                resolve_tcp_backlog_with(value, || panic!("explicit backlog queried the OS"))
+                    .unwrap_or_else(|error| panic!("{}", error.message)),
+                i32::try_from(value).unwrap(),
+            );
+        }
+        for value in [-2, i128::from(i32::MAX) + 1, i128::MIN, i128::MAX] {
+            assert!(
+                resolve_tcp_backlog_with(value, || panic!("invalid backlog queried the OS"))
+                    .is_err()
+            );
+        }
     }
 }

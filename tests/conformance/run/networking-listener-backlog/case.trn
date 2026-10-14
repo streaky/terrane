@@ -1,0 +1,54 @@
+namespace app
+
+from /core/encodings import utf8
+from /core/process import exit, make-exit-status
+from /core/networking import tcp-listener, tcp-listener-options, socket-address-from-string, bind-tcp, connect-tcp
+
+async function echo none; listener tcp-listener
+    accepted = await listener.accept;
+    if accepted.failed
+        exit; (make-exit-status; 1)
+    stream = move accepted.value
+    received = await stream.read-exact-async; 5
+    if received.failed
+        exit; (make-exit-status; 1)
+    written = await stream.write-all-async; received.data
+    if written.failed
+        exit; (make-exit-status; 1)
+    stream.close;
+    listener.close;
+    return none
+
+async function exchange bytes; content bytes, options tcp-listener-options|none = none
+    address = socket-address-from-string; '127.0.0.1:0'
+    bound = bind-tcp; address.value, options
+    if bound.failed
+        exit; (make-exit-status; 1)
+    listener = move bound.value
+    destination = socket-address-from-string; listener.local-address
+    scope = task-scope;
+    server = scope.spawn; (echo; move listener)
+    connected = await connect-tcp; destination.value
+    if connected.failed
+        exit; (make-exit-status; 1)
+    stream = move connected.value
+    written = await stream.write-all-async; content
+    received = await stream.read-exact-async; content.length
+    stream.close;
+    outcome = await scope.join; server
+    if written.failed or received.failed or not outcome.completed
+        exit; (make-exit-status; 1)
+    return received.data
+
+async function main;
+    first = await (exchange; b'first')
+    print; (first.decode; utf8)
+    settings = instance tcp-listener-options; 16
+    settings.backlog = -1
+    second = await (exchange; b'reset', settings)
+    print; (second.decode; utf8)
+    address = socket-address-from-string; '127.0.0.1:0'
+    invalid-negative = bind-tcp; address.value, (instance tcp-listener-options; -2)
+    invalid-large = bind-tcp; address.value, (instance tcp-listener-options; 2147483648)
+    print; invalid-negative.failed
+    print; invalid-large.failed
