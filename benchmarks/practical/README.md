@@ -45,6 +45,8 @@ The minimal Terrane HTTP/1 implementation uses one request per connection and se
 
 All three implementations explicitly select listener backlog 1024 for the default 1,000-request burst; core's default remains 128. A smaller admission queue can overflow during that burst and introduce TCP retransmission delays. This is benchmark configuration, not a runtime optimization or a change to request concurrency or connection reuse. Go updates its existing listener through the Unix `listen` API before starting server/client tasks; Rust gives Hyper a Tokio listener created with the explicit capacity. The reference implementations retain their pooling/retry policies, so matching backlog, HTTP/1, and request count does not imply identical connection lifecycles. The explicit-backlog setup is verified on Linux and remains subject to operating-system limits.
 
+Before backlog alignment, Go inherited a backlog of 4096 from the measurement host's Linux `somaxconn` setting rather than choosing it explicitly in the snippet. Rust and Terrane initially used 128. The larger queue could give Go a burst-admission advantage in earlier comparisons, independently of language or handler performance. Setting all three to 1024 removes that configuration difference; the experiments did not establish that 4096 itself was faster than 1024.
+
 Use the default repetitions and a controlled host for performance conclusions. A one-run report is a smoke check, not evidence that one language is inherently faster.
 
 Shared runner regression checks: `python3 -m unittest discover -s benchmarks/tests -v`.
