@@ -50,14 +50,10 @@ impl Emitter<'_> {
 
     fn task_value_throws_inner(
         &self,
-        mut value: &SyntaxNode,
+        value: &SyntaxNode,
         visited: &mut BTreeSet<crate::Span>,
     ) -> bool {
-        while value.kind == SyntaxKind::GroupExpression
-            && let [inner] = value.children.as_slice()
-        {
-            value = inner;
-        }
+        let value = crate::semantics::task_transfer_source(self.unit, value);
         if value.kind == SyntaxKind::Name
             && let Some(binding) = self.local_typed_binding(value)
             && matches!(binding.value_type, ValueType::Task(_, _))
@@ -121,12 +117,7 @@ impl Emitter<'_> {
             origins: &mut std::collections::BTreeSet<crate::Span>,
             visited: &mut std::collections::BTreeSet<crate::Span>,
         ) {
-            let mut node = node;
-            while node.kind == SyntaxKind::GroupExpression
-                && let [inner] = node.children.as_slice()
-            {
-                node = inner;
-            }
+            let node = crate::semantics::task_transfer_source(emitter.unit, node);
             if node.kind == SyntaxKind::CallExpression
                 && let Some(callee) = node.children.first()
             {
@@ -163,12 +154,7 @@ impl Emitter<'_> {
         value: &str,
         source: &SyntaxNode,
     ) -> String {
-        let mut source = source;
-        while source.kind == SyntaxKind::GroupExpression
-            && let [inner] = source.children.as_slice()
-        {
-            source = inner;
-        }
+        let source = crate::semantics::task_transfer_source(self.unit, source);
         if !self.task_binding_is_heterogeneous(binding) {
             return value.to_owned();
         }

@@ -98,6 +98,7 @@ pub(crate) use calls::selected_callable_contract;
 pub(crate) use collections::collection_member_call;
 pub(crate) use contracts::{
     descriptor_expression_category, descriptor_expression_type, task_expression_throwables,
+    task_transfer_source,
 };
 pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,

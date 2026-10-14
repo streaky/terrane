@@ -1,0 +1,36 @@
+namespace moved-throwing-await
+from /core/errors import throwable, coercion-error
+
+async function risky-int int throws throwable;
+    throw coercion-error
+
+async function risky-none none throws throwable;
+    throw coercion-error
+
+async function safe int;
+    return 2
+
+async function main;
+    pending-int = (risky-int;)
+    moved-int = move pending-int
+    try
+        value int = await moved-int
+        print; value
+    catch throwable
+        print; 'int handled'
+    pending-none = (risky-none;)
+    moved-none = (move (pending-none))
+    try
+        _ = await moved-none
+        print; 'unexpected success'
+    catch throwable
+        print; 'none handled'
+    pending = (safe;)
+    moved-safe = move pending
+    print; await moved-safe
+    pending = (risky-int;)
+    moved-carrier = (move pending)
+    try
+        _ = await moved-carrier
+    catch throwable
+        print; 'carrier handled'

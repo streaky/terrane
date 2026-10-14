@@ -1,0 +1,16 @@
+namespace task-group-parenthesized-moved-await
+from /core/errors import throwable, coercion-error
+
+async function risky int throws throwable;
+    throw coercion-error
+
+async function safe int;
+    return 1
+
+async function main;
+    group = task-group; int
+    group.spawn; (safe;)
+    pending = (risky;)
+    final = (move (pending))
+    _ = await final
+    _ = await group.drain;

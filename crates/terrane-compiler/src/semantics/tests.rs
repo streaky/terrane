@@ -304,6 +304,30 @@ fn unused_top_level_function_warning_is_opt_in() {
 }
 
 #[test]
+fn task_write_liveness_preserves_unread_overwrites() {
+    let source = concat!(
+        "namespace task-liveness\n",
+        "async function value int; item int\n",
+        "    return item\n",
+        "async function main;\n",
+        "    pending = (value; 1)\n",
+        "    _ = await pending\n",
+        "    pending = (value; 2)\n",
+        "    pending = (value; 3)\n",
+        "    _ = await pending\n",
+    );
+    let semantic = analyze(&Package::implicit("main.trn", source.to_owned())).unwrap();
+    let diagnostics = warnings(&semantic, false, false);
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|warning| (warning.code.as_ref(), warning.primary.unwrap().start,))
+            .collect::<Vec<_>>(),
+        vec![("W4002", source.find("pending = (value; 2)").unwrap())],
+    );
+}
+
+#[test]
 fn object_union_arm_identity_follows_import_aliases() {
     let package = Package::implicit(
         "main.trn",

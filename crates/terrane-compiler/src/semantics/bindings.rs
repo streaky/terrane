@@ -1124,7 +1124,15 @@ fn record_binding_reads(
                     regions: regions.to_vec(),
                 });
         };
-        if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(node.span))
+            && unit.typed_bindings.iter().any(|binding| {
+                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
+            })
+        {
+            // Match task writes' storage identity. Reaching construction origins
+            // belong to effect analysis, not the storage's ordered liveness events.
+            record(*identity);
+        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
             for origin in origins {
                 record(*origin);
             }

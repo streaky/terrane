@@ -1211,6 +1211,23 @@ fn callable_expression_errors(
     resolve(unit, callable, inferred, &mut BTreeSet::new())
 }
 
+pub(crate) fn task_transfer_source<'a>(
+    unit: &SemanticUnit,
+    mut value: &'a SyntaxNode,
+) -> &'a SyntaxNode {
+    loop {
+        match (value.kind, value.children.as_slice()) {
+            (SyntaxKind::GroupExpression, [inner]) => value = inner,
+            (SyntaxKind::UnaryExpression, [_, operand])
+                if unary_operator_text(unit, value).as_deref() == Some("move") =>
+            {
+                value = operand;
+            }
+            _ => return value,
+        }
+    }
+}
+
 fn task_expression_throwables_with_inferred(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1240,11 +1257,7 @@ fn task_expression_throwables_with_inferred(
         inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
         visited: &mut BTreeSet<Span>,
     ) -> BTreeSet<String> {
-        if value.kind == SyntaxKind::GroupExpression
-            && let [inner] = value.children.as_slice()
-        {
-            return from_value(package, unit, inner, inferred, visited);
-        }
+        let value = task_transfer_source(unit, value);
         if value.kind == SyntaxKind::Name {
             if let Some(origins) = unit.flow_read_bindings.get(&span_key(value.span)) {
                 return origins

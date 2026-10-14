@@ -49,7 +49,6 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&__terrane_await(pending). await)
         );
         pending = Box::pin(second());
-        let _ = &mut pending;
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_await(pending). await)
         );
@@ -68,13 +67,11 @@ fn main() {
                 let __terrane_task_future = second();
                 Box::pin(async move { Ok(__terrane_task_future.await) })
             };
-            let _ = &mut selected;
         } else {
             selected = {
                 let __terrane_task_future = first();
                 Box::pin(async move { Ok(__terrane_task_future.await) })
             };
-            let _ = &mut selected;
         }
         println!(
             "{}",
@@ -82,7 +79,6 @@ fn main() {
             . await, 2 /* terrane-site: case.trn:28:18-28:26 */))
         );
         selected = Box::pin(risky());
-        let _ = &mut selected;
         alias = selected;
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
@@ -124,7 +120,6 @@ fn main() {
             }
         }
         pending = Box::pin(first());
-        let _ = &mut pending;
         alias_once = pending;
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_await(alias_once).
@@ -156,10 +151,8 @@ async fn branch(choose: bool) -> terrane_int_support::Int {
     }
     if choose {
         pending = Box::pin(first());
-        let _ = &mut pending;
     } else {
         pending = Box::pin(second());
-        let _ = &mut pending;
     }
     return __terrane_await(pending).await;
 }
@@ -218,7 +211,6 @@ async fn safe_group() -> Result<(), TerraneError> {
                 > = __terrane_await(std::boxed::Box::pin(group.prepare_drain())).await;
             }
             pending = Box::pin(risky());
-            let _ = &mut pending;
             let __terrane_completion_1: TerraneCompletion<()> = async {
                 let __terrane_try_1: TerraneCompletion<()> = async {
                     {
