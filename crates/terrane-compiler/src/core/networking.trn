@@ -14,12 +14,12 @@ class tcp-options
         this.ttl = ttl
 
 class tcp-listener-options
-    backlog int = 128
+    backlog int = -1
     reuse-address bool = false
     accepted-no-delay bool = false
     accepted-ttl int = -1
 
-    function construct; backlog int = 128, reuse-address bool = false, accepted-no-delay bool = false, accepted-ttl int = -1
+    function construct; backlog int = -1, reuse-address bool = false, accepted-no-delay bool = false, accepted-ttl int = -1
         this.backlog = backlog
         this.reuse-address = reuse-address
         this.accepted-no-delay = accepted-no-delay

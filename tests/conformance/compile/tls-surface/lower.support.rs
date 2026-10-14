@@ -2597,7 +2597,7 @@ impl TcpListenerOptions {
         accepted_ttl: terrane_int_support::Int,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
-            backlog: terrane_int_support::Int::from(128_i128),
+            backlog: terrane_int_support::Int::from(-1_i128),
             reuse_address: false,
             accepted_no_delay: false,
             accepted_ttl: terrane_int_support::Int::from(-1_i128),
@@ -3342,7 +3342,7 @@ pub fn bind_tcp(
         };
     } else {
         settings = TcpListenerOptions::terrane_construct(
-            terrane_int_support::Int::from(128_i128),
+            terrane_int_support::Int::from(-1_i128),
             false,
             false,
             terrane_int_support::Int::from(-1_i128),
