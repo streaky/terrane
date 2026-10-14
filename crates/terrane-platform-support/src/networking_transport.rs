@@ -65,9 +65,7 @@ fn resolve_tcp_backlog_with(
     discover: impl FnOnce() -> Option<i32>,
 ) -> Result<i32, ResultValue> {
     if backlog == -1 {
-        return Ok(discover()
-            .filter(|value| *value > 0)
-            .unwrap_or(DEFAULT_TCP_BACKLOG));
+        return Ok(discover().unwrap_or(DEFAULT_TCP_BACKLOG));
     }
     i32::try_from(backlog)
         .ok()
@@ -1035,6 +1033,31 @@ pub fn dns_lookup(
 mod backlog_tests {
     use super::*;
     use std::io::{self, Cursor};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn automatic_policy_uses_the_live_linux_limit() {
+        let contents = match std::fs::read_to_string("/proc/sys/net/core/somaxconn") {
+            Ok(contents) => contents,
+            Err(error) => {
+                eprintln!("skipping live somaxconn check: {error}");
+                return;
+            }
+        };
+        let configured = contents
+            .trim()
+            .parse::<u32>()
+            .expect("Linux somaxconn must contain an unsigned 32-bit integer");
+        let expected = if configured == 0 {
+            128
+        } else {
+            i32::try_from(configured).unwrap_or(i32::MAX)
+        };
+        assert_eq!(
+            resolve_tcp_backlog(-1).unwrap_or_else(|error| panic!("{}", error.message)),
+            expected,
+        );
+    }
 
     #[test]
     fn automatic_policy_parses_and_clamps_configured_capacity() {
