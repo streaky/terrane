@@ -203,8 +203,8 @@ fn main() {
         "terrane_callable_recipe_witness::render::<i64>")) }, 8 /* terrane-site: src/main.trn:41:13-41:34 */))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(accept(__terrane_raised(blank(),
-        9 /* terrane-site: src/main.trn:42:22-42:28 */)), 10 /* terrane-site: src/main.trn:42:13-42:29 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        __terrane_raised(blank(), 9 /* terrane-site: src/main.trn:42:22-42:28 */);
+        __terrane_raised(accept(__terrane_native_input_0), 10 /* terrane-site: src/main.trn:42:13-42:29 */) })
     );
 }

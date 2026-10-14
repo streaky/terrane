@@ -20,6 +20,36 @@ pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'st
     }
 }
 
+// Private host intrinsics have no source FunctionContract. Keep their ABI
+// parameter names alongside their resolved identity, rather than pretending
+// that source-call selection can supply a contract.
+fn intrinsic_arguments<'a>(
+    source: &crate::source::SourceFile,
+    arguments: &'a SyntaxNode,
+    parameters: &[&str],
+) -> Vec<Option<&'a SyntaxNode>> {
+    let mut ordered = vec![None; parameters.len()];
+    let mut positional = 0;
+    for argument in &arguments.children {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let index = if let Some(name) = named {
+            parameters
+                .iter()
+                .position(|parameter| *parameter == &source.text()[name.span.start..name.span.end])
+        } else {
+            let index = positional;
+            positional += 1;
+            Some(index)
+        }
+        .expect("private host argument names match their ABI");
+        ordered[index] = Some(argument.children.last().unwrap_or(argument));
+    }
+    ordered
+}
+
 impl Emitter<'_> {
     fn native_macro_expression(&mut self, node: &SyntaxNode) -> String {
         use crate::rust_interop::projection::ProjectedType;
@@ -383,6 +413,18 @@ impl Emitter<'_> {
                 .expect("semantic logging error adapter has one argument");
             return format!("terrane_log_error(({}).clone())", self.expression(argument));
         }
+        if callee.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity == "/core/async::task-group")
+            && let Some(ValueType::TaskGroup(item)) = self.value_type(node)
+        {
+            return format!(
+                "TerraneTaskGroup::<{}>::new()",
+                rust_element_type(self.package, item)
+            );
+        }
         if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
             let deadline = arguments.children.first().map_or_else(
                 || "None".to_owned(),
@@ -415,24 +457,48 @@ impl Emitter<'_> {
         }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
-            && self.receiver_value_type(receiver) == Some(ValueType::TaskScope)
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::TaskScope | ValueType::TaskGroup(_))
+            )
         {
+            let is_group = matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::TaskGroup(_))
+            );
             let receiver = self.expression(receiver);
+            let scope = if is_group {
+                format!("({receiver}).scope()")
+            } else {
+                format!("({receiver}).clone()")
+            };
+            let deadline = if is_group {
+                "__terrane_scope.deadline.clone()"
+            } else {
+                "__terrane_scope.deadline"
+            };
+            let cancel_failure = if is_group {
+                "__terrane_scope.cancel(); "
+            } else {
+                ""
+            };
             return match self.text(member) {
                 "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
                     let callable = argument.children.last().unwrap_or(argument);
                     let callable_type = self.value_type(callable);
                     let direct_contract = self.contract_for_call(callable, false);
-                    let throws = direct_contract.map_or_else(
+                    let throws = if matches!(callable_type, Some(ValueType::Task(_, _))) {
+                        self.awaited_throws(callable)
+                    } else { direct_contract.map_or_else(
                         || {
                             matches!(
-                                callable_type,
-                                Some(ValueType::AsyncFunction(_, _, _, ref effects))
+                                &callable_type,
+                                Some(ValueType::AsyncFunction(_, _, _, effects))
                                     if effects.requires_throwing_abi()
                             )
                         },
                         |contract| contract.throws,
-                    );
+                    ) };
                     let foreign_error = callable.kind == SyntaxKind::Name
                         && self
                             .package
@@ -452,20 +518,26 @@ impl Emitter<'_> {
                         } else {
                             (String::new(), format!("({callable})()"))
                         };
-                    if foreign_error {
+                    let spawn = if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = {scope}; let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = {deadline}; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => {{ {cancel_failure}TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)) }}, None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else if throws {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = {scope}; let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = {deadline}; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => {{ {cancel_failure}TerraneTaskResult::Failed(error) }}, None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = {scope}; let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = {deadline}; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
+                    };
+                    if is_group {
+                        format!("{{ let __terrane_child = {spawn}; ({receiver}).spawn(__terrane_child); }}")
+                    } else {
+                        spawn
                     }
                 }),
+                "drain" if is_group => format!("std::boxed::Box::pin(({receiver}).prepare_drain())"),
                 "join" => arguments.children.first().map_or_else(String::new, |argument| {
                     let task = argument.children.last().unwrap_or(argument);
                     format!("({receiver}).join({})", self.expression(task))
@@ -1199,7 +1271,102 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
+        let buffer_call = [
+            (
+                "intrinsic:capabilities::buffer-create",
+                "platform_buffer_create",
+                &["capacity"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-clear",
+                "platform_buffer_clear",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-close",
+                "platform_buffer_close",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-capacity",
+                "platform_buffer_capacity",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-completed",
+                "platform_buffer_completed",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-filled-bytes",
+                "platform_buffer_filled_bytes",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-filled-text",
+                "platform_buffer_filled_text",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::tcp-read-into-async",
+                "platform_tcp_read_into_async",
+                &["handle", "buffer", "count", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::tls-read-into-async",
+                "platform_tls_read_into_async",
+                &["handle", "buffer", "count", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::stream-read-into-async",
+                "platform_stream_read_into_async",
+                &["handle", "buffer", "count", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::tcp-write-async",
+                "platform_tcp_write_async",
+                &["handle", "data", "offset", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::tls-write-async",
+                "platform_tls_write_async",
+                &["handle", "data", "offset", "deadline", "cancellation"][..],
+            ),
+        ]
+        .into_iter()
+        .find(|(identity, _, _)| self.is_builtin(callee, identity));
+        if let Some((identity, function, parameters)) = buffer_call {
+            let values = intrinsic_arguments(&self.unit.source, arguments, parameters)
+                .into_iter()
+                .zip(parameters)
+                .filter_map(|(argument, parameter)| {
+                    let argument = argument?;
+                    Some(match *parameter {
+                        "capacity" | "handle" | "buffer" => {
+                            format!("&({})", self.native_receiver_expression(argument, false))
+                        }
+                        "cancellation" => format!("({}).as_ref()", self.expression(argument)),
+                        "data"
+                            if matches!(
+                                identity,
+                                "intrinsic:capabilities::tcp-write-async"
+                                    | "intrinsic:capabilities::tls-write-async"
+                            ) =>
+                        {
+                            format!("&({})", self.native_receiver_expression(argument, false))
+                        }
+                        "offset" | "count" | "deadline" => {
+                            self.expression_as(argument, ValueType::Scalar(ScalarType::Int))
+                        }
+                        _ => self.expression(argument),
+                    })
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_{function}({values})");
+        }
         let capability_call = [
+            ("no-capability", "platform_no_resource"),
             ("secure-random", "platform_secure_random"),
             ("pseudo-random", "platform_pseudo_random"),
             ("secret-buffer", "platform_secret_buffer"),
@@ -1280,84 +1447,38 @@ impl Emitter<'_> {
                 .then_some(rust)
         });
         if let Some(function) = capability_call {
-            let values = argument_values
-                .iter()
-                .enumerate()
-                .map(|(index, value)| {
-                    let value = self.expression(value);
-                    let borrowed = matches!(
-                        (function, index),
-                        (
-                            "platform_random_bytes"
-                                | "platform_random_bounded"
-                                | "platform_random_split"
-                                | "platform_uuid_v4"
-                                | "platform_uuid_v7"
-                                | "platform_tcp_accept"
-                                | "platform_tcp_accept_async"
-                                | "platform_tcp_read"
-                                | "platform_tcp_read_async"
-                                | "platform_tcp_write"
-                                | "platform_tcp_write_async"
-                                | "platform_tcp_shutdown"
-                                | "platform_tcp_configure"
-                                | "platform_udp_send_to"
-                                | "platform_udp_send_to_async"
-                                | "platform_udp_receive_from"
-                                | "platform_udp_receive_from_async"
-                                | "platform_udp_configure"
-                                | "platform_tls_client"
-                                | "platform_tls_client_async"
-                                | "platform_tls_read"
-                                | "platform_tls_read_async"
-                                | "platform_tls_write"
-                                | "platform_tls_write_async"
-                                | "platform_tls_shutdown"
-                                | "platform_tls_shutdown_async"
-                                | "platform_capability_close"
-                                | "platform_digest"
-                                | "platform_hmac"
-                                | "platform_parse_socket"
-                                | "platform_cancel"
-                                | "platform_destroy_secret",
-                            0,
-                        ) | ("platform_parse_socket" | "platform_hmac", 1)
-                            | (
-                                "platform_tcp_connect"
-                                    | "platform_tcp_connect_async"
-                                    | "platform_tcp_accept"
-                                    | "platform_tcp_accept_async"
-                                    | "platform_tls_shutdown"
-                                    | "platform_tls_shutdown_async",
-                                2
-                            )
-                            | (
-                                "platform_tcp_connect_host"
-                                    | "platform_tcp_connect_host_async"
-                                    | "platform_tcp_read"
-                                    | "platform_tcp_read_async"
-                                    | "platform_tcp_write"
-                                    | "platform_tcp_write_async"
-                                    | "platform_udp_receive_from"
-                                    | "platform_udp_receive_from_async"
-                                    | "platform_dns_lookup"
-                                    | "platform_dns_lookup_async"
-                                    | "platform_tls_client"
-                                    | "platform_tls_client_async"
-                                    | "platform_tls_read"
-                                    | "platform_tls_read_async"
-                                    | "platform_tls_write"
-                                    | "platform_tls_write_async",
-                                3,
-                            )
-                            | ("platform_udp_send_to" | "platform_udp_send_to_async", 4)
-                    ) || function.starts_with("platform_result_") && index == 0;
-                    if borrowed {
-                        format!("&({value})")
-                    } else {
-                        value
-                    }
-                })
+            if function == "platform_result_deadline_exceeded"
+                && let Some(value) = argument_values.first()
+                && matches!(
+                    self.value_type(value),
+                    Some(ValueType::PlatformReadResult | ValueType::PlatformWriteResult)
+                )
+            {
+                return format!(
+                    "({}).deadline_exceeded",
+                    self.native_receiver_expression(value, false)
+                );
+            }
+            let values = argument_values.iter().enumerate().map(|(index, value)| {
+                if self.value_type(value).is_some_and(|ty|
+                    matches!(&ty, ValueType::Optional(inner) if matches!(**inner, ValueType::PlatformCapability))) {
+                    return format!("({}).as_ref()", self.expression(value));
+                }
+                let expression = self.expression(value);
+                let borrowed = matches!((function, index),
+                    ("platform_random_bytes" | "platform_random_bounded" | "platform_random_split"
+                    | "platform_uuid_v4" | "platform_uuid_v7" | "platform_tcp_accept_async"
+                    | "platform_tcp_read_async" | "platform_tcp_shutdown" | "platform_tcp_configure"
+                    | "platform_udp_send_to" | "platform_udp_send_to_async" | "platform_udp_receive_from"
+                    | "platform_udp_receive_from_async" | "platform_udp_configure" | "platform_tls_client"
+                    | "platform_tls_client_async" | "platform_tls_read" | "platform_tls_read_async"
+                    | "platform_tls_write" | "platform_tls_shutdown" | "platform_tls_shutdown_async"
+                    | "platform_capability_close" | "platform_digest" | "platform_hmac"
+                    | "platform_parse_socket" | "platform_cancel" | "platform_destroy_secret", 0)
+                    | ("platform_parse_socket" | "platform_hmac", 1))
+                    || function.starts_with("platform_result_") && index == 0;
+                if borrowed { format!("&({expression})") } else { expression }
+            })
                 .collect::<Vec<_>>()
                 .join(", ");
             return format!("terrane_{function}({values})");
@@ -1549,6 +1670,7 @@ impl Emitter<'_> {
             ("read", "read"),
             ("read-async", "read_async"),
             ("write", "write"),
+            ("write-async", "write_async"),
             ("flush", "flush"),
             ("sync-data", "sync_data"),
             ("sync-all", "sync_all"),
@@ -1576,6 +1698,19 @@ impl Emitter<'_> {
                     "terrane_platform_write(&({}), &({}), terrane_int_support::Int::from(({}).clone()))",
                     values[0], values[1], values[2]
                 );
+            }
+            if matches!(function, "read_async" | "write_async") {
+                let mut arguments = vec![format!("&({})", values[0])];
+                arguments.extend(values[1..values.len() - 1].iter().cloned());
+                if function == "write_async" {
+                    arguments[2] = self.adaptive_expression(argument_values[2]);
+                }
+                let cancellation = self.expression_as(
+                    argument_values.last().expect("async stream cancellation"),
+                    ValueType::Optional(Box::new(ValueType::PlatformCapability)),
+                );
+                arguments.push(format!("({cancellation}).as_ref()"));
+                return format!("terrane_platform_{function}({})", arguments.join(", "));
             }
             let Some((handle, arguments)) = values.split_first() else {
                 unreachable!("validated platform operation has a stream handle");
@@ -2096,6 +2231,23 @@ impl Emitter<'_> {
             )
         });
         let mut native_member_receiver = None;
+        // Source argument evaluation belongs to the caller's error/async context,
+        // not inside the native call's synchronous panic-catching closure.
+        let stage_native_inputs = native_macro_path.is_none()
+            && projected_function.as_ref().is_some_and(|function| {
+                !function.is_async && !function.into_future && function.chain_role.is_none()
+            })
+            && arguments.children.iter().any(|argument| {
+                self.contains_await(argument) || self.expression_throws_synchronously(argument)
+            });
+        let mut native_input_setup = String::new();
+        let mut native_input_index = 0;
+        let mut stage_native_input = |value: String| {
+            let name = format!("__terrane_native_input_{native_input_index}");
+            native_input_index += 1;
+            write!(native_input_setup, "let {name} = {value}; ").unwrap();
+            name
+        };
         let name = if let Some(path) = &native_macro_path {
             path.clone()
         } else if let Some(function) = self.source_applied_function(callee) {
@@ -2294,6 +2446,15 @@ impl Emitter<'_> {
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow)
             );
             let receiver = self.native_receiver_expression(receiver, mutable);
+            let receiver = if stage_native_inputs {
+                stage_native_input(if mutable {
+                    format!("&mut ({receiver})")
+                } else {
+                    format!("&({receiver})")
+                })
+            } else {
+                receiver
+            };
             format!("({receiver}).{}", projected.name)
         } else if contract
             .as_ref()
@@ -2365,6 +2526,19 @@ impl Emitter<'_> {
                 }
             } else {
                 receiver_expression
+            };
+            let receiver = if stage_native_inputs {
+                let receiver = if !contract.is_async
+                    && projected_receiver
+                        == Some(crate::rust_interop::projection::Receiver::MutableBorrow)
+                {
+                    format!("&mut ({receiver})")
+                } else {
+                    receiver
+                };
+                stage_native_input(receiver)
+            } else {
+                receiver
             };
             let method_name = if specialization
                 .is_some_and(|specialization| specialization.direct_projected_call)
@@ -2515,6 +2689,11 @@ impl Emitter<'_> {
         };
         if let Some(receiver) = native_member_receiver {
             values.insert(0, receiver);
+        }
+        if stage_native_inputs {
+            for value in &mut values {
+                *value = stage_native_input(std::mem::take(value));
+            }
         }
         let callable_mode =
             self.value_type(callee)
@@ -3032,7 +3211,7 @@ impl Emitter<'_> {
                 format!("__terrane_traced({call}, {site})")
             }
         };
-        if contract.as_ref().is_some_and(|contract| contract.is_async)
+        let result = if contract.as_ref().is_some_and(|contract| contract.is_async)
             && matches!(self.value_type(node), Some(ValueType::Task(_, _)))
         {
             if foreign_error || dependency_boundary {
@@ -3057,6 +3236,11 @@ impl Emitter<'_> {
             } else {
                 mapped
             }
+        };
+        if native_input_setup.is_empty() {
+            result
+        } else {
+            format!("{{ {native_input_setup}{result} }}")
         }
     }
 }

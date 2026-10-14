@@ -1,32 +1,59 @@
 namespace core/networking/tls
 
-from /core/networking import tcp-stream, network-operation-options, network-operation-result, io-result, network-host-name, operation-cancellation, operation-deadline
+from /core/streams import exact-read-progress, write-progress
+from /core/networking import tcp-stream, network-host-name
+from /core/io import io-operation-result, io-operation-options, operation-cancellation, operation-deadline
+from /core/streams import async-byte-reader, async-byte-writer, stream-operation-result, read-result, write-result, owned-read-buffer, buffered-read-result
 
-class tls-stream
+class tls-stream implements async-byte-reader, async-byte-writer
     private handle host-platform-resource-handle
     negotiated-version string = ''
 
     private function construct; resource host-platform-resource-handle
         this.handle = resource
 
-    async function read io-result; limit int, options network-operation-options
+    async function read-async read-result; count int, options io-operation-options|none = none
         cancellation = operation-cancellation; options
-        raw = await host-tls-read-async; this.handle, limit, (operation-deadline; options), cancellation
-        return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
+        raw = await host-tls-read-async; this.handle, count, (operation-deadline; options), cancellation
+        return instance read-result; (host-result-bytes; raw), (host-result-int; raw), (host-result-bool; raw), (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
 
-    async function write io-result; data bytes, options network-operation-options
+    async function write-async write-result; data bytes, options io-operation-options|none = none
         cancellation = operation-cancellation; options
-        raw = await host-tls-write-async; this.handle, data, (operation-deadline; options), cancellation
-        return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
+        raw = await host-tls-write-async; this.handle, data, 0, (operation-deadline; options), cancellation
+        return instance write-result; data, (host-result-int; raw), (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
 
-    consuming function close network-operation-result;
+    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options io-operation-options|none = none
+        cancellation = operation-cancellation; options
+        raw = await host-tls-read-into-async; this.handle, buffer.handle, count, (operation-deadline; options), cancellation
+        return instance buffered-read-result; move buffer, (host-result-int; raw), (host-result-bool; raw), (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
+
+
+    async function write-all-async write-result; data bytes, options io-operation-options|none = none
+        progress = instance write-progress;
+        while progress.pending; data.length
+            part = await host-tls-write-async; this.handle, data, progress.completed, (operation-deadline; options), (operation-cancellation; options)
+            progress.advance; (host-result-int; part), (host-result-failed; part), (host-result-deadline-exceeded; part), (host-result-message; part)
+        return progress.result; move data
+
+
+    async function read-exact-async read-result; count int, options io-operation-options|none = none
+        if count < 0
+            return await this.read-async; count, options
+        progress = instance exact-read-progress; count
+        data bytes = b''
+        while progress.pending;
+            part = await this.read-async; (progress.remaining;), options
+            data = data.concat; part.data
+            progress.advance; part.completed, part.end, part.failed, part.deadline-exceeded, part.message
+        return progress.result; move data
+    consuming function close stream-operation-result;
         raw = host-close; this.handle
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance stream-operation-result; (host-result-failed; raw), (host-result-message; raw), (host-result-deadline-exceeded; raw)
 
-    async function shutdown network-operation-result; options network-operation-options
+    async function shutdown io-operation-result; options io-operation-options|none = none
         cancellation = operation-cancellation; options
         raw = await host-tls-shutdown-async; this.handle, (operation-deadline; options), cancellation
-        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     consuming function destruct;
         host-close; this.handle
@@ -45,7 +72,7 @@ class tls-result
 
 # Certificate-chain and hostname validation are unconditional on this ordinary connector.
 # An insecure connector is intentionally absent; it can only live in a separately imported unsafe package.
-async function connect-tls tls-result; stream tcp-stream, server-name network-host-name, options network-operation-options
+async function connect-tls tls-result; stream tcp-stream, server-name network-host-name, options io-operation-options|none = none
     cancellation = operation-cancellation; options
     raw = await host-tls-client-async; stream.handle, server-name.value, (operation-deadline; options), cancellation
     value = instance tls-stream; (host-result-resource; raw)

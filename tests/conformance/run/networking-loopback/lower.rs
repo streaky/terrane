@@ -9,11 +9,11 @@ fn main() {
         let bound: UdpResult;
         let socket: UdpSocket;
         let destination: SocketResult;
-        let configured: NetworkOperationResult;
-        let cancellation: NetworkCancellationToken;
-        let options: NetworkOperationOptions;
-        let sent: IoResult;
-        let received: IoResult;
+        let configured: IoOperationResult;
+        let cancellation: CancellationToken;
+        let options: IoOperationOptions;
+        let sent: DatagramIoResult;
+        let received: DatagramIoResult;
         let bytes_output: ByteWriter;
         let output: TextWriter;
         let written: WriteResult;
@@ -32,31 +32,32 @@ fn main() {
                     terrane_int_support::Int::from(32_i128),
                 ),
             );
-        cancellation = NetworkCancellationToken::terrane_construct();
-        options = NetworkOperationOptions::terrane_construct(
+        cancellation = CancellationToken::terrane_construct();
+        options = IoOperationOptions::terrane_construct(
             Some(
                 Clock::terrane_static_deadline(
                     __terrane_traced(
                         Duration::terrane_static_seconds(
                             terrane_int_support::Int::from(1_i128),
                         ),
-                        0 /* terrane-site: case.trn:16:70-16:90 */,
+                        0 /* terrane-site: case.trn:17:65-17:85 */,
                     ),
                 ),
             ),
-            cancellation,
+            Some(cancellation),
         );
         sent = __terrane_await(
                 (&socket)
                     .send_to(
-                        Vec::from([116, 101, 114, 114, 97, 110, 101]),
+                        Vec::<u8>::from([116, 101, 114, 114, 97, 110, 101]),
                         destination.value,
-                        options.clone(),
+                        Some(options.clone()),
                     ),
             )
             .await;
         received = __terrane_await(
-                (&socket).receive_from(terrane_int_support::Int::from(32_i128), options),
+                (&socket)
+                    .receive_from(terrane_int_support::Int::from(32_i128), Some(options)),
             )
             .await;
         println!("{}", terrane_scalar_support::scalar_text(&! configured.failed));
@@ -70,7 +71,7 @@ fn main() {
                         &received.data,
                         terrane_string_support::Encoding::Utf8,
                     ),
-                    1 /* terrane-site: case.trn:23:29-23:55 */,
+                    1 /* terrane-site: case.trn:24:29-24:55 */,
                 ),
             );
         if written.failed {

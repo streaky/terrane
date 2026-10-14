@@ -37,6 +37,7 @@ fn nested_parameter(value: &ValueType, name: &str, nested: bool) -> Option<bool>
         | ValueType::ChannelReceiveOutcome(x)
         | ValueType::DocumentDecodeOutcome(x)
         | ValueType::TaskOutcome(x)
+        | ValueType::TaskGroup(x)
         | ValueType::AsyncIterationStep(x) => child(x.value_type_ref()),
         ValueType::Map(k, v) | ValueType::Entry(k, v) | ValueType::UnorderedMap(k, v) => {
             child(k.value_type_ref()).or_else(|| child(v.value_type_ref()))

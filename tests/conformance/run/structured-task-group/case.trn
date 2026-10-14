@@ -1,0 +1,25 @@
+namespace structured-task-group
+
+async function work int; value int
+    return value
+
+async function main;
+    group = task-group; int
+    index int = 1
+    while index <= 5
+        group.spawn; (work; index)
+        index = index + 1
+    outcomes = await group.drain;
+    total int = 0
+    expected int = 1
+    ordered bool = true
+    for outcome in outcomes
+        value = outcome.value
+        if value != none
+            total = total + value
+            ordered = ordered and value == expected
+        expected = expected + 1
+    print; total, ordered
+    empty = task-group; int
+    empty-outcomes = await empty.drain;
+    print; empty-outcomes.length

@@ -6,10 +6,10 @@ fn main() {
     let combined: Vec<u8>;
     let unchanged: Vec<u8>;
     combined = {
-        let mut bytes = Vec::from([97]);
-        let part_0: Vec<u8> = Vec::from([]);
-        let part_1: Vec<u8> = Vec::from([98, 99]);
-        let part_2: Vec<u8> = Vec::from([100]);
+        let mut bytes = Vec::<u8>::from([97]);
+        let part_0: Vec<u8> = Vec::<u8>::from([]);
+        let part_1: Vec<u8> = Vec::<u8>::from([98, 99]);
+        let part_2: Vec<u8> = Vec::<u8>::from([100]);
         let additional = match [part_0.len(), part_1.len(), part_2.len()]
             .into_iter()
             .try_fold(0usize, usize::checked_add)
@@ -32,7 +32,7 @@ fn main() {
         i128))
     );
     unchanged = {
-        let mut bytes = Vec::from([122]);
+        let mut bytes = Vec::<u8>::from([122]);
         let additional = match [].into_iter().try_fold(0usize, usize::checked_add) {
             Some(length) => length,
             None => std::process::abort(),

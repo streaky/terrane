@@ -366,11 +366,39 @@ fn compilation_rust_dependencies(
     dependencies
 }
 
-fn bind_tokio_runtime_alias(
+fn bind_private_runtime_dependencies(
     program: &mut crate::rust_ir::Program,
-    dependencies: &[RustDependency],
+    dependencies: &mut Vec<RustDependency>,
     testing: bool,
 ) {
+    let uses_locks = program
+        .runtime
+        .iter()
+        .flat_map(|module| &module.source_files)
+        .any(|source| {
+            matches!(
+                *source,
+                "async_native.rs"
+                    | "task_groups_native.rs"
+                    | "tasks_cooperative.rs"
+                    | "tasks_threaded.rs"
+            )
+        });
+    if uses_locks
+        && !dependencies
+            .iter()
+            .any(|dependency| dependency.package == "parking_lot" && dependency.target.is_none())
+    {
+        dependencies.push(RustDependency {
+            name: "parking_lot".to_owned(),
+            package: "parking_lot".to_owned(),
+            version: "=0.12.5".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        });
+    }
     if !program.requires_async_runtime
         && !program.requires_blocking_runtime
         && !program.requires_runtime_sync
@@ -378,17 +406,19 @@ fn bind_tokio_runtime_alias(
     {
         return;
     }
-    if let Some(dependency) = dependencies
-        .iter()
-        .find(|dependency| dependency.package == "tokio" && dependency.target.is_none())
-        && dependency.name != "tokio"
-    {
-        program
-            .globals
-            .push(crate::rust_ir::Item::generated(&format!(
-                "extern crate {} as tokio;",
-                dependency.name.replace('-', "_"),
-            )));
+    for package in ["tokio", "parking_lot"] {
+        if let Some(dependency) = dependencies
+            .iter()
+            .find(|dependency| dependency.package == package && dependency.target.is_none())
+            && dependency.name.replace('-', "_") != package
+        {
+            program
+                .globals
+                .push(crate::rust_ir::Item::generated(&format!(
+                    "extern crate {} as {package};",
+                    dependency.name.replace('-', "_")
+                )));
+        }
     }
 }
 
@@ -648,10 +678,10 @@ fn compile_analyzed_package(
             !dependency_warning && !library_export_warning
         })
         .collect();
-    let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
+    let mut rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     let mut rust_ir = crate::lowering::lower(semantic, options.debug_build.enabled())
         .map_err(|failure| lowering_failure(semantic, failure))?;
-    bind_tokio_runtime_alias(&mut rust_ir, &rust_dependencies, false);
+    bind_private_runtime_dependencies(&mut rust_ir, &mut rust_dependencies, false);
     lowering.finish();
     let rendering = crate::compilation_progress::start("rendering Rust", &package.identity);
     let rendered_rust = rust_ir.rendered();
@@ -944,11 +974,11 @@ pub fn compile_discovered_test_tier(
             |unit| unit.source.clone(),
         );
     let warnings = collect_warnings(&semantic, options);
-    let rust_dependencies = compilation_rust_dependencies(&package, &semantic.projection);
+    let mut rust_dependencies = compilation_rust_dependencies(&package, &semantic.projection);
     let mut rust_ir =
         crate::lowering::lower_tests(&semantic, &runner_cases, options.debug_build.enabled())
             .map_err(|failure| lowering_failure(&semantic, failure))?;
-    bind_tokio_runtime_alias(&mut rust_ir, &rust_dependencies, true);
+    bind_private_runtime_dependencies(&mut rust_ir, &mut rust_dependencies, true);
     let rendered_rust = rust_ir.rendered();
     let mut standalone_file = rendered_rust.standalone_file("<stdout>");
     let embedded_authored_rust = embedded_authored_rust(&package.authored_rust_modules);

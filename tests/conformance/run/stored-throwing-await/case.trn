@@ -1,0 +1,22 @@
+namespace stored-throwing-await
+from /core/errors import throwable, coercion-error
+
+async function risky-int int throws throwable;
+    throw coercion-error
+
+async function risky-none none throws throwable;
+    throw coercion-error
+
+async function main;
+    pending-int = (risky-int;)
+    try
+        value int = await pending-int
+        print; value
+    catch throwable
+        print; 'int handled'
+    pending-none = (risky-none;)
+    try
+        _ = await pending-none
+        print; 'unexpected success'
+    catch throwable
+        print; 'none handled'

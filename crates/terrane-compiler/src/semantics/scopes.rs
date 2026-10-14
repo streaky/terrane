@@ -761,7 +761,11 @@ pub(super) fn resolved_compiler_identity<'a>(
             })
         })
         .map(Symbol::compiler_identity)
-        .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
+        .or(match (unit.prelude, name) {
+            (true, "task-scope") => Some("/core/async::task-scope"),
+            (true, "task-group") => Some("/core/async::task-group"),
+            _ => None,
+        })
 }
 
 pub(super) fn constant_nonnegative_u64(
@@ -803,9 +807,10 @@ pub(super) fn find_binding_initializer(node: &SyntaxNode, name_span: Span) -> Op
 }
 
 pub(super) fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
-    const PRELUDE: [(&str, &str, &str); 7] = [
+    const PRELUDE: [(&str, &str, &str); 8] = [
         ("print", "/core/output::print", "/core/output"),
         ("task-scope", "/core/async::task-scope", "/core/async"),
+        ("task-group", "/core/async::task-group", "/core/async"),
         ("utf8", "/core/encodings::utf8", "/core/encodings"),
         ("utf16-le", "/core/encodings::utf16-le", "/core/encodings"),
         ("utf16-be", "/core/encodings::utf16-be", "/core/encodings"),
@@ -824,8 +829,8 @@ pub(super) fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                     namespace: namespace.to_owned(),
                     visibility: Visibility::Public,
                     global: false,
-                    constant: !matches!(name, "print" | "task-scope"),
-                    kind: if matches!(name, "print" | "task-scope") {
+                    constant: !matches!(name, "print" | "task-scope" | "task-group"),
+                    kind: if matches!(name, "print" | "task-scope" | "task-group") {
                         SymbolKind::Function
                     } else {
                         SymbolKind::Binding

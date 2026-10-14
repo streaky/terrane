@@ -1,0 +1,65 @@
+namespace heterogeneous-task-reassignment
+from /core/errors import throwable, coercion-error
+
+async function first int;
+    return 11
+
+async function second int;
+    return 22
+
+async function risky int throws throwable;
+    throw coercion-error
+
+async function main;
+    ordinary = (first;)
+    print; await ordinary
+    pending = (first;)
+    print; await pending
+    pending = (second;)
+    print; await pending
+
+    choose-first = true
+    selected = (first;)
+    print; await selected
+    if choose-first
+        selected = (second;)
+    else
+        selected = (first;)
+    print; await selected
+
+    selected = (risky;)
+    alias = selected
+    try
+        print; await alias
+    catch throwable
+        print; 'caught'
+
+    pending = (first;)
+    alias-once = pending
+    print; await alias-once
+    print; await (branch; true)
+    print; await (branch; false)
+    _ = await (safe-group;)
+
+async function branch int; choose bool
+    pending = (first;)
+    _ = await pending
+    if choose
+        pending = (first;)
+    else
+        pending = (second;)
+    return await pending
+
+async function safe-group none;
+    pending = (first;)
+    group = task-group; int
+    group.spawn; (first;)
+    other = pending
+    print; await other
+    _ = await group.drain;
+    pending = (risky;)
+    try
+        _ = await pending
+    catch throwable
+        print; 'safe-before-risky'
+    return none

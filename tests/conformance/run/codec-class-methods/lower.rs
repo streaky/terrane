@@ -10,7 +10,7 @@ fn main() {
     let encoded_base64: String;
     let decoded_base64: DecodeResult;
     hexadecimal = hex();
-    encoded_hex = hexadecimal.encode(Vec::from([97, 98, 99]));
+    encoded_hex = hexadecimal.encode(Vec::<u8>::from([97, 98, 99]));
     decoded_hex = hexadecimal.decode(encoded_hex);
     println!(
         "{}",
@@ -18,7 +18,7 @@ fn main() {
         .value, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:8:13-8:43 */))
     );
     standard_base64 = base64();
-    encoded_base64 = standard_base64.encode(Vec::from([97, 98, 99]), true);
+    encoded_base64 = standard_base64.encode(Vec::<u8>::from([97, 98, 99]), true);
     decoded_base64 = standard_base64.decode(encoded_base64, true);
     println!(
         "{}",

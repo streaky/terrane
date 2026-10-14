@@ -1,0 +1,6 @@
+phase = "run"
+status = "accept"
+entrypoint = "case.trn"
+stdout = "stdout.txt"
+canonical-rust = true
+warnings = "warnings.txt"

@@ -246,6 +246,29 @@ fn infer_nonbinary_value_type(
     }
     if node.kind == SyntaxKind::AppliedType
         && let Some(contract) = call_base_contract(unit, node, bindings)?
+        && contract.generic_parameters.is_empty()
+        && contract.is_async
+        && contract
+            .owner_identity
+            .as_ref()
+            .is_some_and(|owner| owner.namespace.starts_with("/deps/"))
+        && !unit.projected_callable_applications.contains_key(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        ))
+    {
+        // Instance applications may precede receiver normalization. Preserve the
+        // declared callable (including asyncness); native specialization resolves
+        // its symbolic projected types once binding facts are available.
+        return infer_value_type(
+            unit,
+            node.children.first().expect("application callee"),
+            bindings,
+        );
+    }
+    if node.kind == SyntaxKind::AppliedType
+        && let Some(contract) = call_base_contract(unit, node, bindings)?
         && let Some(selected) = unit
             .projected_callable_applications
             .get(&(node.span.file, node.span.start, node.span.end))
@@ -256,90 +279,87 @@ fn infer_nonbinary_value_type(
         return Ok(Some(selected.clone()));
     }
     if node.kind == SyntaxKind::AppliedType
-        && let Some(name_node) = node.children.first()
-        && name_node.kind == SyntaxKind::Name
+        && let Some(contract) = call_base_contract(unit, node, bindings)?
+        && !contract.generic_parameters.is_empty()
     {
-        let name = node_text(&unit.source, name_node);
-        if let Some(contract) = resolved_function_contract(unit, name, name_node.span.start)
-            && !contract.generic_parameters.is_empty()
-        {
-            let type_nodes = &node.children[1..];
-            if type_nodes.len() != contract.generic_parameters.len() {
-                return Err(failure(
-                    &unit.source,
-                    "T0012",
-                    format!(
-                        "function `{name}` requires {} type arguments, found {}",
-                        contract.generic_parameters.len(),
-                        type_nodes.len()
-                    ),
-                    node.span,
-                ));
-            }
-            let aliases = visible_descriptor_aliases(
-                &unit.descriptor_aliases,
-                node.span.file,
-                node.span.start,
-            );
-            let substitutions = contract
-                .generic_parameters
-                .iter()
-                .zip(type_nodes)
-                .map(|(parameter, type_node)| {
-                    super::types::declared_value_type(unit, type_node, &aliases)
-                        .map(|value_type| (parameter.name.clone(), value_type))
-                })
-                .collect::<Result<BTreeMap<_, _>, _>>()?;
-            if !super::generics::generic_bounds_satisfied(
-                unit,
-                &contract.generic_parameters,
-                &substitutions,
-            ) {
-                return Err(failure(
-                    &unit.source,
-                    "T0012",
-                    format!(
-                        "explicit application of `{name}` does not satisfy its type parameter bounds"
-                    ),
-                    node.span,
-                ));
-            }
-            let parameters = contract
-                .parameters
-                .iter()
-                .map(ParameterContract::callable_type)
-                .collect::<Option<Vec<_>>>()
-                .ok_or_else(|| {
-                    failure(
-                        &unit.source,
-                        "T0052",
-                        "stored function parameters require explicit types",
-                        node.span,
-                    )
-                })?
-                .into_iter()
-                .map(|parameter| {
-                    let value_type = super::generics::substitute_value_type(
-                        parameter.value_type_ref(),
-                        &substitutions,
-                    );
-                    parameter.with_element_type(ElementType::new(value_type))
-                })
-                .collect();
-            let result = ElementType::new(super::generics::substitute_value_type(
-                contract
-                    .return_type
-                    .as_ref()
-                    .unwrap_or(&ValueType::Scalar(ScalarType::None)),
-                &substitutions,
+        let callee = node.children.first().expect("applied type has a callee");
+        let name = node_text(
+            &unit.source,
+            call_base_designator(callee).expect("applied type callee has a designator"),
+        );
+        let type_nodes = &node.children[1..];
+        if type_nodes.len() != contract.generic_parameters.len() {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "function `{name}` requires {} type arguments, found {}",
+                    contract.generic_parameters.len(),
+                    type_nodes.len()
+                ),
+                node.span,
             ));
-            let effects = CallableEffects::from_contract(contract);
-            return Ok(Some(if contract.is_async {
-                ValueType::AsyncFunction(parameters, result, contract.task_transferability, effects)
-            } else {
-                ValueType::Function(parameters, result, effects)
-            }));
         }
+        let aliases =
+            visible_descriptor_aliases(&unit.descriptor_aliases, node.span.file, node.span.start);
+        let substitutions = contract
+            .generic_parameters
+            .iter()
+            .zip(type_nodes)
+            .map(|(parameter, type_node)| {
+                super::types::declared_value_type(unit, type_node, &aliases)
+                    .map(|value_type| (parameter.name.clone(), value_type))
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
+        if !super::generics::generic_bounds_satisfied(
+            unit,
+            &contract.generic_parameters,
+            &substitutions,
+        ) {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "explicit application of `{name}` does not satisfy its type parameter bounds"
+                ),
+                node.span,
+            ));
+        }
+        let parameters = contract
+            .parameters
+            .iter()
+            .map(ParameterContract::callable_type)
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0052",
+                    "stored function parameters require explicit types",
+                    node.span,
+                )
+            })?
+            .into_iter()
+            .map(|parameter| {
+                let value_type = super::generics::substitute_value_type(
+                    parameter.value_type_ref(),
+                    &substitutions,
+                );
+                parameter.with_element_type(ElementType::new(value_type))
+            })
+            .collect();
+        let result = ElementType::new(super::generics::substitute_value_type(
+            contract
+                .return_type
+                .as_ref()
+                .unwrap_or(&ValueType::Scalar(ScalarType::None)),
+            &substitutions,
+        ));
+        let effects = CallableEffects::from_contract(contract);
+        return Ok(Some(if contract.is_async {
+            ValueType::AsyncFunction(parameters, result, contract.task_transferability, effects)
+        } else {
+            ValueType::Function(parameters, result, effects)
+        }));
     }
     if node.kind == SyntaxKind::Name {
         let name = node_text(&unit.source, node);
@@ -1059,6 +1079,49 @@ fn infer_nonbinary_value_type(
             }
             if callee.kind == SyntaxKind::Name
                 && resolved_compiler_identity(unit, callee)
+                    .is_some_and(|identity| identity == "/core/async::task-group")
+            {
+                let values = arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument))
+                    .collect::<Vec<_>>();
+                let [descriptor] = values.as_slice() else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0074",
+                        "`task-group` requires one child result type descriptor",
+                        node.span,
+                    ));
+                };
+                let name = match infer_value_type(unit, descriptor, bindings)? {
+                    Some(ValueType::Descriptor(name)) => name,
+                    Some(ValueType::Scalar(ScalarType::None))
+                        if node_text(&unit.source, descriptor) == "none" =>
+                    {
+                        "none".to_owned()
+                    }
+                    _ => {
+                        return Err(failure(
+                            &unit.source,
+                            "T0074",
+                            "`task-group` requires a concrete child result type descriptor",
+                            descriptor.span,
+                        ));
+                    }
+                };
+                let element = channel_item_descriptor_type(unit, &name).ok_or_else(|| {
+                    failure(
+                        &unit.source,
+                        "T0074",
+                        "`task-group` child result must be a concrete transferable type",
+                        descriptor.span,
+                    )
+                })?;
+                return Ok(Some(ValueType::TaskGroup(ElementType::new(element))));
+            }
+            if callee.kind == SyntaxKind::Name
+                && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/async::task-scope")
             {
                 if let Some(argument) = arguments.children.first() {
@@ -1100,6 +1163,12 @@ fn infer_nonbinary_value_type(
                         )));
                     }
                     "intrinsic:streams::write" => Some(ValueType::PlatformWriteResult),
+                    "intrinsic:streams::write-async" => {
+                        return Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::PlatformWriteResult),
+                            TaskTransferability::Local,
+                        )));
+                    }
                     "intrinsic:streams::flush"
                     | "intrinsic:streams::sync-data"
                     | "intrinsic:streams::sync-all"
@@ -1147,6 +1216,7 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:capabilities::pseudo-random"
                     | "intrinsic:capabilities::secret-buffer"
                     | "intrinsic:capabilities::result-capability"
+                    | "intrinsic:capabilities::no-capability"
                     | "intrinsic:concurrency::platform-capability"
                     | "intrinsic:concurrency::no-capability"
                     | "intrinsic:process-signals::process-signal-result-capability"
@@ -1162,6 +1232,9 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:capabilities::tcp-accept-async"
                     | "intrinsic:capabilities::tcp-read-async"
                     | "intrinsic:capabilities::tcp-write-async"
+                    | "intrinsic:capabilities::tcp-read-into-async"
+                    | "intrinsic:capabilities::tls-read-into-async"
+                    | "intrinsic:capabilities::stream-read-into-async"
                     | "intrinsic:capabilities::udp-send-to-async"
                     | "intrinsic:capabilities::udp-receive-from-async"
                     | "intrinsic:capabilities::dns-lookup-async"
@@ -1175,7 +1248,12 @@ fn infer_nonbinary_value_type(
                             TaskTransferability::Local,
                         )));
                     }
-                    "intrinsic:capabilities::failed-result"
+                    "intrinsic:capabilities::buffer-create"
+                    | "intrinsic:capabilities::buffer-clear"
+                    | "intrinsic:capabilities::buffer-close"
+                    | "intrinsic:capabilities::buffer-filled-bytes"
+                    | "intrinsic:capabilities::buffer-filled-text"
+                    | "intrinsic:capabilities::failed-result"
                     | "intrinsic:capabilities::random-bytes"
                     | "intrinsic:capabilities::random-bounded"
                     | "intrinsic:capabilities::random-split"
@@ -1340,6 +1418,8 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:data::document-length"
                     | "intrinsic:data::url-query-length"
                     | "intrinsic:capabilities::result-int"
+                    | "intrinsic:capabilities::buffer-capacity"
+                    | "intrinsic:capabilities::buffer-completed"
                     | "intrinsic:concurrency::result-int"
                     | "intrinsic:process-signals::process-signal-result-int"
                     | "intrinsic:process-signals::process-signal-result-exact-int"
@@ -1424,6 +1504,61 @@ fn infer_nonbinary_value_type(
                         "T0109",
                         format!("invalid channel `{operation}` invocation"),
                         node.span,
+                    )),
+                };
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && let Some(ValueType::TaskGroup(result)) =
+                    infer_value_type(unit, receiver, bindings)?
+            {
+                return match node_text(&unit.source, member) {
+                    "spawn" => {
+                        let [argument] = arguments.children.as_slice() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-group.spawn` requires one async callable or task",
+                                node.span,
+                            ));
+                        };
+                        let value = argument.children.last().unwrap_or(argument);
+                        let actual = infer_value_type(unit, value, bindings)?;
+                        let child = match actual {
+                            Some(ValueType::AsyncFunction(parameters, child, _, _))
+                                if parameters.is_empty() =>
+                            {
+                                Some(child)
+                            }
+                            Some(ValueType::Task(child, _)) => Some(child),
+                            _ => None,
+                        };
+                        if child.as_ref() != Some(&result) {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                format!(
+                                    "`task-group.spawn` requires an async child returning {result}"
+                                ),
+                                value.span,
+                            ));
+                        }
+                        Ok(Some(ValueType::Scalar(ScalarType::None)))
+                    }
+                    "drain" if arguments.children.is_empty() => Ok(Some(ValueType::Task(
+                        ElementType::new(ValueType::List(ElementType::new(
+                            ValueType::TaskOutcome(result),
+                        ))),
+                        TaskTransferability::Local,
+                    ))),
+                    "cancel" if arguments.children.is_empty() => {
+                        Ok(Some(ValueType::Scalar(ScalarType::None)))
+                    }
+                    _ => Err(failure(
+                        &unit.source,
+                        "T0074",
+                        "task group supports `spawn`, `cancel`, and consuming `drain`",
+                        member.span,
                     )),
                 };
             }

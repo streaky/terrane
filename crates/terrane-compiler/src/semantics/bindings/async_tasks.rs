@@ -231,6 +231,7 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
             | ValueType::Set(inner)
             | ValueType::Tuple(inner, _)
             | ValueType::UnorderedSet(inner)
+            | ValueType::TaskGroup(inner)
             | ValueType::TaskOutcome(inner) => {
                 satisfies(package, inner.value_type_ref(), obligation, visiting)
             }
@@ -299,6 +300,7 @@ pub(super) fn value_type_is_task_transferable(
         | ValueType::Tuple(inner, _)
         | ValueType::UnorderedSet(inner)
         | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
         | ValueType::SharedReference(inner) => {
             value_type_is_task_transferable(package, inner.value_type_ref())
         }
@@ -329,6 +331,7 @@ pub(in crate::semantics) fn value_type_is_owned_static(value_type: &ValueType) -
         | ValueType::Tuple(inner, _)
         | ValueType::UnorderedSet(inner)
         | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
         | ValueType::SharedReference(inner) => value_type_is_owned_static(inner.value_type_ref()),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
@@ -519,6 +522,10 @@ pub(in crate::semantics) fn synchronize_execution_requirements(package: &mut Sem
     if package.units.iter().any(|unit| {
         [
             "host-read-async",
+            "host-write-async",
+            "host-stream-read-into-async",
+            "host-tcp-read-into-async",
+            "host-tls-read-into-async",
             "host-tcp-connect-async",
             "host-tcp-connect-host-async",
             "host-tcp-accept-async",
@@ -585,6 +592,10 @@ pub(in crate::semantics) fn validate_suspension_ownership(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Keeps task consumption traversal and its diagnostics together."
+)]
 pub(in crate::semantics) fn validate_task_consumption(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -597,7 +608,11 @@ pub(in crate::semantics) fn validate_task_consumption(
                 && child.kind == SyntaxKind::CallExpression
                 && matches!(
                     infer_value_type(unit, child, &unit.typed_bindings)?,
-                    Some(ValueType::Task(_, _) | ValueType::ScopedTask(_, _))
+                    Some(
+                        ValueType::Task(_, _)
+                            | ValueType::ScopedTask(_, _)
+                            | ValueType::TaskGroup(_)
+                    )
                 )
             {
                 return Ok(Some(child.span));
@@ -628,7 +643,7 @@ pub(in crate::semantics) fn validate_task_consumption(
                 callee.kind == SyntaxKind::MemberExpression
                     && matches!(
                         infer_value_type(unit, receiver, &unit.typed_bindings),
-                        Ok(Some(ValueType::TaskScope))
+                        Ok(Some(ValueType::TaskScope | ValueType::TaskGroup(_)))
                     )
                     && matches!(node_text(&unit.source, member), "join" | "spawn")
             });
@@ -701,7 +716,10 @@ pub(in crate::semantics) fn validate_task_transferability(
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && node_text(&unit.source, member) == "spawn"
-            && infer_value_type(unit, receiver, &unit.typed_bindings)? == Some(ValueType::TaskScope)
+            && matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings)?,
+                Some(ValueType::TaskScope | ValueType::TaskGroup(_))
+            )
             && let Some(arguments) = node.children.get(1)
             && let Some(argument) = arguments.children.first()
         {
@@ -724,6 +742,24 @@ pub(in crate::semantics) fn validate_task_transferability(
         Ok(None)
     }
 
+    for unit in &package.units {
+        for binding in &unit.typed_bindings {
+            if let ValueType::TaskGroup(item) = &binding.value_type
+                && (!value_type_satisfies_auto_trait(
+                    package,
+                    item.value_type_ref(),
+                    AutoTraitObligation::Send,
+                ) || !value_type_is_owned_static(item.value_type_ref()))
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0104",
+                    "task-group child results must be transferable owned values",
+                    binding.span,
+                ));
+            }
+        }
+    }
     if package.execution_strategy != crate::execution::ExecutionStrategy::Parallel {
         return Ok(());
     }

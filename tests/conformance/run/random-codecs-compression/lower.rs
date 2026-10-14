@@ -56,10 +56,13 @@ fn main() {
     let reparsed_v7: UuidResult;
     let noncanonical: UuidResult;
     let invalid_time: UuidResult;
-    first = PseudoRandom::terrane_construct(chacha20(), Vec::from([115, 101, 101, 100]));
+    first = PseudoRandom::terrane_construct(
+        chacha20(),
+        Vec::<u8>::from([115, 101, 101, 100]),
+    );
     second = PseudoRandom::terrane_construct(
         chacha20(),
-        Vec::from([115, 101, 101, 100]),
+        Vec::<u8>::from([115, 101, 101, 100]),
     );
     hash = sha256();
     gzip_codec = gzip();
@@ -95,50 +98,61 @@ fn main() {
         &&secure_number.value.clone() >= terrane_int_support::Int::from(0_i128)
         &&secure_number.value.clone() < terrane_int_support::Int::from(17_i128)))
     );
-    digest = digest_bytes(hash.clone(), Vec::from([97, 98, 99]));
+    digest = digest_bytes(hash.clone(), Vec::<u8>::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(digest.value.value
         .clone()))
     );
     wide_hash = sha512();
-    wide_digest = digest_bytes(wide_hash.clone(), Vec::from([97, 98, 99]));
+    wide_digest = digest_bytes(wide_hash.clone(), Vec::<u8>::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(wide_digest.value.value
         .clone()))
     );
-    key = SecretBuffer::terrane_construct(Vec::from([107, 101, 121]));
-    same_key = SecretBuffer::terrane_construct(Vec::from([107, 101, 121]));
-    mac = sign_hmac(hash.clone(), key.clone(), Vec::from([100, 97, 116, 97]));
-    same_mac = sign_hmac(hash.clone(), same_key.clone(), Vec::from([100, 97, 116, 97]));
+    key = SecretBuffer::terrane_construct(Vec::<u8>::from([107, 101, 121]));
+    same_key = SecretBuffer::terrane_construct(Vec::<u8>::from([107, 101, 121]));
+    mac = sign_hmac(hash.clone(), key.clone(), Vec::<u8>::from([100, 97, 116, 97]));
+    same_mac = sign_hmac(
+        hash.clone(),
+        same_key.clone(),
+        Vec::<u8>::from([100, 97, 116, 97]),
+    );
     println!(
         "{}", terrane_scalar_support::scalar_text(&signature_equals(mac.value, same_mac
         .value))
     );
-    wide_mac = sign_hmac(wide_hash.clone(), key.clone(), Vec::from([100, 97, 116, 97]));
+    wide_mac = sign_hmac(
+        wide_hash.clone(),
+        key.clone(),
+        Vec::<u8>::from([100, 97, 116, 97]),
+    );
     same_wide_mac = sign_hmac(
         wide_hash,
         same_key.clone(),
-        Vec::from([100, 97, 116, 97]),
+        Vec::<u8>::from([100, 97, 116, 97]),
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&signature_equals(wide_mac.value,
         same_wide_mac.value))
     );
     destroy_secret(same_key.clone());
-    destroyed = sign_hmac(hash, same_key, Vec::from([100, 97, 116, 97]));
+    destroyed = sign_hmac(hash, same_key, Vec::<u8>::from([100, 97, 116, 97]));
     println!("{}", terrane_scalar_support::scalar_text(&destroyed.failed));
     unsupported = HashAlgorithm::terrane_construct(String::from("unsupported"));
-    failed_digest = digest_bytes(unsupported.clone(), Vec::from([100, 97, 116, 97]));
+    failed_digest = digest_bytes(
+        unsupported.clone(),
+        Vec::<u8>::from([100, 97, 116, 97]),
+    );
     println!("{}", terrane_scalar_support::scalar_text(&failed_digest.failed));
-    failed_mac = sign_hmac(unsupported, key, Vec::from([100, 97, 116, 97]));
+    failed_mac = sign_hmac(unsupported, key, Vec::<u8>::from([100, 97, 116, 97]));
     println!("{}", terrane_scalar_support::scalar_text(&failed_mac.failed));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec::from([104, 101,
-        108, 108, 111]), false, true))
+        "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec:: < u8 >
+        ::from([104, 101, 108, 108, 111]), false, true))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec::from([104, 101,
-        108, 108, 111, 63]), true, false))
+        "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec:: < u8 >
+        ::from([104, 101, 108, 108, 111, 63]), true, false))
     );
     strict = decode_base64(String::from("aGVsbG8="), false, true);
     println!(
@@ -164,7 +178,7 @@ fn main() {
     );
     packed = gzip_codec
         .compress(
-            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            Vec::<u8>::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
             options.clone(),
         );
     limits = DecompressionLimits::terrane_construct(
@@ -181,7 +195,7 @@ fn main() {
     zlib_codec = zlib();
     zlib_packed = zlib_codec
         .compress(
-            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            Vec::<u8>::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
             options.clone(),
         );
     zlib_unpacked = zlib_codec.decompress(zlib_packed.value.clone(), limits.clone());
@@ -193,7 +207,7 @@ fn main() {
     raw_codec = deflate_raw();
     raw_packed = raw_codec
         .compress(
-            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            Vec::<u8>::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
             options.clone(),
         );
     raw_unpacked = raw_codec.decompress(raw_packed.value.clone(), limits);
@@ -205,7 +219,7 @@ fn main() {
     zstd_codec = zstd();
     zstd_packed = zstd_codec
         .compress(
-            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            Vec::<u8>::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
             options,
         );
     zstd_limits = DecompressionLimits::terrane_construct(

@@ -4,7 +4,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .build()
         .expect("Terrane async runtime must initialize");
     tokio::task::LocalSet::new().block_on(&runtime, async move {
-        let output = future.await;
+        let output = __terrane_async_entry(future).await;
         __terrane_wait_projected_cleanups().await;
         output
     })

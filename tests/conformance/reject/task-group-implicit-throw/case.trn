@@ -1,0 +1,19 @@
+namespace task-group-implicit-throw
+from /core/errors import throwable
+
+class worker-error implements throwable
+    message string = 'failed'
+    function render string;
+        return this.message
+
+async function risky none throws throwable;
+    throw instance worker-error;
+
+async function child int;
+    return 1
+
+async function main;
+    group = task-group; int
+    group.spawn; (child;)
+    _ = await risky;
+    _ = await group.drain;

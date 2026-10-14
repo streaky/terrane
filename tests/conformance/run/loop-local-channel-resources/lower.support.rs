@@ -44,6 +44,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 fn __terrane_run<F: Future>(future: F) -> F::Output {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -53,7 +60,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .block_on(
             &runtime,
             async move {
-                let output = future.await;
+                let output = __terrane_async_entry(future).await;
                 __terrane_wait_projected_cleanups().await;
                 output
             },
@@ -406,9 +413,11 @@ pub fn terrane_platform_i128(
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {
     terrane_int_support::coerce::<i128>(value)
-        .map_err(|_| TerranePlatformResult::error(
-            format!("{label} is outside the signed 128-bit platform range"),
-        ))
+        .map_err(|_| {
+            TerranePlatformResult::error(
+                format!("{label} is outside the signed 128-bit platform range"),
+            )
+        })
 }
 pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
     if value < terrane_int_support::Int::from(0_i128) {

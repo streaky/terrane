@@ -1,0 +1,43 @@
+namespace task-group-parent-cancellation
+from /core/errors import throwable
+from /core/time import clock, duration
+
+class state
+    child-cleaned bool = false
+    parent-cleaned bool = false
+
+class worker-error implements throwable
+    message string = 'failed'
+    function render string;
+        return this.message
+
+async function child none; observer shared ref state
+    try
+        _ = await clock::sleep; (duration::seconds; 30)
+    finally
+        observer.child-cleaned = true
+    return none
+
+async function parent none; observer shared ref state
+    group = task-group; none
+    group.spawn; (child; observer)
+    try
+        _ = await clock::sleep; (duration::seconds; 30)
+    finally
+        _ = await group.drain;
+        observer.parent-cleaned = true
+    return none
+
+async function fail none throws throwable;
+    throw instance worker-error;
+
+async function main;
+    observer = shared ref (instance state;)
+    scope = task-scope;
+    pending = scope.spawn; (parent; observer)
+    failing = scope.spawn; (fail;)
+    failed = await scope.join; failing
+    joined = await scope.join; pending
+    print; failed.error != none
+    print; joined.cancelled
+    print; observer.child-cleaned and observer.parent-cleaned

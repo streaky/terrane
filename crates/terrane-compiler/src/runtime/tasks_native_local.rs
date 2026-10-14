@@ -15,11 +15,10 @@ impl TerraneTaskScope {
     pub fn child_scope(&self, requested: &terrane_int_support::Int) -> Self {
         Self {
             cancellation: self.cancellation.clone(),
-            deadline: Some(
-                self.deadline
-                    .as_ref()
-                    .map_or_else(|| requested.clone(), |parent| parent.clone().min(requested.clone())),
-            ),
+            deadline: Some(self.deadline.as_ref().map_or_else(
+                || requested.clone(),
+                |parent| parent.clone().min(requested.clone()),
+            )),
         }
     }
 
@@ -29,7 +28,10 @@ impl TerraneTaskScope {
 
     pub fn should_cancel(&self) -> bool {
         self.cancellation.is_cancelled()
-            || self.deadline.as_ref().is_some_and(terrane_time_deadline_expired)
+            || self
+                .deadline
+                .as_ref()
+                .is_some_and(terrane_time_deadline_expired)
     }
 
     fn cancellation(&self) -> TerraneCancellation {
@@ -37,11 +39,16 @@ impl TerraneTaskScope {
     }
 
     pub async fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
-        let result = task.handle.take().expect("scoped task joined once").await
+        let result = task
+            .handle
+            .take()
+            .expect("scoped task joined once")
+            .await
             .expect("scoped task must not panic outside its Terrane boundary");
         outcome_from_result(self, result)
     }
 }
+
 #[allow(
     dead_code,
     reason = "task result ABI is emitted before per-variant usage shaping"
@@ -60,11 +67,16 @@ pub struct TerraneScopedTask<T> {
 impl<T: 'static> TerraneScopedTask<T> {
     #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
     fn spawn<F: Future<Output = TerraneTaskResult<T>> + 'static>(work: F) -> Self {
-        Self { handle: Some(tokio::task::spawn_local(work)) }
+        Self {
+            handle: Some(tokio::task::spawn_local(work)),
+        }
     }
 }
 
-fn outcome_from_result<T>(scope: &TerraneTaskScope, result: TerraneTaskResult<T>) -> TerraneTaskOutcome<T> {
+fn outcome_from_result<T>(
+    scope: &TerraneTaskScope,
+    result: TerraneTaskResult<T>,
+) -> TerraneTaskOutcome<T> {
     match result {
         TerraneTaskResult::Completed(value) => TerraneTaskOutcome {
             completed: true,
@@ -74,7 +86,12 @@ fn outcome_from_result<T>(scope: &TerraneTaskScope, result: TerraneTaskResult<T>
         },
         TerraneTaskResult::Failed(error) => {
             scope.cancel();
-            TerraneTaskOutcome { completed: false, cancelled: false, value: None, error: Some(error) }
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: false,
+                value: None,
+                error: Some(error),
+            }
         }
         TerraneTaskResult::Cancelled => TerraneTaskOutcome {
             completed: false,
@@ -85,6 +102,7 @@ fn outcome_from_result<T>(scope: &TerraneTaskScope, result: TerraneTaskResult<T>
     }
 }
 
+#[derive(Clone)]
 pub struct TerraneTaskOutcome<T> {
     pub completed: bool,
     pub cancelled: bool,

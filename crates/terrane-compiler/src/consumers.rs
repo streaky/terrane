@@ -241,28 +241,43 @@ fn prepare_declarations(
     }
     for interface_path in &config.interfaces {
         merge_interface_metadata(
-            package,
-            config,
+            InterfaceMerge {
+                package,
+                config,
+                fallback,
+                selected: &selected,
+                available: &mut available,
+                external_sources: &mut external_sources,
+                next_external_file: &mut next_external_file,
+            },
             interface_path,
-            fallback,
-            &selected,
-            &mut available,
-            &mut external_sources,
-            &mut next_external_file,
         )?;
     }
     Ok((available, external_sources))
 }
-fn merge_interface_metadata(
-    package: &Package,
-    config: &crate::package::ConsumerConfig,
-    interface_path: &std::path::Path,
+#[derive(Debug)]
+struct InterfaceMerge<'a> {
+    package: &'a Package,
+    config: &'a crate::package::ConsumerConfig,
     fallback: Span,
-    selected: &std::collections::BTreeSet<&str>,
-    available: &mut std::collections::BTreeMap<String, crate::semantics::DeclarationMetadata>,
-    external_sources: &mut std::collections::BTreeMap<u32, (std::path::PathBuf, usize)>,
-    next_external_file: &mut u32,
+    selected: &'a std::collections::BTreeSet<&'a str>,
+    available: &'a mut std::collections::BTreeMap<String, crate::semantics::DeclarationMetadata>,
+    external_sources: &'a mut std::collections::BTreeMap<u32, (std::path::PathBuf, usize)>,
+    next_external_file: &'a mut u32,
+}
+fn merge_interface_metadata(
+    context: InterfaceMerge<'_>,
+    interface_path: &std::path::Path,
 ) -> Result<(), crate::CompilationFailure> {
+    let InterfaceMerge {
+        package,
+        config,
+        fallback,
+        selected,
+        available,
+        external_sources,
+        next_external_file,
+    } = context;
     let path = package.root.join(interface_path);
     let bytes = read_interface_bytes(&path).map_err(|error| {
         failure(
@@ -1022,8 +1037,7 @@ mod tests {
 
         config.declarations = vec!["/consumer-selection::clock::seconds".to_owned()];
         let error = prepare_declarations(&package, &declarations, &config, fallback_span(&package))
-            .err()
-            .expect("selected ambiguous identities remain errors");
+            .expect_err("selected ambiguous identities remain errors");
         assert_eq!(error.diagnostics[0].code.as_ref(), "S2060");
         assert!(
             error.diagnostics[0]

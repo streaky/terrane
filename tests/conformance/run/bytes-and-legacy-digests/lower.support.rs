@@ -487,9 +487,11 @@ pub fn terrane_platform_i128(
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {
     terrane_int_support::coerce::<i128>(value)
-        .map_err(|_| TerranePlatformResult::error(
-            format!("{label} is outside the signed 128-bit platform range"),
-        ))
+        .map_err(|_| {
+            TerranePlatformResult::error(
+                format!("{label} is outside the signed 128-bit platform range"),
+            )
+        })
 }
 pub fn terrane_platform_timeout_nanos(value: terrane_int_support::Int) -> i128 {
     if value < terrane_int_support::Int::from(0_i128) {
@@ -660,7 +662,7 @@ impl DecodeResult {
         let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
-            value: Vec::from([]),
+            value: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(failed, message, data);
         __terrane_constructed_value
@@ -765,7 +767,7 @@ impl ByteResult {
         let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
-            value: Vec::from([]),
+            value: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(failed, message, data);
         __terrane_constructed_value
@@ -833,7 +835,7 @@ pub struct SecretBuffer {
 impl SecretBuffer {
     pub fn terrane_construct(data: Vec<u8>) -> Self {
         let mut __terrane_constructed_value = Self {
-            handle: terrane_platform_secret_buffer(Vec::from([])),
+            handle: terrane_platform_secret_buffer(Vec::<u8>::from([])),
         };
         __terrane_constructed_value.construct(data);
         __terrane_constructed_value
@@ -859,7 +861,7 @@ impl DigestValue {
     pub fn terrane_construct(algorithm: String, data: Vec<u8>) -> Self {
         let mut __terrane_constructed_value = Self {
             algorithm: String::from(""),
-            value: Vec::from([]),
+            value: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(algorithm, data);
         __terrane_constructed_value
@@ -892,7 +894,7 @@ impl DigestResult {
         let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
-            value: DigestValue::terrane_construct(String::from(""), Vec::from([])),
+            value: DigestValue::terrane_construct(String::from(""), Vec::<u8>::from([])),
         };
         __terrane_constructed_value.construct(failed, message, digest);
         __terrane_constructed_value
@@ -912,7 +914,7 @@ impl SignatureValue {
     pub fn terrane_construct(algorithm: String, data: Vec<u8>) -> Self {
         let mut __terrane_constructed_value = Self {
             algorithm: String::from(""),
-            value: Vec::from([]),
+            value: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(algorithm, data);
         __terrane_constructed_value
@@ -945,7 +947,10 @@ impl SignatureResult {
         let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
-            value: SignatureValue::terrane_construct(String::from(""), Vec::from([])),
+            value: SignatureValue::terrane_construct(
+                String::from(""),
+                Vec::<u8>::from([]),
+            ),
         };
         __terrane_constructed_value.construct(failed, message, signature);
         __terrane_constructed_value
@@ -1024,7 +1029,7 @@ impl PseudoRandom {
         let mut __terrane_constructed_value = Self {
             handle: terrane_platform_pseudo_random(
                 String::from("chacha20"),
-                Vec::from([]),
+                Vec::<u8>::from([]),
             ),
         };
         __terrane_constructed_value.construct(algorithm, seed);
@@ -1058,7 +1063,7 @@ impl PseudoRandom {
         let raw: TerranePlatformResult;
         let mut child: PseudoRandom;
         raw = terrane_platform_random_split(&self.handle);
-        child = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
+        child = PseudoRandom::terrane_construct(chacha20(), Vec::<u8>::from([]));
         child.handle = terrane_platform_result_capability(&raw);
         return child;
     }
@@ -1067,7 +1072,7 @@ pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
     let raw: TerranePlatformResult;
     let mut child: PseudoRandom;
     raw = terrane_platform_random_split(&source.handle);
-    child = PseudoRandom::terrane_construct(chacha20(), Vec::from([]));
+    child = PseudoRandom::terrane_construct(chacha20(), Vec::<u8>::from([]));
     child.handle = terrane_platform_result_capability(&raw);
     return child;
 }

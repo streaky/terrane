@@ -1,0 +1,45 @@
+namespace core/io
+
+from /core/time import deadline
+
+class cancellation-token
+    private handle host-platform-capability = host-cancellation-token;
+
+class io-operation-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+
+    function construct; failed bool, deadline-exceeded bool, message string
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+
+function cancel-operation io-operation-result; cancellation cancellation-token
+    raw = host-cancel; cancellation.handle
+    return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+class io-operation-options
+    deadline deadline|none = none
+    cancellation cancellation-token|none = none
+
+    function construct; requested deadline|none = none, cancellation cancellation-token|none = none
+        this.deadline = requested
+        this.cancellation = cancellation
+
+function operation-cancellation host-platform-capability|none; options io-operation-options|none
+    if options != none
+        selected = options.cancellation
+        if selected != none
+            return selected.handle
+    return none
+
+function operation-deadline int; options io-operation-options|none
+    if options != none
+        selected = options.deadline
+        if selected != none
+            remaining = selected.remaining;
+            if remaining != none
+                return remaining.total-nanoseconds
+            return 0
+    return -1

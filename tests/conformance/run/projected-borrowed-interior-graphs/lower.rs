@@ -109,10 +109,13 @@ fn entry_value(entry: &Entry) -> terrane_int_support::Int {
     );
 }
 fn request_view<'view>(request: &'view Request) -> witness::View<'view> {
-    return __terrane_raised(
-        make_view(&(&request).extensions().entry()),
-        5 /* terrane-site: src/main.trn:12:12-12:53 */,
-    );
+    return {
+        let __terrane_native_input_0 = &(&request).extensions().entry();
+        __terrane_raised(
+            make_view(__terrane_native_input_0),
+            5 /* terrane-site: src/main.trn:12:12-12:53 */,
+        )
+    };
 }
 fn observe_header(
     action: std::sync::Arc<dyn Fn(&HeaderValue) -> bool + Send + Sync>,
@@ -166,8 +169,9 @@ fn main() {
         7 /* terrane-site: src/main.trn:20:13-20:50 */))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(consume(&(&request)
-        .extensions().entry()), 8 /* terrane-site: src/main.trn:21:13-21:52 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
+        &(&request).extensions().entry();
+        __terrane_raised(consume(__terrane_native_input_0), 8 /* terrane-site: src/main.trn:21:13-21:52 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match

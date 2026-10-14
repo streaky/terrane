@@ -1,0 +1,16 @@
+namespace task-group-reassigned-await
+from /core/errors import throwable, coercion-error
+
+async function risky int throws throwable;
+    throw coercion-error
+
+async function safe int;
+    return 1
+
+async function main;
+    pending = (safe;)
+    _ = await pending
+    pending = (risky;)
+    group = task-group; int
+    _ = await pending
+    _ = await group.drain;

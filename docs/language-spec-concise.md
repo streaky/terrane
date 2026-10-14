@@ -177,17 +177,17 @@ Rules:
 Version-one default ordinary program-global bindings EXACTLY:
 
 ```text
-print task-scope utf8 utf16-le utf16-be utf32-le utf32-be
+print task-scope task-group utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-- These seven need no import. `print; value` is a complete statement and `scope = task-scope;` creates a structured-concurrency scope in a program with no import lines at all.
+- These eight need no import. `print; value` is a complete statement, `scope = task-scope;` creates a structured-concurrency scope, and `group = task-group; int` creates a typed structured task group without import lines.
 - Prelude may be disabled.
 - Explicit `/core` object imports still work and may shadow/replace defaults deliberately.
 - Library facilities such as `map`, `list`, `range`, and filesystem tools are NOT implicit prelude bindings; import them.
 - Every `/core/types` descriptor — scalar, fixed-width, abstract category, `string`, `bytes`, and `none` — is construct vocabulary available without import independently of prelude selection.
 
 ```yaml
-prelude_bindings: the seven ordinary program-globals listed above
+prelude_bindings: the eight ordinary program-globals listed above
 descriptor_constructs: every descriptor registered under /core/types
 construct_availability: usable in construct position without import ('value int8 = 42')
 construct_value_use: still rejected in value position; a construct is not a runtime value
@@ -558,6 +558,7 @@ reference_lowering: a provenance-bounded ordinary ref lowers to a target borrow 
 reference_escape: returns are accepted only when provenance reaches the selected external lender; ambiguous call-result lender paths, local or by-value-parameter return, post-lifetime-end use, and ref-to-shared-ref promotion are source errors
 resource_ownership: inferred transitively from compiler-known noncopyable fields; no 'linear class' qualifier
 resource_assignment: transfers identity and makes source unavailable; no 'move' ceremony required; loop-body declarations and for targets initialize a fresh binding value on every iteration, so their consumed state does not cross the back-edge, while moved bindings originating outside the loop remain unavailable on later iterations until explicitly rebound
+owning_interfaces: an interface declaring a consuming instance method is noncopyable; erasure transfers the concrete owner, assignment/calls transfer the interface value, and use after transfer or consuming invocation is rejected; ordinary copyable interfaces retain value semantics
 resource_argument: a statically non-copyable value passed by value transfers automatically; lowering may use a target-language move
 move: explicit transfer request for a value ordinary assignment would copy; optional emphasis for an already-required non-copyable transfer
 constants: cannot rebind
@@ -869,8 +870,11 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 
 - `async function` has a distinct async callable type; `await` is valid only in async context, and sync/async callable types require an explicit adapter.
 - Async invocation returns a linear `task of T`; `await` consumes it exactly once. Scope `spawn` accepts an async callable or an unpolled task transferred automatically by its non-copyable contract and returns a linear `scoped-task of T`; `join` consumes that scoped task by value and creates `task of task-outcome of T`, so `await scope.join; child` consumes the child at the call boundary and the join task at `await`. Neither transfer requires source-level `move`; unconsumed tasks are compile-time errors, never implicit detach/cancel.
+- `task of T` above denotes an inferred semantic type, not writable source syntax: `task` is not currently a parameter/return annotation constructor. Stored tasks infer their types; APIs receiving deferred work can use an async callable.
+- Current limitation: an ordinary synchronous wrapper returning a task-constructing expression does not expose a task-typed result to callers. It is not a supported task factory; expose an async function returning the eventual value and await inside its body, or pass an async callable.
 - Every async callable/task carries inferred `local` or `transferable` execution metadata from parameters, captures, live-across-suspension values, and invoked async boundaries. Projected Rust futures are local unless their admitted contract or an exact probe proves transfer. Callable compatibility preserves the distinction; a threaded spawn rejects local work.
 - Direct calls, local bindings, and immediate await keep concrete Rust future types. Pin/box erasure appears only at heterogeneous storage or callable ABI boundaries, and only transferable erased futures receive the strategy's transfer bound. A task may move before first poll; after advancement it is pinned in executor-owned state.
+- Task aliases, including explicit `move` and parenthesized transfers, preserve the single-use value and deferred errors. Reassignment and branch assignment use reaching construction effects at each await; heterogeneous storage shares one native result ABI without adding semantic errors to known-safe writes. Awaiting a reassigned task reads that write and does not produce an unused-assignment warning.
 - `select` is an async-only statement with at least two static `case` clauses. Each case header is
   either `await expression` or one ordinary function-local binding initialized by exactly one
   top-level `await`; only the winning case assigns its variable. Function visibility, definite
@@ -907,6 +911,12 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `task-outcome of T`: `completed bool`, `cancelled bool`, `value T|none` present exactly on completion, `error throwable|none` present exactly on failure.
 - Cancellation is cooperative at defined points, but observation while suspended promptly drops the in-flight operation. A wakeable compiler-owned signal—not timer polling—drives native observation. Lowered async `try` regions install nested finalization guards: the innermost active guard drops its operation, runs compiler-separated `finally` state exactly once, and then exposes the request to its parent. Async cleanup remains protected until the outermost guard releases cancellation to the task boundary. Guard state is non-catchable and uses no Rust panic/unwind control flow. Owned foreign operation state runs Rust `Drop`; cleanup-owned state survives until cleanup. Reject overlapping exclusive ownership, insufficient-lifetime borrows, or other captures that cannot split operation and cleanup state.
 - Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true. A cleanup error replaces pending cancellation under ordinary `finally` rules while cancellation remains observable.
+- `task-group; T` owns a flat collection of typed child tasks. `group.spawn; (work; args)` transfers a matching unpolled task into the group without exposing a linear child handle; a matching zero-argument async callable is also accepted. `await group.drain;` consumes the group and returns spawn-ordered `task-outcome of T` values; an empty group returns an empty list. `group.cancel;` requests cancellation without joining or consuming: an awaited drain is still required. Failure cancels siblings, and parent cancellation waits for every child's finalizers. Every exit path, including propagated exceptions from throwing calls/awaits, must drain; protect potentially throwing work with a draining `finally`. Aliases, escapes, missing/unawaited drains (T0076), and incompatible/untransferable child types (T0074) are rejected.
+- `/core/io` supplies shared operation options with optional deadlines and cancellation tokens. TCP, TLS, and asynchronous byte-stream operations accept omitted or `none` options without creating a cancellation token. `/core/streams` supplies owning `async-byte-reader` and `async-byte-writer` protocols with `read-async`, `read-exact-async`, `read-into-async`, `write-async`, `write-all-async`, and consuming close. Exact reads preserve partial progress and fail on premature EOF; zero-length reads are not EOF. Read-into transfers and returns an `owned-read-buffer`, appending within its capacity; clear resets contents without discarding storage.
+- The neutral IO names are `/core/io::io-operation-options`, `cancellation-token`, `cancel-operation`, and `io-operation-result`; byte streams and TCP/TLS share these contracts without network-prefixed aliases.
+- TCP creation accepts optional `tcp-options` (no-delay false, TTL unchanged). Listener creation accepts optional `tcp-listener-options` (backlog 128, address reuse false, accepted-socket no-delay false, accepted TTL unchanged). TCP transport registration lasts for the resource lifetime; synchronously bound listeners register lazily on first asynchronous use.
+- TCP defaults intentionally use Nagle's algorithm (`no-delay = false`) and leave TTL unchanged (`ttl = -1`) instead of the former forced no-delay and TTL 64. Applications needing the former policy must supply explicit creation settings.
+- Standard-stream asynchronous adapters delegate blocking process IO. Options are checked before delegation: an already-canceled token or expired deadline fails without starting IO. Uncancelled tokens and future deadlines are accepted, but they cannot interrupt an in-progress blocking operation; this is a preflight-only deadline contract for these adapters. Parent cancellation still joins the blocking operation before returning, rather than abandoning a worker that owns stream or buffer state.
 - Deadlines use the same cancellation transition and are not hard kills. Cleanup may suspend beyond a deadline; join remains pending, and no liveness is promised for a foreign cleanup future that never wakes.
 - `/core/time` requires `clocks`. `duration` is an exact non-negative value with canonical
   `seconds`, `nanoseconds`, and arbitrary-precision `total-nanoseconds`; factories reject known

@@ -1,0 +1,60 @@
+namespace task-group-stored-alias-finally
+from /core/errors import throwable
+from /core/time import clock, duration
+
+class state
+    child-started bool = false
+    child-finished-normally bool = false
+    child-cleaned bool = false
+
+class worker-error implements throwable
+    message string = 'failed'
+    function render string;
+        return this.message
+
+async function risky none throws throwable;
+    throw instance worker-error;
+
+async function child int; observer shared ref state
+    observer.child-started = true
+    try
+        _ = await clock::sleep; (duration::seconds; 30)
+        observer.child-finished-normally = true
+    finally
+        observer.child-cleaned = true
+    return 1
+
+async function worker none; observer shared ref state
+    group = task-group; int
+    group.spawn; (child; observer)
+    while not observer.child-started
+        _ = await clock::sleep; (duration::nanoseconds; 1000000)
+    try
+        pending = (risky;)
+        other = pending
+        alias = (other)
+        _ = await alias
+    finally
+        group.cancel;
+        _ = await group.drain;
+    return none
+
+async function main;
+    observer = shared ref (instance state;)
+    try
+        _ = await (worker; observer)
+    catch throwable
+        print; 'caught'
+    print; observer.child-started
+    print; observer.child-finished-normally
+    print; observer.child-cleaned
+    _ = await (caught-call;)
+
+async function caught-call none;
+    group = task-group; int
+    try
+        _ = await (risky;)
+    catch throwable
+        print; 'handled'
+    _ = await group.drain;
+    return none

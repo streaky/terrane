@@ -575,6 +575,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 fn __terrane_run<F: Future>(future: F) -> F::Output {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -584,7 +591,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .block_on(
             &runtime,
             async move {
-                let output = future.await;
+                let output = __terrane_async_entry(future).await;
                 __terrane_wait_projected_cleanups().await;
                 output
             },

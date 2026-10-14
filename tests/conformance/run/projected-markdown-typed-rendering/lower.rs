@@ -19,14 +19,16 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let _ = invalid
-                .insert(
+                .insert({
+                    let __terrane_native_input_0 = String::from("{");
+                    let __terrane_native_input_1 = &__terrane_raised_completion!(
+                        mdx_options(), 2 /* terrane-site: src/main.trn:12:43-12:55 */
+                    );
                     __terrane_raised_completion!(
-                        to_html_with_options(String::from("{"),
-                        &__terrane_raised_completion!(mdx_options(),
-                        2 /* terrane-site: src/main.trn:12:43-12:55 */)),
-                        3 /* terrane-site: src/main.trn:12:15-12:56 */
-                    ),
-                );
+                        to_html_with_options(__terrane_native_input_0,
+                        __terrane_native_input_1), 3 /* terrane-site: src/main.trn:12:15-12:56 */
+                    )
+                });
             println!(
                 "{}", terrane_scalar_support::scalar_text(&invalid.as_ref()
                 .expect("flow-proven available binding"))

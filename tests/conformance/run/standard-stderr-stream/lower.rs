@@ -8,7 +8,9 @@ fn main() {
     error = stderr();
     written = error
         .write_all(
-            Vec::from([116, 121, 112, 101, 100, 32, 115, 116, 100, 101, 114, 114, 10]),
+            Vec::<
+                u8,
+            >::from([116, 121, 112, 101, 100, 32, 115, 116, 100, 101, 114, 114, 10]),
         );
     if written.failed {
         println!("{}", terrane_scalar_support::scalar_text(&written.message));

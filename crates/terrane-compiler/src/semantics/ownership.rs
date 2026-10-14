@@ -42,6 +42,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             value_type,
             ValueType::Task(_, _)
                 | ValueType::ScopedTask(_, _)
+                | ValueType::TaskGroup(_)
                 | ValueType::Iterator(_)
                 | ValueType::InvocationScopedNative { .. }
         ) || matches!(
@@ -258,12 +259,31 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && receiver.kind == SyntaxKind::Name
+            && node_text(&unit.source, member) == "drain"
+            && matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings),
+                Ok(Some(ValueType::TaskGroup(_)))
+            )
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
+        {
+            for child in &node.children {
+                visit(package, unit, child, moved, false, resource_objects)?;
+            }
+            moved.insert(binding);
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && matches!(
                 infer_value_type(unit, receiver, &unit.typed_bindings),
-                Ok(Some(ValueType::TaskScope))
+                Ok(Some(ValueType::TaskScope | ValueType::TaskGroup(_)))
             )
             && matches!(node_text(&unit.source, member), "spawn" | "join")
             && let Some(argument) = arguments.children.first()
@@ -1567,6 +1587,7 @@ fn shared_object_targets(
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::Reference(item) => {
             shared_object_targets(&item.value_type(), inside_shared, targets);
         }

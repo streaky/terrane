@@ -1,15 +1,97 @@
 namespace core/streams
 
+from /core/io import io-operation-options, operation-cancellation, operation-deadline
+
 from /core/encodings import utf8
 from /core/errors import decode-error
 
 class stream-operation-result
     failed bool = false
     message string = ''
+    deadline-exceeded bool = false
 
-    function construct; failed bool, message string
+    function construct; failed bool, message string, deadline-exceeded bool = false
         this.failed = failed
         this.message = message
+        this.deadline-exceeded = deadline-exceeded
+
+class buffer-bytes-result
+    failed bool = false
+    message string = ''
+    value bytes = b''
+
+    function construct; failed bool, message string, data bytes
+        this.failed = failed
+        this.message = message
+        this.value = data
+
+class buffer-text-result
+    failed bool = false
+    message string = ''
+    value string = ''
+
+    function construct; failed bool, message string, text string
+        this.failed = failed
+        this.message = message
+        this.value = text
+
+class read-buffer-result
+    failed bool = false
+    message string = ''
+    value owned-read-buffer = instance owned-read-buffer; (host-no-resource;)
+
+    function construct; failed bool, message string, buffer owned-read-buffer
+        this.failed = failed
+        this.message = message
+        this.value = buffer
+
+class owned-read-buffer
+    private handle host-platform-resource-handle
+
+    private function construct; handle host-platform-resource-handle
+        this.handle = handle
+
+    function capacity int;
+        return host-buffer-capacity; this.handle
+
+    function completed int;
+        return host-buffer-completed; this.handle
+
+    mutable function clear stream-operation-result;
+        raw = host-buffer-clear; this.handle
+        return instance stream-operation-result; (host-result-failed; raw), (host-result-message; raw)
+    function filled-bytes buffer-bytes-result;
+        raw = host-buffer-filled-bytes; this.handle
+        return instance buffer-bytes-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+
+    function filled-text buffer-text-result;
+        raw = host-buffer-filled-text; this.handle
+        return instance buffer-text-result; (host-result-failed; raw), (host-result-message; raw), (host-result-text; raw)
+
+    consuming function destruct;
+        host-buffer-close; this.handle
+
+
+class buffered-read-result
+    buffer owned-read-buffer
+    completed int = 0
+    end bool = false
+    failed bool = false
+    message string = ''
+    deadline-exceeded bool = false
+
+    function construct; buffer owned-read-buffer, completed int, end bool, failed bool, message string, deadline-exceeded bool = false
+        this.buffer = buffer
+        this.completed = completed
+        this.end = end
+        this.failed = failed
+        this.message = message
+        this.deadline-exceeded = deadline-exceeded
+
+function make-read-buffer read-buffer-result; capacity int
+    raw = host-buffer-create; capacity
+    buffer = instance owned-read-buffer; (host-result-resource; raw)
+    return instance read-buffer-result; (host-result-failed; raw), (host-result-message; raw), move buffer
 
 class read-result
     data bytes = b''
@@ -17,13 +99,15 @@ class read-result
     end bool = false
     failed bool = false
     message string = ''
+    deadline-exceeded bool = false
 
-    function construct; data bytes, completed int, end bool, failed bool, message string
+    function construct; data bytes, completed int, end bool, failed bool, message string, deadline-exceeded bool = false
         this.data = data
         this.completed = completed
         this.end = end
         this.failed = failed
         this.message = message
+        this.deadline-exceeded = deadline-exceeded
 
 class text-read-result
     text string = ''
@@ -44,8 +128,9 @@ class write-result
     completed int = 0
     failed bool = false
     message string = ''
+    deadline-exceeded bool = false
 
-    function construct; data bytes, completed int, failed bool, message string
+    function construct; data bytes, completed int, failed bool, message string, deadline-exceeded bool = false
         if completed == data.length and not failed
             this.data = b''
         else
@@ -53,8 +138,80 @@ class write-result
         this.completed = completed
         this.failed = failed
         this.message = message
+        this.deadline-exceeded = deadline-exceeded
 
-class byte-reader
+# Shared completion policy; concrete adapters keep their transport and ownership.
+class exact-read-progress
+    target int = 0
+    completed int = 0
+    end bool = false
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+
+    function construct; count int
+        this.target = count
+
+    function pending bool;
+        return this.completed < this.target and not this.end and not this.failed and not this.deadline-exceeded
+
+    function remaining int;
+        return this.target - this.completed
+
+    mutable function advance none; completed int, end bool, failed bool, deadline-exceeded bool, message string
+        this.completed = this.completed + completed
+        this.end = end
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        if completed == 0 and not end and not failed and not deadline-exceeded
+            this.failed = true
+            this.message = 'stream read made no progress'
+        return none
+
+    function result read-result; data bytes
+        failed = this.failed
+        message = this.message
+        if this.end and this.completed < this.target and not failed and not this.deadline-exceeded
+            failed = true
+            message = 'stream ended before exact byte count'
+        return instance read-result; move data, this.completed, this.end, failed, message, this.deadline-exceeded
+
+class write-progress
+    completed int = 0
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+
+    function pending bool; count int
+        return this.completed < count and not this.failed and not this.deadline-exceeded
+
+    mutable function advance none; completed int, failed bool, deadline-exceeded bool, message string
+        this.completed = this.completed + completed
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        if completed == 0 and not failed and not deadline-exceeded
+            this.failed = true
+            this.message = 'stream write made no progress'
+        return none
+
+    function result write-result; data bytes
+        return instance write-result; data, this.completed, this.failed, this.message, this.deadline-exceeded
+
+interface async-byte-reader
+    async function read-async read-result; count int, options io-operation-options|none = none
+    async function read-exact-async read-result; count int, options io-operation-options|none = none
+    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options io-operation-options|none = none
+    consuming function close stream-operation-result;
+
+interface async-byte-writer
+    async function write-async write-result; data bytes, options io-operation-options|none = none
+    async function write-all-async write-result; data bytes, options io-operation-options|none = none
+    consuming function close stream-operation-result;
+
+
+class byte-reader implements async-byte-reader
     private handle host-resource-handle
 
     private function construct; handle host-resource-handle
@@ -85,14 +242,14 @@ class byte-reader
             message = 'stream ended before exact byte count'
         return instance read-result; data, completed, end, failed, message
 
-    function read-all read-result; limit int
+    function read-all read-result; count int
         data bytes = b''
         completed int = 0
         end bool = false
         failed bool = false
         message string = ''
-        while completed < limit and not end and not failed
-            part = host-read; this.handle, limit - completed
+        while completed < count and not end and not failed
+            part = host-read; this.handle, count - completed
             data = data.concat; part.data
             completed = completed + part.completed
             end = part.end
@@ -102,10 +259,32 @@ class byte-reader
                 failed = true
                 message = 'stream read made no progress'
         return instance read-result; data, completed, end, failed, message
+    async function read-async read-result; count int, options io-operation-options|none = none
+        operation-timeout = operation-deadline; options
+        operation-token = operation-cancellation; options
+        raw = await host-read-async; this.handle, count, operation-timeout, operation-token
+        return instance read-result; raw.data, raw.completed, raw.end, raw.failed, raw.message, (host-result-deadline-exceeded; raw)
 
-    async function read-async read-result; count int
-        raw = await host-read-async; this.handle, count
-        return instance read-result; raw.data, raw.completed, raw.end, raw.failed, raw.message
+    async function read-exact-async read-result; count int, options io-operation-options|none = none
+        if count < 0
+            return await this.read-async; count, options
+        progress = instance exact-read-progress; count
+        data bytes = b''
+        while progress.pending;
+            part = await this.read-async; (progress.remaining;), options
+            data = data.concat; part.data
+            progress.advance; part.completed, part.end, part.failed, part.deadline-exceeded, part.message
+        return progress.result; move data
+    async function read-into-async buffered-read-result; buffer owned-read-buffer, count int, options io-operation-options|none = none
+        operation-timeout = operation-deadline; options
+        operation-token = operation-cancellation; options
+        raw = await host-stream-read-into-async; this.handle, buffer.handle, count, operation-timeout, operation-token
+        completed = host-result-int; raw
+        end = host-result-bool; raw
+        failed = host-result-failed; raw
+        message = host-result-message; raw
+        deadline-exceeded = host-result-deadline-exceeded; raw
+        return instance buffered-read-result; move buffer, completed, end, failed, message, deadline-exceeded
 
     function text text-reader; codec encoding
         return instance text-reader; this.handle, codec
@@ -115,10 +294,9 @@ class byte-reader
         return instance stream-operation-result; raw.failed, raw.message
 
     consuming function destruct;
-        # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
 
-class byte-writer
+class byte-writer implements async-byte-writer
     private handle host-resource-handle
 
     private function construct; handle host-resource-handle
@@ -149,8 +327,22 @@ class byte-writer
         raw = host-write; this.handle, prior.data, prior.completed
         return instance write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 
-    async function write-async write-result; data bytes
-        return this.write; data
+    async function write-async write-result; data bytes, options io-operation-options|none = none
+        operation-timeout = operation-deadline; options
+        operation-token = operation-cancellation; options
+        raw = await host-write-async; this.handle, move data, 0, operation-timeout, operation-token
+        return instance write-result; raw.data, raw.completed, raw.failed, raw.message, (host-result-deadline-exceeded; raw)
+
+
+    async function write-all-async write-result; data bytes, options io-operation-options|none = none
+        progress = instance write-progress;
+        while progress.pending; data.length
+            operation-timeout = operation-deadline; options
+            operation-token = operation-cancellation; options
+            part = await host-write-async; this.handle, move data, progress.completed, operation-timeout, operation-token
+            progress.advance; part.completed, part.failed, (host-result-deadline-exceeded; part), part.message
+            data = part.data
+        return progress.result; move data
 
     function text text-writer; codec encoding
         return instance text-writer; this.handle, codec
@@ -172,8 +364,9 @@ class byte-writer
         return instance stream-operation-result; raw.failed, raw.message
 
     consuming function destruct;
-        # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
+
+
 
 class text-reader
     private handle host-resource-handle
@@ -230,7 +423,7 @@ class text-reader
         return instance text-read-result; text, completed, end, failed, message
 
     async function read-async text-read-result throws decode-error; count int
-        raw = await host-read-async; this.handle, count
+        raw = await host-read-async; this.handle, count, -1, none
         text string = raw.data.decode; this.codec
         return instance text-read-result; text, raw.completed, raw.end, raw.failed, raw.message
 

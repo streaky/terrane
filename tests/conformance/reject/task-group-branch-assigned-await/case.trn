@@ -1,0 +1,20 @@
+namespace task-group-branch-assigned-await
+from /core/errors import throwable, coercion-error
+
+async function risky int throws throwable;
+    throw coercion-error
+
+async function safe int;
+    return 1
+
+async function main;
+    pending = (safe;)
+    _ = await pending
+    choose-risky = true
+    if choose-risky
+        pending = (risky;)
+    else
+        pending = (safe;)
+    group = task-group; int
+    _ = await pending
+    _ = await group.drain;

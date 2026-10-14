@@ -11,8 +11,8 @@ use crate::{
         },
     },
     semantics::{
-        FunctionContract, InvocationMode, ValueType, binding_requires_mutable_storage,
-        binding_storage_is_replaced, binding_store_value_is_read,
+        ClosureWrites, FunctionContract, InvocationMode, ValueType,
+        binding_requires_mutable_storage, binding_storage_is_replaced, binding_store_value_is_read,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -34,6 +34,18 @@ fn collect_local_functions<'a>(node: &'a SyntaxNode, output: &mut Vec<&'a Syntax
 }
 impl Emitter<'_> {
     pub(in crate::lowering::emitter) fn function(&mut self, node: &SyntaxNode) {
+        if self.unit.bundled
+            && self.unit.namespace == "/core/streams"
+            && !crate::lowering::helpers::package_uses_advanced_streams(self.package)
+            && self
+                .unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == node.span)
+                .is_some_and(|contract| contract.is_async || contract.name == "make-read-buffer")
+        {
+            return;
+        }
         self.emit_function(node, None);
     }
 
@@ -473,6 +485,15 @@ impl Emitter<'_> {
                                         || self.package.projection.item(&identity.namespace, &identity.name).is_some()
                             )
                     );
+            let mutable_storage = parameter.mutable
+                && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
+                    || binding_storage_is_replaced(
+                        self.package,
+                        self.unit,
+                        parameter.span,
+                        ClosureWrites::Include,
+                        false,
+                    ));
             let ty = match (&binding_type, reference_lender == Some(index)) {
                 (Some(ValueType::Reference(item)), _) if native_mutable_reference => {
                     format!(
@@ -498,7 +519,7 @@ impl Emitter<'_> {
                     |value_type| rust_value_type(self.package, value_type),
                 ),
             };
-            let mutable = if parameter.mutable && !native_mutable_reference {
+            let mutable = if mutable_storage && !native_mutable_reference {
                 "mut "
             } else {
                 ""
@@ -611,6 +632,15 @@ impl Emitter<'_> {
             .map(|function| function.span)
             .collect();
         self.indent += 1;
+        let group_frame = contract.is_async
+            && self.unit.typed_bindings.iter().any(|binding| {
+                binding.scope == Some(contract.span)
+                    && matches!(binding.value_type, ValueType::TaskGroup(_))
+            });
+        if group_frame {
+            self.line("__terrane_group_frame(async move {");
+            self.indent += 1;
+        }
         for function in &local_functions {
             self.local_function(function);
         }
@@ -646,6 +676,10 @@ impl Emitter<'_> {
             && block.is_none_or(block_may_fall_through)
         {
             self.line("Ok(())");
+        }
+        if group_frame {
+            self.indent -= 1;
+            self.line("}).await");
         }
         self.active_function_bindings = previous_active_bindings;
         self.active_local_functions = previous_local_functions;
@@ -683,15 +717,19 @@ impl Emitter<'_> {
                 continue;
             }
             let name = self.binding_storage_name(binding);
-            // Task expressions keep their concrete future type, as ordinary bindings do.
-            let ty =
-                (!matches!(self.flow_binding_type(binding), ValueType::Task(_, _))).then(|| {
-                    self.binding_rust_type(
-                        binding,
-                        self.binding_scalar_storage_type(binding),
-                        self.reference_backed(binding),
-                    )
-                });
+            let ty = if matches!(self.flow_binding_type(binding), ValueType::Task(_, _))
+                && self.task_binding_is_heterogeneous(binding)
+            {
+                Some(self.task_binding_rust_type(binding))
+            } else if matches!(self.flow_binding_type(binding), ValueType::Task(_, _)) {
+                None
+            } else {
+                Some(self.binding_rust_type(
+                    binding,
+                    self.binding_scalar_storage_type(binding),
+                    self.reference_backed(binding),
+                ))
+            };
             if self.binding_may_be_unassigned(binding) {
                 if let Some(ty) = &ty {
                     self.line(&format!("let mut {name}: Option<{ty}> = None;"));
@@ -772,6 +810,15 @@ impl Emitter<'_> {
                 let binding_type = parameter.binding_value_type();
                 let native_mutable_reference =
                     self.mutable_native_reference_parameter(contract, index, binding_type.as_ref());
+                let mutable_storage = parameter.mutable
+                    && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
+                        || binding_storage_is_replaced(
+                            self.package,
+                            self.unit,
+                            parameter.span,
+                            ClosureWrites::Include,
+                            false,
+                        ));
                 let ty = match binding_type {
                     Some(ValueType::Reference(item)) if native_mutable_reference => {
                         format!("&mut {}", rust_element_type(self.package, item))
@@ -779,7 +826,7 @@ impl Emitter<'_> {
                     Some(value_type) => rust_value_type(self.package, value_type),
                     None => "i128".to_owned(),
                 };
-                let mutable = if parameter.mutable && !native_mutable_reference {
+                let mutable = if mutable_storage && !native_mutable_reference {
                     "mut "
                 } else {
                     ""

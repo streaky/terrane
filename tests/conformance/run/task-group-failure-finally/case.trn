@@ -1,0 +1,34 @@
+namespace task-group-failure-finally
+from /core/errors import throwable
+from /core/time import clock, duration
+
+class state
+    cleaned bool = false
+
+class worker-error implements throwable
+    message string = 'worker failed'
+    function render string;
+        return this.message
+
+async function wait int; observer shared ref state
+    try
+        pause = duration::seconds; 30
+        _ = await clock::sleep; pause
+        return 1
+    finally
+        observer.cleaned = true
+
+async function fail int throws throwable;
+    throw instance worker-error;
+
+async function main;
+    observer = shared ref (instance state;)
+    group = task-group; int
+    group.spawn; (wait; observer)
+    group.spawn; (fail;)
+    outcomes = await group.drain;
+    first = outcomes[0]
+    second = outcomes[1]
+    print; first.cancelled and not first.completed
+    print; second.error != none
+    print; observer.cleaned

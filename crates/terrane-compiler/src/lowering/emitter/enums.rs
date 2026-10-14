@@ -74,6 +74,7 @@ pub(super) fn value_type_uses_parameter(value_type: &ValueType, name: &str) -> b
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item)
         | ValueType::UnorderedSet(item) => value_type_uses_parameter(item.value_type_ref(), name),
@@ -162,6 +163,7 @@ fn value_type_contains_nonclone_object(package: &SemanticPackage, value_type: &V
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item)
         | ValueType::UnorderedSet(item) => {

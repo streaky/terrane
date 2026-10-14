@@ -17,8 +17,8 @@ fn main() {
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&encode_base64_terrane_core_codecs(Vec::from([97]),
-        false, true))
+        terrane_scalar_support::scalar_text(&encode_base64_terrane_core_codecs(Vec:: < u8
+        > ::from([97]), false, true))
     );
 }
 // Source: codec-shadow/value.trn

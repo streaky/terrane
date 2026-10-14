@@ -518,11 +518,17 @@ fn infer_member_type(
     {
         let member_type = match (result, member_name) {
             (ValueType::PlatformOpenResult, "handle") => Some(ValueType::PlatformStreamHandle),
-            (ValueType::PlatformReadResult, "data") => Some(ValueType::Scalar(ScalarType::Bytes)),
+            (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "data") => {
+                Some(ValueType::Scalar(ScalarType::Bytes))
+            }
             (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "completed") => {
                 Some(ValueType::Scalar(ScalarType::Int))
             }
-            (ValueType::PlatformReadResult, "end")
+            (
+                ValueType::PlatformReadResult | ValueType::PlatformWriteResult,
+                "deadline-exceeded",
+            )
+            | (ValueType::PlatformReadResult, "end")
             | (
                 ValueType::PlatformOpenResult
                 | ValueType::PlatformReadResult

@@ -102,7 +102,7 @@ impl DecodeResult {
         let mut __terrane_constructed_value = Self {
             failed: false,
             message: String::from(""),
-            value: Vec::from([]),
+            value: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(failed, message, data);
         __terrane_constructed_value

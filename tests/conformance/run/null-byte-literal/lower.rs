@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn main() {
     let raw: Vec<u8>;
     let mut byte: u8;
-    raw = Vec::from([97, 0, 99]);
+    raw = Vec::<u8>::from([97, 0, 99]);
     let __terrane_iterable_0 = raw.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
         &__terrane_iterable_0,

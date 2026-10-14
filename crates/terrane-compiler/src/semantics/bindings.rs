@@ -793,7 +793,15 @@ pub(super) fn collect_binding_events(
                     regions: regions.clone(),
                 });
         };
-        if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(target.span))
+            && unit.typed_bindings.iter().any(|binding| {
+                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
+            })
+        {
+            // Task reaching origins track the current future's construction. The
+            // write event still mutates the canonical Rust storage, not that origin.
+            record(*identity);
+        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
             for origin in origins {
                 record(*origin);
             }
@@ -839,6 +847,12 @@ pub(crate) fn binding_requires_mutable_storage(
     initially_assigned: bool,
     closure_writes: ClosureWrites,
 ) -> bool {
+    if unit.typed_bindings.iter().any(|binding| {
+        binding.span == declaration_span
+            && matches!(binding.value_type, ValueType::SharedReference(_))
+    }) {
+        return binding_storage_is_replaced(package, unit, declaration_span, closure_writes, false);
+    }
     if initially_assigned {
         return binding_span_is_mutated(package, unit, declaration_span, true, closure_writes);
     }
@@ -1110,7 +1124,15 @@ fn record_binding_reads(
                     regions: regions.to_vec(),
                 });
         };
-        if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(node.span))
+            && unit.typed_bindings.iter().any(|binding| {
+                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
+            })
+        {
+            // Match task writes' storage identity. Reaching construction origins
+            // belong to effect analysis, not the storage's ordered liveness events.
+            record(*identity);
+        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(node.span)) {
             for origin in origins {
                 record(*origin);
             }

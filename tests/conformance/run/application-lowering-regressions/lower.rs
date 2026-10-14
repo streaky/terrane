@@ -24,7 +24,7 @@ fn main() {
         let mut part: String;
         let mut counter: terrane_int_support::Int;
         __terrane_await(observe(terrane_int_support::Int::from(42_i128))).await;
-        data = Vec::from([97, 98, 99]);
+        data = Vec::<u8>::from([97, 98, 99]);
         inspect_bytes(data.clone());
         println!("{}", terrane_scalar_support::scalar_text(&(data.len() as i128)));
         println!(

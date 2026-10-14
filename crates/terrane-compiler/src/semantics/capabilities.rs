@@ -266,6 +266,7 @@ fn walk_value_type<'a>(value_type: &'a ValueType, visit: &mut impl FnMut(&'a Val
         | ValueType::Task(inner, _)
         | ValueType::ScopedTask(inner, _)
         | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
         | ValueType::Reference(inner)
         | ValueType::SharedReference(inner) => walk_value_type(inner.value_type_ref(), visit),
         ValueType::Map(key, value)

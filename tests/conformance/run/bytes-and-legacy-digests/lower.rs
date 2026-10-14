@@ -20,11 +20,11 @@ fn main() {
     empty_octets = terrane_collection_support::List::<u8>::new(vec![]);
     empty = bytes_from_octets(empty_octets);
     println!("{}", terrane_scalar_support::scalar_text(&(empty.len() as i128)));
-    first = digest_bytes_terrane_core_random(sha1(), Vec::from([97, 98, 99]));
+    first = digest_bytes_terrane_core_random(sha1(), Vec::<u8>::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(first.value.value.clone()))
     );
-    second = digest_bytes_terrane_core_random(md5(), Vec::from([97, 98, 99]));
+    second = digest_bytes_terrane_core_random(md5(), Vec::<u8>::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(second.value.value
         .clone()))
