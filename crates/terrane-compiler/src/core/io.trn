@@ -1,11 +1,11 @@
-namespace core/networking/io
+namespace core/io
 
 from /core/time import deadline
 
-class network-cancellation-token
+class cancellation-token
     private handle host-platform-capability = host-cancellation-token;
 
-class network-operation-result
+class io-operation-result
     failed bool = false
     deadline-exceeded bool = false
     message string = ''
@@ -15,26 +15,26 @@ class network-operation-result
         this.deadline-exceeded = deadline-exceeded
         this.message = message
 
-function network-cancel-operation network-operation-result; cancellation network-cancellation-token
+function cancel-operation io-operation-result; cancellation cancellation-token
     raw = host-cancel; cancellation.handle
-    return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+    return instance io-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-class network-operation-options
+class io-operation-options
     deadline deadline|none = none
-    cancellation network-cancellation-token|none = none
+    cancellation cancellation-token|none = none
 
-    function construct; requested deadline|none = none, cancellation network-cancellation-token|none = none
+    function construct; requested deadline|none = none, cancellation cancellation-token|none = none
         this.deadline = requested
         this.cancellation = cancellation
 
-function operation-cancellation host-platform-capability|none; options network-operation-options|none
+function operation-cancellation host-platform-capability|none; options io-operation-options|none
     if options != none
         selected = options.cancellation
         if selected != none
             return selected.handle
     return none
 
-function operation-deadline int; options network-operation-options|none
+function operation-deadline int; options io-operation-options|none
     if options != none
         selected = options.deadline
         if selected != none

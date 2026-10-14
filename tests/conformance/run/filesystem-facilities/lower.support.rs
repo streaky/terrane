@@ -509,6 +509,20 @@ mod __terrane_trace {
         )
     }
 }
+#[allow(
+    dead_code,
+    reason = "native cancellation omits deadline polling when no clock package is used"
+)]
+fn terrane_time_deadline_expired(_target: &terrane_int_support::Int) -> bool {
+    false
+}
+#[allow(
+    dead_code,
+    reason = "native cancellation omits deadline polling when no clock package is used"
+)]
+async fn terrane_time_sleep_until(_target: terrane_int_support::Int) {
+    std::future::pending::<()>().await;
+}
 #[derive(Clone)]
 pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
 impl Default for TerranePlatformStreamHandle {
@@ -531,12 +545,15 @@ pub struct TerranePlatformReadResult {
     pub end: bool,
     pub failed: bool,
     pub message: String,
+    pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
 pub struct TerranePlatformWriteResult {
+    pub data: Vec<u8>,
     pub completed: terrane_int_support::Int,
     pub failed: bool,
     pub message: String,
+    pub deadline_exceeded: bool,
 }
 #[derive(Clone)]
 pub struct TerranePlatformUnitResult {
@@ -554,6 +571,7 @@ pub fn terrane_platform_read(
             end: false,
             failed: true,
             message: "stream read count is outside the supported size range".to_owned(),
+            deadline_exceeded: false,
         };
     };
     match terrane_stream_abi::read(handle.abi_handle(), limit) {
@@ -564,6 +582,7 @@ pub fn terrane_platform_read(
                 end: outcome.end,
                 failed: false,
                 message: String::new(),
+                deadline_exceeded: false,
             }
         }
         Err(error) => {
@@ -573,18 +592,10 @@ pub fn terrane_platform_read(
                 end: false,
                 failed: true,
                 message: error.to_string(),
+                deadline_exceeded: false,
             }
         }
     }
-}
-pub async fn terrane_platform_read_async(
-    handle: &TerranePlatformStreamHandle,
-    limit: terrane_int_support::Int,
-) -> TerranePlatformReadResult {
-    let handle = handle.clone();
-    tokio::task::spawn_blocking(move || terrane_platform_read(&handle, limit))
-        .await
-        .expect("delegated stream read must not panic")
 }
 pub fn terrane_platform_write(
     handle: &TerranePlatformStreamHandle,
@@ -593,24 +604,30 @@ pub fn terrane_platform_write(
 ) -> TerranePlatformWriteResult {
     let Some(offset) = offset.as_usize().filter(|offset| *offset <= data.len()) else {
         return TerranePlatformWriteResult {
+            data: Vec::new(),
             completed: terrane_int_support::Int::from(0_i64),
             failed: true,
             message: "stream write offset is outside the buffer".to_owned(),
+            deadline_exceeded: false,
         };
     };
     match terrane_stream_abi::write(handle.abi_handle(), &data[offset..]) {
         Ok(completed) => {
             TerranePlatformWriteResult {
+                data: Vec::new(),
                 completed: terrane_int_support::Int::from(completed as i128),
                 failed: false,
                 message: String::new(),
+                deadline_exceeded: false,
             }
         }
         Err(error) => {
             TerranePlatformWriteResult {
+                data: Vec::new(),
                 completed: terrane_int_support::Int::from(0_i64),
                 failed: true,
                 message: error.to_string(),
+                deadline_exceeded: false,
             }
         }
     }
@@ -1144,7 +1161,7 @@ impl FileData {
         detail: String,
     ) -> Self {
         let mut __terrane_constructed_value = Self {
-            data: Vec::from([]),
+            data: Vec::<u8>::from([]),
             completed: terrane_int_support::Int::from(0_i128),
             end: false,
             failed: false,

@@ -1,0 +1,15 @@
+namespace consuming-interface-reuse
+
+interface consuming-label
+  consuming function label string;
+
+class sample implements consuming-label
+  function label string;
+    return >ready
+
+function main;
+  value = instance sample;
+  erased consuming-label = value
+  duplicate = erased
+  print; (erased.label;)
+  print; (duplicate.label;)

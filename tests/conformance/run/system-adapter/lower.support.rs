@@ -561,7 +561,7 @@ impl NativeString {
         let mut __terrane_constructed_value = Self {
             is_text: true,
             text: String::from(""),
-            raw: Vec::from([]),
+            raw: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(encoded);
         __terrane_constructed_value

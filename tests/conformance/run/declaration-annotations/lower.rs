@@ -40,7 +40,7 @@ impl DataTag {
                 String,
                 terrane_int_support::Int,
             >::new(Vec::new()),
-            raw: Vec::from([]),
+            raw: Vec::<u8>::from([]),
             pair: terrane_collection_support::Tuple::<
                 terrane_int_support::Int,
             >::new(

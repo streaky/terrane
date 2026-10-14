@@ -81,9 +81,9 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/uuid.trn"),
     },
     BundledSource {
-        namespace: "/core/networking/io",
-        path: "core/networking_io.trn",
-        text: include_str!("core/networking_io.trn"),
+        namespace: "/core/io",
+        path: "core/io.trn",
+        text: include_str!("core/io.trn"),
     },
     BundledSource {
         namespace: "/core/networking",

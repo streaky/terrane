@@ -148,8 +148,8 @@ impl HttpConnection {
         buffer = allocated.value;
         body_length = terrane_int_support::Int::from(-1_i128);
         header_length = terrane_int_support::Int::from(0_i128);
-        while buffer.completed.clone() < buffer.capacity.clone() {
-            remaining = buffer.capacity.clone() - buffer.completed.clone();
+        while buffer.completed() < buffer.capacity() {
+            remaining = buffer.capacity() - buffer.completed();
             received = __terrane_await(
                     (&self.stream.as_ref().expect("required field initialized"))
                         .read_into_async(buffer, remaining.clone(), None),
@@ -305,9 +305,7 @@ impl HttpConnection {
                             .len() as i128,
                     ) + terrane_int_support::Int::from(4_i128);
                 }
-                if buffer.completed.clone()
-                    >= header_length.clone() + body_length.clone()
-                {
+                if buffer.completed() >= header_length.clone() + body_length.clone() {
                     return Ok(
                         __terrane_raised_err(
                             {

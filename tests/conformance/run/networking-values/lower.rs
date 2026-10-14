@@ -12,8 +12,8 @@ fn main() {
         let invalid_host: NetworkHostNameResult;
         let port: i64;
         let timeout: Deadline;
-        let cancellation: NetworkCancellationToken;
-        let cancelled: NetworkOperationOptions;
+        let cancellation: CancellationToken;
+        let cancelled: IoOperationOptions;
         let host: NetworkHostNameResult;
         let lookup: DnsResult;
         parsed = ip_address_from_string(String::from("2001:0db8:0:0:0:0:0:1"));
@@ -38,9 +38,9 @@ fn main() {
                 0 /* terrane-site: case.trn:24:33-24:53 */,
             ),
         );
-        cancellation = NetworkCancellationToken::terrane_construct();
-        network_cancel_operation(cancellation.clone());
-        cancelled = NetworkOperationOptions::terrane_construct(
+        cancellation = CancellationToken::terrane_construct();
+        cancel_operation(cancellation.clone());
+        cancelled = IoOperationOptions::terrane_construct(
             Some(timeout),
             Some(cancellation),
         );

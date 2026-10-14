@@ -12,6 +12,8 @@ For size `N`, a process starts its own server, launches concurrent client reques
 
 The Terrane implementation is authored entirely in Terrane: no `packages/http-server`, template engine, projected HTTP framework, Rust escape hatch, or authored Rust adapter. It uses core asynchronous TCP and `decode-typed-json` into a `document-decodable` payload with a `uint64` value, performing real JSON parsing and exact range checking. Unknown fields are ignored, as in the reference decoders. Typed core decoding borrows the parsed tree without canonical reserialization or subtree cloning. A flat accept loop spawns handlers into a typed structured task group; clients likewise use one group instead of recursive fork/join. Both groups drain and join every child. The threaded executor permits transferable work across runtime workers, core write-all handles partial writes, and owned read buffers accumulate fragmented input without reallocating receive storage. Omitted operation options install no cancellation token or timer.
 
+Reusable buffer metadata is queried through the core `capacity;` and `completed;` accessors after ownership transfers; it is not cached in source-visible fields.
+
 ## Run it
 
 Requires Python 3.11+, Go 1.22+, and the repository-selected Rust toolchain. The Terrane adapter builds the repository compiler automatically. First builds need network access for the pinned reference dependencies; Go sums and Cargo locks are checked in.

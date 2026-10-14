@@ -13,70 +13,71 @@ fn main() {
         terrane_static_trn_4275696c646572_new::<()>(),
         0 /* terrane-site: src/main.trn:9:25-9:38 */,
     );
-    attached = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                defaulted
-                    .attach(
-                        __terrane_raised(
-                            match std::panic::catch_unwind(
-                                std::panic::AssertUnwindSafe(|| witness::make_lane::<
-                                    _,
-                                    (),
-                                >(
-                                    match || -> Result<_, crate::TerraneForeignError> {
-                                        Ok({
-                                            let callback = TerraneConsumingCallable::new(move |(): ()| callback());
-                                            move || {
-                                                match || -> Result<_, crate::TerraneForeignError> {
-                                                    let callback_value = callback.call(());
-                                                    Ok(
-                                                        terrane_int_support::coerce::<i64>(&callback_value)
-                                                            .map_err(|error| crate::TerraneForeignError(
-                                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                                            ))?,
-                                                    )
-                                                }() {
-                                                    Ok(value) => value,
-                                                    Err(error) => std::panic::panic_any(error.0),
-                                                }
-                                            }
-                                        })
-                                    }() {
-                                        Ok(value) => value,
-                                        Err(error) => std::panic::panic_any(error),
-                                    },
-                                )),
-                            ) {
-                                Ok(value) => Ok(value),
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "witness",
-                                            "witness::make_lane::<_, ()>",
-                                        ),
+    attached = {
+        let __terrane_native_input_0 = defaulted;
+        let __terrane_native_input_1 = __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| witness::make_lane::<
+                    _,
+                    (),
+                >(
+                    match || -> Result<_, crate::TerraneForeignError> {
+                        Ok({
+                            let callback = TerraneConsumingCallable::new(move |(): ()| callback());
+                            move || {
+                                match || -> Result<_, crate::TerraneForeignError> {
+                                    let callback_value = callback.call(());
+                                    Ok(
+                                        terrane_int_support::coerce::<i64>(&callback_value)
+                                            .map_err(|error| crate::TerraneForeignError(
+                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                            ))?,
                                     )
+                                }() {
+                                    Ok(value) => value,
+                                    Err(error) => std::panic::panic_any(error.0),
                                 }
-                            },
-                            1 /* terrane-site: src/main.trn:10:35-10:54 */,
+                            }
+                        })
+                    }() {
+                        Ok(value) => value,
+                        Err(error) => std::panic::panic_any(error),
+                    },
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::make_lane::<_, ()>",
                         ),
                     )
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::Builder<S>::attach",
-                    ),
-                )
-            }
-        },
-        2 /* terrane-site: src/main.trn:10:16-10:55 */,
-    );
+                }
+            },
+            1 /* terrane-site: src/main.trn:10:35-10:54 */,
+        );
+        __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| {
+                    __terrane_native_input_0.attach(__terrane_native_input_1)
+                }),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::Builder<S>::attach",
+                        ),
+                    )
+                }
+            },
+            2 /* terrane-site: src/main.trn:10:16-10:55 */,
+        )
+    };
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&attached).value())) {

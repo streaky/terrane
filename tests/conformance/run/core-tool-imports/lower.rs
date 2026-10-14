@@ -8,6 +8,6 @@ fn describe(enabled: bool, payload: Vec<u8>, small: i8) -> String {
     return String::from("core tools are explicit");
 }
 fn main() {
-    describe(true, Vec::from([97, 98, 99]), 1);
+    describe(true, Vec::<u8>::from([97, 98, 99]), 1);
     println!("{}", String::from("core namespace import works"));
 }

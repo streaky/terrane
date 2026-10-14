@@ -1,5 +1,150 @@
 use super::prelude::*;
 
+fn advanced_identity(identity: &ObjectIdentity) -> bool {
+    identity.namespace == "/core/io"
+        || identity.namespace == "/core/time"
+        || identity.namespace.starts_with("/core/networking")
+        || identity.namespace == "/core/streams"
+            && matches!(
+                identity.name.as_str(),
+                "async-byte-reader"
+                    | "async-byte-writer"
+                    | "owned-read-buffer"
+                    | "read-buffer-result"
+                    | "buffered-read-result"
+                    | "buffer-bytes-result"
+                    | "buffer-text-result"
+                    | "exact-read-progress"
+                    | "write-progress"
+            )
+        || identity.native_projection.is_some()
+}
+fn advanced_type(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::AsyncFunction(..)
+        | ValueType::AsyncIterationStep(..)
+        | ValueType::AsyncSinkOutcome
+        | ValueType::Task(..)
+        | ValueType::ScopedTask(..)
+        | ValueType::TaskGroup(..)
+        | ValueType::TaskScope
+        | ValueType::TaskOutcome(..)
+        | ValueType::PlatformStreamHandle
+        | ValueType::PlatformOpenResult
+        | ValueType::PlatformReadResult
+        | ValueType::PlatformWriteResult
+        | ValueType::PlatformUnitResult
+        | ValueType::PlatformCapability
+        | ValueType::PlatformResourceHandle => true,
+        ValueType::Object(identity)
+        | ValueType::InvocationScopedNative {
+            family: identity, ..
+        } => advanced_identity(identity),
+        ValueType::Union(values) => values.iter().any(advanced_type),
+        ValueType::Optional(value) => advanced_type(value),
+        ValueType::Iterator(value)
+        | ValueType::IterationStep(value)
+        | ValueType::ChannelPair(value)
+        | ValueType::ChannelSender(value)
+        | ValueType::ChannelReceiver(value)
+        | ValueType::ChannelSendOutcome(value)
+        | ValueType::ChannelReceiveOutcome(value)
+        | ValueType::DocumentDecodeOutcome(value)
+        | ValueType::List(value)
+        | ValueType::Set(value)
+        | ValueType::Tuple(value, _)
+        | ValueType::UnorderedSet(value)
+        | ValueType::Reference(value)
+        | ValueType::SharedReference(value) => advanced_type(value.value_type_ref()),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            advanced_type(key.value_type_ref()) || advanced_type(value.value_type_ref())
+        }
+        ValueType::Function(parameters, result, _) => {
+            parameters
+                .iter()
+                .any(|parameter| advanced_type(parameter.value_type_ref()))
+                || advanced_type(result.value_type_ref())
+        }
+        _ => false,
+    }
+}
+fn references_advanced_symbol(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> bool {
+    (node.kind == SyntaxKind::Name
+        && package
+            .resolve_name_at(
+                unit,
+                node.span.start,
+                &unit.source.text()[node.span.start..node.span.end],
+            )
+            .is_some_and(|symbol| {
+                let identity = symbol.compiler_identity();
+                identity.starts_with("/core/io::")
+                    || identity.starts_with("/core/time::")
+                    || identity.starts_with("/core/networking")
+                    || identity.starts_with("intrinsic:capabilities::")
+                    || matches!(
+                        identity,
+                        "/core/streams::async-byte-reader"
+                            | "/core/streams::async-byte-writer"
+                            | "/core/streams::owned-read-buffer"
+                            | "/core/streams::make-read-buffer"
+                            | "/core/streams::read-buffer-result"
+                            | "/core/streams::buffered-read-result"
+                            | "/core/streams::buffer-bytes-result"
+                            | "/core/streams::buffer-text-result"
+                            | "/core/streams::exact-read-progress"
+                            | "/core/streams::write-progress"
+                    )
+            }))
+        || node
+            .children
+            .iter()
+            .any(|child| references_advanced_symbol(package, unit, child))
+}
+pub(crate) fn package_uses_advanced_streams(package: &SemanticPackage) -> bool {
+    for unit in package.units.iter().filter(|unit| !unit.bundled) {
+        if unit
+            .functions
+            .iter()
+            .filter(|function| function.span.file == unit.source.id())
+            .any(|function| {
+                function.is_async
+                    || function
+                        .parameters
+                        .iter()
+                        .filter_map(crate::semantics::ParameterContract::binding_value_type)
+                        .any(|value_type| advanced_type(&value_type))
+                    || function.return_type.as_ref().is_some_and(advanced_type)
+                    || function.thrown_types.iter().any(advanced_type)
+            })
+            || unit
+                .descriptors
+                .iter()
+                .filter(|descriptor| descriptor.span.file == unit.source.id())
+                .any(|descriptor| {
+                    descriptor
+                        .fields
+                        .iter()
+                        .any(|field| advanced_type(&field.value_type))
+                        || descriptor.interfaces.iter().any(advanced_identity)
+                        || descriptor.base.as_ref().is_some_and(advanced_identity)
+                })
+        {
+            return true;
+        }
+        if references_advanced_symbol(package, unit, &unit.tree.root) {
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn find_node(
     node: &SyntaxNode,
     kind: SyntaxKind,

@@ -670,18 +670,28 @@ impl TerraneCancellation {
                 }
                 std::task::Poll::Pending
             })
-            .await
+            .await;
     }
+}
+trait TerraneTaskCleanup: Send + Sync {
+    fn cancel(&self);
+    fn cleanup(
+        self: std::sync::Arc<Self>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 }
 struct TerraneFinalizerState {
     depth: std::sync::atomic::AtomicUsize,
     wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+    task_groups: parking_lot::Mutex<Vec<std::sync::Weak<dyn TerraneTaskCleanup>>>,
+    pending_groups: parking_lot::Mutex<Vec<std::sync::Arc<dyn TerraneTaskCleanup>>>,
 }
 impl TerraneFinalizerState {
     fn new() -> Self {
         Self {
             depth: std::sync::atomic::AtomicUsize::new(0),
             wakers: std::sync::Mutex::new(Vec::new()),
+            task_groups: parking_lot::Mutex::new(Vec::new()),
+            pending_groups: parking_lot::Mutex::new(Vec::new()),
         }
     }
     #[allow(
@@ -693,6 +703,45 @@ impl TerraneFinalizerState {
         TerraneFinallyGuard {
             state: Some(self.clone()),
             depth,
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "group registration is shared by native async packages without groups"
+    )]
+    fn register_task_group<T: TerraneTaskCleanup + Send + Sync + 'static>(
+        &self,
+        group: std::sync::Weak<T>,
+    ) {
+        let group: std::sync::Weak<dyn TerraneTaskCleanup> = group;
+        let mut groups = self.task_groups.lock();
+        groups.retain(|group| group.strong_count() != 0);
+        groups.push(group);
+    }
+    #[allow(
+        dead_code,
+        reason = "group cleanup is shared by native async packages without groups"
+    )]
+    fn retain_task_group(&self, group: std::sync::Arc<dyn TerraneTaskCleanup>) {
+        self.task_groups
+            .lock()
+            .retain(|weak| {
+                !std::ptr::addr_eq(weak.as_ptr(), std::sync::Arc::as_ptr(&group))
+            });
+        self.pending_groups.lock().push(group);
+    }
+    async fn drain_task_groups(&self) {
+        let mut groups = std::mem::take(&mut *self.pending_groups.lock());
+        {
+            let mut registry = self.task_groups.lock();
+            groups.extend(registry.iter().filter_map(std::sync::Weak::upgrade));
+            registry.retain(|group| group.strong_count() != 0);
+        }
+        for group in &groups {
+            group.cancel();
+        }
+        for group in groups {
+            group.cleanup().await;
         }
     }
     #[allow(
@@ -730,7 +779,7 @@ impl TerraneFinalizerState {
                 }
                 std::task::Poll::Pending
             })
-            .await
+            .await;
     }
     fn depth(&self) -> usize {
         self.depth.load(std::sync::atomic::Ordering::Acquire)
@@ -939,7 +988,8 @@ async fn __terrane_select_operation<F: Future>(
             context,
             async move {
                 let mut future = std::pin::pin!(future);
-                std::future::poll_fn(move |cx| {
+                let cleanup = finalizers.clone();
+                let output = std::future::poll_fn(move |cx| {
                         if control.is_cancelled() {
                             cancellation.cancel();
                             let mut stored_waker = control
@@ -965,7 +1015,11 @@ async fn __terrane_select_operation<F: Future>(
                         }
                         Future::poll(future.as_mut(), cx).map(Some)
                     })
-                    .await
+                    .await;
+                if output.is_none() {
+                    cleanup.drain_task_groups().await;
+                }
+                output
             },
         )
         .await
@@ -1036,12 +1090,13 @@ async fn __terrane_cancel_operation<F: Future>(
         let mut future = std::pin::pin!(future);
         tokio::select! {
             biased; output = future.as_mut() => Some(output), () =
-            __terrane_cancellation_requested(cancellation, deadline) => {
+            __terrane_cancellation_requested(cancellation, deadline) => { let output =
             std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
-            std::task::Poll::Ready(output) => { std::task::Poll::Ready(Some(output)) }
+            std::task::Poll::Ready(output) => std::task::Poll::Ready(Some(output)),
             std::task::Poll::Pending if finalizers.depth() == guard.depth => {
             std::task::Poll::Ready(None) } std::task::Poll::Pending =>
-            std::task::Poll::Pending, } }). await },
+            std::task::Poll::Pending, } }). await; if output.is_none() { finalizers
+            .drain_task_groups(). await; } output },
         }
     } else {
         Some(future.await)
@@ -1101,15 +1156,40 @@ async fn __terrane_cancellable<F: Future>(
             context,
             async {
                 let mut future = std::pin::pin!(future);
-                tokio::select! {
+                let output = tokio::select! {
                     biased; output = future.as_mut() => Some(output), () =
                     __terrane_cancellation_requested(cancellation, deadline.clone()) => {
-                    std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx)
-                    { std::task::Poll::Ready(output) => {
-                    std::task::Poll::Ready(Some(output)) } std::task::Poll::Pending if
+                    finalizers.drain_task_groups(). await; std::future::poll_fn(| cx | {
+                    match Future::poll(future.as_mut(), cx) {
+                    std::task::Poll::Ready(output) =>
+                    std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
                     finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
                     std::task::Poll::Pending => std::task::Poll::Pending, } }). await },
-                }
+                };
+                finalizers.drain_task_groups().await;
+                output
+            },
+        )
+        .await
+}
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: TerraneCancellation::new(),
+        deadline: None,
+        finalizers: finalizers.clone(),
+    };
+    TERRANE_CANCELLATION_CONTEXT
+        .scope(
+            context,
+            async {
+                let output = future.await;
+                finalizers.drain_task_groups().await;
+                output
             },
         )
         .await
@@ -1123,7 +1203,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .block_on(
             &runtime,
             async move {
-                let output = future.await;
+                let output = __terrane_async_entry(future).await;
                 __terrane_wait_projected_cleanups().await;
                 output
             },
@@ -1143,6 +1223,120 @@ async fn __terrane_dependency_await_unwind<F: Future>(
             }
         })
         .await
+}
+use parking_lot::Mutex;
+struct TerraneNativeTaskGroupState<T> {
+    scope: TerraneTaskScope,
+    tasks: Vec<TerraneScopedTask<T>>,
+}
+struct TerraneNativeTaskGroup<T> {
+    state: Mutex<TerraneNativeTaskGroupState<T>>,
+}
+impl<T: Send + 'static> TerraneTaskCleanup for TerraneNativeTaskGroup<T> {
+    fn cancel(&self) {
+        self.state.lock().scope.cancel();
+    }
+    fn cleanup(
+        self: std::sync::Arc<Self>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        Box::pin(async move {
+            let (scope, tasks) = {
+                let mut state = self.state.lock();
+                state.scope.cancel();
+                (state.scope.clone(), std::mem::take(&mut state.tasks))
+            };
+            for task in tasks {
+                let _ = scope.join(task).await;
+            }
+        })
+    }
+}
+pub struct TerraneTaskGroup<T: Send + 'static> {
+    state: std::sync::Arc<TerraneNativeTaskGroup<T>>,
+    drained: bool,
+}
+impl<T: Send + 'static> TerraneTaskGroup<T> {
+    pub fn new() -> Self {
+        let scope = TerraneTaskScope::new(None);
+        let state = std::sync::Arc::new(TerraneNativeTaskGroup {
+            state: Mutex::new(TerraneNativeTaskGroupState {
+                scope,
+                tasks: Vec::new(),
+            }),
+        });
+        TERRANE_CANCELLATION_CONTEXT
+            .try_with(|context| {
+                context
+                    .finalizers
+                    .register_task_group(std::sync::Arc::downgrade(&state));
+            })
+            .ok();
+        Self { state, drained: false }
+    }
+    pub fn scope(&self) -> TerraneTaskScope {
+        self.state.state.lock().scope.clone()
+    }
+    pub fn cancel(&self) {
+        self.state.state.lock().scope.cancel();
+    }
+    pub fn spawn(&self, task: TerraneScopedTask<T>) {
+        assert!(! self.drained, "cannot spawn into a drained task group");
+        self.state.state.lock().tasks.push(task);
+    }
+    pub fn prepare_drain(
+        self,
+    ) -> impl Future<Output = terrane_collection_support::List<TerraneTaskOutcome<T>>> {
+        let guard = __terrane_finally_guard();
+        async move {
+            let output = self.drain().await;
+            drop(guard);
+            terrane_collection_support::List::new(output)
+        }
+    }
+    pub async fn drain(mut self) -> Vec<TerraneTaskOutcome<T>> {
+        assert!(! self.drained, "task group drained once");
+        self.drained = true;
+        let (scope, tasks) = {
+            let mut state = self.state.state.lock();
+            (state.scope.clone(), std::mem::take(&mut state.tasks))
+        };
+        let mut outcomes = Vec::with_capacity(tasks.len());
+        for task in tasks {
+            outcomes.push(scope.join(task).await);
+        }
+        outcomes
+    }
+}
+impl<T: Send + 'static> Drop for TerraneTaskGroup<T> {
+    fn drop(&mut self) {
+        if self.drained {
+            return;
+        }
+        self.state.state.lock().scope.cancel();
+        if TERRANE_CANCELLATION_CONTEXT
+            .try_with(|context| {
+                context.finalizers.retain_task_group(self.state.clone());
+            })
+            .is_ok()
+        {
+            return;
+        }
+        let mut state = self.state.state.lock();
+        state.scope.cancel();
+        for task in state.tasks.drain(..) {
+            if let Some(handle) = task.handle {
+                handle.abort();
+            }
+        }
+    }
+}
+#[allow(dead_code, reason = "group frame support is emitted with task scopes")]
+async fn __terrane_group_frame<F: Future>(future: F) -> F::Output {
+    if TERRANE_CANCELLATION_CONTEXT.try_with(|_| ()).is_ok() {
+        future.await
+    } else {
+        __terrane_async_entry(future).await
+    }
 }
 #[derive(Clone)]
 pub struct TerraneTaskScope {
@@ -1245,6 +1439,7 @@ fn outcome_from_result<T>(
         }
     }
 }
+#[derive(Clone)]
 pub struct TerraneTaskOutcome<T> {
     pub completed: bool,
     pub cancelled: bool,
@@ -1399,8 +1594,7 @@ impl terrane_callback_witness::Adjustable for Adjustable {
     }
 }
 pub trait AsyncEntryProtocol: Send + Sync {
-    fn clone_box(&self) -> Box<dyn AsyncEntryProtocol>;
-    fn separate_box(&self) -> Box<dyn AsyncEntryProtocol>;
+    fn __terrane_callback_snapshot(&self) -> Box<dyn AsyncEntryProtocol>;
     fn shared(
         &self,
     ) -> std::pin::Pin<
@@ -1417,15 +1611,10 @@ pub trait AsyncEntryProtocol: Send + Sync {
         Box<dyn std::future::Future<Output = terrane_int_support::Int> + Send + 'static>,
     >;
 }
-impl Clone for Box<dyn AsyncEntryProtocol> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
-}
 pub struct AsyncEntry(Box<dyn AsyncEntryProtocol>);
-impl Clone for AsyncEntry {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
+impl AsyncEntry {
+    fn __terrane_callback_snapshot(&self) -> Self {
+        Self(self.0.__terrane_callback_snapshot())
     }
 }
 impl AsyncEntry {
@@ -1443,7 +1632,7 @@ impl terrane_callback_witness::AsyncEntry for AsyncEntry {
     async fn shared(&self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = async {
             let __terrane_value = {
-                let __terrane_receiver = self.clone();
+                let __terrane_receiver = self.__terrane_callback_snapshot();
                 __terrane_projected_async_entry(async move {
                         <AsyncEntry>::shared(&__terrane_receiver).await
                     })
@@ -1462,7 +1651,7 @@ impl terrane_callback_witness::AsyncEntry for AsyncEntry {
     async fn mutable(&mut self) -> i64 {
         let __terrane_boundary: Result<i64, crate::TerraneForeignError> = async {
             let __terrane_value = {
-                let mut __terrane_receiver = self.clone();
+                let mut __terrane_receiver = self.__terrane_callback_snapshot();
                 let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {
                         let __terrane_output = <AsyncEntry>::mutable(
                                 &mut __terrane_receiver,

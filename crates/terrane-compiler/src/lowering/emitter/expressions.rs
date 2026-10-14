@@ -99,37 +99,20 @@ impl Emitter<'_> {
         )
     }
 
-    pub(super) fn awaited_throws(&self, mut operand: &SyntaxNode) -> bool {
-        while operand.kind == SyntaxKind::GroupExpression
-            && let [grouped] = operand.children.as_slice()
-        {
-            operand = grouped;
-        }
-        let call = (operand.kind == SyntaxKind::CallExpression).then_some(operand);
-        let callee = call.and_then(|call| call.children.first());
-        let contract = callee.and_then(|callee| {
-            self.contract_for_call(callee, call.is_some_and(crate::syntax::call_is_unsafe))
-        });
-        let projected = call.is_some_and(|call| {
-            call.children.first().is_some_and(|callee| {
-                self.projected_function_for_call(callee, crate::syntax::call_is_unsafe(call))
-                    .is_some()
-            })
-        });
-        let function_value_throws = contract.is_none()
-            && callee
-                .and_then(|callee| self.value_type(callee))
-                .is_some_and(|value_type| match value_type {
-                    ValueType::AsyncFunction(_, _, _, effects) => effects.requires_throwing_abi(),
-                    _ => false,
-                });
-        projected || contract.is_some_and(|contract| contract.throws) || function_value_throws
+    pub(super) fn awaited_throws(&self, operand: &SyntaxNode) -> bool {
+        self.task_value_throws(operand)
     }
 
     pub(super) fn expression_throws_synchronously(&self, node: &SyntaxNode) -> bool {
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
         {
+            if self
+                .projected_function_for_call(callee, crate::syntax::call_is_unsafe(node))
+                .is_some_and(|function| !function.is_async && !function.into_future)
+            {
+                return true;
+            }
             let contract = self.contract_for_call(callee, crate::syntax::call_is_unsafe(node));
             let callable_throws = contract.is_none()
                 && self.value_type(callee).is_some_and(|value_type| {
@@ -880,7 +863,7 @@ impl Emitter<'_> {
             {
                 format!("({}).terrane_separate()", self.expression(node))
             }
-            ValueType::Object(ref name)
+            value_type @ ValueType::Object(_)
                 if node.kind == SyntaxKind::MemberExpression
                     && !self.value_type_owns_resource(&value_type)
                     && node.children.first().is_some_and(|receiver| {
@@ -889,7 +872,9 @@ impl Emitter<'_> {
                     }) =>
             {
                 let expression = self.expression(node);
-                if self.object_requires_separation(name) {
+                if let ValueType::Object(name) = &value_type
+                    && self.object_requires_separation(name)
+                {
                     format!("({expression}).terrane_separate()")
                 } else {
                     format!("({expression}).clone()")

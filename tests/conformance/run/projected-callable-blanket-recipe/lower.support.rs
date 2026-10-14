@@ -590,6 +590,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 // Source: <terrane>/projected/deps/terrane-callable-recipe-witness.trn
 // Namespace: deps/terrane-callable-recipe-witness
 pub use core::convert::Infallible;

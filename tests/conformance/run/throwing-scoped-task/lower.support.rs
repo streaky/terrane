@@ -537,7 +537,7 @@ impl TerraneCancellation {
                 }
                 std::task::Poll::Pending
             })
-            .await
+            .await;
     }
 }
 trait TerraneTaskCleanup: Send + Sync {
@@ -646,7 +646,7 @@ impl TerraneFinalizerState {
                 }
                 std::task::Poll::Pending
             })
-            .await
+            .await;
     }
     fn depth(&self) -> usize {
         self.depth.load(std::sync::atomic::Ordering::Acquire)
@@ -1160,6 +1160,7 @@ impl<T: Send + 'static> Drop for TerraneTaskGroup<T> {
         if self.drained {
             return;
         }
+        self.state.state.lock().scope.cancel();
         if TERRANE_CANCELLATION_CONTEXT
             .try_with(|context| {
                 context.finalizers.retain_task_group(self.state.clone());

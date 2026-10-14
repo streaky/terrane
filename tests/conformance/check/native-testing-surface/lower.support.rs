@@ -718,6 +718,13 @@ where
             .expect("Terrane awaited destructor must not panic");
     });
 }
+#[allow(
+    dead_code,
+    reason = "async entry support is emitted for libraries without an entrypoint"
+)]
+async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
+    future.await
+}
 #[allow(dead_code, reason = "time support is shared by task scopes and clock packages")]
 fn terrane_time_domain() -> terrane_int_support::Int {
     terrane_int_support::Int::from(2_i128)
@@ -1910,7 +1917,7 @@ impl ProcessFixture {
             environment: terrane_collection_support::List::<
                 EnvironmentEntry,
             >::new(Vec::new()),
-            standard_input: Vec::from([]),
+            standard_input: Vec::<u8>::from([]),
             deadline_milliseconds: terrane_int_support::Int::from(30000_i128),
         };
         __terrane_constructed_value.construct(executable);
@@ -1944,8 +1951,8 @@ impl ProcessResult {
             exit_code: terrane_int_support::Int::from(0_i128),
             crashed: false,
             timed_out: false,
-            stdout: Vec::from([]),
-            stderr: Vec::from([]),
+            stdout: Vec::<u8>::from([]),
+            stderr: Vec::<u8>::from([]),
             stdout_truncated: false,
             stderr_truncated: false,
         };
@@ -2069,7 +2076,7 @@ impl NativeString {
         let mut __terrane_constructed_value = Self {
             is_text: true,
             text: String::from(""),
-            raw: Vec::from([]),
+            raw: Vec::<u8>::from([]),
         };
         __terrane_constructed_value.construct(encoded);
         __terrane_constructed_value

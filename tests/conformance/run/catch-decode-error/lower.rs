@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn main() {
     let raw: Vec<u8>;
     let mut decoded: Option<String> = None;
-    raw = Vec::from([255]);
+    raw = Vec::<u8>::from([255]);
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let _ = decoded

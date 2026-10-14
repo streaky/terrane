@@ -4,7 +4,7 @@ include!("lower.support.rs");
 // Namespace: decode-error-offset
 fn main() {
     let invalid: Vec<u8>;
-    invalid = Vec::from([97, 255]);
+    invalid = Vec::<u8>::from([97, 255]);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&invalid,

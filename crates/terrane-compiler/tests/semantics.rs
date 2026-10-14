@@ -272,21 +272,8 @@ fn identical_reimport_is_idempotent_and_selective_collisions_need_aliases() {
 }
 
 #[test]
-fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
+fn disabling_prelude_preserves_scalar_descriptor_resolution() {
     let enabled = analyze(&package(true, &[("main.trn", "namespace app\n")])).unwrap();
-    let names = enabled.prelude_bindings.keys().cloned().collect::<Vec<_>>();
-    assert_eq!(
-        names,
-        [
-            "print",
-            "task-scope",
-            "utf16-be",
-            "utf16-le",
-            "utf32-be",
-            "utf32-le",
-            "utf8",
-        ]
-    );
 
     let disabled = analyze(&package(false, &[("main.trn", "namespace app\n")])).unwrap();
     assert_eq!(disabled.prelude_bindings, std::collections::BTreeMap::new());

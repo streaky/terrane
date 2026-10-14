@@ -783,11 +783,8 @@ impl ProjectedAsyncEntry {
     }
 }
 impl AsyncEntryProtocol for ProjectedAsyncEntry {
-    fn clone_box(&self) -> Box<dyn AsyncEntryProtocol> {
+    fn __terrane_callback_snapshot(&self) -> Box<dyn AsyncEntryProtocol> {
         Box::new(self.clone())
-    }
-    fn separate_box(&self) -> Box<dyn AsyncEntryProtocol> {
-        Box::new(self.terrane_separate())
     }
     fn shared(
         &self,

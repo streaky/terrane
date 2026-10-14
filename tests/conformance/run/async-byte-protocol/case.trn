@@ -3,8 +3,8 @@ from /core/networking import tcp-listener, bind-tcp, connect-tcp, socket-address
 from /core/streams import async-byte-reader
 
 async function consume none; reader async-byte-reader
-    first = await reader.read-exact-async; 2
-    tail = await reader.read-exact-async; 4
+    first = await reader.read-exact-async; count = 2
+    tail = await reader.read-exact-async; count = 4
     print; first.completed == 2 and not first.failed
     print; tail.completed == 1 and tail.end and tail.failed
     print; first.data == b'ab'

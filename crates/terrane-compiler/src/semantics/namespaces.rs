@@ -943,7 +943,13 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
         let object_identity = if callee.kind == SyntaxKind::StaticMemberExpression {
             class_designator_identity(unit, receiver)?
         } else {
-            match unit.inferred_value_type(receiver)? {
+            // Native callable applications are prepared before every receiver has
+            // an expression-cache entry; use the shared current binding inference.
+            match unit.inferred_value_type(receiver).or_else(|| {
+                infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+            })? {
                 ValueType::Object(identity) => identity,
                 ValueType::InvocationScopedNative {
                     mut family,

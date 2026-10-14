@@ -30,8 +30,8 @@ class http-connection
         buffer = move allocated.value
         body-length int = -1
         header-length int = 0
-        while buffer.completed < buffer.capacity
-            remaining = buffer.capacity - buffer.completed
+        while (buffer.completed;) < (buffer.capacity;)
+            remaining = (buffer.capacity;) - (buffer.completed;)
             received = await this.stream.read-into-async; move buffer, remaining
             buffer = move received.buffer
             if received.failed or received.end
@@ -53,7 +53,7 @@ class http-connection
                     if body-length < 0
                         exit; (make-exit-status; 1)
                     header-length = parts[0].bytes.length + 4
-                if buffer.completed >= header-length + body-length
+                if (buffer.completed;) >= header-length + body-length
                     return parts[1]
         throw instance benchmark-failure;
 

@@ -212,42 +212,48 @@ fn main() {
             Err(crate ::__terrane_dependency_panic(payload, "witness",
             "witness::consume")) }, 11 /* terrane-site: src/main.trn:26:13-26:32 */))
         );
-        inline_byte = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| witness::echo(
-                    match || -> Result<_, crate::TerraneForeignError> {
-                        Ok(
-                            terrane_int_support::coerce::<
-                                u8,
-                            >(
-                                    &__terrane_raised(
-                                        byte(),
-                                        12 /* terrane-site: src/main.trn:27:37-27:42 */,
-                                    ),
-                                )
-                                .map_err(|error| crate::TerraneForeignError(
-                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                ))?,
+        inline_byte = {
+            let __terrane_native_input_0 = match || -> Result<
+                _,
+                crate::TerraneForeignError,
+            > {
+                Ok(
+                    terrane_int_support::coerce::<
+                        u8,
+                    >(
+                            &__terrane_raised(
+                                byte(),
+                                12 /* terrane-site: src/main.trn:27:37-27:42 */,
+                            ),
                         )
-                    }() {
-                        Ok(value) => value,
-                        Err(error) => std::panic::panic_any(error),
-                    },
-                )),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "witness",
-                            "witness::echo",
-                        ),
-                    )
-                }
-            },
-            13 /* terrane-site: src/main.trn:27:19-27:43 */,
-        );
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }() {
+                Ok(value) => value,
+                Err(error) => std::panic::panic_any(error),
+            };
+            __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| witness::echo(
+                        __terrane_native_input_0,
+                    )),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::echo",
+                            ),
+                        )
+                    }
+                },
+                13 /* terrane-site: src/main.trn:27:19-27:43 */,
+            )
+        };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |

@@ -20,6 +20,36 @@ pub(super) fn list_sort_comparator(item: &ElementType, descending: bool) -> &'st
     }
 }
 
+// Private host intrinsics have no source FunctionContract. Keep their ABI
+// parameter names alongside their resolved identity, rather than pretending
+// that source-call selection can supply a contract.
+fn intrinsic_arguments<'a>(
+    source: &crate::source::SourceFile,
+    arguments: &'a SyntaxNode,
+    parameters: &[&str],
+) -> Vec<Option<&'a SyntaxNode>> {
+    let mut ordered = vec![None; parameters.len()];
+    let mut positional = 0;
+    for argument in &arguments.children {
+        let named = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let index = if let Some(name) = named {
+            parameters
+                .iter()
+                .position(|parameter| *parameter == &source.text()[name.span.start..name.span.end])
+        } else {
+            let index = positional;
+            positional += 1;
+            Some(index)
+        }
+        .expect("private host argument names match their ABI");
+        ordered[index] = Some(argument.children.last().unwrap_or(argument));
+    }
+    ordered
+}
+
 impl Emitter<'_> {
     fn native_macro_expression(&mut self, node: &SyntaxNode) -> String {
         use crate::rust_interop::projection::ProjectedType;
@@ -1254,36 +1284,94 @@ impl Emitter<'_> {
             return format!("terrane_{function}({values})");
         }
         let buffer_call = [
-            ("buffer-create", "platform_buffer_create"),
-            ("buffer-clear", "platform_buffer_clear"),
-            ("buffer-close", "platform_buffer_close"),
-            ("buffer-filled-bytes", "platform_buffer_filled_bytes"),
-            ("buffer-filled-text", "platform_buffer_filled_text"),
-            ("tcp-read-into-async", "platform_tcp_read_into_async"),
-            ("tls-read-into-async", "platform_tls_read_into_async"),
-            ("stream-read-into-async", "platform_stream_read_into_async"),
+            (
+                "intrinsic:capabilities::buffer-create",
+                "platform_buffer_create",
+                &["capacity"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-clear",
+                "platform_buffer_clear",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-close",
+                "platform_buffer_close",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-capacity",
+                "platform_buffer_capacity",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-completed",
+                "platform_buffer_completed",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-filled-bytes",
+                "platform_buffer_filled_bytes",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::buffer-filled-text",
+                "platform_buffer_filled_text",
+                &["buffer"][..],
+            ),
+            (
+                "intrinsic:capabilities::tcp-read-into-async",
+                "platform_tcp_read_into_async",
+                &["handle", "buffer", "count", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::tls-read-into-async",
+                "platform_tls_read_into_async",
+                &["handle", "buffer", "count", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::stream-read-into-async",
+                "platform_stream_read_into_async",
+                &["handle", "buffer", "count", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::tcp-write-async",
+                "platform_tcp_write_async",
+                &["handle", "data", "offset", "deadline", "cancellation"][..],
+            ),
+            (
+                "intrinsic:capabilities::tls-write-async",
+                "platform_tls_write_async",
+                &["handle", "data", "offset", "deadline", "cancellation"][..],
+            ),
         ]
         .into_iter()
-        .find_map(|(source, rust)| {
-            self.is_builtin(callee, &format!("intrinsic:capabilities::{source}"))
-                .then_some(rust)
-        });
-        if let Some(function) = buffer_call {
-            let values = argument_values
-                .iter()
-                .enumerate()
-                .map(|(index, node)| {
-                    if function == "platform_buffer_create" {
-                        return format!("&({})", self.native_receiver_expression(node, false));
-                    }
-                    let value = self.expression(node);
-                    if function.ends_with("_async") && index == argument_values.len() - 1 {
-                        format!("({value}).as_ref()")
-                    } else if index == 0 || function.ends_with("_async") && index == 1 {
-                        format!("&({value})")
-                    } else {
-                        value
-                    }
+        .find(|(identity, _, _)| self.is_builtin(callee, identity));
+        if let Some((identity, function, parameters)) = buffer_call {
+            let values = intrinsic_arguments(&self.unit.source, arguments, parameters)
+                .into_iter()
+                .zip(parameters)
+                .filter_map(|(argument, parameter)| {
+                    let argument = argument?;
+                    Some(match *parameter {
+                        "capacity" | "handle" | "buffer" => {
+                            format!("&({})", self.native_receiver_expression(argument, false))
+                        }
+                        "cancellation" => format!("({}).as_ref()", self.expression(argument)),
+                        "data"
+                            if matches!(
+                                identity,
+                                "intrinsic:capabilities::tcp-write-async"
+                                    | "intrinsic:capabilities::tls-write-async"
+                            ) =>
+                        {
+                            format!("&({})", self.native_receiver_expression(argument, false))
+                        }
+                        "offset" | "count" | "deadline" => {
+                            self.expression_as(argument, ValueType::Scalar(ScalarType::Int))
+                        }
+                        _ => self.expression(argument),
+                    })
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -1383,64 +1471,26 @@ impl Emitter<'_> {
                     self.native_receiver_expression(value, false)
                 );
             }
-            let values = argument_values
-                .iter()
-                .enumerate()
-                .map(|(index, value)| {
-                    if self.value_type(value).is_some_and(|ty| matches!(&ty, ValueType::Optional(inner) if matches!(**inner, ValueType::PlatformCapability))) {
-                        return format!("({}).as_ref()", self.expression(value));
-                    }
-                    if function.ends_with("_async") && index == 1 && matches!(function, "platform_tcp_write_async" | "platform_tls_write_async") {
-                        return format!("&({})", self.native_receiver_expression(value, false));
-                    }
-                    if index == 2 && matches!(function, "platform_tcp_write_async" | "platform_tls_write_async") {
-                        return self.adaptive_expression(value);
-                    }
-                    let value = self.expression(value);
-                    let borrowed = matches!(
-                        (function, index),
-                        (
-                            "platform_random_bytes"
-                                | "platform_random_bounded"
-                                | "platform_random_split"
-                                | "platform_uuid_v4"
-                                | "platform_uuid_v7"
-                                | "platform_tcp_accept"
-                                | "platform_tcp_accept_async"
-                                | "platform_tcp_read"
-                                | "platform_tcp_read_async"
-                                | "platform_tcp_write"
-                                | "platform_tcp_write_async"
-                                | "platform_tcp_shutdown"
-                                | "platform_tcp_configure"
-                                | "platform_udp_send_to"
-                                | "platform_udp_send_to_async"
-                                | "platform_udp_receive_from"
-                                | "platform_udp_receive_from_async"
-                                | "platform_udp_configure"
-                                | "platform_tls_client"
-                                | "platform_tls_client_async"
-                                | "platform_tls_read"
-                                | "platform_tls_read_async"
-                                | "platform_tls_write"
-                                | "platform_tls_write_async"
-                                | "platform_tls_shutdown"
-                                | "platform_tls_shutdown_async"
-                                | "platform_capability_close"
-                                | "platform_digest"
-                                | "platform_hmac"
-                                | "platform_parse_socket"
-                                | "platform_cancel"
-                                | "platform_destroy_secret",
-                            0,
-                        ) | ("platform_parse_socket" | "platform_hmac", 1)
-                    ) || function.starts_with("platform_result_") && index == 0;
-                    if borrowed {
-                        format!("&({value})")
-                    } else {
-                        value
-                    }
-                })
+            let values = argument_values.iter().enumerate().map(|(index, value)| {
+                if self.value_type(value).is_some_and(|ty|
+                    matches!(&ty, ValueType::Optional(inner) if matches!(**inner, ValueType::PlatformCapability))) {
+                    return format!("({}).as_ref()", self.expression(value));
+                }
+                let expression = self.expression(value);
+                let borrowed = matches!((function, index),
+                    ("platform_random_bytes" | "platform_random_bounded" | "platform_random_split"
+                    | "platform_uuid_v4" | "platform_uuid_v7" | "platform_tcp_accept_async"
+                    | "platform_tcp_read_async" | "platform_tcp_shutdown" | "platform_tcp_configure"
+                    | "platform_udp_send_to" | "platform_udp_send_to_async" | "platform_udp_receive_from"
+                    | "platform_udp_receive_from_async" | "platform_udp_configure" | "platform_tls_client"
+                    | "platform_tls_client_async" | "platform_tls_read" | "platform_tls_read_async"
+                    | "platform_tls_write" | "platform_tls_shutdown" | "platform_tls_shutdown_async"
+                    | "platform_capability_close" | "platform_digest" | "platform_hmac"
+                    | "platform_parse_socket" | "platform_cancel" | "platform_destroy_secret", 0)
+                    | ("platform_parse_socket" | "platform_hmac", 1))
+                    || function.starts_with("platform_result_") && index == 0;
+                if borrowed { format!("&({expression})") } else { expression }
+            })
                 .collect::<Vec<_>>()
                 .join(", ");
             return format!("terrane_{function}({values})");
@@ -2193,6 +2243,23 @@ impl Emitter<'_> {
             )
         });
         let mut native_member_receiver = None;
+        // Source argument evaluation belongs to the caller's error/async context,
+        // not inside the native call's synchronous panic-catching closure.
+        let stage_native_inputs = native_macro_path.is_none()
+            && projected_function.as_ref().is_some_and(|function| {
+                !function.is_async && !function.into_future && function.chain_role.is_none()
+            })
+            && arguments.children.iter().any(|argument| {
+                self.contains_await(argument) || self.expression_throws_synchronously(argument)
+            });
+        let mut native_input_setup = String::new();
+        let mut native_input_index = 0;
+        let mut stage_native_input = |value: String| {
+            let name = format!("__terrane_native_input_{native_input_index}");
+            native_input_index += 1;
+            write!(native_input_setup, "let {name} = {value}; ").unwrap();
+            name
+        };
         let name = if let Some(path) = &native_macro_path {
             path.clone()
         } else if let Some(function) = self.source_applied_function(callee) {
@@ -2391,6 +2458,15 @@ impl Emitter<'_> {
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow)
             );
             let receiver = self.native_receiver_expression(receiver, mutable);
+            let receiver = if stage_native_inputs {
+                stage_native_input(if mutable {
+                    format!("&mut ({receiver})")
+                } else {
+                    format!("&({receiver})")
+                })
+            } else {
+                receiver
+            };
             format!("({receiver}).{}", projected.name)
         } else if contract
             .as_ref()
@@ -2462,6 +2538,19 @@ impl Emitter<'_> {
                 }
             } else {
                 receiver_expression
+            };
+            let receiver = if stage_native_inputs {
+                let receiver = if !contract.is_async
+                    && projected_receiver
+                        == Some(crate::rust_interop::projection::Receiver::MutableBorrow)
+                {
+                    format!("&mut ({receiver})")
+                } else {
+                    receiver
+                };
+                stage_native_input(receiver)
+            } else {
+                receiver
             };
             let method_name = if specialization
                 .is_some_and(|specialization| specialization.direct_projected_call)
@@ -2612,6 +2701,11 @@ impl Emitter<'_> {
         };
         if let Some(receiver) = native_member_receiver {
             values.insert(0, receiver);
+        }
+        if stage_native_inputs {
+            for value in &mut values {
+                *value = stage_native_input(std::mem::take(value));
+            }
         }
         let callable_mode =
             self.value_type(callee)
@@ -3129,7 +3223,7 @@ impl Emitter<'_> {
                 format!("__terrane_traced({call}, {site})")
             }
         };
-        if contract.as_ref().is_some_and(|contract| contract.is_async)
+        let result = if contract.as_ref().is_some_and(|contract| contract.is_async)
             && matches!(self.value_type(node), Some(ValueType::Task(_, _)))
         {
             if foreign_error || dependency_boundary {
@@ -3154,6 +3248,11 @@ impl Emitter<'_> {
             } else {
                 mapped
             }
+        };
+        if native_input_setup.is_empty() {
+            result
+        } else {
+            format!("{{ {native_input_setup}{result} }}")
         }
     }
 }

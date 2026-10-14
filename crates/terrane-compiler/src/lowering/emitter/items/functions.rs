@@ -34,6 +34,18 @@ fn collect_local_functions<'a>(node: &'a SyntaxNode, output: &mut Vec<&'a Syntax
 }
 impl Emitter<'_> {
     pub(in crate::lowering::emitter) fn function(&mut self, node: &SyntaxNode) {
+        if self.unit.bundled
+            && self.unit.namespace == "/core/streams"
+            && !crate::lowering::helpers::package_uses_advanced_streams(self.package)
+            && self
+                .unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == node.span)
+                .is_some_and(|contract| contract.is_async || contract.name == "make-read-buffer")
+        {
+            return;
+        }
         self.emit_function(node, None);
     }
 
@@ -705,15 +717,19 @@ impl Emitter<'_> {
                 continue;
             }
             let name = self.binding_storage_name(binding);
-            // Task expressions keep their concrete future type, as ordinary bindings do.
-            let ty =
-                (!matches!(self.flow_binding_type(binding), ValueType::Task(_, _))).then(|| {
-                    self.binding_rust_type(
-                        binding,
-                        self.binding_scalar_storage_type(binding),
-                        self.reference_backed(binding),
-                    )
-                });
+            let ty = if matches!(self.flow_binding_type(binding), ValueType::Task(_, _))
+                && self.task_binding_is_heterogeneous(binding)
+            {
+                Some(self.task_binding_rust_type(binding))
+            } else if matches!(self.flow_binding_type(binding), ValueType::Task(_, _)) {
+                None
+            } else {
+                Some(self.binding_rust_type(
+                    binding,
+                    self.binding_scalar_storage_type(binding),
+                    self.reference_backed(binding),
+                ))
+            };
             if self.binding_may_be_unassigned(binding) {
                 if let Some(ty) = &ty {
                     self.line(&format!("let mut {name}: Option<{ty}> = None;"));

@@ -12,13 +12,14 @@ fn main() {
     let data_sync: StreamOperationResult;
     let all_sync: StreamOperationResult;
     output = stdout();
-    prefix = output.write(Vec::from([97]));
+    prefix = output.write(Vec::<u8>::from([97]));
     writer = output.text(terrane_string_support::Encoding::Utf8);
     partial = WriteResult::terrane_construct(
-        Vec::from([97, 98, 99]),
+        Vec::<u8>::from([97, 98, 99]),
         terrane_int_support::Int::from(1_i128),
         false,
         String::from(""),
+        false,
     );
     resumed = writer.resume(partial);
     line = writer.line(String::from("x"));

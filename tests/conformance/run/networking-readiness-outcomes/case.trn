@@ -1,7 +1,7 @@
 namespace app
 
 from /core/networking import ip-address-from-string, socket-address-from-ip
-from /core/networking/io import network-cancellation-token, network-operation-options, network-cancel-operation
+from /core/io import cancellation-token, io-operation-options, cancel-operation
 from /core/networking import tcp-listener, listener-result, stream-result, bind-tcp
 from /core/time import clock, duration
 
@@ -11,14 +11,14 @@ async function main;
     bound listener-result = bind-tcp; bind-address.value
     listener tcp-listener = move bound.value
 
-    deadline-options = instance network-operation-options; (clock::deadline; (duration::nanoseconds; 1)), (instance network-cancellation-token;)
+    deadline-options = instance io-operation-options; (clock::deadline; (duration::nanoseconds; 1)), (instance cancellation-token;)
     expired stream-result = await listener.accept; deadline-options
     print; expired.failed
     print; expired.deadline-exceeded
 
-    cancellation = instance network-cancellation-token;
-    network-cancel-operation; cancellation
-    cancelled-options = instance network-operation-options; (clock::deadline; (duration::seconds; 1)), cancellation
+    cancellation = instance cancellation-token;
+    cancel-operation; cancellation
+    cancelled-options = instance io-operation-options; (clock::deadline; (duration::seconds; 1)), cancellation
     cancelled stream-result = await listener.accept; cancelled-options
     print; cancelled.failed
     print; cancelled.message

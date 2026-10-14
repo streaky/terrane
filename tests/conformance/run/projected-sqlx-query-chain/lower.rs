@@ -158,7 +158,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = sqlx_core::query::query(&insert_sql)
-                            .bind(Vec::from([102, 105, 114, 115, 116]))
+                            .bind(Vec::<u8>::from([102, 105, 114, 115, 116]))
                             .execute(&mut connection);
                         async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -204,7 +204,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = sqlx_core::query::query(&insert_sql)
-                            .bind(Vec::from([115, 101, 99, 111, 110, 100]))
+                            .bind(Vec::<u8>::from([115, 101, 99, 111, 110, 100]))
                             .execute(&mut connection);
                         async move {
                             match crate::__terrane_dependency_await_unwind(

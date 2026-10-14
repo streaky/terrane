@@ -7,7 +7,7 @@ fn main() {
         let reader: ByteReader;
         let allocated: ReadBufferResult;
         let expired: Deadline;
-        let options: NetworkOperationOptions;
+        let options: IoOperationOptions;
         let mut rejected: BufferedReadResult;
         let mut first: BufferedReadResult;
         let first_bytes: BufferBytesResult;
@@ -27,7 +27,7 @@ fn main() {
                 0 /* terrane-site: case.trn:9:33-9:57 */,
             ),
         );
-        options = NetworkOperationOptions::terrane_construct(Some(expired), None);
+        options = IoOperationOptions::terrane_construct(Some(expired), None);
         rejected = __terrane_await(
                 (&reader)
                     .read_into_async(
@@ -59,7 +59,7 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&(first.completed.clone() ==
             terrane_int_support::Int::from(2_i128) &&first.buffer.as_ref()
-            .expect("required field initialized").completed.clone() ==
+            .expect("required field initialized").completed() ==
             terrane_int_support::Int::from(2_i128) &&first_bytes.value == Vec:: < u8 >
             ::from([97, 98])))
         );
@@ -80,7 +80,7 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&(second.completed.clone() ==
             terrane_int_support::Int::from(2_i128) &&second.buffer.as_ref()
-            .expect("required field initialized").completed.clone() ==
+            .expect("required field initialized").completed() ==
             terrane_int_support::Int::from(4_i128) &&all_bytes.value == Vec:: < u8 >
             ::from([97, 98, 99, 100])))
         );
@@ -101,7 +101,7 @@ fn main() {
         cleared = buffer.clear();
         println!(
             "{}", terrane_scalar_support::scalar_text(&(! cleared.failed &&buffer
-            .completed.clone() == terrane_int_support::Int::from(0_i128)))
+            .completed() == terrane_int_support::Int::from(0_i128)))
         );
         empty = buffer.filled_bytes();
         println!(

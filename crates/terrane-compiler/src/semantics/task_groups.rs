@@ -1,6 +1,18 @@
 use super::prelude::*;
 
+// Group liveness is span-set state, so it cannot use scope_flow's FlowEnv
+// transfer directly. It does share the canonical throwable query and the
+// language's branch/finally structure and exit validation.
+
 type Live = BTreeSet<Span>;
+
+struct Flow<'a> {
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    inferred: &'a BTreeMap<(u32, usize, usize), BTreeSet<String>>,
+    catches: Vec<BTreeSet<String>>,
+    seen: Live,
+}
 
 fn binding<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a TypedBinding> {
     if node.kind != SyntaxKind::Name {
@@ -22,11 +34,6 @@ fn undrained(unit: &SemanticUnit, span: Span) -> SemanticFailure {
     )
 }
 
-struct Flow<'a> {
-    unit: &'a SemanticUnit,
-    seen: Live,
-}
-
 fn factory<'a>(unit: &SemanticUnit, mut node: &'a SyntaxNode) -> Option<&'a SyntaxNode> {
     while node.kind == SyntaxKind::GroupExpression {
         node = node.children.first()?;
@@ -34,19 +41,74 @@ fn factory<'a>(unit: &SemanticUnit, mut node: &'a SyntaxNode) -> Option<&'a Synt
     (node.kind == SyntaxKind::CallExpression
         && node.children.first().is_some_and(|callee| {
             callee.kind == SyntaxKind::Name
-                && resolved_compiler_identity(unit, callee).as_deref()
-                    == Some("/core/async::task-group")
+                && resolved_compiler_identity(unit, callee) == Some("/core/async::task-group")
         }))
     .then_some(node)
 }
 
 impl<'a> Flow<'a> {
-    fn expression(
-        &self,
+    fn implicit_exit(
+        &mut self,
         node: &SyntaxNode,
         live: &mut Live,
         awaited: bool,
+        finalizers: &[&'a SyntaxNode],
     ) -> Result<(), SemanticFailure> {
+        let deferred_async_call = node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                matches!(
+                    infer_value_type(self.unit, callee, &self.unit.typed_bindings),
+                    Ok(Some(ValueType::AsyncFunction(..)))
+                )
+            })
+            && !awaited;
+        let group_operation = node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                callee.kind == SyntaxKind::MemberExpression
+                    && callee
+                        .children
+                        .first()
+                        .is_some_and(|receiver| binding(self.unit, receiver).is_some())
+            });
+        if !live.is_empty()
+            && !deferred_async_call
+            && !group_operation
+            && matches!(
+                node.kind,
+                SyntaxKind::CallExpression
+                    | SyntaxKind::UnaryExpression
+                    | SyntaxKind::BinaryExpression
+                    | SyntaxKind::IndexExpression
+            )
+        {
+            let mut errors =
+                super::contracts::escaping_throwables(self.package, self.unit, node, self.inferred);
+            for escaping in &self.catches {
+                errors.retain(|error| escaping.contains(error));
+            }
+            if !errors.is_empty() {
+                self.exit(live, finalizers, node.span)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn expression(
+        &mut self,
+        node: &SyntaxNode,
+        live: &mut Live,
+        awaited: bool,
+        finalizers: &[&'a SyntaxNode],
+        deferred: bool,
+    ) -> Result<(), SemanticFailure> {
+        let deferred = deferred
+            || matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            );
+        if !deferred {
+            self.implicit_exit(node, live, awaited, finalizers)?;
+        }
         if factory(self.unit, node).is_some() {
             return Err(failure(
                 &self.unit.source,
@@ -59,7 +121,7 @@ impl<'a> Flow<'a> {
             && unary_operator_text(self.unit, node).as_deref() == Some("await")
         {
             if let Some(value) = node.children.last() {
-                self.expression(value, live, true)?;
+                self.expression(value, live, true, finalizers, deferred)?;
             }
             return Ok(());
         }
@@ -100,7 +162,7 @@ impl<'a> Flow<'a> {
                 }
             }
             for child in node.children.iter().skip(1) {
-                self.expression(child, live, false)?;
+                self.expression(child, live, false, finalizers, deferred)?;
             }
             return Ok(());
         }
@@ -118,6 +180,8 @@ impl<'a> Flow<'a> {
                 child,
                 live,
                 awaited && node.kind == SyntaxKind::GroupExpression,
+                finalizers,
+                deferred,
             )?;
         }
         Ok(())
@@ -159,6 +223,10 @@ impl<'a> Flow<'a> {
         Ok(true)
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "group liveness transfer keeps all language branch and exit forms together"
+    )]
     fn statement(
         &mut self,
         node: &'a SyntaxNode,
@@ -176,10 +244,10 @@ impl<'a> Flow<'a> {
                     if let Some(value) = node.children.last() {
                         if let Some(call) = factory(self.unit, value) {
                             for arguments in call.children.iter().skip(1) {
-                                self.expression(arguments, live, false)?;
+                                self.expression(arguments, live, false, finalizers, false)?;
                             }
                         } else {
-                            self.expression(value, live, false)?;
+                            self.expression(value, live, false, finalizers, false)?;
                         }
                     }
                     self.seen.insert(owner.span);
@@ -189,7 +257,7 @@ impl<'a> Flow<'a> {
             }
             SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement => {
                 for child in &node.children {
-                    self.expression(child, live, false)?;
+                    self.expression(child, live, false, finalizers, false)?;
                 }
                 self.exit(live, finalizers, node.span)?;
                 live.clear();
@@ -203,7 +271,7 @@ impl<'a> Flow<'a> {
             }
             SyntaxKind::IfStatement => {
                 if let Some(condition) = node.children.first() {
-                    self.expression(condition, live, false)?;
+                    self.expression(condition, live, false, finalizers, false)?;
                 }
                 let entry = live.clone();
                 let mut paths = Vec::new();
@@ -221,7 +289,13 @@ impl<'a> Flow<'a> {
                             .iter()
                             .filter(|child| child.kind != SyntaxKind::Block)
                         {
-                            self.expression(condition, &mut entry.clone(), false)?;
+                            self.expression(
+                                condition,
+                                &mut entry.clone(),
+                                false,
+                                finalizers,
+                                false,
+                            )?;
                         }
                         branch
                             .children
@@ -252,7 +326,7 @@ impl<'a> Flow<'a> {
                             return Err(undrained(self.unit, node.span));
                         }
                     } else {
-                        self.expression(child, live, false)?;
+                        self.expression(child, live, false, finalizers, false)?;
                     }
                 }
                 return Ok(true);
@@ -267,6 +341,12 @@ impl<'a> Flow<'a> {
                 if let Some(finally) = finally {
                     pending.push(finally);
                 }
+                let escaping = super::contracts::escaping_throwables(
+                    self.package,
+                    self.unit,
+                    node,
+                    self.inferred,
+                );
                 let entry = live.clone();
                 let mut paths = Vec::new();
                 for clause in &node.children {
@@ -282,7 +362,14 @@ impl<'a> Flow<'a> {
                     };
                     if let Some(body) = body {
                         let mut path = entry.clone();
-                        if self.block(body, &mut path, &pending, loop_entry, false)? {
+                        if clause.kind == SyntaxKind::Block {
+                            self.catches.push(escaping.clone());
+                        }
+                        let result = self.block(body, &mut path, &pending, loop_entry, false);
+                        if clause.kind == SyntaxKind::Block {
+                            self.catches.pop();
+                        }
+                        if result? {
                             if let Some(finally) = finally {
                                 self.block(finally, &mut path, finalizers, loop_entry, false)?;
                             }
@@ -308,13 +395,13 @@ impl<'a> Flow<'a> {
                             .iter()
                             .filter(|child| child.kind != SyntaxKind::Block)
                         {
-                            self.expression(header, &mut path, false)?;
+                            self.expression(header, &mut path, false, finalizers, false)?;
                         }
                         if self.block(body, &mut path, finalizers, loop_entry, true)? {
                             paths.push(path);
                         }
                     } else {
-                        self.expression(case, live, false)?;
+                        self.expression(case, live, false, finalizers, false)?;
                     }
                 }
                 if node.kind == SyntaxKind::SwitchStatement && !node.switch_has_default() {
@@ -325,7 +412,7 @@ impl<'a> Flow<'a> {
             SyntaxKind::FunctionDeclaration => return Ok(true),
             _ => {}
         }
-        self.expression(node, live, false)?;
+        self.expression(node, live, false, finalizers, false)?;
         Ok(true)
     }
 
@@ -335,22 +422,37 @@ impl<'a> Flow<'a> {
         live: &mut Live,
         span: Span,
     ) -> Result<bool, SemanticFailure> {
-        let Some(first) = paths.first() else {
+        let mut paths = paths.into_iter();
+        let Some(first) = paths.next() else {
             live.clear();
             return Ok(false);
         };
-        if paths.iter().any(|path| path != first) {
+        if paths.any(|path| path != first) {
             return Err(undrained(self.unit, span));
         }
-        *live = first.clone();
+        *live = first;
         Ok(true)
     }
 }
 
 pub(super) fn validate_task_groups(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    let inferred = package
+        .units
+        .iter()
+        .flat_map(|unit| unit.functions.iter())
+        .map(|contract| {
+            (
+                (contract.span.file, contract.span.start, contract.span.end),
+                contract.escaping_throwables.clone(),
+            )
+        })
+        .collect();
     for unit in &package.units {
         let mut flow = Flow {
+            package,
             unit,
+            inferred: &inferred,
+            catches: Vec::new(),
             seen: Live::new(),
         };
         for contract in &unit.functions {
