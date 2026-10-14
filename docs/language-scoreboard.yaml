@@ -1590,7 +1590,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/standard-library/networking.yaml
-  notes: Validated addresses, deadlines, cancellation, sockets, listeners, datagrams, and ordered DNS are implemented.
+  notes: Validated addresses, deadlines, cancellation, sockets, listeners, datagrams, and ordered DNS are implemented. Textual listen-tcp and consuming native TCP handoff support ecosystem integrations without an authored Tokio dependency.
   sources:
   - docs/compiler-plan.md#Milestone 24
 - id: tls
