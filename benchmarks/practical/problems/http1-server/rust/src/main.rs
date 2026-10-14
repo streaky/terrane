@@ -1,5 +1,5 @@
 // Adapted from https://github.com/hanabi1224/Programming-Language-Benchmarks/blob/6aead3598958a3b310dc7ed3d33cc33c6f27382e/bench/algorithm/http-server/1.rs
-// Changes: bind an OS-assigned port before starting clients; retain the upstream HTTP/1 workload.
+// Changes: bind an OS-assigned port with backlog 1024 before starting clients; retain the upstream HTTP/1 workload.
 use axum::routing::post;
 use hyper::{client::HttpConnector, StatusCode};
 use tokio::sync::mpsc::{self, Sender};
@@ -22,7 +22,12 @@ fn main() -> anyhow::Result<()> {
 #[tokio::main]
 async fn tokio_main(n: usize) -> anyhow::Result<()> {
     let app = axum::Router::new().route("/api", post(handler));
-    let server = axum::Server::bind(&format!("{}:0", HOST).parse()?);
+    let socket = tokio::net::TcpSocket::new_v4()?;
+    #[cfg(unix)]
+    socket.set_reuseaddr(true)?;
+    socket.bind(format!("{}:0", HOST).parse()?)?;
+    let incoming = hyper::server::conn::AddrIncoming::from_listener(socket.listen(1024)?)?;
+    let server = axum::Server::builder(incoming);
     let port = server.local_addr().port();
     tokio::spawn(server.serve(app.into_make_service()));
     let (sender, mut receiver) = mpsc::channel::<usize>(n);

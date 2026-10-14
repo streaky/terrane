@@ -1,5 +1,5 @@
 // Adapted from https://github.com/hanabi1224/Programming-Language-Benchmarks/blob/71e9eb58cdbd6b3cb8568b1a135e0d75209ca318/bench/algorithm/http-server/2.go
-// Changes: bind an OS-assigned port before starting clients, post to /api, and close response bodies.
+// Changes: bind an OS-assigned port and set backlog 1024 before starting clients, post to /api, and close response bodies.
 package main
 
 import (
@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -60,6 +61,21 @@ func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
+	}
+	raw, err := listener.(*net.TCPListener).SyscallConn()
+	if err != nil {
+		panic(err)
+	}
+	// On Unix, listen on an existing listener updates its backlog. Set it
+	// before starting the server or clients, retaining net.Listen's setup.
+	var listenErr error
+	if err := raw.Control(func(fd uintptr) {
+		listenErr = syscall.Listen(int(fd), 1024)
+	}); err != nil {
+		panic(err)
+	}
+	if listenErr != nil {
+		panic(listenErr)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	go runServer(listener)
