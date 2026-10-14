@@ -676,7 +676,17 @@ fn main() {
                     exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
                 }
                 endpoint = socket_address_from_string(String::from("127.0.0.1:0"));
-                bound = bind_tcp(endpoint.value, None);
+                bound = bind_tcp(
+                    endpoint.value,
+                    Some(
+                        TcpListenerOptions::terrane_construct(
+                            terrane_int_support::Int::from(1024_i128),
+                            false,
+                            false,
+                            terrane_int_support::Int::from(-1_i128),
+                        ),
+                    ),
+                );
                 if bound.failed {
                     exit(make_exit_status(terrane_int_support::Int::from(1_i128)));
                 }

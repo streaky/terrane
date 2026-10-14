@@ -43,6 +43,8 @@ These compare complete implementations, not just handler throughput or isolated 
 
 The minimal Terrane HTTP/1 implementation uses one request per connection and sends `Connection: close`. It handles partial writes and fragmented ASCII benchmark messages using bounded Content-Length framing, verifies the request/status line, performs actual JSON parsing, and checks every returned value. It is not a general HTTP server: no chunked encoding, keep-alive, pipelining, arbitrary Unicode streaming bodies, or general routing. The upstream clients retain their connection-pooling and retry behavior. All lanes bind OS-selected ephemeral loopback ports before launching clients; this removes the upstream randomized-port collision race without changing request work.
 
+The Terrane benchmark explicitly selects listener backlog 1024 for its default 1,000-request burst; core's default remains 128. A smaller admission queue can overflow during that burst and introduce TCP retransmission delays. This is benchmark configuration, not a runtime optimization or a change to request concurrency or connection reuse. The reference implementations retain their library-selected backlogs and pooling/retry policies, so matching HTTP/1 and request count does not imply identical connection lifecycles.
+
 Use the default repetitions and a controlled host for performance conclusions. A one-run report is a smoke check, not evidence that one language is inherently faster.
 
 Shared runner regression checks: `python3 -m unittest discover -s benchmarks/tests -v`.

@@ -2,7 +2,7 @@ namespace benchmark-http1-server
 
 from /core/streams import make-read-buffer
 from /core/process import arguments, exit, make-exit-status
-from /core/networking import tcp-stream, tcp-listener, socket-address, socket-address-from-string, bind-tcp, connect-tcp
+from /core/networking import tcp-stream, tcp-listener, tcp-listener-options, socket-address, socket-address-from-string, bind-tcp, connect-tcp
 from /core/documents/json import decode-typed-json, json-options
 from /core/documents import document-decodable
 from /core/errors import throwable
@@ -117,7 +117,7 @@ async function main;
     if count <= 0
         exit; (make-exit-status; 2)
     endpoint = socket-address-from-string; '127.0.0.1:0'
-    bound = bind-tcp; endpoint.value
+    bound = bind-tcp; endpoint.value, (instance tcp-listener-options; 1024)
     if bound.failed
         exit; (make-exit-status; 1)
     listener = move bound.value
