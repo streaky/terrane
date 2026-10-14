@@ -3675,15 +3675,15 @@ pub fn named_logger(sink: LogSink, target: String) -> Logger {
 }
 pub fn with_field(value: Logger, addition: LogField) -> Logger {
     return Logger::terrane_construct(
-        value.sink,
-        value.options,
+        value.sink.clone(),
+        value.options.clone(),
         value.context.adding_field(addition),
     );
 }
 pub fn with_span(value: Logger, span: String) -> Logger {
     return Logger::terrane_construct(
-        value.sink,
-        value.options,
+        value.sink.clone(),
+        value.options.clone(),
         value.context.adding_span(span),
     );
 }
@@ -3814,7 +3814,7 @@ pub fn emit_at(
             __terrane_list_append_3.push(item.clone());
         }
     }
-    options = v.options;
+    options = v.options.clone();
     raw = {
         let sink = v.sink.handle;
         let severity = l.name;
@@ -3913,7 +3913,7 @@ pub fn debug(
 pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
     return emit_at(
         value,
-        event.level,
+        event.level.clone(),
         event.message.clone(),
         event.source.clone(),
         event.fields.clone(),
