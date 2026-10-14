@@ -1,0 +1,27 @@
+namespace task-group-reused-object-field
+
+class payload
+    value int = 7
+
+class holder
+    item payload = instance payload;
+
+async function work int; item payload, offset int
+    item.value = item.value + offset
+    return item.value
+
+async function main;
+    source = instance holder;
+    group = task-group; int
+    index int = 1
+    while index <= 3
+        group.spawn; (work; source.item, index)
+        index = index + 1
+    outcomes = await group.drain;
+    total int = 0
+    for outcome in outcomes
+        value = outcome.value
+        if value != none
+            total = total + value
+    print; total == 27
+    print; source.item.value == 7

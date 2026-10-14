@@ -1,0 +1,11 @@
+id = "rust"
+name = "Rust protocol reference"
+implementation = "rust/src/main.rs"
+prepare = ["cargo", "build", "--release", "--locked", "--manifest-path", "${implementation_dir}/../Cargo.toml"]
+run = ["${implementation_dir}/../target/release/http-server"]
+cache-paths = ["${implementation_dir}/../target"]
+environment = [["rustc", "--version"], ["cargo", "--version"]]
+
+[metadata]
+implementation = "Upstream Rust HTTP server/client reference with pinned dependencies"
+native-build-profile = "Cargo release: opt-level 3, fat LTO, one codegen unit"

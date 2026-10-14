@@ -97,30 +97,22 @@ impl<'a> Emitter<'a> {
         self.indent += 1;
         self.line("fn terrane_decode_document(");
         self.indent += 1;
-        self.line("input: &terrane_document_support::DataResult,");
-        self.line("path: &str,");
+        self.line("input: &mut terrane_document_support::Document,");
+        self.line("path: &TerraneDocumentPath<'_>,");
         self.line("allow_unknown: bool,");
         self.line("source: &str,");
         self.line("_field_source: &str,");
         self.indent -= 1;
         self.line(") -> Result<Self, Vec<TerraneDocumentDiagnostic>> {");
         self.indent += 1;
-        self.line("if input.failed {");
-        self.indent += 1;
-        self.line(&format!(
-            "return Err(vec![__terrane_document_diagnostic(path, {:?}, \"invalid\", \"parse\", input.message.clone(), source, {:?})]);",
-            object.name, class_source
-        ));
-        self.indent -= 1;
-        self.line("}");
-        self.line("if terrane_document_support::document_kind(input) != \"map\" {");
+        self.line("let terrane_document_support::Document::Map(input_map) = input else {");
         self.indent += 1;
         self.line(&format!(
             "return __terrane_document_type_error(input, path, {:?}, source, {:?});",
             object.name, class_source
         ));
         self.indent -= 1;
-        self.line("}");
+        self.line("};");
         self.line("let mut value = Self::terrane_construct();");
         self.line("let mut diagnostics = Vec::new();");
         self.line(&format!(
@@ -128,13 +120,12 @@ impl<'a> Emitter<'a> {
         ));
         self.line("if !allow_unknown {");
         self.indent += 1;
-        self.line("for index in 0..terrane_document_support::document_length(input) {");
+        self.line("for key in input_map.keys() {");
         self.indent += 1;
-        self.line("let key = terrane_document_support::document_key(input, index);");
         self.line("if !declared_fields.contains(&key.as_str()) {");
         self.indent += 1;
         self.line(&format!(
-            "diagnostics.push(__terrane_document_diagnostic(__terrane_document_child_path(path, &key), {:?}, \"present\", \"unknown-field\", format!(\"unknown field `{{key}}`\"), source, {:?}));",
+            "diagnostics.push(__terrane_document_diagnostic(&__terrane_document_child_path(path, key), {:?}, \"present\", \"unknown-field\", format!(\"unknown field `{{key}}`\"), source, {:?}));",
             object.name, class_source
         ));
         self.indent -= 1;
@@ -151,13 +142,11 @@ impl<'a> Emitter<'a> {
             let field_source = format!("{}:{field_line}:{field_column}", field.unit.source_path);
             self.line("{");
             self.indent += 1;
-            self.line(&format!(
-                "let field = terrane_document_support::document_field(input, {external:?});"
-            ));
+            self.line(&format!("let field = input_map.get_mut({external:?});"));
             self.line(&format!(
                 "let field_path = __terrane_document_child_path(path, {external:?});"
             ));
-            self.line("if field.failed {");
+            self.line("if field.is_none() {");
             self.indent += 1;
             if field.metadata.defaulted || field.metadata.optional {
                 self.line("// The field initializer supplies the absent default.");
@@ -170,9 +159,10 @@ impl<'a> Emitter<'a> {
             self.indent -= 1;
             self.line("} else {");
             self.indent += 1;
+            self.line("let field = field.expect(\"field presence checked\");");
             if let ValueType::Tuple(_, Some(length)) = field.value_type {
                 self.line(&format!(
-                    "if terrane_document_support::document_kind(&field) == \"list\" && terrane_document_support::document_length(&field) != {length} {{"
+                    "if matches!(field, terrane_document_support::Document::List(items) if items.len() != {length}) {{"
                 ));
                 self.indent += 1;
                 self.line(&format!(
@@ -186,7 +176,7 @@ impl<'a> Emitter<'a> {
                 self.indent += 1;
             }
             self.line(&format!(
-                "match <{rust_type} as TerraneDocumentDecode>::terrane_decode_document(&field, &field_path, allow_unknown, source, {field_source:?}) {{"
+                "match <{rust_type} as TerraneDocumentDecode>::terrane_decode_document(field, &field_path, allow_unknown, source, {field_source:?}) {{"
             ));
             self.indent += 1;
             self.line(&format!("Ok(decoded) => value.{rust_field} = decoded,"));

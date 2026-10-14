@@ -1,0 +1,11 @@
+id = "go"
+name = "Go protocol reference"
+implementation = "go/main.go"
+prepare = ["go", "-C", "${implementation_dir}", "build", "-trimpath", "-mod=readonly", "-o", "${implementation_dir}/benchmark", "."]
+run = ["${implementation_dir}/benchmark"]
+cache-paths = ["${implementation_dir}/benchmark"]
+environment = [["go", "version"]]
+
+[metadata]
+implementation = "Upstream protocol-specific Go HTTP server/client reference"
+native-build-profile = "default optimized Go build with trimmed paths"

@@ -1,0 +1,16 @@
+id = "terrane"
+name = "Pure Terrane HTTP/1.1"
+implementation = "terrane/package.toml"
+setup = ["cargo", "build", "--release", "--quiet", "-p", "terrane-cli"]
+prepare = ["${repo}/target/release/terrane", "build", "--release", "${implementation}"]
+lower = ["${repo}/target/release/terrane", "rust", "--output", "${lowered}", "${implementation}"]
+lower-outputs = ["${implementation_dir}/src/main.lowered.rs", "${implementation_dir}/src/main.lowered.support.rs"]
+prepare-output = "executable-path"
+run = ["${prepared}"]
+cache-paths = ["${implementation_dir}/.trn"]
+environment = [["${repo}/target/release/terrane", "--version"], ["rustc", "--version"], ["cargo", "--version"]]
+
+[metadata]
+implementation = "Standalone Terrane source using core TCP and JSON; no authored Rust dependencies or escape hatches"
+protocol = "HTTP/1.1 over cleartext loopback TCP, one exchange per connection"
+native-build-profile = "Cargo release: opt-level 3, fat LTO, one codegen unit"

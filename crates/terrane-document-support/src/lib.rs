@@ -62,7 +62,6 @@ impl DataResult {
             document: None,
         }
     }
-
     fn value(&self) -> Option<&Document> {
         self.document.as_deref()
     }
@@ -172,33 +171,98 @@ fn classify_number(value: &str) -> Result<Document, String> {
     }
 }
 
-#[must_use]
-pub fn parse_json(input: &str, max_depth: usize, max_bytes: usize) -> DataResult {
+/// Parses a bounded JSON tree without canonical serialization.
+///
+/// # Errors
+///
+/// Returns the same structured failure as [`parse_json`] for malformed input, duplicate
+/// keys, unsupported exact number representations, or exceeded byte/depth limits.
+pub fn parse_json_document(
+    input: &str,
+    max_depth: usize,
+    max_bytes: usize,
+) -> Result<Document, DataResult> {
     if max_depth > MAXIMUM_JSON_DEPTH {
-        return DataResult::failure(
+        return Err(DataResult::failure(
             format!("JSON depth limit cannot exceed {MAXIMUM_JSON_DEPTH}"),
             "$",
             "bounded JSON document",
-        );
+        ));
     }
     if input.len() > max_bytes {
-        return DataResult::failure("document exceeds byte limit", "$", "bounded JSON document");
+        return Err(DataResult::failure(
+            "document exceeds byte limit",
+            "$",
+            "bounded JSON document",
+        ));
     }
     let mut deserializer = serde_json::Deserializer::from_str(input);
     deserializer.disable_recursion_limit();
-    let value = match (DocumentSeed {
+    let value = (DocumentSeed {
         depth: 0,
         max_depth,
     })
     .deserialize(&mut deserializer)
-    {
-        Ok(value) => value,
-        Err(error) => return DataResult::failure(error.to_string(), "$", "JSON value"),
-    };
-    if let Err(error) = deserializer.end() {
-        return DataResult::failure(error.to_string(), "$", "one complete JSON value");
+    .map_err(|error| DataResult::failure(error.to_string(), "$", "JSON value"))?;
+    deserializer
+        .end()
+        .map_err(|error| DataResult::failure(error.to_string(), "$", "one complete JSON value"))?;
+    Ok(value)
+}
+
+#[must_use]
+pub fn parse_json(input: &str, max_depth: usize, max_bytes: usize) -> DataResult {
+    match parse_json_document(input, max_depth, max_bytes) {
+        Ok(value) => DataResult::success(value),
+        Err(error) => error,
     }
-    DataResult::success(value)
+}
+
+/// Parses a bounded YAML tree without canonical serialization.
+///
+/// # Errors
+///
+/// Returns the same structured failure as [`parse_yaml`] for malformed or unsafe YAML,
+/// duplicate keys, or exceeded byte, depth, and alias-expansion limits.
+pub fn parse_yaml_document(
+    input: &str,
+    max_depth: usize,
+    max_bytes: usize,
+    max_alias_nodes: usize,
+) -> Result<Document, DataResult> {
+    if max_depth > MAXIMUM_YAML_DEPTH {
+        return Err(DataResult::failure(
+            format!("YAML depth limit cannot exceed {MAXIMUM_YAML_DEPTH}"),
+            "$",
+            "bounded YAML document",
+        ));
+    }
+    if input.len() > max_bytes {
+        return Err(DataResult::failure(
+            "document exceeds byte limit",
+            "$",
+            "bounded YAML document",
+        ));
+    }
+    let mut builder = YamlBuilder::new(max_depth, max_alias_nodes);
+    let parsed = Parser::new_from_str(input).load(&mut builder, false);
+    if let Some(error) = builder.error {
+        return Err(error);
+    }
+    if let Err(error) = parsed {
+        let message = error.to_string();
+        if message.contains("recursion limit exceeded") {
+            return Err(DataResult::failure(
+                "document depth limit exceeded",
+                "$",
+                "bounded YAML document",
+            ));
+        }
+        return Err(DataResult::failure(message, "$", "safe YAML core document"));
+    }
+    builder.root.ok_or_else(|| {
+        DataResult::failure("YAML document is empty", "$", "safe YAML core document")
+    })
 }
 
 #[must_use]
@@ -208,36 +272,10 @@ pub fn parse_yaml(
     max_bytes: usize,
     max_alias_nodes: usize,
 ) -> DataResult {
-    if max_depth > MAXIMUM_YAML_DEPTH {
-        return DataResult::failure(
-            format!("YAML depth limit cannot exceed {MAXIMUM_YAML_DEPTH}"),
-            "$",
-            "bounded YAML document",
-        );
+    match parse_yaml_document(input, max_depth, max_bytes, max_alias_nodes) {
+        Ok(value) => DataResult::success(value),
+        Err(error) => error,
     }
-    if input.len() > max_bytes {
-        return DataResult::failure("document exceeds byte limit", "$", "bounded YAML document");
-    }
-    let mut builder = YamlBuilder::new(max_depth, max_alias_nodes);
-    let parsed = Parser::new_from_str(input).load(&mut builder, false);
-    if let Some(error) = builder.error {
-        return error;
-    }
-    if let Err(error) = parsed {
-        let message = error.to_string();
-        if message.contains("recursion limit exceeded") {
-            return DataResult::failure(
-                "document depth limit exceeded",
-                "$",
-                "bounded YAML document",
-            );
-        }
-        return DataResult::failure(message, "$", "safe YAML core document");
-    }
-    builder.root.map_or_else(
-        || DataResult::failure("YAML document is empty", "$", "safe YAML core document"),
-        DataResult::success,
-    )
 }
 
 enum YamlFrame {
@@ -566,9 +604,7 @@ fn normalize_number(value: &str) -> Result<String, String> {
 fn parse_default(input: &str) -> Option<Document> {
     // Descriptor defaults are compiler-authored schema data, not caller documents. Keep their
     // independent bound explicit so changing a parser option cannot make schema defaults unsafe.
-    parse_json(input, DESCRIPTOR_DEFAULT_DEPTH, input.len())
-        .value()
-        .cloned()
+    parse_json_document(input, DESCRIPTOR_DEFAULT_DEPTH, input.len()).ok()
 }
 
 #[must_use]

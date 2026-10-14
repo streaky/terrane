@@ -463,10 +463,15 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/throwing-scoped-task::fail"];
-    pub static SITES: [Site; 1] = [
+    pub static FUNCTIONS: [&str; 2] = [
+        "/throwing-scoped-task::fail",
+        "/throwing-scoped-task::main",
+    ];
+    pub static SITES: [Site; 2] = [
         /* terrane-site-row: site 0: /throwing-scoped-task::fail (case.trn:5:3-5:23) */
         { Site { function: 0, file: 0, line: 5, column: 3, end_line: 5, end_column: 23 } },
+        /* terrane-site-row: site 1: /throwing-scoped-task::main (case.trn:9:25-9:30) */
+        { Site { function: 1, file: 0, line: 9, column: 25, end_line: 9, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]
