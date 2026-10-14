@@ -266,52 +266,22 @@ fn through_helper(state: &i64) -> Label {
     );
 }
 fn nested(state: &i64) -> Widget {
-    return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| witness::into_widget(
-                __terrane_raised(
-                    button(
-                        terrane_int_support::Int::from(
-                            __terrane_raised(
-                                terrane_int_support::fixed_addition(state.clone(), 1),
-                                31 /* terrane-site: src/main.trn:111:34-111:43 */,
-                            ) as i128,
-                        ),
-                    ),
-                    32 /* terrane-site: src/main.trn:111:26-111:43 */,
+    return {
+        let __terrane_native_input_0 = __terrane_raised(
+            button(
+                terrane_int_support::Int::from(
+                    __terrane_raised(
+                        terrane_int_support::fixed_addition(state.clone(), 1),
+                        31 /* terrane-site: src/main.trn:111:34-111:43 */,
+                    ) as i128,
                 ),
-            )),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::into_widget",
-                    ),
-                )
-            }
-        },
-        33 /* terrane-site: src/main.trn:111:12-111:44 */,
-    );
-}
-fn branch(state: &i64) -> Widget {
-    if state.clone() > 0 {
-        return __terrane_raised(
+            ),
+            32 /* terrane-site: src/main.trn:111:26-111:43 */,
+        );
+        __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| witness::into_widget(
-                    __terrane_raised(
-                        label(
-                            terrane_int_support::Int::from(
-                                __terrane_raised(
-                                    terrane_int_support::fixed_addition(state.clone(), 0),
-                                    34 /* terrane-site: src/main.trn:115:37-115:46 */,
-                                ) as i128,
-                            ),
-                        ),
-                        35 /* terrane-site: src/main.trn:115:30-115:46 */,
-                    ),
+                    __terrane_native_input_0,
                 )),
             ) {
                 Ok(value) => Ok(value),
@@ -325,52 +295,92 @@ fn branch(state: &i64) -> Widget {
                     )
                 }
             },
-            36 /* terrane-site: src/main.trn:115:16-115:47 */,
-        );
-    }
-    return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| witness::into_widget(
-                __terrane_raised(
-                    button(
-                        terrane_int_support::Int::from(
-                            __terrane_raised(
-                                terrane_int_support::fixed_addition(state.clone(), 7),
-                                37 /* terrane-site: src/main.trn:116:34-116:43 */,
-                            ) as i128,
-                        ),
+            33 /* terrane-site: src/main.trn:111:12-111:44 */,
+        )
+    };
+}
+fn branch(state: &i64) -> Widget {
+    if state.clone() > 0 {
+        return {
+            let __terrane_native_input_0 = __terrane_raised(
+                label(
+                    terrane_int_support::Int::from(
+                        __terrane_raised(
+                            terrane_int_support::fixed_addition(state.clone(), 0),
+                            34 /* terrane-site: src/main.trn:115:37-115:46 */,
+                        ) as i128,
                     ),
-                    38 /* terrane-site: src/main.trn:116:26-116:43 */,
                 ),
-            )),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::into_widget",
-                    ),
-                )
-            }
-        },
-        39 /* terrane-site: src/main.trn:116:12-116:44 */,
-    );
+                35 /* terrane-site: src/main.trn:115:30-115:46 */,
+            );
+            __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| witness::into_widget(
+                        __terrane_native_input_0,
+                    )),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::into_widget",
+                            ),
+                        )
+                    }
+                },
+                36 /* terrane-site: src/main.trn:115:16-115:47 */,
+            )
+        };
+    }
+    return {
+        let __terrane_native_input_0 = __terrane_raised(
+            button(
+                terrane_int_support::Int::from(
+                    __terrane_raised(
+                        terrane_int_support::fixed_addition(state.clone(), 7),
+                        37 /* terrane-site: src/main.trn:116:34-116:43 */,
+                    ) as i128,
+                ),
+            ),
+            38 /* terrane-site: src/main.trn:116:26-116:43 */,
+        );
+        __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| witness::into_widget(
+                    __terrane_native_input_0,
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::into_widget",
+                        ),
+                    )
+                }
+            },
+            39 /* terrane-site: src/main.trn:116:12-116:44 */,
+        )
+    };
 }
 fn aggregate(state: &i64) -> Widget {
     let mut children: terrane_collection_support::List<Widget>;
     let _ = &state;
     children = terrane_collection_support::List::<Widget>::new(vec![]);
     children
-        .append(
+        .append({
+            let __terrane_native_input_0 = __terrane_raised(
+                traced_label(terrane_int_support::Int::from(1_i128)),
+                40 /* terrane-site: src/main.trn:120:37-120:52 */,
+            );
             __terrane_raised(
                 match std::panic::catch_unwind(
                     std::panic::AssertUnwindSafe(|| witness::into_widget(
-                        __terrane_raised(
-                            traced_label(terrane_int_support::Int::from(1_i128)),
-                            40 /* terrane-site: src/main.trn:120:37-120:52 */,
-                        ),
+                        __terrane_native_input_0,
                     )),
                 ) {
                     Ok(value) => Ok(value),
@@ -385,17 +395,18 @@ fn aggregate(state: &i64) -> Widget {
                     }
                 },
                 41 /* terrane-site: src/main.trn:120:23-120:53 */,
-            ),
-        );
+            )
+        });
     children
-        .append(
+        .append({
+            let __terrane_native_input_0 = __terrane_raised(
+                traced_label(terrane_int_support::Int::from(2_i128)),
+                42 /* terrane-site: src/main.trn:121:37-121:52 */,
+            );
             __terrane_raised(
                 match std::panic::catch_unwind(
                     std::panic::AssertUnwindSafe(|| witness::into_widget(
-                        __terrane_raised(
-                            traced_label(terrane_int_support::Int::from(2_i128)),
-                            42 /* terrane-site: src/main.trn:121:37-121:52 */,
-                        ),
+                        __terrane_native_input_0,
                     )),
                 ) {
                     Ok(value) => Ok(value),
@@ -410,17 +421,18 @@ fn aggregate(state: &i64) -> Widget {
                     }
                 },
                 43 /* terrane-site: src/main.trn:121:23-121:53 */,
-            ),
-        );
+            )
+        });
     children
-        .append(
+        .append({
+            let __terrane_native_input_0 = __terrane_raised(
+                traced_label(terrane_int_support::Int::from(3_i128)),
+                44 /* terrane-site: src/main.trn:122:37-122:52 */,
+            );
             __terrane_raised(
                 match std::panic::catch_unwind(
                     std::panic::AssertUnwindSafe(|| witness::into_widget(
-                        __terrane_raised(
-                            traced_label(terrane_int_support::Int::from(3_i128)),
-                            44 /* terrane-site: src/main.trn:122:37-122:52 */,
-                        ),
+                        __terrane_native_input_0,
                     )),
                 ) {
                     Ok(value) => Ok(value),
@@ -435,30 +447,33 @@ fn aggregate(state: &i64) -> Widget {
                     }
                 },
                 45 /* terrane-site: src/main.trn:122:23-122:53 */,
-            ),
+            )
+        });
+    return {
+        let __terrane_native_input_0 = __terrane_raised(
+            row(children),
+            46 /* terrane-site: src/main.trn:123:26-123:39 */,
         );
-    return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| witness::into_widget(
-                __terrane_raised(
-                    row(children),
-                    46 /* terrane-site: src/main.trn:123:26-123:39 */,
-                ),
-            )),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::into_widget",
-                    ),
-                )
-            }
-        },
-        47 /* terrane-site: src/main.trn:123:12-123:40 */,
-    );
+        __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| witness::into_widget(
+                    __terrane_native_input_0,
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::into_widget",
+                        ),
+                    )
+                }
+            },
+            47 /* terrane-site: src/main.trn:123:12-123:40 */,
+        )
+    };
 }
 #[derive(Clone)]
 pub struct DemoApplication {}

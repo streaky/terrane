@@ -2231,6 +2231,23 @@ impl Emitter<'_> {
             )
         });
         let mut native_member_receiver = None;
+        // Source argument evaluation belongs to the caller's error/async context,
+        // not inside the native call's synchronous panic-catching closure.
+        let stage_native_inputs = native_macro_path.is_none()
+            && projected_function.as_ref().is_some_and(|function| {
+                !function.is_async && !function.into_future && function.chain_role.is_none()
+            })
+            && arguments.children.iter().any(|argument| {
+                self.contains_await(argument) || self.expression_throws_synchronously(argument)
+            });
+        let mut native_input_setup = String::new();
+        let mut native_input_index = 0;
+        let mut stage_native_input = |value: String| {
+            let name = format!("__terrane_native_input_{native_input_index}");
+            native_input_index += 1;
+            write!(native_input_setup, "let {name} = {value}; ").unwrap();
+            name
+        };
         let name = if let Some(path) = &native_macro_path {
             path.clone()
         } else if let Some(function) = self.source_applied_function(callee) {
@@ -2429,6 +2446,15 @@ impl Emitter<'_> {
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow)
             );
             let receiver = self.native_receiver_expression(receiver, mutable);
+            let receiver = if stage_native_inputs {
+                stage_native_input(if mutable {
+                    format!("&mut ({receiver})")
+                } else {
+                    format!("&({receiver})")
+                })
+            } else {
+                receiver
+            };
             format!("({receiver}).{}", projected.name)
         } else if contract
             .as_ref()
@@ -2500,6 +2526,19 @@ impl Emitter<'_> {
                 }
             } else {
                 receiver_expression
+            };
+            let receiver = if stage_native_inputs {
+                let receiver = if !contract.is_async
+                    && projected_receiver
+                        == Some(crate::rust_interop::projection::Receiver::MutableBorrow)
+                {
+                    format!("&mut ({receiver})")
+                } else {
+                    receiver
+                };
+                stage_native_input(receiver)
+            } else {
+                receiver
             };
             let method_name = if specialization
                 .is_some_and(|specialization| specialization.direct_projected_call)
@@ -2650,6 +2689,11 @@ impl Emitter<'_> {
         };
         if let Some(receiver) = native_member_receiver {
             values.insert(0, receiver);
+        }
+        if stage_native_inputs {
+            for value in &mut values {
+                *value = stage_native_input(std::mem::take(value));
+            }
         }
         let callable_mode =
             self.value_type(callee)
@@ -3167,7 +3211,7 @@ impl Emitter<'_> {
                 format!("__terrane_traced({call}, {site})")
             }
         };
-        if contract.as_ref().is_some_and(|contract| contract.is_async)
+        let result = if contract.as_ref().is_some_and(|contract| contract.is_async)
             && matches!(self.value_type(node), Some(ValueType::Task(_, _)))
         {
             if foreign_error || dependency_boundary {
@@ -3192,6 +3236,11 @@ impl Emitter<'_> {
             } else {
                 mapped
             }
+        };
+        if native_input_setup.is_empty() {
+            result
+        } else {
+            format!("{{ {native_input_setup}{result} }}")
         }
     }
 }

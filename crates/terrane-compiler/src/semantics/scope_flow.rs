@@ -1386,12 +1386,17 @@ fn record_assignment_origin(
             identity,
         );
     }
-    let origins = unit
-        .typed_bindings
-        .iter()
-        .find(|binding| binding.span == statement.span)
-        .map(|binding| BTreeSet::from([binding.span]))
-        .or_else(|| next.origins.get(name).cloned());
+    let origins = if matches!(next.types.get(name), Some(ValueType::Task(_, _))) {
+        // A task's deferred errors and concrete future come from the current write,
+        // not the storage declaration that may have held an earlier task.
+        Some(BTreeSet::from([statement.span]))
+    } else {
+        unit.typed_bindings
+            .iter()
+            .find(|binding| binding.span == statement.span)
+            .map(|binding| BTreeSet::from([binding.span]))
+            .or_else(|| next.origins.get(name).cloned())
+    };
     if let Some(origins) = origins {
         unit.flow_read_bindings
             .entry((target.span.file, target.span.start, target.span.end))

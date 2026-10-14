@@ -72,6 +72,9 @@ impl<'unit> Emitter<'unit> {
             && self.binding_may_be_unassigned(binding)
             && !self.assignment_target
         {
+            if matches!(self.flow_binding_type(binding), ValueType::Task(_, _)) {
+                return self.owned_storage_value(node);
+            }
             let access = self.available_storage_reference(binding, node, false);
             if self.reference_backed(binding) {
                 return format!(

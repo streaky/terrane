@@ -339,7 +339,14 @@ impl Emitter<'_> {
         } else {
             self.expression(right)
         };
-        let value = Self::unwrapped_expression(value);
+        let value = if let Some(binding) = assigned_binding
+            .as_ref()
+            .filter(|binding| self.task_binding_is_heterogeneous(binding))
+        {
+            self.erase_task_write(binding, &value, right)
+        } else {
+            value
+        };
         let value = if let Some(projected) = self.native_field_type(left)
             && !projected.has_identity_representation()
         {
@@ -857,7 +864,7 @@ impl Emitter<'_> {
         }
     }
 
-    fn contains_await(&self, node: &SyntaxNode) -> bool {
+    pub(super) fn contains_await(&self, node: &SyntaxNode) -> bool {
         (node.kind == SyntaxKind::UnaryExpression
             && node.children.first().is_some_and(|operator| {
                 self.unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
@@ -1255,6 +1262,13 @@ impl Emitter<'_> {
                 self.expression(initializer)
             };
             let value = Self::unwrapped_expression(value);
+            let value = if let Some(binding) =
+                storage_binding.filter(|binding| self.task_binding_is_heterogeneous(binding))
+            {
+                self.erase_task_write(binding, &value, initializer)
+            } else {
+                value
+            };
             let value = if reference_backed {
                 format!("std::sync::Arc::new(std::sync::Mutex::new({value}))")
             } else {

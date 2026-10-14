@@ -413,147 +413,151 @@ fn websocket_route(
             })
         })
     };
-    return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                router
-                    .route(
-                        &path,
-                        __terrane_raised(
-                            match std::panic::catch_unwind(
-                                std::panic::AssertUnwindSafe(|| axum::routing::get(
-                                    match || -> Result<_, crate::TerraneForeignError> {
-                                        Ok({
-                                            let callback = callback.clone();
-                                            move |
-                                                callback_argument_0: axum::extract::WebSocketUpgrade<
-                                                    axum::extract::ws::DefaultOnFailedUpgrade,
-                                                >|
-                                            {
-                                                let callback = callback.clone();
-                                                let callback_future = callback(callback_argument_0);
-                                                Box::pin(async move {
-                                                    match async {
-                                                        let callback_value = callback_future.await;
-                                                        Ok::<_, crate::TerraneForeignError>(callback_value)
-                                                    }
-                                                        .await
-                                                    {
-                                                        Ok(value) => value,
-                                                        Err(error) => std::panic::panic_any(error.0),
-                                                    }
-                                                })
-                                            }
-                                        })
-                                    }() {
+    return {
+        let __terrane_native_input_0 = router;
+        let __terrane_native_input_1 = &path;
+        let __terrane_native_input_2 = __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| axum::routing::get(
+                    match || -> Result<_, crate::TerraneForeignError> {
+                        Ok({
+                            let callback = callback.clone();
+                            move |
+                                callback_argument_0: axum::extract::WebSocketUpgrade<
+                                    axum::extract::ws::DefaultOnFailedUpgrade,
+                                >|
+                            {
+                                let callback = callback.clone();
+                                let callback_future = callback(callback_argument_0);
+                                Box::pin(async move {
+                                    match async {
+                                        let callback_value = callback_future.await;
+                                        Ok::<_, crate::TerraneForeignError>(callback_value)
+                                    }
+                                        .await
+                                    {
                                         Ok(value) => value,
-                                        Err(error) => std::panic::panic_any(error),
-                                    },
-                                )),
-                            ) {
-                                Ok(value) => Ok(value),
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "axum",
-                                            "axum::routing::get",
-                                        ),
-                                    )
-                                }
-                            },
-                            23 /* terrane-site: src/main.trn:54:31-54:49 */,
+                                        Err(error) => std::panic::panic_any(error.0),
+                                    }
+                                })
+                            }
+                        })
+                    }() {
+                        Ok(value) => value,
+                        Err(error) => std::panic::panic_any(error),
+                    },
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "axum",
+                            "axum::routing::get",
                         ),
                     )
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "axum",
-                        "axum::Router<S>::route",
-                    ),
-                )
-            }
-        },
-        24 /* terrane-site: src/main.trn:54:10-54:50 */,
-    );
+                }
+            },
+            23 /* terrane-site: src/main.trn:54:31-54:49 */,
+        );
+        __terrane_raised(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| {
+                    __terrane_native_input_0
+                        .route(__terrane_native_input_1, __terrane_native_input_2)
+                }),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "axum",
+                            "axum::Router<S>::route",
+                        ),
+                    )
+                }
+            },
+            24 /* terrane-site: src/main.trn:54:10-54:50 */,
+        )
+    };
 }
-async fn run_server() {
+async fn run_server() -> Result<(), TerraneError> {
     let mut router: axum::Router<()>;
     let listener: TcpListener;
-    router = __terrane_raised(
+    router = __terrane_raised_err(
         terrane_static_trn_526f75746572_new::<()>(),
         25 /* terrane-site: src/main.trn:57:12-57:24 */,
-    );
-    router = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                router
-                    .route(
-                        &String::from("/health"),
-                        __terrane_raised(
-                            match std::panic::catch_unwind(
-                                std::panic::AssertUnwindSafe(|| axum::routing::get(
-                                    match || -> Result<_, crate::TerraneForeignError> {
-                                        Ok({
-                                            let callback = std::sync::Arc::new(move || -> std::pin::Pin<
-                                                    Box<dyn Future<Output = _> + Send>,
-                                                > { Box::pin(health()) })
-                                                .clone();
-                                            move || {
-                                                let callback = callback.clone();
-                                                let callback_future = callback();
-                                                Box::pin(async move {
-                                                    match async {
-                                                        let callback_value = callback_future.await;
-                                                        Ok::<_, crate::TerraneForeignError>(callback_value)
-                                                    }
-                                                        .await
-                                                    {
-                                                        Ok(value) => value,
-                                                        Err(error) => std::panic::panic_any(error.0),
-                                                    }
-                                                })
-                                            }
-                                        })
-                                    }() {
+    )?;
+    router = {
+        let __terrane_native_input_0 = router;
+        let __terrane_native_input_1 = &String::from("/health");
+        let __terrane_native_input_2 = __terrane_raised_err(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| axum::routing::get(
+                    match || -> Result<_, crate::TerraneForeignError> {
+                        Ok({
+                            let callback = std::sync::Arc::new(move || -> std::pin::Pin<
+                                    Box<dyn Future<Output = _> + Send>,
+                                > { Box::pin(health()) })
+                                .clone();
+                            move || {
+                                let callback = callback.clone();
+                                let callback_future = callback();
+                                Box::pin(async move {
+                                    match async {
+                                        let callback_value = callback_future.await;
+                                        Ok::<_, crate::TerraneForeignError>(callback_value)
+                                    }
+                                        .await
+                                    {
                                         Ok(value) => value,
-                                        Err(error) => std::panic::panic_any(error),
-                                    },
-                                )),
-                            ) {
-                                Ok(value) => Ok(value),
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "axum",
-                                            "axum::routing::get",
-                                        ),
-                                    )
-                                }
-                            },
-                            26 /* terrane-site: src/main.trn:58:38-58:49 */,
+                                        Err(error) => std::panic::panic_any(error.0),
+                                    }
+                                })
+                            }
+                        })
+                    }() {
+                        Ok(value) => value,
+                        Err(error) => std::panic::panic_any(error),
+                    },
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "axum",
+                            "axum::routing::get",
                         ),
                     )
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "axum",
-                        "axum::Router<S>::route",
-                    ),
-                )
-            }
-        },
-        27 /* terrane-site: src/main.trn:58:12-58:50 */,
-    );
+                }
+            },
+            26 /* terrane-site: src/main.trn:58:38-58:49 */,
+        )?;
+        __terrane_raised_err(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| {
+                    __terrane_native_input_0
+                        .route(__terrane_native_input_1, __terrane_native_input_2)
+                }),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "axum",
+                            "axum::Router<S>::route",
+                        ),
+                    )
+                }
+            },
+            27 /* terrane-site: src/main.trn:58:12-58:50 */,
+        )?
+    };
     router = websocket_route(
         router,
         String::from("/ws"),
@@ -563,7 +567,7 @@ async fn run_server() {
             Box::pin(socket_session(argument_0))
         }),
     );
-    listener = __terrane_traced(
+    listener = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = tokio::net::TcpListener::bind(
@@ -608,8 +612,8 @@ async fn run_server() {
             })
             .await,
         28 /* terrane-site: src/main.trn:60:20-60:56 */,
-    );
-    __terrane_traced(
+    )?;
+    __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = axum::serve(listener, router);
@@ -654,7 +658,8 @@ async fn run_server() {
             })
             .await,
         30 /* terrane-site: src/main.trn:61:9-61:44 */,
-    );
+    )?;
+    Ok(())
 }
 fn main() {
     __terrane_run(async move {
@@ -675,7 +680,8 @@ fn main() {
                     )
                     .await
                 {
-                    Some(value) => TerraneTaskResult::Completed(value),
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => TerraneTaskResult::Failed(error),
                     None => TerraneTaskResult::Cancelled,
                 }
             })

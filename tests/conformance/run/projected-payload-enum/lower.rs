@@ -360,14 +360,15 @@ fn main() {
     if optional_value.is_some() {
         println!("{}", String::from("optional"));
     }
-    owned = Some(
+    owned = Some({
+        let __terrane_native_input_0 = __terrane_raised(
+            non_clone_payload(String::from("owned")),
+            14 /* terrane-site: src/main.trn:35:49-35:75 */,
+        );
         __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| terrane_payload_enum_witness::OwnedEvent::Payload(
-                    __terrane_raised(
-                        non_clone_payload(String::from("owned")),
-                        14 /* terrane-site: src/main.trn:35:49-35:75 */,
-                    ),
+                    __terrane_native_input_0,
                 )),
             ) {
                 Ok(value) => Ok(value),
@@ -382,8 +383,8 @@ fn main() {
                 }
             },
             15 /* terrane-site: src/main.trn:35:27-35:76 */,
-        ),
-    );
+        )
+    });
     if owned.is_some() {
         payload = __terrane_raised(
             match std::panic::catch_unwind(

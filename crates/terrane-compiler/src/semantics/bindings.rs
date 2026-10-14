@@ -793,7 +793,15 @@ pub(super) fn collect_binding_events(
                     regions: regions.clone(),
                 });
         };
-        if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
+        if let Some(identity) = unit.flow_binding_ids.get(&span_key(target.span))
+            && unit.typed_bindings.iter().any(|binding| {
+                binding.span == *identity && matches!(binding.value_type, ValueType::Task(_, _))
+            })
+        {
+            // Task reaching origins track the current future's construction. The
+            // write event still mutates the canonical Rust storage, not that origin.
+            record(*identity);
+        } else if let Some(origins) = unit.flow_read_bindings.get(&span_key(target.span)) {
             for origin in origins {
                 record(*origin);
             }

@@ -1211,6 +1211,83 @@ fn callable_expression_errors(
     resolve(unit, callable, inferred, &mut BTreeSet::new())
 }
 
+fn task_expression_throwables_with_inferred(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    expression: &SyntaxNode,
+    inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+) -> BTreeSet<String> {
+    fn from_binding(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        binding_span: Span,
+        inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+        visited: &mut BTreeSet<Span>,
+    ) -> BTreeSet<String> {
+        if !visited.insert(binding_span) {
+            return BTreeSet::new();
+        }
+        let Some(initializer) = find_binding_initializer(&unit.tree.root, binding_span) else {
+            return BTreeSet::new();
+        };
+        from_value(package, unit, initializer, inferred, visited)
+    }
+
+    fn from_value(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        value: &SyntaxNode,
+        inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+        visited: &mut BTreeSet<Span>,
+    ) -> BTreeSet<String> {
+        if value.kind == SyntaxKind::GroupExpression
+            && let [inner] = value.children.as_slice()
+        {
+            return from_value(package, unit, inner, inferred, visited);
+        }
+        if value.kind == SyntaxKind::Name {
+            if let Some(origins) = unit.flow_read_bindings.get(&span_key(value.span)) {
+                return origins
+                    .iter()
+                    .flat_map(|origin| from_binding(package, unit, *origin, inferred, visited))
+                    .collect();
+            }
+            if let Some(identity) = unit.flow_binding_ids.get(&span_key(value.span)).copied() {
+                return from_binding(package, unit, identity, inferred, visited);
+            }
+            let name = node_text(&unit.source, value);
+            if let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == name && binding.is_visible_at(unit.source.id(), value.span.start)
+            }) {
+                return from_binding(package, unit, binding.span, inferred, visited);
+            }
+        }
+        if value.kind == SyntaxKind::CallExpression
+            && let Some(callee) = value.children.first()
+        {
+            return callable_expression_errors(unit, callee, inferred);
+        }
+        escaping_throwables(package, unit, value, inferred)
+    }
+
+    let mut visited = BTreeSet::new();
+    if let Some(origins) = unit.flow_read_bindings.get(&span_key(expression.span)) {
+        return origins
+            .iter()
+            .flat_map(|origin| from_binding(package, unit, *origin, inferred, &mut visited))
+            .collect();
+    }
+    from_value(package, unit, expression, inferred, &mut visited)
+}
+
+pub(crate) fn task_expression_throwables(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    expression: &SyntaxNode,
+) -> BTreeSet<String> {
+    task_expression_throwables_with_inferred(package, unit, expression, &BTreeMap::new())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "canonical escaping effects combine evaluation, deferred tasks, and protected catches"
@@ -1311,26 +1388,15 @@ pub(super) fn escaping_throwables(
     if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("await")
         && let Some(task) = node.children.last()
-        && task.kind == SyntaxKind::Name
-        && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
-            binding.name == node_text(&unit.source, task)
-                && binding.is_visible_at(unit.source.id(), task.span.start)
-                && matches!(binding.value_type, ValueType::Task(_, _))
-        })
-        && let Some(initializer) = find_binding_initializer(&unit.tree.root, binding.span)
+        && matches!(
+            infer_value_type(unit, task, &unit.typed_bindings),
+            Ok(Some(ValueType::Task(_, _)))
+        )
     {
         let mut errors = local_errors;
-        let task_effects = if initializer.kind == SyntaxKind::CallExpression {
-            initializer
-                .children
-                .first()
-                .map_or_else(BTreeSet::new, |callee| {
-                    callable_expression_errors(unit, callee, inferred)
-                })
-        } else {
-            escaping_throwables(package, unit, initializer, inferred)
-        };
-        errors.extend(task_effects);
+        errors.extend(task_expression_throwables_with_inferred(
+            package, unit, task, inferred,
+        ));
         return errors;
     }
     if node.kind == SyntaxKind::CallExpression

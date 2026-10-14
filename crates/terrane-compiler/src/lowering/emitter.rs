@@ -10,6 +10,7 @@ mod items;
 mod members;
 pub(super) mod pipeline;
 mod statements;
+mod task_storage;
 
 use std::{
     cell::{Cell, RefCell},
