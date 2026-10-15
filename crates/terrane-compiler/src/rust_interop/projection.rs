@@ -51,6 +51,7 @@ mod borrowed_graph;
 mod cache_identity;
 mod callable;
 mod cargo_workspace;
+pub(crate) mod core_native;
 mod data;
 mod dependency_owners;
 mod enum_payload;
@@ -188,6 +189,8 @@ pub struct ProjectedBoundDependency {
     pub name: String,
     pub package: String,
     pub version: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<String>,
 }
 
 pub use terrane_rust_analysis::Containment;
@@ -1200,6 +1203,10 @@ impl Projection {
             .dependencies
             .iter()
             .flat_map(|dependency| dependency.items.iter())
+            // Core carriers are declared by bundled source, not by Rust projection.
+            // Their native equivalence must not redirect a projected public type's
+            // constructors or members to an opaque core alias.
+            .filter(|item| !item.namespace.starts_with("/core/"))
             .collect::<Vec<_>>();
         let canonical_members =
             source_rendering::source_member_demands(self, &all_items, demanded_members);
@@ -2336,6 +2343,9 @@ impl Projection {
 
     #[must_use]
     pub(crate) fn foreign_owns_resource(&self, namespace: &str, name: &str) -> bool {
+        if core_native::rust_type(namespace, name).is_some() {
+            return name != "native-socket-address";
+        }
         self.item(namespace, name).is_some_and(|item| {
             matches!(
                 &item.kind,

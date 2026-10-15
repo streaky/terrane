@@ -15,6 +15,7 @@ pub mod lexer;
 mod lowering;
 pub mod package;
 pub mod parser;
+mod platform_support;
 pub mod profiling;
 pub mod provenance;
 pub mod rust_interop;
@@ -25,6 +26,8 @@ pub mod syntax;
 pub mod testing;
 pub mod tokens;
 pub mod tooling;
+/// Publish the compiler-owned platform and signal crates into a generated support root.
+pub use platform_support::write_platform_support;
 pub mod types;
 
 pub use compilation_progress::with_compilation_progress;

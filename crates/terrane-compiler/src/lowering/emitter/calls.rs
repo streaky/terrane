@@ -1407,6 +1407,15 @@ impl Emitter<'_> {
             ("parse-socket", "platform_parse_socket"),
             ("parse-socket-text", "platform_parse_socket_text"),
             ("tcp-bind", "platform_tcp_bind"),
+            (
+                "tcp-listener-into-native",
+                "platform_tcp_listener_into_native",
+            ),
+            ("tcp-stream-into-native", "platform_tcp_stream_into_native"),
+            ("native-result-failed", "platform_native_result_failed"),
+            ("native-result-message", "platform_native_result_message"),
+            ("native-listener-value", "platform_native_result_value"),
+            ("native-stream-value", "platform_native_result_value"),
             ("tcp-connect", "platform_tcp_connect"),
             ("tcp-connect-host", "platform_tcp_connect_host"),
             ("tcp-accept", "platform_tcp_accept"),
@@ -1419,6 +1428,7 @@ impl Emitter<'_> {
             ("udp-send-to", "platform_udp_send_to"),
             ("udp-receive-from", "platform_udp_receive_from"),
             ("dns-lookup", "platform_dns_lookup"),
+            ("tcp-listen-async", "platform_tcp_listen_async"),
             ("tcp-connect-async", "platform_tcp_connect_async"),
             ("tcp-connect-host-async", "platform_tcp_connect_host_async"),
             ("tcp-accept-async", "platform_tcp_accept_async"),
@@ -1486,7 +1496,9 @@ impl Emitter<'_> {
                     | "platform_tls_client_async" | "platform_tls_read" | "platform_tls_read_async"
                     | "platform_tls_write" | "platform_tls_shutdown" | "platform_tls_shutdown_async"
                     | "platform_capability_close" | "platform_digest" | "platform_hmac"
-                    | "platform_parse_socket" | "platform_cancel" | "platform_destroy_secret", 0)
+                    | "platform_parse_socket" | "platform_cancel" | "platform_destroy_secret"
+                    | "platform_tcp_listener_into_native" | "platform_tcp_stream_into_native"
+                    | "platform_native_result_failed" | "platform_native_result_message", 0)
                     | ("platform_parse_socket" | "platform_hmac", 1))
                     || function.starts_with("platform_result_") && index == 0;
                 if borrowed { format!("&({expression})") } else { expression }
@@ -2512,7 +2524,9 @@ impl Emitter<'_> {
                         format!("&{native}")
                     }
                 }
-            } else if projected_receiver == Some(crate::rust_interop::projection::Receiver::Move) {
+            } else if projected_receiver == Some(crate::rust_interop::projection::Receiver::Move)
+                || contract.written_invocation_mode == InvocationMode::Consuming
+            {
                 self.consuming_native_receiver_expression(receiver)
             } else if contract.written_invocation_mode == InvocationMode::Mutable {
                 self.native_receiver_expression(receiver, true)

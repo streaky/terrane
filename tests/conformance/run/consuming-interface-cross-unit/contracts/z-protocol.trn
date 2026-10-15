@@ -1,0 +1,4 @@
+namespace contracts
+
+interface counter
+    consuming function finish int;

@@ -1,0 +1,5 @@
+package = "consuming-interface-cross-unit"
+
+[namespaces]
+app = "src"
+contracts = "contracts"

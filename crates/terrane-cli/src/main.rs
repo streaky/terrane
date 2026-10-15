@@ -1471,10 +1471,6 @@ fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::R
     manifest.push_str(&dependency.cargo_dependency_spec());
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "generated support publication keeps the complete deterministic crate inventory together"
-)]
 fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
     let int = directory.join("support/terrane-int-support");
     let collection = directory.join("support/terrane-collection-support");
@@ -1482,21 +1478,12 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     let string = directory.join("support/terrane-string-support");
     let document = directory.join("support/terrane-document-support");
     let stream = directory.join("support/terrane-stream-abi");
-    let platform =
-        uses_platform_support.then(|| directory.join("support/terrane-platform-support"));
-    let signal = uses_platform_support.then(|| directory.join("support/terrane-signal-support"));
     fs::create_dir_all(int.join("src"))?;
     fs::create_dir_all(collection.join("src"))?;
     fs::create_dir_all(scalar.join("src"))?;
     fs::create_dir_all(string.join("src"))?;
     fs::create_dir_all(document.join("src"))?;
     fs::create_dir_all(stream.join("src"))?;
-    if let Some(platform) = &platform {
-        fs::create_dir_all(platform.join("src"))?;
-    }
-    if let Some(signal) = &signal {
-        fs::create_dir_all(signal.join("src"))?;
-    }
     write_if_changed(
         &int.join("Cargo.toml"),
         format!("[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nnum-bigint = {{ version = \"0.4\", features = [\"std\"] }}\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
@@ -1545,45 +1532,8 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
         &stream.join("src/lib.rs"),
         include_bytes!("../../terrane-stream-abi/src/lib.rs"),
     )?;
-    if let Some(platform) = platform {
-        write_if_changed(
-            &platform.join("Cargo.toml"),
-            terrane_compiler::platform_support_manifest().as_bytes(),
-        )?;
-        write_if_changed(
-            &platform.join("src/lib.rs"),
-            include_bytes!("../../terrane-platform-support/src/lib.rs"),
-        )?;
-        write_if_changed(
-            &platform.join("src/observability.rs"),
-            include_bytes!("../../terrane-platform-support/src/observability.rs"),
-        )?;
-        write_if_changed(
-            &platform.join("src/networking_state.rs"),
-            include_bytes!("../../terrane-platform-support/src/networking_state.rs"),
-        )?;
-        write_if_changed(
-            &platform.join("src/networking_transport.rs"),
-            include_bytes!("../../terrane-platform-support/src/networking_transport.rs"),
-        )?;
-        write_if_changed(
-            &platform.join("src/networking_buffers.rs"),
-            include_bytes!("../../terrane-platform-support/src/networking_buffers.rs"),
-        )?;
-        write_if_changed(
-            &platform.join("src/signals.rs"),
-            include_bytes!("../../terrane-platform-support/src/signals.rs"),
-        )?;
-    }
-    if let Some(signal) = signal {
-        write_if_changed(
-            &signal.join("Cargo.toml"),
-            terrane_compiler::signal_support_manifest().as_bytes(),
-        )?;
-        write_if_changed(
-            &signal.join("src/lib.rs"),
-            include_bytes!("../../terrane-signal-support/src/lib.rs"),
-        )?;
+    if uses_platform_support {
+        terrane_compiler::write_platform_support(&directory.join("support"))?;
     }
     Ok(())
 }

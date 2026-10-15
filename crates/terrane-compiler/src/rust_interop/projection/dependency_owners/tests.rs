@@ -96,6 +96,7 @@ fn transitive_type_owner_uses_unique_locked_recursive_package() {
             name: "__terrane_recursive_http".to_owned(),
             package: "http".to_owned(),
             version: "=1.3.1".to_owned(),
+            features: Vec::new(),
         }]
     );
     let mut private = vec![response_status()];

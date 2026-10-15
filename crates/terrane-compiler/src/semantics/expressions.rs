@@ -1174,6 +1174,18 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:streams::sync-all"
                     | "intrinsic:streams::close"
                     | "intrinsic:streams::release" => Some(ValueType::PlatformUnitResult),
+                    "intrinsic:capabilities::tcp-listener-into-native" => Some(ValueType::Object(
+                        ObjectIdentity::new("/core/networking/native", "host-listener-transfer"),
+                    )),
+                    "intrinsic:capabilities::tcp-stream-into-native" => Some(ValueType::Object(
+                        ObjectIdentity::new("/core/networking/native", "host-stream-transfer"),
+                    )),
+                    "intrinsic:capabilities::native-listener-value" => Some(ValueType::Object(
+                        ObjectIdentity::new("/core/networking/native", "native-tcp-listener"),
+                    )),
+                    "intrinsic:capabilities::native-stream-value" => Some(ValueType::Object(
+                        ObjectIdentity::new("/core/networking/native", "native-tcp-stream"),
+                    )),
                     "intrinsic:logging::log-empty-fields" => {
                         Some(ValueType::List(ElementType::new(ValueType::Object(
                             ObjectIdentity::new("/core/logging", "log-field"),
@@ -1228,6 +1240,7 @@ fn infer_nonbinary_value_type(
                         Some(ValueType::PlatformResourceHandle)
                     }
                     "intrinsic:capabilities::tcp-connect-async"
+                    | "intrinsic:capabilities::tcp-listen-async"
                     | "intrinsic:capabilities::tcp-connect-host-async"
                     | "intrinsic:capabilities::tcp-accept-async"
                     | "intrinsic:capabilities::tcp-read-async"
@@ -1335,6 +1348,7 @@ fn infer_nonbinary_value_type(
                     | "intrinsic:time::time-div"
                     | "intrinsic:time::time-mod" => Some(ValueType::Scalar(ScalarType::Int)),
                     "intrinsic:logging::log-result-failed"
+                    | "intrinsic:capabilities::native-result-failed"
                     | "intrinsic:system::result-failed"
                     | "intrinsic:system::result-bool"
                     | "intrinsic:system::platform-value-is-text"
@@ -1361,6 +1375,7 @@ fn infer_nonbinary_value_type(
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "intrinsic:logging::log-result-message"
+                    | "intrinsic:capabilities::native-result-message"
                     | "intrinsic:system::result-message"
                     | "intrinsic:system::result-text"
                     | "intrinsic:system::result-detail"

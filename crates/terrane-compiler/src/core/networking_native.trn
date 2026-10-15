@@ -1,0 +1,21 @@
+namespace core/networking/native
+
+class native-tcp-listener
+    private function construct;
+        return
+
+class native-tcp-stream
+    private function construct;
+        return
+
+class native-socket-address
+    private function construct;
+        return
+
+private class host-listener-transfer
+    private function construct;
+        return
+
+private class host-stream-transfer
+    private function construct;
+        return

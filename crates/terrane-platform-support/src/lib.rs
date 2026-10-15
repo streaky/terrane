@@ -11,10 +11,14 @@
     clippy::struct_excessive_bools
 )]
 mod networking_buffers;
+mod networking_native;
 #[cfg(test)]
 mod networking_review_tests;
 mod networking_state;
 mod networking_transport;
+pub use networking_native::{
+    NativeTcpListener, NativeTcpStream, into_native_tcp_listener, into_native_tcp_stream,
+};
 use networking_transport::io_error;
 #[cfg(test)]
 use networking_transport::ordered_socket_candidates;

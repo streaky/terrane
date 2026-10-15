@@ -111,6 +111,7 @@ Terrane package
 │   │   ├── /core/filesystem                   public facility namespace
 │   │   ├── /core/documents/json               public facility namespace
 │   │   ├── /core/networking                   public facility namespace
+│   │   ├── /core/networking/native            native TCP interoperability namespace
 │   │   ├── /core/process                      public facility namespace
 │   │   ├── /core/random                       public facility namespace
 │   │   ├── /core/streams                      public facility namespace
@@ -239,12 +240,17 @@ Terrane package
     │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
     ├── /core/networking                       sockets and DNS; requires `networking`
     │   ├── ip-address / socket-address / network-host-name validated value objects with structured parse results
-    │   ├── network-operation-result           explicit failure / deadline / message
-    │   ├── network-cancellation-token / network-operation-options shared observable cancellation and optional typed deadlines
+    │   ├── network-error                      throwable listener/handoff failures
+    │   ├── tcp-options / tcp-listener-options  explicit creation policy; automatic listener backlog
     │   ├── tcp-stream / tcp-listener / udp-socket
     │   ├── ip-address-from-string / socket-address-from-ip / socket-address-from-string / parse-host-name
-    │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
+    │   ├── connect-tcp / connect-host / bind-tcp / listen-tcp / bind-udp
     │   └── lookup-dns                         ordered candidates with TTL and explicit failure results
+    ├── /core/networking/native                consuming native TCP transport boundary
+    │   ├── native-tcp-listener / native-tcp-stream existing Tokio transports via into-native
+    │   └── native-socket-address              standard-library socket address for native consumers
+    ├── /core/io                               shared operation policy
+    │   └── cancellation-token / io-operation-options / io-operation-result / cancel-operation
     ├── /core/time                             exact time and scheduling; requires `clocks`
     │   ├── duration                           canonical seconds / nanoseconds / exact total; checked arithmetic
     │   ├── instant / monotonic-instant         wall and runtime-domain monotonic observations

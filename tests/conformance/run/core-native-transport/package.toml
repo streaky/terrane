@@ -1,0 +1,16 @@
+package = "core-native-transport"
+executor = "threaded"
+
+[profile]
+name = "core-native-transport"
+capabilities = ["build", "networking", "threads", "process"]
+
+[namespaces]
+core-native-transport = "src"
+
+[rust-modules]
+native = "rust/native.rs"
+
+[rust-dependencies.socket2]
+version = "0.6"
+effects = ["build", "networking"]

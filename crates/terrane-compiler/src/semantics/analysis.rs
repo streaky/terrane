@@ -814,14 +814,62 @@ fn dependency_demands_from_units(
 pub fn dependency_projection_demands(
     package: &Package,
 ) -> Result<BTreeSet<(String, String)>, SemanticFailure> {
-    dependency_demands_from_units(&parse_authored_units(package)?)
+    Ok(
+        dependency_demands_from_units(&parse_authored_units(package)?)?
+            .into_iter()
+            .filter(|(namespace, _)| namespace.starts_with("/deps/"))
+            .collect(),
+    )
+}
+
+fn native_runtime_demand(units: &[SemanticUnit]) -> Result<bool, SemanticFailure> {
+    for unit in units {
+        let imports = imports_in_tree(unit)?;
+        if imports.iter().any(|import| {
+            import.target == crate::rust_interop::projection::core_native::NAMESPACE
+                && matches!(
+                    import.object.as_str(),
+                    "native-tcp-listener"
+                        | "native-tcp-stream"
+                        | "host-listener-transfer"
+                        | "host-stream-transfer"
+                )
+        }) || contains_into_native_call(&unit.source, &unit.tree.root)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn contains_into_native_call(source: &SourceFile, node: &SyntaxNode) -> bool {
+    (node.kind == SyntaxKind::CallExpression
+        && node.children.first().is_some_and(|callee| {
+            callee.kind == SyntaxKind::MemberExpression
+                && callee.children.get(1).is_some_and(|member| {
+                    &source.text()[member.span.start..member.span.end] == "into-native"
+                })
+        }))
+        || node
+            .children
+            .iter()
+            .any(|child| contains_into_native_call(source, child))
 }
 
 fn dependency_projection(
     package: &Package,
-    _demands: &BTreeSet<(String, String)>,
+    runtime_demand: bool,
 ) -> Result<crate::rust_interop::projection::Projection, SemanticFailure> {
     crate::rust_interop::projection::resolve(&package.root, &package.rust_dependencies, None)
+        .and_then(|mut projection| {
+            if runtime_demand {
+                crate::rust_interop::projection::core_native::prepare_runtime(
+                    package,
+                    &mut projection,
+                )?;
+            }
+            Ok(projection)
+        })
         .map_err(|error| {
             failure(
                 &package.units[0].source,
@@ -842,12 +890,11 @@ fn dependency_projection(
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    let demands = dependency_demands_from_units(&units)?;
     let stage = crate::compilation_progress::start(
         "resolving dependency projection",
         package.root.display(),
     );
-    let projection = dependency_projection(package, &demands)?;
+    let projection = dependency_projection(package, native_runtime_demand(&units)?)?;
     stage.finish();
     analyze_parsed_with_projection(package, projection, units, true, false)
 }
@@ -856,8 +903,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
 /// The completed program always passes through the full analysis afterward.
 pub(crate) fn analyze_declarations(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    let demands = dependency_demands_from_units(&units)?;
-    let projection = dependency_projection(package, &demands)?;
+    let projection = dependency_projection(package, native_runtime_demand(&units)?)?;
     analyze_parsed_with_projection(package, projection, units, true, true)
 }
 
@@ -876,11 +922,12 @@ pub(super) fn analyze_with_projection(
 )]
 fn analyze_parsed_with_projection(
     package: &Package,
-    projection: crate::rust_interop::projection::Projection,
+    mut projection: crate::rust_interop::projection::Projection,
     units: Vec<SemanticUnit>,
     persist_inventory: bool,
     declarations_only: bool,
 ) -> Result<SemanticPackage, SemanticFailure> {
+    crate::rust_interop::projection::core_native::augment(&mut projection);
     let mut units = augment_units_with_projection(package, &projection, units, persist_inventory)?;
     let declarations = crate::compilation_progress::start(
         "resolving namespaces, declarations, and imports",

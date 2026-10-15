@@ -1,23 +1,15 @@
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
-use tokio_tungstenite::tungstenite::{Bytes, Message};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_tungstenite::tungstenite::{Bytes, Message};
 
-async fn verify_health() {
-    let mut stream = tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            if let Ok(stream) = tokio::net::TcpStream::connect("127.0.0.1:38765").await {
-                break stream;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("Axum health endpoint did not become ready within five seconds");
+async fn verify_health(address: &str) {
+    let mut stream = tokio::net::TcpStream::connect(address).await.unwrap();
     stream
         .write_all(
-            b"GET /health HTTP/1.1\r\nHost: 127.0.0.1:38765\r\nConnection: close\r\n\r\n",
+            format!("GET /health HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n")
+                .as_bytes(),
         )
         .await
         .unwrap();
@@ -28,20 +20,19 @@ async fn verify_health() {
     assert!(response.ends_with("\r\n\r\nok"));
 }
 
-async fn connect() -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
-    for _ in 0..100 {
-        if let Ok((socket, _)) = tokio_tungstenite::connect_async("ws://127.0.0.1:38765/ws").await {
-            return socket;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-    panic!("WebSocket fixture server did not start");
+async fn connect(
+    address: &str,
+) -> tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>> {
+    tokio_tungstenite::connect_async(format!("ws://{address}/ws"))
+        .await
+        .expect("WebSocket fixture server did not accept connection")
+        .0
 }
 
-pub async fn drive_peer() {
-    verify_health().await;
+pub async fn drive_peer(address: String) {
+    verify_health(&address).await;
 
-    let mut socket = connect().await;
+    let mut socket = connect(&address).await;
 
     socket.send(Message::Text("hello".into())).await.unwrap();
     assert!(matches!(socket.next().await, Some(Ok(Message::Text(value))) if value == "hello"));
@@ -50,7 +41,9 @@ pub async fn drive_peer() {
         .send(Message::Binary(Bytes::from_static(&[1, 2])))
         .await
         .unwrap();
-    assert!(matches!(socket.next().await, Some(Ok(Message::Binary(value))) if value.as_ref() == [1, 2]));
+    assert!(
+        matches!(socket.next().await, Some(Ok(Message::Binary(value))) if value.as_ref() == [1, 2])
+    );
 
     socket
         .send(Message::Ping(Bytes::from_static(&[3])))
@@ -69,11 +62,11 @@ pub async fn drive_peer() {
         }
     }
 
-    let mut socket = connect().await;
+    let mut socket = connect(&address).await;
     socket.close(None).await.unwrap();
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    let socket = connect().await;
+    let socket = connect(&address).await;
     drop(socket);
     tokio::time::sleep(Duration::from_millis(100)).await;
 }

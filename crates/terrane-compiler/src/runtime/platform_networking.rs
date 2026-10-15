@@ -13,6 +13,46 @@ pub fn terrane_platform_parse_socket(
 pub fn terrane_platform_parse_socket_text(text: String) -> TerranePlatformResult {
     terrane_platform_support::parse_socket_text(&text)
 }
+fn terrane_platform_tcp_listener_into_native(
+    listener: &TerranePlatformCapability,
+) -> std::io::Result<tokio::net::TcpListener> {
+    terrane_platform_support::into_native_tcp_listener(listener)
+}
+fn terrane_platform_tcp_stream_into_native(
+    stream: &TerranePlatformCapability,
+) -> std::io::Result<tokio::net::TcpStream> {
+    terrane_platform_support::into_native_tcp_stream(stream)
+}
+fn terrane_platform_native_result_failed<T>(result: &std::io::Result<T>) -> bool {
+    result.is_err()
+}
+fn terrane_platform_native_result_message<T>(result: &std::io::Result<T>) -> String {
+    result
+        .as_ref()
+        .err()
+        .map_or_else(String::new, ToString::to_string)
+}
+fn terrane_platform_native_result_value<T>(result: std::io::Result<T>) -> T {
+    result.expect("native transfer result was checked")
+}
+
+pub async fn terrane_platform_tcp_listen_async(
+    address: String,
+    backlog: terrane_int_support::Int,
+    reuse_address: bool,
+    accepted_no_delay: bool,
+    accepted_ttl: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    terrane_platform_support::tcp_listen_async(
+        &address,
+        terrane_platform_i128!(backlog, "TCP backlog"),
+        reuse_address,
+        accepted_no_delay,
+        terrane_platform_i128!(accepted_ttl, "accepted TCP TTL"),
+    )
+    .await
+}
+
 pub fn terrane_platform_tcp_bind(
     address: String,
     backlog: terrane_int_support::Int,
