@@ -1,0 +1,37 @@
+namespace consuming-source-object-lifetime
+
+class marker
+    name string
+
+    function construct; name string
+        this.name = name
+
+    consuming function finish;
+        print; 'consume ', this.name
+
+    consuming function destruct;
+        print; 'drop ', this.name
+
+function direct;
+    item = instance marker; 'direct'
+    item.finish;
+    print; 'after direct'
+
+function grouped;
+    item = instance marker; 'grouped'
+    (item).finish;
+    print; 'after grouped'
+
+function cleanup;
+    try
+        item = instance marker; 'cleanup'
+        item.finish;
+    finally
+        print; 'finally'
+    print; 'after cleanup'
+
+function main;
+    direct;
+    grouped;
+    cleanup;
+    print; 'end'

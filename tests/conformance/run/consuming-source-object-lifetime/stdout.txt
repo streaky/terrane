@@ -1,0 +1,11 @@
+consume direct
+drop direct
+after direct
+consume grouped
+drop grouped
+after grouped
+consume cleanup
+drop cleanup
+finally
+after cleanup
+end

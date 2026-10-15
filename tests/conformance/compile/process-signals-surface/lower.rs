@@ -18,7 +18,7 @@ async fn observe(
         terrane_scalar_support::scalar_text(&event.overflowed)
     );
     closed = __terrane_traced_err(
-        subscription.terrane_separate().close(),
+        subscription.close(),
         1 /* terrane-site: case.trn:9:14-9:33 */,
     )?;
     let _ = &closed;

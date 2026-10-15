@@ -248,9 +248,10 @@ impl Emitter<'_> {
             return self.consuming_native_receiver_expression(grouped);
         }
         if receiver.kind == SyntaxKind::Name
-            && self
-                .value_type(receiver)
-                .is_some_and(|value_type| self.value_type_owns_resource(&value_type))
+            && self.value_type(receiver).is_some_and(|value_type| {
+                matches!(value_type, ValueType::Object(_))
+                    || self.value_type_owns_resource(&value_type)
+            })
         {
             return self.moved_name(receiver);
         }
