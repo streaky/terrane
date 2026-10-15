@@ -1203,6 +1203,10 @@ impl Projection {
             .dependencies
             .iter()
             .flat_map(|dependency| dependency.items.iter())
+            // Core carriers are declared by bundled source, not by Rust projection.
+            // Their native equivalence must not redirect a projected public type's
+            // constructors or members to an opaque core alias.
+            .filter(|item| !item.namespace.starts_with("/core/"))
             .collect::<Vec<_>>();
         let canonical_members =
             source_rendering::source_member_demands(self, &all_items, demanded_members);

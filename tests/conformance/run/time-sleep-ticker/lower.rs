@@ -115,7 +115,7 @@ fn main() {
             .duration_until(&second.scheduled), 9 /* terrane-site: case.trn:25:13-25:65 */).total_nanoseconds.clone() >=
             terrane_int_support::Int::from(4000000_i128)))
         );
-        timer.destruct();
+        timer.terrane_separate().destruct();
         race_started = Clock::terrane_static_monotonic();
         {
             let mut __terrane_select_guard_1074 = __terrane_finally_guard();

@@ -50,7 +50,7 @@ fn main() {
             terrane_int_support::Int::from(0_i128)))
         );
         __terrane_traced(
-            subscription.close(),
+            subscription.terrane_separate().close(),
             5 /* terrane-site: case.trn:16:5-16:24 */,
         );
     });
