@@ -11,25 +11,6 @@ metadata:
     timing records
   history_limit: 8
 runs:
-- measured_at: '2026-10-12T11:53:15Z'
-  command:
-  - cargo
-  - test
-  - --workspace
-  - --
-  - --test-threads=8
-  environment:
-    host: server
-    platform: Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44
-    rustc: rustc 1.99.0 (b940084d7 2026-09-28)
-    revision: '62219318'
-  exit_code: 101
-  cargo_seconds: 1049.316122
-  test_seconds: 5254.439807
-  measured_tests: 1326
-  passed: 989
-  failed: 2
-  ignored: 335
 - measured_at: '2026-10-12T12:14:12Z'
   command:
   - cargo
@@ -238,6 +219,25 @@ runs:
   measured_tests: 1738
   passed: 1738
   failed: 0
+  ignored: 0
+- measured_at: '2026-10-15T11:05:24Z'
+  command:
+  - cargo
+  - test
+  - --workspace
+  - --
+  - --test-threads=8
+  environment:
+    host: server
+    platform: Linux-7.2.8-1-cachyos-x86_64-with-glibc2.44
+    rustc: rustc 1.99.0 (b940084d7 2026-09-28)
+    revision: 6580911e
+  exit_code: 101
+  cargo_seconds: 45.980844
+  test_seconds: 132.784215
+  measured_tests: 57
+  passed: 56
+  failed: 1
   ignored: 0
 tests:
 - id: conformance cases [terrane_compiler]::/tmp/terrane-conformance-2624370-1/archive/reject/type-error
@@ -33830,13 +33830,10 @@ tests:
   name: all_commands_share_the_hello_pipeline
   kind: libtest
   status: passed
-  seconds: 15.176153
-  previous_seconds: 15.48543
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 14.880243
+  previous_seconds: 15.176153
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 16.001487
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 15.669864
     status: passed
@@ -33858,18 +33855,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 15.176153
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 14.880243
+    status: passed
 - id: tests/cli.rs [cli]::canonical_rust_requirement_preserves_successful_rust_output
   target: tests/cli.rs [cli]
   name: canonical_rust_requirement_preserves_successful_rust_output
   kind: libtest
   status: passed
-  seconds: 0.085292
-  previous_seconds: 0.084843
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.083889
+  previous_seconds: 0.085292
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.078633
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.080552
     status: passed
@@ -33891,18 +33888,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.085292
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.083889
+    status: passed
 - id: tests/cli.rs [cli]::executable_shebang_script_runs_through_implicit_command
   target: tests/cli.rs [cli]
   name: executable_shebang_script_runs_through_implicit_command
   kind: libtest
   status: passed
-  seconds: 12.109877
-  previous_seconds: 12.39066
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 12.094342
+  previous_seconds: 12.109877
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 12.590469
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 12.076589
     status: passed
@@ -33924,18 +33921,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 12.109877
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 12.094342
+    status: passed
 - id: tests/cli.rs [cli]::extensionless_source_and_package_paths_dispatch_consistently
   target: tests/cli.rs [cli]
   name: extensionless_source_and_package_paths_dispatch_consistently
   kind: libtest
   status: passed
-  seconds: 20.247824
-  previous_seconds: 20.882521
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 19.850524
+  previous_seconds: 20.247824
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 21.873459
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 22.385663
     status: passed
@@ -33957,18 +33954,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 20.247824
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 19.850524
+    status: passed
 - id: tests/cli.rs [cli]::external_query_client_applies_a_multi_file_rename
   target: tests/cli.rs [cli]
   name: external_query_client_applies_a_multi_file_rename
   kind: libtest
   status: passed
-  seconds: 0.041504
-  previous_seconds: 0.047615
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.042224
+  previous_seconds: 0.041504
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.051741
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.048851
     status: passed
@@ -33990,18 +33987,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.041504
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.042224
+    status: passed
 - id: tests/cli.rs [cli]::external_tooling_clients_receive_versioned_protocol_frames
   target: tests/cli.rs [cli]
   name: external_tooling_clients_receive_versioned_protocol_frames
   kind: libtest
   status: passed
-  seconds: 0.049853
-  previous_seconds: 0.042869
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.040726
+  previous_seconds: 0.049853
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.04083
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.043917
     status: passed
@@ -34023,18 +34020,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.049853
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.040726
+    status: passed
 - id: tests/cli.rs [cli]::failures_use_distinct_exit_codes_and_compiler_diagnostics
   target: tests/cli.rs [cli]
   name: failures_use_distinct_exit_codes_and_compiler_diagnostics
   kind: libtest
   status: passed
-  seconds: 0.058677
-  previous_seconds: 0.061089
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.066273
+  previous_seconds: 0.058677
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.061851
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.065448
     status: passed
@@ -34056,18 +34053,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.058677
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.066273
+    status: passed
 - id: tests/cli.rs [cli]::help_succeeds_and_extra_arguments_are_rejected
   target: tests/cli.rs [cli]
   name: help_succeeds_and_extra_arguments_are_rejected
   kind: libtest
   status: passed
-  seconds: 0.048622
-  previous_seconds: 0.050044
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.045933
+  previous_seconds: 0.048622
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.052646
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.049515
     status: passed
@@ -34089,18 +34086,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.048622
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.045933
+    status: passed
 - id: tests/cli.rs [cli]::invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect
   target: tests/cli.rs [cli]
   name: invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect
   kind: libtest
   status: passed
-  seconds: 0.037574
-  previous_seconds: 0.0371
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.036145
+  previous_seconds: 0.037574
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.038811
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.037577
     status: passed
@@ -34122,18 +34119,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.037574
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.036145
+    status: passed
 - id: tests/cli.rs [cli]::output_options_are_rejected_outside_rust_and_when_repeated
   target: tests/cli.rs [cli]
   name: output_options_are_rejected_outside_rust_and_when_repeated
   kind: libtest
   status: passed
-  seconds: 0.165572
-  previous_seconds: 0.171178
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.164728
+  previous_seconds: 0.165572
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.173807
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.159152
     status: passed
@@ -34155,18 +34152,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.165572
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.164728
+    status: passed
 - id: tests/cli.rs [cli]::package_hash_and_install_support_local_and_tagged_git_libraries
   target: tests/cli.rs [cli]
   name: package_hash_and_install_support_local_and_tagged_git_libraries
   kind: libtest
   status: passed
-  seconds: 0.124034
-  previous_seconds: 0.129577
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.123213
+  previous_seconds: 0.124034
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.14187
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.130124
     status: passed
@@ -34188,18 +34185,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.124034
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.123213
+    status: passed
 - id: tests/cli.rs [cli]::package_install_requires_a_current_application_manifest
   target: tests/cli.rs [cli]
   name: package_install_requires_a_current_application_manifest
   kind: libtest
   status: passed
-  seconds: 0.027298
-  previous_seconds: 0.024363
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.02449
+  previous_seconds: 0.027298
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.023699
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.022708
     status: passed
@@ -34221,18 +34218,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.027298
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.02449
+    status: passed
 - id: tests/cli.rs [cli]::rust_output_removes_only_an_omitted_generated_support_sidecar
   target: tests/cli.rs [cli]
   name: rust_output_removes_only_an_omitted_generated_support_sidecar
   kind: libtest
   status: passed
-  seconds: 0.101991
-  previous_seconds: 0.101867
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.100699
+  previous_seconds: 0.101991
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.106321
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.101419
     status: passed
@@ -34254,18 +34251,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.101991
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.100699
+    status: passed
 - id: tests/cli.rs [cli]::rust_output_writes_clean_authored_lowering_and_support_sidecar
   target: tests/cli.rs [cli]
   name: rust_output_writes_clean_authored_lowering_and_support_sidecar
   kind: libtest
   status: passed
-  seconds: 0.066711
-  previous_seconds: 0.065927
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.073071
+  previous_seconds: 0.066711
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.065803
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.06637
     status: passed
@@ -34287,18 +34284,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.066711
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.073071
+    status: passed
 - id: tests/cli.rs [cli]::source_formatter_checks_then_applies_an_idempotent_edit
   target: tests/cli.rs [cli]
   name: source_formatter_checks_then_applies_an_idempotent_edit
   kind: libtest
   status: passed
-  seconds: 0.075541
-  previous_seconds: 0.076158
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.070124
+  previous_seconds: 0.075541
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.072316
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.077348
     status: passed
@@ -34320,18 +34317,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.075541
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.070124
+    status: passed
 - id: tests/cli.rs [cli]::tooling_stdio_returns_envelopes_for_malformed_requests
   target: tests/cli.rs [cli]
   name: tooling_stdio_returns_envelopes_for_malformed_requests
   kind: libtest
   status: passed
-  seconds: 0.033156
-  previous_seconds: 0.034936
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.039742
+  previous_seconds: 0.033156
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.041667
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.034323
     status: passed
@@ -34353,18 +34350,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.033156
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.039742
+    status: passed
 - id: tests/cli.rs [cli]::uncaught_source_errors_render_causes_and_terrane_frames
   target: tests/cli.rs [cli]
   name: uncaught_source_errors_render_causes_and_terrane_frames
   kind: libtest
   status: passed
-  seconds: 11.748712
-  previous_seconds: 12.058704
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 11.952938
+  previous_seconds: 11.748712
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 12.307473
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 12.323543
     status: passed
@@ -34386,18 +34383,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 11.748712
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 11.952938
+    status: passed
 - id: tests/cli.rs [cli]::uncertain_function_variables_fail_at_the_unavailable_runtime_use
   target: tests/cli.rs [cli]
   name: uncertain_function_variables_fail_at_the_unavailable_runtime_use
   kind: libtest
   status: passed
-  seconds: 35.668289
-  previous_seconds: 36.207236
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 35.295156
+  previous_seconds: 35.668289
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 39.264058
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 37.459709
     status: passed
@@ -34419,18 +34416,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 35.668289
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 35.295156
+    status: passed
 - id: tests/compilation_cache.rs [compilation_cache]::changed_imported_contract_rechecks_unchanged_caller
   target: tests/compilation_cache.rs [compilation_cache]
   name: changed_imported_contract_rechecks_unchanged_caller
   kind: libtest
   status: passed
-  seconds: 9.331166
-  previous_seconds: 9.045623
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.004812
+  previous_seconds: 9.331166
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 9.632119
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 9.762107
     status: passed
@@ -34451,6 +34448,9 @@ tests:
     status: passed
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 9.331166
+    status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.004812
     status: passed
 - id: tests/compilation_cache.rs [compilation_cache]::changing_debug_options_and_reloading_symbols_preserves_user_breakpoint_coordinates
   target: tests/compilation_cache.rs [compilation_cache]
@@ -34490,13 +34490,10 @@ tests:
   name: consumers_execute_with_cached_declarations_and_changed_output_rebuilds
   kind: libtest
   status: passed
-  seconds: 9.331364
-  previous_seconds: 9.270004
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.178155
+  previous_seconds: 9.331364
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 9.809922
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 9.61845
     status: passed
@@ -34518,18 +34515,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 9.331364
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.178155
+    status: passed
 - id: tests/compilation_cache.rs [compilation_cache]::local_native_dependency_edits_invalidate_cached_projection_and_compilation
   target: tests/compilation_cache.rs [compilation_cache]
   name: local_native_dependency_edits_invalidate_cached_projection_and_compilation
   kind: libtest
-  status: passed
-  seconds: 13.256614
-  previous_seconds: 13.516544
-  measured_at: '2026-10-15T10:16:47Z'
+  status: failed
+  seconds: 10.311827
+  previous_seconds: 13.256614
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 13.665473
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 13.71565
     status: passed
@@ -34551,18 +34548,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 13.256614
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 10.311827
+    status: failed
 - id: tests/compilation_cache.rs [compilation_cache]::warm_compilation_tracks_content_and_source_membership_and_recovers_corruption
   target: tests/compilation_cache.rs [compilation_cache]
   name: warm_compilation_tracks_content_and_source_membership_and_recovers_corruption
   kind: libtest
   status: passed
-  seconds: 9.437517
-  previous_seconds: 9.400437
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.166246
+  previous_seconds: 9.437517
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 9.833959
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 9.924528
     status: passed
@@ -34583,6 +34580,9 @@ tests:
     status: passed
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 9.437517
+    status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.166246
     status: passed
 - id: tests/conformance.rs [conformance]::canonical_rust_manifest_expectation_is_opt_in
   target: tests/conformance.rs [conformance]
@@ -55828,13 +55828,10 @@ tests:
   name: census_command::tests::parses_exact_census_request
   kind: libtest
   status: passed
-  seconds: 0.000295
-  previous_seconds: 0.000325
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000259
+  previous_seconds: 0.000295
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000236
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000268
     status: passed
@@ -55856,18 +55853,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000295
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000259
+    status: passed
 - id: unittests src/main.rs [terrane]::census_command::tests::reports_missing_required_census_options
   target: unittests src/main.rs [terrane]
   name: census_command::tests::reports_missing_required_census_options
   kind: libtest
   status: passed
-  seconds: 0.000337
-  previous_seconds: 0.00028
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000245
+  previous_seconds: 0.000337
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000215
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000251
     status: passed
@@ -55889,18 +55886,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000337
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000245
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::batched_lldb_breakpoint_output_preserves_every_identifier
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::batched_lldb_breakpoint_output_preserves_every_identifier
   kind: libtest
   status: passed
-  seconds: 0.000304
-  previous_seconds: 0.000316
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000267
+  previous_seconds: 0.000304
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000228
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000287
     status: passed
@@ -55922,18 +55919,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000304
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000267
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::breakpoint_resolution_preserves_every_native_location_and_adjusts_in_function
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::breakpoint_resolution_preserves_every_native_location_and_adjusts_in_function
   kind: libtest
   status: passed
-  seconds: 0.000665
-  previous_seconds: 0.000818
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000588
+  previous_seconds: 0.000665
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000709
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000813
     status: passed
@@ -55955,18 +55952,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000665
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000588
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::executable_sidecars_preserve_native_extensions
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::executable_sidecars_preserve_native_extensions
   kind: libtest
   status: passed
-  seconds: 0.000257
-  previous_seconds: 0.000368
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000299
+  previous_seconds: 0.000257
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000254
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000312
     status: passed
@@ -55988,18 +55985,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000257
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000299
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::resuming_invalidates_session_variable_handles_before_backend_io
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::resuming_invalidates_session_variable_handles_before_backend_io
   kind: libtest
   status: passed
-  seconds: 0.00039
-  previous_seconds: 0.000418
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000347
+  previous_seconds: 0.00039
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000349
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000408
     status: passed
@@ -56021,18 +56018,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.00039
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000347
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::rust_lldb_initialization_precedes_client_commands_when_available
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::rust_lldb_initialization_precedes_client_commands_when_available
   kind: libtest
   status: passed
-  seconds: 0.000367
-  previous_seconds: 0.000387
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.00032
+  previous_seconds: 0.000367
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000306
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000351
     status: passed
@@ -56054,18 +56051,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000367
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.00032
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::scalar_values_remain_raw_without_a_matching_abi_recipe
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::scalar_values_remain_raw_without_a_matching_abi_recipe
   kind: libtest
   status: passed
-  seconds: 0.000747
-  previous_seconds: 0.001011
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000719
+  previous_seconds: 0.000747
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000597
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000675
     status: passed
@@ -56087,18 +56084,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000747
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000719
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::variable_translation_redacts_secret_fields_before_frontend_exposure
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::variable_translation_redacts_secret_fields_before_frontend_exposure
   kind: libtest
   status: passed
-  seconds: 0.000448
-  previous_seconds: 0.000643
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000321
+  previous_seconds: 0.000448
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.0004
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.00046
     status: passed
@@ -56120,18 +56117,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000448
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000321
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::tests::variable_translation_selects_the_innermost_visible_shadow
   target: unittests src/main.rs [terrane]
   name: debug_command::tests::variable_translation_selects_the_innermost_visible_shadow
   kind: libtest
   status: passed
-  seconds: 0.000377
-  previous_seconds: 0.000524
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000439
+  previous_seconds: 0.000377
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000336
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000389
     status: passed
@@ -56153,18 +56150,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000377
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000439
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::variables::tests::native_discriminants_preserve_signed_native_bits
   target: unittests src/main.rs [terrane]
   name: debug_command::variables::tests::native_discriminants_preserve_signed_native_bits
   kind: libtest
   status: passed
-  seconds: 0.000107
-  previous_seconds: 0.000403
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000115
+  previous_seconds: 0.000107
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000128
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000192
     status: passed
@@ -56186,18 +56183,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000107
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000115
+    status: passed
 - id: unittests src/main.rs [terrane]::debug_command::variables::tests::native_variant_matching_preserves_tag_width
   target: unittests src/main.rs [terrane]
   name: debug_command::variables::tests::native_variant_matching_preserves_tag_width
   kind: libtest
   status: passed
-  seconds: 9.7e-05
-  previous_seconds: 0.000593
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000105
+  previous_seconds: 9.7e-05
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000177
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000177
     status: passed
@@ -56219,18 +56216,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 9.7e-05
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000105
+    status: passed
 - id: unittests src/main.rs [terrane]::development_fingerprint::tests::fingerprint_reports_unreadable_input_roots
   target: unittests src/main.rs [terrane]
   name: development_fingerprint::tests::fingerprint_reports_unreadable_input_roots
   kind: libtest
   status: passed
-  seconds: 0.000113
-  previous_seconds: 0.000552
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000128
+  previous_seconds: 0.000113
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000141
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.0002
     status: passed
@@ -56252,18 +56249,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000113
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000128
+    status: passed
 - id: unittests src/main.rs [terrane]::development_fingerprint::tests::fingerprint_tracks_compiler_inputs_and_ignores_documentation
   target: unittests src/main.rs [terrane]
   name: development_fingerprint::tests::fingerprint_tracks_compiler_inputs_and_ignores_documentation
   kind: libtest
   status: passed
-  seconds: 0.000445
-  previous_seconds: 0.000843
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000433
+  previous_seconds: 0.000445
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.001369
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.00136
     status: passed
@@ -56285,18 +56282,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000445
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000433
+    status: passed
 - id: unittests src/main.rs [terrane]::development_provenance::tests::development_binary_detection_accepts_profiles_and_target_triples
   target: unittests src/main.rs [terrane]
   name: development_provenance::tests::development_binary_detection_accepts_profiles_and_target_triples
   kind: libtest
   status: passed
-  seconds: 0.000107
-  previous_seconds: 0.000269
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 8.9e-05
+  previous_seconds: 0.000107
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000139
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 8.4e-05
     status: passed
@@ -56318,18 +56315,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000107
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 8.9e-05
+    status: passed
 - id: unittests src/main.rs [terrane]::development_provenance::tests::rebuild_advice_matches_the_binary_profile
   target: unittests src/main.rs [terrane]
   name: development_provenance::tests::rebuild_advice_matches_the_binary_profile
   kind: libtest
   status: passed
-  seconds: 9.9e-05
-  previous_seconds: 0.000214
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.1e-05
+  previous_seconds: 9.9e-05
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 8.4e-05
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.00012
     status: passed
@@ -56351,18 +56348,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 9.9e-05
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.1e-05
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::allocation_options_reject_cpu_and_timeline_profiles
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::allocation_options_reject_cpu_and_timeline_profiles
   kind: libtest
   status: passed
-  seconds: 0.000166
-  previous_seconds: 0.000216
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.7e-05
+  previous_seconds: 0.000166
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 9.2e-05
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 8.0e-05
     status: passed
@@ -56384,18 +56381,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000166
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.7e-05
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::normalizes_heaptrack_transitions_and_address_reuse
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::normalizes_heaptrack_transitions_and_address_reuse
   kind: libtest
   status: passed
-  seconds: 0.000145
-  previous_seconds: 0.00016
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000147
+  previous_seconds: 0.000145
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000132
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000132
     status: passed
@@ -56417,18 +56414,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000145
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000147
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::omitted_arguments_do_not_leak_into_collector_configuration
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::omitted_arguments_do_not_leak_into_collector_configuration
   kind: libtest
   status: passed
-  seconds: 0.00012
-  previous_seconds: 0.000167
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000153
+  previous_seconds: 0.00012
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000139
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000121
     status: passed
@@ -56450,18 +56447,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.00012
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000153
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::parses_heaptrack_summary_units
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::parses_heaptrack_summary_units
   kind: libtest
   status: passed
-  seconds: 7.5e-05
-  previous_seconds: 0.00017
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000129
+  previous_seconds: 7.5e-05
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000134
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000123
     status: passed
@@ -56483,18 +56480,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 7.5e-05
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000129
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::perf_script_parser_accepts_padded_pids_and_retains_frame_details
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::perf_script_parser_accepts_padded_pids_and_retains_frame_details
   kind: libtest
   status: passed
-  seconds: 0.065805
-  previous_seconds: 0.068276
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.063293
+  previous_seconds: 0.065805
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.072448
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.06243
     status: passed
@@ -56516,18 +56513,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.065805
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.063293
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::record_parser_allows_memory_timeline_alone_or_alongside_cpu
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::record_parser_allows_memory_timeline_alone_or_alongside_cpu
   kind: libtest
   status: passed
-  seconds: 0.000104
-  previous_seconds: 0.000138
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.00015
+  previous_seconds: 0.000104
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.00014
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 9.8e-05
     status: passed
@@ -56549,18 +56546,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000104
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.00015
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::record_parser_keeps_allocation_and_cpu_evidence_separate
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::record_parser_keeps_allocation_and_cpu_evidence_separate
   kind: libtest
   status: passed
-  seconds: 0.000124
-  previous_seconds: 0.000138
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.00014
+  previous_seconds: 0.000124
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.00016
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000166
     status: passed
@@ -56582,18 +56579,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000124
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.00014
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::record_parser_separates_privacy_options_and_workload_arguments
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::record_parser_separates_privacy_options_and_workload_arguments
   kind: libtest
   status: passed
-  seconds: 0.000143
-  previous_seconds: 0.000131
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000167
+  previous_seconds: 0.000143
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.00012
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000225
     status: passed
@@ -56615,18 +56612,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000143
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000167
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::report_limits_bound_every_row_expansion_and_shorten_build_paths
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::report_limits_bound_every_row_expansion_and_shorten_build_paths
   kind: libtest
   status: passed
-  seconds: 0.000148
-  previous_seconds: 0.000123
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000151
+  previous_seconds: 0.000148
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000143
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000218
     status: passed
@@ -56648,18 +56645,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000148
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000151
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::sample_and_frame_limits_have_independent_loss_counts
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::sample_and_frame_limits_have_independent_loss_counts
   kind: libtest
   status: passed
-  seconds: 0.000556
-  previous_seconds: 0.000637
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000948
+  previous_seconds: 0.000556
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000661
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000632
     status: passed
@@ -56681,18 +56678,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000556
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000948
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::show_parser_accepts_allocation_comparison_and_thresholds
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::show_parser_accepts_allocation_comparison_and_thresholds
   kind: libtest
   status: passed
-  seconds: 0.000127
-  previous_seconds: 9.8e-05
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000136
+  previous_seconds: 0.000127
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000138
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000182
     status: passed
@@ -56714,18 +56711,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000127
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000136
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::show_parser_accepts_source_focus_and_lower_level_expansion
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::show_parser_accepts_source_focus_and_lower_level_expansion
   kind: libtest
   status: passed
-  seconds: 0.000142
-  previous_seconds: 0.000133
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000132
+  previous_seconds: 0.000142
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.00012
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000189
     status: passed
@@ -56747,18 +56744,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000142
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000132
+    status: passed
 - id: unittests src/main.rs [terrane]::profile_command::tests::workload_sampler_counts_missing_collector_child
   target: unittests src/main.rs [terrane]
   name: profile_command::tests::workload_sampler_counts_missing_collector_child
   kind: libtest
   status: passed
-  seconds: 0.000158
-  previous_seconds: 0.000161
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000136
+  previous_seconds: 0.000158
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.00013
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000196
     status: passed
@@ -56780,18 +56777,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000158
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000136
+    status: passed
 - id: unittests src/main.rs [terrane]::tests::backend_error_in_support_sidecar_projects_to_terrane_source
   target: unittests src/main.rs [terrane]
   name: tests::backend_error_in_support_sidecar_projects_to_terrane_source
   kind: libtest
   status: passed
-  seconds: 0.066188
-  previous_seconds: 0.059903
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.064882
+  previous_seconds: 0.066188
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.070957
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.068051
     status: passed
@@ -56813,18 +56810,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.066188
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.064882
+    status: passed
 - id: unittests src/main.rs [terrane]::tests::generated_cargo_manifest_configures_runtime_profiles_and_toolchain
   target: unittests src/main.rs [terrane]
   name: tests::generated_cargo_manifest_configures_runtime_profiles_and_toolchain
   kind: libtest
   status: passed
-  seconds: 0.002292
-  previous_seconds: 0.002254
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.002285
+  previous_seconds: 0.002292
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.004309
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.003649
     status: passed
@@ -56846,18 +56843,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.002292
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.002285
+    status: passed
 - id: unittests src/main.rs [terrane]::tests::release_is_available_only_for_native_build_and_run
   target: unittests src/main.rs [terrane]
   name: tests::release_is_available_only_for_native_build_and_run
   kind: libtest
   status: passed
-  seconds: 0.000159
-  previous_seconds: 0.000119
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.6e-05
+  previous_seconds: 0.000159
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 7.8e-05
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000206
     status: passed
@@ -56879,18 +56876,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000159
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.6e-05
+    status: passed
 - id: unittests src/main.rs [terrane]::tests::run_and_debug_require_program_argument_separator
   target: unittests src/main.rs [terrane]
   name: tests::run_and_debug_require_program_argument_separator
   kind: libtest
   status: passed
-  seconds: 0.000131
-  previous_seconds: 9.2e-05
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 7.0e-05
+  previous_seconds: 0.000131
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 9.3e-05
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.00014
     status: passed
@@ -56912,18 +56909,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000131
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 7.0e-05
+    status: passed
 - id: unittests src/main.rs [terrane]::tests::source_path_dispatches_to_run_and_forwards_arguments
   target: unittests src/main.rs [terrane]
   name: tests::source_path_dispatches_to_run_and_forwards_arguments
   kind: libtest
   status: passed
-  seconds: 0.000124
-  previous_seconds: 9.0e-05
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 9.2e-05
+  previous_seconds: 0.000124
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000101
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000117
     status: passed
@@ -56945,18 +56942,18 @@ tests:
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000124
     status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 9.2e-05
+    status: passed
 - id: unittests src/main.rs [terrane]::tests::windows_import_library_cache_copies_the_dll_companion
   target: unittests src/main.rs [terrane]
   name: tests::windows_import_library_cache_copies_the_dll_companion
   kind: libtest
   status: passed
-  seconds: 0.000217
-  previous_seconds: 0.000238
-  measured_at: '2026-10-15T10:16:47Z'
+  seconds: 0.000746
+  previous_seconds: 0.000217
+  measured_at: '2026-10-15T11:05:24Z'
   history:
-  - measured_at: '2026-10-13T21:12:27Z'
-    seconds: 0.000918
-    status: passed
   - measured_at: '2026-10-13T21:34:02Z'
     seconds: 0.000719
     status: passed
@@ -56977,4 +56974,7 @@ tests:
     status: passed
   - measured_at: '2026-10-15T10:16:47Z'
     seconds: 0.000217
+    status: passed
+  - measured_at: '2026-10-15T11:05:24Z'
+    seconds: 0.000746
     status: passed
