@@ -761,7 +761,7 @@ fn with_content_addressed_package_cache(
         return Ok(destination);
     }
     if fs::symlink_metadata(&destination).is_ok() {
-        remove_package_cache_stage(&destination)?;
+        remove_package_cache_path(&destination)?;
     }
     let staging = unique_package_cache_stage(&cache_root, digest)?;
     let temporary = staging.join("source");
@@ -777,7 +777,7 @@ fn with_content_addressed_package_cache(
             .map_err(|error| format!("cannot publish package cache entry: {error}"))?;
         Ok(())
     })();
-    let cleanup = remove_package_cache_stage(&staging);
+    let cleanup = remove_package_cache_path(&staging);
     result?;
     cleanup?;
     Ok(destination)
@@ -802,21 +802,21 @@ fn unique_package_cache_stage(cache_root: &Path, digest: &str) -> Result<PathBuf
     Err("cannot allocate unique temporary package cache directory".to_owned())
 }
 
-fn remove_package_cache_stage(path: &Path) -> Result<(), String> {
+fn remove_package_cache_path(path: &Path) -> Result<(), String> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(format!("cannot inspect temporary package cache: {error}")),
+        Err(error) => return Err(format!("cannot inspect package cache path: {error}")),
     };
     if metadata.file_type().is_symlink() {
         fs::remove_file(path)
-            .map_err(|error| format!("cannot remove temporary package cache link: {error}"))
+            .map_err(|error| format!("cannot remove package cache link: {error}"))
     } else if metadata.is_dir() {
         fs::remove_dir_all(path)
-            .map_err(|error| format!("cannot remove temporary package cache: {error}"))
+            .map_err(|error| format!("cannot remove package cache path: {error}"))
     } else {
         fs::remove_file(path)
-            .map_err(|error| format!("cannot remove temporary package cache file: {error}"))
+            .map_err(|error| format!("cannot remove package cache file: {error}"))
     }
 }
 
