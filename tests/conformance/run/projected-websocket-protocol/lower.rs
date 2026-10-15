@@ -408,7 +408,7 @@ fn websocket_route(
                             )
                         }
                     },
-                    22 /* terrane-site: src/main.trn:52:12-52:39 */,
+                    22 /* terrane-site: src/main.trn:53:12-53:39 */,
                 );
             })
         })
@@ -459,7 +459,7 @@ fn websocket_route(
                     )
                 }
             },
-            23 /* terrane-site: src/main.trn:53:31-53:49 */,
+            23 /* terrane-site: src/main.trn:54:31-54:49 */,
         );
         __terrane_raised(
             match std::panic::catch_unwind(
@@ -479,7 +479,7 @@ fn websocket_route(
                     )
                 }
             },
-            24 /* terrane-site: src/main.trn:53:10-53:50 */,
+            24 /* terrane-site: src/main.trn:54:10-54:50 */,
         )
     };
 }
@@ -487,7 +487,7 @@ async fn run_server(native: NativeTcpListener) {
     let mut router: axum::Router<()>;
     router = __terrane_raised(
         terrane_static_trn_526f75746572_new::<()>(),
-        25 /* terrane-site: src/main.trn:56:12-56:24 */,
+        25 /* terrane-site: src/main.trn:57:12-57:24 */,
     );
     router = {
         let __terrane_native_input_0 = router;
@@ -534,7 +534,7 @@ async fn run_server(native: NativeTcpListener) {
                     )
                 }
             },
-            26 /* terrane-site: src/main.trn:57:38-57:49 */,
+            26 /* terrane-site: src/main.trn:58:38-58:49 */,
         );
         __terrane_raised(
             match std::panic::catch_unwind(
@@ -554,7 +554,7 @@ async fn run_server(native: NativeTcpListener) {
                     )
                 }
             },
-            27 /* terrane-site: src/main.trn:57:12-57:50 */,
+            27 /* terrane-site: src/main.trn:58:12-58:50 */,
         )
     };
     router = websocket_route(
@@ -605,12 +605,12 @@ async fn run_server(native: NativeTcpListener) {
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        28 /* terrane-site: src/main.trn:59:10-59:41 */,
+                        28 /* terrane-site: src/main.trn:60:10-60:41 */,
                     )
                 }
             })
             .await,
-        29 /* terrane-site: src/main.trn:59:9-59:42 */,
+        29 /* terrane-site: src/main.trn:60:9-60:42 */,
     );
 }
 fn main() {
@@ -622,12 +622,12 @@ fn main() {
         let server: TerraneScopedTask<()>;
         listener = __terrane_traced(
             __terrane_await(listen_tcp(String::from("127.0.0.1:0"), None)).await,
-            30 /* terrane-site: src/main.trn:62:20-62:45 */,
+            30 /* terrane-site: src/main.trn:63:20-63:45 */,
         );
         address = listener.local_address.clone();
         native = __terrane_traced(
             listener.into_native(),
-            31 /* terrane-site: src/main.trn:64:12-64:33 */,
+            31 /* terrane-site: src/main.trn:65:12-65:33 */,
         );
         scope = TerraneTaskScope::new(None);
         server = {
@@ -654,12 +654,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            32 /* terrane-site: src/main.trn:67:10-67:29 */,
+                            32 /* terrane-site: src/main.trn:68:10-68:29 */,
                         )
                     }
                 })
                 .await,
-            33 /* terrane-site: src/main.trn:67:9-67:30 */,
+            33 /* terrane-site: src/main.trn:68:9-68:30 */,
         );
         scope.cancel();
         {

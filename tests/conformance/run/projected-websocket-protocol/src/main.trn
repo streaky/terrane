@@ -47,6 +47,7 @@ async function socket-session; socket WebSocket
 
 async function health string;
   return 'ok'
+
 function websocket-route Router; router Router, path string, handler async function from WebSocket to none
   callback = async function Response; request WebSocketUpgrade
     return request.on_upgrade; handler
