@@ -21,7 +21,6 @@ effects = ["build"]
 version = "=1.12.1"
 effects = ["build"]
 
-
 [rust-dependencies.tower-service]
 version = "=0.3.3"
 effects = ["build"]

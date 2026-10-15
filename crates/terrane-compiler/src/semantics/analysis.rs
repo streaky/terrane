@@ -801,9 +801,7 @@ fn dependency_demands_from_units(
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .flatten()
-        .filter(|import| {
-            import.target.starts_with("/deps/") || import.target.starts_with("/core/networking")
-        })
+        .filter(|import| import.target.starts_with("/deps/"))
         .map(|import| (import.target, import.object))
         .collect())
 }
@@ -824,16 +822,47 @@ pub fn dependency_projection_demands(
     )
 }
 
+fn native_runtime_demand(units: &[SemanticUnit]) -> Result<bool, SemanticFailure> {
+    for unit in units {
+        let imports = imports_in_tree(unit)?;
+        if imports.iter().any(|import| {
+            import.target == crate::rust_interop::projection::core_native::NAMESPACE
+                && matches!(
+                    import.object.as_str(),
+                    "native-tcp-listener"
+                        | "native-tcp-stream"
+                        | "host-listener-transfer"
+                        | "host-stream-transfer"
+                )
+        }) || contains_into_native_call(&unit.source, &unit.tree.root)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn contains_into_native_call(source: &SourceFile, node: &SyntaxNode) -> bool {
+    (node.kind == SyntaxKind::CallExpression
+        && node.children.first().is_some_and(|callee| {
+            callee.kind == SyntaxKind::MemberExpression
+                && callee.children.get(1).is_some_and(|member| {
+                    &source.text()[member.span.start..member.span.end] == "into-native"
+                })
+        }))
+        || node
+            .children
+            .iter()
+            .any(|child| contains_into_native_call(source, child))
+}
+
 fn dependency_projection(
     package: &Package,
-    demands: &BTreeSet<(String, String)>,
+    runtime_demand: bool,
 ) -> Result<crate::rust_interop::projection::Projection, SemanticFailure> {
     crate::rust_interop::projection::resolve(&package.root, &package.rust_dependencies, None)
         .and_then(|mut projection| {
-            if demands
-                .iter()
-                .any(|(namespace, _)| namespace.starts_with("/core/networking"))
-            {
+            if runtime_demand {
                 crate::rust_interop::projection::core_native::prepare_runtime(
                     package,
                     &mut projection,
@@ -861,12 +890,11 @@ fn dependency_projection(
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    let demands = dependency_demands_from_units(&units)?;
     let stage = crate::compilation_progress::start(
         "resolving dependency projection",
         package.root.display(),
     );
-    let projection = dependency_projection(package, &demands)?;
+    let projection = dependency_projection(package, native_runtime_demand(&units)?)?;
     stage.finish();
     analyze_parsed_with_projection(package, projection, units, true, false)
 }
@@ -875,8 +903,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
 /// The completed program always passes through the full analysis afterward.
 pub(crate) fn analyze_declarations(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let units = parse_authored_units(package)?;
-    let demands = dependency_demands_from_units(&units)?;
-    let projection = dependency_projection(package, &demands)?;
+    let projection = dependency_projection(package, native_runtime_demand(&units)?)?;
     analyze_parsed_with_projection(package, projection, units, true, true)
 }
 

@@ -36,8 +36,60 @@ impl TcpSettings {
     }
 }
 
-// Synchronous construction does not require an executor. The first asynchronous operation
-// installs one registration, retained until close or a consuming transport upgrade.
+// Detach a registered transport when uniquely owned, or register from a duplicate while
+// retaining the original socket until registration succeeds.
+fn take_async<S, T>(
+    readiness: &Mutex<Option<Arc<T>>>,
+    socket: &RwLock<Option<S>>,
+    register: impl FnOnce(&S) -> Result<T, ResultValue>,
+    busy_message: &'static str,
+    closed_message: &'static str,
+) -> Result<T, ResultValue> {
+    let mut registered = readiness.lock();
+    if let Some(value) = registered.take() {
+        return match Arc::try_unwrap(value) {
+            Ok(value) => {
+                socket.write().take();
+                Ok(value)
+            }
+            Err(value) => {
+                *registered = Some(value);
+                Err(ResultValue::error(busy_message))
+            }
+        };
+    }
+
+    let mut socket = socket.write();
+    let original = socket
+        .as_ref()
+        .ok_or_else(|| ResultValue::error(closed_message))?;
+    let value = register(original)?;
+    socket.take();
+    Ok(value)
+}
+
+fn register_listener(socket: &TcpListener) -> Result<tokio::net::TcpListener, ResultValue> {
+    let duplicate = socket
+        .try_clone()
+        .map_err(|error| io_error("TCP listener readiness registration", &error))?;
+    duplicate
+        .set_nonblocking(true)
+        .map_err(|error| io_error("TCP listener readiness configuration", &error))?;
+    tokio::net::TcpListener::from_std(duplicate)
+        .map_err(|error| io_error("TCP listener readiness registration", &error))
+}
+
+fn register_stream(socket: &TcpStream) -> Result<tokio::net::TcpStream, ResultValue> {
+    let duplicate = socket
+        .try_clone()
+        .map_err(|error| io_error("TCP stream readiness registration", &error))?;
+    duplicate
+        .set_nonblocking(true)
+        .map_err(|error| io_error("TCP stream readiness configuration", &error))?;
+    tokio::net::TcpStream::from_std(duplicate)
+        .map_err(|error| io_error("TCP stream readiness registration", &error))
+}
+
 pub(super) struct ListenerState {
     socket: RwLock<Option<TcpListener>>,
     readiness: Mutex<Option<Arc<tokio::net::TcpListener>>>,
@@ -80,34 +132,13 @@ impl ListenerState {
         if tokio::runtime::Handle::try_current().is_err() {
             return Err(ResultValue::error("no Tokio runtime is active"));
         }
-        let mut registered = self.readiness.lock();
-        if let Some(listener) = registered.take() {
-            return match Arc::try_unwrap(listener) {
-                Ok(listener) => {
-                    self.socket.write().take();
-                    Ok(listener)
-                }
-                Err(listener) => {
-                    *registered = Some(listener);
-                    Err(ResultValue::error("TCP listener is busy"))
-                }
-            };
-        }
-
-        let mut socket = self.socket.write();
-        let listener = socket
-            .as_ref()
-            .ok_or_else(|| ResultValue::error("listener is closed"))?;
-        let duplicate = listener
-            .try_clone()
-            .map_err(|error| io_error("TCP listener transfer", &error))?;
-        duplicate
-            .set_nonblocking(true)
-            .map_err(|error| io_error("TCP listener readiness configuration", &error))?;
-        let listener = tokio::net::TcpListener::from_std(duplicate)
-            .map_err(|error| io_error("TCP listener readiness registration", &error))?;
-        socket.take();
-        Ok(listener)
+        take_async(
+            &self.readiness,
+            &self.socket,
+            register_listener,
+            "TCP listener is busy",
+            "listener is closed",
+        )
     }
 
     pub fn close(&self) {
@@ -222,62 +253,20 @@ impl TcpState {
     }
 
     pub fn take_async(&self) -> Result<tokio::net::TcpStream, ResultValue> {
-        let mut registered = self.readiness.lock();
-        if let Some(socket) = registered.take() {
-            return match Arc::try_unwrap(socket) {
-                Ok(socket) => {
-                    self.socket.write().take();
-                    Ok(socket)
-                }
-                Err(socket) => {
-                    *registered = Some(socket);
-                    Err(ResultValue::error("TCP stream is busy"))
-                }
-            };
-        }
-        let socket = self
-            .socket
-            .write()
-            .take()
-            .ok_or_else(|| ResultValue::error("stream is closed"))?;
-        socket
-            .set_nonblocking(true)
-            .map_err(|error| io_error("TLS readiness configuration", &error))?;
-        tokio::net::TcpStream::from_std(socket)
-            .map_err(|error| io_error("TLS readiness registration", &error))
+        take_async(
+            &self.readiness,
+            &self.socket,
+            register_stream,
+            "TCP stream is busy",
+            "stream is closed",
+        )
     }
+
     pub fn take_native_async(&self) -> Result<tokio::net::TcpStream, ResultValue> {
         if tokio::runtime::Handle::try_current().is_err() {
             return Err(ResultValue::error("no Tokio runtime is active"));
         }
-        let mut registered = self.readiness.lock();
-        if let Some(stream) = registered.take() {
-            return match Arc::try_unwrap(stream) {
-                Ok(stream) => {
-                    self.socket.write().take();
-                    Ok(stream)
-                }
-                Err(stream) => {
-                    *registered = Some(stream);
-                    Err(ResultValue::error("TCP stream is busy"))
-                }
-            };
-        }
-
-        let mut socket = self.socket.write();
-        let stream = socket
-            .as_ref()
-            .ok_or_else(|| ResultValue::error("stream is closed"))?;
-        let duplicate = stream
-            .try_clone()
-            .map_err(|error| io_error("TCP stream transfer", &error))?;
-        duplicate
-            .set_nonblocking(true)
-            .map_err(|error| io_error("TCP stream readiness configuration", &error))?;
-        let stream = tokio::net::TcpStream::from_std(duplicate)
-            .map_err(|error| io_error("TCP stream readiness registration", &error))?;
-        socket.take();
-        Ok(stream)
+        self.take_async()
     }
 
     pub fn close(&self) {
@@ -358,5 +347,39 @@ pub(super) async fn write(stream: &tokio::net::TcpStream, bytes: &[u8]) -> io::R
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => stream.writable().await?,
             result => return result,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TcpState, take_async};
+    use std::io::{Read as _, Write as _};
+    use std::net::{TcpListener, TcpStream};
+    use std::time::Duration;
+
+    #[test]
+    fn failed_registration_preserves_original_socket() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut peer = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (stream, _) = listener.accept().unwrap();
+        let state = TcpState::new(stream);
+        let result = take_async::<_, tokio::net::TcpStream>(
+            &state.readiness,
+            &state.socket,
+            |_| Err(crate::ResultValue::error("registration failed")),
+            "busy",
+            "closed",
+        );
+        assert!(result.is_err());
+        let mut recovered = state
+            .take_std()
+            .unwrap_or_else(|error| panic!("{}", error.message));
+        recovered
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        peer.write_all(b"retained").unwrap();
+        let mut bytes = [0; 8];
+        recovered.read_exact(&mut bytes).unwrap();
+        assert_eq!(&bytes, b"retained");
     }
 }

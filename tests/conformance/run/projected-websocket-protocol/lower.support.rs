@@ -538,106 +538,108 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 50] = [
-        /* terrane-site-row: site 0: /app::socket-session (src/main.trn:16:36-16:48) */
-        { Site { function: 0, file: 0, line: 16, column: 36, end_line: 16, end_column: 48 } },
-        /* terrane-site-row: site 1: /app::socket-session (src/main.trn:18:23-18:44) */
-        { Site { function: 0, file: 0, line: 18, column: 23, end_line: 18, end_column: 44 } },
-        /* terrane-site-row: site 2: /app::socket-session (src/main.trn:20:25-20:50) */
-        { Site { function: 0, file: 0, line: 20, column: 25, end_line: 20, end_column: 50 } },
-        /* terrane-site-row: site 3: /app::socket-session (src/main.trn:21:26-21:45) */
-        { Site { function: 0, file: 0, line: 21, column: 26, end_line: 21, end_column: 45 } },
-        /* terrane-site-row: site 4: /app::socket-session (src/main.trn:24:34-24:54) */
-        { Site { function: 0, file: 0, line: 24, column: 34, end_line: 24, end_column: 54 } },
-        /* terrane-site-row: site 5: /app::socket-session (src/main.trn:24:20-24:55) */
-        { Site { function: 0, file: 0, line: 24, column: 20, end_line: 24, end_column: 55 } },
-        /* terrane-site-row: site 6: /app::socket-session (src/main.trn:24:19-24:56) */
-        { Site { function: 0, file: 0, line: 24, column: 19, end_line: 24, end_column: 56 } },
-        /* terrane-site-row: site 7: /app::socket-session (src/main.trn:27:32-27:52) */
-        { Site { function: 0, file: 0, line: 27, column: 32, end_line: 27, end_column: 52 } },
-        /* terrane-site-row: site 8: /app::socket-session (src/main.trn:27:18-27:53) */
-        { Site { function: 0, file: 0, line: 27, column: 18, end_line: 27, end_column: 53 } },
-        /* terrane-site-row: site 9: /app::socket-session (src/main.trn:27:17-27:54) */
-        { Site { function: 0, file: 0, line: 27, column: 17, end_line: 27, end_column: 54 } },
-        /* terrane-site-row: site 10: /app::socket-session (src/main.trn:29:21-29:46) */
-        { Site { function: 0, file: 0, line: 29, column: 21, end_line: 29, end_column: 46 } },
-        /* terrane-site-row: site 11: /app::socket-session (src/main.trn:30:29-30:41) */
-        { Site { function: 0, file: 0, line: 30, column: 29, end_line: 30, end_column: 41 } },
-        /* terrane-site-row: site 12: /app::socket-session (src/main.trn:31:32-31:61) */
-        { Site { function: 0, file: 0, line: 31, column: 32, end_line: 31, end_column: 61 } },
-        /* terrane-site-row: site 13: /app::socket-session (src/main.trn:31:18-31:62) */
-        { Site { function: 0, file: 0, line: 31, column: 18, end_line: 31, end_column: 62 } },
-        /* terrane-site-row: site 14: /app::socket-session (src/main.trn:31:17-31:63) */
-        { Site { function: 0, file: 0, line: 31, column: 17, end_line: 31, end_column: 63 } },
-        /* terrane-site-row: site 15: /app::socket-session (src/main.trn:33:21-33:46) */
-        { Site { function: 0, file: 0, line: 33, column: 21, end_line: 33, end_column: 46 } },
-        /* terrane-site-row: site 16: /app::socket-session (src/main.trn:34:27-34:39) */
-        { Site { function: 0, file: 0, line: 34, column: 27, end_line: 34, end_column: 39 } },
-        /* terrane-site-row: site 17: /app::socket-session (src/main.trn:35:32-35:59) */
-        { Site { function: 0, file: 0, line: 35, column: 32, end_line: 35, end_column: 59 } },
-        /* terrane-site-row: site 18: /app::socket-session (src/main.trn:35:18-35:60) */
-        { Site { function: 0, file: 0, line: 35, column: 18, end_line: 35, end_column: 60 } },
-        /* terrane-site-row: site 19: /app::socket-session (src/main.trn:35:17-35:61) */
-        { Site { function: 0, file: 0, line: 35, column: 17, end_line: 35, end_column: 61 } },
-        /* terrane-site-row: site 20: /app::socket-session (src/main.trn:37:21-37:46) */
-        { Site { function: 0, file: 0, line: 37, column: 21, end_line: 37, end_column: 46 } },
-        /* terrane-site-row: site 21: /app::socket-session (src/main.trn:38:27-38:39) */
-        { Site { function: 0, file: 0, line: 38, column: 27, end_line: 38, end_column: 39 } },
-        /* terrane-site-row: site 22: /app::websocket-route (src/main.trn:53:12-53:39) */
-        { Site { function: 1, file: 0, line: 53, column: 12, end_line: 53, end_column: 39 } },
-        /* terrane-site-row: site 23: /app::websocket-route (src/main.trn:54:31-54:49) */
-        { Site { function: 1, file: 0, line: 54, column: 31, end_line: 54, end_column: 49 } },
-        /* terrane-site-row: site 24: /app::websocket-route (src/main.trn:54:10-54:50) */
-        { Site { function: 1, file: 0, line: 54, column: 10, end_line: 54, end_column: 50 } },
-        /* terrane-site-row: site 25: /app::run-server (src/main.trn:57:12-57:24) */
-        { Site { function: 2, file: 0, line: 57, column: 12, end_line: 57, end_column: 24 } },
-        /* terrane-site-row: site 26: /app::run-server (src/main.trn:58:38-58:49) */
-        { Site { function: 2, file: 0, line: 58, column: 38, end_line: 58, end_column: 49 } },
-        /* terrane-site-row: site 27: /app::run-server (src/main.trn:58:12-58:50) */
-        { Site { function: 2, file: 0, line: 58, column: 12, end_line: 58, end_column: 50 } },
-        /* terrane-site-row: site 28: /app::run-server (src/main.trn:60:20-60:49) */
-        { Site { function: 2, file: 0, line: 60, column: 20, end_line: 60, end_column: 49 } },
-        /* terrane-site-row: site 29: /app::run-server (src/main.trn:61:12-61:33) */
-        { Site { function: 2, file: 0, line: 61, column: 12, end_line: 61, end_column: 33 } },
-        /* terrane-site-row: site 30: /app::run-server (src/main.trn:62:10-62:41) */
-        { Site { function: 2, file: 0, line: 62, column: 10, end_line: 62, end_column: 41 } },
-        /* terrane-site-row: site 31: /app::run-server (src/main.trn:62:9-62:42) */
-        { Site { function: 2, file: 0, line: 62, column: 9, end_line: 62, end_column: 42 } },
-        /* terrane-site-row: site 32: /app::main (src/main.trn:67:9-67:20) */
-        { Site { function: 3, file: 0, line: 67, column: 9, end_line: 67, end_column: 20 } },
-        /* terrane-site-row: site 33: /core/networking::into-native (core/networking.trn:126:13-126:76) */
+    pub static SITES: [Site; 51] = [
+        /* terrane-site-row: site 0: /app::socket-session (src/main.trn:17:36-17:48) */
+        { Site { function: 0, file: 0, line: 17, column: 36, end_line: 17, end_column: 48 } },
+        /* terrane-site-row: site 1: /app::socket-session (src/main.trn:19:23-19:44) */
+        { Site { function: 0, file: 0, line: 19, column: 23, end_line: 19, end_column: 44 } },
+        /* terrane-site-row: site 2: /app::socket-session (src/main.trn:21:25-21:50) */
+        { Site { function: 0, file: 0, line: 21, column: 25, end_line: 21, end_column: 50 } },
+        /* terrane-site-row: site 3: /app::socket-session (src/main.trn:22:26-22:45) */
+        { Site { function: 0, file: 0, line: 22, column: 26, end_line: 22, end_column: 45 } },
+        /* terrane-site-row: site 4: /app::socket-session (src/main.trn:25:34-25:54) */
+        { Site { function: 0, file: 0, line: 25, column: 34, end_line: 25, end_column: 54 } },
+        /* terrane-site-row: site 5: /app::socket-session (src/main.trn:25:20-25:55) */
+        { Site { function: 0, file: 0, line: 25, column: 20, end_line: 25, end_column: 55 } },
+        /* terrane-site-row: site 6: /app::socket-session (src/main.trn:25:19-25:56) */
+        { Site { function: 0, file: 0, line: 25, column: 19, end_line: 25, end_column: 56 } },
+        /* terrane-site-row: site 7: /app::socket-session (src/main.trn:28:32-28:52) */
+        { Site { function: 0, file: 0, line: 28, column: 32, end_line: 28, end_column: 52 } },
+        /* terrane-site-row: site 8: /app::socket-session (src/main.trn:28:18-28:53) */
+        { Site { function: 0, file: 0, line: 28, column: 18, end_line: 28, end_column: 53 } },
+        /* terrane-site-row: site 9: /app::socket-session (src/main.trn:28:17-28:54) */
+        { Site { function: 0, file: 0, line: 28, column: 17, end_line: 28, end_column: 54 } },
+        /* terrane-site-row: site 10: /app::socket-session (src/main.trn:30:21-30:46) */
+        { Site { function: 0, file: 0, line: 30, column: 21, end_line: 30, end_column: 46 } },
+        /* terrane-site-row: site 11: /app::socket-session (src/main.trn:31:29-31:41) */
+        { Site { function: 0, file: 0, line: 31, column: 29, end_line: 31, end_column: 41 } },
+        /* terrane-site-row: site 12: /app::socket-session (src/main.trn:32:32-32:61) */
+        { Site { function: 0, file: 0, line: 32, column: 32, end_line: 32, end_column: 61 } },
+        /* terrane-site-row: site 13: /app::socket-session (src/main.trn:32:18-32:62) */
+        { Site { function: 0, file: 0, line: 32, column: 18, end_line: 32, end_column: 62 } },
+        /* terrane-site-row: site 14: /app::socket-session (src/main.trn:32:17-32:63) */
+        { Site { function: 0, file: 0, line: 32, column: 17, end_line: 32, end_column: 63 } },
+        /* terrane-site-row: site 15: /app::socket-session (src/main.trn:34:21-34:46) */
+        { Site { function: 0, file: 0, line: 34, column: 21, end_line: 34, end_column: 46 } },
+        /* terrane-site-row: site 16: /app::socket-session (src/main.trn:35:27-35:39) */
+        { Site { function: 0, file: 0, line: 35, column: 27, end_line: 35, end_column: 39 } },
+        /* terrane-site-row: site 17: /app::socket-session (src/main.trn:36:32-36:59) */
+        { Site { function: 0, file: 0, line: 36, column: 32, end_line: 36, end_column: 59 } },
+        /* terrane-site-row: site 18: /app::socket-session (src/main.trn:36:18-36:60) */
+        { Site { function: 0, file: 0, line: 36, column: 18, end_line: 36, end_column: 60 } },
+        /* terrane-site-row: site 19: /app::socket-session (src/main.trn:36:17-36:61) */
+        { Site { function: 0, file: 0, line: 36, column: 17, end_line: 36, end_column: 61 } },
+        /* terrane-site-row: site 20: /app::socket-session (src/main.trn:38:21-38:46) */
+        { Site { function: 0, file: 0, line: 38, column: 21, end_line: 38, end_column: 46 } },
+        /* terrane-site-row: site 21: /app::socket-session (src/main.trn:39:27-39:39) */
+        { Site { function: 0, file: 0, line: 39, column: 27, end_line: 39, end_column: 39 } },
+        /* terrane-site-row: site 22: /app::websocket-route (src/main.trn:52:12-52:39) */
+        { Site { function: 1, file: 0, line: 52, column: 12, end_line: 52, end_column: 39 } },
+        /* terrane-site-row: site 23: /app::websocket-route (src/main.trn:53:31-53:49) */
+        { Site { function: 1, file: 0, line: 53, column: 31, end_line: 53, end_column: 49 } },
+        /* terrane-site-row: site 24: /app::websocket-route (src/main.trn:53:10-53:50) */
+        { Site { function: 1, file: 0, line: 53, column: 10, end_line: 53, end_column: 50 } },
+        /* terrane-site-row: site 25: /app::run-server (src/main.trn:56:12-56:24) */
+        { Site { function: 2, file: 0, line: 56, column: 12, end_line: 56, end_column: 24 } },
+        /* terrane-site-row: site 26: /app::run-server (src/main.trn:57:38-57:49) */
+        { Site { function: 2, file: 0, line: 57, column: 38, end_line: 57, end_column: 49 } },
+        /* terrane-site-row: site 27: /app::run-server (src/main.trn:57:12-57:50) */
+        { Site { function: 2, file: 0, line: 57, column: 12, end_line: 57, end_column: 50 } },
+        /* terrane-site-row: site 28: /app::run-server (src/main.trn:59:10-59:41) */
+        { Site { function: 2, file: 0, line: 59, column: 10, end_line: 59, end_column: 41 } },
+        /* terrane-site-row: site 29: /app::run-server (src/main.trn:59:9-59:42) */
+        { Site { function: 2, file: 0, line: 59, column: 9, end_line: 59, end_column: 42 } },
+        /* terrane-site-row: site 30: /app::main (src/main.trn:62:20-62:45) */
+        { Site { function: 3, file: 0, line: 62, column: 20, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 31: /app::main (src/main.trn:64:12-64:33) */
+        { Site { function: 3, file: 0, line: 64, column: 12, end_line: 64, end_column: 33 } },
+        /* terrane-site-row: site 32: /app::main (src/main.trn:67:10-67:29) */
+        { Site { function: 3, file: 0, line: 67, column: 10, end_line: 67, end_column: 29 } },
+        /* terrane-site-row: site 33: /app::main (src/main.trn:67:9-67:30) */
+        { Site { function: 3, file: 0, line: 67, column: 9, end_line: 67, end_column: 30 } },
+        /* terrane-site-row: site 34: /core/networking::into-native (core/networking.trn:126:13-126:76) */
         { Site { function: 4, file: 1, line: 126, column: 13, end_line: 126, end_column: 76 } },
-        /* terrane-site-row: site 34: /core/networking::into-native (core/networking.trn:236:13-236:76) */
+        /* terrane-site-row: site 35: /core/networking::into-native (core/networking.trn:236:13-236:76) */
         { Site { function: 4, file: 1, line: 236, column: 13, end_line: 236, end_column: 76 } },
-        /* terrane-site-row: site 35: /core/networking::listen-tcp (core/networking.trn:285:9-285:65) */
+        /* terrane-site-row: site 36: /core/networking::listen-tcp (core/networking.trn:285:9-285:65) */
         { Site { function: 5, file: 1, line: 285, column: 9, end_line: 285, end_column: 65 } },
-        /* terrane-site-row: site 36: /core/networking::lookup-dns (core/networking.trn:404:28-404:49) */
+        /* terrane-site-row: site 37: /core/networking::lookup-dns (core/networking.trn:404:28-404:49) */
         { Site { function: 6, file: 1, line: 404, column: 28, end_line: 404, end_column: 49 } },
-        /* terrane-site-row: site 37: /core/streams::read (core/streams.trn:381:23-381:50) */
+        /* terrane-site-row: site 38: /core/streams::read (core/streams.trn:381:23-381:50) */
         { Site { function: 7, file: 2, line: 381, column: 23, end_line: 381, end_column: 50 } },
-        /* terrane-site-row: site 38: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
+        /* terrane-site-row: site 39: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
         { Site { function: 8, file: 2, line: 403, column: 23, end_line: 403, end_column: 46 } },
-        /* terrane-site-row: site 39: /core/streams::read-all (core/streams.trn:422:23-422:46) */
+        /* terrane-site-row: site 40: /core/streams::read-all (core/streams.trn:422:23-422:46) */
         { Site { function: 9, file: 2, line: 422, column: 23, end_line: 422, end_column: 46 } },
-        /* terrane-site-row: site 40: /core/streams::read-async (core/streams.trn:427:23-427:50) */
+        /* terrane-site-row: site 41: /core/streams::read-async (core/streams.trn:427:23-427:50) */
         { Site { function: 10, file: 2, line: 427, column: 23, end_line: 427, end_column: 50 } },
-        /* terrane-site-row: site 41: /core/time::multiply (core/time.trn:62:13-62:45) */
+        /* terrane-site-row: site 42: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 11, file: 3, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 42: /core/time::seconds (core/time.trn:38:13-38:45) */
+        /* terrane-site-row: site 43: /core/time::seconds (core/time.trn:38:13-38:45) */
         { Site { function: 12, file: 3, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 43: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        /* terrane-site-row: site 44: /core/time::milliseconds (core/time.trn:43:13-43:45) */
         { Site { function: 13, file: 3, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 44: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        /* terrane-site-row: site 45: /core/time::microseconds (core/time.trn:48:13-48:45) */
         { Site { function: 14, file: 3, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 45: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        /* terrane-site-row: site 46: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
         { Site { function: 15, file: 3, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 46: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        /* terrane-site-row: site 47: /core/time::duration-until (core/time.trn:76:13-76:45) */
         { Site { function: 16, file: 3, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 47: /core/time::at (core/time.trn:105:13-105:45) */
+        /* terrane-site-row: site 48: /core/time::at (core/time.trn:105:13-105:45) */
         { Site { function: 17, file: 3, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 48: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        /* terrane-site-row: site 49: /core/time::sleep-until (core/time.trn:161:13-161:45) */
         { Site { function: 18, file: 3, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 49: /core/time::interval (core/time.trn:172:13-172:45) */
+        /* terrane-site-row: site 50: /core/time::interval (core/time.trn:172:13-172:45) */
         { Site { function: 19, file: 3, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
@@ -2425,9 +2427,10 @@ extern crate __terrane_runtime_tokio as tokio;
 // Namespace: deps/axum/extract
 // Source: <terrane>/projected/deps/terrane-websocket-peer-witness.trn
 // Namespace: deps/terrane-websocket-peer-witness
-pub async fn drive_peer() -> Result<(), crate::TerraneForeignError> {
+pub async fn drive_peer(address: String) -> Result<(), crate::TerraneForeignError> {
+    let address = address;
     match crate::__terrane_dependency_await_unwind(
-            terrane_websocket_peer_witness::drive_peer(),
+            terrane_websocket_peer_witness::drive_peer(address),
         )
         .await
     {
@@ -2758,7 +2761,7 @@ impl TcpStream {
                     TerraneErrorKind::Custom(DescriptorId(3)),
                     message,
                     rendered,
-                    33 /* terrane-site: core/networking.trn:126:13-126:76 */,
+                    34 /* terrane-site: core/networking.trn:126:13-126:76 */,
                 )
             });
         }
@@ -3218,7 +3221,7 @@ impl TcpListener {
                     TerraneErrorKind::Custom(DescriptorId(3)),
                     message,
                     rendered,
-                    34 /* terrane-site: core/networking.trn:236:13-236:76 */,
+                    35 /* terrane-site: core/networking.trn:236:13-236:76 */,
                 )
             });
         }
@@ -3393,7 +3396,7 @@ pub async fn listen_tcp(
                 TerraneErrorKind::Custom(DescriptorId(3)),
                 message,
                 rendered,
-                35 /* terrane-site: core/networking.trn:285:9-285:65 */,
+                36 /* terrane-site: core/networking.trn:285:9-285:65 */,
             )
         });
     }
@@ -3766,7 +3769,7 @@ pub async fn lookup_dns(
                             let __terrane_receiver = &raw_candidates;
                             let __terrane_index = __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                36 /* terrane-site: core/networking.trn:404:28-404:49 */,
+                                37 /* terrane-site: core/networking.trn:404:28-404:49 */,
                             );
                             __terrane_receiver
                                 .get(__terrane_index)
@@ -3775,7 +3778,7 @@ pub async fn lookup_dns(
                                     __terrane_index,
                                 ))
                         },
-                        36 /* terrane-site: core/networking.trn:404:28-404:49 */,
+                        37 /* terrane-site: core/networking.trn:404:28-404:49 */,
                     ),
                 );
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -3790,6 +3793,15 @@ pub async fn lookup_dns(
         candidates,
     );
 }
+// Source: core/networking_native.trn
+// Namespace: core/networking/native
+pub type NativeTcpListener = __terrane_runtime_tokio::net::TcpListener;
+pub type NativeTcpStream = __terrane_runtime_tokio::net::TcpStream;
+pub type NativeSocketAddress = std::net::SocketAddr;
+pub type HostListenerTransfer = std::io::Result<
+    __terrane_runtime_tokio::net::TcpListener,
+>;
+pub type HostStreamTransfer = std::io::Result<__terrane_runtime_tokio::net::TcpStream>;
 // Source: core/io.trn
 // Namespace: core/io
 #[derive(Clone)]
@@ -3919,15 +3931,6 @@ pub fn operation_deadline(
     }
     return terrane_int_support::Int::from(-1_i128);
 }
-// Source: core/networking_native.trn
-// Namespace: core/networking/native
-pub type NativeTcpListener = __terrane_runtime_tokio::net::TcpListener;
-pub type NativeTcpStream = __terrane_runtime_tokio::net::TcpStream;
-pub type NativeSocketAddress = std::net::SocketAddr;
-pub type HostListenerTransfer = std::io::Result<
-    __terrane_runtime_tokio::net::TcpListener,
->;
-pub type HostStreamTransfer = std::io::Result<__terrane_runtime_tokio::net::TcpStream>;
 // Source: core/streams.trn
 // Namespace: core/streams
 #[derive(Clone)]
@@ -5101,7 +5104,7 @@ impl TextReader {
         );
         text = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            37 /* terrane-site: core/streams.trn:381:23-381:50 */,
+            38 /* terrane-site: core/streams.trn:381:23-381:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -5167,7 +5170,7 @@ impl TextReader {
         }
         text = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            38 /* terrane-site: core/streams.trn:403:23-403:46 */,
+            39 /* terrane-site: core/streams.trn:403:23-403:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -5229,7 +5232,7 @@ impl TextReader {
         }
         text = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            39 /* terrane-site: core/streams.trn:422:23-422:46 */,
+            40 /* terrane-site: core/streams.trn:422:23-422:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -5258,7 +5261,7 @@ impl TextReader {
             .await;
         text = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            40 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            41 /* terrane-site: core/streams.trn:427:23-427:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -5589,7 +5592,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    41 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    42 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -5618,7 +5621,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    42 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    43 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -5646,7 +5649,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    43 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    44 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -5675,7 +5678,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    44 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    45 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -5704,7 +5707,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    45 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    46 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -5763,7 +5766,7 @@ impl MonotonicInstant {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    46 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    47 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -5858,7 +5861,7 @@ impl Deadline {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    47 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    48 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -6026,7 +6029,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    48 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    49 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -6062,7 +6065,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(4)),
                     message,
                     rendered,
-                    49 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    50 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

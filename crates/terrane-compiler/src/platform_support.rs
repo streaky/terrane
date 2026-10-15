@@ -63,6 +63,7 @@ pub fn write_platform_support(directory: &Path) -> io::Result<()> {
     )?;
     Ok(())
 }
+
 fn write_if_changed(path: &Path, content: &[u8]) -> io::Result<()> {
     if fs::read(path).is_ok_and(|existing| existing == content) {
         return Ok(());
