@@ -4608,7 +4608,7 @@ mod tests {
             "namespace example/lib\nconstant answer = 42\n",
         )
         .unwrap();
-        let manifest = "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n";
+        let manifest = "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.example]\nlib.path = \"../library\"\n";
         let main = "namespace app\nfrom /example/lib import answer\nfunction main;\n  answer\n";
         let extra = "namespace app\nconstant unsaved = 1\n";
         let mut engine = ToolingEngine::default();

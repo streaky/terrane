@@ -4,5 +4,5 @@ prelude = false
 [namespaces]
 app = "src"
 
-[terrane-dependencies.library]
+[terrane-dependencies.example.library]
 path = "library"

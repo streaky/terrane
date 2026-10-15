@@ -8,6 +8,27 @@ use sha2::{Digest, Sha256};
 
 pub const MANIFEST_FILE_NAME: &str = "package.toml";
 pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
+/// Splits a canonical Terrane dependency identity into its borrowed owner and package names.
+///
+/// Canonical dependency identities have exactly two non-empty lowercase kebab-case segments.
+#[must_use]
+pub fn dependency_identity_parts(identity: &str) -> Option<(&str, &str)> {
+    let (owner, package) = identity.split_once('/')?;
+    let valid = |part: &str| {
+        !part.is_empty()
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            && !part.starts_with('-')
+            && !part.ends_with('-')
+            && !part.contains("--")
+    };
+    (valid(owner) && valid(package) && !package.contains('/')).then_some((owner, package))
+}
+
+fn normalize_dependency_key(key: &str) -> Option<String> {
+    dependency_identity_parts(key).map(|_| key.to_owned())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SourceRole {
@@ -566,10 +587,16 @@ fn compose_dependencies(
             )]);
         }
         if loaded.contains(&dependency_key) {
+            let declared = identities
+                .iter()
+                .find_map(|(identity, path)| (path == &dependency_key).then_some(identity.as_str()))
+                .expect("loaded dependency has a recorded identity");
+            verify_dependency_identity(manifest_path, &dependency.name, declared)?;
             continue;
         }
         let dependency_manifest = dependency_root.join(MANIFEST_FILE_NAME);
         let mut library = load_package_unit(&dependency_manifest)?;
+        verify_dependency_identity(manifest_path, &dependency.name, &library.identity)?;
         if library.artifact != ArtifactKind::Library {
             return Err(vec![dependency_error(
                 manifest_path,
@@ -611,20 +638,46 @@ fn compose_dependencies(
     Ok(())
 }
 
+fn verify_dependency_identity(
+    manifest_path: &Path,
+    expected: &str,
+    declared: &str,
+) -> Result<(), Vec<PackageLoadError>> {
+    if expected == declared {
+        return Ok(());
+    }
+    Err(vec![dependency_error(
+        manifest_path,
+        expected,
+        format!(
+            "resolved package identity `{declared}` does not match dependency identity `{expected}`"
+        ),
+    )])
+}
+
 fn dependency_error(
     manifest_path: &Path,
     dependency: &str,
     message: impl Into<String>,
 ) -> PackageLoadError {
     let text = fs::read_to_string(manifest_path).unwrap_or_default();
-    let headers = [
+    let mut headers = vec![
         format!("[terrane-dependencies.{dependency}]"),
         format!("[terrane-dependencies.{dependency:?}]"),
     ];
-    let span = headers.iter().find_map(|header| {
-        text.find(header)
-            .map(|start| Span::new(0, start, start + header.len()))
-    });
+    if let Some((owner, package)) = dependency_identity_parts(dependency) {
+        headers.push(format!("[terrane-dependencies.{owner}.{package}]"));
+    }
+    let span = headers
+        .iter()
+        .find_map(|header| {
+            text.find(header)
+                .map(|start| Span::new(0, start, start + header.len()))
+        })
+        .or_else(|| {
+            text.find("[terrane-dependencies]")
+                .map(|start| Span::new(0, start, start + "[terrane-dependencies]".len()))
+        });
     PackageLoadError::new(
         manifest_path.to_path_buf(),
         text,
@@ -1348,15 +1401,68 @@ fn parse_terrane_dependencies(
         ));
         return Vec::new();
     };
-    dependencies
-        .iter()
+    let mut entries = Vec::<(String, &toml::Value)>::new();
+    for (key, value) in dependencies {
+        if let Some(identity) = normalize_dependency_key(key) {
+            entries.push((identity, value));
+            continue;
+        }
+        let Some(owner_table) = value
+            .as_table()
+            .filter(|table| table.values().all(toml::Value::is_table))
+        else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("Terrane dependency `{key}` must use a canonical owner/package identity; ownerless dependencies are reserved for core and unsupported"),
+                Some(key),
+            ));
+            continue;
+        };
+        for (package, declaration) in owner_table {
+            let identity = format!("{key}/{package}");
+            if dependency_identity_parts(&identity).is_none() {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!(
+                        "invalid Terrane dependency identity `{identity}`; expected owner/package"
+                    ),
+                    Some(key),
+                ));
+                continue;
+            }
+            entries.push((identity, declaration));
+        }
+    }
+    entries.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+    let mut duplicate = false;
+    for pair in entries.windows(2) {
+        if pair[0].0 == pair[1].0 {
+            duplicate = true;
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!(
+                    "duplicate Terrane dependency identity `{}` after normalization",
+                    pair[1].0
+                ),
+                Some(&pair[1].0),
+            ));
+        }
+    }
+    if duplicate {
+        return Vec::new();
+    }
+    entries
+        .into_iter()
         .filter_map(|(name, value)| {
             let Some(fields) = value.as_table() else {
                 errors.push(manifest_error(
                     manifest_path,
                     text,
                     format!("Terrane dependency `{name}` must be a table"),
-                    Some(name),
+                    Some(&name),
                 ));
                 return None;
             };
@@ -1383,7 +1489,7 @@ fn parse_terrane_dependencies(
                     manifest_path,
                     text,
                     format!("Terrane dependency `{name}` fields must be strings"),
-                    Some(name),
+                    Some(&name),
                 ));
                 return None;
             }
@@ -1397,7 +1503,7 @@ fn parse_terrane_dependencies(
                             manifest_path,
                             text,
                             format!("Terrane dependency `{name}` path must be relative"),
-                            Some(name),
+                            Some(&name),
                         ));
                         return None;
                     };
@@ -1418,7 +1524,7 @@ fn parse_terrane_dependencies(
                             manifest_path,
                             text,
                             format!("Git Terrane dependency `{name}` requires a non-empty `tag`"),
-                            Some(name),
+                            Some(&name),
                         ));
                         return None;
                     };
@@ -1427,7 +1533,7 @@ fn parse_terrane_dependencies(
                             manifest_path,
                             text,
                             format!("Git Terrane dependency `{name}` requires `hash`"),
-                            Some(name),
+                            Some(&name),
                         ));
                         return None;
                     }
@@ -1443,7 +1549,7 @@ fn parse_terrane_dependencies(
                         format!(
                             "Terrane dependency `{name}` must declare exactly one of `path` or `git`"
                         ),
-                        Some(name),
+                        Some(&name),
                     ));
                     return None;
                 }
@@ -1464,7 +1570,7 @@ fn parse_terrane_dependencies(
                 None => None,
             };
             Some(TerraneDependency {
-                name: name.clone(),
+                name,
                 source,
                 hash,
             })

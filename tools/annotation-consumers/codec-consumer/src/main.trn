@@ -1,6 +1,6 @@
 namespace annotation-codec-consumer
 
-from /annotation-consumer-protocol import get, at, text, truth, scalar, annotation, quote, json-quote, selected, option, flag, read-request, emit-source, emit-error, error-origin, consumer-error
+from /terrane/annotation-consumer-protocol import get, at, text, truth, scalar, annotation, quote, json-quote, selected, option, flag, read-request, emit-source, emit-error, error-origin, consumer-error
 from /core/collections import list, range
 from /core/documents import document-value, document-map-entries, make-document-none, make-document-bool, make-document-integer
 from /core/errors import coercion-error, integer-conversion-overflow

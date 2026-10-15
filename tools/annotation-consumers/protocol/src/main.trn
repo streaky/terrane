@@ -1,4 +1,4 @@
-namespace annotation-consumer-protocol
+namespace terrane/annotation-consumer-protocol
 
 from /core/collections import list
 from /core/documents import document-value, document-map-entries, make-document-none, make-document-string, make-document-integer, make-document-decimal, make-document-list, make-document-map

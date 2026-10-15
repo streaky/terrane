@@ -43,8 +43,8 @@ pub use package::{
     ArtifactKind, AuthoredRustModule, BuildToolchain, CapabilityProfile, ExecutorProfile,
     IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError, PackagePurpose,
     PanicProfile, ReflectionProfile, RustDependency, SourceRole, SourceUnit, TerraneDependency,
-    TerraneDependencySource, git_library_metadata, git_source_tree_hash, source_tree_hash,
-    with_tokio_runtime,
+    TerraneDependencySource, dependency_identity_parts, git_library_metadata, git_source_tree_hash,
+    source_tree_hash, with_tokio_runtime,
 };
 pub use semantics::{
     AnnotationTarget, BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, CompileTimeValue,

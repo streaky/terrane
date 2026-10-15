@@ -1974,24 +1974,15 @@ struct PackageSourceArguments {
     path: Option<PathBuf>,
     git: Option<String>,
     tag: Option<String>,
-    name: Option<String>,
 }
 
-fn parse_package_source(
-    arguments: &[OsString],
-    allow_name: bool,
-) -> Result<PackageSourceArguments, CliFailure> {
+fn parse_package_source(arguments: &[OsString]) -> Result<PackageSourceArguments, CliFailure> {
     let mut parsed = PackageSourceArguments::default();
     let mut index = 2;
     while index < arguments.len() {
         let argument = &arguments[index];
         let option = argument.to_str();
-        if matches!(option, Some("--git" | "--tag" | "--name")) {
-            if option == Some("--name") && !allow_name {
-                return Err(CliFailure::usage_with(
-                    "`--name` is available only for `package install`",
-                ));
-            }
+        if matches!(option, Some("--git" | "--tag")) {
             let value = arguments
                 .get(index + 1)
                 .and_then(|value| value.to_str())
@@ -2000,7 +1991,6 @@ fn parse_package_source(
             let destination = match option {
                 Some("--git") => &mut parsed.git,
                 Some("--tag") => &mut parsed.tag,
-                Some("--name") => &mut parsed.name,
                 _ => unreachable!("matched package option"),
             };
             if destination.replace(value.to_owned()).is_some() {
@@ -2045,8 +2035,24 @@ fn local_library_identity(path: &Path) -> Result<String, CliFailure> {
     Ok(package.identity)
 }
 
+fn has_terrane_dependency(
+    root: &toml_edit::Table,
+    identity: &str,
+    (owner, package): (&str, &str),
+) -> bool {
+    root.contains_key(identity)
+        || root.get(owner).is_some_and(|owner_item| {
+            owner_item
+                .as_table()
+                .is_some_and(|owner_table| owner_table.contains_key(package))
+                || owner_item
+                    .as_inline_table()
+                    .is_some_and(|owner_table| owner_table.contains_key(package))
+        })
+}
+
 fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
-    let source = parse_package_source(arguments, true)?;
+    let source = parse_package_source(arguments)?;
     let manifest_path = std::env::current_dir()
         .map_err(|error| CliFailure::package(format!("cannot read current directory: {error}")))?
         .join(terrane_compiler::MANIFEST_FILE_NAME);
@@ -2078,7 +2084,12 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             vec![("git", url), ("tag", tag), ("hash", hash)],
         )
     };
-    let name = source.name.unwrap_or(identity);
+    let (owner, package) =
+        terrane_compiler::dependency_identity_parts(&identity).ok_or_else(|| {
+            CliFailure::package(format!(
+                "library package identity `{identity}` must be canonical owner/name"
+            ))
+        })?;
     let manifest_text = fs::read_to_string(&manifest_path)
         .map_err(|error| CliFailure::package(format!("cannot read package.toml: {error}")))?;
     let mut document = manifest_text
@@ -2092,22 +2103,47 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let dependencies = document["terrane-dependencies"]
         .as_table_mut()
         .ok_or_else(|| CliFailure::package("`terrane-dependencies` must be a table"))?;
-    if dependencies.contains_key(&name) {
+    if has_terrane_dependency(dependencies, &identity, (owner, package)) {
         return Err(CliFailure::package(format!(
-            "Terrane dependency `{name}` is already installed"
+            "Terrane dependency `{identity}` is already installed"
+        )));
+    }
+    if dependencies.get(owner).is_some_and(|owner_item| {
+        owner_item.as_table().is_none() && owner_item.as_inline_table().is_none()
+    }) {
+        return Err(CliFailure::package(format!(
+            "Terrane dependency owner `{owner}` has a conflicting `{package}` entry"
         )));
     }
     let mut dependency = toml_edit::Table::new();
     for (field, value) in source_fields {
         dependency.insert(field, toml_edit::value(value));
     }
-    dependencies.insert(&name, toml_edit::Item::Table(dependency));
+    if let Some(owner_table) = dependencies
+        .get_mut(owner)
+        .and_then(toml_edit::Item::as_inline_table_mut)
+    {
+        owner_table.insert(
+            package,
+            toml_edit::Value::InlineTable(dependency.into_inline_table()),
+        );
+    } else {
+        if !dependencies.contains_key(owner) {
+            let mut owner_table = toml_edit::Table::new();
+            owner_table.set_implicit(true);
+            dependencies.insert(owner, toml_edit::Item::Table(owner_table));
+        }
+        dependencies[owner]
+            .as_table_mut()
+            .expect("validated owner table")
+            .insert(package, toml_edit::Item::Table(dependency));
+    }
     fs::write(&manifest_path, document.to_string())
         .map_err(|error| CliFailure::package(format!("cannot update package.toml: {error}")))?;
     if let Some(hash) = hash {
-        println!("installed {name} ({hash})");
+        println!("installed {identity} ({hash})");
     } else {
-        println!("installed {name}");
+        println!("installed {identity}");
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -2115,7 +2151,7 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     match arguments.get(1).and_then(|argument| argument.to_str()) {
         Some("hash") => {
-            let source = parse_package_source(arguments, false)?;
+            let source = parse_package_source(arguments)?;
             let hash = if let Some(path) = source.path {
                 terrane_compiler::source_tree_hash(&path).map_err(CliFailure::package)?
             } else {
@@ -2149,14 +2185,16 @@ fn usage() -> String {
      [--tier <tier>] [--jobs <count>] [--timeout <duration>] [--argument <value>] [--fail-fast] \
      [--show-output] [--report <json-file>] <package-or-manifest>\n\
      terrane declaration-interface <package-or-source> --output <interface.json>\n\
+     terrane package install <relative-directory>\n\
+     terrane package install --git <url> --tag <tag>\n\
      terrane <file-or-manifest> [program arguments]\n\
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\
      terrane fmt [--check] <file-or-manifest>\n\
+     terrane package install <relative-directory>\n\
+     terrane package install --git <url> --tag <tag>\n\
      terrane package hash <directory>\n\
      terrane package hash --git <url> --tag <tag>\n\
-     terrane package install <relative-directory> [--name <dependency-name>]\n\
-     terrane package install --git <url> --tag <tag> [--name <dependency-name>]\n\
      terrane projection-census <package> <version> --target <triple> --root <directory> \
      [--alias <name>] [--features <comma-list>] [--no-default-features] \
      [--target-condition <cargo-cfg>]\n\

@@ -3,5 +3,5 @@ package = "annotation-codec-consumer"
 [namespaces]
 annotation-codec-consumer = "src"
 
-[terrane-dependencies]
-annotation-consumer-protocol = { path = "../protocol" }
+[terrane-dependencies.terrane.annotation-consumer-protocol]
+path = "../protocol"
