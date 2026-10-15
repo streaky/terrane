@@ -1508,3 +1508,239 @@ fn dependency_cycles_report_the_complete_identity_chain() {
             .contains("example/app -> example/b -> example/c -> example/app")
     );
 }
+#[test]
+fn archive_dependency_requires_hash_and_rejects_tag_or_ambiguous_sources() {
+    let directory = TempPackage::new();
+    directory.write(
+        "package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\narchive = \"http://127.0.0.1:1/lib.zip\"\n",
+    );
+    directory.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+    assert!(Package::load(&directory.0).is_err());
+
+    for declaration in [
+        "archive = \"http://127.0.0.1:1/lib.zip\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"\ntag = \"v1\"",
+        "archive = \"http://127.0.0.1:1/lib.zip\"\npath = \"../library\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"",
+    ] {
+        directory.write(
+            "package.toml",
+            &format!(
+                "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\n{declaration}\n"
+            ),
+        );
+        assert!(
+            Package::load(&directory.0).is_err(),
+            "accepted {declaration}"
+        );
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Exercises ZIP/tar cache fetch, mismatches, corruption, and offline reuse in one isolated server."
+)]
+#[test]
+fn zip_and_tar_gz_archive_dependencies_verify_hash_identity_and_cache_offline() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    let workspace = TempPackage::new();
+    let library_root = workspace.0.join("library");
+    fs::create_dir_all(library_root.join("src")).unwrap();
+    fs::write(
+        library_root.join("package.toml"),
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        library_root.join("src/library.trn"),
+        "namespace acme/lib\nconstant answer = 42\n",
+    )
+    .unwrap();
+    let expected_hash = source_tree_hash(&library_root).unwrap();
+
+    let zip = {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        writer.start_file("release/package.toml", options).unwrap();
+        writer
+            .write_all(&fs::read(library_root.join("package.toml")).unwrap())
+            .unwrap();
+        writer
+            .start_file("release/src/library.trn", options)
+            .unwrap();
+        writer
+            .write_all(&fs::read(library_root.join("src/library.trn")).unwrap())
+            .unwrap();
+        writer.finish().unwrap().into_inner()
+    };
+    let tar_gz = {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        {
+            let mut builder = tar::Builder::new(&mut encoder);
+            builder
+                .append_path_with_name(library_root.join("package.toml"), "package.toml")
+                .unwrap();
+            builder
+                .append_path_with_name(library_root.join("src/library.trn"), "src/library.trn")
+                .unwrap();
+            builder.finish().unwrap();
+        }
+        encoder.finish().unwrap()
+    };
+
+    let requests = Arc::new(AtomicUsize::new(0));
+    let stopped = Arc::new(AtomicBool::new(false));
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let request_count = requests.clone();
+    let stop_server = stopped.clone();
+    let zip_response = zip.clone();
+    let tar_response = tar_gz.clone();
+    let server = std::thread::spawn(move || {
+        listener.set_nonblocking(true).unwrap();
+        while !stop_server.load(Ordering::Relaxed) {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    request_count.fetch_add(1, Ordering::Relaxed);
+                    let mut request = [0_u8; 2048];
+                    let count = stream.read(&mut request).unwrap();
+                    let request = String::from_utf8_lossy(&request[..count]);
+                    let body = if request.starts_with("GET /lib.zip ") {
+                        &zip_response
+                    } else {
+                        &tar_response
+                    };
+                    write!(
+                        stream,
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    )
+                    .unwrap();
+                    stream.write_all(body).unwrap();
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                Err(error) => panic!("HTTP test server failed: {error}"),
+            }
+        }
+    });
+
+    let base = format!("http://{address}");
+    let archive_hash =
+        terrane_compiler::archive_source_tree_hash(&format!("{base}/lib.tar.gz")).unwrap();
+    assert_eq!(archive_hash, expected_hash);
+    let archive_identity =
+        terrane_compiler::archive_library_metadata(&format!("{base}/lib.zip")).unwrap();
+    assert_eq!(
+        archive_identity,
+        ("acme/lib".to_owned(), expected_hash.clone())
+    );
+
+    let app = workspace.0.join("app");
+    fs::create_dir_all(app.join("src")).unwrap();
+    fs::write(
+        app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+    let app_manifest = |url: &str, identity: &str, hash: &str| {
+        format!(
+            "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.{identity}]\narchive = \"{url}\"\nhash = \"{hash}\"\n"
+        )
+    };
+    let zip_url = format!("{base}/lib.zip");
+    let tar_url = format!("{base}/lib.tar.gz");
+    fs::write(
+        app.join("package.toml"),
+        app_manifest(&zip_url, "acme.lib", &expected_hash),
+    )
+    .unwrap();
+    let composed = Package::load(&app).unwrap();
+    assert_eq!(composed.units.len(), 2);
+    assert!(composed.library_source_ids.iter().any(|id| {
+        composed
+            .units
+            .iter()
+            .any(|unit| unit.source.id() == *id && unit.source.text().contains("answer = 42"))
+    }));
+    let cache = app
+        .join(".trn/packages")
+        .join(expected_hash.trim_start_matches("sha256:"));
+    assert_eq!(source_tree_hash(&cache).unwrap(), expected_hash);
+
+    fs::write(
+        app.join("package.toml"),
+        app_manifest(&zip_url, "acme.other", &expected_hash),
+    )
+    .unwrap();
+    assert!(Package::load(&app).is_err());
+
+    let invalid_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+    fs::write(
+        app.join("package.toml"),
+        app_manifest(&tar_url, "acme.lib", invalid_hash),
+    )
+    .unwrap();
+    assert!(Package::load(&app).is_err());
+    assert!(
+        !app.join(".trn/packages")
+            .join(invalid_hash.trim_start_matches("sha256:"))
+            .exists()
+    );
+    let cache_root = app.join(".trn/packages");
+    assert!(
+        fs::read_dir(&cache_root).unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".0000000000000000000000000000000000000000000000000000000000000000-")),
+        "hash mismatch must clean archive staging"
+    );
+
+    let tar_app = workspace.0.join("tar-app");
+    fs::create_dir_all(tar_app.join("src")).unwrap();
+    fs::write(
+        tar_app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+    fs::write(
+        tar_app.join("package.toml"),
+        app_manifest(&tar_url, "acme.lib", &expected_hash),
+    )
+    .unwrap();
+    assert!(
+        Package::load(&tar_app).is_ok(),
+        "tar.gz resolver cache miss must load"
+    );
+    let tar_cache = tar_app
+        .join(".trn/packages")
+        .join(expected_hash.trim_start_matches("sha256:"));
+    assert_eq!(source_tree_hash(&tar_cache).unwrap(), expected_hash);
+
+    fs::write(tar_cache.join("src/library.trn"), "corrupted\n").unwrap();
+    let requests_before_revalidation = requests.load(Ordering::Relaxed);
+    assert!(
+        Package::load(&tar_app).is_ok(),
+        "corrupt cached archive must be re-fetched"
+    );
+    assert_eq!(source_tree_hash(&tar_cache).unwrap(), expected_hash);
+    assert!(requests.load(Ordering::Relaxed) > requests_before_revalidation);
+
+    stopped.store(true, Ordering::Relaxed);
+    server.join().unwrap();
+    let request_count_after_shutdown = requests.load(Ordering::Relaxed);
+    assert!(request_count_after_shutdown > 0);
+    assert!(
+        Package::load(&tar_app).is_ok(),
+        "verified archive cache must work offline"
+    );
+    assert_eq!(
+        requests.load(Ordering::Relaxed),
+        request_count_after_shutdown
+    );
+}
