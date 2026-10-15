@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{Diagnostic, SourceFile, Span};
 use sha2::{Digest, Sha256};
@@ -742,20 +743,28 @@ fn with_content_addressed_package_cache(
         .expect("validated dependency hash");
     let cache_root = cache_owner.join(".trn/packages");
     let destination = cache_root.join(digest);
-    if destination.is_dir() && source_tree_hash(&destination)? == hash {
-        return Ok(destination);
-    }
-    if destination.exists() {
-        fs::remove_dir_all(&destination)
-            .map_err(|error| format!("cannot remove invalid package cache entry: {error}"))?;
-    }
     fs::create_dir_all(&cache_root)
         .map_err(|error| format!("cannot create package cache: {error}"))?;
-    let temporary = cache_root.join(format!(".{digest}-{}", std::process::id()));
-    if temporary.exists() {
-        fs::remove_dir_all(&temporary)
-            .map_err(|error| format!("cannot clear temporary package cache: {error}"))?;
+    // Keep the lock outside the entry it protects, including invalid-entry replacement.
+    let lock = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(cache_root.join(format!("{digest}.lock")))
+        .map_err(|error| format!("cannot open package cache lock: {error}"))?;
+    lock.lock()
+        .map_err(|error| format!("cannot lock package cache: {error}"))?;
+    if fs::symlink_metadata(&destination)
+        .is_ok_and(|metadata| metadata.is_dir() && !metadata.file_type().is_symlink())
+        && source_tree_hash(&destination)? == hash
+    {
+        return Ok(destination);
     }
+    if fs::symlink_metadata(&destination).is_ok() {
+        remove_package_cache_stage(&destination)?;
+    }
+    let staging = unique_package_cache_stage(&cache_root, digest)?;
+    let temporary = staging.join("source");
     let result = (|| {
         stage(&temporary)?;
         let actual = source_tree_hash(&temporary)?;
@@ -764,19 +773,51 @@ fn with_content_addressed_package_cache(
                 "source hash mismatch: expected `{hash}`, found `{actual}`"
             ));
         }
-        if let Err(error) = fs::rename(&temporary, &destination) {
-            if !destination.is_dir() || source_tree_hash(&destination)? != hash {
-                return Err(format!("cannot publish package cache entry: {error}"));
-            }
-            let _ = fs::remove_dir_all(&temporary);
-        }
+        fs::rename(&temporary, &destination)
+            .map_err(|error| format!("cannot publish package cache entry: {error}"))?;
         Ok(())
     })();
-    if let Err(error) = result {
-        let _ = fs::remove_dir_all(&temporary);
-        return Err(error);
-    }
+    let cleanup = remove_package_cache_stage(&staging);
+    result?;
+    cleanup?;
     Ok(destination)
+}
+
+fn unique_package_cache_stage(cache_root: &Path, digest: &str) -> Result<PathBuf, String> {
+    static NEXT_STAGE: AtomicU64 = AtomicU64::new(0);
+    for _ in 0..16 {
+        let serial = NEXT_STAGE.fetch_add(1, Ordering::Relaxed);
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let temporary =
+            cache_root.join(format!(".{digest}-{}-{serial}-{nonce}", std::process::id()));
+        match fs::create_dir(&temporary) {
+            Ok(()) => return Ok(temporary),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(format!("cannot create temporary package cache: {error}")),
+        }
+    }
+    Err("cannot allocate unique temporary package cache directory".to_owned())
+}
+
+fn remove_package_cache_stage(path: &Path) -> Result<(), String> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(format!("cannot inspect temporary package cache: {error}")),
+    };
+    if metadata.file_type().is_symlink() {
+        fs::remove_file(path)
+            .map_err(|error| format!("cannot remove temporary package cache link: {error}"))
+    } else if metadata.is_dir() {
+        fs::remove_dir_all(path)
+            .map_err(|error| format!("cannot remove temporary package cache: {error}"))
+    } else {
+        fs::remove_file(path)
+            .map_err(|error| format!("cannot remove temporary package cache file: {error}"))
+    }
 }
 
 fn clone_git_tag(url: &str, tag: &str, destination: &Path) -> Result<(), String> {
@@ -1476,6 +1517,15 @@ fn parse_terrane_dependencies(
             ));
             continue;
         };
+        if owner_table.is_empty() {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("Terrane dependency owner `{key}` must contain at least one package"),
+                Some(key),
+            ));
+            continue;
+        }
         for (package, declaration) in owner_table {
             let identity = format!("{key}/{package}");
             if dependency_identity_parts(&identity).is_none() {

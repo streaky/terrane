@@ -1338,6 +1338,90 @@ fn dependency_path_reuse_still_checks_the_requested_identity() {
 }
 
 #[test]
+fn transitive_diamond_rejects_distinct_roots_with_same_identity() {
+    let workspace = TempPackage::new();
+    let library = |name: &str, dependency: &str| {
+        format!(
+            "package = \"{name}\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"{name}\" = \"src\"\n{dependency}"
+        )
+    };
+    workspace.write(
+        "app/package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.left]\npath = \"../left\"\n[terrane-dependencies.acme.right]\npath = \"../right\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+    workspace.write(
+        "left/package.toml",
+        &library(
+            "acme/left",
+            "[terrane-dependencies.acme.lib]\npath = \"../left-lib\"\n",
+        ),
+    );
+    workspace.write(
+        "left/src/lib.trn",
+        "namespace acme/left\nconstant left = 1\n",
+    );
+    workspace.write(
+        "right/package.toml",
+        &library(
+            "acme/right",
+            "[terrane-dependencies.acme.lib]\npath = \"../right-lib\"\n",
+        ),
+    );
+    workspace.write(
+        "right/src/lib.trn",
+        "namespace acme/right\nconstant right = 1\n",
+    );
+    for (root, marker) in [("left-lib", "left"), ("right-lib", "right")] {
+        workspace.write(&format!("{root}/package.toml"), &library("acme/lib", ""));
+        workspace.write(
+            &format!("{root}/src/lib.trn"),
+            &format!("namespace acme/lib\nconstant source-{marker} = 1\n"),
+        );
+    }
+    let error = Package::load(workspace.0.join("app"))
+        .unwrap_err()
+        .remove(0);
+    assert!(
+        error
+            .diagnostic
+            .message
+            .contains("library identity `acme/lib`"),
+        "{}",
+        error.diagnostic.message
+    );
+    assert!(
+        error.diagnostic.message.contains("already loaded from"),
+        "{}",
+        error.diagnostic.message
+    );
+}
+
+#[test]
+fn empty_dependency_owner_tables_are_rejected() {
+    for manifest_header in [
+        "[terrane-dependencies.acme]\n",
+        "[terrane-dependencies.\"acme\"]\n",
+    ] {
+        let package = TempPackage::new();
+        package.write(
+            "package.toml",
+            &format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{manifest_header}"),
+        );
+        package.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+        let error = Package::load(&package.0).unwrap_err().remove(0);
+        let span = error.diagnostic.primary.unwrap();
+        assert!(
+            error.source.text()[span.start..span.end].contains("acme"),
+            "span should identify the empty owner table"
+        );
+    }
+}
+
+#[test]
 fn canonical_dependency_identity_parts_validate_components() {
     let identity = String::from("streaky/http-server");
     let (owner, package) = dependency_identity_parts(&identity).unwrap();
@@ -1659,8 +1743,29 @@ fn zip_and_tar_gz_archive_dependencies_verify_hash_identity_and_cache_offline() 
         app_manifest(&zip_url, "acme.lib", &expected_hash),
     )
     .unwrap();
+    let cache = app
+        .join(".trn/packages")
+        .join(expected_hash.trim_start_matches("sha256:"));
+    fs::create_dir_all(cache.parent().unwrap()).unwrap();
+    fs::write(&cache, "invalid cache destination").unwrap();
+    assert_eq!(Package::load(&app).unwrap().units.len(), 2);
+    fs::remove_dir_all(&cache).unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let workers = (0..2)
+        .map(|_| {
+            let barrier = barrier.clone();
+            let app = app.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                Package::load(app).unwrap()
+            })
+        })
+        .collect::<Vec<_>>();
+    barrier.wait();
+    for worker in workers {
+        assert_eq!(worker.join().unwrap().units.len(), 2);
+    }
     let composed = Package::load(&app).unwrap();
-    assert_eq!(composed.units.len(), 2);
     assert!(composed.library_source_ids.iter().any(|id| {
         composed
             .units

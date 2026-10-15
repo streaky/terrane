@@ -436,6 +436,77 @@ fn package_install_requires_a_current_application_manifest() {
     );
 }
 
+#[test]
+fn package_install_rejects_flat_owner_entries_without_changing_manifest() {
+    let workspace = TemporaryDirectory::new("invalid-owner-install");
+    let library = workspace.path().join("library");
+    let app = workspace.path().join("app");
+    fs::create_dir_all(library.join("src")).unwrap();
+    fs::create_dir_all(app.join("src")).unwrap();
+    fs::write(
+        library.join("package.toml"),
+        "package = \"acme/x\"\nartifact = \"library\"\n[namespaces]\n\"acme/x\" = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        library.join("src/lib.trn"),
+        "namespace acme/x\nconstant answer = 42\n",
+    )
+    .unwrap();
+    fs::write(
+        app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+    for declaration in [
+        "[terrane-dependencies.acme]\npath = \"../old\"\n",
+        "[terrane-dependencies]\nacme = { path = \"../old\" }\n",
+        "[terrane-dependencies]\nacme = 42\n",
+    ] {
+        let manifest =
+            format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{declaration}");
+        fs::write(app.join("package.toml"), &manifest).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["package", "install", "../library"])
+            .current_dir(&app)
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert_eq!(
+            fs::read_to_string(app.join("package.toml")).unwrap(),
+            manifest
+        );
+    }
+    for declaration in [
+        "[terrane-dependencies.acme]\nother = { path = \"../other\" }\n",
+        "[terrane-dependencies]\nacme = { other = { path = \"../other\" } }\n",
+    ] {
+        let manifest =
+            format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{declaration}");
+        fs::write(app.join("package.toml"), &manifest).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["package", "install", "../library"])
+            .current_dir(&app)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let installed: toml::Value =
+            toml::from_str(&fs::read_to_string(app.join("package.toml")).unwrap()).unwrap();
+        assert_eq!(
+            installed["terrane-dependencies"]["acme"]["x"]["path"].as_str(),
+            Some("../library")
+        );
+        assert_eq!(
+            installed["terrane-dependencies"]["acme"]["other"]["path"].as_str(),
+            Some("../other")
+        );
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "Exercises local and Git installation, execution, and duplicate-write atomicity together."

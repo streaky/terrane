@@ -2055,6 +2055,18 @@ fn has_terrane_dependency(
         })
 }
 
+fn is_dependency_owner_table(item: &toml_edit::Item) -> bool {
+    if let Some(table) = item.as_table() {
+        table
+            .iter()
+            .all(|(_, item)| item.is_table() || item.is_inline_table())
+    } else if let Some(table) = item.as_inline_table() {
+        table.iter().all(|(_, value)| value.is_inline_table())
+    } else {
+        false
+    }
+}
+
 fn installation_manifest_path() -> Result<PathBuf, CliFailure> {
     let path = std::env::current_dir()
         .map_err(|error| CliFailure::package(format!("cannot read current directory: {error}")))?
@@ -2125,9 +2137,10 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             "Terrane dependency `{identity}` is already installed"
         )));
     }
-    if dependencies.get(owner).is_some_and(|owner_item| {
-        owner_item.as_table().is_none() && owner_item.as_inline_table().is_none()
-    }) {
+    if dependencies
+        .get(owner)
+        .is_some_and(|item| !is_dependency_owner_table(item))
+    {
         return Err(CliFailure::package(format!(
             "Terrane dependency owner `{owner}` has a conflicting `{package}` entry"
         )));

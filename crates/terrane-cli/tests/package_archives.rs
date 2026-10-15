@@ -78,6 +78,44 @@ fn archive(gzip: bool) -> Vec<u8> {
     }
 }
 
+fn git_archive(library: &Path) -> Vec<u8> {
+    fs::create_dir_all(library.join(".trn")).unwrap();
+    fs::write(library.join(".trn/cache"), "unhashed build metadata").unwrap();
+    for arguments in [
+        vec!["init", "--quiet"],
+        vec!["add", "."],
+        vec![
+            "-c",
+            "user.name=Archive Test",
+            "-c",
+            "user.email=archive@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "--quiet",
+            "-m",
+            "Package source",
+        ],
+    ] {
+        success(
+            &Command::new("git")
+                .arg("-C")
+                .arg(library)
+                .args(arguments)
+                .output()
+                .unwrap(),
+        );
+    }
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(library)
+        .args(["archive", "--format=tar.gz", "--prefix=release/", "HEAD"])
+        .output()
+        .unwrap();
+    success(&output);
+    output.stdout
+}
+
 struct Server {
     address: SocketAddr,
     stop: Arc<AtomicBool>,
@@ -169,9 +207,13 @@ fn success(output: &Output) {
 fn archive_hash_install_and_execution_preserve_identity_and_failed_writes() {
     let workspace = Workspace::new();
     let expected = terrane_compiler::source_tree_hash(&workspace.0.join("library")).unwrap();
-    for (name, gzip) in [("zip-app", false), ("tar-app", true)] {
+    for (name, bytes) in [
+        ("zip-app", archive(false)),
+        ("tar-app", archive(true)),
+        ("git-tar-app", git_archive(&workspace.0.join("library"))),
+    ] {
         let app = workspace.application(name);
-        let server = Server::new(archive(gzip));
+        let server = Server::new(bytes);
         let url = server.url("/redirect");
         let hash = cli(&app, &["package", "hash", "--archive", &url]);
         success(&hash);
@@ -193,6 +235,11 @@ fn archive_hash_install_and_execution_preserve_identity_and_failed_writes() {
         let run = cli(&app, &["run", "package.toml"]);
         success(&run);
         assert_eq!(run.stdout, b"42\n");
+        let cache = app
+            .join(".trn/packages")
+            .join(expected.trim_start_matches("sha256:"));
+        assert!(!cache.join(".trn").exists());
+        assert!(!cache.join(".git").exists());
         let missing = server.url("/missing");
         assert!(
             !cli(&app, &["package", "install", "--archive", &missing])
