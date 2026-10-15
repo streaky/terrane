@@ -567,6 +567,7 @@ shadowing: a namespace-local binding may shadow a distinct program-global consta
 parameter_and_for_target_reassignment: allowed within lexical scope; value semantics preserve caller arguments and iterated collections
 lowering_mutability: emit mutable target storage only when resolver-backed write analysis finds a reassignment
 cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes each applicable `destruct` once when that lineage ends, ordered most-derived class to root base; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, transfer moves it, and `ref` never delays it
+consuming_receiver: a consuming method on an owned object binding transfers its existing lifecycle lineage rather than separating a copy, including parenthesized receivers and bindings stored across try/finally
 cycles: only `shared ref` forms ownership edges; the native target rejects statically provable strong cycles in descriptor fields, including through collection element types, while acyclic shared fields remain valid; later mutation-created cycles not visible in that graph are not collected and must be broken explicitly; ordinary `ref` back-edges are excluded
 ```
 
