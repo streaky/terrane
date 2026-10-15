@@ -22,6 +22,9 @@ syn = { version = "2", features = ["extra-traits", "fold", "full"] }
 ureq.workspace = true
 rustls.workspace = true
 toml = "0.8"
+flate2 = "1"
+tar = "0.4"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 [build-dependencies]
 sha2 = "0.10"

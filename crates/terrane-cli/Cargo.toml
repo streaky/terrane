@@ -22,6 +22,9 @@ nix = { version = "0.30", features = ["signal", "process"] }
 
 [dev-dependencies]
 toml = "0.8"
+flate2 = "1"
+tar = "0.4"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 [lints]
 workspace = true
