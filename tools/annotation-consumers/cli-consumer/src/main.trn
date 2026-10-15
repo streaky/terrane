@@ -1,6 +1,6 @@
 namespace annotation-cli-consumer
 
-from /annotation-consumer-protocol import get, at, text, truth, scalar, annotation, quote, option, read-request, emit-source, emit-error, error-origin, consumer-error
+from /terrane/annotation-consumer-protocol import get, at, text, truth, scalar, annotation, quote, option, read-request, emit-source, emit-error, error-origin, consumer-error
 from /core/documents import document-value, make-document-none
 from /core/collections import range
 

@@ -1973,25 +1973,17 @@ fn protocol_parse_error(
 struct PackageSourceArguments {
     path: Option<PathBuf>,
     git: Option<String>,
+    archive: Option<String>,
     tag: Option<String>,
-    name: Option<String>,
 }
 
-fn parse_package_source(
-    arguments: &[OsString],
-    allow_name: bool,
-) -> Result<PackageSourceArguments, CliFailure> {
+fn parse_package_source(arguments: &[OsString]) -> Result<PackageSourceArguments, CliFailure> {
     let mut parsed = PackageSourceArguments::default();
     let mut index = 2;
     while index < arguments.len() {
         let argument = &arguments[index];
         let option = argument.to_str();
-        if matches!(option, Some("--git" | "--tag" | "--name")) {
-            if option == Some("--name") && !allow_name {
-                return Err(CliFailure::usage_with(
-                    "`--name` is available only for `package install`",
-                ));
-            }
+        if matches!(option, Some("--git" | "--archive" | "--tag")) {
             let value = arguments
                 .get(index + 1)
                 .and_then(|value| value.to_str())
@@ -1999,8 +1991,8 @@ fn parse_package_source(
                 .ok_or_else(CliFailure::usage)?;
             let destination = match option {
                 Some("--git") => &mut parsed.git,
+                Some("--archive") => &mut parsed.archive,
                 Some("--tag") => &mut parsed.tag,
-                Some("--name") => &mut parsed.name,
                 _ => unreachable!("matched package option"),
             };
             if destination.replace(value.to_owned()).is_some() {
@@ -2018,10 +2010,12 @@ fn parse_package_source(
         parsed.path = Some(PathBuf::from(argument));
         index += 1;
     }
-    match (&parsed.path, &parsed.git, &parsed.tag) {
-        (Some(_), None, None) | (None, Some(_), Some(_)) => Ok(parsed),
+    match (&parsed.path, &parsed.git, &parsed.archive, &parsed.tag) {
+        (Some(_), None, None, None)
+        | (None, Some(_), None, Some(_))
+        | (None, None, Some(_), None) => Ok(parsed),
         _ => Err(CliFailure::usage_with(
-            "package source must be one local directory or `--git <url> --tag <tag>`",
+            "package source must be one local directory, `--git <url> --tag <tag>`, or `--archive <url>`",
         )),
     }
 }
@@ -2045,16 +2039,49 @@ fn local_library_identity(path: &Path) -> Result<String, CliFailure> {
     Ok(package.identity)
 }
 
-fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
-    let source = parse_package_source(arguments, true)?;
-    let manifest_path = std::env::current_dir()
+fn has_terrane_dependency(
+    root: &toml_edit::Table,
+    identity: &str,
+    (owner, package): (&str, &str),
+) -> bool {
+    root.contains_key(identity)
+        || root.get(owner).is_some_and(|owner_item| {
+            owner_item
+                .as_table()
+                .is_some_and(|owner_table| owner_table.contains_key(package))
+                || owner_item
+                    .as_inline_table()
+                    .is_some_and(|owner_table| owner_table.contains_key(package))
+        })
+}
+
+fn is_dependency_owner_table(item: &toml_edit::Item) -> bool {
+    if let Some(table) = item.as_table() {
+        table
+            .iter()
+            .all(|(_, item)| item.is_table() || item.is_inline_table())
+    } else if let Some(table) = item.as_inline_table() {
+        table.iter().all(|(_, value)| value.is_inline_table())
+    } else {
+        false
+    }
+}
+
+fn installation_manifest_path() -> Result<PathBuf, CliFailure> {
+    let path = std::env::current_dir()
         .map_err(|error| CliFailure::package(format!("cannot read current directory: {error}")))?
         .join(terrane_compiler::MANIFEST_FILE_NAME);
-    if !manifest_path.is_file() {
+    if !path.is_file() {
         return Err(CliFailure::package(
             "`package install` requires package.toml in the current directory",
         ));
     }
+    Ok(path)
+}
+
+fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    let source = parse_package_source(arguments)?;
+    let manifest_path = installation_manifest_path()?;
     let (identity, hash, source_fields) = if let Some(path) = source.path {
         if path.is_absolute() {
             return Err(CliFailure::usage_with(
@@ -2067,8 +2094,7 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             .ok_or_else(|| CliFailure::package("local package path is not valid UTF-8"))?
             .replace('\\', "/");
         (identity, None, vec![("path", path)])
-    } else {
-        let url = source.git.expect("validated Git package source");
+    } else if let Some(url) = source.git {
         let tag = source.tag.expect("validated Git package tag");
         let (identity, hash) =
             terrane_compiler::git_library_metadata(&url, &tag).map_err(CliFailure::package)?;
@@ -2077,8 +2103,22 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             Some(hash.clone()),
             vec![("git", url), ("tag", tag), ("hash", hash)],
         )
+    } else {
+        let url = source.archive.expect("validated archive package source");
+        let (identity, hash) =
+            terrane_compiler::archive_library_metadata(&url).map_err(CliFailure::package)?;
+        (
+            identity,
+            Some(hash.clone()),
+            vec![("archive", url), ("hash", hash)],
+        )
     };
-    let name = source.name.unwrap_or(identity);
+    let (owner, package) =
+        terrane_compiler::dependency_identity_parts(&identity).ok_or_else(|| {
+            CliFailure::package(format!(
+                "library package identity `{identity}` must be canonical owner/name"
+            ))
+        })?;
     let manifest_text = fs::read_to_string(&manifest_path)
         .map_err(|error| CliFailure::package(format!("cannot read package.toml: {error}")))?;
     let mut document = manifest_text
@@ -2092,22 +2132,48 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let dependencies = document["terrane-dependencies"]
         .as_table_mut()
         .ok_or_else(|| CliFailure::package("`terrane-dependencies` must be a table"))?;
-    if dependencies.contains_key(&name) {
+    if has_terrane_dependency(dependencies, &identity, (owner, package)) {
         return Err(CliFailure::package(format!(
-            "Terrane dependency `{name}` is already installed"
+            "Terrane dependency `{identity}` is already installed"
+        )));
+    }
+    if dependencies
+        .get(owner)
+        .is_some_and(|item| !is_dependency_owner_table(item))
+    {
+        return Err(CliFailure::package(format!(
+            "Terrane dependency owner `{owner}` has a conflicting `{package}` entry"
         )));
     }
     let mut dependency = toml_edit::Table::new();
     for (field, value) in source_fields {
         dependency.insert(field, toml_edit::value(value));
     }
-    dependencies.insert(&name, toml_edit::Item::Table(dependency));
+    if let Some(owner_table) = dependencies
+        .get_mut(owner)
+        .and_then(toml_edit::Item::as_inline_table_mut)
+    {
+        owner_table.insert(
+            package,
+            toml_edit::Value::InlineTable(dependency.into_inline_table()),
+        );
+    } else {
+        if !dependencies.contains_key(owner) {
+            let mut owner_table = toml_edit::Table::new();
+            owner_table.set_implicit(true);
+            dependencies.insert(owner, toml_edit::Item::Table(owner_table));
+        }
+        dependencies[owner]
+            .as_table_mut()
+            .expect("validated owner table")
+            .insert(package, toml_edit::Item::Table(dependency));
+    }
     fs::write(&manifest_path, document.to_string())
         .map_err(|error| CliFailure::package(format!("cannot update package.toml: {error}")))?;
     if let Some(hash) = hash {
-        println!("installed {name} ({hash})");
+        println!("installed {identity} ({hash})");
     } else {
-        println!("installed {name}");
+        println!("installed {identity}");
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -2115,9 +2181,11 @@ fn install_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 fn run_package(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     match arguments.get(1).and_then(|argument| argument.to_str()) {
         Some("hash") => {
-            let source = parse_package_source(arguments, false)?;
+            let source = parse_package_source(arguments)?;
             let hash = if let Some(path) = source.path {
                 terrane_compiler::source_tree_hash(&path).map_err(CliFailure::package)?
+            } else if let Some(url) = source.archive {
+                terrane_compiler::archive_source_tree_hash(&url).map_err(CliFailure::package)?
             } else {
                 terrane_compiler::git_source_tree_hash(
                     &source.git.expect("validated Git package source"),
@@ -2153,10 +2221,12 @@ fn usage() -> String {
      terrane tooling --stdio\n\
      terrane query --request <json-file>\n\
      terrane fmt [--check] <file-or-manifest>\n\
+     terrane package install <relative-directory>\n\
+     terrane package install --git <url> --tag <tag>\n\
+     terrane package install --archive <url>\n\
      terrane package hash <directory>\n\
      terrane package hash --git <url> --tag <tag>\n\
-     terrane package install <relative-directory> [--name <dependency-name>]\n\
-     terrane package install --git <url> --tag <tag> [--name <dependency-name>]\n\
+     terrane package hash --archive <url>\n\
      terrane projection-census <package> <version> --target <triple> --root <directory> \
      [--alias <name>] [--features <comma-list>] [--no-default-features] \
      [--target-condition <cargo-cfg>]\n\
@@ -2176,7 +2246,7 @@ fn usage() -> String {
      test   discover, compile, and isolate Terrane test functions\n  \
      tooling  serve versioned JSON-lines source-intelligence requests\n  \
      query  execute one source-intelligence request\n  fmt    format Terrane source (`--check` does not write)\n  \
-     package  hash or install local and tagged-Git Terrane libraries\n  \
+     package  hash or install directory, tagged-Git, and source-archive Terrane libraries\n  \
      projection-census  compare native public surface with real compiler projection admission;\n\
        versions are normalized to exact requirements and aliases default to package names with hyphens replaced by underscores\n  \
      toolchains  report Rust toolchains previously requested by Terrane"

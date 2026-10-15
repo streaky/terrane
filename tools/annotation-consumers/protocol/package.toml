@@ -1,5 +1,5 @@
-package = "annotation-consumer-protocol"
+package = "terrane/annotation-consumer-protocol"
 artifact = "library"
 
 [namespaces]
-annotation-consumer-protocol = "src"
+"terrane/annotation-consumer-protocol" = "src"

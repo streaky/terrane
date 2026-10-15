@@ -2,12 +2,34 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{Diagnostic, SourceFile, Span};
 use sha2::{Digest, Sha256};
 
 pub const MANIFEST_FILE_NAME: &str = "package.toml";
 pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
+/// Splits a canonical Terrane dependency identity into its borrowed owner and package names.
+///
+/// Canonical dependency identities have exactly two non-empty lowercase kebab-case segments.
+#[must_use]
+pub fn dependency_identity_parts(identity: &str) -> Option<(&str, &str)> {
+    let (owner, package) = identity.split_once('/')?;
+    let valid = |part: &str| {
+        !part.is_empty()
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            && !part.starts_with('-')
+            && !part.ends_with('-')
+            && !part.contains("--")
+    };
+    (valid(owner) && valid(package) && !package.contains('/')).then_some((owner, package))
+}
+
+fn normalize_dependency_key(key: &str) -> Option<String> {
+    dependency_identity_parts(key).map(|_| key.to_owned())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SourceRole {
@@ -135,6 +157,7 @@ pub struct RustDependency {
 pub enum TerraneDependencySource {
     Path(PathBuf),
     Git { url: String, tag: String },
+    Archive { url: String },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -566,10 +589,16 @@ fn compose_dependencies(
             )]);
         }
         if loaded.contains(&dependency_key) {
+            let declared = identities
+                .iter()
+                .find_map(|(identity, path)| (path == &dependency_key).then_some(identity.as_str()))
+                .expect("loaded dependency has a recorded identity");
+            verify_dependency_identity(manifest_path, &dependency.name, declared)?;
             continue;
         }
         let dependency_manifest = dependency_root.join(MANIFEST_FILE_NAME);
         let mut library = load_package_unit(&dependency_manifest)?;
+        verify_dependency_identity(manifest_path, &dependency.name, &library.identity)?;
         if library.artifact != ArtifactKind::Library {
             return Err(vec![dependency_error(
                 manifest_path,
@@ -611,20 +640,46 @@ fn compose_dependencies(
     Ok(())
 }
 
+fn verify_dependency_identity(
+    manifest_path: &Path,
+    expected: &str,
+    declared: &str,
+) -> Result<(), Vec<PackageLoadError>> {
+    if expected == declared {
+        return Ok(());
+    }
+    Err(vec![dependency_error(
+        manifest_path,
+        expected,
+        format!(
+            "resolved package identity `{declared}` does not match dependency identity `{expected}`"
+        ),
+    )])
+}
+
 fn dependency_error(
     manifest_path: &Path,
     dependency: &str,
     message: impl Into<String>,
 ) -> PackageLoadError {
     let text = fs::read_to_string(manifest_path).unwrap_or_default();
-    let headers = [
+    let mut headers = vec![
         format!("[terrane-dependencies.{dependency}]"),
         format!("[terrane-dependencies.{dependency:?}]"),
     ];
-    let span = headers.iter().find_map(|header| {
-        text.find(header)
-            .map(|start| Span::new(0, start, start + header.len()))
-    });
+    if let Some((owner, package)) = dependency_identity_parts(dependency) {
+        headers.push(format!("[terrane-dependencies.{owner}.{package}]"));
+    }
+    let span = headers
+        .iter()
+        .find_map(|header| {
+            text.find(header)
+                .map(|start| Span::new(0, start, start + header.len()))
+        })
+        .or_else(|| {
+            text.find("[terrane-dependencies]")
+                .map(|start| Span::new(0, start, start + "[terrane-dependencies]".len()))
+        });
     PackageLoadError::new(
         manifest_path.to_path_buf(),
         text,
@@ -638,52 +693,25 @@ fn resolve_terrane_dependency(
     cache_owner: &Path,
     dependency: &TerraneDependency,
 ) -> Result<PathBuf, String> {
-    let (resolved, already_verified) = match &dependency.source {
-        TerraneDependencySource::Path(path) => (root.join(path), false),
+    let resolved = match &dependency.source {
+        TerraneDependencySource::Path(path) => root.join(path),
         TerraneDependencySource::Git { url, tag } => {
             let hash = dependency
                 .hash
                 .as_deref()
                 .expect("Git dependencies are parsed with a required hash");
-            let digest = hash
-                .strip_prefix("sha256:")
-                .expect("validated dependency hash");
-            let cache_root = cache_owner.join(".trn/packages");
-            let destination = cache_root.join(digest);
-            if destination.is_dir() && source_tree_hash(&destination)? != hash {
-                fs::remove_dir_all(&destination).map_err(|error| {
-                    format!("cannot remove invalid package cache entry: {error}")
-                })?;
-            }
-            if !destination.is_dir() {
-                fs::create_dir_all(&cache_root)
-                    .map_err(|error| format!("cannot create package cache: {error}"))?;
-                let temporary = cache_root.join(format!(".{digest}-{}", std::process::id()));
-                if temporary.exists() {
-                    fs::remove_dir_all(&temporary).map_err(|error| {
-                        format!("cannot clear temporary package cache: {error}")
-                    })?;
-                }
-                if let Err(error) = clone_git_tag(url, tag, &temporary) {
-                    let _ = fs::remove_dir_all(&temporary);
-                    return Err(error);
-                }
-                let actual = source_tree_hash(&temporary)?;
-                if actual != hash {
-                    let _ = fs::remove_dir_all(&temporary);
-                    return Err(format!(
-                        "source hash mismatch: expected `{hash}`, found `{actual}`"
-                    ));
-                }
-                if let Err(error) = fs::rename(&temporary, &destination) {
-                    if !destination.is_dir() || source_tree_hash(&destination)? != hash {
-                        let _ = fs::remove_dir_all(&temporary);
-                        return Err(format!("cannot publish package cache entry: {error}"));
-                    }
-                    let _ = fs::remove_dir_all(&temporary);
-                }
-            }
-            (destination, true)
+            with_content_addressed_package_cache(cache_owner, hash, |temporary| {
+                clone_git_tag(url, tag, temporary)
+            })?
+        }
+        TerraneDependencySource::Archive { url } => {
+            let hash = dependency
+                .hash
+                .as_deref()
+                .expect("archive dependencies are parsed with a required hash");
+            with_content_addressed_package_cache(cache_owner, hash, |temporary| {
+                crate::package_archive::unpack_source_archive(url, temporary)
+            })?
         }
     };
     if !resolved.is_dir() {
@@ -692,7 +720,9 @@ fn resolve_terrane_dependency(
             resolved.display()
         ));
     }
-    if !already_verified && let Some(expected) = dependency.hash.as_deref() {
+    if matches!(dependency.source, TerraneDependencySource::Path(_))
+        && let Some(expected) = dependency.hash.as_deref()
+    {
         let actual = source_tree_hash(&resolved)?;
         if actual != expected {
             return Err(format!(
@@ -701,6 +731,93 @@ fn resolve_terrane_dependency(
         }
     }
     Ok(resolved)
+}
+
+fn with_content_addressed_package_cache(
+    cache_owner: &Path,
+    hash: &str,
+    stage: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<PathBuf, String> {
+    let digest = hash
+        .strip_prefix("sha256:")
+        .expect("validated dependency hash");
+    let cache_root = cache_owner.join(".trn/packages");
+    let destination = cache_root.join(digest);
+    fs::create_dir_all(&cache_root)
+        .map_err(|error| format!("cannot create package cache: {error}"))?;
+    // Keep the lock outside the entry it protects, including invalid-entry replacement.
+    let lock = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(cache_root.join(format!("{digest}.lock")))
+        .map_err(|error| format!("cannot open package cache lock: {error}"))?;
+    lock.lock()
+        .map_err(|error| format!("cannot lock package cache: {error}"))?;
+    if fs::symlink_metadata(&destination)
+        .is_ok_and(|metadata| metadata.is_dir() && !metadata.file_type().is_symlink())
+        && source_tree_hash(&destination)? == hash
+    {
+        return Ok(destination);
+    }
+    if fs::symlink_metadata(&destination).is_ok() {
+        remove_package_cache_path(&destination)?;
+    }
+    let staging = unique_package_cache_stage(&cache_root, digest)?;
+    let temporary = staging.join("source");
+    let result = (|| {
+        stage(&temporary)?;
+        let actual = source_tree_hash(&temporary)?;
+        if actual != hash {
+            return Err(format!(
+                "source hash mismatch: expected `{hash}`, found `{actual}`"
+            ));
+        }
+        fs::rename(&temporary, &destination)
+            .map_err(|error| format!("cannot publish package cache entry: {error}"))?;
+        Ok(())
+    })();
+    let cleanup = remove_package_cache_path(&staging);
+    result?;
+    cleanup?;
+    Ok(destination)
+}
+
+fn unique_package_cache_stage(cache_root: &Path, digest: &str) -> Result<PathBuf, String> {
+    static NEXT_STAGE: AtomicU64 = AtomicU64::new(0);
+    for _ in 0..16 {
+        let serial = NEXT_STAGE.fetch_add(1, Ordering::Relaxed);
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let temporary =
+            cache_root.join(format!(".{digest}-{}-{serial}-{nonce}", std::process::id()));
+        match fs::create_dir(&temporary) {
+            Ok(()) => return Ok(temporary),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(format!("cannot create temporary package cache: {error}")),
+        }
+    }
+    Err("cannot allocate unique temporary package cache directory".to_owned())
+}
+
+fn remove_package_cache_path(path: &Path) -> Result<(), String> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(format!("cannot inspect package cache path: {error}")),
+    };
+    if metadata.file_type().is_symlink() {
+        fs::remove_file(path)
+            .map_err(|error| format!("cannot remove package cache link: {error}"))
+    } else if metadata.is_dir() {
+        fs::remove_dir_all(path)
+            .map_err(|error| format!("cannot remove package cache path: {error}"))
+    } else {
+        fs::remove_file(path)
+            .map_err(|error| format!("cannot remove package cache file: {error}"))
+    }
 }
 
 fn clone_git_tag(url: &str, tag: &str, destination: &Path) -> Result<(), String> {
@@ -795,6 +912,40 @@ pub fn git_source_tree_hash(url: &str, tag: &str) -> Result<String, String> {
 /// Terrane library package.
 pub fn git_library_metadata(url: &str, tag: &str) -> Result<(String, String), String> {
     with_git_tag(url, tag, |root| {
+        let hash = source_tree_hash(root)?;
+        let package = Package::load(root).map_err(|errors| {
+            errors
+                .into_iter()
+                .map(|error| error.diagnostic.message)
+                .collect::<Vec<_>>()
+                .join("; ")
+        })?;
+        if package.artifact != ArtifactKind::Library {
+            return Err(format!(
+                "package `{}` must declare `artifact = \"library\"`",
+                package.identity
+            ));
+        }
+        Ok((package.identity, hash))
+    })
+}
+
+/// Downloads and hashes one Terrane source archive as a normalized package source tree.
+///
+/// # Errors
+///
+/// Returns an error if the archive cannot be downloaded, extracted, or hashed.
+pub fn archive_source_tree_hash(url: &str) -> Result<String, String> {
+    crate::package_archive::with_source_archive(url, source_tree_hash)
+}
+
+/// Reads the identity and deterministic source hash of a Terrane library source archive.
+///
+/// # Errors
+///
+/// Returns an error if the archive cannot be downloaded, extracted, hashed, or loaded as a library.
+pub fn archive_library_metadata(url: &str) -> Result<(String, String), String> {
+    crate::package_archive::with_source_archive(url, |root| {
         let hash = source_tree_hash(root)?;
         let package = Package::load(root).map_err(|errors| {
             errors
@@ -1348,20 +1499,82 @@ fn parse_terrane_dependencies(
         ));
         return Vec::new();
     };
-    dependencies
-        .iter()
+    let mut entries = Vec::<(String, &toml::Value)>::new();
+    for (key, value) in dependencies {
+        if let Some(identity) = normalize_dependency_key(key) {
+            entries.push((identity, value));
+            continue;
+        }
+        let Some(owner_table) = value
+            .as_table()
+            .filter(|table| table.values().all(toml::Value::is_table))
+        else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("Terrane dependency `{key}` must use a canonical owner/package identity; ownerless dependencies are reserved for core and unsupported"),
+                Some(key),
+            ));
+            continue;
+        };
+        if owner_table.is_empty() {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("Terrane dependency owner `{key}` must contain at least one package"),
+                Some(key),
+            ));
+            continue;
+        }
+        for (package, declaration) in owner_table {
+            let identity = format!("{key}/{package}");
+            if dependency_identity_parts(&identity).is_none() {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!(
+                        "invalid Terrane dependency identity `{identity}`; expected owner/package"
+                    ),
+                    Some(key),
+                ));
+                continue;
+            }
+            entries.push((identity, declaration));
+        }
+    }
+    entries.sort_unstable_by(|left, right| left.0.cmp(&right.0));
+    let mut duplicate = false;
+    for pair in entries.windows(2) {
+        if pair[0].0 == pair[1].0 {
+            duplicate = true;
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!(
+                    "duplicate Terrane dependency identity `{}` after normalization",
+                    pair[1].0
+                ),
+                Some(&pair[1].0),
+            ));
+        }
+    }
+    if duplicate {
+        return Vec::new();
+    }
+    entries
+        .into_iter()
         .filter_map(|(name, value)| {
             let Some(fields) = value.as_table() else {
                 errors.push(manifest_error(
                     manifest_path,
                     text,
                     format!("Terrane dependency `{name}` must be a table"),
-                    Some(name),
+                    Some(&name),
                 ));
                 return None;
             };
             for field in fields.keys() {
-                if !matches!(field.as_str(), "path" | "git" | "tag" | "hash") {
+                if !matches!(field.as_str(), "path" | "git" | "archive" | "tag" | "hash") {
                     errors.push(manifest_error(
                         manifest_path,
                         text,
@@ -1372,10 +1585,12 @@ fn parse_terrane_dependencies(
             }
             let path = fields.get("path").and_then(toml::Value::as_str);
             let git = fields.get("git").and_then(toml::Value::as_str);
+            let archive = fields.get("archive").and_then(toml::Value::as_str);
             let tag = fields.get("tag").and_then(toml::Value::as_str);
             let hash = fields.get("hash").and_then(toml::Value::as_str);
             if fields.get("path").is_some_and(|value| !value.is_str())
                 || fields.get("git").is_some_and(|value| !value.is_str())
+                || fields.get("archive").is_some_and(|value| !value.is_str())
                 || fields.get("tag").is_some_and(|value| !value.is_str())
                 || fields.get("hash").is_some_and(|value| !value.is_str())
             {
@@ -1383,12 +1598,12 @@ fn parse_terrane_dependencies(
                     manifest_path,
                     text,
                     format!("Terrane dependency `{name}` fields must be strings"),
-                    Some(name),
+                    Some(&name),
                 ));
                 return None;
             }
-            let source = match (path, git) {
-                (Some(path), None) => {
+            let source = match (path, git, archive) {
+                (Some(path), None, None) => {
                     let path = Path::new(path);
                     let Some(path) = (!path.as_os_str().is_empty() && !path.is_absolute())
                         .then(|| path.to_path_buf())
@@ -1397,7 +1612,7 @@ fn parse_terrane_dependencies(
                             manifest_path,
                             text,
                             format!("Terrane dependency `{name}` path must be relative"),
-                            Some(name),
+                            Some(&name),
                         ));
                         return None;
                     };
@@ -1412,13 +1627,13 @@ fn parse_terrane_dependencies(
                     }
                     TerraneDependencySource::Path(path)
                 }
-                (None, Some(url)) if !url.is_empty() => {
+                (None, Some(url), None) if !url.is_empty() => {
                     let Some(tag) = tag.filter(|tag| !tag.is_empty()) else {
                         errors.push(manifest_error(
                             manifest_path,
                             text,
                             format!("Git Terrane dependency `{name}` requires a non-empty `tag`"),
-                            Some(name),
+                            Some(&name),
                         ));
                         return None;
                     };
@@ -1427,7 +1642,7 @@ fn parse_terrane_dependencies(
                             manifest_path,
                             text,
                             format!("Git Terrane dependency `{name}` requires `hash`"),
-                            Some(name),
+                            Some(&name),
                         ));
                         return None;
                     }
@@ -1436,14 +1651,37 @@ fn parse_terrane_dependencies(
                         tag: tag.to_owned(),
                     }
                 }
+                (None, None, Some(url)) if !url.is_empty() => {
+                    if tag.is_some() {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("archive Terrane dependency `{name}` cannot declare `tag`"),
+                            Some("tag"),
+                        ));
+                        return None;
+                    }
+                    if hash.is_none() {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("archive Terrane dependency `{name}` requires `hash`"),
+                            Some(&name),
+                        ));
+                        return None;
+                    }
+                    TerraneDependencySource::Archive {
+                        url: url.to_owned(),
+                    }
+                }
                 _ => {
                     errors.push(manifest_error(
                         manifest_path,
                         text,
                         format!(
-                            "Terrane dependency `{name}` must declare exactly one of `path` or `git`"
+                            "Terrane dependency `{name}` must declare exactly one of `path`, `git`, or `archive`"
                         ),
-                        Some(name),
+                        Some(&name),
                     ));
                     return None;
                 }
@@ -1464,7 +1702,7 @@ fn parse_terrane_dependencies(
                 None => None,
             };
             Some(TerraneDependency {
-                name: name.clone(),
+                name,
                 source,
                 hash,
             })

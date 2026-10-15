@@ -437,23 +437,99 @@ fn package_install_requires_a_current_application_manifest() {
 }
 
 #[test]
-fn package_hash_and_install_support_local_and_tagged_git_libraries() {
-    let binary = env!("CARGO_BIN_EXE_terrane");
-    let workspace = TemporaryDirectory::new("package-commands");
+fn package_install_rejects_flat_owner_entries_without_changing_manifest() {
+    let workspace = TemporaryDirectory::new("invalid-owner-install");
     let library = workspace.path().join("library");
     let app = workspace.path().join("app");
     fs::create_dir_all(library.join("src")).unwrap();
     fs::create_dir_all(app.join("src")).unwrap();
     fs::write(
         library.join("package.toml"),
-        "package = \"example/library\"\nartifact = \"library\"\n[namespaces]\n\"example/library\" = \"src\"\n",
+        "package = \"acme/x\"\nartifact = \"library\"\n[namespaces]\n\"acme/x\" = \"src\"\n",
     )
     .unwrap();
     fs::write(
-        library.join("src/library.trn"),
-        "namespace example/library\nconstant answer = 42\n",
+        library.join("src/lib.trn"),
+        "namespace acme/x\nconstant answer = 42\n",
     )
     .unwrap();
+    fs::write(
+        app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+    for declaration in [
+        "[terrane-dependencies.acme]\npath = \"../old\"\n",
+        "[terrane-dependencies]\nacme = { path = \"../old\" }\n",
+        "[terrane-dependencies]\nacme = 42\n",
+    ] {
+        let manifest =
+            format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{declaration}");
+        fs::write(app.join("package.toml"), &manifest).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["package", "install", "../library"])
+            .current_dir(&app)
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert_eq!(
+            fs::read_to_string(app.join("package.toml")).unwrap(),
+            manifest
+        );
+    }
+    for declaration in [
+        "[terrane-dependencies.acme]\nother = { path = \"../other\" }\n",
+        "[terrane-dependencies]\nacme = { other = { path = \"../other\" } }\n",
+    ] {
+        let manifest =
+            format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{declaration}");
+        fs::write(app.join("package.toml"), &manifest).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+            .args(["package", "install", "../library"])
+            .current_dir(&app)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let installed: toml::Value =
+            toml::from_str(&fs::read_to_string(app.join("package.toml")).unwrap()).unwrap();
+        assert_eq!(
+            installed["terrane-dependencies"]["acme"]["x"]["path"].as_str(),
+            Some("../library")
+        );
+        assert_eq!(
+            installed["terrane-dependencies"]["acme"]["other"]["path"].as_str(),
+            Some("../other")
+        );
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Exercises local and Git installation, execution, and duplicate-write atomicity together."
+)]
+#[test]
+fn package_hash_and_install_support_local_and_tagged_git_libraries() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let workspace = TemporaryDirectory::new("package-commands");
+    let library = workspace.path().join("library");
+    let app = workspace.path().join("app");
+    let owner = library.join("src");
+    fs::create_dir_all(&owner).unwrap();
+    fs::write(
+        library.join("package.toml"),
+        "package = \"streaky/http-server\"\nartifact = \"library\"\n[namespaces]\n\"streaky/http-server\" = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        owner.join("library.trn"),
+        "namespace streaky/http-server\nfunction answer int;\n  return 42\n",
+    )
+    .unwrap();
+    fs::create_dir_all(app.join("src")).unwrap();
     fs::write(
         app.join("package.toml"),
         "package = \"example.app\"\n[namespaces]\napp = \"src\"\n",
@@ -461,7 +537,7 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
     .unwrap();
     fs::write(
         app.join("src/main.trn"),
-        "namespace app\nfunction main;\n  none\n",
+        "namespace app\nfrom /streaky/http-server import answer\nfunction main;\n  print; (answer;)\n",
     )
     .unwrap();
 
@@ -478,7 +554,7 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
     );
 
     let local_install = Command::new(binary)
-        .args(["package", "install", "../library", "--name", "local"])
+        .args(["package", "install", "../library"])
         .current_dir(&app)
         .output()
         .unwrap();
@@ -488,14 +564,69 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
         String::from_utf8_lossy(&local_install.stderr)
     );
     let installed = fs::read_to_string(app.join("package.toml")).unwrap();
-    assert!(installed.contains("[terrane-dependencies.local]"));
-    assert!(!installed.contains("\n[terrane-dependencies]\n"));
-    assert!(!installed.contains("hash = "));
+    let manifest: toml::Value = toml::from_str(&installed).unwrap();
     assert_eq!(
-        terrane_compiler::Package::load(&app).unwrap().units.len(),
-        2
+        manifest["terrane-dependencies"]["streaky"]["http-server"]["path"].as_str(),
+        Some("../library")
+    );
+    let loaded = terrane_compiler::Package::load(&app).unwrap();
+    assert_eq!(loaded.terrane_dependencies[0].name, "streaky/http-server");
+    let run = Command::new(binary)
+        .args(["run", "package.toml"])
+        .current_dir(&app)
+        .output()
+        .unwrap();
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(run.stdout, b"42\n");
+    let before_duplicate = fs::read_to_string(app.join("package.toml")).unwrap();
+    let duplicate = Command::new(binary)
+        .args(["package", "install", "../library"])
+        .current_dir(&app)
+        .output()
+        .unwrap();
+    assert!(!duplicate.status.success());
+    assert_eq!(
+        fs::read_to_string(app.join("package.toml")).unwrap(),
+        before_duplicate
+    );
+    let alias = Command::new(binary)
+        .args(["package", "install", "../library", "--name", "alias"])
+        .current_dir(&app)
+        .output()
+        .unwrap();
+    assert!(!alias.status.success());
+    assert_eq!(
+        fs::read_to_string(app.join("package.toml")).unwrap(),
+        before_duplicate
     );
 
+    for declaration in [
+        "[terrane-dependencies.streaky.http-server]\npath = \"../library\"\n",
+        "[terrane-dependencies.\"streaky/http-server\"]\npath = \"../library\"\n",
+    ] {
+        let original =
+            format!("package = \"example.app\"\n[namespaces]\napp = \"src\"\n{declaration}");
+        fs::write(app.join("package.toml"), &original).unwrap();
+        let duplicate = Command::new(binary)
+            .args(["package", "install", "../library"])
+            .current_dir(&app)
+            .output()
+            .unwrap();
+        assert!(!duplicate.status.success());
+        assert_eq!(
+            fs::read_to_string(app.join("package.toml")).unwrap(),
+            original
+        );
+    }
+    fs::write(
+        app.join("package.toml"),
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
     initialize_tagged_repository(&library);
     let git_hash = Command::new(binary)
         .args([
@@ -523,8 +654,6 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
             library.to_str().unwrap(),
             "--tag",
             "v1.0.0",
-            "--name",
-            "remote",
         ])
         .current_dir(&app)
         .output()
@@ -534,9 +663,18 @@ fn package_hash_and_install_support_local_and_tagged_git_libraries() {
         "{}",
         String::from_utf8_lossy(&git_install.stderr)
     );
-    let installed = fs::read_to_string(app.join("package.toml")).unwrap();
-    assert!(installed.contains("[terrane-dependencies.remote]"));
-    assert!(installed.contains("tag = \"v1.0.0\""));
+    let installed: toml::Value =
+        toml::from_str(&fs::read_to_string(app.join("package.toml")).unwrap()).unwrap();
+    let dependency = &installed["terrane-dependencies"]["streaky"]["http-server"];
+    assert_eq!(dependency["tag"].as_str(), Some("v1.0.0"));
+    assert_eq!(dependency["hash"].as_str(), Some(expected.as_str()));
+    assert_eq!(
+        terrane_compiler::Package::load(&app)
+            .unwrap()
+            .terrane_dependencies[0]
+            .name,
+        "streaky/http-server"
+    );
 }
 
 #[test]

@@ -5,7 +5,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use terrane_compiler::{
     ArtifactKind, BuildToolchain, CompilerOptions, IMPLICIT_PACKAGE_ID, Package, PanicProfile,
     RustDependency, analyze, compile_discovered_test_tier, compile_package,
-    compile_package_with_options, compile_test_package, discover_test_package, source_tree_hash,
+    compile_package_with_options, compile_test_package, dependency_identity_parts,
+    discover_test_package, source_tree_hash,
     testing::{TestPackage, TestTier},
     with_tokio_runtime,
 };
@@ -1033,7 +1034,7 @@ fn local_terrane_library_lowers_with_the_application() {
     );
     workspace.write(
         "app/package.toml",
-        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n",
     );
     workspace.write(
         "app/src/main.trn",
@@ -1082,7 +1083,7 @@ fn library_rust_dependencies_and_modules_merge_into_the_application() {
     workspace.write("library/rust/codec.rs", "pub fn marker() {}\n");
     workspace.write(
         "app/package.toml",
-        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n",
     );
     workspace.write(
         "app/src/main.trn",
@@ -1112,7 +1113,7 @@ fn local_library_hash_is_verified() {
     );
     workspace.write(
         "app/package.toml",
-        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"\n",
+        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"\n",
     );
     workspace.write(
         "app/src/main.trn",
@@ -1159,7 +1160,7 @@ fn tagged_git_library_is_cached_and_loaded_by_hash() {
     workspace.write(
         "app/package.toml",
         &format!(
-            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{hash}\"\n",
+            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{hash}\"\n",
             repository.to_string_lossy()
         ),
     );
@@ -1171,7 +1172,7 @@ fn tagged_git_library_is_cached_and_loaded_by_hash() {
     workspace.write(
         "app/package.toml",
         &format!(
-            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{bogus}\"\n",
+            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{bogus}\"\n",
             repository.to_string_lossy()
         ),
     );
@@ -1186,7 +1187,7 @@ fn tagged_git_library_is_cached_and_loaded_by_hash() {
     workspace.write(
         "app/package.toml",
         &format!(
-            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{hash}\"\n",
+            "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\ngit = {:?}\ntag = \"v1.0.0\"\nhash = \"{hash}\"\n",
             repository.to_string_lossy()
         ),
     );
@@ -1209,7 +1210,7 @@ fn composed_library_keeps_its_own_prelude_setting() {
     );
     workspace.write(
         "app/package.toml",
-        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n",
     );
     workspace.write(
         "app/src/main.trn",
@@ -1245,7 +1246,7 @@ fn application_and_library_preludes_are_independent() {
         workspace.write(
             "app/package.toml",
             &format!(
-                "package = \"example.app\"\nprelude = {application_prelude}\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n"
+                "package = \"example.app\"\nprelude = {application_prelude}\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n"
             ),
         );
         workspace.write(
@@ -1291,7 +1292,7 @@ fn library_warnings_do_not_leak_into_consumers_or_flag_exports() {
 
     workspace.write(
         "app/package.toml",
-        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.library]\npath = \"../library\"\n",
+        "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n",
     );
     workspace.write(
         "app/src/main.trn",
@@ -1307,34 +1308,227 @@ fn library_warnings_do_not_leak_into_consumers_or_flag_exports() {
 }
 
 #[test]
-fn duplicate_library_identities_are_manifest_errors() {
+fn dependency_path_reuse_still_checks_the_requested_identity() {
     let workspace = TempPackage::new();
-    for directory in ["first", "second"] {
-        workspace.write(
-            &format!("{directory}/package.toml"),
-            "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
-        );
-        workspace.write(
-            &format!("{directory}/src/library.trn"),
-            "namespace acme/lib\nconstant answer = 42\n",
-        );
-    }
+    workspace.write(
+        "library/package.toml",
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace acme/lib\nconstant answer = 42\n",
+    );
     workspace.write(
         "app/package.toml",
-        "package = \"example.app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.first]\npath = \"../first\"\n[terrane-dependencies.second]\npath = \"../second\"\n",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"../library\"\n[terrane-dependencies.acme.other]\npath = \"../library\"\n",
     );
     workspace.write(
         "app/src/main.trn",
         "namespace app\nfunction main;\n  none\n",
     );
 
-    let errors = Package::load(workspace.0.join("app")).unwrap_err();
+    let error = Package::load(workspace.0.join("app"))
+        .unwrap_err()
+        .remove(0);
+    let span = error.diagnostic.primary.unwrap();
+    assert_eq!(
+        &error.source.text()[span.start..span.end],
+        "[terrane-dependencies.acme.other]"
+    );
+}
+
+#[test]
+fn transitive_diamond_rejects_distinct_roots_with_same_identity() {
+    let workspace = TempPackage::new();
+    let library = |name: &str, dependency: &str| {
+        format!(
+            "package = \"{name}\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"{name}\" = \"src\"\n{dependency}"
+        )
+    };
+    workspace.write(
+        "app/package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.left]\npath = \"../left\"\n[terrane-dependencies.acme.right]\npath = \"../right\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+    workspace.write(
+        "left/package.toml",
+        &library(
+            "acme/left",
+            "[terrane-dependencies.acme.lib]\npath = \"../left-lib\"\n",
+        ),
+    );
+    workspace.write(
+        "left/src/lib.trn",
+        "namespace acme/left\nconstant left = 1\n",
+    );
+    workspace.write(
+        "right/package.toml",
+        &library(
+            "acme/right",
+            "[terrane-dependencies.acme.lib]\npath = \"../right-lib\"\n",
+        ),
+    );
+    workspace.write(
+        "right/src/lib.trn",
+        "namespace acme/right\nconstant right = 1\n",
+    );
+    for (root, marker) in [("left-lib", "left"), ("right-lib", "right")] {
+        workspace.write(&format!("{root}/package.toml"), &library("acme/lib", ""));
+        workspace.write(
+            &format!("{root}/src/lib.trn"),
+            &format!("namespace acme/lib\nconstant source-{marker} = 1\n"),
+        );
+    }
+    let error = Package::load(workspace.0.join("app"))
+        .unwrap_err()
+        .remove(0);
     assert!(
-        errors[0]
+        error
             .diagnostic
             .message
-            .contains("library identity `acme/lib` is already loaded")
+            .contains("library identity `acme/lib`"),
+        "{}",
+        error.diagnostic.message
     );
+    assert!(
+        error.diagnostic.message.contains("already loaded from"),
+        "{}",
+        error.diagnostic.message
+    );
+}
+
+#[test]
+fn empty_dependency_owner_tables_are_rejected() {
+    for manifest_header in [
+        "[terrane-dependencies.acme]\n",
+        "[terrane-dependencies.\"acme\"]\n",
+    ] {
+        let package = TempPackage::new();
+        package.write(
+            "package.toml",
+            &format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{manifest_header}"),
+        );
+        package.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+        let error = Package::load(&package.0).unwrap_err().remove(0);
+        let span = error.diagnostic.primary.unwrap();
+        assert!(
+            error.source.text()[span.start..span.end].contains("acme"),
+            "span should identify the empty owner table"
+        );
+    }
+}
+
+#[test]
+fn canonical_dependency_identity_parts_validate_components() {
+    let identity = String::from("streaky/http-server");
+    let (owner, package) = dependency_identity_parts(&identity).unwrap();
+    assert_eq!((owner, package), ("streaky", "http-server"));
+    for invalid in [
+        "",
+        "flat",
+        "/package",
+        "owner/",
+        "owner/a/b",
+        "Owner/package",
+        "owner/bad_name",
+    ] {
+        assert!(
+            dependency_identity_parts(invalid).is_none(),
+            "accepted {invalid:?}"
+        );
+    }
+}
+
+#[test]
+fn dotted_and_quoted_dependency_keys_normalize_to_verified_identity() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"streaky/http-server\"\nartifact = \"library\"\n[namespaces]\n\"streaky/http-server\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace streaky/http-server\nconstant answer = 42\n",
+    );
+    workspace.write(
+        "app/package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.streaky.http-server]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert_eq!(package.terrane_dependencies[0].name, "streaky/http-server");
+
+    workspace.write(
+        "app/package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.\"streaky/http-server\"]\npath = \"../library\"\n",
+    );
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert_eq!(package.terrane_dependencies[0].name, "streaky/http-server");
+}
+
+#[test]
+fn ownerless_and_invalid_dependency_nesting_are_manifest_errors() {
+    for dependency_table in [
+        "[terrane-dependencies.http-server]\npath = \"../library\"\n",
+        "[terrane-dependencies.streaky]\npath = \"../library\"\n",
+        "[terrane-dependencies.\"streaky/http-server.extra\"]\npath = \"../library\"\n",
+        "[terrane-dependencies.streaky.http-server.extra]\npath = \"../library\"\n",
+    ] {
+        let manifest =
+            format!("package = \"example/app\"\n[namespaces]\napp = \"src\"\n{dependency_table}");
+        let temp = TempPackage::new();
+        temp.write("package.toml", &manifest);
+        temp.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+        assert!(
+            Package::load(&temp.0).is_err(),
+            "accepted {dependency_table}"
+        );
+    }
+}
+
+#[test]
+fn normalized_duplicate_dependency_identity_is_rejected() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.streaky.http-server]\npath = \"one\"\n[terrane-dependencies.\"streaky/http-server\"]\npath = \"two\"\n",
+    );
+    workspace.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+    let error = Package::load(&workspace.0).unwrap_err().remove(0);
+    let span = error.diagnostic.primary.unwrap();
+    assert_eq!(
+        &error.source.text()[span.start..span.end],
+        "streaky/http-server"
+    );
+}
+
+#[test]
+fn canonical_dependency_components_can_match_locator_field_names() {
+    let workspace = TempPackage::new();
+    workspace.write(
+        "library/package.toml",
+        "package = \"path/git\"\nartifact = \"library\"\n[namespaces]\n\"path/git\" = \"src\"\n",
+    );
+    workspace.write(
+        "library/src/library.trn",
+        "namespace path/git\nconstant answer int = 42\n",
+    );
+    workspace.write(
+        "app/package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.path.git]\npath = \"../library\"\n",
+    );
+    workspace.write(
+        "app/src/main.trn",
+        "namespace app\nfunction main;\n  none\n",
+    );
+    let package = Package::load(workspace.0.join("app")).unwrap();
+    assert_eq!(package.terrane_dependencies[0].name, "path/git");
 }
 
 #[test]
@@ -1342,7 +1536,7 @@ fn dependency_errors_highlight_the_dependency_header() {
     let workspace = TempPackage::new();
     workspace.write(
         "package.toml",
-        "package = \"acme/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.me]\npath = \"missing\"\n",
+        "package = \"acme/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\npath = \"missing\"\n",
     );
     workspace.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
 
@@ -1350,7 +1544,7 @@ fn dependency_errors_highlight_the_dependency_header() {
     let span = error.diagnostic.primary.unwrap();
     assert_eq!(
         &error.source.text()[span.start..span.end],
-        "[terrane-dependencies.me]"
+        "[terrane-dependencies.acme.lib]"
     );
 }
 
@@ -1373,7 +1567,7 @@ fn dependency_cycles_report_the_complete_identity_chain() {
     let workspace = TempPackage::new();
     workspace.write(
         "app/package.toml",
-        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.b]\npath = \"../b\"\n",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.example.b]\npath = \"../b\"\n",
     );
     workspace.write(
         "app/src/main.trn",
@@ -1381,12 +1575,12 @@ fn dependency_cycles_report_the_complete_identity_chain() {
     );
     workspace.write(
         "b/package.toml",
-        "package = \"example/b\"\nartifact = \"library\"\n[namespaces]\n\"example/b\" = \"src\"\n[terrane-dependencies.c]\npath = \"../c\"\n",
+        "package = \"example/b\"\nartifact = \"library\"\n[namespaces]\n\"example/b\" = \"src\"\n[terrane-dependencies.example.c]\npath = \"../c\"\n",
     );
     workspace.write("b/src/library.trn", "namespace example/b\nconstant b = 1\n");
     workspace.write(
         "c/package.toml",
-        "package = \"example/c\"\nartifact = \"library\"\n[namespaces]\n\"example/c\" = \"src\"\n[terrane-dependencies.app]\npath = \"../app\"\n",
+        "package = \"example/c\"\nartifact = \"library\"\n[namespaces]\n\"example/c\" = \"src\"\n[terrane-dependencies.example.app]\npath = \"../app\"\n",
     );
     workspace.write("c/src/library.trn", "namespace example/c\nconstant c = 1\n");
 
@@ -1396,5 +1590,262 @@ fn dependency_cycles_report_the_complete_identity_chain() {
             .diagnostic
             .message
             .contains("example/app -> example/b -> example/c -> example/app")
+    );
+}
+#[test]
+fn archive_dependency_requires_hash_and_rejects_tag_or_ambiguous_sources() {
+    let directory = TempPackage::new();
+    directory.write(
+        "package.toml",
+        "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\narchive = \"http://127.0.0.1:1/lib.zip\"\n",
+    );
+    directory.write("src/main.trn", "namespace app\nfunction main;\n  none\n");
+    assert!(Package::load(&directory.0).is_err());
+
+    for declaration in [
+        "archive = \"http://127.0.0.1:1/lib.zip\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"\ntag = \"v1\"",
+        "archive = \"http://127.0.0.1:1/lib.zip\"\npath = \"../library\"\nhash = \"sha256:0000000000000000000000000000000000000000000000000000000000000000\"",
+    ] {
+        directory.write(
+            "package.toml",
+            &format!(
+                "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.acme.lib]\n{declaration}\n"
+            ),
+        );
+        assert!(
+            Package::load(&directory.0).is_err(),
+            "accepted {declaration}"
+        );
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "Exercises ZIP/tar cache fetch, mismatches, corruption, and offline reuse in one isolated server."
+)]
+#[test]
+fn zip_and_tar_gz_archive_dependencies_verify_hash_identity_and_cache_offline() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+
+    let workspace = TempPackage::new();
+    let library_root = workspace.0.join("library");
+    fs::create_dir_all(library_root.join("src")).unwrap();
+    fs::write(
+        library_root.join("package.toml"),
+        "package = \"acme/lib\"\nartifact = \"library\"\nprelude = false\n[namespaces]\n\"acme/lib\" = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        library_root.join("src/library.trn"),
+        "namespace acme/lib\nconstant answer = 42\n",
+    )
+    .unwrap();
+    let expected_hash = source_tree_hash(&library_root).unwrap();
+
+    let zip = {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        writer.start_file("release/package.toml", options).unwrap();
+        writer
+            .write_all(&fs::read(library_root.join("package.toml")).unwrap())
+            .unwrap();
+        writer
+            .start_file("release/src/library.trn", options)
+            .unwrap();
+        writer
+            .write_all(&fs::read(library_root.join("src/library.trn")).unwrap())
+            .unwrap();
+        writer.finish().unwrap().into_inner()
+    };
+    let tar_gz = {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        {
+            let mut builder = tar::Builder::new(&mut encoder);
+            builder
+                .append_path_with_name(library_root.join("package.toml"), "package.toml")
+                .unwrap();
+            builder
+                .append_path_with_name(library_root.join("src/library.trn"), "src/library.trn")
+                .unwrap();
+            builder.finish().unwrap();
+        }
+        encoder.finish().unwrap()
+    };
+
+    let requests = Arc::new(AtomicUsize::new(0));
+    let stopped = Arc::new(AtomicBool::new(false));
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let request_count = requests.clone();
+    let stop_server = stopped.clone();
+    let zip_response = zip.clone();
+    let tar_response = tar_gz.clone();
+    let server = std::thread::spawn(move || {
+        listener.set_nonblocking(true).unwrap();
+        while !stop_server.load(Ordering::Relaxed) {
+            match listener.accept() {
+                Ok((mut stream, _)) => {
+                    request_count.fetch_add(1, Ordering::Relaxed);
+                    let mut request = [0_u8; 2048];
+                    let count = stream.read(&mut request).unwrap();
+                    let request = String::from_utf8_lossy(&request[..count]);
+                    let body = if request.starts_with("GET /lib.zip ") {
+                        &zip_response
+                    } else {
+                        &tar_response
+                    };
+                    write!(
+                        stream,
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                        body.len()
+                    )
+                    .unwrap();
+                    stream.write_all(body).unwrap();
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                Err(error) => panic!("HTTP test server failed: {error}"),
+            }
+        }
+    });
+
+    let base = format!("http://{address}");
+    let archive_hash =
+        terrane_compiler::archive_source_tree_hash(&format!("{base}/lib.tar.gz")).unwrap();
+    assert_eq!(archive_hash, expected_hash);
+    let archive_identity =
+        terrane_compiler::archive_library_metadata(&format!("{base}/lib.zip")).unwrap();
+    assert_eq!(
+        archive_identity,
+        ("acme/lib".to_owned(), expected_hash.clone())
+    );
+
+    let app = workspace.0.join("app");
+    fs::create_dir_all(app.join("src")).unwrap();
+    fs::write(
+        app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+    let app_manifest = |url: &str, identity: &str, hash: &str| {
+        format!(
+            "package = \"example/app\"\n[namespaces]\napp = \"src\"\n[terrane-dependencies.{identity}]\narchive = \"{url}\"\nhash = \"{hash}\"\n"
+        )
+    };
+    let zip_url = format!("{base}/lib.zip");
+    let tar_url = format!("{base}/lib.tar.gz");
+    fs::write(
+        app.join("package.toml"),
+        app_manifest(&zip_url, "acme.lib", &expected_hash),
+    )
+    .unwrap();
+    let cache = app
+        .join(".trn/packages")
+        .join(expected_hash.trim_start_matches("sha256:"));
+    fs::create_dir_all(cache.parent().unwrap()).unwrap();
+    fs::write(&cache, "invalid cache destination").unwrap();
+    assert_eq!(Package::load(&app).unwrap().units.len(), 2);
+    fs::remove_dir_all(&cache).unwrap();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+    let workers = (0..2)
+        .map(|_| {
+            let barrier = barrier.clone();
+            let app = app.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                Package::load(app).unwrap()
+            })
+        })
+        .collect::<Vec<_>>();
+    barrier.wait();
+    for worker in workers {
+        assert_eq!(worker.join().unwrap().units.len(), 2);
+    }
+    let composed = Package::load(&app).unwrap();
+    assert!(composed.library_source_ids.iter().any(|id| {
+        composed
+            .units
+            .iter()
+            .any(|unit| unit.source.id() == *id && unit.source.text().contains("answer = 42"))
+    }));
+    let cache = app
+        .join(".trn/packages")
+        .join(expected_hash.trim_start_matches("sha256:"));
+    assert_eq!(source_tree_hash(&cache).unwrap(), expected_hash);
+
+    fs::write(
+        app.join("package.toml"),
+        app_manifest(&zip_url, "acme.other", &expected_hash),
+    )
+    .unwrap();
+    assert!(Package::load(&app).is_err());
+
+    let invalid_hash = "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+    fs::write(
+        app.join("package.toml"),
+        app_manifest(&tar_url, "acme.lib", invalid_hash),
+    )
+    .unwrap();
+    assert!(Package::load(&app).is_err());
+    assert!(
+        !app.join(".trn/packages")
+            .join(invalid_hash.trim_start_matches("sha256:"))
+            .exists()
+    );
+    let cache_root = app.join(".trn/packages");
+    assert!(
+        fs::read_dir(&cache_root).unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".0000000000000000000000000000000000000000000000000000000000000000-")),
+        "hash mismatch must clean archive staging"
+    );
+
+    let tar_app = workspace.0.join("tar-app");
+    fs::create_dir_all(tar_app.join("src")).unwrap();
+    fs::write(
+        tar_app.join("src/main.trn"),
+        "namespace app\nfunction main;\n  none\n",
+    )
+    .unwrap();
+    fs::write(
+        tar_app.join("package.toml"),
+        app_manifest(&tar_url, "acme.lib", &expected_hash),
+    )
+    .unwrap();
+    assert!(
+        Package::load(&tar_app).is_ok(),
+        "tar.gz resolver cache miss must load"
+    );
+    let tar_cache = tar_app
+        .join(".trn/packages")
+        .join(expected_hash.trim_start_matches("sha256:"));
+    assert_eq!(source_tree_hash(&tar_cache).unwrap(), expected_hash);
+
+    fs::write(tar_cache.join("src/library.trn"), "corrupted\n").unwrap();
+    let requests_before_revalidation = requests.load(Ordering::Relaxed);
+    assert!(
+        Package::load(&tar_app).is_ok(),
+        "corrupt cached archive must be re-fetched"
+    );
+    assert_eq!(source_tree_hash(&tar_cache).unwrap(), expected_hash);
+    assert!(requests.load(Ordering::Relaxed) > requests_before_revalidation);
+
+    stopped.store(true, Ordering::Relaxed);
+    server.join().unwrap();
+    let request_count_after_shutdown = requests.load(Ordering::Relaxed);
+    assert!(request_count_after_shutdown > 0);
+    assert!(
+        Package::load(&tar_app).is_ok(),
+        "verified archive cache must work offline"
+    );
+    assert_eq!(
+        requests.load(Ordering::Relaxed),
+        request_count_after_shutdown
     );
 }

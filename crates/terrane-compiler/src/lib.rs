@@ -1,4 +1,5 @@
 mod cache_scope;
+mod package_archive;
 pub use cache_scope::with_compilation_cache;
 mod bundled;
 mod cache_identity;
@@ -43,7 +44,8 @@ pub use package::{
     ArtifactKind, AuthoredRustModule, BuildToolchain, CapabilityProfile, ExecutorProfile,
     IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError, PackagePurpose,
     PanicProfile, ReflectionProfile, RustDependency, SourceRole, SourceUnit, TerraneDependency,
-    TerraneDependencySource, git_library_metadata, git_source_tree_hash, source_tree_hash,
+    TerraneDependencySource, archive_library_metadata, archive_source_tree_hash,
+    dependency_identity_parts, git_library_metadata, git_source_tree_hash, source_tree_hash,
     with_tokio_runtime,
 };
 pub use semantics::{
