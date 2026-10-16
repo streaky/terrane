@@ -15,10 +15,10 @@ fn projected_dependency_alias_rename_and_removal_update_only_its_bound_uses() {
     fs::copy(fixture.join("package.toml"), root.join("package.toml"))
         .expect("copy dependency manifest");
     fs::copy(
-        fixture.join("terrane-projection.lock"),
-        root.join("terrane-projection.lock"),
+        fixture.join("terrane-dependencies.lock"),
+        root.join("terrane-dependencies.lock"),
     )
-    .expect("copy projection lock");
+    .expect("copy dependency lock");
     let source_path = root.join("src/main.trn");
     let source = "namespace app\nfrom /deps/http import StatusCode\nfrom /deps/http import StatusCode as ReplyCode, StatusCode as OtherCode\nfunction main;\n    reply ReplyCode|none = none\n    other OtherCode|none = none\n    unrelated StatusCode|none = none\n";
     fs::write(&source_path, source).expect("write temporary consumer");

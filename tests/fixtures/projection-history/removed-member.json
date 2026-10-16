@@ -2,7 +2,7 @@
   "dependencies": [
     {
       "members": {
-        "/deps/httpdate": [
+        "/deps/date-codec": [
           "Error",
           "Error.into",
           "Error.try_into",
@@ -19,18 +19,14 @@
           "fmt_http_date",
           "parse_http_date"
         ],
-        "/deps/httpdate/httpdate/trait/core/convert/from-httpdate/httpdate": [
-          "from"
-        ],
-        "/deps/httpdate/httpdate/trait/core/convert/from-std/time/systemtime": [
-          "from"
-        ]
+        "/deps/date-codec/httpdate/trait/core/convert/from-httpdate/httpdate": ["from"],
+        "/deps/date-codec/httpdate/trait/core/convert/from-std/time/systemtime": ["from"]
       },
-      "name": "httpdate",
+      "name": "date-codec",
       "version": "1.0.3"
     }
   ],
   "format": 4,
-  "removed": [],
+  "removed": [{"current_version":"1.0.3","name":"removed_parser","namespace":"/deps/date-codec","previous_version":"1.0.2"}],
   "source": "Local"
 }

@@ -350,12 +350,13 @@ next work units before committing to a new core representation.
   reproduces Iced's direct `application` decline at the unresolved `BootFn` callback context.
   The maintained-Rust GUI remains explicitly context-only rather than being counted as direct
   admission evidence.
-- `terrane-projection.generated.trn` materializes the otherwise ephemeral projection at
-  `.trn/terrane-projection.generated.trn` under each package root, while the manifest and
-  dependency/projection locks remain at package root. It orders currently required unavailable
-  declarations and the required-admitted
-  index first, active projected Terrane source second, and unreachable unavailable declarations
-  last. Report comments retain every exact decline, demand site, partial function/callback contract,
+  `terrane-projection.generated.trn` materializes the otherwise ephemeral projection at
+  `.trn/terrane-projection.generated.trn` under each package root. `terrane-dependencies.lock`
+  remains at package root as the tracked exact dependency graph. The ignored
+  `.trn/projection-cache.json` stores disposable local projection cache/history. The generated
+  inventory orders currently required unavailable declarations and the required-admitted index
+  first, active projected Terrane source second, and unreachable unavailable declarations last.
+  Report comments retain every exact decline, demand site, partial function/callback contract,
   and transitive requirement. Deterministic `Generated source unit` markers split the physical
   artifact into independently validated units even when projected namespaces are cyclic. Authored
   files retain `S2002`; this is a generated-container rule rather than a
@@ -3534,8 +3535,9 @@ Deliver:
 - **diagnostics in Terrane terms** for moves, drops, `Send`/`Sync` at task boundaries, and escaping
   borrows, per the existing translation contract. A removed crossed member is diagnosed as missing at
   its Terrane import or use site rather than surfacing as a rustc error against generated source;
-  distinguishing removal from a never-present member and naming the lock version change is deferred
-  until projection history has a durable, machine-independent home;
+  local projection-cache history distinguishes removals from members never present and can name
+  the version transition while the cache remains; clearing it or checking out fresh loses this
+  historical context, not dependency identity;
 - **capability and containment.** The manifest declaration is the grant, transitively, with the build
   report identifying what executed; a profile forbidding an effect rejects the dependency at manifest
   resolution rather than at a call site. Builds fetch online and then compile `--offline --frozen`
@@ -3546,9 +3548,8 @@ Deliver:
 - **cache identity and retention** covering manifest, lock checksum, features, default-feature policy,
   target triple, toolchain version, package source checksums, and sandbox tier, so a build that reached
   further is not cache-equivalent to one that did not. The project-local cache retains the current
-  projection plus at most three prior artifacts for ordinary rollback and editor churn; this bounded
-  operational history is not the durable, machine-independent history required by the deferred
-  version-aware diagnostics;
+  projection plus disposable local projection/history data for ordinary rollback and editor churn;
+  removal diagnostics use that local history only while present;
 - **the specification amendments this requires**, which are language changes and not editorial: making
   uppercase and underscore legal identifier characters so verbatim projected names are writable, with
   kebab-case kept mandatory for compiler-owned and standard-library names and every documentation
@@ -3582,10 +3583,8 @@ receiver contracts on same-named projected types are rejected as `S2030` rather 
 import or artifact order. Rust dependency projection requires the Linux `bwrap` containment tier and fails explicitly
 when it is unavailable; dependency-free programs do not probe containment, rustdoc, or the pinned
 nightly toolchain. Wiring projection itself to a build-capability grant, rejecting dependency effects
-forbidden by a selected profile, distinguishing unwinding from aborting profiles, containing
-generated-crate compilation, and retaining durable projection history for version-naming
-removed-member diagnostics remain explicit follow-on capability requirements, staged in milestone
-25.2.
+forbidden by a selected profile, distinguishing unwinding from aborting profiles, and containing
+generated-crate compilation have implemented evidence below.
 Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
 the same machinery, including caught dependency errors, a fixture-owned generated-Rust panic
 boundary preserving payload and crate/member context, uppercase and underscored identifiers, and
@@ -3742,15 +3741,13 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
 Verified results enter the ordinary offline cache. Every current cache, published, bundled, and
 local attempt reports its hit, miss, rejection, skip, generation, or fallback reason and final
-outcome. History format 4 groups projected member names by namespace while persisting stable
-content-origin provenance and reasons, rustdoc format, projection schema, cache identity, content
-hash, and any exact bound-owner dependency added to the generated graph; an exact cache hit does not
+outcome. Projection-cache format 4 groups projected member names by namespace while persisting
+stable content-origin provenance and reasons, rustdoc format, projection schema, cache identity,
+content hash, and any exact bound-owner dependency added to the generated graph; an exact cache hit does not
 rewrite that origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact
 channel and appear as a recorded skipped source rather than an accidentally absent branch.
-All maintained package, benchmark, and compatibility locks use format 4. The otherwise orphaned
-`tests/conformance/reject/projected-static-associated-decline/terrane-projection.lock` deliberately
-remains at format 3 as the oldest-schema migration sentinel; it has no package manifest and is read
-only by projection-history compatibility coverage.
+`tests/fixtures/projection-history/format-3.lock` retains deliberate compatibility data;
+an executing history test migrates it to the current cache format. It is not package state.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
@@ -3782,11 +3779,14 @@ deferred because no exact application witness requires the direct generic surfac
 narrow facade is the cheaper boundary. The exact `query(...).bind(...).execute(...)` chain
 terminates in an async operation and therefore cannot become executable before the Phase B
 lowering contract. The probe inventory records both decisions and their exact witnesses.
-`terrane-projection.lock` format 2 provides deterministic machine-independent history, records
-projection provenance and content identity, migrates format 1 on the next successful projection,
-and rejects same-input replay drift with both hashes. `S2031` names a removed top-level, static, or
-instance member and its resolved version transition; `removed-rust-dependency-member` and
-`removed-rust-dependency-instance-member` pin import-time and receiver-member lookup respectively.
+The ignored `.trn/projection-cache.json` holds local projection history, provenance, and content
+identity; it migrates supported older cache formats on write and rejects same-input replay drift
+with both hashes. Matching removal history can produce `S2031` with the resolved version transition
+while the cache remains. Clearing the cache or using a fresh checkout regenerates current projection
+state and loses historical removal context; `terrane-dependencies.lock` retains the exact dependency
+graph independently.
+The keys `removed-rust-dependency-member` and `removed-rust-dependency-instance-member` pin import-time
+and receiver-member lookup respectively.
 Declared projected members still resolve before history, while never-present object members retain
 the ordinary `T0055` diagnostic. The accepted `rust-dependency-deferred-surface` execution case
 crosses a `bytes` receiver-first trait method and uses `serde_json`'s `Option<Number>`, `u128` edge
@@ -4015,7 +4015,7 @@ adapter dependency it calls directly. `logging-capability` proves profile denial
 
 ### Completed portion of Milestone 32.1 — Projection artifact foundation
 
-Projection artifacts have an exact identity envelope, SHA-256 payload validation, exact-match acceptance, and a resolution chain covering cache, optional trusted-HTTPS publication, bundled-source skip, and local rustdoc fallback. Every source attempt and result is recorded in `terrane-projection.lock` with stable origin, rustdoc format, projection schema, cache identity, content hash, and explicit failure reasons. Local rustdoc remains the ground-truth fallback.
+Projection artifacts have an exact identity envelope, SHA-256 payload validation, exact-match acceptance, and a resolution chain covering cache, optional trusted-HTTPS publication, bundled-source skip, and local rustdoc fallback. Every source attempt and result is recorded in the ignored `.trn/projection-cache.json` with stable origin, rustdoc format, projection schema, cache identity, content hash, and explicit failure reasons. Local rustdoc remains the ground-truth fallback.
 
 ### Milestone 29.0 — Efficient removal and ordered collection traversal
 
@@ -4429,9 +4429,9 @@ the measured workspace suite.
 
 `Compilation::review_rust` now renders ordered runtime-source and vendored-support manifests followed
 by program-owned lowering, while standalone Rust, split generated files, canonical validation, and
-source associations retain their prior contract. The conformance harness requires an explicit
-filter for ordinary regeneration, reserves `TERRANE_UPDATE_GOLDENS=all` for corpus-wide updates,
-reports only changed artifacts, and compares every accepted case against the review rendering.
+source associations retain their prior contract. The current conformance harness persists split
+lowering artifacts on ordinary focused or corpus-wide runs, with Git diffs as the review signal.
+Projection histories are disposable caches, not tracked goldens; no golden-update flag is needed.
 
 The initial migration reduced 271 `lower.rs` files from 167,829 lines to 65,605. Review correction
 then restored generated reflection and error-site tables, producing a final 133,526-line corpus;
@@ -4471,8 +4471,8 @@ The manifest names the runtime source files in the order the pipeline concatenat
 program that starts or stops selecting a runtime module still changes its golden, while an edit
 inside a runtime module changes only that tracked source file. Runtime modules are never copied
 into a golden again. The standalone rendering that `terrane rust` writes and that canonical-Rust
-validation compiles is unchanged; only what the harness compares and writes under
-`TERRANE_UPDATE_GOLDENS` changes. The compiler exposes the review rendering on `Compilation`
+validation compiles is unchanged; the distinction is between the review rendering and the
+split files persisted by the current harness. The compiler exposes the review rendering on `Compilation`
 rather than the harness pattern-matching support text, so formatting of the concatenated file
 cannot drift from the fragments.
 
@@ -4481,9 +4481,9 @@ records the line count before and after.
 
 #### Regeneration discipline
 
-- `TERRANE_UPDATE_GOLDENS` reports every golden it rewrote and refuses to run without a
-  conformance filter unless `TERRANE_UPDATE_GOLDENS=all`, so a broad regeneration is a deliberate
-  act rather than a side effect of a focused run.
+- Use a conformance filter for focused regeneration and select the whole corpus deliberately
+  for broad verification. Projection caches are regenerated in disposable staged packages,
+  not compared against tracked package inventories.
 - Add `docs/summarize-golden-churn.py <git range>`: it collapses identical hunks across all changed
   `lower.rs` files and prints each unique hunk once with the number of files it appears in, so a
   regeneration is auditable as "1 unique hunk × 25 files" rather than by reading 25 diffs. Its
@@ -4498,7 +4498,7 @@ records the line count before and after.
   cheap, not fewer, because the unrelated fixtures are the ones that catch an unintended shape
   change.
 - A comment-only edit to `runtime/async_native.rs` followed by the full conformance suite
-  regenerates zero goldens under `TERRANE_UPDATE_GOLDENS=all`; a change that adds a runtime module
+  regenerates zero goldens in a corpus-wide run; a change that adds a runtime module
   to a program's selection changes exactly that program's manifest line.
 - The `select` block-scoping change on `heterogeneous-async-selection` (`1790be1c`) is the
   reference example of churn that must survive: rerunning it against the migrated goldens still
@@ -5522,7 +5522,7 @@ parsing a debugger report or creating a second definition of source/build identi
 
 - a declared evidence kind and unit whose schema is shared by CPU and later memory captures;
 - compiler, schema, Rust toolchain, target, ABI recipe, optimization/codegen profile, manifest,
-  projection lock, support component, generated-file, executable, and native module identities;
+  local projection-cache, support component, generated-file, executable, and native module identities;
 - source hashes and optional explicitly requested embedded snapshots, with path relocation kept
   separate from identity;
 - the selected collector and its raw collection configuration;

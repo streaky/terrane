@@ -98,21 +98,8 @@ fn projection_history_retains_removed_members_across_checks_and_same_version_cha
             resolution: ProjectionResolution::default(),
             removed: Vec::new(),
         };
-        old.content_hash = projection_content_hash(&old).unwrap();
         apply_projection_history(&directory, &mut old).unwrap();
-        let lock_path = directory.join("terrane-projection.lock");
-        let mut reviewed: serde_json::Value =
-            serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
-        let object = reviewed.as_object_mut().unwrap();
-        for field in [
-            "cache_identity",
-            "projection_schema",
-            "content_hash",
-            "resolution",
-        ] {
-            object.remove(field);
-        }
-        fs::write(&lock_path, serde_json::to_vec_pretty(&reviewed).unwrap()).unwrap();
+        let cache_path = directory.join(".trn/projection-cache.json");
         let mut current = Projection {
             native_owner_aliases: BTreeMap::default(),
             cache_identity: "current".to_owned(),
@@ -140,33 +127,30 @@ fn projection_history_retains_removed_members_across_checks_and_same_version_cha
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(current.removed.len(), 3);
         let persisted: serde_json::Value =
-            serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+            serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
         assert_eq!(persisted["dependencies"][0]["version"], version);
         assert_eq!(persisted["removed"].as_array().unwrap().len(), 3);
         assert_eq!(persisted["removed"][0]["previous_version"], "1.0.0");
         assert_eq!(persisted["removed"][0]["current_version"], version);
-        for field in [
-            "cache_identity",
-            "projection_schema",
-            "content_hash",
-            "resolution",
-        ] {
-            assert!(persisted.get(field).is_none(), "unexpected `{field}`");
-        }
-        assert_eq!(persisted["source"], "Local");
-        assert_eq!(persisted["rustdoc_format"], rustdoc_types::FORMAT_VERSION);
-        let reviewed_bytes = serde_json::to_vec(&persisted).unwrap();
-        fs::write(&lock_path, &reviewed_bytes).unwrap();
+        assert!(persisted["cache_identity"].is_string());
+        assert!(persisted["content_hash"].is_string());
+        let cache_bytes = fs::read(&cache_path).unwrap();
         apply_projection_history(&directory, &mut current).unwrap();
-        assert_eq!(fs::read(&lock_path).unwrap(), reviewed_bytes);
+        assert_eq!(fs::read(&cache_path).unwrap(), cache_bytes);
+        assert!(!directory.join("terrane-projection.lock").exists());
         current.dependencies[0].version = "2.0.1".to_owned();
         current.content_hash = projection_content_hash(&current).unwrap();
         apply_projection_history(&directory, &mut current).unwrap();
         let updated: serde_json::Value =
-            serde_json::from_slice(&fs::read(&lock_path).unwrap()).unwrap();
+            serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
         assert_eq!(updated["dependencies"][0]["version"], "2.0.1");
         assert_eq!(updated["removed"].as_array().unwrap().len(), 3);
-        assert!(updated.get("cache_identity").is_none());
+        fs::remove_file(&cache_path).unwrap();
+        apply_projection_history(&directory, &mut current).unwrap();
+        assert_eq!(current.removed, [] as [RemovedItem; 0]);
+        let rebuilt: serde_json::Value =
+            serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
+        assert_eq!(rebuilt["removed"], serde_json::json!([]));
         fs::remove_dir_all(directory).unwrap();
     }
 }
@@ -206,7 +190,7 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
     };
     apply_projection_history(&directory, &mut projection).unwrap();
     let history: ProjectionHistory =
-        serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+        serde_json::from_slice(&fs::read(directory.join(".trn/projection-cache.json")).unwrap())
             .unwrap();
     assert_eq!(history.resolution, Some(generated));
     assert_eq!(history.format, 4);
@@ -237,7 +221,8 @@ fn legacy_format_three_history_migrates_without_losing_removed_members() {
         std::process::id()
     ));
     fs::create_dir_all(&directory).unwrap();
-    fs::write(directory.join("terrane-projection.lock"), legacy).unwrap();
+    fs::create_dir_all(directory.join(".trn")).unwrap();
+    fs::write(directory.join(".trn/projection-cache.json"), legacy).unwrap();
     let mut projection = Projection {
         native_owner_aliases: BTreeMap::default(),
         cache_identity: "format-three-migration".to_owned(),
@@ -273,21 +258,20 @@ fn legacy_format_three_history_migrates_without_losing_removed_members() {
         expected
     );
     let migrated: ProjectionHistory =
-        serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+        serde_json::from_slice(&fs::read(directory.join(".trn/projection-cache.json")).unwrap())
             .unwrap();
     assert_eq!(migrated.format, 4);
     fs::remove_dir_all(directory).unwrap();
 }
-
 #[test]
-fn projection_history_migrates_provenance_and_detects_replay_drift() {
+fn projection_cache_migrates_provenance_and_detects_replay_drift() {
     let directory = std::env::temp_dir().join(format!(
         "terrane-projection-provenance-{}",
         std::process::id()
     ));
-    fs::create_dir_all(&directory).unwrap();
+    fs::create_dir_all(directory.join(".trn")).unwrap();
     fs::write(
-        directory.join("terrane-projection.lock"),
+        directory.join(".trn/projection-cache.json"),
         b"{\"format\":1,\"dependencies\":[],\"removed\":[]}\n",
     )
     .unwrap();
@@ -308,7 +292,7 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
     apply_projection_history(&directory, &mut projection).unwrap();
 
     let migrated: ProjectionHistory =
-        serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+        serde_json::from_slice(&fs::read(directory.join(".trn/projection-cache.json")).unwrap())
             .unwrap();
     assert_eq!(migrated.format, 4);
     assert_eq!(migrated.source, Some(ProjectionSource::Local));
@@ -321,14 +305,21 @@ fn projection_history_migrates_provenance_and_detects_replay_drift() {
     projection.source = ProjectionSource::Remote;
     apply_projection_history(&directory, &mut projection).unwrap();
     let changed_source: ProjectionHistory =
-        serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+        serde_json::from_slice(&fs::read(directory.join(".trn/projection-cache.json")).unwrap())
             .unwrap();
     assert_eq!(changed_source.source, Some(ProjectionSource::Remote));
+    let cache_path = directory.join(".trn/projection-cache.json");
+    let stable_bytes = fs::read(&cache_path).unwrap();
 
     projection.probe_wall_time_ms = 1;
     projection.content_hash = projection_content_hash(&projection).unwrap();
     let error = apply_projection_history(&directory, &mut projection).unwrap_err();
-    assert!(error.message.contains("projection replay mismatch"));
-    assert!(error.message.contains("previously produced"));
+    assert!(
+        error
+            .message
+            .contains(changed_source.content_hash.as_deref().unwrap())
+    );
+    assert!(error.message.contains(&projection.content_hash));
+    assert_eq!(fs::read(&cache_path).unwrap(), stable_bytes);
     fs::remove_dir_all(directory).unwrap();
 }

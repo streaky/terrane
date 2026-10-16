@@ -439,20 +439,16 @@ Cache identity covers manifest contents, lock checksum, enabled features, defaul
 target triple, toolchain version, and package source checksums — the same set §23.1 already requires
 of tooling. The projection is a pure function of that identity, so the language server and the
 compiler compute the same model or neither does.
-The project-local cache retains the current projection and at most three prior projection artifacts.
-This bounded history avoids repeated rustdoc work during ordinary lockfile rollback and editor churn
-without allowing one project directory to grow indefinitely. Durable, machine-independent
-`terrane-projection.lock` history records top-level projected members plus instance members as
-`Type.member` and static members as `Type::member`, keyed by resolved dependency version.
+The ignored `.trn/projection-cache.json` is disposable generated local projection cache/history.
+It may retain removed-member and replay-mismatch evidence while present, allowing `S2031` to
+distinguish a removed member from one never projected. Clearing the cache or using a fresh checkout
+regenerates the current projection and loses that historical context; it does not change dependency
+identity. `terrane-dependencies.lock` remains the tracked source of the exact resolved Rust graph.
 
 The projection pass and generated-crate compilation use the build capability policy: fetch may run
 online, then rustdoc and compilation run offline and frozen inside `bwrap` where available. A platform
 without enforcement reports the unavailable host tier rather than refusing the dependency.
 
-Generated Cargo and generated Rust are golden-tested. A lock bump that removes a crossed projected
-member is a source-visible interface change; `S2031` diagnoses it at the Terrane import and names the
-member, previous version, and current version. A member absent from both history and the current
-projection retains the ordinary absent-or-declined diagnostic.
 
 ## 10. Conflicts with the current specification
 
@@ -583,8 +579,10 @@ here is conditional or outstanding.
   policy, target triple, toolchain version, package source checksums. The projection pass runs under
   the same build capability, sandbox policy, and cache-identity inputs as a build script. (§9)
 - **A16 — lock-change diagnostics.** A missing crossed member is diagnosed at its Terrane import
-  rather than as a rustc error against generated source. Machine-independent projection history
-  distinguishes a removed member from one never present and names the resolved version change. (§9)
+  rather than as a rustc error against generated source. Local projection-cache history
+  distinguishes a removed member from one never present while that cache remains. Clearing the
+  cache or checking out fresh loses that historical context; `terrane-dependencies.lock` continues
+  to preserve the exact resolved graph. (§9)
 
 ### 11.3 Tooling
 

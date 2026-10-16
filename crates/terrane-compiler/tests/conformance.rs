@@ -292,6 +292,15 @@ fn case_source_path(
         fs::remove_dir_all(&staged).unwrap();
     }
     copy_package_fixture(case, &staged);
+    let manifest = fs::read_to_string(case.join("case.toml")).unwrap();
+    if let Some(history) = field(&manifest, "projection-history") {
+        let destination = staged.join(".trn/projection-cache.json");
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/projection-history")
+            .join(history);
+        fs::copy(fixture, destination).unwrap();
+    }
     stage_native_tools(case, &staged);
     let fixture_registry = staged.join("fixture-registry");
     if fixture_registry.is_dir() {
@@ -444,20 +453,6 @@ fn persist_lowering_artifacts(case: &Path, files: &[terrane_compiler::rust_ir::R
     }
 }
 
-fn persist_projection_aware_lowering(
-    case: &Path,
-    files: &[terrane_compiler::rust_ir::RenderedFile],
-    update_goldens: bool,
-) {
-    if update_goldens
-        && std::env::var_os("TERRANE_UPDATE_GOLDENS")
-            .is_some_and(|mode| mode == std::ffi::OsStr::new("projection"))
-    {
-        return;
-    }
-    persist_lowering_artifacts(case, files);
-}
-
 fn with_compilation_dependencies(
     compilation: terrane_compiler::Compilation,
 ) -> (
@@ -473,7 +468,6 @@ fn compile_package_case(
     options: terrane_compiler::CompilerOptions,
     native_test: bool,
     case: &Path,
-    update_goldens: bool,
 ) -> (
     terrane_compiler::Compilation,
     Vec<terrane_compiler::RustDependency>,
@@ -487,7 +481,6 @@ fn compile_package_case(
         let package = terrane_compiler::Package::load(source_path).unwrap();
         let compilation =
             terrane_compiler::compile_package_with_options(&package, options).unwrap();
-        verify_reviewed_projection(case, source_path, update_goldens);
         with_compilation_dependencies(compilation)
     }
 }
@@ -573,7 +566,6 @@ fn prepare_conformance_case(
     case_index: usize,
     manifest_path: &Path,
     build: &ConformanceBuild,
-    update_goldens: bool,
 ) -> Option<PreparedGeneratedCase> {
     let binary_name = format!("terrane_conformance_case_{case_index}");
     let case = manifest_path.parent().unwrap();
@@ -599,7 +591,6 @@ fn prepare_conformance_case(
                     options,
                     boolean_field(&manifest, "native-test").unwrap_or(false),
                     case,
-                    update_goldens,
                 )
             } else {
                 let source = fs::read_to_string(&source_path).unwrap();
@@ -625,7 +616,7 @@ fn prepare_conformance_case(
                     .contents
                     .replace(&production, &format!("{limit}usize"));
             }
-            persist_projection_aware_lowering(case, &rust_files, update_goldens);
+            persist_lowering_artifacts(case, &rust_files);
             timing.defer();
             Some(PreparedGeneratedCase {
                 binary_name,
@@ -643,7 +634,6 @@ fn prepare_conformance_case(
             let failure = if package_case {
                 let package = terrane_compiler::Package::load(&source_path).unwrap();
                 let result = terrane_compiler::compile_package(&package);
-                verify_reviewed_projection(case, &source_path, update_goldens);
                 result.unwrap_err()
             } else {
                 let source = fs::read_to_string(&source_path).unwrap();
@@ -704,15 +694,12 @@ fn assert_diagnostic_location(
 
 #[test]
 fn every_manifest_drives_a_conformance_case() {
-    let update_goldens = golden_updates_from_environment();
     let manifests = selected_manifests();
     let build = ConformanceBuild::new();
     let prepared = parallel_map_indexed(
         &manifests,
         conformance_jobs(manifests.len()),
-        |case_index, manifest_path| {
-            prepare_conformance_case(case_index, manifest_path, &build, update_goldens)
-        },
+        |case_index, manifest_path| prepare_conformance_case(case_index, manifest_path, &build),
     );
     let mut deferred_generated_cases = Vec::new();
     for prepared in prepared.into_iter().flatten() {
@@ -954,79 +941,6 @@ fn compile_and_maybe_run(
         );
     }
 }
-fn verify_reviewed_projection(case: &Path, source_path: &Path, update_goldens: bool) {
-    let reviewed_path = case.join("terrane-projection.lock");
-    if !reviewed_path.is_file() {
-        return;
-    }
-    let staged_path = source_path
-        .parent()
-        .expect("package entrypoint must have a parent")
-        .join("terrane-projection.lock");
-    let staged = stable_projection_history(&staged_path);
-    if update_goldens {
-        let mut reviewed = serde_json::to_string_pretty(&staged).unwrap();
-        reviewed.push('\n');
-        let existing = fs::read_to_string(&reviewed_path).unwrap();
-        write_reviewed_golden(&reviewed_path, &existing, &reviewed);
-        return;
-    }
-    let reviewed = projection_history(&reviewed_path);
-    assert!(
-        [
-            "cache_identity",
-            "content_hash",
-            "projection_schema",
-            "rustdoc_format",
-            "resolution"
-        ]
-        .iter()
-        .all(|field| reviewed.get(field).is_none()),
-        "{} contains machine-local projection metadata; regenerate this lock through the conformance harness",
-        reviewed_path.display()
-    );
-    assert_eq!(
-        staged,
-        reviewed,
-        "{} changed its reviewed projection semantics",
-        case.display()
-    );
-}
-
-fn write_reviewed_golden(path: &Path, existing: &str, replacement: &str) {
-    if existing == replacement {
-        return;
-    }
-    fs::write(path, replacement).unwrap();
-    eprintln!("updated golden {}", path.display());
-}
-
-fn projection_history(path: &Path) -> serde_json::Value {
-    let bytes = fs::read(path).unwrap_or_else(|error| {
-        panic!(
-            "cannot read reviewed projection {}: {error}",
-            path.display()
-        )
-    });
-    serde_json::from_slice::<serde_json::Value>(&bytes)
-        .unwrap_or_else(|error| panic!("cannot decode projection {}: {error}", path.display()))
-}
-
-fn stable_projection_history(path: &Path) -> serde_json::Value {
-    let mut history = projection_history(path);
-    let object = history
-        .as_object_mut()
-        .unwrap_or_else(|| panic!("projection {} must contain a JSON object", path.display()));
-    // Reviewed history compares projected semantics, not cache serialization metadata. Schema-only
-    // migrations are covered by cache regeneration tests and must not rewrite every semantic lock.
-    object.remove("cache_identity");
-    object.remove("content_hash");
-    object.remove("projection_schema");
-    object.remove("rustdoc_format");
-    // Cache hits and local regeneration must expose the same reviewed API.
-    object.remove("resolution");
-    history
-}
 
 fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
     let mut command = Command::new(binary_path);
@@ -1251,21 +1165,6 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .collect()
 }
 
-fn golden_updates_from_environment() -> bool {
-    let Some(update) = std::env::var_os("TERRANE_UPDATE_GOLDENS") else {
-        return false;
-    };
-    if update == std::ffi::OsStr::new("all") {
-        return true;
-    }
-    assert!(
-        std::env::var_os("TERRANE_CONFORMANCE_FILTER").is_some_and(|filter| !filter.is_empty()),
-        "TERRANE_UPDATE_GOLDENS requires TERRANE_CONFORMANCE_FILTER; \
-         use TERRANE_UPDATE_GOLDENS=all for a deliberate corpus-wide regeneration"
-    );
-    true
-}
-
 fn selected_manifests() -> Vec<PathBuf> {
     assert_fixture_manifests(&corpus());
     let filter = std::env::var("TERRANE_CONFORMANCE_FILTER").ok();
@@ -1433,7 +1332,7 @@ fn canonical_rust_manifest_expectation_is_opt_in() {
 fn fixture_inventory_requires_a_root_manifest_even_for_nested_sources_or_locks() {
     let files = [
         "reject/unregistered/src/main.trn",
-        "reject/orphan/terrane-projection.lock",
+        "reject/orphan/projection-history.json",
         "run/registered/case.toml",
         "run/registered/fixture-registry/witness/case.toml",
         "check/nested-only/fixture-registry/witness/case.toml",
@@ -1469,7 +1368,7 @@ fn source_archive_discovers_and_checks_cases_without_git_inventory() {
     let manifests = manifests_below(&archive);
     assert_eq!(manifests, vec![case.join("case.toml")]);
     // Execute the discovered case: absence of Git must not bypass compiler checking.
-    assert!(prepare_conformance_case(0, &manifests[0], &build, false).is_none());
+    assert!(prepare_conformance_case(0, &manifests[0], &build).is_none());
 }
 
 #[test]

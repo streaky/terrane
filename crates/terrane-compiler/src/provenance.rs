@@ -117,7 +117,7 @@ impl BuildProvenance {
         for name in [
             crate::MANIFEST_FILE_NAME,
             "terrane-dependencies.lock",
-            "terrane-projection.lock",
+            ".trn/projection-cache.json",
         ] {
             let path = package.root.join(name);
             if let Ok(bytes) = std::fs::read(path) {
