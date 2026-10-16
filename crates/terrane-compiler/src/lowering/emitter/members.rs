@@ -317,6 +317,9 @@ impl Emitter<'_> {
     }
 
     pub(super) fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true) {
+            return narrowed;
+        }
         if receiver.kind == SyntaxKind::Name
             && let Some(binding) = self.local_typed_binding(receiver)
             && self.binding_may_be_unassigned(binding)

@@ -1,0 +1,32 @@
+namespace object-field-owned-snapshot
+
+class payload
+    value int = 7
+
+class holder
+    private required payload
+    private initialized payload = instance payload;
+
+    function construct;
+        this.required = instance payload;
+
+    function required-copy payload;
+        return this.required
+
+    function initialized-copy payload;
+        return this.initialized
+
+    function change-copy int;
+        local = this.required
+        local.value = 9
+        return local.value
+
+function main;
+    original = instance holder;
+    first = original.required-copy;
+    second = original.initialized-copy;
+    print; first.value
+    print; second.value
+    print; (original.change-copy;)
+    unchanged = original.required-copy;
+    print; unchanged.value

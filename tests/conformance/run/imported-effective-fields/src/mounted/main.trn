@@ -1,0 +1,6 @@
+namespace app/mounted
+
+from /app/context import api as api-state, parent
+
+public class api extends parent uses api-state
+    local string = 'instance'

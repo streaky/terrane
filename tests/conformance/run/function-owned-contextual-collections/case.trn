@@ -1,0 +1,12 @@
+namespace function-owned-contextual-collections
+
+from /core/collections import list
+
+function main;
+    for index in (list; 1)
+        state list of string = list
+        state.append; 'first'
+        print; state[index - 1]
+    for index in (list; 3)
+        state bool = index == 3
+        print; state
