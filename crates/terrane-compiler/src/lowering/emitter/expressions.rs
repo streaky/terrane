@@ -761,6 +761,17 @@ impl Emitter<'_> {
             return self.expression(node);
         }
         if node.kind == SyntaxKind::MemberExpression
+            && let ValueType::Object(identity) = &value_type
+            && !self.value_type_owns_resource(&value_type)
+        {
+            let expression = self.expression(node);
+            return if self.object_requires_separation(identity) {
+                format!("({expression}).terrane_separate()")
+            } else {
+                format!("({expression}).clone()")
+            };
+        }
+        if node.kind == SyntaxKind::MemberExpression
             && matches!(
                 &value_type,
                 ValueType::Scalar(ScalarType::String | ScalarType::Bytes)

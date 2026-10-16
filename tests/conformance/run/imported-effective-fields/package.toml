@@ -1,0 +1,3 @@
+package = "imported-effective-fields"
+[namespaces]
+app = "src"
