@@ -1,0 +1,57 @@
+namespace borrowed-inherited-copy-fields
+
+class base-box
+    flag bool = true
+    count int32 = 3
+    ratio float64 = 1.5
+
+class derived-box extends base-box
+    extra int = 1
+
+function make-derived base-box;
+    value = instance derived-box;
+    value.flag = false
+    value.count = 9
+    value.ratio = 2.5
+    return value
+
+function read-flag bool; value ref base-box
+    return value.flag
+
+function read-count int32; value ref base-box
+    return value.count
+
+function read-ratio float64; value ref base-box
+    return value.ratio
+
+function show-copy; flag bool, count int32, ratio float64
+    print; flag, count, ratio
+
+function check-borrow; value ref base-box
+    print; (read-flag; value)
+    print; (read-count; value)
+    print; (read-ratio; value)
+    flag bool = value.flag
+    count int32 = value.count
+    ratio float64 = value.ratio
+    show-copy; flag, count, ratio
+    show-copy; value.flag, value.count, value.ratio
+
+function check-shared; value shared ref base-box
+    flag bool = value.flag
+    count int32 = value.count
+    ratio float64 = value.ratio
+    show-copy; flag, count, ratio
+    show-copy; value.flag, count, ratio
+    show-copy; flag, value.count, ratio
+    show-copy; flag, count, value.ratio
+
+function main;
+    base = instance base-box;
+    check-borrow; ref base
+    derived = make-derived;
+    check-borrow; ref derived
+    shared-base = shared ref (instance base-box;)
+    check-shared; shared-base
+    shared-derived = shared ref (make-derived;)
+    check-shared; shared-derived

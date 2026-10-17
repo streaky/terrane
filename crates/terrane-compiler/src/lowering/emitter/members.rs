@@ -770,7 +770,13 @@ impl Emitter<'_> {
             };
             let access = if let Some(value_type) = owned_snapshot {
                 if rust_value_is_copy(value_type) {
-                    access
+                    // Wrapped getters return &T; required Copy slots above
+                    // have already been dereferenced.
+                    if wrapped_field && !required_field {
+                        format!("*({access})")
+                    } else {
+                        access
+                    }
                 } else if let ValueType::Object(identity) = value_type
                     && self.object_requires_separation(identity)
                 {
