@@ -378,7 +378,7 @@ impl Emitter<'_> {
             SyntaxKind::UnaryExpression => self.unary_expression(node),
             SyntaxKind::BinaryExpression => self.binary(node),
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
-            SyntaxKind::MemberExpression => self.member(node),
+            SyntaxKind::MemberExpression => self.member(node, None),
             SyntaxKind::StaticMemberExpression => self.static_member(node),
             SyntaxKind::ConstructionExpression => Self::escaped_construction(node),
             SyntaxKind::IndexExpression => self.index(node),
@@ -463,6 +463,28 @@ impl Emitter<'_> {
             return format!(
                 "({expression}).as_ref().expect(\"semantic optional narrowing\").clone()"
             );
+        }
+        if !self.assignment_target
+            && node.kind == SyntaxKind::MemberExpression
+            && !matches!(value_type, ValueType::Reference(_))
+            && !self.value_type_owns_resource(&value_type)
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && let Some(receiver) = node.children.first()
+            && matches!(
+                self.value_type(receiver),
+                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            )
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::Object(_))
+            )
+            && self
+                .native_field_type(node)
+                .is_none_or(|projected| projected.has_identity_representation())
+        {
+            // Materialize the owned snapshot inside the receiver's borrow/lock,
+            // rather than cloning an already copied member a second time.
+            return self.member(node, Some(&value_type));
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()

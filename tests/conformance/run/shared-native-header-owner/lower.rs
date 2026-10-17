@@ -98,12 +98,7 @@ fn count(value: OptionalHeaders) -> terrane_int_support::Int {
         }
         OptionalHeaders::Present(__terrane_pattern_1313_owner) => {
             owner = __terrane_pattern_1313_owner;
-            return owner
-                .lock()
-                .expect("shared reference lock poisoned")
-                .value
-                .clone()
-                .clone();
+            return owner.lock().expect("shared reference lock poisoned").value.clone();
         }
     }
 }

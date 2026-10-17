@@ -488,7 +488,11 @@ impl Emitter<'_> {
         clippy::too_many_lines,
         reason = "member lowering keeps one ordered dispatch across scalar and collection surfaces"
     )]
-    pub(super) fn member(&mut self, node: &SyntaxNode) -> String {
+    pub(super) fn member(
+        &mut self,
+        node: &SyntaxNode,
+        owned_snapshot: Option<&ValueType>,
+    ) -> String {
         let [receiver, member] = node.children.as_slice() else {
             return String::new();
         };
@@ -728,6 +732,11 @@ impl Emitter<'_> {
         {
             let guard = self.receiver_guard_expression(receiver);
             let field = self.native_field_name(receiver_type.as_ref(), self.text(member));
+            let copy_suffix = if owned_snapshot.is_some() {
+                ""
+            } else {
+                ".clone()"
+            };
             let access = if self.assignment_target && !required_field && !wrapped_field {
                 format!("({guard}).{field}")
             } else if required_field {
@@ -743,19 +752,32 @@ impl Emitter<'_> {
                     format!("({guard}).{field}.as_ref().expect(\"required field initialized\")")
                 }
             } else if wrapped_field {
-                format!("({guard}).terrane_field_{field}().clone()")
+                format!("({guard}).terrane_field_{field}(){copy_suffix}")
             } else if self
                 .native_field_type(node)
                 .is_some_and(|ty| !ty.has_identity_representation())
             {
                 format!("({guard}).{field}")
             } else {
-                format!("({guard}).{field}.clone()")
+                format!("({guard}).{field}{copy_suffix}")
             };
             let access = if let Some(projected) = self.native_field_type(node)
                 && !projected.has_identity_representation()
             {
                 self.native_field_result(node, &access, &projected)
+            } else {
+                access
+            };
+            let access = if let Some(value_type) = owned_snapshot {
+                if rust_value_is_copy(value_type) {
+                    access
+                } else if let ValueType::Object(identity) = value_type
+                    && self.object_requires_separation(identity)
+                {
+                    format!("({access}).terrane_separate()")
+                } else {
+                    format!("({access}).clone()")
+                }
             } else {
                 access
             };
