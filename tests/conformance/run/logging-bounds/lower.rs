@@ -35,14 +35,14 @@ fn main() {
     first = emit_at(
         dropping.clone(),
         info_level(),
-        String::from("first").clone(),
+        String::from("first"),
         "case.trn:11:13".to_owned(),
         empty.clone(),
     );
     second = emit_at(
         dropping.clone(),
         info_level(),
-        String::from("second").clone(),
+        String::from("second"),
         "case.trn:12:14".to_owned(),
         empty.clone(),
     );
@@ -72,14 +72,14 @@ fn main() {
     accepted = emit_at(
         rejecting.clone(),
         info_level(),
-        String::from("accepted").clone(),
+        String::from("accepted"),
         "case.trn:19:16".to_owned(),
         empty.clone(),
     );
     rejected = emit_at(
-        rejecting.clone(),
+        rejecting,
         info_level(),
-        String::from("rejected").clone(),
+        String::from("rejected"),
         "case.trn:20:16".to_owned(),
         empty.clone(),
     );
@@ -94,8 +94,8 @@ fn main() {
         LogField,
     >::new(
         vec![
-            field_at(String::from("value").clone(), log_text(String::from("bounded")),
-            false, "case.trn:24:24".to_owned())
+            field_at(String::from("value"), log_text(String::from("bounded")), false,
+            "case.trn:24:24".to_owned())
         ],
     );
     strict_fields = make_logger(
@@ -116,11 +116,11 @@ fn main() {
         ),
     );
     too_many = emit_at(
-        strict_fields.clone(),
+        strict_fields,
         info_level(),
-        String::from("too-many").clone(),
+        String::from("too-many"),
         "case.trn:26:16".to_owned(),
-        one_field.clone(),
+        one_field,
     );
     strict_bytes = make_logger(
         memory_sink(
@@ -140,9 +140,9 @@ fn main() {
         ),
     );
     too_large = emit_at(
-        strict_bytes.clone(),
+        strict_bytes,
         info_level(),
-        String::from("too-large").clone(),
+        String::from("too-large"),
         "case.trn:28:17".to_owned(),
         empty.clone(),
     );
@@ -176,11 +176,11 @@ fn main() {
         ),
     );
     invalid_limit = emit_at(
-        negative_limit.clone(),
+        negative_limit,
         info_level(),
-        String::from("invalid-limit").clone(),
+        String::from("invalid-limit"),
         "case.trn:36:21".to_owned(),
-        empty.clone(),
+        empty,
     );
     println!("{}", terrane_scalar_support::scalar_text(&invalid_limit.failed));
 }

@@ -565,7 +565,7 @@ fn main() {
                     .map(
                         match || -> Result<_, crate::TerraneForeignError> {
                             Ok({
-                                let callback = anonymous_update.clone().clone();
+                                let callback = anonymous_update.clone();
                                 move |callback_argument_0: &mut http::HeaderValue| {
                                     match || -> Result<_, crate::TerraneForeignError> {
                                         let callback_value = callback(&mut *callback_argument_0);
@@ -749,7 +749,7 @@ fn main() {
                     .map(
                         match || -> Result<_, crate::TerraneForeignError> {
                             Ok({
-                                let callback = anonymous_read.clone().clone();
+                                let callback = anonymous_read.clone();
                                 move |callback_argument_0: &http::HeaderValue| {
                                     match || -> Result<_, crate::TerraneForeignError> {
                                         let callback_value = callback(&*callback_argument_0);
@@ -794,7 +794,7 @@ fn main() {
                     .map(
                         match || -> Result<_, crate::TerraneForeignError> {
                             Ok({
-                                let callback = anonymous_read.clone().clone();
+                                let callback = anonymous_read.clone();
                                 move |callback_argument_0: &mut http::HeaderValue| {
                                     match || -> Result<_, crate::TerraneForeignError> {
                                         let callback_value = callback(&mut *callback_argument_0);

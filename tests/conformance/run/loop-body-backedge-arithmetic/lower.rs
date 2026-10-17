@@ -25,7 +25,6 @@ fn inferred() {
                     10,
                     22,
                 ))
-                .clone()
                 .clone() + terrane_int_support::Int::from(1_i128);
             typed_result = previous
                 .as_ref()
@@ -35,7 +34,6 @@ fn inferred() {
                     11,
                     32,
                 ))
-                .clone()
                 .clone() + terrane_int_support::Int::from(1_i128);
             step = previous
                 .as_ref()
@@ -45,7 +43,6 @@ fn inferred() {
                     12,
                     20,
                 ))
-                .clone()
                 .clone();
             composed = step.clone() * terrane_int_support::Int::from(2_i128)
                 + terrane_int_support::Int::from(1_i128);
@@ -77,7 +74,6 @@ fn inferred() {
                     15,
                     26,
                 ))
-                .clone()
                 .clone() > terrane_int_support::Int::from(1_i128);
             total = total.clone() + step.clone();
             println!("{}", terrane_scalar_support::scalar_text(&result));
@@ -108,7 +104,6 @@ fn typed() {
                             29,
                             29,
                         ))
-                        .clone()
                         .clone();
             }
             let _ = previous.insert(count.clone());

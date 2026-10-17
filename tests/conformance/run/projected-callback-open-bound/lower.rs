@@ -20,8 +20,8 @@ fn main() {
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error) }, match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(identity)
-            .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(identity);
+            move | callback_argument_0 : i64 | { match | | -> Result < _, crate
             ::TerraneForeignError > { let callback_value =
             callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
             Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
@@ -66,8 +66,8 @@ fn main() {
             std::panic::panic_any(error) }, match | | -> Result < _, crate
             ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(move |
             argument_0 : terrane_int_support::Int | -> std::pin::Pin < Box < dyn Future <
-            Output = _ > + Send > > { Box::pin(identity_async(argument_0)) }).clone();
-            move | callback_argument_0 : i64 | { let callback = callback.clone(); let
+            Output = _ > + Send > > { Box::pin(identity_async(argument_0)) }); move |
+            callback_argument_0 : i64 | { let callback = callback.clone(); let
             callback_future =
             callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
             Box::pin(async move { match async { let callback_value = callback_future.

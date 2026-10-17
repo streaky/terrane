@@ -285,7 +285,10 @@ impl Emitter<'_> {
             .iter()
             .map(|argument| {
                 let value = argument.children.last().unwrap_or(argument);
-                format!("({}).clone()", self.expression(value))
+                let value_type = self
+                    .value_type(value)
+                    .expect("semantic structured log argument has a value type");
+                self.expression_as(value, value_type)
             })
             .collect::<Vec<_>>();
         if identity != "/core/logging::emit" {
@@ -381,7 +384,7 @@ impl Emitter<'_> {
                 .iter()
                 .map(|argument| argument.children.last().unwrap_or(argument))
                 .collect::<Vec<_>>();
-            let name = format!("({}).clone()", self.expression(values[0]));
+            let name = self.expression_as(values[0], ValueType::Scalar(ScalarType::String));
             let value = self.expression_as(
                 values[1],
                 ValueType::Object(ObjectIdentity::new("/core/logging", "log-value")),
@@ -402,7 +405,10 @@ impl Emitter<'_> {
                 .iter()
                 .map(|argument| {
                     let value = argument.children.last().unwrap_or(argument);
-                    format!("({}).clone()", self.expression(value))
+                    let value_type = self
+                        .value_type(value)
+                        .expect("semantic log event argument has a value type");
+                    self.expression_as(value, value_type)
                 })
                 .collect::<Vec<_>>();
             let (line, column) = self.source.line_column(node.span.start);
@@ -423,7 +429,11 @@ impl Emitter<'_> {
                 .first()
                 .and_then(|argument| argument.children.last())
                 .expect("semantic logging error adapter has one argument");
-            return format!("terrane_log_error(({}).clone())", self.expression(argument));
+            let value_type = self
+                .value_type(argument)
+                .expect("semantic logging error adapter has a throwable argument");
+            let value = self.expression_as(argument, value_type);
+            return format!("terrane_log_error({value})");
         }
         if callee.kind == SyntaxKind::Name
             && self

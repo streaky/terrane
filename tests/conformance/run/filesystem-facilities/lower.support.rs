@@ -1292,8 +1292,8 @@ pub fn open_file(
     let _ = &capability;
     raw = terrane_platform_open_file(target.text, readable, writable, create, truncate);
     failure = raw.failed;
-    detail = raw.message.clone().clone();
-    acquired = raw.handle.clone().clone();
+    detail = raw.message.clone();
+    acquired = raw.handle.clone();
     return FileHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn file_read(
@@ -1308,11 +1308,11 @@ pub fn file_read(
         limit,
     );
     return FileData::terrane_construct(
-        raw.data.clone().clone(),
+        raw.data.clone(),
         raw.completed.clone(),
         raw.end,
         raw.failed,
-        raw.message.clone().clone(),
+        raw.message.clone(),
     );
 }
 pub fn file_write(
@@ -1333,7 +1333,7 @@ pub fn file_write(
         raw.completed.clone(),
         false,
         raw.failed,
-        raw.message.clone().clone(),
+        raw.message.clone(),
     );
 }
 pub fn file_flush(
@@ -1345,10 +1345,7 @@ pub fn file_flush(
     raw = terrane_platform_flush(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 pub fn file_sync_data(
     capability: Filesystem,
@@ -1359,10 +1356,7 @@ pub fn file_sync_data(
     raw = terrane_platform_sync_data(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 pub fn file_sync_all(
     capability: Filesystem,
@@ -1373,10 +1367,7 @@ pub fn file_sync_all(
     raw = terrane_platform_sync_all(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 pub fn file_close(
     capability: Filesystem,
@@ -1387,10 +1378,7 @@ pub fn file_close(
     raw = terrane_platform_close(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 #[derive(Clone)]
 pub struct Filesystem {
@@ -1494,8 +1482,8 @@ pub fn filesystem_open_beneath(
         cross_filesystem,
     );
     failure = raw.failed;
-    detail = raw.message.clone().clone();
-    acquired = raw.handle.clone().clone();
+    detail = raw.message.clone();
+    acquired = raw.handle.clone();
     return DirectoryHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn open_file_beneath(
@@ -1521,8 +1509,8 @@ pub fn open_file_beneath(
         truncate,
     );
     failure = raw.failed;
-    detail = raw.message.clone().clone();
-    acquired = raw.handle.clone().clone();
+    detail = raw.message.clone();
+    acquired = raw.handle.clone();
     return FileHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn filesystem_read_bounded(

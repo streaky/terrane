@@ -1310,8 +1310,8 @@ pub fn open_file(
     let _ = &capability;
     raw = terrane_platform_open_file(target.text, readable, writable, create, truncate);
     failure = raw.failed;
-    detail = raw.message.clone().clone();
-    acquired = raw.handle.clone().clone();
+    detail = raw.message.clone();
+    acquired = raw.handle.clone();
     return FileHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn file_read(
@@ -1326,11 +1326,11 @@ pub fn file_read(
         limit,
     );
     return FileData::terrane_construct(
-        raw.data.clone().clone(),
+        raw.data.clone(),
         raw.completed.clone(),
         raw.end,
         raw.failed,
-        raw.message.clone().clone(),
+        raw.message.clone(),
     );
 }
 pub fn file_write(
@@ -1351,7 +1351,7 @@ pub fn file_write(
         raw.completed.clone(),
         false,
         raw.failed,
-        raw.message.clone().clone(),
+        raw.message.clone(),
     );
 }
 pub fn file_flush(
@@ -1363,10 +1363,7 @@ pub fn file_flush(
     raw = terrane_platform_flush(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 pub fn file_sync_data(
     capability: Filesystem,
@@ -1377,10 +1374,7 @@ pub fn file_sync_data(
     raw = terrane_platform_sync_data(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 pub fn file_sync_all(
     capability: Filesystem,
@@ -1391,10 +1385,7 @@ pub fn file_sync_all(
     raw = terrane_platform_sync_all(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 pub fn file_close(
     capability: Filesystem,
@@ -1405,10 +1396,7 @@ pub fn file_close(
     raw = terrane_platform_close(
         &file.handle.as_ref().expect("required field initialized"),
     );
-    return FilesystemOperationResult::terrane_construct(
-        raw.failed,
-        raw.message.clone().clone(),
-    );
+    return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
 #[derive(Clone)]
 pub struct Filesystem {
@@ -1512,8 +1500,8 @@ pub fn filesystem_open_beneath(
         cross_filesystem,
     );
     failure = raw.failed;
-    detail = raw.message.clone().clone();
-    acquired = raw.handle.clone().clone();
+    detail = raw.message.clone();
+    acquired = raw.handle.clone();
     return DirectoryHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn open_file_beneath(
@@ -1539,8 +1527,8 @@ pub fn open_file_beneath(
         truncate,
     );
     failure = raw.failed;
-    detail = raw.message.clone().clone();
-    acquired = raw.handle.clone().clone();
+    detail = raw.message.clone();
+    acquired = raw.handle.clone();
     return FileHandle::terrane_construct(acquired, failure, detail);
 }
 pub fn filesystem_read_bounded(
@@ -1785,11 +1773,11 @@ impl ByteReader {
             count,
         );
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
+            raw.data.clone(),
             raw.completed.clone(),
             raw.end,
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1829,7 +1817,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -1886,7 +1874,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -1916,7 +1904,7 @@ impl ByteReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1964,7 +1952,7 @@ impl ByteWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1986,7 +1974,7 @@ impl ByteWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -2018,7 +2006,7 @@ impl ByteWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2035,7 +2023,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2046,7 +2034,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2057,7 +2045,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2068,7 +2056,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2133,7 +2121,7 @@ impl TextReader {
                 raw.completed.clone(),
                 raw.end,
                 raw.failed,
-                raw.message.clone().clone(),
+                raw.message.clone(),
             ),
         );
     }
@@ -2177,7 +2165,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -2243,7 +2231,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -2272,7 +2260,7 @@ impl TextReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2332,7 +2320,7 @@ impl TextWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2356,7 +2344,7 @@ impl TextWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -2388,7 +2376,7 @@ impl TextWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2411,7 +2399,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2422,7 +2410,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2433,7 +2421,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -2444,7 +2432,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }

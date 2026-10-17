@@ -1839,7 +1839,7 @@ pub async fn apply_async(
 ) -> Result<String, crate::TerraneForeignError> {
     let value = value;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: std::string::String| {
             let callback = callback.clone();
             let callback_future = callback(callback_argument_0);
@@ -1888,7 +1888,7 @@ pub async fn apply_async_concurrently(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: i64| {
             let callback = callback.clone();
             let callback_future = callback(
@@ -1944,7 +1944,7 @@ pub fn apply_mutable(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback
@@ -2027,7 +2027,7 @@ pub fn apply_shared(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(
@@ -2148,7 +2148,7 @@ pub async fn invoke_retained(
     >,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: i64| {
             let callback = callback.clone();
             let callback_future = callback(
@@ -2343,7 +2343,7 @@ pub fn dispatch(
     let label_ = label_;
     let enabled = enabled;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: std::string::String, callback_argument_1: bool| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(callback_argument_0, callback_argument_1);

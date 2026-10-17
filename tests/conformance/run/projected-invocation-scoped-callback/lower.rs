@@ -569,11 +569,11 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&state, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = std::sync::Arc::new(direct).clone(); move | callback_argument_0 : &'_ i64 | {
-        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
-        callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        = std::sync::Arc::new(direct); move | callback_argument_0 : &'_ i64 | { match | |
+        -> Result < _, crate ::TerraneForeignError > { let callback_value = callback(&*
+        callback_argument_0); Ok(callback_value) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness",
         "witness::render_scoped::<i64, String, bool>")) }, 52 /* terrane-site: src/main.trn:148:13-148:58 */))
@@ -598,8 +598,8 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_default:: < i64, String, bool > (&state, match | | -> Result < _,
-        crate ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(direct)
-        .clone(); move | callback_argument_0 : &'_ i64 | { match | | -> Result < _, crate
+        crate ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(direct);
+        move | callback_argument_0 : &'_ i64 | { match | | -> Result < _, crate
         ::TerraneForeignError > { let callback_value = callback(&* callback_argument_0);
         Ok(callback_value) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
@@ -760,8 +760,8 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&state, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = captured.clone().clone(); move | callback_argument_0 : &'_ i64 | { match | | ->
-        Result < _, crate ::TerraneForeignError > { let callback_value = callback(&*
+        = captured.clone(); move | callback_argument_0 : &'_ i64 | { match | | -> Result
+        < _, crate ::TerraneForeignError > { let callback_value = callback(&*
         callback_argument_0); Ok(callback_value) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error) }))) { Ok(value) =>
@@ -774,13 +774,13 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&state, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = std::sync::Arc::new(through_helper).clone(); move | callback_argument_0 : &'_
-        i64 | { match | | -> Result < _, crate ::TerraneForeignError > { let
-        callback_value = callback(&* callback_argument_0); Ok(callback_value) } () {
-        Ok(value) => value, Err(error) => std::panic::panic_any(error.0) } } }) } () {
-        Ok(value) => value, Err(error) => std::panic::panic_any(error) }))) { Ok(value)
-        => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-        Err(crate ::__terrane_dependency_panic(payload, "witness",
+        = std::sync::Arc::new(through_helper); move | callback_argument_0 : &'_ i64 | {
+        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
+        callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
+        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "witness",
         "witness::render_scoped::<i64, String, bool>")) }, 74 /* terrane-site: src/main.trn:171:13-171:66 */))
     );
     println!(
@@ -788,11 +788,11 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&state, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = std::sync::Arc::new(nested).clone(); move | callback_argument_0 : &'_ i64 | {
-        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
-        callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        = std::sync::Arc::new(nested); move | callback_argument_0 : &'_ i64 | { match | |
+        -> Result < _, crate ::TerraneForeignError > { let callback_value = callback(&*
+        callback_argument_0); Ok(callback_value) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness",
         "witness::render_scoped::<i64, String, bool>")) }, 75 /* terrane-site: src/main.trn:172:13-172:58 */))
@@ -802,11 +802,11 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&state, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = std::sync::Arc::new(branch).clone(); move | callback_argument_0 : &'_ i64 | {
-        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
-        callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        = std::sync::Arc::new(branch); move | callback_argument_0 : &'_ i64 | { match | |
+        -> Result < _, crate ::TerraneForeignError > { let callback_value = callback(&*
+        callback_argument_0); Ok(callback_value) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness",
         "witness::render_scoped::<i64, String, bool>")) }, 76 /* terrane-site: src/main.trn:173:13-173:58 */))
@@ -817,11 +817,11 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&zero, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = std::sync::Arc::new(branch).clone(); move | callback_argument_0 : &'_ i64 | {
-        match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
-        callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
-        Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        = std::sync::Arc::new(branch); move | callback_argument_0 : &'_ i64 | { match | |
+        -> Result < _, crate ::TerraneForeignError > { let callback_value = callback(&*
+        callback_argument_0); Ok(callback_value) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
+        std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "witness",
         "witness::render_scoped::<i64, String, bool>")) }, 77 /* terrane-site: src/main.trn:175:13-175:57 */))
@@ -832,8 +832,8 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_scoped:: < i64, String, bool > (&state, String::from("message"),
         true, match | | -> Result < _, crate ::TerraneForeignError > { Ok({ let callback
-        = std::sync::Arc::new(aggregate).clone(); move | callback_argument_0 : &'_ i64 |
-        { match | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
+        = std::sync::Arc::new(aggregate); move | callback_argument_0 : &'_ i64 | { match
+        | | -> Result < _, crate ::TerraneForeignError > { let callback_value =
         callback(&* callback_argument_0); Ok(callback_value) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error.0) } } }) } () { Ok(value) => value,
         Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
@@ -851,12 +851,12 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::run_application:: < witness::MutableState, _, _, _, _ > (match | | ->
         Result < _, crate ::TerraneForeignError > { Ok({ let callback =
-        std::sync::Arc::new(boot).clone(); move | | { match | | -> Result < _, crate
+        std::sync::Arc::new(boot); move | | { match | | -> Result < _, crate
         ::TerraneForeignError > { let callback_value = callback(); Ok(callback_value) }
         () { Ok(value) => value, Err(error) => std::panic::panic_any(error.0) } } }) } ()
         { Ok(value) => value, Err(error) => std::panic::panic_any(error) }, match | | ->
         Result < _, crate ::TerraneForeignError > { Ok({ let callback =
-        std::sync::Arc::new(update).clone(); move | callback_argument_0 : &mut
+        std::sync::Arc::new(update); move | callback_argument_0 : &mut
         witness::MutableState, callback_argument_1 : i64 | { match | | -> Result < _,
         crate ::TerraneForeignError > { let callback_value = callback(&mut *
         callback_argument_0,
@@ -865,7 +865,7 @@ fn main() {
         std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error) }, application_view, match | | -> Result < _, crate
         ::TerraneForeignError > { Ok({ let callback =
-        std::sync::Arc::new(application_title).clone(); move | callback_argument_0 :
+        std::sync::Arc::new(application_title); move | callback_argument_0 :
         &witness::MutableState | { match | | -> Result < _, crate ::TerraneForeignError >
         { let callback_value = callback(&* callback_argument_0); Ok(callback_value) } ()
         { Ok(value) => value, Err(error) => std::panic::panic_any(error.0) } } }) } () {

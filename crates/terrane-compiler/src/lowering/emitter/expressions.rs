@@ -438,6 +438,21 @@ impl Emitter<'_> {
         {
             return value;
         }
+        if node.kind == SyntaxKind::Name
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && !matches!(
+                value_type,
+                ValueType::Scalar(ScalarType::Int)
+                    | ValueType::Reference(_)
+                    | ValueType::SharedReference(_)
+            )
+            && self
+                .local_typed_binding(node)
+                .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+            && !matches!(&value_type, ValueType::Object(identity) if self.object_requires_separation(identity))
+        {
+            return self.expression(node);
+        }
         if node.kind == SyntaxKind::GroupExpression
             && let [grouped] = node.children.as_slice()
         {
@@ -463,6 +478,13 @@ impl Emitter<'_> {
             return format!(
                 "({expression}).as_ref().expect(\"semantic optional narrowing\").clone()"
             );
+        }
+        if node.kind == SyntaxKind::MemberExpression
+            && !self.assignment_target
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && self.member_materializes_owned_value(node)
+        {
+            return self.expression(node);
         }
         if !self.assignment_target
             && node.kind == SyntaxKind::MemberExpression
@@ -1413,7 +1435,17 @@ impl Emitter<'_> {
                     self.name(node)
                 )
             }
-            SyntaxKind::Name => format!("({}).clone()", self.name(node)),
+            SyntaxKind::Name => {
+                let value = self.name(node);
+                if self
+                    .local_typed_binding(node)
+                    .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+                {
+                    value
+                } else {
+                    format!("({value}).clone()")
+                }
+            }
             SyntaxKind::GroupExpression => {
                 node.children.first().map_or_else(String::new, |child| {
                     format!("({})", self.adaptive_expression(child))
@@ -1449,6 +1481,9 @@ impl Emitter<'_> {
                     .native_field_type(node)
                     .is_none_or(|projected| projected.has_identity_representation()) =>
             {
+                if self.member_materializes_owned_value(node) {
+                    return self.expression(node);
+                }
                 format!("({}).clone()", self.expression(node))
             }
             _ => self.expression(node),

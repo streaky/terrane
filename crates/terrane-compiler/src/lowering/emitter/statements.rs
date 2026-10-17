@@ -824,7 +824,13 @@ impl Emitter<'_> {
         let origin = self.error_site(node);
         let rethrow = self.is_throwable_value(error_node);
         let mut error = if rethrow {
-            format!("{}.clone().at({origin})", self.expression(error_node))
+            let value_type = self
+                .value_type(error_node)
+                .expect("semantic rethrow has a throwable value");
+            format!(
+                "{}.at({origin})",
+                self.expression_as(error_node, value_type)
+            )
         } else {
             let kind = self.rust_error_kind(error_node);
             if kind.starts_with("Custom(") {

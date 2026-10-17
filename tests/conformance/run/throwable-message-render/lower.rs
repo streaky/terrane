@@ -230,7 +230,6 @@ fn main() {
                                     .as_ref()
                                     .expect("flow-proven available binding")
                                     .clone()
-                                    .clone()
                                     .at(4 /* terrane-site: case.trn:40:7-40:19 */),
                             );
                         }

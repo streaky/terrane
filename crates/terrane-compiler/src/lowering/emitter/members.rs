@@ -949,6 +949,34 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn member_materializes_owned_value(&self, node: &SyntaxNode) -> bool {
+        let [receiver, member] = node.children.as_slice() else {
+            return false;
+        };
+        let name = self.text(member);
+        match self.receiver_value_type(receiver) {
+            Some(
+                ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
+                | ValueType::PlatformWriteResult
+                | ValueType::PlatformUnitResult,
+            ) => matches!(name, "handle" | "data" | "completed" | "message"),
+            Some(ValueType::DocumentDecodeOutcome(_)) => matches!(name, "value" | "diagnostics"),
+            Some(ValueType::DocumentDiagnostic) => true,
+            Some(ValueType::Entry(_, _)) => matches!(name, "key" | "value"),
+            Some(ValueType::Object(identity)) => {
+                self.value_type(node) == Some(ValueType::Scalar(ScalarType::Int))
+                    && !source_field_is_required(self.package, &identity, name)
+                    && (self.wrapped_object_field(receiver, name)
+                        || matches!(
+                            self.value_type(receiver),
+                            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                        ))
+            }
+            _ => false,
+        }
+    }
+
     pub(super) fn native_field_type(
         &self,
         node: &SyntaxNode,
