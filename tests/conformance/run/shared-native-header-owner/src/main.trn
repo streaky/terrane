@@ -1,0 +1,51 @@
+namespace app
+
+from /deps/http import HeaderMap as native-header-map, HeaderValue as native-header-value
+
+class header-owner
+    private headers shared ref (native-header-map of native-header-value)
+
+    function construct;
+        initial native-header-map of native-header-value = rust
+            ::http::HeaderMap::new()
+        this.headers = shared ref initial
+
+    function replace; value string
+        headers = this.headers
+        rust
+            headers.lock().expect("lock").insert("x-value", ::http::HeaderValue::from_str(&value).unwrap());
+
+    function read string;
+        headers = this.headers
+        value string = rust
+            headers.lock().expect("lock").get("x-value").unwrap().to_str().unwrap().to_owned()
+        return value
+
+class resource
+    value int = 7
+    consuming function destruct;
+        print; 'released'
+
+enum optional-headers
+    absent
+    present; owner shared ref resource
+
+function count int; value optional-headers
+    match value
+        case optional-headers::absent
+            return -1
+        case optional-headers::present; owner
+            return owner.value
+
+function main;
+    original = instance header-owner;
+    original.replace; 'first'
+    copied = original
+    copied.replace; 'second'
+    print; (original.read;)
+    print; (copied.read;)
+    owner = shared ref (instance resource;)
+    value = instance optional-headers::present; owner = owner
+    copied-value = value
+    print; (count; value)
+    print; (count; copied-value)

@@ -532,8 +532,7 @@ pub(super) fn value_type_owns_resource(
         | ValueType::TaskGroup(item)
         | ValueType::ChannelReceiveOutcome(item)
         | ValueType::ChannelSendOutcome(item)
-        | ValueType::Reference(item)
-        | ValueType::SharedReference(item) => {
+        | ValueType::Reference(item) => {
             value_type_owns_resource(&item.value_type(), resource_identities)
         }
         ValueType::Map(key, value)
@@ -542,6 +541,7 @@ pub(super) fn value_type_owns_resource(
             value_type_owns_resource(&key.value_type(), resource_identities)
                 || value_type_owns_resource(&value.value_type(), resource_identities)
         }
+        // SharedReference copies its owning handle, never its referent.
         _ => false,
     }
 }
@@ -623,8 +623,7 @@ fn value_type_contains_nonclone_foreign(package: &SemanticPackage, value_type: &
         | ValueType::TaskGroup(item)
         | ValueType::ChannelReceiveOutcome(item)
         | ValueType::ChannelSendOutcome(item)
-        | ValueType::Reference(item)
-        | ValueType::SharedReference(item) => {
+        | ValueType::Reference(item) => {
             value_type_contains_nonclone_foreign(package, item.value_type_ref())
         }
         ValueType::Map(key, value)
@@ -633,6 +632,7 @@ fn value_type_contains_nonclone_foreign(package: &SemanticPackage, value_type: &
             value_type_contains_nonclone_foreign(package, key.value_type_ref())
                 || value_type_contains_nonclone_foreign(package, value.value_type_ref())
         }
+        // Shared native owners do not require the referent to implement Clone.
         _ => false,
     }
 }

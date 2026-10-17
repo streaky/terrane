@@ -1,0 +1,7 @@
+package = "shared-native-header-owner"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.http]
+version = "=1.5.0"

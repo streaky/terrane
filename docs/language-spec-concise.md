@@ -550,6 +550,7 @@ implementation: COW/share storage allowed if mutation cannot leak
 mutation: separates backing storage before observable change
 ref: explicit non-owning source-visible identity; does not extend lifetime
 shared_ref: explicit shared identity plus shared ownership; extends lifetime
+shared_ref_copy: copies the owning handle, not the referent; a shared ref to a resource-shaped or non-Clone native type does not by itself make a containing class or enum noncopyable
 reference_provenance: compiler-tracked; derived references may narrow, never widen lifetime
 interior_ref: separates COW, pins path, cannot escape/replace/remove while live
 reference_provenance_shape: owner source span + external-lender parameter span + ordered Field/Element/CallResult projections + first mutation/move/replacement lifetime end; parentheses preserve it and bindings, arguments/results, captures, and borrowed iteration copy or narrow it
