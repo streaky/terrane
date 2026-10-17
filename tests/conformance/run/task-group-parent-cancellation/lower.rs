@@ -29,7 +29,7 @@ impl WorkerError {
         return self.message.clone();
     }
 }
-async fn child(observer: std::sync::Arc<std::sync::Mutex<State>>) {
+async fn child(observer: std::sync::Arc<TerraneSharedCell<State>>) {
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
             &__terrane_finally_guard_0,
@@ -103,7 +103,7 @@ async fn child(observer: std::sync::Arc<std::sync::Mutex<State>>) {
     }
     return ();
 }
-async fn parent(observer: std::sync::Arc<std::sync::Mutex<State>>) {
+async fn parent(observer: std::sync::Arc<TerraneSharedCell<State>>) {
     __terrane_group_frame(async move {
             let group: TerraneTaskGroup<()>;
             group = TerraneTaskGroup::<()>::new();
@@ -232,14 +232,14 @@ async fn fail() -> Result<(), TerraneError> {
 }
 fn main() {
     __terrane_run(async move {
-        let observer: std::sync::Arc<std::sync::Mutex<State>>;
+        let observer: std::sync::Arc<TerraneSharedCell<State>>;
         let scope: TerraneTaskScope;
         let pending: TerraneScopedTask<()>;
         let failing: TerraneScopedTask<()>;
         let failed: TerraneTaskOutcome<()>;
         let joined: TerraneTaskOutcome<()>;
         observer = std::sync::Arc::new(
-            std::sync::Mutex::new(State::terrane_construct()),
+            TerraneSharedCell::new(State::terrane_construct()),
         );
         scope = TerraneTaskScope::new(None);
         pending = {

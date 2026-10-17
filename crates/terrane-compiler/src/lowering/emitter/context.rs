@@ -1117,7 +1117,7 @@ impl<'unit> Emitter<'unit> {
             format!("({}).clone()", self.local_storage_name(operand))
         } else {
             format!(
-                "std::sync::Arc::new(std::sync::Mutex::new({}))",
+                "std::sync::Arc::new(TerraneSharedCell::new({}))",
                 self.expression(operand)
             )
         }

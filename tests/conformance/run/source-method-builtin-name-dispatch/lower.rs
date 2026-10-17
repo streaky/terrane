@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: source-method-builtin-name-dispatch
 #[derive(Clone)]
@@ -205,7 +206,7 @@ fn ordinary_base(value: &Base) {
         terrane_int_support::Int::from(3_i128)))
     );
 }
-fn shared_plain(value: std::sync::Arc<std::sync::Mutex<Plain>>) {
+fn shared_plain(value: std::sync::Arc<TerraneSharedCell<Plain>>) {
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = value.clone();
         let __terrane_shared_argument_0 = terrane_int_support::Int::from(2_i128); let
@@ -246,7 +247,7 @@ fn shared_plain(value: std::sync::Arc<std::sync::Mutex<Plain>>) {
         __terrane_shared_argument_3); __terrane_call_result })
     );
 }
-fn shared_base(value: std::sync::Arc<std::sync::Mutex<Base>>) {
+fn shared_base(value: std::sync::Arc<TerraneSharedCell<Base>>) {
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = value.clone();
         let __terrane_shared_argument_0 = terrane_int_support::Int::from(2_i128); let
@@ -290,14 +291,14 @@ fn shared_base(value: std::sync::Arc<std::sync::Mutex<Base>>) {
 fn main() {
     let first: Plain;
     let second: Base;
-    let third: std::sync::Arc<std::sync::Mutex<Plain>>;
-    let fourth: std::sync::Arc<std::sync::Mutex<Base>>;
-    let fifth: std::sync::Arc<std::sync::Mutex<Plain>>;
-    let fifth_held: std::sync::Arc<std::sync::Mutex<Plain>>;
-    let fifth_observer: std::sync::Weak<std::sync::Mutex<Plain>>;
-    let sixth: std::sync::Arc<std::sync::Mutex<Base>>;
-    let sixth_held: std::sync::Arc<std::sync::Mutex<Base>>;
-    let sixth_observer: std::sync::Weak<std::sync::Mutex<Base>>;
+    let third: std::sync::Arc<TerraneSharedCell<Plain>>;
+    let fourth: std::sync::Arc<TerraneSharedCell<Base>>;
+    let fifth: std::sync::Arc<TerraneSharedCell<Plain>>;
+    let fifth_held: std::sync::Arc<TerraneSharedCell<Plain>>;
+    let fifth_observer: std::sync::Weak<TerraneSharedCell<Plain>>;
+    let sixth: std::sync::Arc<TerraneSharedCell<Base>>;
+    let sixth_held: std::sync::Arc<TerraneSharedCell<Base>>;
+    let sixth_observer: std::sync::Weak<TerraneSharedCell<Base>>;
     first = Plain::terrane_construct();
     println!("{}", terrane_scalar_support::scalar_text(&first.parse()));
     println!(
@@ -314,13 +315,13 @@ fn main() {
         terrane_int_support::Int::from(3_i128)))
     );
     ordinary_base(&second);
-    third = std::sync::Arc::new(std::sync::Mutex::new(Plain::terrane_construct()));
+    third = std::sync::Arc::new(TerraneSharedCell::new(Plain::terrane_construct()));
     shared_plain(third.clone());
     fourth = std::sync::Arc::new(
-        std::sync::Mutex::new(Base::Derived(Derived::terrane_construct())),
+        TerraneSharedCell::new(Base::Derived(Derived::terrane_construct())),
     );
     shared_base(fourth.clone());
-    fifth = std::sync::Arc::new(std::sync::Mutex::new(Plain::terrane_construct()));
+    fifth = std::sync::Arc::new(TerraneSharedCell::new(Plain::terrane_construct()));
     fifth_held = fifth.clone();
     fifth_observer = std::sync::Arc::downgrade(&fifth.clone());
     println!(
@@ -353,7 +354,7 @@ fn main() {
         __terrane_shared_argument_3); __terrane_call_result })
     );
     sixth = std::sync::Arc::new(
-        std::sync::Mutex::new(Base::Derived(Derived::terrane_construct())),
+        TerraneSharedCell::new(Base::Derived(Derived::terrane_construct())),
     );
     sixth_held = sixth.clone();
     sixth_observer = std::sync::Arc::downgrade(&sixth.clone());

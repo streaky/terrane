@@ -4,27 +4,27 @@ include!("lower.support.rs");
 // Namespace: mixed-value-reference-sequence
 fn main() {
     let numbers: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let number_snapshot: terrane_collection_support::List<terrane_int_support::Int>;
     let number_owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let number_observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let words: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<String>>,
+        TerraneSharedCell<terrane_collection_support::List<String>>,
     >;
     let word_snapshot: terrane_collection_support::List<String>;
     let word_owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<String>>,
+        TerraneSharedCell<terrane_collection_support::List<String>>,
     >;
     let word_observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<String>>,
+        TerraneSharedCell<terrane_collection_support::List<String>>,
     >;
     numbers = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),
@@ -66,7 +66,7 @@ fn main() {
         .clone(); __terrane_value } .length()))
     );
     words = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<String>::new(vec![String::from("a")]),
         ),
     );

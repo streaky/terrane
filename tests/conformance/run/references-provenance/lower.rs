@@ -4,18 +4,18 @@ include!("lower.support.rs");
 // Namespace: references-provenance
 fn main() {
     let values: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let owned: terrane_collection_support::List<terrane_int_support::Int>;
     let transferred: terrane_collection_support::List<terrane_int_support::Int>;
     values = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),

@@ -50,7 +50,7 @@ async fn risky() -> Result<(), TerraneError> {
     });
 }
 async fn child(
-    observer: std::sync::Arc<std::sync::Mutex<State>>,
+    observer: std::sync::Arc<TerraneSharedCell<State>>,
 ) -> terrane_int_support::Int {
     {
         let __terrane_owner = observer.clone();
@@ -141,7 +141,7 @@ async fn child(
     return terrane_int_support::Int::from(1_i128);
 }
 async fn worker(
-    observer: std::sync::Arc<std::sync::Mutex<State>>,
+    observer: std::sync::Arc<TerraneSharedCell<State>>,
 ) -> Result<(), TerraneError> {
     __terrane_group_frame(async move {
             let group: TerraneTaskGroup<terrane_int_support::Int>;
@@ -261,9 +261,9 @@ async fn worker(
 }
 fn main() {
     __terrane_run(async move {
-        let observer: std::sync::Arc<std::sync::Mutex<State>>;
+        let observer: std::sync::Arc<TerraneSharedCell<State>>;
         observer = std::sync::Arc::new(
-            std::sync::Mutex::new(State::terrane_construct()),
+            TerraneSharedCell::new(State::terrane_construct()),
         );
         let __terrane_completion_2: TerraneCompletion<()> = async {
             let __terrane_try_2: TerraneCompletion<()> = async {

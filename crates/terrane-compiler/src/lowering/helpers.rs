@@ -735,7 +735,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             },
         ),
         ValueType::SharedReference(item) => format!(
-            "std::sync::Arc<std::sync::Mutex<{}>>",
+            "std::sync::Arc<TerraneSharedCell<{}>>",
             rust_element_type(package, item)
         ),
         ValueType::Reference(item) => {

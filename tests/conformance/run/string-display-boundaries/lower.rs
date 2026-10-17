@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: string-display-boundaries
 #[allow(dead_code)]
@@ -106,8 +107,8 @@ fn main() {
     let render: std::sync::Arc<dyn Fn() -> String + Send + Sync>;
     let borrowed: Label;
     let text: String;
-    let shared_text: std::sync::Arc<std::sync::Mutex<String>>;
-    let shared: std::sync::Arc<std::sync::Mutex<String>>;
+    let shared_text: std::sync::Arc<TerraneSharedCell<String>>;
+    let shared: std::sync::Arc<TerraneSharedCell<String>>;
     item = Child::terrane_construct();
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
@@ -160,7 +161,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&describe_borrow(&borrowed)));
     text = String::from("text");
     println!("{}", terrane_scalar_support::scalar_text(&describe_text(&text)));
-    shared_text = std::sync::Arc::new(std::sync::Mutex::new(String::from("text")));
+    shared_text = std::sync::Arc::new(TerraneSharedCell::new(String::from("text")));
     shared = shared_text.clone();
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =

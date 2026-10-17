@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: shared-storage-reentry-safe
 #[derive(Clone)]
@@ -14,7 +15,7 @@ impl TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652
     pub fn peek(
         &self,
         other: std::sync::Arc<
-            std::sync::Mutex<
+            TerraneSharedCell<
                 TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
             >,
         >,
@@ -32,7 +33,7 @@ impl TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652
     pub fn add_from(
         &mut self,
         other: std::sync::Arc<
-            std::sync::Mutex<
+            TerraneSharedCell<
                 TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
             >,
         >,
@@ -54,12 +55,12 @@ impl TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652
 }
 fn distinct(
     first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >,
     second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >,
@@ -77,12 +78,12 @@ fn distinct(
 }
 fn pick(
     value: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >,
 ) -> std::sync::Arc<
-    std::sync::Mutex<
+    TerraneSharedCell<
         TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
     >,
 > {
@@ -90,17 +91,17 @@ fn pick(
 }
 fn replaced(
     mut value: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >,
     replacement: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >,
 ) -> std::sync::Arc<
-    std::sync::Mutex<
+    TerraneSharedCell<
         TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
     >,
 > {
@@ -114,52 +115,52 @@ fn replaced(
 }
 fn branch(flag: bool) -> terrane_int_support::Int {
     let first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let third: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let a: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let b: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let c: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let mut copy: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     first = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78::terrane_construct(),
         ),
     );
     second = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78::terrane_construct(),
         ),
     );
     third = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78::terrane_construct(),
         ),
     );
@@ -199,42 +200,42 @@ fn branch(flag: bool) -> terrane_int_support::Int {
 }
 fn main() {
     let plain: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let other: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let mut held: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let alternate: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let alias: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     let observer: std::sync::Weak<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78,
         >,
     >;
     plain = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78::terrane_construct(),
         ),
     );
     other = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentrySafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D7361666500626F78::terrane_construct(),
         ),
     );

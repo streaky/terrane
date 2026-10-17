@@ -1293,7 +1293,7 @@ impl Emitter<'_> {
                 value
             };
             let value = if reference_backed {
-                format!("std::sync::Arc::new(std::sync::Mutex::new({value}))")
+                format!("std::sync::Arc::new(TerraneSharedCell::new({value}))")
             } else {
                 value
             };
@@ -1389,7 +1389,7 @@ impl Emitter<'_> {
                     self.reference_owner_uses_shared_storage(provenance.owner)
                 }) {
             format!(
-                "std::sync::Weak<std::sync::Mutex<{}>>",
+                "std::sync::Weak<TerraneSharedCell<{}>>",
                 rust_element_type(self.package, item.clone())
             )
         } else if !binding.destination_arms.is_empty() || matches!(flow_type, ValueType::Union(_)) {
@@ -1400,7 +1400,7 @@ impl Emitter<'_> {
             rust_value_type(self.package, flow_type)
         };
         if reference_backed {
-            format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
+            format!("std::sync::Arc<TerraneSharedCell<{value_type}>>")
         } else {
             value_type
         }

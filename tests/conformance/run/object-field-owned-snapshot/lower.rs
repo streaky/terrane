@@ -67,7 +67,7 @@ impl Holder {
     }
     pub fn required_from_shared(
         &self,
-        owner: std::sync::Arc<std::sync::Mutex<Holder>>,
+        owner: std::sync::Arc<TerraneSharedCell<Holder>>,
     ) -> Payload {
         return {
             let __terrane_snapshot = owner
@@ -173,10 +173,10 @@ fn main() {
     let mut from_constructor: Payload;
     let named: PlainHolder;
     let mut from_borrow: Payload;
-    let shared: std::sync::Arc<std::sync::Mutex<PlainHolder>>;
+    let shared: std::sync::Arc<TerraneSharedCell<PlainHolder>>;
     let mut from_shared: Payload;
     let mut required_borrow: Payload;
-    let shared_required: std::sync::Arc<std::sync::Mutex<Holder>>;
+    let shared_required: std::sync::Arc<TerraneSharedCell<Holder>>;
     let mut required_shared: Payload;
     let mut words: terrane_collection_support::List<String>;
     let text: String;
@@ -216,7 +216,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&from_borrow.value));
     println!("{}", terrane_scalar_support::scalar_text(&named.value.value));
     shared = std::sync::Arc::new(
-        std::sync::Mutex::new(PlainHolder::terrane_construct()),
+        TerraneSharedCell::new(PlainHolder::terrane_construct()),
     );
     from_shared = {
         let __terrane_snapshot = shared
@@ -244,7 +244,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&required_borrow.value));
     println!("{}", terrane_scalar_support::scalar_text(&original.required_copy().value));
     shared_required = std::sync::Arc::new(
-        std::sync::Mutex::new(Holder::terrane_construct()),
+        TerraneSharedCell::new(Holder::terrane_construct()),
     );
     required_shared = original.required_from_shared(shared_required.clone());
     {

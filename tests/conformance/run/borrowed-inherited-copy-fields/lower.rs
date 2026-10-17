@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: borrowed-inherited-copy-fields
 #[derive(Clone)]
@@ -156,7 +157,7 @@ fn check_borrow(value: &BaseBox) {
         },
     );
 }
-fn check_shared(value: std::sync::Arc<std::sync::Mutex<BaseBox>>) {
+fn check_shared(value: std::sync::Arc<TerraneSharedCell<BaseBox>>) {
     let flag: bool;
     let count: i32;
     let ratio: f64;
@@ -219,16 +220,16 @@ fn check_shared(value: std::sync::Arc<std::sync::Mutex<BaseBox>>) {
 fn main() {
     let base: BaseBox;
     let derived: BaseBox;
-    let shared_base: std::sync::Arc<std::sync::Mutex<BaseBox>>;
-    let shared_derived: std::sync::Arc<std::sync::Mutex<BaseBox>>;
+    let shared_base: std::sync::Arc<TerraneSharedCell<BaseBox>>;
+    let shared_derived: std::sync::Arc<TerraneSharedCell<BaseBox>>;
     base = BaseBox::terrane_construct();
     check_borrow(&base);
     derived = make_derived();
     check_borrow(&derived);
     shared_base = std::sync::Arc::new(
-        std::sync::Mutex::new(BaseBox::terrane_construct()),
+        TerraneSharedCell::new(BaseBox::terrane_construct()),
     );
     check_shared(shared_base.clone());
-    shared_derived = std::sync::Arc::new(std::sync::Mutex::new(make_derived()));
+    shared_derived = std::sync::Arc::new(TerraneSharedCell::new(make_derived()));
     check_shared(shared_derived.clone());
 }

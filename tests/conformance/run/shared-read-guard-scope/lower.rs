@@ -35,7 +35,7 @@ impl TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D677561726
 }
 fn argument(
     owner: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78,
         >,
     >,
@@ -57,13 +57,13 @@ fn argument(
 }
 fn inspect(
     held: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78,
         >,
     >,
 ) {
     let alias: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78,
         >,
     >;
@@ -170,22 +170,22 @@ fn inspect(
 }
 fn main() {
     let plain: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78,
         >,
     >;
     let held: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78,
         >,
     >;
     let observer: std::sync::Weak<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78,
         >,
     >;
     plain = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedReadGuardScopeBoxIdentity2F7368617265642D726561642D67756172642D73636F706500626F78::terrane_construct(),
         ),
     );

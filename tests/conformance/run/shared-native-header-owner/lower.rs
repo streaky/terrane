@@ -4,24 +4,24 @@ include!("lower.support.rs");
 // Namespace: app
 #[derive(Clone)]
 pub struct RequestBuilderOwner {
-    pub builder: Option<std::sync::Arc<std::sync::Mutex<Builder>>>,
+    pub builder: Option<std::sync::Arc<TerraneSharedCell<Builder>>>,
 }
 impl RequestBuilderOwner {
     pub fn terrane_construct(
-        builder: std::sync::Arc<std::sync::Mutex<Builder>>,
+        builder: std::sync::Arc<TerraneSharedCell<Builder>>,
     ) -> Self {
         let mut __terrane_constructed_value = Self { builder: None };
         __terrane_constructed_value.construct(builder);
         __terrane_constructed_value
     }
-    pub fn construct(&mut self, builder: std::sync::Arc<std::sync::Mutex<Builder>>) {
+    pub fn construct(&mut self, builder: std::sync::Arc<TerraneSharedCell<Builder>>) {
         {
             let __terrane_value = builder.clone();
             self.builder = Some(__terrane_value);
         }
     }
     pub fn set_method(&self, value: String) {
-        let builder: std::sync::Arc<std::sync::Mutex<Builder>>;
+        let builder: std::sync::Arc<TerraneSharedCell<Builder>>;
         let _ = &value;
         builder = self.builder.as_ref().expect("required field initialized").clone();
         let _ = &builder;
@@ -34,7 +34,7 @@ impl RequestBuilderOwner {
         }
     }
     pub fn read_method(&self) -> String {
-        let builder: std::sync::Arc<std::sync::Mutex<Builder>>;
+        let builder: std::sync::Arc<TerraneSharedCell<Builder>>;
         let value: String;
         builder = self.builder.as_ref().expect("required field initialized").clone();
         let _ = &builder;
@@ -46,16 +46,16 @@ impl RequestBuilderOwner {
     }
 }
 fn make_builders() -> terrane_collection_support::List<
-    std::sync::Arc<std::sync::Mutex<Builder>>,
+    std::sync::Arc<TerraneSharedCell<Builder>>,
 > {
-    let initial: std::sync::Arc<std::sync::Mutex<Builder>>;
-    let owner: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let initial: std::sync::Arc<TerraneSharedCell<Builder>>;
+    let owner: std::sync::Arc<TerraneSharedCell<Builder>>;
     initial = std::sync::Arc::new(
-        std::sync::Mutex::new(::http::Request::builder().method(::http::Method::GET)),
+        TerraneSharedCell::new(::http::Request::builder().method(::http::Method::GET)),
     );
     owner = initial.clone();
     return terrane_collection_support::List::<
-        std::sync::Arc<std::sync::Mutex<Builder>>,
+        std::sync::Arc<TerraneSharedCell<Builder>>,
     >::new(vec![owner.clone(), owner.clone()]);
 }
 #[derive(Clone)]
@@ -90,10 +90,10 @@ impl Drop for Resource {
 #[derive(Clone)]
 pub enum OptionalHeaders {
     Absent,
-    Present(std::sync::Arc<std::sync::Mutex<Resource>>),
+    Present(std::sync::Arc<TerraneSharedCell<Resource>>),
 }
 fn count(value: OptionalHeaders) -> terrane_int_support::Int {
-    let owner: std::sync::Arc<std::sync::Mutex<Resource>>;
+    let owner: std::sync::Arc<TerraneSharedCell<Resource>>;
     let __terrane_match_value_1233 = value.clone();
     match __terrane_match_value_1233 {
         OptionalHeaders::Absent => {
@@ -114,16 +114,16 @@ fn count(value: OptionalHeaders) -> terrane_int_support::Int {
 }
 fn main() {
     let builders: terrane_collection_support::List<
-        std::sync::Arc<std::sync::Mutex<Builder>>,
+        std::sync::Arc<TerraneSharedCell<Builder>>,
     >;
-    let mut builder: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let mut builder: std::sync::Arc<TerraneSharedCell<Builder>>;
     let mut view: RequestBuilderOwner;
-    let first: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let first: std::sync::Arc<TerraneSharedCell<Builder>>;
     let original: RequestBuilderOwner;
     let copied: RequestBuilderOwner;
-    let second: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let second: std::sync::Arc<TerraneSharedCell<Builder>>;
     let other_view: RequestBuilderOwner;
-    let owner_resource: std::sync::Arc<std::sync::Mutex<Resource>>;
+    let owner_resource: std::sync::Arc<TerraneSharedCell<Resource>>;
     let value: OptionalHeaders;
     let copied_value: OptionalHeaders;
     builders = make_builders();
@@ -174,7 +174,7 @@ fn main() {
     other_view = RequestBuilderOwner::terrane_construct(second.clone());
     println!("{}", terrane_scalar_support::scalar_text(&other_view.read_method()));
     owner_resource = std::sync::Arc::new(
-        std::sync::Mutex::new(Resource::terrane_construct()),
+        TerraneSharedCell::new(Resource::terrane_construct()),
     );
     value = {
         let __terrane_enum_payload_0 = owner_resource.clone();

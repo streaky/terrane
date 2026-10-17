@@ -2,7 +2,9 @@
 include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
-fn inspect(value: std::sync::Arc<std::sync::Mutex<http::HeaderMap<http::HeaderValue>>>) {
+fn inspect(
+    value: std::sync::Arc<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>,
+) {
     {
         let __terrane_owner = value.clone();
         let __terrane_shared_argument_0 = match || -> Result<
@@ -87,12 +89,12 @@ fn inspect(value: std::sync::Arc<std::sync::Mutex<http::HeaderMap<http::HeaderVa
     );
 }
 fn main() {
-    let headers: std::sync::Arc<std::sync::Mutex<http::HeaderMap<http::HeaderValue>>>;
-    let held: std::sync::Arc<std::sync::Mutex<http::HeaderMap<http::HeaderValue>>>;
-    let alias: std::sync::Arc<std::sync::Mutex<http::HeaderMap<http::HeaderValue>>>;
-    let observer: std::sync::Weak<std::sync::Mutex<http::HeaderMap<http::HeaderValue>>>;
+    let headers: std::sync::Arc<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>;
+    let held: std::sync::Arc<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>;
+    let alias: std::sync::Arc<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>;
+    let observer: std::sync::Weak<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>;
     headers = std::sync::Arc::new(
-        std::sync::Mutex::new({
+        TerraneSharedCell::new({
             let mut headers = ::http::HeaderMap::new();
             headers.insert("x-value", ::http::HeaderValue::from_static("one"));
             headers

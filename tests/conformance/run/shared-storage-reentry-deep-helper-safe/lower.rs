@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: reentry-deep-helper-safe
 #[derive(Clone)]
@@ -14,7 +15,7 @@ impl TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C
     pub fn peek(
         &self,
         other: std::sync::Arc<
-            std::sync::Mutex<
+            TerraneSharedCell<
                 TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
             >,
         >,
@@ -32,12 +33,12 @@ impl TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C
 }
 fn inner(
     first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
     second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
@@ -55,12 +56,12 @@ fn inner(
 }
 fn middle(
     left: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
     right: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
@@ -69,12 +70,12 @@ fn middle(
 }
 fn outer(
     alpha: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
     beta: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
@@ -83,12 +84,12 @@ fn outer(
 }
 fn cycle_left(
     first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
     second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
@@ -120,12 +121,12 @@ fn cycle_left(
 }
 fn cycle_right(
     first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
     second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >,
@@ -157,37 +158,37 @@ fn cycle_right(
 }
 fn main() {
     let a: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >;
     let b: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >;
     let ha: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >;
     let hb: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >;
     let mut copy: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78,
         >,
     >;
     a = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78::terrane_construct(),
         ),
     );
     b = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsReentryDeepHelperSafeBoxIdentity2F7265656E7472792D646565702D68656C7065722D7361666500626F78::terrane_construct(),
         ),
     );

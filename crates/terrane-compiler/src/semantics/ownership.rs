@@ -1056,16 +1056,6 @@ fn symbolic_lender_parameter(
     known: &BTreeMap<FunctionKey, usize>,
     visited_bindings: &mut BTreeSet<FunctionKey>,
 ) -> Option<usize> {
-    // Ordinary-reference lenders may project into a referent; shared-handle
-    // pass-through summaries instead require the returned handle's exact identity.
-    if matches!(contract.return_type, Some(ValueType::SharedReference(_)))
-        && matches!(
-            node.kind,
-            SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
-        )
-    {
-        return None;
-    }
     match node.kind {
         SyntaxKind::GroupExpression
         | SyntaxKind::MemberExpression
@@ -1153,26 +1143,12 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
         let mut changed = false;
         for unit in &package.units {
             for contract in &unit.functions {
-                if !matches!(
-                    contract.return_type,
-                    Some(ValueType::Reference(_) | ValueType::SharedReference(_))
-                ) || known.contains_key(&contract_key(contract))
+                if !matches!(contract.return_type, Some(ValueType::Reference(_)))
+                    || known.contains_key(&contract_key(contract))
                 {
                     continue;
                 }
                 let mut returns = Vec::new();
-                // A shared handle can be rebound without invalidating its old owner.
-                // Until return selection models replacement, do not summarize a
-                // shared-return body containing replacements as a pass-through.
-                if matches!(contract.return_type, Some(ValueType::SharedReference(_)))
-                    && unit.flow_replacements.keys().any(|write| {
-                        write.file == contract.span.file
-                            && write.start >= contract.span.start
-                            && write.end <= contract.span.end
-                    })
-                {
-                    continue;
-                }
                 function_return_values(&unit.tree.root, contract.span, &mut returns);
                 let lenders = returns
                     .iter()

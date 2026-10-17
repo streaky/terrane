@@ -1,0 +1,19 @@
+namespace checked-reentry
+from /core/collections import list
+class box
+    count int = 5
+    function peek int; other shared ref box
+        return other.count
+function invoke int; first shared ref box, second shared ref box
+    return first.peek; second
+function main;
+    a = instance box;
+    b = instance box;
+    ha = shared ref a
+    hb = shared ref b
+    copy = hb
+    other = hb
+    for item in (list; 1, 2)
+        other = copy
+        copy = ha
+    print; (ha.peek; other)

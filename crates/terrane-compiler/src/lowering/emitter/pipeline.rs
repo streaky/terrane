@@ -54,6 +54,75 @@ fn value_type_contains_callable(
         _ => false,
     }
 }
+fn value_type_contains_shared_storage(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::SharedReference(_) => true,
+        ValueType::Union(arms) => arms.iter().any(value_type_contains_shared_storage),
+        ValueType::Optional(inner) => value_type_contains_shared_storage(inner),
+        ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::Reference(inner)
+        | ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::ChannelPair(inner)
+        | ValueType::ChannelSender(inner)
+        | ValueType::ChannelReceiver(inner)
+        | ValueType::ChannelSendOutcome(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::DocumentDecodeOutcome(inner)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner) => value_type_contains_shared_storage(inner.value_type_ref()),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_contains_shared_storage(key.value_type_ref())
+                || value_type_contains_shared_storage(value.value_type_ref())
+        }
+        ValueType::Function(parameters, result, _) => {
+            parameters
+                .iter()
+                .any(|parameter| value_type_contains_shared_storage(parameter.value_type_ref()))
+                || value_type_contains_shared_storage(result.value_type_ref())
+        }
+        ValueType::AsyncFunction(parameters, result, _, _) => {
+            parameters
+                .iter()
+                .any(|parameter| value_type_contains_shared_storage(parameter.value_type_ref()))
+                || value_type_contains_shared_storage(result.value_type_ref())
+        }
+        _ => false,
+    }
+}
+
+fn package_uses_shared_storage(package: &SemanticPackage) -> bool {
+    package.units.iter().any(|unit| {
+        unit.typed_bindings.iter().any(|binding| {
+            value_type_contains_shared_storage(&binding.value_type)
+                || package.binding_uses_shared_storage(unit, binding)
+        }) || unit.descriptors.iter().any(|descriptor| {
+            descriptor
+                .fields
+                .iter()
+                .any(|field| value_type_contains_shared_storage(&field.value_type))
+        }) || unit.functions.iter().any(|function| {
+            function.parameters.iter().any(|parameter| {
+                parameter
+                    .value_type
+                    .as_ref()
+                    .is_some_and(value_type_contains_shared_storage)
+            }) || function
+                .return_type
+                .as_ref()
+                .is_some_and(value_type_contains_shared_storage)
+        })
+    })
+}
+
 fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
     fn contains_materialized_descriptor(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         let member_materializes_descriptor = if let [receiver, member] = node.children.as_slice() {
@@ -283,6 +352,7 @@ fn lower_with_tests(
             }
         }
     }
+    let uses_shared_storage = package_uses_shared_storage(package);
     let uses_errors = tests.is_some()
         || package_uses_structured_errors(package)
         || package_uses_task_scope(package);
@@ -408,6 +478,15 @@ fn lower_with_tests(
     if has_dependency {
         registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
         registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
+    }
+    if uses_shared_storage {
+        runtime.push(GeneratedModule {
+            name: "shared-storage",
+            source_files: vec!["shared_storage.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/shared_storage.rs"
+            ))],
+        });
     }
     if has_mutable_callables {
         runtime.push(GeneratedModule {

@@ -942,6 +942,55 @@ fn compile_and_maybe_run(
     }
 }
 
+fn assert_runtime_failure(mut child: std::process::Child, case: &Path, expected_error: &str) {
+    // Drain pipes concurrently so diagnostics cannot block the bounded child.
+    let mut stdout = child.stdout.take().unwrap();
+    let mut stderr = child.stderr.take().unwrap();
+    let stdout_reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout.read_to_end(&mut bytes).unwrap();
+        bytes
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stderr.read_to_end(&mut bytes).unwrap();
+        bytes
+    });
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if std::time::Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let stderr = stderr_reader.join().unwrap();
+            panic!(
+                "{} runtime failure timed out: {}",
+                case.display(),
+                String::from_utf8_lossy(&stderr)
+            );
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    };
+    let stdout = stdout_reader.join().unwrap();
+    let stderr = stderr_reader.join().unwrap();
+    assert_eq!(
+        stdout,
+        fs::read(case.join("stdout.txt")).unwrap(),
+        "{} stdout",
+        case.display()
+    );
+    assert!(!status.success(), "{} must fail at runtime", case.display());
+    assert!(
+        String::from_utf8_lossy(&stderr).contains(expected_error),
+        "{} expected runtime error {expected_error:?}: {}",
+        case.display(),
+        String::from_utf8_lossy(&stderr)
+    );
+}
+
 fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
     let mut command = Command::new(binary_path);
     if let Some(arguments) = optional_text(case.join("arguments.txt")) {
@@ -983,6 +1032,11 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
             "{} could not receive conformance stdin",
             case.display()
         );
+    }
+    if let Some(expected_error) = field(manifest, "runtime-error") {
+        drop(stdin.take());
+        assert_runtime_failure(child, case, expected_error);
+        return;
     }
     let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
     let signals = field(manifest, "signals");

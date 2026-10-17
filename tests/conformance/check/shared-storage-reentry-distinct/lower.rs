@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: shared-storage-reentry-distinct
 #[derive(Clone)]
@@ -14,7 +15,7 @@ impl TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F72616
     pub fn peek(
         &self,
         other: std::sync::Arc<
-            std::sync::Mutex<
+            TerraneSharedCell<
                 TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D64697374696E637400626F78,
             >,
         >,
@@ -31,27 +32,27 @@ impl TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F72616
 }
 fn main() {
     let plain: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D64697374696E637400626F78,
         >,
     >;
     let other: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D64697374696E637400626F78,
         >,
     >;
     let held: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D64697374696E637400626F78,
         >,
     >;
     plain = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D64697374696E637400626F78::terrane_construct(),
         ),
     );
     other = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentryDistinctBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D64697374696E637400626F78::terrane_construct(),
         ),
     );

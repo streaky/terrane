@@ -13,7 +13,7 @@ impl TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D72656665
 }
 fn shared_flag(
     value: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D7265666572656E63652D70726F76656E616E636500626F78,
         >,
     >,
@@ -35,27 +35,27 @@ fn count(
 }
 fn early_observer() {
     let named: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D7265666572656E63652D70726F76656E616E636500626F78,
         >,
     >;
     let observer: std::sync::Weak<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D7265666572656E63652D70726F76656E616E636500626F78,
         >,
     >;
     let alias: std::sync::Weak<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D7265666572656E63652D70726F76656E616E636500626F78,
         >,
     >;
     let held: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D7265666572656E63652D70726F76656E616E636500626F78,
         >,
     >;
     named = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsInferredReferenceProvenanceBoxIdentity2F696E6665727265642D7265666572656E63652D70726F76656E616E636500626F78::terrane_construct(),
         ),
     );
@@ -81,22 +81,22 @@ fn early_observer() {
 }
 fn main() {
     let value: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let mut observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let alias: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let replacement: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let replacement_owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let mut ordinary: terrane_collection_support::List<terrane_int_support::Int>;
     let mut ordinary_observer: &terrane_collection_support::List<
@@ -105,11 +105,11 @@ fn main() {
     let ordinary_replacement: terrane_collection_support::List<terrane_int_support::Int>;
     let mut typed_observer: &terrane_collection_support::List<terrane_int_support::Int>;
     let mut shared_observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     early_observer();
     value = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),
@@ -155,7 +155,7 @@ fn main() {
         1 /* terrane-site: case.trn:32:24-32:35 */)), 1 /* terrane-site: case.trn:32:24-32:35 */))
     );
     replacement = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(4_i128)]),

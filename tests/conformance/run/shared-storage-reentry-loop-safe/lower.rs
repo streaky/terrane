@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: shared-storage-reentry-loop-safe
 #[derive(Clone)]
@@ -14,7 +15,7 @@ impl TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F72616
     pub fn peek(
         &self,
         other: std::sync::Arc<
-            std::sync::Mutex<
+            TerraneSharedCell<
                 TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
             >,
         >,
@@ -32,12 +33,12 @@ impl TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F72616
 }
 fn go(
     first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >,
     second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >,
@@ -55,12 +56,12 @@ fn go(
 }
 fn outer(
     first: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >,
     second: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >,
@@ -69,27 +70,27 @@ fn outer(
 }
 fn main() {
     let a: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >;
     let b: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >;
     let ha: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >;
     let hb: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >;
     let mut copy: std::sync::Arc<
-        std::sync::Mutex<
+        TerraneSharedCell<
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78,
         >,
     >;
@@ -97,12 +98,12 @@ fn main() {
     let mut item: terrane_int_support::Int;
     let empty: terrane_collection_support::List<terrane_int_support::Int>;
     a = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78::terrane_construct(),
         ),
     );
     b = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             TerraneNsSharedStorageReentryLoopSafeBoxIdentity2F7368617265642D73746F726167652D7265656E7472792D6C6F6F702D7361666500626F78::terrane_construct(),
         ),
     );

@@ -2015,7 +2015,7 @@ pub struct SemanticUnit {
     pub flow_availability: BTreeMap<(u32, usize, usize), FlowAvailability>,
     pub(crate) flow_read_bindings: BTreeMap<(u32, usize, usize), BTreeSet<Span>>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
-    /// Exact ordinary-reference lender or identity-preserving shared-handle return parameter.
+    /// Selected ordinary-reference return lender used for provenance and Rust lifetimes.
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,

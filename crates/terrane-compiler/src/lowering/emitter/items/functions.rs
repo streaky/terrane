@@ -392,8 +392,7 @@ impl Emitter<'_> {
             .unit
             .reference_return_lenders
             .get(&(contract.span.file, contract.span.start, contract.span.end))
-            .copied()
-            .filter(|_| matches!(return_type, Some(ValueType::Reference(_))));
+            .copied();
         let scoped_type_generics = return_type
             .as_ref()
             .and_then(|return_type| match return_type {

@@ -163,7 +163,7 @@ impl Derived {
         }
     }
 }
-fn assign(value: std::sync::Arc<std::sync::Mutex<Derived>>) {
+fn assign(value: std::sync::Arc<TerraneSharedCell<Derived>>) {
     {
         let __terrane_owner = value.clone();
         let __terrane_value = terrane_int_support::Int::from(9_i128);
@@ -171,15 +171,15 @@ fn assign(value: std::sync::Arc<std::sync::Mutex<Derived>>) {
     }
 }
 fn main() {
-    let plain: std::sync::Arc<std::sync::Mutex<Derived>>;
-    let held: std::sync::Arc<std::sync::Mutex<Derived>>;
-    let weak: std::sync::Weak<std::sync::Mutex<Derived>>;
-    let other: std::sync::Arc<std::sync::Mutex<Base>>;
-    let other_held: std::sync::Arc<std::sync::Mutex<Base>>;
-    let other_observer: std::sync::Weak<std::sync::Mutex<Base>>;
+    let plain: std::sync::Arc<TerraneSharedCell<Derived>>;
+    let held: std::sync::Arc<TerraneSharedCell<Derived>>;
+    let weak: std::sync::Weak<TerraneSharedCell<Derived>>;
+    let other: std::sync::Arc<TerraneSharedCell<Base>>;
+    let other_held: std::sync::Arc<TerraneSharedCell<Base>>;
+    let other_observer: std::sync::Weak<TerraneSharedCell<Base>>;
     let next: Item;
     let mut replacement: Item;
-    plain = std::sync::Arc::new(std::sync::Mutex::new(Derived::terrane_construct()));
+    plain = std::sync::Arc::new(TerraneSharedCell::new(Derived::terrane_construct()));
     held = plain.clone();
     {
         let __terrane_owner = held.clone();
@@ -281,7 +281,7 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         2 /* terrane-site: case.trn:40:34-40:48 */)), 2 /* terrane-site: case.trn:40:34-40:48 */))
     );
-    other = std::sync::Arc::new(std::sync::Mutex::new(Base::terrane_construct()));
+    other = std::sync::Arc::new(TerraneSharedCell::new(Base::terrane_construct()));
     other_held = other.clone();
     {
         let __terrane_owner = other_held.clone();

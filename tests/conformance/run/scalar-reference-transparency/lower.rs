@@ -7,9 +7,9 @@ fn main() {
     let seen: &String;
     let encoded: Vec<u8>;
     let decoded: &Vec<u8>;
-    let number: std::sync::Arc<std::sync::Mutex<i8>>;
-    let observed: std::sync::Weak<std::sync::Mutex<i8>>;
-    let owner: std::sync::Arc<std::sync::Mutex<i8>>;
+    let number: std::sync::Arc<TerraneSharedCell<i8>>;
+    let observed: std::sync::Weak<TerraneSharedCell<i8>>;
+    let owner: std::sync::Arc<TerraneSharedCell<i8>>;
     text = String::from("abc");
     seen = &text;
     println!(
@@ -38,7 +38,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded
         .clone(), terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:12:13-12:33 */))
     );
-    number = std::sync::Arc::new(std::sync::Mutex::new(7));
+    number = std::sync::Arc::new(TerraneSharedCell::new(7));
     observed = std::sync::Arc::downgrade(&number.clone());
     println!(
         "{}", { let __terrane_owner = observed.upgrade().expect("reference expired");
