@@ -1,0 +1,9 @@
+namespace reentry-original-owner
+class base
+    count int = 5
+    function peek int; other shared ref base
+        return other.count
+function main;
+    a = instance base;
+    ha = shared ref a
+    print; (a.peek; ha)

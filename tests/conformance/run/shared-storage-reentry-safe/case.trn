@@ -10,6 +10,31 @@ class box
 function distinct int; first shared ref box, second shared ref box
     return first.peek; second
 
+function pick shared ref box; value shared ref box
+    return value
+
+function replaced shared ref box; value shared ref box, replacement shared ref box
+    print; value.count
+    value = replacement
+    return value
+
+function branch int; flag bool
+    first = instance box;
+    second = instance box;
+    third = instance box;
+    second.count = 4
+    third.count = 8
+    a = shared ref first
+    b = shared ref second
+    c = shared ref third
+    copy = a
+    print; copy.count
+    if flag
+        copy = b
+    else
+        copy = c
+    return a.peek; copy
+
 function main;
     plain = instance box;
     other = instance box;
@@ -23,3 +48,9 @@ function main;
     held = alternate
     print; (alias.peek; held)
     print; (held.peek; alias)
+    print; (plain.peek; held)
+    observer = ref plain
+    print; (observer.peek; (pick; held))
+    print; (alias.peek; (replaced; alias, held))
+    print; (branch; true)
+    print; (branch; false)

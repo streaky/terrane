@@ -1,0 +1,11 @@
+namespace reentry-helper
+class base
+    count int = 5
+    function peek int; other shared ref base
+        return other.count
+function go int; x shared ref base, y shared ref base
+    return x.peek; y
+function main;
+    a = instance base;
+    ha = shared ref a
+    print; (go; y = ha, x = ha)
