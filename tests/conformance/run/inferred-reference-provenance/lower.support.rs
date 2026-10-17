@@ -464,7 +464,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/inferred-reference-provenance::main"];
-    pub static SITES: [Site; 4] = [
+    pub static SITES: [Site; 8] = [
         /* terrane-site-row: site 0: /inferred-reference-provenance::main (case.trn:29:24-29:32) */
         { Site { function: 0, file: 0, line: 29, column: 24, end_line: 29, end_column: 32 } },
         /* terrane-site-row: site 1: /inferred-reference-provenance::main (case.trn:32:24-32:35) */
@@ -473,6 +473,14 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 38, column: 30, end_line: 38, end_column: 50 } },
         /* terrane-site-row: site 3: /inferred-reference-provenance::main (case.trn:43:27-43:47) */
         { Site { function: 0, file: 0, line: 43, column: 27, end_line: 43, end_column: 47 } },
+        /* terrane-site-row: site 4: /inferred-reference-provenance::main (case.trn:48:10-48:27) */
+        { Site { function: 0, file: 0, line: 48, column: 10, end_line: 48, end_column: 27 } },
+        /* terrane-site-row: site 5: /inferred-reference-provenance::main (case.trn:51:38-51:55) */
+        { Site { function: 0, file: 0, line: 51, column: 38, end_line: 51, end_column: 55 } },
+        /* terrane-site-row: site 6: /inferred-reference-provenance::main (case.trn:54:10-54:28) */
+        { Site { function: 0, file: 0, line: 54, column: 10, end_line: 54, end_column: 28 } },
+        /* terrane-site-row: site 7: /inferred-reference-provenance::main (case.trn:56:10-56:28) */
+        { Site { function: 0, file: 0, line: 56, column: 10, end_line: 56, end_column: 28 } },
     ];
     #[cold]
     #[inline(never)]

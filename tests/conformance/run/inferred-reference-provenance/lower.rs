@@ -89,7 +89,14 @@ fn main() {
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let mut ordinary: terrane_collection_support::List<terrane_int_support::Int>;
-    let ordinary_observer: &terrane_collection_support::List<terrane_int_support::Int>;
+    let mut ordinary_observer: &terrane_collection_support::List<
+        terrane_int_support::Int,
+    >;
+    let ordinary_replacement: terrane_collection_support::List<terrane_int_support::Int>;
+    let mut typed_observer: &terrane_collection_support::List<terrane_int_support::Int>;
+    let mut shared_observer: std::sync::Weak<
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+    >;
     early_observer();
     value = std::sync::Arc::new(
         std::sync::Mutex::new(
@@ -175,4 +182,45 @@ fn main() {
         3 /* terrane-site: case.trn:43:27-43:47 */)), 3 /* terrane-site: case.trn:43:27-43:47 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&count(ordinary_observer)));
+    ordinary_replacement = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(8_i128),
+            terrane_int_support::Int::from(9_i128)
+        ],
+    );
+    typed_observer = &ordinary;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(typed_observer
+        .clone()
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        4 /* terrane-site: case.trn:48:10-48:27 */)), 4 /* terrane-site: case.trn:48:10-48:27 */))
+    );
+    ordinary_observer = &ordinary_replacement;
+    typed_observer = &ordinary_replacement;
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&count(ordinary_observer)),
+        terrane_scalar_support::scalar_text(&__terrane_raised(typed_observer.clone()
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
+        5 /* terrane-site: case.trn:51:38-51:55 */)), 5 /* terrane-site: case.trn:51:38-51:55 */))
+    );
+    shared_observer = std::sync::Arc::downgrade(&value.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_owner
+        = shared_observer.upgrade().expect("reference expired"); let __terrane_value =
+        __terrane_owner.lock().expect("reference lock poisoned").clone(); __terrane_value
+        }
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        6 /* terrane-site: case.trn:54:10-54:28 */)), 6 /* terrane-site: case.trn:54:10-54:28 */))
+    );
+    shared_observer = std::sync::Arc::downgrade(&replacement.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_owner
+        = shared_observer.upgrade().expect("reference expired"); let __terrane_value =
+        __terrane_owner.lock().expect("reference lock poisoned").clone(); __terrane_value
+        }
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        7 /* terrane-site: case.trn:56:10-56:28 */)), 7 /* terrane-site: case.trn:56:10-56:28 */))
+    );
 }

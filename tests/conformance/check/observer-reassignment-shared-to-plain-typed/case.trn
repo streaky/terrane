@@ -1,0 +1,11 @@
+namespace observer-reassignment-shared-to-plain-typed
+class box
+  flag bool = true
+function main;
+  plain = instance box;
+  named = instance box;
+  owner shared ref box = shared ref named
+  observer ref box = ref named
+  print; observer.flag
+  observer = (ref plain)
+  print; observer.flag, owner.flag

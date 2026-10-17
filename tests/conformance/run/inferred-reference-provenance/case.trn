@@ -42,3 +42,15 @@ function main;
   ordinary-observer = ref ordinary
   print; ordinary.length, ordinary-observer[1]
   print; (count; ordinary-observer)
+
+  ordinary-replacement list of int = list; 8, 9
+  typed-observer ref list of int = ref ordinary
+  print; typed-observer[0]
+  ordinary-observer = ref ordinary-replacement
+  typed-observer = ref ordinary-replacement
+  print; (count; ordinary-observer), typed-observer[1]
+
+  shared-observer ref list of int = ref value
+  print; shared-observer[0]
+  shared-observer = ref replacement
+  print; shared-observer[0]
