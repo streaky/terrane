@@ -19,10 +19,10 @@ fn main() {
         let written: WriteResult;
         loopback = ip_address_from_string(String::from("127.0.0.1"));
         address = socket_address_from_ip(
-            loopback.value,
+            loopback.value.clone(),
             terrane_int_support::Int::from(0_i128),
         );
-        bound = bind_udp(address.value);
+        bound = bind_udp(address.value.clone());
         socket = bound.value;
         destination = socket_address_from_string(socket.local_address.clone());
         configured = socket
@@ -50,7 +50,7 @@ fn main() {
                 (&socket)
                     .send_to(
                         Vec::<u8>::from([116, 101, 114, 114, 97, 110, 101]),
-                        destination.value,
+                        destination.value.clone(),
                         Some(options.clone()),
                     ),
             )

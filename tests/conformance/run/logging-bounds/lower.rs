@@ -31,7 +31,7 @@ fn main() {
         terrane_int_support::Int::from(1_i128),
         false,
     );
-    dropping = default_logger(dropping_sink.value);
+    dropping = default_logger(dropping_sink.value.clone());
     first = emit_at(
         dropping.clone(),
         info_level(),
@@ -68,7 +68,7 @@ fn main() {
         terrane_int_support::Int::from(1_i128),
         false,
     );
-    rejecting = default_logger(rejecting_sink.value);
+    rejecting = default_logger(rejecting_sink.value.clone());
     accepted = emit_at(
         rejecting.clone(),
         info_level(),
@@ -106,7 +106,8 @@ fn main() {
                 terrane_int_support::Int::from(1_i128),
                 false,
             )
-            .value,
+            .value
+            .clone(),
         make_logger_options(
             info_level(),
             String::from(""),
@@ -130,7 +131,8 @@ fn main() {
                 terrane_int_support::Int::from(1_i128),
                 false,
             )
-            .value,
+            .value
+            .clone(),
         make_logger_options(
             info_level(),
             String::from(""),
@@ -166,7 +168,7 @@ fn main() {
         false,
     );
     negative_limit = make_logger(
-        negative_sink.value,
+        negative_sink.value.clone(),
         make_logger_options(
             info_level(),
             String::from(""),

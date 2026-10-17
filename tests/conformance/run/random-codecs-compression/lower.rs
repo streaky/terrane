@@ -118,8 +118,8 @@ fn main() {
         Vec::<u8>::from([100, 97, 116, 97]),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&signature_equals(mac.value, same_mac
-        .value))
+        "{}", terrane_scalar_support::scalar_text(&signature_equals(mac.value.clone(),
+        same_mac.value.clone()))
     );
     wide_mac = sign_hmac(
         wide_hash.clone(),
@@ -132,8 +132,8 @@ fn main() {
         Vec::<u8>::from([100, 97, 116, 97]),
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&signature_equals(wide_mac.value,
-        same_wide_mac.value))
+        "{}", terrane_scalar_support::scalar_text(&signature_equals(wide_mac.value
+        .clone(), same_wide_mac.value.clone()))
     );
     destroy_secret(same_key.clone());
     destroyed = sign_hmac(hash, same_key, Vec::<u8>::from([100, 97, 116, 97]));

@@ -1373,7 +1373,7 @@ pub fn decode_json(
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping);
+    return deserialize_document(parsed.value.clone(), mapping);
 }
 pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult {
     return stringify_json(serialize_document(value), options);
@@ -1454,7 +1454,7 @@ pub fn decode_yaml(
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping);
+    return deserialize_document(parsed.value.clone(), mapping);
 }
 pub fn encode_yaml(value: Serializable) -> DocumentResult {
     return stringify_yaml(serialize_document(value));

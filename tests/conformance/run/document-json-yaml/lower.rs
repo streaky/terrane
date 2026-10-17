@@ -116,7 +116,7 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&decimal.value.decimal.coefficient),
         terrane_scalar_support::scalar_text(&decimal.value.decimal.exponent)
     );
-    canonical = canonical_json(parsed.value);
+    canonical = canonical_json(parsed.value.clone());
     println!("{}", terrane_scalar_support::scalar_text(&canonical.value.encoded));
     reparsed = parse_json(canonical.value.encoded.clone(), options.clone());
     equivalent = parse_json(
@@ -129,9 +129,9 @@ fn main() {
         equivalent.value.encoded.as_str()))
     );
     stringify_input = parse_json(String::from("{\"a\":1,\"z\":1.23}"), options.clone());
-    stringified = stringify_json(stringify_input.value, options.clone());
+    stringified = stringify_json(stringify_input.value.clone(), options.clone());
     yaml_input = parse_json(String::from("{\"a\":1,\"z\":1.23}"), options.clone());
-    yaml_written = stringify_yaml(yaml_input.value);
+    yaml_written = stringify_yaml(yaml_input.value.clone());
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&stringified.failed),
         terrane_scalar_support::scalar_text(&yaml_written.failed)
@@ -140,7 +140,7 @@ fn main() {
         String::from("[\"first\",{\"nested\":true}]"),
         options.clone(),
     );
-    list_document = list_value.value;
+    list_document = list_value.value.clone();
     first = list_document.item(terrane_int_support::Int::from(0_i128));
     second = list_document.item(terrane_int_support::Int::from(1_i128));
     nested = second.value.field(String::from("nested"));
@@ -181,7 +181,7 @@ fn main() {
     mapping.default_fields = default_fields;
     mapping.default_values = default_values;
     missing = parse_json(String::from("{}"), options.clone());
-    missing = decode_document(missing.value, mapping.clone());
+    missing = decode_document(missing.value.clone(), mapping.clone());
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&missing.failed),
         terrane_scalar_support::scalar_text(&missing.path),
@@ -191,7 +191,7 @@ fn main() {
         String::from("{\"name\":\"Ada\",\"extra\":1}"),
         options.clone(),
     );
-    unknown = decode_document(unknown.value, mapping.clone());
+    unknown = decode_document(unknown.value.clone(), mapping.clone());
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&unknown.failed),
         terrane_scalar_support::scalar_text(&unknown.path),
@@ -201,7 +201,7 @@ fn main() {
         String::from("{\"name\":\"Ada\",\"nickname\":\"A\"}"),
         options.clone(),
     );
-    mapped = decode_document(mapped.value, mapping.clone());
+    mapped = decode_document(mapped.value.clone(), mapping.clone());
     active = mapped.value.field(String::from("active"));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&mapped.failed),
@@ -213,7 +213,10 @@ fn main() {
         true,
     );
     constructor_input = parse_json(String::from("{\"a\":1}"), options.clone());
-    constructor_result = decode_document(constructor_input.value, constructor_mapping);
+    constructor_result = decode_document(
+        constructor_input.value.clone(),
+        constructor_mapping,
+    );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&constructor_result.failed),
         terrane_scalar_support::scalar_text(&constructor_result.value.encoded)
@@ -235,7 +238,12 @@ fn main() {
     exact_decimal = make_document_decimal(String::from("1.2300"));
     values = terrane_collection_support::List::<
         DocumentValue,
-    >::new(vec![exact_integer.value, exact_decimal.value, make_document_none()]);
+    >::new(
+        vec![
+            exact_integer.value.clone(), exact_decimal.value.clone(),
+            make_document_none()
+        ],
+    );
     built_list = make_document_list(values);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&built_list.failed),
@@ -251,7 +259,7 @@ fn main() {
     entries = append_document_map_entry(
         entries,
         String::from("count"),
-        count_value.value,
+        count_value.value.clone(),
     );
     built_map = make_document_map(entries);
     println!(

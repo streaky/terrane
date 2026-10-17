@@ -115,7 +115,7 @@ fn main() {
             false,
         );
         writer = make_logger(
-            sink_result.value,
+            sink_result.value.clone(),
             make_logger_options(
                 info_level(),
                 String::from("service."),
@@ -271,7 +271,7 @@ fn main() {
             false,
         );
         other = make_logger(
-            other_sink.value,
+            other_sink.value.clone(),
             make_logger_options(
                 info_level(),
                 String::from("service."),
@@ -371,7 +371,7 @@ fn main() {
             }
         }
         failed_sink = failing_sink();
-        failed_target = failed_sink.value;
+        failed_target = failed_sink.value.clone();
         failed_logger = default_logger(failed_target.clone());
         failed_write = emit_at(
             failed_logger.clone(),
@@ -389,7 +389,7 @@ fn main() {
             14 /* terrane-site: case.trn:71:51-71:62 */)), 14 /* terrane-site: case.trn:71:51-71:62 */).contains(&String::from("event rejected")))
         );
         console_result = console_sink(false);
-        console = default_logger(console_result.value);
+        console = default_logger(console_result.value.clone());
         console_write = emit_at(
             console.clone(),
             info_level(),
@@ -431,7 +431,7 @@ fn main() {
             terrane_int_support::Int::from(1_i128),
             false,
         );
-        async_target = async_sink.value;
+        async_target = async_sink.value.clone();
         async_writer = default_logger(async_target.clone());
         pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(

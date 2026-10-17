@@ -2021,7 +2021,7 @@ pub fn run_process(fixture: ProcessFixture) -> Result<ProcessResult, TerraneErro
                 terrane_collection_support::IterationStep::End => break,
             };
             __terrane_list_append_1.push(encode_native_string(entry.name.clone()));
-            __terrane_list_append_1.push(encode_native_string(entry.value));
+            __terrane_list_append_1.push(encode_native_string(entry.value.clone()));
         }
     }
     raw = terrane_test_spawn(

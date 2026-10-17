@@ -78,7 +78,7 @@ fn main() {
         let short: ReadResult;
         loopback = ip_address_from_string(String::from("127.0.0.1"));
         bind_address = socket_address_from_ip(
-            loopback.value,
+            loopback.value.clone(),
             terrane_int_support::Int::from(0_i128),
         );
         server_settings = TcpListenerOptions::terrane_construct(
@@ -87,7 +87,7 @@ fn main() {
             true,
             terrane_int_support::Int::from(64_i128),
         );
-        bound = bind_tcp(bind_address.value, Some(server_settings));
+        bound = bind_tcp(bind_address.value.clone(), Some(server_settings));
         listener = bound.value;
         endpoint_text = listener.local_address.clone();
         server_task = serve(listener);
@@ -136,7 +136,7 @@ fn main() {
             terrane_int_support::Int::from(64_i128),
         );
         connected = __terrane_await(
-                connect_tcp(destination.value, None, Some(client_settings)),
+                connect_tcp(destination.value.clone(), None, Some(client_settings)),
             )
             .await;
         client = connected.value;

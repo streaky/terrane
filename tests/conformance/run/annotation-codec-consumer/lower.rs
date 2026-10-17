@@ -14,7 +14,7 @@ fn expect_invalid(input: String) -> Result<(), TerraneError> {
             ),
         );
     }
-    decoded = decode_account(parsed.value);
+    decoded = decode_account(parsed.value.clone());
     if !decoded.failed {
         return Err(
             TerraneError::raised(
@@ -57,7 +57,7 @@ fn main() {
             ),
         );
     }
-    decoded = decode_account(parsed.value);
+    decoded = decode_account(parsed.value.clone());
     if decoded.failed {
         println!("{}", terrane_scalar_support::scalar_text(&decoded.message));
         __terrane_uncaught(
@@ -125,7 +125,7 @@ fn main() {
         String::from("{\"accountId\":8}"),
         default_json_options(),
     );
-    defaults = decode_account(defaults_input.value);
+    defaults = decode_account(defaults_input.value.clone());
     if defaults.failed {
         __terrane_uncaught(
             TerraneError::raised(
@@ -672,7 +672,7 @@ fn encode_account(value: Account) -> AccountEncoded {
             encoded_value0.message.clone(),
         );
     }
-    entries.append(String::from("accountId"), encoded_value0.value);
+    entries.append(String::from("accountId"), encoded_value0.value.clone());
     entries
         .append(String::from("label"), make_document_string(value.display_name.clone()));
     entries.append(String::from("active"), make_document_bool(value.active));
@@ -695,7 +695,7 @@ fn encode_account(value: Account) -> AccountEncoded {
                 encoded_value3.message.clone(),
             );
         }
-        entries.append(String::from("age"), encoded_value3.value);
+        entries.append(String::from("age"), encoded_value3.value.clone());
     } else {
         entries.append(String::from("age"), make_document_none());
     }
@@ -721,7 +721,7 @@ fn encode_account(value: Account) -> AccountEncoded {
         );
     }
     result = AccountEncoded::terrane_construct();
-    result.value = Some(document.value);
+    result.value = Some(document.value.clone());
     return result;
 }
 // Source: .trn/generated/profile/typed-codec-_2fcodec-model_3a_3aprofile.trn
@@ -830,6 +830,6 @@ fn encode_profile(value: Profile) -> ProfileEncoded {
         );
     }
     result = ProfileEncoded::terrane_construct();
-    result.value = Some(document.value);
+    result.value = Some(document.value.clone());
     return result;
 }
