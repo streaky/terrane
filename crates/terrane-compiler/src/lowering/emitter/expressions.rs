@@ -391,6 +391,38 @@ impl Emitter<'_> {
         }
     }
 
+    fn object_field_moves_from_temporary(&self, node: &SyntaxNode) -> bool {
+        let [receiver, member] = node.children.as_slice() else {
+            return false;
+        };
+        let mut producer = receiver;
+        while producer.kind == SyntaxKind::GroupExpression {
+            let [grouped] = producer.children.as_slice() else {
+                return false;
+            };
+            producer = grouped;
+        }
+        if !matches!(
+            producer.kind,
+            SyntaxKind::CallExpression | SyntaxKind::ConstructionExpression
+        ) {
+            return false;
+        }
+        let Some(receiver_type) = self.value_type(receiver) else {
+            return false;
+        };
+        let ValueType::Object(identity) = &receiver_type else {
+            return false;
+        };
+        // Only a direct owned field can move: references, required-field slots,
+        // native projections, and destructor-backed storage keep their copy path.
+        !self.value_type_owns_resource(&receiver_type)
+            && !self.object_requires_separation(identity)
+            && self.native_field_type(node).is_none()
+            && !source_field_is_required(self.package, identity, self.text(member))
+            && !self.wrapped_object_field(receiver, self.text(member))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "destination-directed lowering keeps every recursive value form in one auditable dispatch"
@@ -764,6 +796,9 @@ impl Emitter<'_> {
             && let ValueType::Object(identity) = &value_type
             && !self.value_type_owns_resource(&value_type)
         {
+            if self.object_field_moves_from_temporary(node) {
+                return self.expression(node);
+            }
             let expression = self.expression(node);
             return if self.object_requires_separation(identity) {
                 format!("({expression}).terrane_separate()")

@@ -106,8 +106,7 @@ fn main() {
                 terrane_int_support::Int::from(1_i128),
                 false,
             )
-            .value
-            .clone(),
+            .value,
         make_logger_options(
             info_level(),
             String::from(""),
@@ -131,8 +130,7 @@ fn main() {
                 terrane_int_support::Int::from(1_i128),
                 false,
             )
-            .value
-            .clone(),
+            .value,
         make_logger_options(
             info_level(),
             String::from(""),

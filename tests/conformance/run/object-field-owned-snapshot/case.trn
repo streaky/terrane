@@ -21,6 +21,18 @@ class holder
         local.value = 9
         return local.value
 
+    function temporary-required-copy payload;
+        return (instance holder;).required
+
+class plain-holder
+    value payload = instance payload;
+
+function make-holder plain-holder;
+    return instance plain-holder;
+
+function borrow-holder ref plain-holder; value ref plain-holder
+    return value
+
 function main;
     original = instance holder;
     first = original.required-copy;
@@ -30,3 +42,15 @@ function main;
     print; (original.change-copy;)
     unchanged = original.required-copy;
     print; unchanged.value
+    from-call = (make-holder;).value
+    from-call.value = 11
+    from-constructor = (instance plain-holder;).value
+    from-constructor.value = 12
+    print; from-call.value
+    print; from-constructor.value
+    print; (original.temporary-required-copy;).value
+    named = instance plain-holder;
+    from-borrow = (borrow-holder; ref named).value
+    from-borrow.value = 13
+    print; from-borrow.value
+    print; named.value.value
