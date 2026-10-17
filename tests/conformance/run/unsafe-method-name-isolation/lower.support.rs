@@ -1604,11 +1604,11 @@ pub fn debug(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
     return emit_at(
-        value.clone(),
-        debug_level().clone(),
-        message.clone(),
+        value,
+        debug_level(),
+        message,
         "core/logging.trn:246:12".to_owned(),
-        fields.clone(),
+        fields,
     );
 }
 pub fn write_event(value: Logger, event: LogEvent) -> LogOutcome {
@@ -1637,11 +1637,11 @@ pub fn info(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
     return emit_at(
-        value.clone(),
-        info_level().clone(),
-        message.clone(),
+        value,
+        info_level(),
+        message,
         "core/logging.trn:256:12".to_owned(),
-        fields.clone(),
+        fields,
     );
 }
 pub fn warning(
@@ -1650,11 +1650,11 @@ pub fn warning(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
     return emit_at(
-        value.clone(),
-        warning_level().clone(),
-        message.clone(),
+        value,
+        warning_level(),
+        message,
         "core/logging.trn:259:12".to_owned(),
-        fields.clone(),
+        fields,
     );
 }
 pub fn error(
@@ -1663,11 +1663,11 @@ pub fn error(
     fields: terrane_collection_support::List<LogField>,
 ) -> LogOutcome {
     return emit_at(
-        value.clone(),
-        error_level().clone(),
-        message.clone(),
+        value,
+        error_level(),
+        message,
         "core/logging.trn:262:12".to_owned(),
-        fields.clone(),
+        fields,
     );
 }
 pub fn discarded_count(value: Logger) -> terrane_int_support::Int {
