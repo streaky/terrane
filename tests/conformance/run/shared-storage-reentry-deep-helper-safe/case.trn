@@ -1,0 +1,30 @@
+namespace reentry-deep-helper-safe
+class box
+    count int = 1
+    function peek int; other shared ref box
+        return this.count + other.count
+function inner int; first shared ref box, second shared ref box
+    return first.peek; second
+function middle int; left shared ref box, right shared ref box
+    return (inner; second = right, first = left)
+function outer int; alpha shared ref box, beta shared ref box
+    return (middle; right = beta, left = alpha)
+function cycle-left int; first shared ref box, second shared ref box, depth int
+    if depth > 0
+        return cycle-right; second, first, depth - 1
+    return first.count + second.count
+function cycle-right int; first shared ref box, second shared ref box, depth int
+    if depth > 0
+        return cycle-left; first, second, depth - 1
+    return first.count + second.count
+function main;
+    a = instance box;
+    b = instance box;
+    b.count = 4
+    ha = shared ref a
+    hb = shared ref b
+    copy = ha
+    print; (outer; beta = hb, alpha = copy)
+    copy = hb
+    print; (outer; beta = copy, alpha = ha)
+    print; (cycle-right; ha, ha, 2)

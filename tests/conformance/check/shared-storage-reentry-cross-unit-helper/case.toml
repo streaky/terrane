@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+code = "T0143"
+contains = "receiver's shared storage"
+entrypoint = "package.toml"

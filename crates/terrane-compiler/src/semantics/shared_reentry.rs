@@ -1,8 +1,8 @@
 //! Best-effort alias proofs for non-reentrant synchronous source-method guards.
 //! This pass tracks copy-time identities, not just declaration provenance. Unknown
-//! expressions and writes inside compound control flow discard proofs; they never
-//! become guessed aliases. Summaries describe direct receiver/argument parameter
-//! pairs only, and are applied once rather than propagated through call chains.
+//! expressions and unsupported compound control flow discard proofs; they never
+//! become guessed aliases. Guarded parameter-pair summaries grow monotonically
+//! to a fixed point, including recursive source-helper call graph components.
 use super::prelude::{
     BTreeMap, BTreeSet, FunctionContract, InvocationMode, SemanticFailure, SemanticPackage,
     SemanticUnit, Span, SyntaxKind, SyntaxNode, ValueType, binding_initializer, failure,
@@ -10,49 +10,45 @@ use super::prelude::{
     resolve_call_parameter, unary_operator_text,
 };
 
+mod loops;
+
 type Owners = BTreeMap<Span, Span>;
 type Pairs = BTreeSet<(usize, usize)>;
 type Summaries = BTreeMap<Span, Pairs>;
 
 pub(super) fn validate(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     let mut summaries = Summaries::new();
-    for unit in &package.units {
-        for contract in &unit.functions {
-            if contract.is_async || contract.span.file != unit.source.id() {
-                continue;
-            }
-            let Some(body) = function_body(unit, contract) else {
-                continue;
-            };
-            let mut pass = Pass {
-                package,
-                unit,
-                contract,
-                summaries: None,
-                pairs: Pairs::new(),
-            };
-            pass.walk(body, &mut parameter_owners(contract))?;
-            if !pass.pairs.is_empty() {
-                summaries.insert(contract.span, pass.pairs);
+    loop {
+        let mut changed = false;
+        for unit in &package.units {
+            for contract in &unit.functions {
+                if contract.is_async || contract.span.file != unit.source.id() {
+                    continue;
+                }
+                let Some(body) = function_body(unit, contract) else {
+                    continue;
+                };
+                let mut pass = Pass {
+                    package,
+                    unit,
+                    contract,
+                    summaries: &summaries,
+                    pairs: Pairs::new(),
+                };
+                pass.walk(body, &mut parameter_owners(contract))?;
+                if !pass.pairs.is_empty() {
+                    let pairs = pass.pairs;
+                    let known = summaries.entry(contract.span).or_default();
+                    let previous = known.len();
+                    known.extend(pairs);
+                    changed |= known.len() != previous;
+                }
             }
         }
-    }
-    for unit in &package.units {
-        for contract in &unit.functions {
-            if contract.is_async || contract.span.file != unit.source.id() {
-                continue;
-            }
-            let Some(body) = function_body(unit, contract) else {
-                continue;
-            };
-            let mut pass = Pass {
-                package,
-                unit,
-                contract,
-                summaries: Some(&summaries),
-                pairs: Pairs::new(),
-            };
-            pass.walk(body, &mut parameter_owners(contract))?;
+        // Each summary contains only pairs of the function's parameter indices,
+        // so monotone insertion reaches a finite fixed point, including cycles.
+        if !changed {
+            break;
         }
     }
     Ok(())
@@ -80,7 +76,7 @@ struct Pass<'a> {
     package: &'a SemanticPackage,
     unit: &'a SemanticUnit,
     contract: &'a FunctionContract,
-    summaries: Option<&'a Summaries>,
+    summaries: &'a Summaries,
     pairs: Pairs,
 }
 
@@ -216,10 +212,7 @@ impl<'a> Pass<'a> {
                 }
             }
         }
-        if let Some(pairs) = self
-            .summaries
-            .and_then(|summaries| summaries.get(&contract.span))
-        {
+        if let Some(pairs) = self.summaries.get(&contract.span) {
             for &(left, right) in pairs {
                 if let (Some(left), Some(right)) = (
                     argument(self.unit, node, contract, left),
@@ -277,6 +270,9 @@ impl<'a> Pass<'a> {
         }
         if node.kind == SyntaxKind::CallExpression {
             self.call(node, owners)?;
+        }
+        if self.walk_for_loop(node, owners)? {
+            return Ok(());
         }
         if node.kind != SyntaxKind::Block
             && node

@@ -1,0 +1,15 @@
+namespace reentry-loop-reassign
+from /core/collections import list
+class base
+    count int = 5
+    function peek int; other shared ref base
+        return other.count
+function main;
+    a = instance base;
+    b = instance base;
+    ha = shared ref a
+    hb = shared ref b
+    copy = hb
+    for item in (list; 1)
+        copy = ha
+    print; (ha.peek; copy)
