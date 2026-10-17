@@ -34,8 +34,7 @@ impl Accumulator {
                     .total
                     .clone();
                 __terrane_snapshot
-            }
-                .clone() + delta.clone();
+            } + delta.clone();
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -48,8 +47,7 @@ impl Accumulator {
                 .total
                 .clone();
             __terrane_snapshot
-        }
-            .clone();
+        };
     }
 }
 #[derive(Clone)]
@@ -79,8 +77,7 @@ impl Reader {
                 .total
                 .clone();
             __terrane_snapshot
-        }
-            .clone() + delta.clone();
+        } + delta.clone();
     }
 }
 async fn text() -> String {

@@ -6978,8 +6978,7 @@ impl Ticker {
                         .next_index
                         .clone();
                     __terrane_snapshot
-                }
-                    .clone();
+                };
         discard_none(
             __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
                 .await,
@@ -7006,7 +7005,6 @@ impl Ticker {
                     .clone();
                 __terrane_snapshot
             }
-                .clone()
         {
             observed_index = {
                 let __terrane_snapshot = __terrane_shared_handle
@@ -7015,8 +7013,7 @@ impl Ticker {
                     .next_index
                     .clone();
                 __terrane_snapshot
-            }
-                .clone();
+            };
         }
         count = observed_index.clone()
             - {
@@ -7026,8 +7023,7 @@ impl Ticker {
                     .next_index
                     .clone();
                 __terrane_snapshot
-            }
-                .clone() + terrane_int_support::Int::from(1_i128);
+            } + terrane_int_support::Int::from(1_i128);
         delivered = MonotonicInstant::terrane_construct(
             {
                 let __terrane_snapshot = __terrane_shared_handle

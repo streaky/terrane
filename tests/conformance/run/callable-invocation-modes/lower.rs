@@ -72,8 +72,7 @@ impl AsyncAccumulator {
                     .total
                     .clone();
                 __terrane_snapshot
-            }
-                .clone() + delta.clone();
+            } + delta.clone();
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -86,8 +85,7 @@ impl AsyncAccumulator {
                 .total
                 .clone();
             __terrane_snapshot
-        }
-            .clone();
+        };
     }
 }
 #[derive(Clone)]
@@ -152,8 +150,7 @@ impl GatedAccumulator {
                     .total
                     .clone();
                 __terrane_snapshot
-            }
-                .clone() + delta.clone();
+            } + delta.clone();
             __terrane_shared_handle
                 .lock()
                 .expect("shared async receiver lock poisoned")
@@ -166,8 +163,7 @@ impl GatedAccumulator {
                 .total
                 .clone();
             __terrane_snapshot
-        }
-            .clone();
+        };
     }
 }
 fn main() {
