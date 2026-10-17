@@ -1,0 +1,10 @@
+namespace shared-observer-callable-alias
+class box
+  flag bool = true
+function read-flag bool; value ref box
+  return value.flag
+function main;
+  named = instance box;
+  owner shared ref box = shared ref named
+  operation function from ref box to bool = read-flag
+  operation; ref named

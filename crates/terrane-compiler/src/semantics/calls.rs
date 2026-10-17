@@ -276,6 +276,15 @@ pub(super) fn validate_call_nodes<'a>(
                 .or_else(|| parameters.last())
                 .expect("validated callable argument has a parameter");
             let value = argument.children.last().unwrap_or(argument);
+            let expected_type = expected.value_type();
+            reject_shared_weak_observer_argument(
+                package,
+                unit,
+                value,
+                &expected_type,
+                scoped_bindings,
+                "callable argument",
+            )?;
             if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
                 validate_value_destination(
                     &unit.source,
@@ -427,6 +436,7 @@ pub(super) fn validate_call_nodes<'a>(
                     selected
                 });
             validate_call_arguments(
+                package,
                 unit,
                 arguments,
                 specialized.as_ref().unwrap_or(contract),
@@ -1257,7 +1267,73 @@ fn defer_native_callback_borrow_validation(value: &mut ValueType, native_callbac
     }
 }
 
+fn shared_weak_observer_owner(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Option<Span> {
+    let mut value = value;
+    while value.kind == SyntaxKind::GroupExpression {
+        value = value.children.first()?;
+    }
+    unit.reference_provenance
+        .get(&(value.span.start, value.span.end))
+        .map(|provenance| provenance.owner)
+        .or_else(|| {
+            (value.kind == SyntaxKind::Name)
+                .then(|| {
+                    let name = node_text(&unit.source, value);
+                    unit.flow_binding_ids
+                        .get(&(unit.source.id(), value.span.start, value.span.end))
+                        .and_then(|span| {
+                            unit.typed_bindings
+                                .iter()
+                                .find(|binding| binding.span == *span)
+                        })
+                        .or_else(|| {
+                            bindings.iter().rev().find(|binding| {
+                                binding.name == name
+                                    && binding.is_visible_at(unit.source.id(), value.span.start)
+                            })
+                        })
+                        .and_then(|binding| {
+                            unit.reference_provenance
+                                .get(&(binding.span.start, binding.span.end))
+                        })
+                        .map(|provenance| provenance.owner)
+                })
+                .flatten()
+        })
+}
+
+fn reject_shared_weak_observer_argument(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    expected: &ValueType,
+    bindings: &[TypedBinding],
+    destination: &str,
+) -> Result<(), SemanticFailure> {
+    if !matches!(expected, ValueType::Reference(_)) {
+        return Ok(());
+    }
+    if let Some(owner) = shared_weak_observer_owner(unit, value, bindings)
+        && package.reference_owner_uses_shared_storage(unit, owner)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0141",
+            format!(
+                "a non-owning observer of shared storage cannot be passed to plain `ref` parameter `{destination}`; pass the owning shared reference to a `shared ref` parameter instead"
+            ),
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate_call_arguments(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     arguments: &SyntaxNode,
     contract: &FunctionContract,
@@ -1291,6 +1367,14 @@ pub(super) fn validate_call_arguments(
         }
         let value = argument.children.last().unwrap_or(argument);
         if let Some(expected) = parameter.element_value_type() {
+            reject_shared_weak_observer_argument(
+                package,
+                unit,
+                value,
+                &expected,
+                bindings,
+                &parameter.name,
+            )?;
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
                     unit,
@@ -1301,12 +1385,7 @@ pub(super) fn validate_call_arguments(
                 )?;
             } else if let Some(mut actual) = infer_value_type(unit, value, bindings)? {
                 defer_native_callback_borrow_validation(&mut actual, native_callback);
-                if bind_destination_selected_callback(
-                    &expected,
-                    &actual,
-                    &mut generic_bindings,
-                )
-                .map_err(|generic| {
+                let generic_failure = |generic| {
                     failure(
                         &unit.source,
                         "T0012",
@@ -1315,21 +1394,14 @@ pub(super) fn validate_call_arguments(
                         ),
                         value.span,
                     )
-                })? {
+                };
+                if bind_destination_selected_callback(&expected, &actual, &mut generic_bindings)
+                    .map_err(generic_failure)?
+                {
                     continue;
                 }
-                if let Err(generic) =
-                    bind_projected_generics(&expected, &actual, &mut generic_bindings)
-                {
-                    return Err(failure(
-                        &unit.source,
-                        "T0012",
-                        format!(
-                            "projected generic `{generic}` is inferred as incompatible argument types"
-                        ),
-                        value.span,
-                    ));
-                }
+                bind_projected_generics(&expected, &actual, &mut generic_bindings)
+                    .map_err(generic_failure)?;
                 let validation_expected = match (&expected, &actual) {
                     (
                         ValueType::Reference(_) | ValueType::SharedReference(_),

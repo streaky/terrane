@@ -658,6 +658,16 @@ impl Emitter<'_> {
         if matches!(value_type, ValueType::Reference(_))
             && self.value_type(node) == Some(value_type.clone())
         {
+            let mut value = node;
+            while value.kind == SyntaxKind::GroupExpression {
+                let Some(grouped) = value.children.first() else {
+                    break;
+                };
+                value = grouped;
+            }
+            if value.kind == SyntaxKind::Name && self.reference_uses_shared_storage(value) {
+                return format!("({}).clone()", self.expression(node));
+            }
             return self.expression(node);
         }
         if matches!(value_type, ValueType::SharedReference(_)) {

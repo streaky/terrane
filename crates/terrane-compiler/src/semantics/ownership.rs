@@ -1401,6 +1401,25 @@ fn record_reference_provenance(
     {
         proven.insert((binding.span.start, binding.span.end), provenance);
     }
+    // Inferred declarations are assignments. Later writes must not rebase the
+    // declaration's provenance onto an owner that did not exist at earlier reads.
+    if node.kind == SyntaxKind::Assignment
+        && let [target, initializer] = node.children.as_slice()
+        && target.kind == SyntaxKind::Name
+        && let Some(binding) = binding_at(unit, target)
+        && matches!(binding.value_type, ValueType::Reference(_))
+        && !proven.contains_key(&(binding.span.start, binding.span.end))
+        && let Some(provenance) =
+            expression_provenance(package, unit, initializer, proven, return_lenders).or_else(
+                || {
+                    proven
+                        .get(&(initializer.span.start, initializer.span.end))
+                        .cloned()
+                },
+            )
+    {
+        proven.insert((binding.span.start, binding.span.end), provenance);
+    }
     validate_reference_return(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::ForStatement
         && let [target, collection, _block] = node.children.as_slice()
