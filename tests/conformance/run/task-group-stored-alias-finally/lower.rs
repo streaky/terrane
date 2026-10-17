@@ -155,11 +155,7 @@ async fn worker(
                 };
                 group.spawn(__terrane_child);
             };
-            while !observer
-                .lock()
-                .expect("shared reference lock poisoned")
-                .child_started
-                .clone()
+            while !observer.lock().expect("shared reference lock poisoned").child_started
             {
                 {
                     let _: () = __terrane_await(
