@@ -10,6 +10,7 @@ use super::prelude::{
     resolve_call_parameter, unary_operator_text,
 };
 
+mod counter;
 mod loops;
 
 type Owners = BTreeMap<Span, Span>;

@@ -1,0 +1,47 @@
+namespace shared-storage-reentry-loop-boundaries-safe
+from /core/collections import list, tuple
+class box
+    count int = 1
+    function peek int; other shared ref box
+        return this.count + other.count
+function outer int; first shared ref box, second shared ref box
+    return first.peek; second
+function main;
+    a = instance box;
+    b = instance box;
+    b.count = 4
+    ha = shared ref a
+    hb = shared ref b
+    copy = hb
+    total int = 0
+    for i = 0; i < 0; i++
+        copy = ha
+    print; i
+    print; (outer; ha, copy)
+    for i = 0; i < 2; i++
+        copy = ha
+        total = total + copy.count
+        copy = hb
+    print; i
+    print; (outer; ha, copy)
+    empty list of int = list;
+    for outer_item in (list; 1, 2)
+        total = total + outer_item
+        for inner_item in empty
+            copy = ha
+            total = total + copy.count + inner_item
+        copy = hb
+    print; (outer; ha, copy)
+    for outer_item in (tuple; 1, 2)
+        total = total + outer_item
+        for inner_item in (list; 1)
+            copy = ha
+            total = total + copy.count + inner_item
+        copy = hb
+    print; (outer; ha, copy)
+    for item in (list; 1)
+        if item == 1
+            break
+        copy = ha
+    print; (outer; ha, copy)
+    print; total

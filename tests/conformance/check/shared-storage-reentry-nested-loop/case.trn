@@ -1,0 +1,16 @@
+namespace shared-storage-reentry-nested-loop
+from /core/collections import list
+class box
+    count int = 5
+    function peek int; other shared ref box
+        return other.count
+function main;
+    a = instance box;
+    b = instance box;
+    ha = shared ref a
+    hb = shared ref b
+    copy = hb
+    for outer in (list; 1, 2)
+        for inner in (list; 3, 4)
+            copy = ha
+    print; (ha.peek; copy)

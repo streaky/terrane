@@ -1,0 +1,14 @@
+namespace shared-storage-reentry-counter-loop
+class box
+    count int = 5
+    function peek int; other shared ref box
+        return other.count
+function main;
+    a = instance box;
+    b = instance box;
+    ha = shared ref a
+    hb = shared ref b
+    copy = hb
+    for i = 0; i < 2; i++
+        copy = ha
+    print; (ha.peek; copy)
