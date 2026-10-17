@@ -16,7 +16,10 @@ impl Accumulator {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
 }
@@ -161,7 +164,10 @@ fn main() {
             }
         }
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
-        acc.total = terrane_int_support::Int::from(9_i128);
+        {
+            let __terrane_value = terrane_int_support::Int::from(9_i128);
+            acc.total = __terrane_value;
+        }
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
         r = Reader::terrane_construct();
         {
@@ -274,7 +280,10 @@ fn main() {
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        r.total = terrane_int_support::Int::from(8_i128);
+        {
+            let __terrane_value = terrane_int_support::Int::from(8_i128);
+            r.total = __terrane_value;
+        }
         println!("{}", terrane_scalar_support::scalar_text(&r.total));
     });
 }

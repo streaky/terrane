@@ -27,8 +27,14 @@ impl Holder {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, tag: String, value: Option<Payload>) {
-        self.tag = tag;
-        self.value = value;
+        {
+            let __terrane_value = tag;
+            self.tag = __terrane_value;
+        }
+        {
+            let __terrane_value = value;
+            self.value = __terrane_value;
+        }
     }
 }
 fn describe(value: Option<Payload>) -> String {

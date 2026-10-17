@@ -13,7 +13,10 @@ fn render<'view>(state: &'view State) -> iced::Element<'view, ()> {
             Some(item) => item,
             None => break,
         };
-        children.push_unique(render(child));
+        {
+            let __terrane_collection_argument_0 = render(child);
+            children.push_unique(__terrane_collection_argument_0);
+        };
     }
     return {
         let value: iced::Element<'_, ()> = {
@@ -99,20 +102,20 @@ fn main() {
     let mut children: terrane_collection_support::List<State>;
     let state: State;
     children = terrane_collection_support::List::<State>::new(vec![]);
-    children
-        .append(
-            __terrane_raised(
-                terrane_static_trn_5374617465_new(String::from("first borrowed leaf")),
-                5 /* terrane-site: src/main.trn:13:23-13:56 */,
-            ),
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_static_trn_5374617465_new(String::from("first borrowed leaf")),
+            5 /* terrane-site: src/main.trn:13:23-13:56 */,
         );
-    children
-        .append(
-            __terrane_raised(
-                terrane_static_trn_5374617465_new(String::from("second borrowed leaf")),
-                6 /* terrane-site: src/main.trn:14:23-14:57 */,
-            ),
+        children.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_static_trn_5374617465_new(String::from("second borrowed leaf")),
+            6 /* terrane-site: src/main.trn:14:23-14:57 */,
         );
+        children.append(__terrane_collection_argument_0);
+    };
     state = __terrane_raised(
         terrane_static_trn_5374617465_branch(String::from("borrowed root"), children),
         7 /* terrane-site: src/main.trn:15:13-15:53 */,

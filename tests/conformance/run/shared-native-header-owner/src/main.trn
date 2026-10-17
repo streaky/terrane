@@ -1,0 +1,67 @@
+namespace app
+
+from /core/collections import list
+from /deps/http/request import Builder as native-request-builder
+
+class request-builder-owner
+    private builder shared ref native-request-builder
+
+    function construct; builder shared ref native-request-builder
+        this.builder = builder
+
+    function set-method; value string
+        builder = this.builder
+        rust
+            let replacement = ::http::Request::builder().method(::http::Method::from_bytes(value.as_bytes()).unwrap());
+            let _ = std::mem::replace(&mut *builder.lock().expect("lock"), replacement);
+
+    function read-method string;
+        builder = this.builder
+        value string = rust
+            builder.lock().expect("lock").method_ref().unwrap().as_str().to_owned()
+        return value
+
+function make-builders list of shared ref native-request-builder;
+    initial native-request-builder = rust
+        ::http::Request::builder().method(::http::Method::GET)
+    owner = shared ref initial
+    return list; owner, owner
+
+class resource
+    value int = 7
+    consuming function destruct;
+        print; 'released'
+
+enum optional-headers
+    absent
+    present; owner shared ref resource
+
+function count int; value optional-headers
+    match value
+        case optional-headers::absent
+            return -1
+        case optional-headers::present; owner
+            return owner.value
+
+function main;
+    # The factory's original native binding has left scope before either access.
+    builders = make-builders;
+    for builder in builders
+        view = instance request-builder-owner; builder = builder
+        view.set-method; 'POST'
+        print; (view.read-method;)
+    first = builders[0]
+    original = instance request-builder-owner; builder = first
+    copied = original
+    copied.set-method; 'PATCH'
+    print; (original.read-method;)
+    print; (copied.read-method;)
+    second = builders[1]
+    other-view = instance request-builder-owner; builder = second
+    print; (other-view.read-method;)
+
+    owner-resource = shared ref (instance resource;)
+    value = instance optional-headers::present; owner = owner-resource
+    copied-value = value
+    print; (count; value)
+    print; (count; copied-value)

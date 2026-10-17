@@ -694,9 +694,18 @@ impl StreamOperationResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, deadline_exceeded: bool) {
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -738,12 +747,30 @@ impl ReadResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        self.data = data;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -780,11 +807,26 @@ impl TextReadResult {
         failed: bool,
         message: String,
     ) {
-        self.text = text;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -825,14 +867,32 @@ impl WriteResult {
         if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
             && !failed
         {
-            self.data = Vec::<u8>::from([]);
+            {
+                let __terrane_value = Vec::<u8>::from([]);
+                self.data = __terrane_value;
+            }
         } else {
-            self.data = data;
+            {
+                let __terrane_value = data;
+                self.data = __terrane_value;
+            }
         }
-        self.completed = completed.clone();
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 pub struct ByteReader {
@@ -850,7 +910,10 @@ impl ByteReader {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
         let raw: TerranePlatformReadResult;
@@ -859,11 +922,11 @@ impl ByteReader {
             count,
         );
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
+            raw.data.clone(),
             raw.completed.clone(),
             raw.end,
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -903,7 +966,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -960,7 +1023,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -990,7 +1053,7 @@ impl ByteReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1023,7 +1086,10 @@ impl ByteWriter {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
         let offset: i64;
@@ -1038,7 +1104,7 @@ impl ByteWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1060,7 +1126,7 @@ impl ByteWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -1092,7 +1158,7 @@ impl ByteWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1109,7 +1175,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1120,7 +1186,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1131,7 +1197,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1142,7 +1208,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1184,8 +1250,14 @@ impl TextReader {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn read(
         &self,
@@ -1207,7 +1279,7 @@ impl TextReader {
                 raw.completed.clone(),
                 raw.end,
                 raw.failed,
-                raw.message.clone().clone(),
+                raw.message.clone(),
             ),
         );
     }
@@ -1251,7 +1323,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -1317,7 +1389,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -1346,7 +1418,7 @@ impl TextReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1388,8 +1460,14 @@ impl TextWriter {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn write(&self, text: String) -> WriteResult {
         let data: Vec<u8>;
@@ -1406,7 +1484,7 @@ impl TextWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1430,7 +1508,7 @@ impl TextWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -1462,7 +1540,7 @@ impl TextWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1485,7 +1563,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1496,7 +1574,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1507,7 +1585,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1518,7 +1596,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }

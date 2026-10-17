@@ -1,0 +1,10 @@
+namespace shared-observer-named-typed-binding
+class box
+  flag bool = true
+function read-flag bool; value ref box
+  return value.flag
+function main;
+  named = instance box;
+  owner shared ref box = shared ref named
+  observer ref box = ref named
+  read-flag; value = observer

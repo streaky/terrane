@@ -41,7 +41,7 @@ async fn exchange(content: Vec<u8>, options: Option<TcpListenerOptions>) -> Vec<
     let received: ReadResult;
     let outcome: TerraneTaskOutcome<()>;
     address = socket_address_from_string(String::from("127.0.0.1:0"));
-    bound = bind_tcp(address.value, options);
+    bound = bind_tcp(address.value.clone(), options);
     if bound.failed {
         exit(make_exit_status(terrane_int_support::Int::from(1_i128)));
     }
@@ -66,7 +66,8 @@ async fn exchange(content: Vec<u8>, options: Option<TcpListenerOptions>) -> Vec<
             }
         })
     };
-    connected = __terrane_await(connect_tcp(destination.value, None, None)).await;
+    connected = __terrane_await(connect_tcp(destination.value.clone(), None, None))
+        .await;
     if connected.failed {
         exit(make_exit_status(terrane_int_support::Int::from(1_i128)));
     }
@@ -110,7 +111,10 @@ fn main() {
             false,
             terrane_int_support::Int::from(-1_i128),
         );
-        settings.backlog = terrane_int_support::Int::from(-1_i128);
+        {
+            let __terrane_value = terrane_int_support::Int::from(-1_i128);
+            settings.backlog = __terrane_value;
+        }
         second = __terrane_await(
                 exchange(Vec::<u8>::from([114, 101, 115, 101, 116]), Some(settings)),
             )
@@ -133,7 +137,7 @@ fn main() {
             ),
         );
         invalid_large = bind_tcp(
-            address.value,
+            address.value.clone(),
             Some(
                 TcpListenerOptions::terrane_construct(
                     terrane_int_support::Int::from(2147483648_i128),

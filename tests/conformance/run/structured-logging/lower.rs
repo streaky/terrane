@@ -13,7 +13,10 @@ impl RequestData {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, token: String) {
-        self.token = token;
+        {
+            let __terrane_value = token;
+            self.token = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -27,7 +30,10 @@ impl CountedValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
-        self.value = input;
+        {
+            let __terrane_value = input;
+            self.value = __terrane_value;
+        }
     }
     pub fn render(&self) -> DocumentValue {
         println!(
@@ -115,7 +121,7 @@ fn main() {
             false,
         );
         writer = make_logger(
-            sink_result.value,
+            sink_result.value.clone(),
             make_logger_options(
                 info_level(),
                 String::from("service."),
@@ -127,7 +133,7 @@ fn main() {
         writer = with_field(
             writer,
             field_at(
-                String::from("request").clone(),
+                String::from("request"),
                 log_text(String::from("r-1")),
                 false,
                 "case.trn:30:35".to_owned(),
@@ -136,7 +142,7 @@ fn main() {
         writer = with_span(writer, String::from("serve"));
         lazy = CountedValue::terrane_construct(String::from("rendered"));
         token_field = field_at(
-            String::from("token").clone(),
+            String::from("token"),
             <LogValue>::from(
                 CountedValue::terrane_construct(String::from("raw-secret")),
             ),
@@ -177,7 +183,7 @@ fn main() {
             0 /* terrane-site: case.trn:36:8-36:34 */,
         ) {
             token_field = field_at(
-                String::from("token").clone(),
+                String::from("token"),
                 <LogValue>::from(
                     CountedValue::terrane_construct(String::from("raw-secret")),
                 ),
@@ -189,14 +195,14 @@ fn main() {
             LogField,
         >::new(
             vec![
-                field_at(String::from("value").clone(), < LogValue > ::from(lazy), false,
+                field_at(String::from("value"), < LogValue >::from(lazy), false,
                 "case.trn:38:24".to_owned()), token_field
             ],
         );
         filtered = emit_at(
             writer.clone(),
-            debug_level().clone(),
-            String::from("filtered").clone(),
+            debug_level(),
+            String::from("filtered"),
             "case.trn:39:16".to_owned(),
             additions.clone(),
         );
@@ -207,7 +213,7 @@ fn main() {
         written = emit_at(
             writer.clone(),
             info_level(),
-            String::from("handled").clone(),
+            String::from("handled"),
             "case.trn:42:15".to_owned(),
             additions.clone(),
         );
@@ -271,7 +277,7 @@ fn main() {
             false,
         );
         other = make_logger(
-            other_sink.value,
+            other_sink.value.clone(),
             make_logger_options(
                 info_level(),
                 String::from("service."),
@@ -281,11 +287,11 @@ fn main() {
             ),
         );
         target_filtered = emit_at(
-            other.clone(),
-            info_level().clone(),
-            String::from("not-written").clone(),
+            other,
+            info_level(),
+            String::from("not-written"),
             "case.trn:54:23".to_owned(),
-            additions.clone(),
+            additions,
         );
         println!("{}", terrane_scalar_support::scalar_text(&target_filtered.filtered));
         empty_fields = terrane_collection_support::List::<LogField>::new(vec![]);
@@ -318,9 +324,8 @@ fn main() {
                                     LogField,
                                 >::new(
                                     vec![
-                                        field_at(String::from("failure").clone(),
-                                        terrane_log_error(caught.as_ref()
-                                        .expect("flow-proven available binding").clone().clone()),
+                                        field_at(String::from("failure"), terrane_log_error(caught
+                                        .as_ref().expect("flow-proven available binding").clone()),
                                         false, "case.trn:62:31".to_owned())
                                     ],
                                 ),
@@ -330,12 +335,11 @@ fn main() {
                                 emit_at(
                                     writer.clone(),
                                     info_level(),
-                                    String::from("failed-operation").clone(),
+                                    String::from("failed-operation"),
                                     "case.trn:63:23".to_owned(),
                                     error_fields
                                         .as_ref()
                                         .expect("flow-proven available binding")
-                                        .clone()
                                         .clone(),
                                 ),
                             );
@@ -371,12 +375,12 @@ fn main() {
             }
         }
         failed_sink = failing_sink();
-        failed_target = failed_sink.value;
+        failed_target = failed_sink.value.clone();
         failed_logger = default_logger(failed_target.clone());
         failed_write = emit_at(
-            failed_logger.clone(),
+            failed_logger,
             info_level(),
-            String::from("cannot-write").clone(),
+            String::from("cannot-write"),
             "case.trn:69:20".to_owned(),
             empty_fields.clone(),
         );
@@ -389,11 +393,11 @@ fn main() {
             14 /* terrane-site: case.trn:71:51-71:62 */)), 14 /* terrane-site: case.trn:71:51-71:62 */).contains(&String::from("event rejected")))
         );
         console_result = console_sink(false);
-        console = default_logger(console_result.value);
+        console = default_logger(console_result.value.clone());
         console_write = emit_at(
-            console.clone(),
+            console,
             info_level(),
-            String::from("visible").clone(),
+            String::from("visible"),
             "case.trn:75:21".to_owned(),
             empty_fields.clone(),
         );
@@ -411,8 +415,8 @@ fn main() {
                 send_event(
                     adapter_producer,
                     make_event_at(
-                        info_level().clone(),
-                        String::from("adapter").clone(),
+                        info_level(),
+                        String::from("adapter"),
                         "case.trn:81:57".to_owned(),
                         empty_fields.clone(),
                     ),
@@ -431,7 +435,7 @@ fn main() {
             terrane_int_support::Int::from(1_i128),
             false,
         );
-        async_target = async_sink.value;
+        async_target = async_sink.value.clone();
         async_writer = default_logger(async_target.clone());
         pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
@@ -466,8 +470,8 @@ fn main() {
                     producer
                         .send(
                             make_event_at(
-                                info_level().clone(),
-                                String::from("transported-one").clone(),
+                                info_level(),
+                                String::from("transported-one"),
                                 "case.trn:93:40".to_owned(),
                                 empty_fields.clone(),
                             ),
@@ -480,8 +484,8 @@ fn main() {
                     producer
                         .send(
                             make_event_at(
-                                info_level().clone(),
-                                String::from("transported-two").clone(),
+                                info_level(),
+                                String::from("transported-two"),
                                 "case.trn:94:41".to_owned(),
                                 empty_fields.clone(),
                             ),
@@ -549,10 +553,10 @@ fn main() {
                     failing_producer
                         .send(
                             make_event_at(
-                                info_level().clone(),
-                                String::from("transport-failure").clone(),
+                                info_level(),
+                                String::from("transport-failure"),
                                 "case.trn:108:50".to_owned(),
-                                empty_fields.clone(),
+                                empty_fields,
                             ),
                         ),
                 ),

@@ -21,9 +21,13 @@ impl Holder {
         Self {}
     }
     pub fn terrane_static_update() {
-        TERRANE_STATIC_HOLDER_SLOT.lock().expect("static field lock poisoned").value = terrane_int_support::Int::from(
-            5_i128,
-        );
+        {
+            let __terrane_value = terrane_int_support::Int::from(5_i128);
+            TERRANE_STATIC_HOLDER_SLOT
+                .lock()
+                .expect("static field lock poisoned")
+                .value = __terrane_value;
+        }
     }
 }
 fn main() {

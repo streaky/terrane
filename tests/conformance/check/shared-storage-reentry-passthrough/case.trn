@@ -1,0 +1,11 @@
+namespace reentry-passthrough
+class base
+    count int = 5
+    function peek int; other shared ref base
+        return other.count
+function pick shared ref base; value shared ref base
+    return value
+function main;
+    a = instance base;
+    ha = shared ref a
+    print; (ha.peek; (pick; ha))

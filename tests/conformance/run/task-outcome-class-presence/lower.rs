@@ -15,7 +15,10 @@ impl Point {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, x: terrane_int_support::Int) {
-        self.x = x.clone();
+        {
+            let __terrane_value = x.clone();
+            self.x = __terrane_value;
+        }
     }
 }
 async fn make() -> Point {

@@ -22,7 +22,10 @@ impl Marker {
         value
     }
     pub fn construct(&mut self, name: String) {
-        self.name = name;
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!(
@@ -54,32 +57,37 @@ fn release_order() {
             Marker::terrane_construct(String::from("destroy-last"))
         ],
     );
-    __terrane_raised(
-        values
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    0 /* terrane-site: case.trn:17:3-17:50 */,
-                ),
-                Marker::terrane_construct(String::from("replacement")),
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
             ),
-        0 /* terrane-site: case.trn:17:3-17:50 */,
-    );
+            0 /* terrane-site: case.trn:17:3-17:50 */,
+        );
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("replacement"),
+        );
+        __terrane_raised(
+            values.set(__terrane_collection_argument_0, __terrane_collection_argument_1),
+            0 /* terrane-site: case.trn:17:3-17:50 */,
+        );
+    };
     println!("{}", String::from("after-set"));
-    removed = __terrane_raised(
-        values
-            .remove(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(1_i128),
-                    ),
-                    1 /* terrane-site: case.trn:20:22-20:38 */,
+    removed = {
+        let __terrane_result = {
+            let __terrane_index = __terrane_raised(
+                terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
                 ),
-            ),
-        1 /* terrane-site: case.trn:20:22-20:38 */,
-    );
+                1 /* terrane-site: case.trn:20:22-20:38 */,
+            );
+            __terrane_raised(
+                values.remove(__terrane_index),
+                1 /* terrane-site: case.trn:20:22-20:38 */,
+            )
+        };
+        __terrane_result
+    };
     println!(
         "{}{}", String::from("after-remove-"),
         terrane_scalar_support::scalar_text(&removed.name)
@@ -87,11 +95,18 @@ fn release_order() {
     println!("{}", String::from("after-block"));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            __terrane_raised_completion!(
-                values
-                .remove(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(9_i128)),
-                2 /* terrane-site: case.trn:24:5-24:21 */)), 2 /* terrane-site: case.trn:24:5-24:21 */
-            );
+            {
+                let __terrane_result = {
+                    let __terrane_index = __terrane_raised_completion!(
+                        terrane_collection_support::index_from_int(&terrane_int_support::Int::from(9_i128)),
+                        2 /* terrane-site: case.trn:24:5-24:21 */
+                    );
+                    __terrane_raised_completion!(
+                        values.remove(__terrane_index), 2 /* terrane-site: case.trn:24:5-24:21 */
+                    )
+                };
+                __terrane_result
+            };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -130,25 +145,30 @@ fn release_order() {
             Marker::terrane_construct(String::from("clear-second"))
         ],
     );
-    cleared.clear();
+    {
+        cleared.clear();
+    };
     println!("{}", String::from("after-clear"));
     original = terrane_collection_support::List::<
         Marker,
     >::new(vec![Marker::terrane_construct(String::from("cow-original"))]);
     separated = original.clone();
-    __terrane_raised(
-        separated
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    3 /* terrane-site: case.trn:33:3-33:57 */,
-                ),
-                Marker::terrane_construct(String::from("cow-replacement")),
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
             ),
-        3 /* terrane-site: case.trn:33:3-33:57 */,
-    );
+            3 /* terrane-site: case.trn:33:3-33:57 */,
+        );
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("cow-replacement"),
+        );
+        __terrane_raised(
+            separated
+                .set(__terrane_collection_argument_0, __terrane_collection_argument_1),
+            3 /* terrane-site: case.trn:33:3-33:57 */,
+        );
+    };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(original
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),

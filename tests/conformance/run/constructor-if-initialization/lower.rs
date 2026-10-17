@@ -12,7 +12,10 @@ impl RequiredValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -27,11 +30,26 @@ impl Configured {
     }
     pub fn construct(&mut self, value: String) {
         if value.as_str() == "a" {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("first")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("first"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         } else if value.as_str() == "b" {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("second")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("second"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         } else {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("other")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("other"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         }
     }
 }
@@ -47,9 +65,19 @@ impl ConfiguredWithRead {
     }
     pub fn construct(&mut self, value: String) {
         if value.as_str() == "a" {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("first")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("first"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         } else {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("other")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("other"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         }
         println!(
             "{}", terrane_scalar_support::scalar_text(&self.slot.as_ref()

@@ -134,7 +134,6 @@ fn main() {
                                     .as_ref()
                                     .expect("flow-proven available binding")
                                     .clone()
-                                    .clone()
                                     .at(3 /* terrane-site: case.trn:19:7-19:19 */),
                             );
                         }

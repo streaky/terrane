@@ -1,0 +1,13 @@
+namespace app
+
+from /app/mounted import api as imported-api
+
+function main;
+    value = instance imported-api;
+    value.request = 'GET'
+    value.response = 201
+    request = value.request
+    if request != none
+        print; request
+    print; value.response
+    print; value.origin

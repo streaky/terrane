@@ -43,7 +43,10 @@ impl Counter {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.value = self.value.clone() + amount.clone();
+        {
+            let __terrane_value = self.value.clone() + amount.clone();
+            self.value = __terrane_value;
+        }
         return self.value.clone();
     }
     pub fn read(&self) -> terrane_int_support::Int {

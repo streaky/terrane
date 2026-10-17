@@ -27,7 +27,10 @@ impl Label {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
     pub fn to_string(&self) -> String {
         println!(

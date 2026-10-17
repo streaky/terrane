@@ -136,6 +136,9 @@ pub(super) fn infer_numeric_coercion_type(
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
+    if source_object_method_call(unit, node.children.first().unwrap_or(node), bindings) {
+        return Ok(None);
+    }
     let Some(callee) = node.children.first() else {
         return Ok(None);
     };
@@ -487,6 +490,9 @@ pub(crate) fn numeric_coercion_call<'a>(
 }
 
 pub(super) fn invalid_coercion_policy(unit: &SemanticUnit, callee: &SyntaxNode) -> Option<String> {
+    if source_object_method_call(unit, callee, &unit.typed_bindings) {
+        return None;
+    }
     (coercion_family_receiver(unit, callee)
         && numeric_coercion_call(&unit.source, callee).is_none())
     .then(|| {
@@ -494,6 +500,26 @@ pub(super) fn invalid_coercion_policy(unit: &SemanticUnit, callee: &SyntaxNode) 
         let family_start = callee_text.find(".coerce").unwrap_or(0);
         callee_text[family_start..].to_owned()
     })
+}
+fn source_object_method_call(
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> bool {
+    let Some(method) = bound_method(&unit.source, callee) else {
+        return false;
+    };
+    let Some(receiver) = find_node_by_span(&unit.tree.root, method.receiver) else {
+        return false;
+    };
+    let Ok(Some(ValueType::Object(identity))) = infer_receiver_value_type(unit, receiver, bindings)
+    else {
+        return false;
+    };
+    let Some(member) = callee.children.get(1) else {
+        return false;
+    };
+    object_method_contract(unit, &identity, node_text(&unit.source, member), false).is_some()
 }
 
 pub(super) fn coercion_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {

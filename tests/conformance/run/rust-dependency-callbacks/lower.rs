@@ -179,7 +179,10 @@ impl ProjectedCounter {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
     pub fn current(&self) -> terrane_int_support::Int {
@@ -248,7 +251,10 @@ impl ProjectedLocalCounter {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
     pub fn current(&self) -> terrane_int_support::Int {
@@ -1005,8 +1011,8 @@ fn main() {
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error) }, match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(add_two)
-            .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(add_two);
+            move | callback_argument_0 : i64 | { match | | -> Result < _, crate
             ::TerraneForeignError > { let callback_value =
             callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
             Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |

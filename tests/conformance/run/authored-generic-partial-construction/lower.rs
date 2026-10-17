@@ -16,7 +16,10 @@ impl Connection {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, tag: String) {
-        self.tag = tag;
+        {
+            let __terrane_value = tag;
+            self.tag = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!("{}", terrane_scalar_support::scalar_text(&self.tag));
@@ -48,7 +51,10 @@ impl<TerraneType54> Pair<TerraneType54> {
         second: TerraneType54,
         fail: bool,
     ) -> Result<(), TerraneError> {
-        self.first = Some(first);
+        {
+            let __terrane_value = first;
+            self.first = Some(__terrane_value);
+        }
         if fail {
             return Err(
                 TerraneError::raised(
@@ -57,7 +63,10 @@ impl<TerraneType54> Pair<TerraneType54> {
                 ),
             );
         }
-        self.second = Some(second);
+        {
+            let __terrane_value = second;
+            self.second = Some(__terrane_value);
+        }
         Ok(())
     }
 }
@@ -85,8 +94,11 @@ impl TerraneNsAuthoredGenericPartialConstructionBoxIdentity2F617574686F7265642D6
         value: terrane_int_support::Int,
         __trn_5f5f74657272616e655f636f6e73747275637465645f76616c7565: terrane_int_support::Int,
     ) {
-        self.value = value.clone()
-            + __trn_5f5f74657272616e655f636f6e73747275637465645f76616c7565.clone();
+        {
+            let __terrane_value = value.clone()
+                + __trn_5f5f74657272616e655f636f6e73747275637465645f76616c7565.clone();
+            self.value = __terrane_value;
+        }
     }
 }
 fn main() {

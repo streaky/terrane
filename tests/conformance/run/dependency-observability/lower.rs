@@ -14,7 +14,7 @@ fn main() {
         terrane_int_support::Int::from(2_i128),
         false,
     );
-    writer = default_logger(sink_result.value);
+    writer = default_logger(sink_result.value.clone());
     installed = install_dependency_bridge(writer.clone());
     println!("{}", terrane_scalar_support::scalar_text(&installed.failed));
     __terrane_raised(emit_log_event(), 0 /* terrane-site: src/main.trn:12:5-12:20 */);

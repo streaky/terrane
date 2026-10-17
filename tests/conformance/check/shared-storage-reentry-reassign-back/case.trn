@@ -1,0 +1,16 @@
+namespace reentry-reassign-back
+class base
+    count int = 5
+    function peek int; other shared ref base
+        return other.count
+function main;
+    a = instance base;
+    b = instance base;
+    ha = shared ref a
+    hb = shared ref b
+    copy = ha
+    print; copy.count
+    copy = hb
+    print; copy.count
+    copy = ha
+    print; (ha.peek; copy)

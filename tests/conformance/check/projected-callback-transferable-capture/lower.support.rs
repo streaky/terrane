@@ -1167,7 +1167,7 @@ pub async fn apply_async_concurrently(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: i64| {
             let callback = callback.clone();
             let callback_future = callback(

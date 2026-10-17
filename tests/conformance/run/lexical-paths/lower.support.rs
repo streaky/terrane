@@ -522,7 +522,10 @@ impl Path {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
-        self.text = input;
+        {
+            let __terrane_value = input;
+            self.text = __terrane_value;
+        }
     }
 }
 pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
@@ -553,7 +556,10 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 0 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
             if part.as_str() != "" {
-                __terrane_list_append_0.push(part);
+                {
+                    let __terrane_collection_argument_0 = part;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -619,19 +625,26 @@ pub fn normalise_path(subject: Path) -> Path {
                                 terrane_int_support::Int::from(kept.length()),
                             )
                         {
-                            __terrane_raised(
-                                kept
-                                    .set(
-                                        __terrane_raised(
-                                            terrane_collection_support::index_from_int(&count.clone()),
-                                            3 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                            {
+                                let __terrane_collection_argument_0 = __terrane_raised(
+                                    terrane_collection_support::index_from_int(&count.clone()),
+                                    3 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                                );
+                                let __terrane_collection_argument_1 = part;
+                                __terrane_raised(
+                                    kept
+                                        .set(
+                                            __terrane_collection_argument_0,
+                                            __terrane_collection_argument_1,
                                         ),
-                                        part,
-                                    ),
-                                3 /* terrane-site: core/paths.trn:40:29-40:50 */,
-                            );
+                                    3 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                                );
+                            };
                         } else {
-                            kept.append(part);
+                            {
+                                let __terrane_collection_argument_0 = part;
+                                kept.append(__terrane_collection_argument_0);
+                            };
                         }
                         count = count.clone() + terrane_int_support::Int::from(1_i128);
                     }
@@ -642,19 +655,26 @@ pub fn normalise_path(subject: Path) -> Path {
                         terrane_int_support::Int::from(kept.length()),
                     )
                 {
-                    __terrane_raised(
-                        kept
-                            .set(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(&count.clone()),
-                                    4 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                    {
+                        let __terrane_collection_argument_0 = __terrane_raised(
+                            terrane_collection_support::index_from_int(&count.clone()),
+                            4 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                        );
+                        let __terrane_collection_argument_1 = part;
+                        __terrane_raised(
+                            kept
+                                .set(
+                                    __terrane_collection_argument_0,
+                                    __terrane_collection_argument_1,
                                 ),
-                                part,
-                            ),
-                        4 /* terrane-site: core/paths.trn:46:21-46:42 */,
-                    );
+                            4 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                        );
+                    };
                 } else {
-                    kept.append(part);
+                    {
+                        let __terrane_collection_argument_0 = part;
+                        kept.append(__terrane_collection_argument_0);
+                    };
                 }
                 count = count.clone() + terrane_int_support::Int::from(1_i128);
             }

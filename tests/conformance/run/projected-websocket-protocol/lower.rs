@@ -421,7 +421,7 @@ fn websocket_route(
                 std::panic::AssertUnwindSafe(|| axum::routing::get(
                     match || -> Result<_, crate::TerraneForeignError> {
                         Ok({
-                            let callback = callback.clone();
+                            let callback = callback;
                             move |
                                 callback_argument_0: axum::extract::WebSocketUpgrade<
                                     axum::extract::ws::DefaultOnFailedUpgrade,
@@ -498,9 +498,8 @@ async fn run_server(native: NativeTcpListener) {
                     match || -> Result<_, crate::TerraneForeignError> {
                         Ok({
                             let callback = std::sync::Arc::new(move || -> std::pin::Pin<
-                                    Box<dyn Future<Output = _> + Send>,
-                                > { Box::pin(health()) })
-                                .clone();
+                                Box<dyn Future<Output = _> + Send>,
+                            > { Box::pin(health()) });
                             move || {
                                 let callback = callback.clone();
                                 let callback_future = callback();

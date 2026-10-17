@@ -29,7 +29,10 @@ fn main() {
         summarize(&descriptor),
         0 /* terrane-site: src/main.trn:9:20-9:41 */,
     );
-    descriptor.offset = 36;
+    {
+        let __terrane_value = 36;
+        descriptor.offset = __terrane_value;
+    }
     println!(
         "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&first), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&owned),

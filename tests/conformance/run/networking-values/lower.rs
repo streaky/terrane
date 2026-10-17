@@ -47,7 +47,7 @@ fn main() {
         host = parse_host_name(String::from("localhost"));
         lookup = __terrane_await(
                 lookup_dns(
-                    host.value,
+                    host.value.clone(),
                     terrane_int_support::Int::from(port as i128),
                     Some(cancelled),
                 ),

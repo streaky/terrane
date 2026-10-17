@@ -723,7 +723,10 @@ impl DocumentInteger {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -752,9 +755,18 @@ impl DocumentDecimal {
         exponent: terrane_int_support::Int,
         text: String,
     ) {
-        self.coefficient = coefficient;
-        self.exponent = exponent.clone();
-        self.text = text;
+        {
+            let __terrane_value = coefficient;
+            self.coefficient = __terrane_value;
+        }
+        {
+            let __terrane_value = exponent.clone();
+            self.exponent = __terrane_value;
+        }
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 pub trait SerializableProtocol: Send + Sync {
@@ -867,20 +879,40 @@ impl DocumentValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
-        self.kind = terrane_document_kind(&raw);
-        self.scalar = terrane_document_text(&raw);
-        self.encoded = terrane_data_encoded(&raw);
+        {
+            let __terrane_value = terrane_document_kind(&raw);
+            self.kind = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_document_text(&raw);
+            self.scalar = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_data_encoded(&raw);
+            self.encoded = __terrane_value;
+        }
         if self.kind.as_str() == "integer" {
-            self.integer = DocumentInteger::terrane_construct(self.scalar.clone());
+            {
+                let __terrane_value = DocumentInteger::terrane_construct(
+                    self.scalar.clone(),
+                );
+                self.integer = __terrane_value;
+            }
         }
         if self.kind.as_str() == "decimal" {
-            self.decimal = DocumentDecimal::terrane_construct(
-                terrane_document_coefficient(&raw),
-                terrane_document_exponent(&raw),
-                self.scalar.clone(),
-            );
+            {
+                let __terrane_value = DocumentDecimal::terrane_construct(
+                    terrane_document_coefficient(&raw),
+                    terrane_document_exponent(&raw),
+                    self.scalar.clone(),
+                );
+                self.decimal = __terrane_value;
+            }
         }
-        self.raw = raw;
+        {
+            let __terrane_value = raw;
+            self.raw = __terrane_value;
+        }
     }
     pub fn length(&self) -> terrane_int_support::Int {
         return terrane_document_length(&self.raw);
@@ -952,11 +984,26 @@ impl DocumentResult {
         expected: String,
         raw: terrane_document_support::DataResult,
     ) {
-        self.failed = failed;
-        self.message = message;
-        self.path = path;
-        self.expected = expected;
-        self.value = DocumentValue::terrane_construct(raw);
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = path;
+            self.path = __terrane_value;
+        }
+        {
+            let __terrane_value = expected;
+            self.expected = __terrane_value;
+        }
+        {
+            let __terrane_value = DocumentValue::terrane_construct(raw);
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1002,9 +1049,18 @@ impl DocumentMapping {
         expected_kind: String,
         allow_unknown: bool,
     ) {
-        self.descriptor_name = descriptor_name;
-        self.expected_kind = expected_kind;
-        self.allow_unknown = allow_unknown;
+        {
+            let __terrane_value = descriptor_name;
+            self.descriptor_name = __terrane_value;
+        }
+        {
+            let __terrane_value = expected_kind;
+            self.expected_kind = __terrane_value;
+        }
+        {
+            let __terrane_value = allow_unknown;
+            self.allow_unknown = __terrane_value;
+        }
     }
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
         return decode_document(value, self.clone());
@@ -1074,10 +1130,20 @@ impl DocumentMapEntries {
         __terrane_constructed_value
     }
     pub fn construct(&mut self) {
-        self.raw = terrane_make_document_map();
+        {
+            let __terrane_value = terrane_make_document_map();
+            self.raw = __terrane_value;
+        }
     }
     pub fn append(&mut self, key: String, value: DocumentValue) {
-        self.raw = terrane_document_map_insert(&self.raw, key, &value.raw);
+        {
+            let __terrane_value = terrane_document_map_insert(
+                &self.raw,
+                key,
+                &value.raw,
+            );
+            self.raw = __terrane_value;
+        }
     }
 }
 pub fn append_document_map_entry(
@@ -1207,7 +1273,10 @@ pub fn mapping_required_fields(
                     + terrane_int_support::Int::from(1_i128);
             }
             if field.as_str() != "" && !optional && !defaulted {
-                __terrane_list_append_0.push(field);
+                {
+                    let __terrane_collection_argument_0 = field;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -1251,22 +1320,22 @@ pub fn decode_document(
                 )
                 .as_str() != ""
             {
-                __terrane_list_append_1
-                    .push(
-                        __terrane_raised(
-                            mapping
-                                .field_names
-                                .get_or_error(
-                                    __terrane_raised(
-                                        terrane_collection_support::index_from_int(
-                                            &field_index.clone(),
-                                        ),
-                                        21 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                {
+                    let __terrane_collection_argument_0 = __terrane_raised(
+                        mapping
+                            .field_names
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &field_index.clone(),
                                     ),
+                                    21 /* terrane-site: core/documents.trn:177:37-177:69 */,
                                 ),
-                            21 /* terrane-site: core/documents.trn:177:37-177:69 */,
-                        ),
+                            ),
+                        21 /* terrane-site: core/documents.trn:177:37-177:69 */,
                     );
+                    __terrane_list_append_1.push(__terrane_collection_argument_0);
+                };
             }
             field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -1298,38 +1367,38 @@ pub fn decode_document(
             )
             .as_str() != ""
         {
-            default_fields
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .default_fields
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
-                                    ),
-                                    23 /* terrane-site: core/documents.trn:184:36-184:73 */,
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    mapping
+                        .default_fields
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
                                 ),
+                                23 /* terrane-site: core/documents.trn:184:36-184:73 */,
                             ),
-                        23 /* terrane-site: core/documents.trn:184:36-184:73 */,
-                    ),
+                        ),
+                    23 /* terrane-site: core/documents.trn:184:36-184:73 */,
                 );
-            default_values
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .default_values
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
-                                    ),
-                                    24 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                default_fields.append(__terrane_collection_argument_0);
+            };
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    mapping
+                        .default_values
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
                                 ),
+                                24 /* terrane-site: core/documents.trn:185:36-185:73 */,
                             ),
-                        24 /* terrane-site: core/documents.trn:185:36-185:73 */,
-                    ),
+                        ),
+                    24 /* terrane-site: core/documents.trn:185:36-185:73 */,
                 );
+                default_values.append(__terrane_collection_argument_0);
+            };
         }
         default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -1344,7 +1413,10 @@ pub fn decode_document(
     );
     result = make_document_result(raw);
     if result.failed {
-        result.expected = mapping.descriptor_name.clone();
+        {
+            let __terrane_value = mapping.descriptor_name.clone();
+            result.expected = __terrane_value;
+        }
     }
     return result;
 }

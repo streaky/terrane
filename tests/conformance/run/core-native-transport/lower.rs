@@ -83,7 +83,9 @@ fn main() {
                             let __terrane_try_0: TerraneCompletion<()> = async {
                                 let _ = connected
                                     .insert(
-                                        __terrane_await(connect_tcp(address.value, None, None))
+                                        __terrane_await(
+                                                connect_tcp(address.value.clone(), None, None),
+                                            )
                                             .await,
                                     );
                                 if connected

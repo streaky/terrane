@@ -43,7 +43,10 @@ fn main() {
         1 /* terrane-site: src/main.trn:9:13-9:35 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&envelope.payload.port));
-    envelope.payload = witness::Address { port: 8081 };
+    {
+        let __terrane_value = witness::Address { port: 8081 };
+        envelope.payload = __terrane_value;
+    }
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(address_port(&envelope),
@@ -227,20 +230,23 @@ fn main() {
         terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(i128::from(*
         &numeric.payload)) + terrane_int_support::Int::from(1_i128)))
     );
-    numeric.payload = __terrane_raised(
-        || -> Result<_, crate::TerraneForeignError> {
-            let __terrane_field_value = terrane_int_support::Int::from(
-                i128::from(*&numeric.payload),
-            ) + terrane_int_support::Int::from(2_i128);
-            Ok(
-                terrane_int_support::coerce::<i64>(&__terrane_field_value)
-                    .map_err(|error| crate::TerraneForeignError(
-                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                    ))?,
-            )
-        }(),
-        16 /* terrane-site: src/main.trn:30:5-30:42 */,
-    );
+    {
+        let __terrane_value = __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                let __terrane_field_value = terrane_int_support::Int::from(
+                    i128::from(*&numeric.payload),
+                ) + terrane_int_support::Int::from(2_i128);
+                Ok(
+                    terrane_int_support::coerce::<i64>(&__terrane_field_value)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }(),
+            16 /* terrane-site: src/main.trn:30:5-30:42 */,
+        );
+        numeric.payload = __terrane_value;
+    }
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(i128::from(*
@@ -268,15 +274,18 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&flag.payload));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            numeric.payload = __terrane_raised_completion!(
-                | | -> Result < _, crate ::TerraneForeignError > { let
-                __terrane_field_value =
-                terrane_int_support::Int::from(9223372036854775808_i128);
-                Ok(terrane_int_support::coerce:: < i64 > (&__terrane_field_value)
-                .map_err(| error | crate ::TerraneForeignError(crate
-                ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } (),
-                18 /* terrane-site: src/main.trn:35:9-35:46 */
-            );
+            {
+                let __terrane_value = __terrane_raised_completion!(
+                    | | -> Result < _, crate ::TerraneForeignError > { let
+                    __terrane_field_value =
+                    terrane_int_support::Int::from(9223372036854775808_i128);
+                    Ok(terrane_int_support::coerce:: < i64 > (&__terrane_field_value)
+                    .map_err(| error | crate ::TerraneForeignError(crate
+                    ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } (),
+                    18 /* terrane-site: src/main.trn:35:9-35:46 */
+                );
+                numeric.payload = __terrane_value;
+            }
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {

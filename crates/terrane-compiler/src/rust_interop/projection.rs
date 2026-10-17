@@ -13,7 +13,7 @@
 //! - `enum_payload.rs`: enum payload projection and boundary conversion.
 //! - `foreign_impls.rs`: implementation discovery and probes across dependency crates.
 //! - `functions.rs`: complete function-signature admission.
-//! - `history.rs`: projection-lock provenance and replay history.
+//! - `history.rs`: generated projection-cache provenance and replay history.
 //! - `interfaces.rs`: projected interfaces, associated types, and trait operations.
 //! - `items.rs`: Rustdoc item admission and nominal generic parameters.
 //! - `macros.rs`: macro-generated public reexports.

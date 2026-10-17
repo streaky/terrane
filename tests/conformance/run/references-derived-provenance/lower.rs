@@ -15,7 +15,10 @@ impl Holder {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, amount: terrane_int_support::Int) {
-        self.value = amount.clone();
+        {
+            let __terrane_value = amount.clone();
+            self.value = __terrane_value;
+        }
     }
 }
 fn pass<'a>(value: &'a terrane_int_support::Int) -> &'a terrane_int_support::Int {

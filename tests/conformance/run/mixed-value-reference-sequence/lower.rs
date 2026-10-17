@@ -35,16 +35,24 @@ fn main() {
         __terrane_value
     }
         .clone();
-    numbers
-        .lock()
-        .expect("reference lock poisoned")
-        .append(terrane_int_support::Int::from(2_i128));
+    {
+        let __terrane_owner = numbers.clone();
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(2_i128);
+        __terrane_owner
+            .lock()
+            .expect("reference lock poisoned")
+            .append(__terrane_collection_argument_0);
+    };
     number_owner = numbers.clone();
     number_observer = std::sync::Arc::downgrade(&numbers.clone());
-    number_owner
-        .lock()
-        .expect("shared reference lock poisoned")
-        .append(terrane_int_support::Int::from(3_i128));
+    {
+        let __terrane_owner = number_owner.clone();
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(3_i128);
+        __terrane_owner
+            .lock()
+            .expect("shared reference lock poisoned")
+            .append(__terrane_collection_argument_0);
+    };
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(number_snapshot
@@ -67,10 +75,24 @@ fn main() {
         __terrane_value
     }
         .clone();
-    words.lock().expect("reference lock poisoned").append(String::from("b"));
+    {
+        let __terrane_owner = words.clone();
+        let __terrane_collection_argument_0 = String::from("b");
+        __terrane_owner
+            .lock()
+            .expect("reference lock poisoned")
+            .append(__terrane_collection_argument_0);
+    };
     word_owner = words.clone();
     word_observer = std::sync::Arc::downgrade(&words.clone());
-    word_owner.lock().expect("shared reference lock poisoned").append(String::from("c"));
+    {
+        let __terrane_owner = word_owner.clone();
+        let __terrane_collection_argument_0 = String::from("c");
+        __terrane_owner
+            .lock()
+            .expect("shared reference lock poisoned")
+            .append(__terrane_collection_argument_0);
+    };
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(word_snapshot
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),

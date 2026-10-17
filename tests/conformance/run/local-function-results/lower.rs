@@ -27,7 +27,7 @@ fn guarded() -> terrane_int_support::Int {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
             let _ = value.insert(helper_terrane_local_function_results());
             return TerraneCompletion::Return(
-                value.as_ref().expect("flow-proven available binding").clone().clone(),
+                value.as_ref().expect("flow-proven available binding").clone(),
             );
         })();
         match __terrane_try_0 {

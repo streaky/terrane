@@ -38,7 +38,11 @@ impl Counter {
             return terrane_collection_support::IterationStep::End;
         }
         value = self.current.clone();
-        self.current = self.current.clone() + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value = self.current.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.current = __terrane_value;
+        }
         return terrane_collection_support::IterationStep::<
             terrane_int_support::Int,
         >::Item(value.clone());

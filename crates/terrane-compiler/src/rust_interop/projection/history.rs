@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     PROJECTION_SCHEMA, ProjectedBoundDependency, ProjectedDependency, ProjectedKind, Projection,
-    ProjectionError, ProjectionResolution, ProjectionSource, RemovedItem, write_if_changed,
+    ProjectionError, ProjectionResolution, ProjectionSource, RemovedItem, write_cache_atomically,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -100,26 +100,18 @@ fn projection_history_members(
 fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, ProjectionError> {
     match fs::read(path) {
         Ok(bytes) => {
-            let history = serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(|error| {
-                ProjectionError {
-                    message: format!("invalid projection history `{}`: {error}", path.display()),
-                }
-            })?;
+            let Ok(history) = serde_json::from_slice::<ProjectionHistory>(&bytes) else {
+                return Ok(None);
+            };
             if !matches!(history.format, 1..=4) {
-                return Err(ProjectionError {
-                    message: format!(
-                        "unsupported projection history format {} in `{}`",
-                        history.format,
-                        path.display()
-                    ),
-                });
+                return Ok(None);
             }
             Ok(Some(history))
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(ProjectionError {
             message: format!(
-                "cannot read projection history `{}`: {error}",
+                "cannot read disposable projection history `{}`: {error}; check filesystem access, or remove this cache file and regenerate it",
                 path.display()
             ),
         }),
@@ -165,7 +157,7 @@ pub(super) fn apply_projection_history(
     root: &Path,
     projection: &mut Projection,
 ) -> Result<(), ProjectionError> {
-    let path = root.join("terrane-projection.lock");
+    let path = root.join(".trn/projection-cache.json");
     let previous = read_projection_history(&path)?;
     let dependencies = projection
         .dependencies
@@ -187,7 +179,7 @@ pub(super) fn apply_projection_history(
     {
         return Err(ProjectionError {
             message: format!(
-                "projection replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`",
+                "projection cache replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`; investigate the projection drift before removing this disposable cache file and regenerating it",
                 path.display(),
                 previous.content_hash.as_deref().unwrap_or("missing"),
                 projection.content_hash
@@ -211,22 +203,7 @@ pub(super) fn apply_projection_history(
     removed
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
     projection.removed.clone_from(&removed);
-    let persist_provenance = previous.as_ref().is_none_or(|history| {
-        history.format < 4
-            || history.cache_identity.is_some()
-            || history.projection_schema.is_some()
-            || history.content_hash.is_some()
-            || history.resolution.is_some()
-    });
-    let persist_source = persist_provenance
-        || previous
-            .as_ref()
-            .is_some_and(|history| history.source.is_some());
-    let persist_rustdoc_format = persist_provenance
-        || previous
-            .as_ref()
-            .is_some_and(|history| history.rustdoc_format.is_some());
-    let persisted_resolution = persist_provenance.then(|| {
+    let persisted_resolution = Some(
         previous
             .as_ref()
             .filter(|history| {
@@ -237,18 +214,18 @@ pub(super) fn apply_projection_history(
                     && history.source == Some(projection.source)
             })
             .and_then(|history| history.resolution.clone())
-            .unwrap_or_else(|| projection.resolution.clone())
-    });
+            .unwrap_or_else(|| projection.resolution.clone()),
+    );
     let history = ProjectionHistory {
         format: 4,
         dependencies,
         bound_dependencies: projection.bound_dependencies.clone(),
         removed,
-        cache_identity: persist_provenance.then(|| projection.cache_identity.clone()),
-        source: persist_source.then_some(projection.source),
-        rustdoc_format: persist_rustdoc_format.then_some(rustdoc_types::FORMAT_VERSION),
-        projection_schema: persist_provenance.then(|| PROJECTION_SCHEMA.to_owned()),
-        content_hash: persist_provenance.then(|| projection.content_hash.clone()),
+        cache_identity: Some(projection.cache_identity.clone()),
+        source: Some(projection.source),
+        rustdoc_format: Some(rustdoc_types::FORMAT_VERSION),
+        projection_schema: Some(PROJECTION_SCHEMA.to_owned()),
+        content_hash: Some(projection.content_hash.clone()),
         resolution: persisted_resolution,
     };
     // Preserve existing formatting when the history contract has not changed.
@@ -259,7 +236,14 @@ pub(super) fn apply_projection_history(
         message: format!("cannot serialize projection history: {error}"),
     })?;
     bytes.push(b'\n');
-    write_if_changed(&path, &bytes)
+    write_cache_atomically(&path, &[&bytes]).map_err(|mut error| {
+        error.message = format!(
+            "{} at disposable projection history `{}`; check filesystem access and permissions",
+            error.message,
+            path.display()
+        );
+        error
+    })
 }
 #[cfg(test)]
 mod tests;

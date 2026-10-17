@@ -64,6 +64,12 @@ impl Emitter<'_> {
             .and_then(|actual| arms.iter().find(|arm| *arm == actual))
             .cloned()
             .or_else(|| {
+                // Function-owned storage may span several typed declarations. Contextual
+                // literals (for example an empty list) take the active declaration's
+                // type, not the union of every value stored in the slot.
+                arms.iter().find(|arm| *arm == &binding.value_type).cloned()
+            })
+            .or_else(|| {
                 let actual_scalar = actual.and_then(|actual| match actual {
                     ValueType::Scalar(scalar) => Some(scalar),
                     _ => None,

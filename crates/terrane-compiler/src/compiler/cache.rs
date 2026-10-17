@@ -98,7 +98,7 @@ pub(super) fn current(package: &Package) -> Option<Inputs> {
     }
     for name in [
         "terrane-dependencies.lock",
-        "terrane-projection.lock",
+        ".trn/projection-cache.json",
         ".trn/dependencies/Cargo.toml",
         ".trn/dependencies/Cargo.lock",
         ".trn/dependencies/.cargo/config",

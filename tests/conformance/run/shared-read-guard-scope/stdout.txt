@@ -1,0 +1,11 @@
+true true
+2
+2
+2
+3
+3 21
+true true
+6
+4
+both
+true true

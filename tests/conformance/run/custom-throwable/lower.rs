@@ -17,8 +17,14 @@ impl ConfigError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, path: String, message: String) {
-        self.path = path;
-        self.message = message;
+        {
+            let __terrane_value = path;
+            self.path = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();

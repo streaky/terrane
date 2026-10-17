@@ -28,7 +28,10 @@ impl GatedAccumulator {
         if !released.available {
             return terrane_int_support::Int::from(-2_i128);
         }
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
 }

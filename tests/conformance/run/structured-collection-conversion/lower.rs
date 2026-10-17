@@ -23,9 +23,8 @@ fn append_value(
     let mut values: terrane_collection_support::List<i8>;
     values = terrane_collection_support::List::<i8>::new(vec![1]);
     return Ok({
-        let collection = &mut values;
-        collection
-            .append({
+        let __terrane_result = {
+            let __terrane_value = {
                 let source_value = wide;
                 __terrane_raised_err(
                     i8::try_from(source_value)
@@ -37,8 +36,12 @@ fn append_value(
                         )),
                     1 /* terrane-site: case.trn:8:25-8:29 */,
                 )?
-            });
-        collection.clone()
+            };
+            let collection = &mut values;
+            collection.append(__terrane_value);
+            collection.clone()
+        };
+        __terrane_result
     });
 }
 fn main() {

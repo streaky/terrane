@@ -1183,6 +1183,16 @@ pub(super) fn infer_parse_or_radix_type(
     ) {
         return Ok(None);
     }
+    let receiver = find_node_by_span(&unit.tree.root, method.receiver)
+        .expect("bound method receiver belongs to this syntax tree");
+    let Some(member) = callee.children.get(1) else {
+        return Ok(None);
+    };
+    if let Some(ValueType::Object(identity)) = infer_receiver_value_type(unit, receiver, bindings)?
+        && object_method_contract(unit, &identity, node_text(&unit.source, member), false).is_some()
+    {
+        return Ok(None);
+    }
     let arguments = node.children.get(1);
     let arguments = arguments.map_or(&[][..], |arguments| arguments.children.as_slice());
     if arguments.len() != 1 {

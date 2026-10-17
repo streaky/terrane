@@ -96,7 +96,7 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
             .as_nanos()
     ));
     fs::create_dir_all(staged.join("src")).unwrap();
-    for relative in ["package.toml", "src/main.trn", "terrane-projection.lock"] {
+    for relative in ["package.toml", "src/main.trn", "terrane-dependencies.lock"] {
         let destination = staged.join(relative);
         fs::copy(fixture.join(relative), destination).unwrap();
     }

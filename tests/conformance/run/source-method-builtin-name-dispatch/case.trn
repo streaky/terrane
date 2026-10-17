@@ -1,0 +1,86 @@
+namespace source-method-builtin-name-dispatch
+
+class plain
+    count int = 1
+    function add int; amount int
+        return this.count + amount
+    mutable function multiply int; amount int
+        this.count = this.count * amount
+        return this.count
+    function encode int; amount int
+        return this.count + amount
+    function parse int;
+        return this.count
+    function radix int; first int, second int
+        return this.count + first + second
+
+class base
+    count int = 1
+    function add int; amount int
+        return this.count + amount
+    mutable function multiply int; amount int
+        this.count = this.count * amount
+        return this.count
+    function encode int; amount int
+        return this.count + amount
+    function parse int;
+        return this.count
+    function radix int; first int, second int
+        return this.count + first + second
+
+class derived extends base
+    marker bool = true
+
+function ordinary-plain; value ref plain
+    print; (value.add; 2)
+    print; (value.parse;)
+    print; (value.radix; 2, 3)
+    print; (value.encode; 3)
+
+function ordinary-base; value ref base
+    print; (value.add; 2)
+    print; (value.encode; 3)
+    print; (value.parse;)
+    print; (value.radix; 2, 3)
+
+function shared-plain; value shared ref plain
+    print; (value.add; 2)
+    print; (value.multiply; 2)
+    print; (value.encode; 3)
+    print; (value.parse;)
+    print; (value.radix; 2, 3)
+
+function shared-base; value shared ref base
+    print; (value.add; 2)
+    print; (value.multiply; 2)
+    print; (value.encode; 3)
+    print; (value.parse;)
+    print; (value.radix; 2, 3)
+
+function main;
+    first = instance plain;
+    print; (first.parse;)
+    print; (first.radix; 2, 3)
+    ordinary-plain; ref first
+    second base = instance derived;
+    print; (second.parse;)
+    print; (second.radix; 2, 3)
+    ordinary-base; ref second
+    third = instance plain;
+    shared-plain; shared ref third
+    fourth base = instance derived;
+    shared-base; shared ref fourth
+    fifth = instance plain;
+    fifth-held = shared ref fifth
+    fifth-observer = ref fifth
+    print; (fifth-observer.multiply; 2)
+    print; fifth-held.count
+    print; (fifth-observer.parse;)
+    print; (fifth-observer.radix; 2, 3)
+    sixth base = instance derived;
+    sixth-held = shared ref sixth
+    sixth-observer = ref sixth
+    print; (sixth-observer.multiply; 2)
+    print; sixth-held.count
+    print; (sixth-observer.parse;)
+    print; (sixth-observer.radix; 2, 3)

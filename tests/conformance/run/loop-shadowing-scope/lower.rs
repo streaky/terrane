@@ -124,7 +124,6 @@ fn main() {
             _ => unreachable!("flow-proven storage refinement"),
         }
             .value
-            .clone()
             .clone();
         let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
             &__terrane_iterable_2,

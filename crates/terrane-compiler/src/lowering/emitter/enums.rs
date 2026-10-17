@@ -165,7 +165,6 @@ fn value_type_contains_nonclone_object(package: &SemanticPackage, value_type: &V
         | ValueType::TaskOutcome(item)
         | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
-        | ValueType::SharedReference(item)
         | ValueType::UnorderedSet(item) => {
             value_type_contains_nonclone_object(package, item.value_type_ref())
         }
@@ -175,6 +174,7 @@ fn value_type_contains_nonclone_object(package: &SemanticPackage, value_type: &V
             value_type_contains_nonclone_object(package, key.value_type_ref())
                 || value_type_contains_nonclone_object(package, value.value_type_ref())
         }
+        // A shared payload clones the handle even when its referent is linear.
         _ => false,
     }
 }

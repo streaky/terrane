@@ -751,7 +751,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(malformed
         .diagnostics.clone().length()))
     );
-    let __terrane_iterable_0 = malformed.diagnostics.clone().clone();
+    let __terrane_iterable_0 = malformed.diagnostics.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );

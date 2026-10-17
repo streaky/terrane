@@ -24,7 +24,10 @@ fn main() {
             terrane_int_support::Int::from(1_i128)]))
         ],
     );
-    let __terrane_iterable_0 = values.entries();
+    let __terrane_iterable_0 = {
+        let __terrane_result = values.entries();
+        __terrane_result
+    };
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
@@ -34,14 +37,21 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         appended = {
-            let collection = &mut pair.value.clone();
-            collection.append(terrane_int_support::Int::from(2_i128));
-            collection.clone()
+            let __terrane_result = {
+                let __terrane_value = terrane_int_support::Int::from(2_i128);
+                let collection = &mut pair.value.clone();
+                collection.append(__terrane_value);
+                collection.clone()
+            };
+            __terrane_result
         };
         sorted = {
-            let collection = &mut pair.value.clone();
-            collection.sort_by(|left, right| left.cmp(right));
-            collection.clone()
+            let __terrane_result = {
+                let collection = &mut pair.value.clone();
+                collection.sort_by(|left, right| left.cmp(right));
+                collection.clone()
+            };
+            __terrane_result
         };
         println!(
             "{}", terrane_scalar_support::scalar_text(&pair.key.clone()

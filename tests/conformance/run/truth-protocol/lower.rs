@@ -12,7 +12,10 @@ impl Gate {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, open: bool) {
-        self.open = open;
+        {
+            let __terrane_value = open;
+            self.open = __terrane_value;
+        }
     }
     pub fn truth(&self) -> bool {
         return self.open;

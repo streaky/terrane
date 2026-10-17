@@ -1,0 +1,41 @@
+namespace shared-read-guard-scope
+from /core/collections import list
+
+class box
+    flag bool = true
+    count int = 1
+    trail int = 0
+    mutable function update; amount int
+        this.count = amount
+    mutable function combine; left int, right int = 1
+        this.count = left + right
+
+function argument int; owner shared ref box, amount int
+    owner.trail = owner.trail * 10 + amount
+    return amount
+
+function inspect; held shared ref box
+    alias = held
+    print; held.flag, ' ', held.flag
+    print; held.count + alias.count
+    numbers list of int = list; held.count, alias.count
+    print; numbers[0] + numbers[1]
+    held.update; held.count + 1
+    print; held.count
+    held.combine; held.count
+    print; held.count
+    held.combine; right = (argument; alias, 2), left = (argument; held, 1)
+    print; held.count, ' ', held.trail
+
+function main;
+    plain = instance box;
+    held = shared ref plain
+    inspect; held
+    observer = ref plain
+    print; observer.flag, ' ', held.flag
+    print; observer.count + held.count
+    observer.update; held.count + 1
+    print; observer.count
+    if observer.flag and held.flag
+        print; 'both'
+    print; held.flag, ' ', plain.flag

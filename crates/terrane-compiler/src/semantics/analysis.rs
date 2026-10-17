@@ -1833,6 +1833,12 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
             let Some(object) = objects.get(&key) else {
                 continue;
             };
+            if let Some(base) = &object.base {
+                enqueue_object_identity_dependencies(base, &mut queue);
+            }
+            for used_trait in &object.traits {
+                enqueue_object_identity_dependencies(used_trait, &mut queue);
+            }
             for field in &object.fields {
                 enqueue_value_type_object_dependencies(&field.value_type, &mut queue);
             }
@@ -1843,11 +1849,9 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
             for method in &object_methods {
                 enqueue_function_contract_object_dependencies(method, &mut queue);
             }
-            if !unit
-                .descriptors
-                .iter()
-                .any(|candidate| candidate.name == object.name)
-            {
+            if !unit.descriptors.iter().any(|candidate| {
+                candidate.name == object.name && candidate.identity == object.identity
+            }) {
                 unit.descriptors.push(object.clone());
             }
             for method in object_methods {

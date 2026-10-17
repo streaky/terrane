@@ -4520,10 +4520,10 @@ mod tests {
         fs::copy(fixture.join("package.toml"), &manifest_path).expect("copy manifest");
         fs::copy(fixture.join("src/main.trn"), &source_path).expect("copy source");
         fs::copy(
-            fixture.join("terrane-projection.lock"),
-            directory.path().join("terrane-projection.lock"),
+            fixture.join("terrane-dependencies.lock"),
+            directory.path().join("terrane-dependencies.lock"),
         )
-        .expect("copy projection lock");
+        .expect("copy dependency lock");
         let manifest_text = fs::read_to_string(&manifest_path).expect("manifest");
         let source_text = fs::read_to_string(&source_path).expect("source");
         let manifest_uri = format!("file://{}", manifest_path.display());

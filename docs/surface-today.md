@@ -1241,7 +1241,7 @@ the locked transitive edge to retain active features. That owner remains inacces
 remain explicit declines; direct declaration is the explicit unification mechanism.
 
 Package analysis projects the complete discovered dependency surface independently of current
-imports and refreshes the ignored `.trn/terrane-projection.generated.trn` rooted at the package; `package.toml`, `terrane-dependencies.lock`, and `terrane-projection.lock` remain at the package root. It puts
+imports and refreshes the ignored `.trn/terrane-projection.generated.trn` rooted at the package; `package.toml` and `terrane-dependencies.lock` remain at the package root, while ignored `.trn/projection-cache.json` stores disposable local projection/history state. It puts
 currently required unavailable declarations and the required-admitted index first, active projected
 Terrane source second, and unreachable unavailable declarations last. Report comments retain exact
 paths, declines, and demand locations. Each `Generated source unit` marker introduces a separately
@@ -1280,16 +1280,13 @@ annotations rather than accumulating them.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
-`terrane-projection.lock` format 4 separately retains machine-independent top-level, instance, and
-static member names grouped by namespace, exact injected private owner dependencies, dependency
-versions, source, rustdoc format, projection schema, exact cache identity, content hash, and
-resolution events. Formats 1-3 remain readable and migrate on write. A single admitted
-concrete generic instantiation keeps its readable Rust type name; hash suffixes are reserved for
-multiple admitted instantiations. `S2031` names removed members and their previous/current
-dependency versions, including equal versions when source or toolchain inputs changed the
-projection. Reintroduction clears removal history. A changed payload under one exact cache
-identity is rejected as replay drift. Completion, signature help, and
-hover remain advisory; Cargo and rustc are authoritative.
+The ignored `.trn/projection-cache.json` retains local projection provenance, identity, removal
+history, and replay-mismatch evidence while present. Clearing it or using a fresh checkout
+regenerates current projection state and loses historical removal context; the tracked
+`terrane-dependencies.lock` independently preserves the exact dependency graph. A matching cached
+removal can produce `S2031` with previous/current dependency versions, including equal versions
+when source or toolchain inputs changed the projection. Reintroduction clears removal history.
+Completion, signature help, and hover remain advisory; Cargo and rustc are authoritative.
 
 ## Compiler-backed source intelligence
 

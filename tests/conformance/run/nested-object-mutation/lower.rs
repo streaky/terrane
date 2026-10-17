@@ -14,7 +14,10 @@ impl Leaf {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
-        self.value = initial.clone();
+        {
+            let __terrane_value = initial.clone();
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -30,13 +33,19 @@ impl Holder {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, child: Leaf) {
-        self.child = child;
+        {
+            let __terrane_value = child;
+            self.child = __terrane_value;
+        }
     }
     pub fn replace(
         &mut self,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.child.value = value.clone();
+        {
+            let __terrane_value = value.clone();
+            self.child.value = __terrane_value;
+        }
         return self.child.value.clone();
     }
 }

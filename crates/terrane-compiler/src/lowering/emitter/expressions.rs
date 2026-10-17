@@ -378,7 +378,7 @@ impl Emitter<'_> {
             SyntaxKind::UnaryExpression => self.unary_expression(node),
             SyntaxKind::BinaryExpression => self.binary(node),
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
-            SyntaxKind::MemberExpression => self.member(node),
+            SyntaxKind::MemberExpression => self.member(node, None),
             SyntaxKind::StaticMemberExpression => self.static_member(node),
             SyntaxKind::ConstructionExpression => Self::escaped_construction(node),
             SyntaxKind::IndexExpression => self.index(node),
@@ -389,6 +389,38 @@ impl Emitter<'_> {
                 .map_or_else(String::new, |child| self.expression(child)),
             _ => self.text(node).trim().to_owned(),
         }
+    }
+
+    fn object_field_moves_from_temporary(&self, node: &SyntaxNode) -> bool {
+        let [receiver, member] = node.children.as_slice() else {
+            return false;
+        };
+        let mut producer = receiver;
+        while producer.kind == SyntaxKind::GroupExpression {
+            let [grouped] = producer.children.as_slice() else {
+                return false;
+            };
+            producer = grouped;
+        }
+        if !matches!(
+            producer.kind,
+            SyntaxKind::CallExpression | SyntaxKind::ConstructionExpression
+        ) {
+            return false;
+        }
+        let Some(receiver_type) = self.value_type(receiver) else {
+            return false;
+        };
+        let ValueType::Object(identity) = &receiver_type else {
+            return false;
+        };
+        // Only a direct owned field can move: references, required-field slots,
+        // native projections, and destructor-backed storage keep their copy path.
+        !self.value_type_owns_resource(&receiver_type)
+            && !self.object_requires_separation(identity)
+            && self.native_field_type(node).is_none()
+            && !source_field_is_required(self.package, identity, self.text(member))
+            && !self.wrapped_object_field(receiver, self.text(member))
     }
 
     #[expect(
@@ -405,6 +437,21 @@ impl Emitter<'_> {
             && let Some(value) = self.narrowed_storage_name(node, true, false)
         {
             return value;
+        }
+        if node.kind == SyntaxKind::Name
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && !matches!(
+                value_type,
+                ValueType::Scalar(ScalarType::Int)
+                    | ValueType::Reference(_)
+                    | ValueType::SharedReference(_)
+            )
+            && self
+                .local_typed_binding(node)
+                .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+            && !matches!(&value_type, ValueType::Object(identity) if self.object_requires_separation(identity))
+        {
+            return self.expression(node);
         }
         if node.kind == SyntaxKind::GroupExpression
             && let [grouped] = node.children.as_slice()
@@ -431,6 +478,35 @@ impl Emitter<'_> {
             return format!(
                 "({expression}).as_ref().expect(\"semantic optional narrowing\").clone()"
             );
+        }
+        if node.kind == SyntaxKind::MemberExpression
+            && !self.assignment_target
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && self.member_materializes_owned_value(node)
+        {
+            return self.expression(node);
+        }
+        if !self.assignment_target
+            && node.kind == SyntaxKind::MemberExpression
+            && !matches!(value_type, ValueType::Reference(_))
+            && !self.value_type_owns_resource(&value_type)
+            && self.value_type(node).as_ref() == Some(&value_type)
+            && let Some(receiver) = node.children.first()
+            && (matches!(
+                self.value_type(receiver),
+                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            ) || self.reference_backed_name(receiver).is_some())
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::Object(_))
+            )
+            && self
+                .native_field_type(node)
+                .is_none_or(|projected| projected.has_identity_representation())
+        {
+            // Materialize the owned snapshot inside the receiver's borrow/lock,
+            // rather than cloning an already copied member a second time.
+            return self.member(node, Some(&value_type));
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -604,6 +680,16 @@ impl Emitter<'_> {
         if matches!(value_type, ValueType::Reference(_))
             && self.value_type(node) == Some(value_type.clone())
         {
+            let mut value = node;
+            while value.kind == SyntaxKind::GroupExpression {
+                let Some(grouped) = value.children.first() else {
+                    break;
+                };
+                value = grouped;
+            }
+            if value.kind == SyntaxKind::Name && self.reference_uses_shared_storage(value) {
+                return format!("({}).clone()", self.expression(node));
+            }
             return self.expression(node);
         }
         if matches!(value_type, ValueType::SharedReference(_)) {
@@ -759,6 +845,20 @@ impl Emitter<'_> {
             .is_some_and(|projected| !projected.has_identity_representation())
         {
             return self.expression(node);
+        }
+        if node.kind == SyntaxKind::MemberExpression
+            && let ValueType::Object(identity) = &value_type
+            && !self.value_type_owns_resource(&value_type)
+        {
+            if self.object_field_moves_from_temporary(node) {
+                return self.expression(node);
+            }
+            let expression = self.expression(node);
+            return if self.object_requires_separation(identity) {
+                format!("({expression}).terrane_separate()")
+            } else {
+                format!("({expression}).clone()")
+            };
         }
         if node.kind == SyntaxKind::MemberExpression
             && matches!(
@@ -1335,7 +1435,17 @@ impl Emitter<'_> {
                     self.name(node)
                 )
             }
-            SyntaxKind::Name => format!("({}).clone()", self.name(node)),
+            SyntaxKind::Name => {
+                let value = self.name(node);
+                if self
+                    .local_typed_binding(node)
+                    .is_some_and(|binding| self.binding_may_be_unassigned(binding))
+                {
+                    value
+                } else {
+                    format!("({value}).clone()")
+                }
+            }
             SyntaxKind::GroupExpression => {
                 node.children.first().map_or_else(String::new, |child| {
                     format!("({})", self.adaptive_expression(child))
@@ -1371,6 +1481,9 @@ impl Emitter<'_> {
                     .native_field_type(node)
                     .is_none_or(|projected| projected.has_identity_representation()) =>
             {
+                if self.member_materializes_owned_value(node) {
+                    return self.expression(node);
+                }
                 format!("({}).clone()", self.expression(node))
             }
             _ => self.expression(node),

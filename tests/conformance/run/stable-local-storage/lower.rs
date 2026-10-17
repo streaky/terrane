@@ -127,7 +127,10 @@ fn builder() {
         } else {
             __terrane_list_append_0.reserve(__terrane_list_capacity_limit_0);
             while index < 3 {
-                __terrane_list_append_0.push(index);
+                {
+                    let __terrane_collection_argument_0 = index;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
                 index = index + 1;
             }
         }
