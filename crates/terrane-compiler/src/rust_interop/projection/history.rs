@@ -100,26 +100,18 @@ fn projection_history_members(
 fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, ProjectionError> {
     match fs::read(path) {
         Ok(bytes) => {
-            let history = serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(|error| {
-                ProjectionError {
-                    message: format!("invalid projection history `{}`: {error}", path.display()),
-                }
-            })?;
+            let Ok(history) = serde_json::from_slice::<ProjectionHistory>(&bytes) else {
+                return Ok(None);
+            };
             if !matches!(history.format, 1..=4) {
-                return Err(ProjectionError {
-                    message: format!(
-                        "unsupported projection history format {} in `{}`",
-                        history.format,
-                        path.display()
-                    ),
-                });
+                return Ok(None);
             }
             Ok(Some(history))
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(ProjectionError {
             message: format!(
-                "cannot read projection history `{}`: {error}",
+                "cannot read disposable projection history `{}`: {error}; check filesystem access, or remove this cache file and regenerate it",
                 path.display()
             ),
         }),
@@ -187,7 +179,7 @@ pub(super) fn apply_projection_history(
     {
         return Err(ProjectionError {
             message: format!(
-                "projection cache replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`",
+                "projection cache replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`; investigate the projection drift before removing this disposable cache file and regenerating it",
                 path.display(),
                 previous.content_hash.as_deref().unwrap_or("missing"),
                 projection.content_hash
@@ -244,7 +236,14 @@ pub(super) fn apply_projection_history(
         message: format!("cannot serialize projection history: {error}"),
     })?;
     bytes.push(b'\n');
-    write_cache_atomically(&path, &[&bytes])
+    write_cache_atomically(&path, &[&bytes]).map_err(|mut error| {
+        error.message = format!(
+            "{} at disposable projection history `{}`; check filesystem access and permissions",
+            error.message,
+            path.display()
+        );
+        error
+    })
 }
 #[cfg(test)]
 mod tests;

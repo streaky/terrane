@@ -444,11 +444,24 @@ It may retain removed-member and replay-mismatch evidence while present, allowin
 distinguish a removed member from one never projected. Clearing the cache or using a fresh checkout
 regenerates the current projection and loses that historical context; it does not change dependency
 identity. `terrane-dependencies.lock` remains the tracked source of the exact resolved Rust graph.
+Malformed JSON and unsupported cache formats are discarded and replaced with current
+projection state. Filesystem access/write failures remain errors. A same-input replay
+mismatch remains an error: investigate the drift first, then remove the named cache
+file if a fresh projection is needed.
 
-The projection pass and generated-crate compilation use the build capability policy: fetch may run
-online, then rustdoc and compilation run offline and frozen inside `bwrap` where available. A platform
-without enforcement reports the unavailable host tier rather than refusing the dependency.
+The projection pass and generated-crate compilation apply dependency-effect and containment
+checks: fetch may run online, then rustdoc and compilation run offline and frozen inside
+`bwrap` where available. A platform without enforcement reports the unavailable host tier
+rather than refusing the dependency. Authorizing projection through a shared build-capability
+grant remains the outstanding Milestone 25.2 contract.
 
+Generated Cargo and Rust remain exercised by conformance builds and execution. Generated
+Rust retains tracked review artifacts (`lower.rs` and, where needed, `lower.support.rs`),
+without a lowered-source snapshot-equality gate.
+Projection inventories themselves are no longer compared corpus-wide with reviewed
+baselines. Used surface remains covered by consumer-visible conformance behavior and
+lowering diffs; changes to unused admitted/declined surface may go unnoticed. This is
+an intentional tradeoff, not a replacement inventory-regression gate.
 
 ## 10. Conflicts with the current specification
 

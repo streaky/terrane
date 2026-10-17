@@ -3582,9 +3582,9 @@ method makes the receiver binding mutable; while object identity remains name-on
 receiver contracts on same-named projected types are rejected as `S2030` rather than selected by
 import or artifact order. Rust dependency projection requires the Linux `bwrap` containment tier and fails explicitly
 when it is unavailable; dependency-free programs do not probe containment, rustdoc, or the pinned
-nightly toolchain. Wiring projection itself to a build-capability grant, rejecting dependency effects
-forbidden by a selected profile, distinguishing unwinding from aborting profiles, and containing
-generated-crate compilation have implemented evidence below.
+nightly toolchain. Profile-based dependency-effect rejection, unwind/abort distinctions,
+and generated-crate containment have implemented evidence below. Authorizing projection
+through a shared build-capability grant remains the outstanding Milestone 25.2 contract.
 Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
 the same machinery, including caught dependency errors, a fixture-owned generated-Rust panic
 boundary preserving payload and crate/member context, uppercase and underscored identifiers, and

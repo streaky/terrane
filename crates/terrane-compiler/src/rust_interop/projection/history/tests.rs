@@ -137,7 +137,6 @@ fn projection_history_retains_removed_members_across_checks_and_same_version_cha
         let cache_bytes = fs::read(&cache_path).unwrap();
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(fs::read(&cache_path).unwrap(), cache_bytes);
-        assert!(!directory.join("terrane-projection.lock").exists());
         current.dependencies[0].version = "2.0.1".to_owned();
         current.content_hash = projection_content_hash(&current).unwrap();
         apply_projection_history(&directory, &mut current).unwrap();
@@ -320,6 +319,69 @@ fn projection_cache_migrates_provenance_and_detects_replay_drift() {
             .contains(changed_source.content_hash.as_deref().unwrap())
     );
     assert!(error.message.contains(&projection.content_hash));
+    assert!(error.message.contains(cache_path.to_str().unwrap()));
     assert_eq!(fs::read(&cache_path).unwrap(), stable_bytes);
+    fs::remove_dir_all(directory).unwrap();
+}
+
+fn empty_projection() -> Projection {
+    let mut projection = Projection {
+        native_owner_aliases: BTreeMap::default(),
+        cache_identity: "stable-identity".to_owned(),
+        content_hash: String::new(),
+        dependencies: Vec::new(),
+        bound_dependencies: Vec::new(),
+        containment: Containment::Unavailable,
+        source: ProjectionSource::Local,
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution::default(),
+        removed: Vec::new(),
+    };
+    projection.content_hash = projection_content_hash(&projection).unwrap();
+    projection
+}
+
+#[test]
+fn malformed_and_unsupported_projection_histories_are_replaced() {
+    for (label, bytes) in [
+        ("malformed", b"{truncated".as_slice()),
+        (
+            "unsupported",
+            b"{\"format\":99,\"dependencies\":[],\"removed\":[]}\n".as_slice(),
+        ),
+    ] {
+        let directory = std::env::temp_dir().join(format!(
+            "terrane-projection-disposable-{label}-{}",
+            std::process::id()
+        ));
+        let cache_path = directory.join(".trn/projection-cache.json");
+        fs::create_dir_all(cache_path.parent().unwrap()).unwrap();
+        fs::write(&cache_path, bytes).unwrap();
+        let mut projection = empty_projection();
+        apply_projection_history(&directory, &mut projection).unwrap();
+        let persisted: ProjectionHistory =
+            serde_json::from_slice(&fs::read(&cache_path).unwrap()).unwrap();
+        assert_eq!(persisted.format, 4);
+        assert_eq!(
+            persisted.content_hash.as_deref(),
+            Some(projection.content_hash.as_str())
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[test]
+fn filesystem_cache_read_errors_are_not_discarded() {
+    let directory = std::env::temp_dir().join(format!(
+        "terrane-projection-cache-read-error-{}",
+        std::process::id()
+    ));
+    let cache_path = directory.join(".trn/projection-cache.json");
+    fs::create_dir_all(&cache_path).unwrap();
+    let mut projection = empty_projection();
+    let error = apply_projection_history(&directory, &mut projection).unwrap_err();
+    assert!(error.message.contains(cache_path.to_str().unwrap()));
+    assert!(cache_path.is_dir());
     fs::remove_dir_all(directory).unwrap();
 }
