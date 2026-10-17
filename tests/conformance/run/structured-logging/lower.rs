@@ -13,7 +13,10 @@ impl RequestData {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, token: String) {
-        self.token = token;
+        {
+            let __terrane_value = token;
+            self.token = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -27,7 +30,10 @@ impl CountedValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
-        self.value = input;
+        {
+            let __terrane_value = input;
+            self.value = __terrane_value;
+        }
     }
     pub fn render(&self) -> DocumentValue {
         println!(

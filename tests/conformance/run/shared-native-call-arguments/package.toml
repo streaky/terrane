@@ -1,0 +1,7 @@
+package = "shared-native-call-arguments"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.http]
+version = "=1.5.0"

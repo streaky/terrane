@@ -179,7 +179,10 @@ impl ProjectedCounter {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
     pub fn current(&self) -> terrane_int_support::Int {
@@ -248,7 +251,10 @@ impl ProjectedLocalCounter {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
     pub fn current(&self) -> terrane_int_support::Int {

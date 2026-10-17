@@ -16,7 +16,10 @@ impl Connection {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, tag: String) {
-        self.tag = tag;
+        {
+            let __terrane_value = tag;
+            self.tag = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!("{}", terrane_scalar_support::scalar_text(&self.tag));

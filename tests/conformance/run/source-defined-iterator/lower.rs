@@ -20,7 +20,10 @@ impl Counter {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, stop: terrane_int_support::Int) {
-        self.stop = stop.clone();
+        {
+            let __terrane_value = stop.clone();
+            self.stop = __terrane_value;
+        }
     }
     pub fn iterator(&self) -> Counter {
         return self.clone();
@@ -32,13 +35,24 @@ impl Counter {
         if self.ended {
             return terrane_collection_support::IterationStep::End;
         }
-        self.advances = self.advances.clone() + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value = self.advances.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.advances = __terrane_value;
+        }
         if self.current.clone() >= self.stop.clone() {
-            self.ended = true;
+            {
+                let __terrane_value = true;
+                self.ended = __terrane_value;
+            }
             return terrane_collection_support::IterationStep::End;
         }
         item = self.current.clone();
-        self.current = self.current.clone() + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value = self.current.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.current = __terrane_value;
+        }
         return terrane_collection_support::IterationStep::<
             terrane_int_support::Int,
         >::Item(item.clone());
@@ -59,7 +73,10 @@ impl NoneOnce {
         if self.emitted {
             return terrane_collection_support::IterationStep::End;
         }
-        self.emitted = true;
+        {
+            let __terrane_value = true;
+            self.emitted = __terrane_value;
+        }
         return terrane_collection_support::IterationStep::<()>::Item(());
     }
 }

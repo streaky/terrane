@@ -1067,8 +1067,14 @@ impl FilesystemOperationResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failure: bool, detail: String) {
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1088,9 +1094,18 @@ impl ExistenceResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, exists: bool, failure: bool, detail: String) {
-        self.exists = exists;
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = exists;
+            self.exists = __terrane_value;
+        }
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1110,9 +1125,18 @@ impl PathResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, target: Path, failure: bool, detail: String) {
-        self.resolved = target;
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = target;
+            self.resolved = __terrane_value;
+        }
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1154,12 +1178,30 @@ impl FileMetadata {
         failure: bool,
         detail: String,
     ) {
-        self.kind = kind;
-        self.size = size.clone();
-        self.readonly = readonly;
-        self.permission_detail = permission_detail;
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = kind;
+            self.kind = __terrane_value;
+        }
+        {
+            let __terrane_value = size.clone();
+            self.size = __terrane_value;
+        }
+        {
+            let __terrane_value = readonly;
+            self.readonly = __terrane_value;
+        }
+        {
+            let __terrane_value = permission_detail;
+            self.permission_detail = __terrane_value;
+        }
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1196,11 +1238,26 @@ impl FileData {
         failure: bool,
         detail: String,
     ) {
-        self.data = data;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 pub struct FileHandle {
@@ -1231,9 +1288,18 @@ impl FileHandle {
         failure: bool,
         detail: String,
     ) {
-        self.handle = Some(raw);
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = raw;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         terrane_platform_release(
@@ -1277,9 +1343,18 @@ impl DirectoryHandle {
         failure: bool,
         detail: String,
     ) {
-        self.handle = Some(raw);
-        self.failed = failure;
-        self.message = detail;
+        {
+            let __terrane_value = raw;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = failure;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         terrane_platform_release(
@@ -1322,7 +1397,14 @@ pub fn file_read(
     let raw: TerranePlatformReadResult;
     let _ = &capability;
     raw = terrane_platform_read(
-        &file.handle.as_ref().expect("required field initialized"),
+        &{
+            let __terrane_snapshot = file
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
         limit,
     );
     return FileData::terrane_construct(
@@ -1342,7 +1424,14 @@ pub fn file_write(
     let raw: TerranePlatformWriteResult;
     let _ = &capability;
     raw = terrane_platform_write(
-        &file.handle.as_ref().expect("required field initialized"),
+        &{
+            let __terrane_snapshot = file
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
         &data,
         terrane_int_support::Int::from(offset.clone()),
     );
@@ -1361,7 +1450,14 @@ pub fn file_flush(
     let raw: TerranePlatformUnitResult;
     let _ = &capability;
     raw = terrane_platform_flush(
-        &file.handle.as_ref().expect("required field initialized"),
+        &{
+            let __terrane_snapshot = file
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
     );
     return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
@@ -1372,7 +1468,14 @@ pub fn file_sync_data(
     let raw: TerranePlatformUnitResult;
     let _ = &capability;
     raw = terrane_platform_sync_data(
-        &file.handle.as_ref().expect("required field initialized"),
+        &{
+            let __terrane_snapshot = file
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
     );
     return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
@@ -1383,7 +1486,14 @@ pub fn file_sync_all(
     let raw: TerranePlatformUnitResult;
     let _ = &capability;
     raw = terrane_platform_sync_all(
-        &file.handle.as_ref().expect("required field initialized"),
+        &{
+            let __terrane_snapshot = file
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
     );
     return FilesystemOperationResult::terrane_construct(raw.failed, raw.message.clone());
 }
@@ -1409,7 +1519,10 @@ impl Filesystem {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, authority: TerraneFilesystemAuthority) {
-        self.authority = Some(authority);
+        {
+            let __terrane_value = authority;
+            self.authority = Some(__terrane_value);
+        }
     }
 }
 pub fn filesystem_capability() -> Filesystem {
@@ -1519,7 +1632,14 @@ pub fn open_file_beneath(
     let acquired: TerranePlatformStreamHandle;
     let _ = &capability;
     raw = terrane_platform_open_file_beneath(
-        &directory.handle.as_ref().expect("required field initialized"),
+        &{
+            let __terrane_snapshot = directory
+                .handle
+                .as_ref()
+                .expect("required field initialized")
+                .clone();
+            __terrane_snapshot
+        },
         relative.text,
         readable,
         writable,
@@ -1608,9 +1728,18 @@ impl StreamOperationResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, deadline_exceeded: bool) {
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1652,12 +1781,30 @@ impl ReadResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        self.data = data;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1694,11 +1841,26 @@ impl TextReadResult {
         failed: bool,
         message: String,
     ) {
-        self.text = text;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1739,14 +1901,32 @@ impl WriteResult {
         if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
             && !failed
         {
-            self.data = Vec::<u8>::from([]);
+            {
+                let __terrane_value = Vec::<u8>::from([]);
+                self.data = __terrane_value;
+            }
         } else {
-            self.data = data;
+            {
+                let __terrane_value = data;
+                self.data = __terrane_value;
+            }
         }
-        self.completed = completed.clone();
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 pub struct ByteReader {
@@ -1764,7 +1944,10 @@ impl ByteReader {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
         let raw: TerranePlatformReadResult;
@@ -1937,7 +2120,10 @@ impl ByteWriter {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
         let offset: i64;
@@ -2098,8 +2284,14 @@ impl TextReader {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn read(
         &self,
@@ -2302,8 +2494,14 @@ impl TextWriter {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn write(&self, text: String) -> WriteResult {
         let data: Vec<u8>;
@@ -2472,7 +2670,10 @@ impl Path {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
-        self.text = input;
+        {
+            let __terrane_value = input;
+            self.text = __terrane_value;
+        }
     }
 }
 pub fn path_components(subject: Path) -> terrane_collection_support::List<String> {
@@ -2503,7 +2704,10 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 3 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
             if part.as_str() != "" {
-                __terrane_list_append_0.push(part);
+                {
+                    let __terrane_collection_argument_0 = part;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -2569,19 +2773,26 @@ pub fn normalise_path(subject: Path) -> Path {
                                 terrane_int_support::Int::from(kept.length()),
                             )
                         {
-                            __terrane_raised(
-                                kept
-                                    .set(
-                                        __terrane_raised(
-                                            terrane_collection_support::index_from_int(&count.clone()),
-                                            6 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                            {
+                                let __terrane_collection_argument_0 = __terrane_raised(
+                                    terrane_collection_support::index_from_int(&count.clone()),
+                                    6 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                                );
+                                let __terrane_collection_argument_1 = part;
+                                __terrane_raised(
+                                    kept
+                                        .set(
+                                            __terrane_collection_argument_0,
+                                            __terrane_collection_argument_1,
                                         ),
-                                        part,
-                                    ),
-                                6 /* terrane-site: core/paths.trn:40:29-40:50 */,
-                            );
+                                    6 /* terrane-site: core/paths.trn:40:29-40:50 */,
+                                );
+                            };
                         } else {
-                            kept.append(part);
+                            {
+                                let __terrane_collection_argument_0 = part;
+                                kept.append(__terrane_collection_argument_0);
+                            };
                         }
                         count = count.clone() + terrane_int_support::Int::from(1_i128);
                     }
@@ -2592,19 +2803,26 @@ pub fn normalise_path(subject: Path) -> Path {
                         terrane_int_support::Int::from(kept.length()),
                     )
                 {
-                    __terrane_raised(
-                        kept
-                            .set(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(&count.clone()),
-                                    7 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                    {
+                        let __terrane_collection_argument_0 = __terrane_raised(
+                            terrane_collection_support::index_from_int(&count.clone()),
+                            7 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                        );
+                        let __terrane_collection_argument_1 = part;
+                        __terrane_raised(
+                            kept
+                                .set(
+                                    __terrane_collection_argument_0,
+                                    __terrane_collection_argument_1,
                                 ),
-                                part,
-                            ),
-                        7 /* terrane-site: core/paths.trn:46:21-46:42 */,
-                    );
+                            7 /* terrane-site: core/paths.trn:46:21-46:42 */,
+                        );
+                    };
                 } else {
-                    kept.append(part);
+                    {
+                        let __terrane_collection_argument_0 = part;
+                        kept.append(__terrane_collection_argument_0);
+                    };
                 }
                 count = count.clone() + terrane_int_support::Int::from(1_i128);
             }

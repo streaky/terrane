@@ -201,7 +201,10 @@ fn main() {
         17 /* terrane-site: src/app/main.trn:59:5-59:55 */,
     );
     invalid_value = Account::terrane_construct();
-    invalid_value.account_id = 0;
+    {
+        let __terrane_value = 0;
+        invalid_value.account_id = __terrane_value;
+    }
     invalid_encoded = encode_account(invalid_value);
     if !invalid_encoded.failed {
         __terrane_uncaught(
@@ -213,7 +216,10 @@ fn main() {
     }
     println!("{}", String::from("invalid inputs rejected"));
     profile_value = Profile::terrane_construct();
-    profile_value.handle = String::from("works");
+    {
+        let __terrane_value = String::from("works");
+        profile_value.handle = __terrane_value;
+    }
     profile_encoded = encode_profile(profile_value);
     if profile_encoded.failed {
         __terrane_uncaught(
@@ -390,8 +396,14 @@ fn fail_decoded_terrane_generated_annotation_codec_codec_model_account(
 ) -> AccountDecoded {
     let mut result: AccountDecoded;
     result = AccountDecoded::terrane_construct();
-    result.failed = true;
-    result.message = message;
+    {
+        let __terrane_value = true;
+        result.failed = __terrane_value;
+    }
+    {
+        let __terrane_value = message;
+        result.message = __terrane_value;
+    }
     return result;
 }
 fn fail_encoded_terrane_generated_annotation_codec_codec_model_account(
@@ -399,8 +411,14 @@ fn fail_encoded_terrane_generated_annotation_codec_codec_model_account(
 ) -> AccountEncoded {
     let mut result: AccountEncoded;
     result = AccountEncoded::terrane_construct();
-    result.failed = true;
-    result.message = message;
+    {
+        let __terrane_value = true;
+        result.failed = __terrane_value;
+    }
+    {
+        let __terrane_value = message;
+        result.message = __terrane_value;
+    }
     return result;
 }
 fn decode_account(document: DocumentValue) -> AccountDecoded {
@@ -480,9 +498,12 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
                         ),
                     );
                 }
-                value.account_id = *parsed_value0
-                    .as_ref()
-                    .expect("flow-proven available binding");
+                {
+                    let __terrane_value = *parsed_value0
+                        .as_ref()
+                        .expect("flow-proven available binding");
+                    value.account_id = __terrane_value;
+                }
                 TerraneCompletion::Normal
             })();
             match __terrane_try_0 {
@@ -538,7 +559,10 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
                 String::from("wrong document type for label"),
             );
         }
-        value.display_name = field_slot1.value.scalar.clone();
+        {
+            let __terrane_value = field_slot1.value.scalar.clone();
+            value.display_name = __terrane_value;
+        }
     }
     field_slot2 = document.field(String::from("active"));
     if !field_slot2.failed {
@@ -547,12 +571,18 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
                 String::from("wrong document type for active"),
             );
         }
-        value.active = field_slot2.value.scalar.as_str() == "true";
+        {
+            let __terrane_value = field_slot2.value.scalar.as_str() == "true";
+            value.active = __terrane_value;
+        }
     }
     field_slot3 = document.field(String::from("age"));
     if !field_slot3.failed {
         if field_slot3.value.kind.as_str() == "none" {
-            value.age = None;
+            {
+                let __terrane_value = None;
+                value.age = __terrane_value;
+            }
         } else {
             if field_slot3.value.kind.as_str() != "integer" {
                 return fail_decoded_terrane_generated_annotation_codec_codec_model_account(
@@ -570,9 +600,14 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
                                 26 /* terrane-site: .trn/generated/codec/typed-codec-_2fcodec-model_3a_3aaccount.trn:74:38-74:74 */
                             ),
                         );
-                    value.age = Some(
-                        *parsed_value3.as_ref().expect("flow-proven available binding"),
-                    );
+                    {
+                        let __terrane_value = Some(
+                            *parsed_value3
+                                .as_ref()
+                                .expect("flow-proven available binding"),
+                        );
+                        value.age = __terrane_value;
+                    }
                     TerraneCompletion::Normal
                 })();
                 match __terrane_try_1 {
@@ -625,18 +660,27 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
     field_slot4 = document.field(String::from("nickname"));
     if !field_slot4.failed {
         if field_slot4.value.kind.as_str() == "none" {
-            value.nickname = None;
+            {
+                let __terrane_value = None;
+                value.nickname = __terrane_value;
+            }
         } else {
             if field_slot4.value.kind.as_str() != "string" {
                 return fail_decoded_terrane_generated_annotation_codec_codec_model_account(
                     String::from("wrong document type for nickname"),
                 );
             }
-            value.nickname = Some(field_slot4.value.scalar.clone());
+            {
+                let __terrane_value = Some(field_slot4.value.scalar.clone());
+                value.nickname = __terrane_value;
+            }
         }
     }
     result = AccountDecoded::terrane_construct();
-    result.value = Some(value);
+    {
+        let __terrane_value = Some(value);
+        result.value = __terrane_value;
+    }
     return result;
 }
 fn encode_account(value: Account) -> AccountEncoded {
@@ -721,7 +765,10 @@ fn encode_account(value: Account) -> AccountEncoded {
         );
     }
     result = AccountEncoded::terrane_construct();
-    result.value = Some(document.value.clone());
+    {
+        let __terrane_value = Some(document.value.clone());
+        result.value = __terrane_value;
+    }
     return result;
 }
 // Source: .trn/generated/profile/typed-codec-_2fcodec-model_3a_3aprofile.trn
@@ -761,8 +808,14 @@ fn fail_decoded_terrane_generated_annotation_codec_codec_model_profile(
 ) -> ProfileDecoded {
     let mut result: ProfileDecoded;
     result = ProfileDecoded::terrane_construct();
-    result.failed = true;
-    result.message = message;
+    {
+        let __terrane_value = true;
+        result.failed = __terrane_value;
+    }
+    {
+        let __terrane_value = message;
+        result.message = __terrane_value;
+    }
     return result;
 }
 fn fail_encoded_terrane_generated_annotation_codec_codec_model_profile(
@@ -770,8 +823,14 @@ fn fail_encoded_terrane_generated_annotation_codec_codec_model_profile(
 ) -> ProfileEncoded {
     let mut result: ProfileEncoded;
     result = ProfileEncoded::terrane_construct();
-    result.failed = true;
-    result.message = message;
+    {
+        let __terrane_value = true;
+        result.failed = __terrane_value;
+    }
+    {
+        let __terrane_value = message;
+        result.message = __terrane_value;
+    }
     return result;
 }
 fn decode_profile(document: DocumentValue) -> ProfileDecoded {
@@ -811,10 +870,16 @@ fn decode_profile(document: DocumentValue) -> ProfileDecoded {
                 String::from("wrong document type for handle"),
             );
         }
-        value.handle = field_slot0.value.scalar.clone();
+        {
+            let __terrane_value = field_slot0.value.scalar.clone();
+            value.handle = __terrane_value;
+        }
     }
     result = ProfileDecoded::terrane_construct();
-    result.value = Some(value);
+    {
+        let __terrane_value = Some(value);
+        result.value = __terrane_value;
+    }
     return result;
 }
 fn encode_profile(value: Profile) -> ProfileEncoded {
@@ -830,6 +895,9 @@ fn encode_profile(value: Profile) -> ProfileEncoded {
         );
     }
     result = ProfileEncoded::terrane_construct();
-    result.value = Some(document.value.clone());
+    {
+        let __terrane_value = Some(document.value.clone());
+        result.value = __terrane_value;
+    }
     return result;
 }

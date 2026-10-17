@@ -82,19 +82,37 @@ impl DerivedBox {
 fn make_derived() -> BaseBox {
     let mut value: DerivedBox;
     value = DerivedBox::terrane_construct();
-    value.flag = false;
-    value.count = 9;
-    value.ratio = 2.5;
+    {
+        let __terrane_value = false;
+        value.flag = __terrane_value;
+    }
+    {
+        let __terrane_value = 9;
+        value.count = __terrane_value;
+    }
+    {
+        let __terrane_value = 2.5;
+        value.ratio = __terrane_value;
+    }
     return BaseBox::DerivedBox(value);
 }
 fn read_flag(value: &BaseBox) -> bool {
-    return *value.terrane_field_flag();
+    return {
+        let __terrane_snapshot = *value.terrane_field_flag();
+        __terrane_snapshot
+    };
 }
 fn read_count(value: &BaseBox) -> i32 {
-    return *value.terrane_field_count();
+    return {
+        let __terrane_snapshot = *value.terrane_field_count();
+        __terrane_snapshot
+    };
 }
 fn read_ratio(value: &BaseBox) -> f64 {
-    return *value.terrane_field_ratio();
+    return {
+        let __terrane_snapshot = *value.terrane_field_ratio();
+        __terrane_snapshot
+    };
 }
 fn show_copy(flag: bool, count: i32, ratio: f64) {
     println!(
@@ -110,38 +128,92 @@ fn check_borrow(value: &BaseBox) {
     println!("{}", terrane_scalar_support::scalar_text(&read_flag(value)));
     println!("{}", terrane_scalar_support::scalar_text(&read_count(value)));
     println!("{}", terrane_scalar_support::scalar_text(&read_ratio(value)));
-    flag = *value.terrane_field_flag();
-    count = *value.terrane_field_count();
-    ratio = *value.terrane_field_ratio();
+    flag = {
+        let __terrane_snapshot = *value.terrane_field_flag();
+        __terrane_snapshot
+    };
+    count = {
+        let __terrane_snapshot = *value.terrane_field_count();
+        __terrane_snapshot
+    };
+    ratio = {
+        let __terrane_snapshot = *value.terrane_field_ratio();
+        __terrane_snapshot
+    };
     show_copy(flag, count, ratio);
     show_copy(
-        *value.terrane_field_flag(),
-        *value.terrane_field_count(),
-        *value.terrane_field_ratio(),
+        {
+            let __terrane_snapshot = *value.terrane_field_flag();
+            __terrane_snapshot
+        },
+        {
+            let __terrane_snapshot = *value.terrane_field_count();
+            __terrane_snapshot
+        },
+        {
+            let __terrane_snapshot = *value.terrane_field_ratio();
+            __terrane_snapshot
+        },
     );
 }
 fn check_shared(value: std::sync::Arc<std::sync::Mutex<BaseBox>>) {
     let flag: bool;
     let count: i32;
     let ratio: f64;
-    flag = *value.lock().expect("shared reference lock poisoned").terrane_field_flag();
-    count = *value.lock().expect("shared reference lock poisoned").terrane_field_count();
-    ratio = *value.lock().expect("shared reference lock poisoned").terrane_field_ratio();
+    flag = {
+        let __terrane_snapshot = *value
+            .lock()
+            .expect("shared reference lock poisoned")
+            .terrane_field_flag();
+        __terrane_snapshot
+    };
+    count = {
+        let __terrane_snapshot = *value
+            .lock()
+            .expect("shared reference lock poisoned")
+            .terrane_field_count();
+        __terrane_snapshot
+    };
+    ratio = {
+        let __terrane_snapshot = *value
+            .lock()
+            .expect("shared reference lock poisoned")
+            .terrane_field_ratio();
+        __terrane_snapshot
+    };
     show_copy(flag, count, ratio);
     show_copy(
-        *value.lock().expect("shared reference lock poisoned").terrane_field_flag(),
+        {
+            let __terrane_snapshot = *value
+                .lock()
+                .expect("shared reference lock poisoned")
+                .terrane_field_flag();
+            __terrane_snapshot
+        },
         count,
         ratio,
     );
     show_copy(
         flag,
-        *value.lock().expect("shared reference lock poisoned").terrane_field_count(),
+        {
+            let __terrane_snapshot = *value
+                .lock()
+                .expect("shared reference lock poisoned")
+                .terrane_field_count();
+            __terrane_snapshot
+        },
         ratio,
     );
     show_copy(
         flag,
         count,
-        *value.lock().expect("shared reference lock poisoned").terrane_field_ratio(),
+        {
+            let __terrane_snapshot = *value
+                .lock()
+                .expect("shared reference lock poisoned")
+                .terrane_field_ratio();
+            __terrane_snapshot
+        },
     );
 }
 fn main() {

@@ -1,0 +1,21 @@
+namespace app
+from /deps/http import HeaderMap as native-header-map, HeaderValue as native-header-value
+
+function inspect; value shared ref (native-header-map of native-header-value)
+    value.reserve; (value.len;)
+    print; (value.len;)
+
+function main;
+    headers native-header-map of native-header-value = rust
+        let mut headers = ::http::HeaderMap::new();
+        headers.insert("x-value", ::http::HeaderValue::from_static("one"));
+        headers
+    held = shared ref headers
+    held.reserve; (held.len;) + 1
+    alias = held
+    alias.reserve; (held.len;)
+    observer = ref headers
+    observer.reserve; (alias.len;)
+    inspect; held
+    observer.clear;
+    print; (held.len;)

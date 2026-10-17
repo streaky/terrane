@@ -75,15 +75,16 @@ fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
     one = 1.0;
     zero = 0.0;
     infinite = one / zero;
-    return Ok(
-        __terrane_raised_err(
+    return Ok({
+        let __terrane_result = __terrane_raised_err(
             terrane_int_support::rounded_f64(
                 infinite,
                 terrane_int_support::FloatRounding::TiesEven,
             ),
             4 /* terrane-site: case.trn:21:10-21:25 */,
-        )?,
-    );
+        )?;
+        __terrane_result
+    });
 }
 fn accepts_narrow(value: i8) -> terrane_int_support::Int {
     return terrane_int_support::Int::from(value as i128);

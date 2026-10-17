@@ -20,13 +20,22 @@ fn main() {
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
     {
-        let _ = exhausted.next();
+        let __terrane_result = {
+            let _ = exhausted.next();
+        };
+        __terrane_result
     };
     {
-        let _ = exhausted.next();
+        let __terrane_result = {
+            let _ = exhausted.next();
+        };
+        __terrane_result
     };
     {
-        let _ = exhausted.next();
+        let __terrane_result = {
+            let _ = exhausted.next();
+        };
+        __terrane_result
     };
     println!("{}", String::from("end"));
     text = String::from("A👍🏽");

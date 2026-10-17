@@ -28,7 +28,10 @@ async fn work(
     mut item: Payload,
     offset: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    item.value = item.value.clone() + offset.clone();
+    {
+        let __terrane_value = item.value.clone() + offset.clone();
+        item.value = __terrane_value;
+    }
     return item.value.clone();
 }
 fn main() {

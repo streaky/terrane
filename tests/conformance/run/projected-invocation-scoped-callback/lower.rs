@@ -178,14 +178,17 @@ fn exact_mixed_branch<'view>(state: &'view String) -> witness::BorrowedLabel<'vi
 fn exact_helper_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
     let mut children: terrane_collection_support::List<_>;
     children = terrane_collection_support::List::<_>::new(vec![]);
-    children.push_unique(exact_inner_label(state));
-    children
-        .push_unique(
-            __terrane_raised(
-                borrowed_label(state),
-                18 /* terrane-site: src/main.trn:85:23-85:44 */,
-            ),
+    {
+        let __terrane_collection_argument_0 = exact_inner_label(state);
+        children.push_unique(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            borrowed_label(state),
+            18 /* terrane-site: src/main.trn:85:23-85:44 */,
         );
+        children.push_unique(__terrane_collection_argument_0);
+    };
     return __terrane_raised(
         borrowed_row(children),
         19 /* terrane-site: src/main.trn:86:12-86:34 */,
@@ -219,20 +222,20 @@ fn exact_branch<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
 fn exact_aggregate<'view>(state: &'view String) -> witness::BorrowedGroup<'view> {
     let mut children: terrane_collection_support::List<_>;
     children = terrane_collection_support::List::<_>::new(vec![]);
-    children
-        .push_unique(
-            __terrane_raised(
-                borrowed_label(state),
-                24 /* terrane-site: src/main.trn:97:23-97:44 */,
-            ),
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            borrowed_label(state),
+            24 /* terrane-site: src/main.trn:97:23-97:44 */,
         );
-    children
-        .push_unique(
-            __terrane_raised(
-                borrowed_label(state),
-                25 /* terrane-site: src/main.trn:98:23-98:44 */,
-            ),
+        children.push_unique(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            borrowed_label(state),
+            25 /* terrane-site: src/main.trn:98:23-98:44 */,
         );
+        children.push_unique(__terrane_collection_argument_0);
+    };
     return __terrane_raised(
         borrowed_row(children),
         26 /* terrane-site: src/main.trn:99:12-99:34 */,
@@ -371,8 +374,8 @@ fn aggregate(state: &i64) -> Widget {
     let mut children: terrane_collection_support::List<Widget>;
     let _ = &state;
     children = terrane_collection_support::List::<Widget>::new(vec![]);
-    children
-        .append({
+    {
+        let __terrane_collection_argument_0 = {
             let __terrane_native_input_0 = __terrane_raised(
                 traced_label(terrane_int_support::Int::from(1_i128)),
                 40 /* terrane-site: src/main.trn:120:37-120:52 */,
@@ -396,9 +399,11 @@ fn aggregate(state: &i64) -> Widget {
                 },
                 41 /* terrane-site: src/main.trn:120:23-120:53 */,
             )
-        });
-    children
-        .append({
+        };
+        children.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = {
             let __terrane_native_input_0 = __terrane_raised(
                 traced_label(terrane_int_support::Int::from(2_i128)),
                 42 /* terrane-site: src/main.trn:121:37-121:52 */,
@@ -422,9 +427,11 @@ fn aggregate(state: &i64) -> Widget {
                 },
                 43 /* terrane-site: src/main.trn:121:23-121:53 */,
             )
-        });
-    children
-        .append({
+        };
+        children.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = {
             let __terrane_native_input_0 = __terrane_raised(
                 traced_label(terrane_int_support::Int::from(3_i128)),
                 44 /* terrane-site: src/main.trn:122:37-122:52 */,
@@ -448,7 +455,9 @@ fn aggregate(state: &i64) -> Widget {
                 },
                 45 /* terrane-site: src/main.trn:122:23-122:53 */,
             )
-        });
+        };
+        children.append(__terrane_collection_argument_0);
+    };
     return {
         let __terrane_native_input_0 = __terrane_raised(
             row(children),

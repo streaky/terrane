@@ -770,9 +770,18 @@ impl ConcurrencyOperationResult {
         exceeded_deadline: bool,
         detail: String,
     ) {
-        self.failed = did_fail;
-        self.deadline_exceeded = exceeded_deadline;
-        self.message = detail;
+        {
+            let __terrane_value = did_fail;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = exceeded_deadline;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -810,11 +819,26 @@ impl ConcurrencyIntResult {
         detail: String,
         result_value: terrane_int_support::Int,
     ) {
-        self.failed = did_fail;
-        self.deadline_exceeded = exceeded_deadline;
-        self.available = has_value;
-        self.message = detail;
-        self.value = result_value.clone();
+        {
+            let __terrane_value = did_fail;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = exceeded_deadline;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value = has_value;
+            self.available = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = result_value.clone();
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -836,9 +860,18 @@ impl IntMutex {
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_mutex(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn load(&self) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -894,9 +927,18 @@ impl IntReadWriteLock {
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_rw_lock(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn read(&self) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -932,7 +974,10 @@ impl MemoryOrder {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, ordering_name: String) {
-        self.name = ordering_name;
+        {
+            let __terrane_value = ordering_name;
+            self.name = __terrane_value;
+        }
     }
 }
 pub fn relaxed_order() -> MemoryOrder {
@@ -969,9 +1014,18 @@ impl AtomicInt64 {
     pub fn construct(&mut self, initial: i64) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_atomic_int64(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -1032,9 +1086,18 @@ impl ThreadLocalInt {
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_thread_local_int(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn get(&self) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -1076,9 +1139,18 @@ impl NativeString {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, encoded: String) {
-        self.is_text = terrane_platform_value_is_text(&encoded);
-        self.text = terrane_platform_value_text(&encoded);
-        self.raw = terrane_platform_value_bytes(&encoded);
+        {
+            let __terrane_value = terrane_platform_value_is_text(&encoded);
+            self.is_text = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_value_text(&encoded);
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_value_bytes(&encoded);
+            self.raw = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1096,8 +1168,14 @@ impl EnvironmentEntry {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
-        self.name = name;
-        self.value = entry_value;
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
+        {
+            let __terrane_value = entry_value;
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1131,10 +1209,22 @@ impl ProcessHostNameResult {
         detail: String,
         result_value: NativeString,
     ) {
-        self.failed = did_fail;
-        self.available = is_available;
-        self.message = detail;
-        self.value = result_value;
+        {
+            let __terrane_value = did_fail;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = is_available;
+            self.available = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = result_value;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn process_host_name() -> ProcessHostNameResult {
@@ -1157,27 +1247,27 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
     {
         let __terrane_list_append_0 = values.make_unique();
         while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
-            __terrane_list_append_0
-                .push(
-                    NativeString::terrane_construct(
-                        __terrane_raised(
-                            {
-                                let __terrane_receiver = &encoded;
-                                let __terrane_index = __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
-                                    0 /* terrane-site: core/process.trn:45:49-45:63 */,
-                                );
-                                __terrane_receiver
-                                    .get(__terrane_index)
-                                    .cloned()
-                                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
-                                        __terrane_index,
-                                    ))
-                            },
-                            0 /* terrane-site: core/process.trn:45:49-45:63 */,
-                        ),
+            {
+                let __terrane_collection_argument_0 = NativeString::terrane_construct(
+                    __terrane_raised(
+                        {
+                            let __terrane_receiver = &encoded;
+                            let __terrane_index = __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                0 /* terrane-site: core/process.trn:45:49-45:63 */,
+                            );
+                            __terrane_receiver
+                                .get(__terrane_index)
+                                .cloned()
+                                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                                    __terrane_index,
+                                ))
+                        },
+                        0 /* terrane-site: core/process.trn:45:49-45:63 */,
                     ),
                 );
+                __terrane_list_append_0.push(__terrane_collection_argument_0);
+            };
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
@@ -1235,8 +1325,13 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     2 /* terrane-site: core/process.trn:55:41-55:59 */,
                 ),
             );
-            __terrane_list_append_1
-                .push(EnvironmentEntry::terrane_construct(name, value));
+            {
+                let __terrane_collection_argument_0 = EnvironmentEntry::terrane_construct(
+                    name,
+                    value,
+                );
+                __terrane_list_append_1.push(__terrane_collection_argument_0);
+            };
             index = index.clone() + terrane_int_support::Int::from(2_i128);
         }
     }
@@ -1257,7 +1352,10 @@ impl CliSchema {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
-        self.entries = declared;
+        {
+            let __terrane_value = declared;
+            self.entries = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1355,9 +1453,16 @@ pub fn parse_command_line(
                 3 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
             if !argument.is_text {
-                __terrane_list_append_2.push(index.clone());
-                __terrane_list_append_3
-                    .push(String::from("command-line option is not Unicode text"));
+                {
+                    let __terrane_collection_argument_0 = index.clone();
+                    __terrane_list_append_2.push(__terrane_collection_argument_0);
+                };
+                {
+                    let __terrane_collection_argument_0 = String::from(
+                        "command-line option is not Unicode text",
+                    );
+                    __terrane_list_append_3.push(__terrane_collection_argument_0);
+                };
             } else {
                 flag_entry = {
                     let mut __terrane_text = String::with_capacity(5);
@@ -1378,52 +1483,98 @@ pub fn parse_command_line(
                     __terrane_text
                 };
                 if schema_has(schema.clone(), flag_entry) {
-                    __terrane_list_append_4.push(argument.text.clone());
+                    {
+                        let __terrane_collection_argument_0 = argument.text.clone();
+                        __terrane_list_append_4.push(__terrane_collection_argument_0);
+                    };
                 } else if schema_has(schema.clone(), value_entry) {
                     if index.clone() + terrane_int_support::Int::from(1_i128)
                         >= terrane_int_support::Int::from(
                             terrane_int_support::Int::from(supplied.length()),
                         )
                     {
-                        __terrane_list_append_2.push(index.clone());
-                        __terrane_list_append_3
-                            .push(String::from("option requires a value"));
-                    } else {
-                        __terrane_list_append_5.push(argument.text.clone());
-                        __terrane_list_append_6
-                            .push(
-                                __terrane_raised(
-                                    supplied
-                                        .get_or_error(
-                                            __terrane_raised(
-                                                terrane_collection_support::index_from_int(
-                                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
-                                                ),
-                                                4 /* terrane-site: core/process.trn:105:43-105:62 */,
-                                            ),
-                                        ),
-                                    4 /* terrane-site: core/process.trn:105:43-105:62 */,
-                                ),
+                        {
+                            let __terrane_collection_argument_0 = index.clone();
+                            __terrane_list_append_2
+                                .push(__terrane_collection_argument_0);
+                        };
+                        {
+                            let __terrane_collection_argument_0 = String::from(
+                                "option requires a value",
                             );
+                            __terrane_list_append_3
+                                .push(__terrane_collection_argument_0);
+                        };
+                    } else {
+                        {
+                            let __terrane_collection_argument_0 = argument.text.clone();
+                            __terrane_list_append_5
+                                .push(__terrane_collection_argument_0);
+                        };
+                        {
+                            let __terrane_collection_argument_0 = __terrane_raised(
+                                supplied
+                                    .get_or_error(
+                                        __terrane_raised(
+                                            terrane_collection_support::index_from_int(
+                                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                            ),
+                                            4 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                        ),
+                                    ),
+                                4 /* terrane-site: core/process.trn:105:43-105:62 */,
+                            );
+                            __terrane_list_append_6
+                                .push(__terrane_collection_argument_0);
+                        };
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
                     }
                 } else if argument.text.starts_with(&String::from("--")) {
-                    __terrane_list_append_2.push(index.clone());
-                    __terrane_list_append_3.push(String::from("unknown option"));
+                    {
+                        let __terrane_collection_argument_0 = index.clone();
+                        __terrane_list_append_2.push(__terrane_collection_argument_0);
+                    };
+                    {
+                        let __terrane_collection_argument_0 = String::from(
+                            "unknown option",
+                        );
+                        __terrane_list_append_3.push(__terrane_collection_argument_0);
+                    };
                 } else {
-                    __terrane_list_append_7.push(argument);
+                    {
+                        let __terrane_collection_argument_0 = argument;
+                        __terrane_list_append_7.push(__terrane_collection_argument_0);
+                    };
                 }
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
     }
     result = CommandLine::terrane_construct();
-    result.flags = flags;
-    result.option_names = option_names;
-    result.option_values = option_values;
-    result.positionals = positionals;
-    result.diagnostic_arguments = diagnostic_arguments;
-    result.diagnostic_messages = diagnostic_messages;
+    {
+        let __terrane_value = flags;
+        result.flags = __terrane_value;
+    }
+    {
+        let __terrane_value = option_names;
+        result.option_names = __terrane_value;
+    }
+    {
+        let __terrane_value = option_values;
+        result.option_values = __terrane_value;
+    }
+    {
+        let __terrane_value = positionals;
+        result.positionals = __terrane_value;
+    }
+    {
+        let __terrane_value = diagnostic_arguments;
+        result.diagnostic_arguments = __terrane_value;
+    }
+    {
+        let __terrane_value = diagnostic_messages;
+        result.diagnostic_messages = __terrane_value;
+    }
     return result;
 }
 #[derive(Clone)]
@@ -1445,10 +1596,19 @@ pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
     if requested.clone() < terrane_int_support::Int::from(0_i128)
         || requested.clone() > terrane_int_support::Int::from(255_i128)
     {
-        result.code = terrane_int_support::Int::from(255_i128);
-        result.valid = false;
+        {
+            let __terrane_value = terrane_int_support::Int::from(255_i128);
+            result.code = __terrane_value;
+        }
+        {
+            let __terrane_value = false;
+            result.valid = __terrane_value;
+        }
     } else {
-        result.code = requested.clone();
+        {
+            let __terrane_value = requested.clone();
+            result.code = __terrane_value;
+        }
     }
     return result;
 }

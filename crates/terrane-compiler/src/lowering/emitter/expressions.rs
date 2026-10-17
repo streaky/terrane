@@ -492,10 +492,10 @@ impl Emitter<'_> {
             && !self.value_type_owns_resource(&value_type)
             && self.value_type(node).as_ref() == Some(&value_type)
             && let Some(receiver) = node.children.first()
-            && matches!(
+            && (matches!(
                 self.value_type(receiver),
                 Some(ValueType::Reference(_) | ValueType::SharedReference(_))
-            )
+            ) || self.reference_backed_name(receiver).is_some())
             && matches!(
                 self.receiver_value_type(receiver),
                 Some(ValueType::Object(_))

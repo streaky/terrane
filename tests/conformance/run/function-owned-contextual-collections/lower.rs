@@ -40,11 +40,14 @@ fn main() {
                     terrane_collection_support::List::<String>::new(Vec::new()),
                 ),
             );
-        match state.as_mut().expect("flow-proven available binding") {
-            TerraneUnionF0S135::Arm0(value) => value,
-            _ => unreachable!("flow-proven storage refinement"),
-        }
-            .append(String::from("first"));
+        {
+            let __terrane_collection_argument_0 = String::from("first");
+            match state.as_mut().expect("flow-proven available binding") {
+                TerraneUnionF0S135::Arm0(value) => value,
+                _ => unreachable!("flow-proven storage refinement"),
+            }
+                .append(__terrane_collection_argument_0);
+        };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match state
             .as_ref().expect("flow-proven available binding") {

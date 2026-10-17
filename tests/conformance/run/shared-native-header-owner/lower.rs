@@ -15,7 +15,10 @@ impl RequestBuilderOwner {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, builder: std::sync::Arc<std::sync::Mutex<Builder>>) {
-        self.builder = Some(builder.clone());
+        {
+            let __terrane_value = builder.clone();
+            self.builder = Some(__terrane_value);
+        }
     }
     pub fn set_method(&self, value: String) {
         let builder: std::sync::Arc<std::sync::Mutex<Builder>>;
@@ -98,7 +101,14 @@ fn count(value: OptionalHeaders) -> terrane_int_support::Int {
         }
         OptionalHeaders::Present(__terrane_pattern_1313_owner) => {
             owner = __terrane_pattern_1313_owner;
-            return owner.lock().expect("shared reference lock poisoned").value.clone();
+            return {
+                let __terrane_snapshot = owner
+                    .lock()
+                    .expect("shared reference lock poisoned")
+                    .value
+                    .clone();
+                __terrane_snapshot
+            };
         }
     }
 }

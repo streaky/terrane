@@ -18,8 +18,14 @@ fn main() {
     let mut value: TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069;
     let request: Option<String>;
     value = TerraneNsAppMountedApiIdentity2F6170702F6D6F756E74656400617069::terrane_construct();
-    value.request = Some(String::from("GET"));
-    value.response = terrane_int_support::Int::from(201_i128);
+    {
+        let __terrane_value = Some(String::from("GET"));
+        value.request = __terrane_value;
+    }
+    {
+        let __terrane_value = terrane_int_support::Int::from(201_i128);
+        value.response = __terrane_value;
+    }
     request = value.request.clone();
     if request.is_some() {
         println!(

@@ -111,7 +111,10 @@ fn main() {
             false,
             terrane_int_support::Int::from(-1_i128),
         );
-        settings.backlog = terrane_int_support::Int::from(-1_i128);
+        {
+            let __terrane_value = terrane_int_support::Int::from(-1_i128);
+            settings.backlog = __terrane_value;
+        }
         second = __terrane_await(
                 exchange(Vec::<u8>::from([114, 101, 115, 101, 116]), Some(settings)),
             )

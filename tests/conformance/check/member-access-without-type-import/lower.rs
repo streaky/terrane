@@ -36,7 +36,10 @@ impl FrameBody {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, x: f64) {
-        self.x = x;
+        {
+            let __terrane_value = x;
+            self.x = __terrane_value;
+        }
     }
 }
 // Source: src/snapshot/frame.trn
@@ -56,12 +59,18 @@ impl FrameState {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, bodies: terrane_collection_support::List<FrameBody>) {
-        self.bodies = bodies;
+        {
+            let __terrane_value = bodies;
+            self.bodies = __terrane_value;
+        }
     }
 }
 fn make_frame() -> FrameState {
     let mut bodies: terrane_collection_support::List<FrameBody>;
     bodies = terrane_collection_support::List::<FrameBody>::new(Vec::new());
-    bodies.append(FrameBody::terrane_construct(7.5));
+    {
+        let __terrane_collection_argument_0 = FrameBody::terrane_construct(7.5);
+        bodies.append(__terrane_collection_argument_0);
+    };
     return FrameState::terrane_construct(bodies);
 }

@@ -18,7 +18,13 @@ fn shared_flag(
         >,
     >,
 ) -> bool {
-    return value.lock().expect("shared reference lock poisoned").flag;
+    return {
+        let __terrane_snapshot = value
+            .lock()
+            .expect("shared reference lock poisoned")
+            .flag;
+        __terrane_snapshot
+    };
 }
 fn count(
     values: &terrane_collection_support::List<terrane_int_support::Int>,
@@ -56,16 +62,20 @@ fn early_observer() {
     observer = std::sync::Arc::downgrade(&named.clone());
     alias = observer.clone();
     held = named.clone();
-    held.lock().expect("shared reference lock poisoned").flag = false;
+    {
+        let __terrane_owner = held.clone();
+        let __terrane_value = false;
+        __terrane_owner.lock().expect("shared reference lock poisoned").flag = __terrane_value;
+    }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observer
-        .upgrade().expect("reference expired"); __terrane_owner.lock()
-        .expect("reference lock poisoned").flag.clone() })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_owner = observer.upgrade().expect("reference expired"); __terrane_owner
+        .lock().expect("reference lock poisoned").flag }; __terrane_snapshot })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = alias
-        .upgrade().expect("reference expired"); __terrane_owner.lock()
-        .expect("reference lock poisoned").flag.clone() })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_owner = alias.upgrade().expect("reference expired"); __terrane_owner
+        .lock().expect("reference lock poisoned").flag }; __terrane_snapshot })
     );
     println!("{}", terrane_scalar_support::scalar_text(&shared_flag(held.clone())));
 }
@@ -109,10 +119,11 @@ fn main() {
     observer = std::sync::Arc::downgrade(&value.clone());
     {
         let __terrane_owner = observer.upgrade().expect("reference expired");
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(2_i128);
         __terrane_owner
             .lock()
             .expect("reference lock poisoned")
-            .append(terrane_int_support::Int::from(2_i128))
+            .append(__terrane_collection_argument_0);
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
@@ -126,10 +137,11 @@ fn main() {
     alias = observer.clone();
     {
         let __terrane_owner = alias.upgrade().expect("reference expired");
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(3_i128);
         __terrane_owner
             .lock()
             .expect("reference lock poisoned")
-            .append(terrane_int_support::Int::from(3_i128))
+            .append(__terrane_collection_argument_0);
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
@@ -153,10 +165,11 @@ fn main() {
     observer = std::sync::Arc::downgrade(&replacement.clone());
     {
         let __terrane_owner = observer.upgrade().expect("reference expired");
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(5_i128);
         __terrane_owner
             .lock()
             .expect("reference lock poisoned")
-            .append(terrane_int_support::Int::from(5_i128))
+            .append(__terrane_collection_argument_0);
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
@@ -171,7 +184,10 @@ fn main() {
     ordinary = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(6_i128)]);
-    ordinary.append(terrane_int_support::Int::from(7_i128));
+    {
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(7_i128);
+        ordinary.append(__terrane_collection_argument_0);
+    };
     ordinary_observer = &ordinary;
     println!(
         "{}{}",

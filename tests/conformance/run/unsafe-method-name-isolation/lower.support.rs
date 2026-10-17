@@ -793,8 +793,14 @@ impl LogLevel {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, name: String, rank: terrane_int_support::Int) {
-        self.name = name;
-        self.rank = rank.clone();
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
+        {
+            let __terrane_value = rank.clone();
+            self.rank = __terrane_value;
+        }
     }
 }
 pub fn trace_level() -> LogLevel {
@@ -867,7 +873,10 @@ impl DocumentLogValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: DocumentValue) {
-        self.value = input;
+        {
+            let __terrane_value = input;
+            self.value = __terrane_value;
+        }
     }
     pub fn render(&self) -> DocumentValue {
         return self.value.to_document();
@@ -900,7 +909,10 @@ impl TextLogValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: String) {
-        self.value = input;
+        {
+            let __terrane_value = input;
+            self.value = __terrane_value;
+        }
     }
     pub fn render(&self) -> DocumentValue {
         return make_document_string(self.value.clone());
@@ -933,7 +945,10 @@ impl ErrorLogValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, rendered: String) {
-        self.rendered = rendered;
+        {
+            let __terrane_value = rendered;
+            self.rendered = __terrane_value;
+        }
     }
     pub fn render(&self) -> DocumentValue {
         return make_document_string(self.rendered.clone());
@@ -994,10 +1009,22 @@ impl LogField {
         secret: bool,
         source: String,
     ) {
-        self.name = name;
-        self.value = input;
-        self.secret = secret;
-        self.source = source;
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
+        {
+            let __terrane_value = input;
+            self.value = __terrane_value;
+        }
+        {
+            let __terrane_value = secret;
+            self.secret = __terrane_value;
+        }
+        {
+            let __terrane_value = source;
+            self.source = __terrane_value;
+        }
     }
 }
 pub fn field_at(
@@ -1030,7 +1057,10 @@ impl LogSink {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformCapability) {
-        self.handle = handle;
+        {
+            let __terrane_value = handle;
+            self.handle = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1052,9 +1082,18 @@ impl LogSinkResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, sink: LogSink) {
-        self.failed = failed;
-        self.message = message;
-        self.value = sink;
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = sink;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn memory_sink(
@@ -1137,11 +1176,26 @@ impl LoggerOptions {
         max_fields: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
     ) {
-        self.minimum = minimum;
-        self.target_prefix = target_prefix;
-        self.target = target;
-        self.max_fields = max_fields.clone();
-        self.max_bytes = max_bytes.clone();
+        {
+            let __terrane_value = minimum;
+            self.minimum = __terrane_value;
+        }
+        {
+            let __terrane_value = target_prefix;
+            self.target_prefix = __terrane_value;
+        }
+        {
+            let __terrane_value = target;
+            self.target = __terrane_value;
+        }
+        {
+            let __terrane_value = max_fields.clone();
+            self.max_fields = __terrane_value;
+        }
+        {
+            let __terrane_value = max_bytes.clone();
+            self.max_bytes = __terrane_value;
+        }
     }
 }
 pub fn make_logger_options(
@@ -1186,11 +1240,20 @@ impl LogContext {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
-                __terrane_list_append_0.push(existing);
+                {
+                    let __terrane_collection_argument_0 = existing;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
             }
         }
-        updated.append(item);
-        self.fields = updated;
+        {
+            let __terrane_collection_argument_0 = item;
+            updated.append(__terrane_collection_argument_0);
+        };
+        {
+            let __terrane_value = updated;
+            self.fields = __terrane_value;
+        }
     }
     pub fn append_span(&mut self, item: String) {
         let mut updated: terrane_collection_support::List<String>;
@@ -1207,11 +1270,20 @@ impl LogContext {
                     terrane_collection_support::IterationStep::Item(item) => item,
                     terrane_collection_support::IterationStep::End => break,
                 };
-                __terrane_list_append_1.push(existing);
+                {
+                    let __terrane_collection_argument_0 = existing;
+                    __terrane_list_append_1.push(__terrane_collection_argument_0);
+                };
             }
         }
-        updated.append(item);
-        self.spans = updated;
+        {
+            let __terrane_collection_argument_0 = item;
+            updated.append(__terrane_collection_argument_0);
+        };
+        {
+            let __terrane_value = updated;
+            self.spans = __terrane_value;
+        }
     }
     pub fn adding_field(&self, addition: LogField) -> LogContext {
         let mut value: LogContext;
@@ -1342,9 +1414,18 @@ impl Logger {
         options: LoggerOptions,
         context: LogContext,
     ) {
-        self.sink = sink;
-        self.options = options;
-        self.context = context;
+        {
+            let __terrane_value = sink;
+            self.sink = __terrane_value;
+        }
+        {
+            let __terrane_value = options;
+            self.options = __terrane_value;
+        }
+        {
+            let __terrane_value = context;
+            self.context = __terrane_value;
+        }
     }
 }
 pub fn make_logger(sink: LogSink, options: LoggerOptions) -> Logger {
@@ -1405,9 +1486,18 @@ impl LogOutcome {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, filtered: bool, failed: bool, message: String) {
-        self.filtered = filtered;
-        self.failed = failed;
-        self.message = message;
+        {
+            let __terrane_value = filtered;
+            self.filtered = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1440,10 +1530,22 @@ impl LogEvent {
         source: String,
         fields: terrane_collection_support::List<LogField>,
     ) {
-        self.level = level;
-        self.message = message;
-        self.fields = fields;
-        self.source = source;
+        {
+            let __terrane_value = level;
+            self.level = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = fields;
+            self.fields = __terrane_value;
+        }
+        {
+            let __terrane_value = source;
+            self.source = __terrane_value;
+        }
     }
 }
 pub fn make_event_at(
@@ -1497,7 +1599,10 @@ pub fn emit_at(
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            __terrane_list_append_2.push(item);
+            {
+                let __terrane_collection_argument_0 = item;
+                __terrane_list_append_2.push(__terrane_collection_argument_0);
+            };
         }
     }
     let __terrane_iterable_7 = f;
@@ -1512,7 +1617,10 @@ pub fn emit_at(
                 terrane_collection_support::IterationStep::End => break,
             };
             let _ = &item;
-            __terrane_list_append_3.push(item.clone());
+            {
+                let __terrane_collection_argument_0 = item.clone();
+                __terrane_list_append_3.push(__terrane_collection_argument_0);
+            };
         }
     }
     options = v.options.clone();
@@ -1702,7 +1810,10 @@ impl DocumentInteger {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1731,9 +1842,18 @@ impl DocumentDecimal {
         exponent: terrane_int_support::Int,
         text: String,
     ) {
-        self.coefficient = coefficient;
-        self.exponent = exponent.clone();
-        self.text = text;
+        {
+            let __terrane_value = coefficient;
+            self.coefficient = __terrane_value;
+        }
+        {
+            let __terrane_value = exponent.clone();
+            self.exponent = __terrane_value;
+        }
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 pub trait SerializableProtocol: Send + Sync {
@@ -1846,20 +1966,40 @@ impl DocumentValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, raw: terrane_document_support::DataResult) {
-        self.kind = terrane_document_kind(&raw);
-        self.scalar = terrane_document_text(&raw);
-        self.encoded = terrane_data_encoded(&raw);
+        {
+            let __terrane_value = terrane_document_kind(&raw);
+            self.kind = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_document_text(&raw);
+            self.scalar = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_data_encoded(&raw);
+            self.encoded = __terrane_value;
+        }
         if self.kind.as_str() == "integer" {
-            self.integer = DocumentInteger::terrane_construct(self.scalar.clone());
+            {
+                let __terrane_value = DocumentInteger::terrane_construct(
+                    self.scalar.clone(),
+                );
+                self.integer = __terrane_value;
+            }
         }
         if self.kind.as_str() == "decimal" {
-            self.decimal = DocumentDecimal::terrane_construct(
-                terrane_document_coefficient(&raw),
-                terrane_document_exponent(&raw),
-                self.scalar.clone(),
-            );
+            {
+                let __terrane_value = DocumentDecimal::terrane_construct(
+                    terrane_document_coefficient(&raw),
+                    terrane_document_exponent(&raw),
+                    self.scalar.clone(),
+                );
+                self.decimal = __terrane_value;
+            }
         }
-        self.raw = raw;
+        {
+            let __terrane_value = raw;
+            self.raw = __terrane_value;
+        }
     }
     pub fn length(&self) -> terrane_int_support::Int {
         return terrane_document_length(&self.raw);
@@ -1931,11 +2071,26 @@ impl DocumentResult {
         expected: String,
         raw: terrane_document_support::DataResult,
     ) {
-        self.failed = failed;
-        self.message = message;
-        self.path = path;
-        self.expected = expected;
-        self.value = DocumentValue::terrane_construct(raw);
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = path;
+            self.path = __terrane_value;
+        }
+        {
+            let __terrane_value = expected;
+            self.expected = __terrane_value;
+        }
+        {
+            let __terrane_value = DocumentValue::terrane_construct(raw);
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1981,9 +2136,18 @@ impl DocumentMapping {
         expected_kind: String,
         allow_unknown: bool,
     ) {
-        self.descriptor_name = descriptor_name;
-        self.expected_kind = expected_kind;
-        self.allow_unknown = allow_unknown;
+        {
+            let __terrane_value = descriptor_name;
+            self.descriptor_name = __terrane_value;
+        }
+        {
+            let __terrane_value = expected_kind;
+            self.expected_kind = __terrane_value;
+        }
+        {
+            let __terrane_value = allow_unknown;
+            self.allow_unknown = __terrane_value;
+        }
     }
     pub fn from_document(&self, value: DocumentValue) -> DocumentResult {
         return decode_document(value, self.clone());
@@ -2053,10 +2217,20 @@ impl DocumentMapEntries {
         __terrane_constructed_value
     }
     pub fn construct(&mut self) {
-        self.raw = terrane_make_document_map();
+        {
+            let __terrane_value = terrane_make_document_map();
+            self.raw = __terrane_value;
+        }
     }
     pub fn append(&mut self, key: String, value: DocumentValue) {
-        self.raw = terrane_document_map_insert(&self.raw, key, &value.raw);
+        {
+            let __terrane_value = terrane_document_map_insert(
+                &self.raw,
+                key,
+                &value.raw,
+            );
+            self.raw = __terrane_value;
+        }
     }
 }
 pub fn append_document_map_entry(
@@ -2186,7 +2360,10 @@ pub fn mapping_required_fields(
                     + terrane_int_support::Int::from(1_i128);
             }
             if field.as_str() != "" && !optional && !defaulted {
-                __terrane_list_append_0.push(field);
+                {
+                    let __terrane_collection_argument_0 = field;
+                    __terrane_list_append_0.push(__terrane_collection_argument_0);
+                };
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -2230,22 +2407,22 @@ pub fn decode_document(
                 )
                 .as_str() != ""
             {
-                __terrane_list_append_1
-                    .push(
-                        __terrane_raised(
-                            mapping
-                                .field_names
-                                .get_or_error(
-                                    __terrane_raised(
-                                        terrane_collection_support::index_from_int(
-                                            &field_index.clone(),
-                                        ),
-                                        6 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                {
+                    let __terrane_collection_argument_0 = __terrane_raised(
+                        mapping
+                            .field_names
+                            .get_or_error(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(
+                                        &field_index.clone(),
                                     ),
+                                    6 /* terrane-site: core/documents.trn:177:37-177:69 */,
                                 ),
-                            6 /* terrane-site: core/documents.trn:177:37-177:69 */,
-                        ),
+                            ),
+                        6 /* terrane-site: core/documents.trn:177:37-177:69 */,
                     );
+                    __terrane_list_append_1.push(__terrane_collection_argument_0);
+                };
             }
             field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
@@ -2277,38 +2454,38 @@ pub fn decode_document(
             )
             .as_str() != ""
         {
-            default_fields
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .default_fields
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
-                                    ),
-                                    8 /* terrane-site: core/documents.trn:184:36-184:73 */,
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    mapping
+                        .default_fields
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
                                 ),
+                                8 /* terrane-site: core/documents.trn:184:36-184:73 */,
                             ),
-                        8 /* terrane-site: core/documents.trn:184:36-184:73 */,
-                    ),
+                        ),
+                    8 /* terrane-site: core/documents.trn:184:36-184:73 */,
                 );
-            default_values
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .default_values
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &default_index.clone(),
-                                    ),
-                                    9 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                default_fields.append(__terrane_collection_argument_0);
+            };
+            {
+                let __terrane_collection_argument_0 = __terrane_raised(
+                    mapping
+                        .default_values
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
                                 ),
+                                9 /* terrane-site: core/documents.trn:185:36-185:73 */,
                             ),
-                        9 /* terrane-site: core/documents.trn:185:36-185:73 */,
-                    ),
+                        ),
+                    9 /* terrane-site: core/documents.trn:185:36-185:73 */,
                 );
+                default_values.append(__terrane_collection_argument_0);
+            };
         }
         default_index = default_index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -2323,7 +2500,10 @@ pub fn decode_document(
     );
     result = make_document_result(raw);
     if result.failed {
-        result.expected = mapping.descriptor_name.clone();
+        {
+            let __terrane_value = mapping.descriptor_name.clone();
+            result.expected = __terrane_value;
+        }
     }
     return result;
 }

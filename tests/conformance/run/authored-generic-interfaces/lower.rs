@@ -33,7 +33,10 @@ impl Message {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
     pub fn describe(&self) -> String {
         return self.text.clone();
@@ -135,7 +138,10 @@ impl MessageSource {
     pub fn next(&mut self) -> Option<String> {
         let result: Option<String>;
         result = self.value.clone();
-        self.value = None;
+        {
+            let __terrane_value = None;
+            self.value = __terrane_value;
+        }
         return result;
     }
 }

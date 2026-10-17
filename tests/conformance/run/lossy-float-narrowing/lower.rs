@@ -18,19 +18,22 @@ fn main() {
     rounded = 16777217.0 as f32;
     negative_zero = -0.0_f64;
     narrowed_negative_zero = negative_zero as f32;
-    overflow_input = terrane_scalar_support::scale_binary_f32(
-        {
-            let _ = &TerraneDescriptor {
-                identity: "float32",
-                name: "float32",
-                kind: "type",
-                inherently_identity_bearing: false,
-                fields: &[],
-            };
-            f32::MAX
-        },
-        1,
-    ) as f64;
+    overflow_input = {
+        let __terrane_result = terrane_scalar_support::scale_binary_f32(
+            {
+                let _ = &TerraneDescriptor {
+                    identity: "float32",
+                    name: "float32",
+                    kind: "type",
+                    inherently_identity_bearing: false,
+                    fields: &[],
+                };
+                f32::MAX
+            },
+            1,
+        );
+        __terrane_result
+    } as f64;
     overflow = overflow_input as f32;
     underflow_input = {
         let _ = &TerraneDescriptor {

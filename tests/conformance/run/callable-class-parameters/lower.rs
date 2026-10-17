@@ -27,7 +27,10 @@ impl DirectHolder {
             dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
     ) {
-        self.stored = operation(terrane_int_support::Int::from(1_i128));
+        {
+            let __terrane_value = operation(terrane_int_support::Int::from(1_i128));
+            self.stored = __terrane_value;
+        }
     }
     pub fn apply(
         &self,
@@ -71,7 +74,10 @@ impl BaseHolderStorage {
             dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
     ) {
-        self.stored = operation(terrane_int_support::Int::from(1_i128));
+        {
+            let __terrane_value = operation(terrane_int_support::Int::from(1_i128));
+            self.stored = __terrane_value;
+        }
     }
     pub fn apply(
         &self,
@@ -143,7 +149,10 @@ impl ChildHolder {
             dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
     ) {
-        self.stored = operation(terrane_int_support::Int::from(1_i128));
+        {
+            let __terrane_value = operation(terrane_int_support::Int::from(1_i128));
+            self.stored = __terrane_value;
+        }
     }
     pub fn apply(
         &self,

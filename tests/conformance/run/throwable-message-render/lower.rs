@@ -22,8 +22,14 @@ impl SplitError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String, display: String) {
-        self.message = message;
-        self.display = display;
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = display;
+            self.display = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         {

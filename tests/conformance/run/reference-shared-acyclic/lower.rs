@@ -28,7 +28,8 @@ fn main() {
     let owner: Holder;
     owner = Holder::terrane_construct();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&owner.child.lock()
-        .expect("shared reference lock poisoned").value.clone())
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = owner.child
+        .lock().expect("shared reference lock poisoned").value.clone();
+        __terrane_snapshot })
     );
 }

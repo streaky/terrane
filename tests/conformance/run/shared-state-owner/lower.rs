@@ -13,7 +13,11 @@ impl Counter {
         }
     }
     pub fn increase(&mut self) -> terrane_int_support::Int {
-        self.value = self.value.clone() + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value = self.value.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.value = __terrane_value;
+        }
         return self.value.clone();
     }
 }

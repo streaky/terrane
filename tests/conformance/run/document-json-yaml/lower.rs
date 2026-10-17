@@ -13,7 +13,10 @@ impl Note {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
     pub fn to_document(&self) -> DocumentValue {
         return make_document_string(self.text.clone());
@@ -176,10 +179,22 @@ fn main() {
         String::from("map"),
         false,
     );
-    mapping.field_names = fields;
-    mapping.optional_fields = optional_fields;
-    mapping.default_fields = default_fields;
-    mapping.default_values = default_values;
+    {
+        let __terrane_value = fields;
+        mapping.field_names = __terrane_value;
+    }
+    {
+        let __terrane_value = optional_fields;
+        mapping.optional_fields = __terrane_value;
+    }
+    {
+        let __terrane_value = default_fields;
+        mapping.default_fields = __terrane_value;
+    }
+    {
+        let __terrane_value = default_values;
+        mapping.default_values = __terrane_value;
+    }
     missing = parse_json(String::from("{}"), options.clone());
     missing = decode_document(missing.value.clone(), mapping.clone());
     println!(

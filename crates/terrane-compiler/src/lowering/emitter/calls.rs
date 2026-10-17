@@ -615,10 +615,11 @@ impl Emitter<'_> {
             {
                 let remove = member == "remove.checked";
                 let argument = argument.children.last().unwrap_or(argument);
-                let receiver_value = if remove {
-                    self.receiver_guard_expression(receiver)
+                let (setup, receiver_value) = if remove && self.receiver_needs_live_guard(receiver)
+                {
+                    self.live_receiver_parts(receiver)
                 } else {
-                    self.receiver_expression(receiver)
+                    (String::new(), self.receiver_expression(receiver))
                 };
                 let call = match receiver_type {
                     ValueType::List(_) | ValueType::Tuple(_, _) => {
@@ -631,7 +632,9 @@ impl Emitter<'_> {
                     ValueType::Map(key, _) | ValueType::UnorderedMap(key, _) => {
                         let key = self.expression_as(argument, key.value_type());
                         if remove {
-                            format!("({receiver_value}).remove_checked(&({key}))")
+                            format!(
+                                "{{ let __terrane_key = {key}; ({receiver_value}).remove_checked(&__terrane_key) }}"
+                            )
                         } else {
                             format!("({receiver_value}).get(&({key})).cloned()")
                         }
@@ -639,7 +642,7 @@ impl Emitter<'_> {
                     _ => String::new(),
                 };
                 return if remove {
-                    self.wrap_receiver_guard(receiver, call)
+                    format!("{{ {setup} let __terrane_result = {call}; __terrane_result }}")
                 } else {
                     call
                 };
@@ -647,12 +650,16 @@ impl Emitter<'_> {
             if member == "sort.descending"
                 && let ValueType::List(item) = receiver_type
             {
-                let receiver_value = self.receiver_guard_expression(receiver);
+                let (setup, receiver_value) = if self.receiver_needs_live_guard(receiver) {
+                    self.live_receiver_parts(receiver)
+                } else {
+                    (String::new(), self.receiver_expression(receiver))
+                };
                 let comparator = list_sort_comparator(&item, true);
                 let call = format!(
                     "({{ let collection = &mut ({receiver_value}); collection.sort_by({comparator}); collection.clone() }})"
                 );
-                return self.wrap_receiver_guard(receiver, call);
+                return format!("{{ {setup} let __terrane_result = {call}; __terrane_result }}");
             }
         }
         if let Some(string_call) = self.string_call(node, arguments) {
@@ -669,7 +676,13 @@ impl Emitter<'_> {
             && let [receiver, member] = callee.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
-            let receiver_value = self.receiver_guard_expression(receiver);
+            let (setup, receiver_value) = if matches!(receiver_type, ValueType::Scalar(_))
+                || !self.receiver_needs_live_guard(receiver)
+            {
+                (String::new(), self.receiver_expression(receiver))
+            } else {
+                self.live_receiver_parts(receiver)
+            };
             let member_name = self.text(member).to_owned();
             let values = arguments
                 .children
@@ -709,7 +722,7 @@ impl Emitter<'_> {
                     })
                 }
                 (ValueType::List(item), "append") => Some(format!(
-                    "({{ let collection = &mut ({receiver_value}); collection.append({}); collection.clone() }})",
+                    "({{ let __terrane_value = {}; let collection = &mut ({receiver_value}); collection.append(__terrane_value); collection.clone() }})",
                     self.expression_as(values[0], item.value_type())
                 )),
                 (ValueType::List(item), "set") => {
@@ -719,9 +732,10 @@ impl Emitter<'_> {
                         node,
                     );
                     let value = self.expression_as(values[1], item.value_type());
-                    let mutation = self.fallible(format!("collection.set({index}, {value})"), node);
+                    let mutation =
+                        self.fallible("collection.set(__terrane_index, __terrane_value)", node);
                     Some(format!(
-                        "({{ let collection = &mut ({receiver_value}); {mutation}; collection.clone() }})"
+                        "({{ let __terrane_index = {index}; let __terrane_value = {value}; let collection = &mut ({receiver_value}); {mutation}; collection.clone() }})"
                     ))
                 }
                 (ValueType::List(_), "clear") => Some(format!(
@@ -739,31 +753,35 @@ impl Emitter<'_> {
                         format!("terrane_collection_support::index_from_int(&({index}))"),
                         node,
                     );
-                    Some(self.fallible(format!("({receiver_value}).remove({index})"), node))
+                    let mutation =
+                        self.fallible(format!("({receiver_value}).remove(__terrane_index)"), node);
+                    Some(format!("{{ let __terrane_index = {index}; {mutation} }}"))
                 }
                 (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                     Some(format!(
-                        "({{ let collection = &mut ({receiver_value}); collection.set({}, {}); collection.clone() }})",
+                        "({{ let __terrane_key = {}; let __terrane_value = {}; let collection = &mut ({receiver_value}); collection.set(__terrane_key, __terrane_value); collection.clone() }})",
                         self.expression_as(values[0], key.value_type()),
                         self.expression_as(values[1], value.value_type())
                     ))
                 }
                 (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove") => {
                     let key = self.expression_as(values[0], key.value_type());
-                    Some(self.fallible(format!("({receiver_value}).remove(&({key}))"), node))
+                    let mutation =
+                        self.fallible(format!("({receiver_value}).remove(&__terrane_key)"), node);
+                    Some(format!("{{ let __terrane_key = {key}; {mutation} }}"))
                 }
                 (ValueType::Set(item) | ValueType::UnorderedSet(item), "contains") => {
                     Some(format!(
-                        "({receiver_value}).contains(&({}))",
+                        "({{ let __terrane_value = {}; ({receiver_value}).contains(&__terrane_value) }})",
                         self.expression_as(values[0], item.value_type())
                     ))
                 }
                 (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => Some(format!(
-                    "({{ let collection = &mut ({receiver_value}); collection.add({}); collection.clone() }})",
+                    "({{ let __terrane_value = {}; let collection = &mut ({receiver_value}); collection.add(__terrane_value); collection.clone() }})",
                     self.expression_as(values[0], item.value_type())
                 )),
                 (ValueType::Set(item) | ValueType::UnorderedSet(item), "remove") => Some(format!(
-                    "({receiver_value}).remove(&({}))",
+                    "({{ let __terrane_value = {}; ({receiver_value}).remove(&__terrane_value) }})",
                     self.expression_as(values[0], item.value_type())
                 )),
                 (
@@ -773,7 +791,7 @@ impl Emitter<'_> {
                 _ => None,
             };
             if let Some(call) = call {
-                return self.wrap_receiver_guard(receiver, call);
+                return format!("{{ {setup} let __terrane_result = {call}; __terrane_result }}");
             }
         }
         if let Some(method) = bound_method(self.source, callee)
@@ -1897,6 +1915,23 @@ impl Emitter<'_> {
                         .projected_struct(&object.identity.namespace, &object.identity.name)
                 })
                 .is_some();
+        let guarded_method_receiver = if contract.as_ref().is_some_and(|contract| {
+            contract.owner.is_some()
+                && !contract.is_static
+                && !contract.is_async
+                && matches!(
+                    contract.written_invocation_mode,
+                    InvocationMode::Shared | InvocationMode::Mutable
+                )
+        }) && let [receiver, _] = callee.children.as_slice()
+            && self.receiver_needs_live_guard(receiver)
+        {
+            Some(self.live_receiver_parts(receiver))
+        } else {
+            None
+        };
+        let mut shared_argument_setup = String::new();
+        let mut shared_argument_index = 0;
         let mut native_field_values = None;
         let mut native_optional_arguments = Vec::new();
         if let Some(contract) = &contract {
@@ -2165,6 +2200,14 @@ impl Emitter<'_> {
                             _ => format!("&{expression}"),
                         }
                     });
+                let expression = if guarded_method_receiver.is_some() {
+                    let name = format!("__terrane_shared_argument_{shared_argument_index}");
+                    shared_argument_index += 1;
+                    write!(shared_argument_setup, "let {name} = {expression}; ").unwrap();
+                    name
+                } else {
+                    expression
+                };
                 if parameter.variadic {
                     variadic_values.push(expression);
                 } else {
@@ -2182,6 +2225,14 @@ impl Emitter<'_> {
                 ));
             }
             self.append_defaults(contract, &mut ordered);
+            if guarded_method_receiver.is_some() {
+                for expression in ordered.iter_mut().flatten() {
+                    let name = format!("__terrane_shared_argument_{shared_argument_index}");
+                    shared_argument_index += 1;
+                    write!(shared_argument_setup, "let {name} = {expression}; ").unwrap();
+                    *expression = name;
+                }
+            }
             if native_struct_construction {
                 native_field_values = Some(ordered);
                 values.clear();
@@ -2445,14 +2496,21 @@ impl Emitter<'_> {
         {
             let receiver = match projected.receiver {
                 Some(crate::rust_interop::projection::Receiver::Borrow) => {
-                    if let Some(narrowed) = self.narrowed_storage_name(receiver, false, false) {
+                    if let Some((_, receiver)) = &guarded_method_receiver {
+                        format!("&*({receiver})")
+                    } else if let Some(narrowed) =
+                        self.narrowed_storage_name(receiver, false, false)
+                    {
                         narrowed
                     } else {
                         format!("&{}", self.native_receiver_expression(receiver, false))
                     }
                 }
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
-                    if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true) {
+                    if let Some((_, receiver)) = &guarded_method_receiver {
+                        format!("&mut *({receiver})")
+                    } else if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true)
+                    {
                         narrowed
                     } else {
                         format!("&mut {}", self.native_receiver_expression(receiver, true))
@@ -2514,14 +2572,17 @@ impl Emitter<'_> {
                         .method(&identity.namespace, &identity.name, &contract.name, false)
                         .and_then(|method| method.receiver)
                 });
-            let receiver_expression = if !contract.is_async
+            let receiver_expression = if let Some((_, receiver)) = &guarded_method_receiver {
+                receiver.clone()
+            } else if !contract.is_async
                 && matches!(
                     projected_receiver,
                     Some(
                         crate::rust_interop::projection::Receiver::Borrow
                             | crate::rust_interop::projection::Receiver::MutableBorrow
                     )
-                ) {
+                )
+            {
                 let mutable = projected_receiver
                     == Some(crate::rust_interop::projection::Receiver::MutableBorrow);
                 if let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable) {
@@ -3273,7 +3334,11 @@ impl Emitter<'_> {
                 mapped
             }
         };
-        if native_input_setup.is_empty() {
+        if let Some((setup, _)) = guarded_method_receiver {
+            format!(
+                "{{ {setup}{shared_argument_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
+            )
+        } else if native_input_setup.is_empty() {
             result
         } else {
             format!("{{ {native_input_setup}{result} }}")

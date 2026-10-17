@@ -83,7 +83,11 @@ async fn wait(
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-        observer.lock().expect("shared reference lock poisoned").cleaned = true;
+        {
+            let __terrane_owner = observer.clone();
+            let __terrane_value = true;
+            __terrane_owner.lock().expect("shared reference lock poisoned").cleaned = __terrane_value;
+        }
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -219,8 +223,9 @@ fn main() {
                     "{}", terrane_scalar_support::scalar_text(&second.error.is_some())
                 );
                 println!(
-                    "{}", terrane_scalar_support::scalar_text(&observer.lock()
-                    .expect("shared reference lock poisoned").cleaned.clone())
+                    "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
+                    observer.lock().expect("shared reference lock poisoned").cleaned;
+                    __terrane_snapshot })
                 );
             })
             .await

@@ -27,7 +27,10 @@ impl<
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: TerraneType54) {
-        self.value = Some(input);
+        {
+            let __terrane_value = input;
+            self.value = Some(__terrane_value);
+        }
     }
     pub fn count_down(
         &self,

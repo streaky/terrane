@@ -13,7 +13,10 @@ impl ImportedError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message;
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();
@@ -36,8 +39,14 @@ impl ConsumerError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, declaration: DocumentValue, message: String) {
-        self.declaration = declaration;
-        self.message = message;
+        {
+            let __terrane_value = declaration;
+            self.declaration = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();
@@ -68,7 +77,10 @@ impl ExplicitError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self) {
-        self.message = String::from("explicit constructor");
+        {
+            let __terrane_value = String::from("explicit constructor");
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();

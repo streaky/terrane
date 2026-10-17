@@ -1120,7 +1120,10 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&root.terrane_field_f0().clone())
     );
-    *root.terrane_field_f0_mut() = terrane_int_support::Int::from(10_i128);
+    {
+        let __terrane_value = terrane_int_support::Int::from(10_i128);
+        *root.terrane_field_f0_mut() = __terrane_value;
+    }
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&root.terrane_field_f0().clone()),
         terrane_scalar_support::scalar_text(&leaf.f0)
