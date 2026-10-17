@@ -3709,7 +3709,7 @@ reasons, and aggregate counts.
 The deferred projection surface originally staged here has shipped: arbitrary foreign-object
 `Option<T>`, receiver-first trait namespaces, data-free enum variants and comparison, wider
 primitives and aliases, profile-aware panic containment, portable containment reporting, residual
-foreign aliases, and durable member-level projection history all have implemented evidence below.
+foreign aliases, and local member-level projection-cache history all have implemented evidence below.
 Generics that cannot be closed consistently from a destination or call-site inputs, and other
 unrepresentable shapes, remain explicit declines governed by the projection rules rather than
 pending deliverables of this milestone.
