@@ -1,0 +1,25 @@
+namespace shared-storage-reentry-safe
+class box
+    count int = 1
+    function peek int; other shared ref box
+        return this.count + other.count
+    mutable function add-from int; other shared ref box
+        this.count = this.count + other.count
+        return this.count
+
+function distinct int; first shared ref box, second shared ref box
+    return first.peek; second
+
+function main;
+    plain = instance box;
+    other = instance box;
+    other.count = 4
+    held = shared ref plain
+    alternate = shared ref other
+    print; (distinct; held, alternate)
+    print; (held.add-from; other = alternate)
+    alias = held
+    print; held.count
+    held = alternate
+    print; (alias.peek; held)
+    print; (held.peek; alias)

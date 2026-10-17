@@ -73,6 +73,7 @@ pub(super) fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    package.validate_shared_storage_reentry(unit, node, scoped_bindings)?;
     if node.kind == SyntaxKind::Name && projected_macro_for_call(package, unit, node).is_some() {
         return Err(failure(
             &unit.source,

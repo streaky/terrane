@@ -1,0 +1,9 @@
+namespace shared-storage-reentry-owner
+class box
+    count int = 1
+    function peek int; other shared ref box
+        return other.count
+function main;
+    plain = instance box;
+    held = shared ref plain
+    held.peek; other = (shared ref plain)

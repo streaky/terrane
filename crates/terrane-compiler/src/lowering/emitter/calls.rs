@@ -797,7 +797,7 @@ impl Emitter<'_> {
         if let Some(method) = bound_method(self.source, callee)
             && !matches!(
                 find_node_by_span(&self.unit.tree.root, method.receiver)
-                    .and_then(|receiver| self.value_type(receiver)),
+                    .and_then(|receiver| self.receiver_value_type(receiver)),
                 Some(ValueType::Object(_))
             )
         {
