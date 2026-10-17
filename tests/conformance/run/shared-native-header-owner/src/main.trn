@@ -1,25 +1,31 @@
 namespace app
 
-from /deps/http import HeaderMap as native-header-map, HeaderValue as native-header-value
+from /core/collections import list
+from /deps/http/request import Builder as native-request-builder
 
-class header-owner
-    private headers shared ref (native-header-map of native-header-value)
+class request-builder-owner
+    private builder shared ref native-request-builder
 
-    function construct;
-        initial native-header-map of native-header-value = rust
-            ::http::HeaderMap::new()
-        this.headers = shared ref initial
+    function construct; builder shared ref native-request-builder
+        this.builder = builder
 
-    function replace; value string
-        headers = this.headers
+    function set-method; value string
+        builder = this.builder
         rust
-            headers.lock().expect("lock").insert("x-value", ::http::HeaderValue::from_str(&value).unwrap());
+            let replacement = ::http::Request::builder().method(::http::Method::from_bytes(value.as_bytes()).unwrap());
+            let _ = std::mem::replace(&mut *builder.lock().expect("lock"), replacement);
 
-    function read string;
-        headers = this.headers
+    function read-method string;
+        builder = this.builder
         value string = rust
-            headers.lock().expect("lock").get("x-value").unwrap().to_str().unwrap().to_owned()
+            builder.lock().expect("lock").method_ref().unwrap().as_str().to_owned()
         return value
+
+function make-builders list of shared ref native-request-builder;
+    initial native-request-builder = rust
+        ::http::Request::builder().method(::http::Method::GET)
+    owner = shared ref initial
+    return list; owner, owner
 
 class resource
     value int = 7
@@ -38,14 +44,24 @@ function count int; value optional-headers
             return owner.value
 
 function main;
-    original = instance header-owner;
-    original.replace; 'first'
+    # The factory's original native binding has left scope before either access.
+    builders = make-builders;
+    for builder in builders
+        view = instance request-builder-owner; builder = builder
+        view.set-method; 'POST'
+        print; (view.read-method;)
+    first = builders[0]
+    original = instance request-builder-owner; builder = first
     copied = original
-    copied.replace; 'second'
-    print; (original.read;)
-    print; (copied.read;)
-    owner = shared ref (instance resource;)
-    value = instance optional-headers::present; owner = owner
+    copied.set-method; 'PATCH'
+    print; (original.read-method;)
+    print; (copied.read-method;)
+    second = builders[1]
+    other-view = instance request-builder-owner; builder = second
+    print; (other-view.read-method;)
+
+    owner-resource = shared ref (instance resource;)
+    value = instance optional-headers::present; owner = owner-resource
     copied-value = value
     print; (count; value)
     print; (count; copied-value)

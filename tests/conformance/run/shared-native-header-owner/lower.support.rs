@@ -462,9 +462,14 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 0] = [];
-    pub static FUNCTIONS: [&str; 0] = [];
-    pub static SITES: [Site; 0] = [];
+    pub static FILES: [&str; 1] = ["src/main.trn"];
+    pub static FUNCTIONS: [&str; 1] = ["/app::main"];
+    pub static SITES: [Site; 2] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:53:13-53:24) */
+        { Site { function: 0, file: 0, line: 53, column: 13, end_line: 53, end_column: 24 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:59:14-59:25) */
+        { Site { function: 0, file: 0, line: 59, column: 14, end_line: 59, end_column: 25 } },
+    ];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -477,7 +482,6 @@ mod __terrane_trace {
         )
     }
 }
-// Source: <terrane>/projected/deps/http.trn
-// Namespace: deps/http
-pub use http::HeaderMap;
-pub use http::HeaderValue;
+// Source: <terrane>/projected/deps/http/request.trn
+// Namespace: deps/http/request
+pub use http::request::Builder;

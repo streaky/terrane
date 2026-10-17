@@ -260,6 +260,9 @@ pub struct ReferenceProvenance {
     pub lifetime_end: Option<Span>,
 }
 
+// This consumes unit-classified identity facts; the package-level objects helper
+// derives its facts from projection capabilities. Keep those policies distinct
+// while preserving the same shared-handle recursion boundary in both.
 pub(crate) fn value_type_contains_nonclone_foreign(
     unit: &SemanticUnit,
     value_type: &ValueType,
@@ -297,8 +300,7 @@ pub(crate) fn value_type_contains_nonclone_foreign(
         | ValueType::TaskGroup(item)
         | ValueType::ChannelReceiveOutcome(item)
         | ValueType::ChannelSendOutcome(item)
-        | ValueType::Reference(item)
-        | ValueType::SharedReference(item) => {
+        | ValueType::Reference(item) => {
             value_type_contains_nonclone_foreign(unit, item.value_type_ref())
         }
         ValueType::Map(key, value)
@@ -307,6 +309,7 @@ pub(crate) fn value_type_contains_nonclone_foreign(
             value_type_contains_nonclone_foreign(unit, key.value_type_ref())
                 || value_type_contains_nonclone_foreign(unit, value.value_type_ref())
         }
+        // A shared reference copies its owner handle, not the native referent.
         _ => false,
     }
 }

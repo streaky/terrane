@@ -3,60 +3,57 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 #[derive(Clone)]
-pub struct HeaderOwner {
-    pub headers: Option<
-        std::sync::Arc<std::sync::Mutex<http::HeaderMap<http::HeaderValue>>>,
-    >,
+pub struct RequestBuilderOwner {
+    pub builder: Option<std::sync::Arc<std::sync::Mutex<Builder>>>,
 }
-impl HeaderOwner {
-    pub fn terrane_construct() -> Self {
-        let mut __terrane_constructed_value = Self { headers: None };
-        __terrane_constructed_value.construct();
+impl RequestBuilderOwner {
+    pub fn terrane_construct(
+        builder: std::sync::Arc<std::sync::Mutex<Builder>>,
+    ) -> Self {
+        let mut __terrane_constructed_value = Self { builder: None };
+        __terrane_constructed_value.construct(builder);
         __terrane_constructed_value
     }
-    pub fn construct(&mut self) {
-        let initial: std::sync::Arc<
-            std::sync::Mutex<http::HeaderMap<http::HeaderValue>>,
-        >;
-        initial = std::sync::Arc::new(std::sync::Mutex::new(::http::HeaderMap::new()));
-        self.headers = Some(initial.clone());
+    pub fn construct(&mut self, builder: std::sync::Arc<std::sync::Mutex<Builder>>) {
+        self.builder = Some(builder.clone());
     }
-    pub fn replace(&self, value: String) {
-        let headers: std::sync::Arc<
-            std::sync::Mutex<http::HeaderMap<http::HeaderValue>>,
-        >;
+    pub fn set_method(&self, value: String) {
+        let builder: std::sync::Arc<std::sync::Mutex<Builder>>;
         let _ = &value;
-        headers = self.headers.as_ref().expect("required field initialized").clone();
-        let _ = &headers;
+        builder = self.builder.as_ref().expect("required field initialized").clone();
+        let _ = &builder;
         {
             let value = value.clone();
-            let headers = headers.clone();
-            headers
-                .lock()
-                .expect("lock")
-                .insert("x-value", ::http::HeaderValue::from_str(&value).unwrap());
+            let builder = builder.clone();
+            let replacement = ::http::Request::builder()
+                .method(::http::Method::from_bytes(value.as_bytes()).unwrap());
+            let _ = std::mem::replace(&mut *builder.lock().expect("lock"), replacement);
         }
     }
-    pub fn read(&self) -> String {
-        let headers: std::sync::Arc<
-            std::sync::Mutex<http::HeaderMap<http::HeaderValue>>,
-        >;
+    pub fn read_method(&self) -> String {
+        let builder: std::sync::Arc<std::sync::Mutex<Builder>>;
         let value: String;
-        headers = self.headers.as_ref().expect("required field initialized").clone();
-        let _ = &headers;
+        builder = self.builder.as_ref().expect("required field initialized").clone();
+        let _ = &builder;
         value = {
-            let headers = headers.clone();
-            headers
-                .lock()
-                .expect("lock")
-                .get("x-value")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_owned()
+            let builder = builder.clone();
+            builder.lock().expect("lock").method_ref().unwrap().as_str().to_owned()
         };
         return value;
     }
+}
+fn make_builders() -> terrane_collection_support::List<
+    std::sync::Arc<std::sync::Mutex<Builder>>,
+> {
+    let initial: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let owner: std::sync::Arc<std::sync::Mutex<Builder>>;
+    initial = std::sync::Arc::new(
+        std::sync::Mutex::new(::http::Request::builder().method(::http::Method::GET)),
+    );
+    owner = initial.clone();
+    return terrane_collection_support::List::<
+        std::sync::Arc<std::sync::Mutex<Builder>>,
+    >::new(vec![owner.clone(), owner.clone()]);
 }
 #[derive(Clone)]
 pub struct Resource {
@@ -94,13 +91,13 @@ pub enum OptionalHeaders {
 }
 fn count(value: OptionalHeaders) -> terrane_int_support::Int {
     let owner: std::sync::Arc<std::sync::Mutex<Resource>>;
-    let __terrane_match_value_972 = value.clone();
-    match __terrane_match_value_972 {
+    let __terrane_match_value_1233 = value.clone();
+    match __terrane_match_value_1233 {
         OptionalHeaders::Absent => {
             return terrane_int_support::Int::from(-1_i128);
         }
-        OptionalHeaders::Present(__terrane_pattern_1052_owner) => {
-            owner = __terrane_pattern_1052_owner;
+        OptionalHeaders::Present(__terrane_pattern_1313_owner) => {
+            owner = __terrane_pattern_1313_owner;
             return owner
                 .lock()
                 .expect("shared reference lock poisoned")
@@ -111,20 +108,71 @@ fn count(value: OptionalHeaders) -> terrane_int_support::Int {
     }
 }
 fn main() {
-    let original: HeaderOwner;
-    let copied: HeaderOwner;
-    let owner: std::sync::Arc<std::sync::Mutex<Resource>>;
+    let builders: terrane_collection_support::List<
+        std::sync::Arc<std::sync::Mutex<Builder>>,
+    >;
+    let mut builder: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let mut view: RequestBuilderOwner;
+    let first: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let original: RequestBuilderOwner;
+    let copied: RequestBuilderOwner;
+    let second: std::sync::Arc<std::sync::Mutex<Builder>>;
+    let other_view: RequestBuilderOwner;
+    let owner_resource: std::sync::Arc<std::sync::Mutex<Resource>>;
     let value: OptionalHeaders;
     let copied_value: OptionalHeaders;
-    original = HeaderOwner::terrane_construct();
-    original.replace(String::from("first"));
+    builders = make_builders();
+    let __terrane_iterable_0 = builders.clone();
+    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
+        &__terrane_iterable_0,
+    );
+    loop {
+        builder = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        view = RequestBuilderOwner::terrane_construct(builder.clone());
+        view.set_method(String::from("POST"));
+        println!("{}", terrane_scalar_support::scalar_text(&view.read_method()));
+    }
+    first = __terrane_raised(
+            builders
+                .get_or_error(
+                    __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(0_i128),
+                        ),
+                        0 /* terrane-site: src/main.trn:53:13-53:24 */,
+                    ),
+                ),
+            0 /* terrane-site: src/main.trn:53:13-53:24 */,
+        )
+        .clone();
+    original = RequestBuilderOwner::terrane_construct(first.clone());
     copied = original.clone();
-    copied.replace(String::from("second"));
-    println!("{}", terrane_scalar_support::scalar_text(&original.read()));
-    println!("{}", terrane_scalar_support::scalar_text(&copied.read()));
-    owner = std::sync::Arc::new(std::sync::Mutex::new(Resource::terrane_construct()));
+    copied.set_method(String::from("PATCH"));
+    println!("{}", terrane_scalar_support::scalar_text(&original.read_method()));
+    println!("{}", terrane_scalar_support::scalar_text(&copied.read_method()));
+    second = __terrane_raised(
+            builders
+                .get_or_error(
+                    __terrane_raised(
+                        terrane_collection_support::index_from_int(
+                            &terrane_int_support::Int::from(1_i128),
+                        ),
+                        1 /* terrane-site: src/main.trn:59:14-59:25 */,
+                    ),
+                ),
+            1 /* terrane-site: src/main.trn:59:14-59:25 */,
+        )
+        .clone();
+    other_view = RequestBuilderOwner::terrane_construct(second.clone());
+    println!("{}", terrane_scalar_support::scalar_text(&other_view.read_method()));
+    owner_resource = std::sync::Arc::new(
+        std::sync::Mutex::new(Resource::terrane_construct()),
+    );
     value = {
-        let __terrane_enum_payload_0 = owner.clone();
+        let __terrane_enum_payload_0 = owner_resource.clone();
         OptionalHeaders::Present(__terrane_enum_payload_0)
     };
     copied_value = value.clone();
