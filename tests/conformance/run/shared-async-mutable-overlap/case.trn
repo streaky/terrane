@@ -1,0 +1,39 @@
+namespace shared-async-mutable-overlap
+from /core/concurrency import channel, channel-block
+
+class accumulator
+    total int = 0
+    mutable async function add int; delta int, started (channel-sender of int), gate (channel-receiver of int)
+        sent = await started.send; delta
+        if not sent.accepted
+            return -1
+        released = await gate.receive;
+        if not released.available
+            return -2
+        this.total = this.total + delta
+        return this.total
+
+async function main;
+    started_left = channel; int, 1, channel-block
+    started_right = channel; int, 1, channel-block
+    gate_left = channel; int, 1, channel-block
+    gate_right = channel; int, 1, channel-block
+    value = instance accumulator;
+    first = shared ref value
+    second = first
+    scope = task-scope;
+    left_call = first.add; 4, started_left.sender, gate_left.receiver
+    right_call = second.add; 7, started_right.sender, gate_right.receiver
+    left = scope.spawn; left_call
+    right = scope.spawn; right_call
+    one = await started_left.receiver.receive;
+    two = await started_right.receiver.receive;
+    if not one.available or not two.available
+        print; 'start signal missing'
+    first_release = await gate_left.sender.send; 1
+    left_result = await scope.join; left
+    second_release = await gate_right.sender.send; 1
+    right_result = await scope.join; right
+    print; first_release.accepted, second_release.accepted
+    print; left_result.completed, right_result.completed
+    print; first.total, second.total

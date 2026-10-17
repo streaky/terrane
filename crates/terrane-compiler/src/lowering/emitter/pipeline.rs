@@ -105,20 +105,28 @@ fn package_uses_shared_storage(package: &SemanticPackage) -> bool {
             value_type_contains_shared_storage(&binding.value_type)
                 || package.binding_uses_shared_storage(unit, binding)
         }) || unit.descriptors.iter().any(|descriptor| {
-            descriptor
-                .fields
-                .iter()
-                .any(|field| value_type_contains_shared_storage(&field.value_type))
+            descriptor.kind == crate::semantics::ObjectKind::Class
+                && crate::semantics::effective_object_fields(package, descriptor)
+                    .iter()
+                    .any(|field| field.is_static)
         }) || unit.functions.iter().any(|function| {
-            function.parameters.iter().any(|parameter| {
-                parameter
-                    .value_type
+            (function.owner.is_some()
+                && !function.is_static
+                && function.is_async
+                && matches!(
+                    function.written_invocation_mode,
+                    InvocationMode::Shared | InvocationMode::Mutable
+                ))
+                || function.parameters.iter().any(|parameter| {
+                    parameter
+                        .value_type
+                        .as_ref()
+                        .is_some_and(value_type_contains_shared_storage)
+                })
+                || function
+                    .return_type
                     .as_ref()
                     .is_some_and(value_type_contains_shared_storage)
-            }) || function
-                .return_type
-                .as_ref()
-                .is_some_and(value_type_contains_shared_storage)
         })
     })
 }

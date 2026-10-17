@@ -3,8 +3,8 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: throwable-message-render
 pub static TERRANE_STATIC_SPLITERROR_RENDERS: std::sync::LazyLock<
-    std::sync::Mutex<terrane_int_support::Int>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(
+    TerraneSharedCell<terrane_int_support::Int>,
+> = std::sync::LazyLock::new(|| TerraneSharedCell::new(
     terrane_int_support::Int::from(0_i128),
 ));
 #[derive(Clone)]
@@ -33,10 +33,13 @@ impl SplitError {
     }
     pub fn render(&self) -> String {
         {
-            let __terrane_static_value = TERRANE_STATIC_SPLITERROR_RENDERS
-                .lock()
-                .expect("static field lock poisoned")
-                .clone() + terrane_int_support::Int::from(1_i128);
+            let __terrane_static_value = {
+                let __terrane_value = TERRANE_STATIC_SPLITERROR_RENDERS
+                    .lock()
+                    .expect("static field lock poisoned")
+                    .clone();
+                __terrane_value
+            } + terrane_int_support::Int::from(1_i128);
             *TERRANE_STATIC_SPLITERROR_RENDERS
                 .lock()
                 .expect("static field lock poisoned") = __terrane_static_value;
@@ -440,7 +443,8 @@ fn main() {
         }
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&TERRANE_STATIC_SPLITERROR_RENDERS
-        .lock().expect("static field lock poisoned").clone())
+        "{}", { let __terrane_result = terrane_scalar_support::scalar_text(&*
+        TERRANE_STATIC_SPLITERROR_RENDERS.lock().expect("static field lock poisoned"));
+        __terrane_result }
     );
 }

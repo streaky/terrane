@@ -1,9 +1,10 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: optional-member-post-if-return
 pub static TERRANE_STATIC_HOLDER_VALUE: std::sync::LazyLock<
-    std::sync::Mutex<Option<terrane_int_support::Int>>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+    TerraneSharedCell<Option<terrane_int_support::Int>>,
+> = std::sync::LazyLock::new(|| TerraneSharedCell::new(None));
 #[derive(Clone)]
 pub struct Holder {}
 impl Holder {
@@ -11,10 +12,13 @@ impl Holder {
         Self {}
     }
     pub fn terrane_static_initialized() -> terrane_int_support::Int {
-        if TERRANE_STATIC_HOLDER_VALUE
-            .lock()
-            .expect("static field lock poisoned")
-            .clone()
+        if {
+            let __terrane_value = TERRANE_STATIC_HOLDER_VALUE
+                .lock()
+                .expect("static field lock poisoned")
+                .clone();
+            __terrane_value
+        }
             .is_none()
         {
             {
@@ -26,10 +30,13 @@ impl Holder {
                     .expect("static field lock poisoned") = __terrane_static_value;
             }
         }
-        return TERRANE_STATIC_HOLDER_VALUE
-            .lock()
-            .expect("static field lock poisoned")
-            .clone()
+        return {
+            let __terrane_value = TERRANE_STATIC_HOLDER_VALUE
+                .lock()
+                .expect("static field lock poisoned")
+                .clone();
+            __terrane_value
+        }
             .as_ref()
             .expect("semantic optional narrowing")
             .clone();

@@ -1,0 +1,18 @@
+namespace shared-async-resource-field
+from /core/streams import byte-reader, stdin
+class holder
+    input byte-reader|none = none
+    function construct;
+        this.input = stdin;
+    mutable async function clear bool;
+        previous = move this.input
+        present = previous != none
+        if previous != none
+            previous.close;
+        return present
+async function main;
+    value = instance holder;
+    owner = shared ref value
+    alias = owner
+    print; await owner.clear;
+    print; await alias.clear;

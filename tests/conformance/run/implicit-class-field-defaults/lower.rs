@@ -3,8 +3,8 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: implicit-class-field-defaults
 pub static TERRANE_STATIC_DEFAULTS_SHARED: std::sync::LazyLock<
-    std::sync::Mutex<terrane_int_support::Int>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(
+    TerraneSharedCell<terrane_int_support::Int>,
+> = std::sync::LazyLock::new(|| TerraneSharedCell::new(
     terrane_int_support::Int::from(0_i128),
 ));
 #[derive(Clone)]
@@ -108,9 +108,9 @@ fn main() {
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&value.note.is_none()),
         String::from(":"), terrane_scalar_support::scalar_text(&value.explicit),
-        String::from(":"),
-        terrane_scalar_support::scalar_text(&TERRANE_STATIC_DEFAULTS_SHARED.lock()
-        .expect("static field lock poisoned").clone())
+        String::from(":"), { let __terrane_result =
+        terrane_scalar_support::scalar_text(&* TERRANE_STATIC_DEFAULTS_SHARED.lock()
+        .expect("static field lock poisoned")); __terrane_result }
     );
     descriptor = TerraneDescriptor {
         identity: "/implicit-class-field-defaults::defaults",

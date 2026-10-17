@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: static-field-member-assignment
 #[derive(Clone)]
@@ -12,8 +13,8 @@ impl Inner {
         }
     }
 }
-pub static TERRANE_STATIC_HOLDER_SLOT: std::sync::LazyLock<std::sync::Mutex<Inner>> = std::sync::LazyLock::new(||
-std::sync::Mutex::new(Inner::terrane_construct()));
+pub static TERRANE_STATIC_HOLDER_SLOT: std::sync::LazyLock<TerraneSharedCell<Inner>> = std::sync::LazyLock::new(||
+TerraneSharedCell::new(Inner::terrane_construct()));
 #[derive(Clone)]
 pub struct Holder {}
 impl Holder {
@@ -33,7 +34,9 @@ impl Holder {
 fn main() {
     Holder::terrane_static_update();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&TERRANE_STATIC_HOLDER_SLOT.lock()
-        .expect("static field lock poisoned").clone().value)
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = TERRANE_STATIC_HOLDER_SLOT.lock()
+        .expect("static field lock poisoned").value.clone(); __terrane_result };
+        __terrane_snapshot })
     );
 }

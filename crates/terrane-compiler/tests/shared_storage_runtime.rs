@@ -14,6 +14,34 @@ fn conflict(operation: impl FnOnce()) {
     );
 }
 
+fn exercise_projection() {
+    let cell = std::sync::Arc::new(TerraneSharedCell::new((1, 2)));
+    let projected = TerraneSharedProjection::new(
+        cell.clone(),
+        |value: &(i32, i32)| &value.1,
+        |value: &mut (i32, i32)| &mut value.1,
+    );
+    let mut guard = projected.lock().unwrap();
+    *guard += 3;
+    conflict(|| drop(cell.lock()));
+    drop(guard);
+    assert_eq!(*cell.lock().unwrap(), (1, 5));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut guard = projected.lock().unwrap();
+        *guard = 9;
+        panic!("deliberate projected unwind");
+    }));
+    assert!(result.is_err());
+    let mut recovered = match projected.lock() {
+        Ok(_) => panic!("projection must preserve poison"),
+        Err(error) => error.into_inner(),
+    };
+    assert_eq!(*recovered, 9);
+    *recovered = 12;
+    drop(recovered);
+    assert_eq!(*cell.as_ref().lock().unwrap_err().into_inner(), (1, 12));
+}
+
 fn exercise(mode: &str) {
     match mode {
         "nested" => {
@@ -99,6 +127,7 @@ fn exercise(mode: &str) {
             }
             assert_eq!(*cell.lock().unwrap(), 8000);
         }
+        "projection" => exercise_projection(),
         _ => panic!("unknown scenario {mode}"),
     }
 }
@@ -110,7 +139,14 @@ fn checked_shared_storage_behaviors_are_bounded() {
         exercise(&mode);
         return;
     }
-    for mode in ["nested", "cycle", "poison", "contention", "serialization"] {
+    for mode in [
+        "nested",
+        "cycle",
+        "poison",
+        "contention",
+        "serialization",
+        "projection",
+    ] {
         let mut child = std::process::Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",

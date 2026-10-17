@@ -1915,6 +1915,48 @@ impl Emitter<'_> {
                         .projected_struct(&object.identity.namespace, &object.identity.name)
                 })
                 .is_some();
+        let shared_async_method = contract.as_ref().is_some_and(|contract| {
+            projected_function.is_none()
+                && contract.owner.is_some()
+                && !contract.is_static
+                && contract.is_async
+                && matches!(
+                    contract.written_invocation_mode,
+                    InvocationMode::Shared | InvocationMode::Mutable
+                )
+        }) && matches!(callee.children.as_slice(), [receiver, _] if self.receiver_needs_live_guard(receiver));
+        let shared_async_receiver = if shared_async_method
+            && let [receiver, _] = callee.children.as_slice()
+        {
+            let setup = if self.shared_async_receiver && self.text(receiver) == "this" {
+                "let __terrane_shared_call_handle = __terrane_shared_handle.clone(); ".to_owned()
+            } else if let Some(storage) = self.static_storage_name(receiver) {
+                format!("let __terrane_shared_call_handle = &*{storage}; ")
+            } else {
+                match self.value_type(receiver) {
+                    Some(ValueType::SharedReference(_)) => format!(
+                        "let __terrane_shared_call_handle = ({}).clone(); ",
+                        self.expression(receiver)
+                    ),
+                    Some(ValueType::Reference(_))
+                        if self.reference_uses_shared_storage(receiver) =>
+                    {
+                        format!(
+                            "let __terrane_shared_call_handle = ({}).upgrade().expect(\"reference expired\"); ",
+                            self.expression(receiver)
+                        )
+                    }
+                    _ if self.reference_backed_name(receiver).is_some() => format!(
+                        "let __terrane_shared_call_handle = {}.clone(); ",
+                        self.raw_storage_name(receiver)
+                    ),
+                    _ => String::new(),
+                }
+            };
+            Some(setup)
+        } else {
+            None
+        };
         let guarded_method_receiver = if contract.as_ref().is_some_and(|contract| {
             contract.owner.is_some()
                 && !contract.is_static
@@ -2200,7 +2242,7 @@ impl Emitter<'_> {
                             _ => format!("&{expression}"),
                         }
                     });
-                let expression = if guarded_method_receiver.is_some() {
+                let expression = if guarded_method_receiver.is_some() || shared_async_method {
                     let name = format!("__terrane_shared_argument_{shared_argument_index}");
                     shared_argument_index += 1;
                     write!(shared_argument_setup, "let {name} = {expression}; ").unwrap();
@@ -2225,7 +2267,7 @@ impl Emitter<'_> {
                 ));
             }
             self.append_defaults(contract, &mut ordered);
-            if guarded_method_receiver.is_some() {
+            if guarded_method_receiver.is_some() || shared_async_method {
                 for expression in ordered.iter_mut().flatten() {
                     let name = format!("__terrane_shared_argument_{shared_argument_index}");
                     shared_argument_index += 1;
@@ -2548,6 +2590,23 @@ impl Emitter<'_> {
                 receiver
             };
             format!("({receiver}).{}", projected.name)
+        } else if shared_async_method
+            && let Some(contract) = &contract
+            && let [receiver, _member] = callee.children.as_slice()
+        {
+            let identity = self
+                .receiver_value_type(receiver)
+                .and_then(|value_type| match value_type {
+                    ValueType::Object(identity) => Some(identity),
+                    _ => None,
+                })
+                .expect("shared async receiver resolves to an object type");
+            let owner =
+                rust_source_type_application(self.package, &identity).replacen('<', "::<", 1);
+            format!(
+                "{owner}::__terrane_shared_async_{}",
+                function_name(self.package, contract)
+            )
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -2604,7 +2663,9 @@ impl Emitter<'_> {
             } else {
                 self.receiver_expression(receiver)
             };
-            let receiver = if contract.is_async {
+            let receiver = if self.text(receiver) == "this" && self.closure_depth == 0 {
+                receiver_expression
+            } else if contract.is_async {
                 match projected_receiver {
                     Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
                         self.mutable_receiver_expression(receiver)
@@ -2784,6 +2845,10 @@ impl Emitter<'_> {
         } else {
             name
         };
+        if let Some(handle_setup) = &shared_async_receiver {
+            values.insert(0, "__terrane_shared_call_handle".to_owned());
+            shared_argument_setup.insert_str(0, handle_setup);
+        }
         if let Some(receiver) = native_member_receiver {
             values.insert(0, receiver);
         }
@@ -3338,6 +3403,8 @@ impl Emitter<'_> {
             format!(
                 "{{ {setup}{shared_argument_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
             )
+        } else if shared_async_receiver.is_some() {
+            format!("{{ {shared_argument_setup}{native_input_setup}{result} }}")
         } else if native_input_setup.is_empty() {
             result
         } else {

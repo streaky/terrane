@@ -22,6 +22,35 @@ impl Accumulator {
         }
         return self.total.clone();
     }
+    pub async fn __terrane_shared_async_add(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        delta: terrane_int_support::Int,
+    ) -> terrane_int_support::Int {
+        {
+            let __terrane_value = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .total
+                    .clone();
+                __terrane_snapshot
+            }
+                .clone() + delta.clone();
+            __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .total = __terrane_value;
+        }
+        return {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .total
+                .clone();
+            __terrane_snapshot
+        }
+            .clone();
+    }
 }
 #[derive(Clone)]
 pub struct Reader {
@@ -38,6 +67,20 @@ impl Reader {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         return self.total.clone() + delta.clone();
+    }
+    pub async fn __terrane_shared_async_peek(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        delta: terrane_int_support::Int,
+    ) -> terrane_int_support::Int {
+        return {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .total
+                .clone();
+            __terrane_snapshot
+        }
+            .clone() + delta.clone();
     }
 }
 async fn text() -> String {

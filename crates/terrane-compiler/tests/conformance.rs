@@ -942,7 +942,11 @@ fn compile_and_maybe_run(
     }
 }
 
-fn assert_runtime_failure(mut child: std::process::Child, case: &Path, expected_error: &str) {
+fn assert_bounded_runtime(
+    mut child: std::process::Child,
+    case: &Path,
+    expected_error: Option<&str>,
+) {
     // Drain pipes concurrently so diagnostics cannot block the bounded child.
     let mut stdout = child.stdout.take().unwrap();
     let mut stderr = child.stderr.take().unwrap();
@@ -967,7 +971,7 @@ fn assert_runtime_failure(mut child: std::process::Child, case: &Path, expected_
             let _ = stdout_reader.join();
             let stderr = stderr_reader.join().unwrap();
             panic!(
-                "{} runtime failure timed out: {}",
+                "{} native execution timed out: {}",
                 case.display(),
                 String::from_utf8_lossy(&stderr)
             );
@@ -982,13 +986,30 @@ fn assert_runtime_failure(mut child: std::process::Child, case: &Path, expected_
         "{} stdout",
         case.display()
     );
-    assert!(!status.success(), "{} must fail at runtime", case.display());
-    assert!(
-        String::from_utf8_lossy(&stderr).contains(expected_error),
-        "{} expected runtime error {expected_error:?}: {}",
-        case.display(),
-        String::from_utf8_lossy(&stderr)
-    );
+    if let Some(expected_error) = expected_error {
+        assert!(!status.success(), "{} must fail at runtime", case.display());
+        assert!(
+            String::from_utf8_lossy(&stderr).contains(expected_error),
+            "{} expected runtime error {expected_error:?}: {}",
+            case.display(),
+            String::from_utf8_lossy(&stderr)
+        );
+    } else {
+        assert_eq!(
+            stderr,
+            optional_bytes(case.join("stderr.txt")),
+            "{} stderr",
+            case.display()
+        );
+        let expected_code = optional_text(case.join("exit-code.txt"))
+            .map_or(0, |text| text.trim().parse().unwrap());
+        assert_eq!(
+            status.code(),
+            Some(expected_code),
+            "{} exit code",
+            case.display()
+        );
+    }
 }
 
 fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
@@ -1033,9 +1054,10 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
             case.display()
         );
     }
-    if let Some(expected_error) = field(manifest, "runtime-error") {
+    let expected_error = field(manifest, "runtime-error");
+    if expected_error.is_some() || boolean_field(manifest, "bounded-runtime") == Some(true) {
         drop(stdin.take());
-        assert_runtime_failure(child, case, expected_error);
+        assert_bounded_runtime(child, case, expected_error);
         return;
     }
     let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);

@@ -264,7 +264,10 @@ impl Emitter<'_> {
                 SyntaxKind::MemberExpression
                     if matches!(self.value_type(operand), Some(ValueType::Optional(_))) =>
                 {
-                    format!("std::mem::take(&mut {})", self.expression(operand))
+                    let previous = std::mem::replace(&mut self.assignment_target, true);
+                    let place = self.expression(operand);
+                    self.assignment_target = previous;
+                    format!("std::mem::take(&mut {place})")
                 }
                 _ => self.expression(operand),
             };
@@ -495,7 +498,9 @@ impl Emitter<'_> {
             && (matches!(
                 self.value_type(receiver),
                 Some(ValueType::Reference(_) | ValueType::SharedReference(_))
-            ) || self.reference_backed_name(receiver).is_some())
+            ) || self.reference_backed_name(receiver).is_some()
+                || self.shared_async_receiver && self.text(receiver) == "this"
+                || self.static_storage_name(receiver).is_some())
             && matches!(
                 self.receiver_value_type(receiver),
                 Some(ValueType::Object(_))

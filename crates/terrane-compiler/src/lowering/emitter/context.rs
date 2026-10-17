@@ -31,6 +31,9 @@ impl<'unit> Emitter<'unit> {
             return "()".to_owned();
         }
         if source_name == "this" {
+            if self.shared_async_receiver {
+                return "{ let __terrane_value = __terrane_shared_handle.lock().expect(\"shared async receiver lock poisoned\").clone(); __terrane_value }".to_owned();
+            }
             return self.receiver_capture_name(node);
         }
         if let Some(name) = self.narrowed_name(node) {

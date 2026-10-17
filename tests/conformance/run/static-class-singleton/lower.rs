@@ -3,8 +3,8 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: static-class-singleton
 pub static TERRANE_STATIC_WIDGET_CURRENT: std::sync::LazyLock<
-    std::sync::Mutex<Option<Widget>>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(None));
+    TerraneSharedCell<Option<Widget>>,
+> = std::sync::LazyLock::new(|| TerraneSharedCell::new(None));
 #[derive(Clone)]
 pub struct Widget {}
 impl Widget {
@@ -23,10 +23,13 @@ impl Widget {
             .to_owned();
     }
     pub fn terrane_static_shared() -> Widget {
-        if TERRANE_STATIC_WIDGET_CURRENT
-            .lock()
-            .expect("static field lock poisoned")
-            .clone()
+        if {
+            let __terrane_value = TERRANE_STATIC_WIDGET_CURRENT
+                .lock()
+                .expect("static field lock poisoned")
+                .clone();
+            __terrane_value
+        }
             .is_none()
         {
             {
@@ -36,10 +39,13 @@ impl Widget {
                     .expect("static field lock poisoned") = __terrane_static_value;
             }
         }
-        return TERRANE_STATIC_WIDGET_CURRENT
-            .lock()
-            .expect("static field lock poisoned")
-            .clone()
+        return {
+            let __terrane_value = TERRANE_STATIC_WIDGET_CURRENT
+                .lock()
+                .expect("static field lock poisoned")
+                .clone();
+            __terrane_value
+        }
             .as_ref()
             .expect("semantic optional narrowing")
             .clone();

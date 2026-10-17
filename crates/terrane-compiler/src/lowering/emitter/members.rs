@@ -316,11 +316,45 @@ impl Emitter<'_> {
         format!("&mut {}", self.receiver_expression(receiver))
     }
 
+    pub(super) fn static_storage_name(&self, node: &SyntaxNode) -> Option<String> {
+        if node.kind == SyntaxKind::GroupExpression {
+            return self.static_storage_name(node.children.first()?);
+        }
+        if node.kind != SyntaxKind::StaticMemberExpression {
+            return None;
+        }
+        let [class, member] = node.children.as_slice() else {
+            return None;
+        };
+        let object = self.class_designator(class)?;
+        let name = self.text(member);
+        if self
+            .package
+            .projection
+            .constant_for_native(
+                &object.identity.namespace,
+                &object.identity.name,
+                object.identity.native_projection.as_deref(),
+                name,
+            )
+            .is_some()
+        {
+            return None;
+        }
+        effective_object_fields(self.package, object)
+            .iter()
+            .any(|field| field.is_static && field.name == name)
+            .then(|| rust_static_field_name(self.package, &object.identity, name))
+    }
+
     pub(super) fn receiver_needs_live_guard(&self, receiver: &SyntaxNode) -> bool {
-        matches!(
-            self.value_type(receiver),
-            Some(ValueType::SharedReference(_))
-        ) || self.reference_uses_shared_storage(receiver)
+        self.shared_async_receiver && self.text(receiver) == "this"
+            || self.static_storage_name(receiver).is_some()
+            || matches!(
+                self.value_type(receiver),
+                Some(ValueType::SharedReference(_))
+            )
+            || self.reference_uses_shared_storage(receiver)
             || self.reference_backed_name(receiver).is_some()
             || matches!(
                 receiver.kind,
@@ -338,6 +372,19 @@ impl Emitter<'_> {
             && let [grouped] = receiver.children.as_slice()
         {
             return self.live_receiver_parts(grouped);
+        }
+        if let Some(storage) = self.static_storage_name(receiver) {
+            return (
+                String::new(),
+                format!("{storage}.lock().expect(\"static field lock poisoned\")"),
+            );
+        }
+        if self.shared_async_receiver && self.text(receiver) == "this" {
+            return (
+                String::new(),
+                "__terrane_shared_handle.lock().expect(\"shared async receiver lock poisoned\")"
+                    .to_owned(),
+            );
         }
         if matches!(
             self.value_type(receiver),
@@ -419,6 +466,12 @@ impl Emitter<'_> {
     }
 
     pub(super) fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if let Some(storage) = self.static_storage_name(receiver) {
+            return format!("{storage}.lock().expect(\"static field lock poisoned\")");
+        }
+        if self.shared_async_receiver && self.text(receiver) == "this" {
+            return "__terrane_shared_handle.lock().expect(\"shared async receiver lock poisoned\")".to_owned();
+        }
         if let Some(narrowed) = self.narrowed_storage_name(receiver, false, true) {
             return narrowed;
         }
@@ -453,7 +506,9 @@ impl Emitter<'_> {
         receiver: &SyntaxNode,
         expression: String,
     ) -> String {
-        if self.reference_uses_shared_storage(receiver) {
+        if self.static_storage_name(receiver).is_some() {
+            format!("{{ let __terrane_result = {expression}; __terrane_result }}")
+        } else if self.reference_uses_shared_storage(receiver) {
             format!(
                 "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); {expression} }})",
                 self.expression(receiver)
@@ -575,7 +630,7 @@ impl Emitter<'_> {
             .any(|field| field.is_static && field.name == member_name)
         {
             return format!(
-                "({}.lock().expect(\"static field lock poisoned\")).clone()",
+                "{{ let __terrane_value = {}.lock().expect(\"static field lock poisoned\").clone(); __terrane_value }}",
                 rust_static_field_name(self.package, &object.identity, member_name)
             );
         }
@@ -830,7 +885,9 @@ impl Emitter<'_> {
         if (matches!(
             self.value_type(receiver),
             Some(ValueType::Reference(_) | ValueType::SharedReference(_))
-        ) || self.reference_backed_name(receiver).is_some())
+        ) || self.reference_backed_name(receiver).is_some()
+            || self.shared_async_receiver && self.text(receiver) == "this"
+            || self.static_storage_name(receiver).is_some())
             && matches!(receiver_type, Some(ValueType::Object(_)))
         {
             let owned_snapshot = if !self.assignment_target && !explicit_field_move {
@@ -1081,7 +1138,10 @@ impl Emitter<'_> {
             Some(ValueType::Object(identity)) => {
                 self.value_type(node) == Some(ValueType::Scalar(ScalarType::Int))
                     && !source_field_is_required(self.package, &identity, name)
-                    && (self.wrapped_object_field(receiver, name)
+                    && (self.shared_async_receiver && self.text(receiver) == "this"
+                        || self.static_storage_name(receiver).is_some()
+                        || self.reference_backed_name(receiver).is_some()
+                        || self.wrapped_object_field(receiver, name)
                         || matches!(
                             self.value_type(receiver),
                             Some(ValueType::Reference(_) | ValueType::SharedReference(_))

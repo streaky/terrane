@@ -1,0 +1,20 @@
+namespace shared-async-static-nested
+class counter of (T)
+    total int = 0
+    mutable function increment int;
+        this.total = this.total + 1
+        return this.total
+    mutable async function inner int; delta int
+        this.total = this.total + delta
+        return this.increment;
+    mutable async function outer int; delta int
+        return await this.inner; delta
+class holder
+    static slot (counter of int) = instance (counter of int);
+async function main;
+    print; await holder::slot.outer; 5
+    print; holder::slot.total
+    value = instance (counter of int);
+    owner = shared ref value
+    print; await owner.outer; 2
+    print; owner.total

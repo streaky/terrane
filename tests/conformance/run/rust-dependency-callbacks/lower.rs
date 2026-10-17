@@ -498,7 +498,9 @@ impl ProjectedAsyncEntry {
             }
         }
     }
-    pub async fn mutable(&mut self) -> terrane_int_support::Int {
+    pub async fn __terrane_shared_async_shared(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+    ) -> terrane_int_support::Int {
         let mut __terrane_finally_guard_3 = __terrane_finally_guard();
         let __terrane_maybe_completion_3: Option<
             TerraneCompletion<terrane_int_support::Int>,
@@ -520,8 +522,8 @@ impl ProjectedAsyncEntry {
                                                 __terrane_await({ let __terrane_future =
                                                 pending_value(terrane_int_support::Int::from(0_i128)); async
                                                 move { __terrane_raised_err(__terrane_future. await,
-                                                6 /* terrane-site: src/main.trn:81:30-81:46 */) } }).
-                                                await, 6 /* terrane-site: src/main.trn:81:30-81:46 */
+                                                3 /* terrane-site: src/main.trn:72:30-72:46 */) } }).
+                                                await, 3 /* terrane-site: src/main.trn:72:30-72:46 */
                                             ),
                                         );
                                     }
@@ -554,7 +556,7 @@ impl ProjectedAsyncEntry {
                             terrane_int_support::Int,
                         > = (|| {
                             __terrane_raised_completion!(
-                                record_async_entry_cleanup(), 7 /* terrane-site: src/main.trn:83:17-83:44 */
+                                record_async_entry_cleanup(), 4 /* terrane-site: src/main.trn:74:17-74:44 */
                             );
                             TerraneCompletion::Normal
                         })();
@@ -614,7 +616,7 @@ impl ProjectedAsyncEntry {
             .unwrap_or(TerraneCompletion::Normal);
         let __terrane_finally_3: TerraneCompletion<terrane_int_support::Int> = (|| {
             __terrane_raised_completion!(
-                record_async_entry_cleanup(), 8 /* terrane-site: src/main.trn:85:13-85:40 */
+                record_async_entry_cleanup(), 5 /* terrane-site: src/main.trn:76:13-76:40 */
             );
             TerraneCompletion::Normal
         })();
@@ -639,7 +641,7 @@ impl ProjectedAsyncEntry {
             }
         }
     }
-    pub async fn consuming(self) -> terrane_int_support::Int {
+    pub async fn mutable(&mut self) -> terrane_int_support::Int {
         let mut __terrane_finally_guard_5 = __terrane_finally_guard();
         let __terrane_maybe_completion_5: Option<
             TerraneCompletion<terrane_int_support::Int>,
@@ -661,8 +663,8 @@ impl ProjectedAsyncEntry {
                                                 __terrane_await({ let __terrane_future =
                                                 pending_value(terrane_int_support::Int::from(0_i128)); async
                                                 move { __terrane_raised_err(__terrane_future. await,
-                                                9 /* terrane-site: src/main.trn:90:30-90:46 */) } }).
-                                                await, 9 /* terrane-site: src/main.trn:90:30-90:46 */
+                                                6 /* terrane-site: src/main.trn:81:30-81:46 */) } }).
+                                                await, 6 /* terrane-site: src/main.trn:81:30-81:46 */
                                             ),
                                         );
                                     }
@@ -695,7 +697,7 @@ impl ProjectedAsyncEntry {
                             terrane_int_support::Int,
                         > = (|| {
                             __terrane_raised_completion!(
-                                record_async_entry_cleanup(), 10 /* terrane-site: src/main.trn:92:17-92:44 */
+                                record_async_entry_cleanup(), 7 /* terrane-site: src/main.trn:83:17-83:44 */
                             );
                             TerraneCompletion::Normal
                         })();
@@ -755,7 +757,7 @@ impl ProjectedAsyncEntry {
             .unwrap_or(TerraneCompletion::Normal);
         let __terrane_finally_5: TerraneCompletion<terrane_int_support::Int> = (|| {
             __terrane_raised_completion!(
-                record_async_entry_cleanup(), 11 /* terrane-site: src/main.trn:94:13-94:40 */
+                record_async_entry_cleanup(), 8 /* terrane-site: src/main.trn:85:13-85:40 */
             );
             TerraneCompletion::Normal
         })();
@@ -770,6 +772,292 @@ impl ProjectedAsyncEntry {
         }
         __terrane_finally_guard_5.finish();
         match __terrane_completion_5 {
+            TerraneCompletion::Normal => {
+                __terrane_generated_defect("non-fallthrough try completed normally")
+            }
+            TerraneCompletion::Return(value) => return value,
+            TerraneCompletion::Error(error) => __terrane_uncaught(error),
+            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                __terrane_generated_defect("loop control escaped a non-loop try")
+            }
+        }
+    }
+    pub async fn __terrane_shared_async_mutable(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+    ) -> terrane_int_support::Int {
+        let mut __terrane_finally_guard_7 = __terrane_finally_guard();
+        let __terrane_maybe_completion_7: Option<
+            TerraneCompletion<terrane_int_support::Int>,
+        > = __terrane_cancel_operation(
+                &__terrane_finally_guard_7,
+                async {
+                    let __terrane_try_7: TerraneCompletion<terrane_int_support::Int> = async {
+                        let mut __terrane_finally_guard_8 = __terrane_finally_guard();
+                        let __terrane_maybe_completion_8: Option<
+                            TerraneCompletion<terrane_int_support::Int>,
+                        > = __terrane_cancel_operation(
+                                &__terrane_finally_guard_8,
+                                async {
+                                    let __terrane_try_8: TerraneCompletion<
+                                        terrane_int_support::Int,
+                                    > = async {
+                                        return TerraneCompletion::Return(
+                                            __terrane_traced_completion!(
+                                                __terrane_await({ let __terrane_future =
+                                                pending_value(terrane_int_support::Int::from(0_i128)); async
+                                                move { __terrane_raised_err(__terrane_future. await,
+                                                6 /* terrane-site: src/main.trn:81:30-81:46 */) } }).
+                                                await, 6 /* terrane-site: src/main.trn:81:30-81:46 */
+                                            ),
+                                        );
+                                    }
+                                        .await;
+                                    match __terrane_try_8 {
+                                        TerraneCompletion::Return(value) => {
+                                            return TerraneCompletion::Return(value);
+                                        }
+                                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                                        TerraneCompletion::Continue => {
+                                            return TerraneCompletion::Continue;
+                                        }
+                                        TerraneCompletion::Normal => {}
+                                        TerraneCompletion::Error(__terrane_error_8) => {
+                                            let mut __terrane_handled_8 = false;
+                                            if !__terrane_handled_8 {
+                                                return TerraneCompletion::Error(__terrane_error_8);
+                                            }
+                                        }
+                                    }
+                                    TerraneCompletion::Normal
+                                },
+                            )
+                            .await;
+                        let __terrane_cancelled_8 = __terrane_maybe_completion_8
+                            .is_none();
+                        let mut __terrane_completion_8 = __terrane_maybe_completion_8
+                            .unwrap_or(TerraneCompletion::Normal);
+                        let __terrane_finally_8: TerraneCompletion<
+                            terrane_int_support::Int,
+                        > = (|| {
+                            __terrane_raised_completion!(
+                                record_async_entry_cleanup(), 7 /* terrane-site: src/main.trn:83:17-83:44 */
+                            );
+                            TerraneCompletion::Normal
+                        })();
+                        match __terrane_finally_8 {
+                            TerraneCompletion::Normal => {}
+                            replacement => __terrane_completion_8 = replacement,
+                        }
+                        if __terrane_cancelled_8
+                            && matches!(
+                                &__terrane_completion_8, TerraneCompletion::Normal
+                            )
+                        {
+                            __terrane_finish_cancelled_finally(__terrane_finally_guard_8)
+                                .await;
+                        }
+                        __terrane_finally_guard_8.finish();
+                        match __terrane_completion_8 {
+                            TerraneCompletion::Normal => {
+                                __terrane_generated_defect(
+                                    "non-fallthrough try completed normally",
+                                )
+                            }
+                            TerraneCompletion::Return(value) => {
+                                return TerraneCompletion::Return(value);
+                            }
+                            TerraneCompletion::Error(error) => {
+                                return TerraneCompletion::Error(error);
+                            }
+                            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                                __terrane_generated_defect(
+                                    "loop control escaped a non-loop try",
+                                )
+                            }
+                        }
+                    }
+                        .await;
+                    match __terrane_try_7 {
+                        TerraneCompletion::Return(value) => {
+                            return TerraneCompletion::Return(value);
+                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                        TerraneCompletion::Normal => {}
+                        TerraneCompletion::Error(__terrane_error_7) => {
+                            let mut __terrane_handled_7 = false;
+                            if !__terrane_handled_7 {
+                                return TerraneCompletion::Error(__terrane_error_7);
+                            }
+                        }
+                    }
+                    TerraneCompletion::Normal
+                },
+            )
+            .await;
+        let __terrane_cancelled_7 = __terrane_maybe_completion_7.is_none();
+        let mut __terrane_completion_7 = __terrane_maybe_completion_7
+            .unwrap_or(TerraneCompletion::Normal);
+        let __terrane_finally_7: TerraneCompletion<terrane_int_support::Int> = (|| {
+            __terrane_raised_completion!(
+                record_async_entry_cleanup(), 8 /* terrane-site: src/main.trn:85:13-85:40 */
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_finally_7 {
+            TerraneCompletion::Normal => {}
+            replacement => __terrane_completion_7 = replacement,
+        }
+        if __terrane_cancelled_7
+            && matches!(&__terrane_completion_7, TerraneCompletion::Normal)
+        {
+            __terrane_finish_cancelled_finally(__terrane_finally_guard_7).await;
+        }
+        __terrane_finally_guard_7.finish();
+        match __terrane_completion_7 {
+            TerraneCompletion::Normal => {
+                __terrane_generated_defect("non-fallthrough try completed normally")
+            }
+            TerraneCompletion::Return(value) => return value,
+            TerraneCompletion::Error(error) => __terrane_uncaught(error),
+            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                __terrane_generated_defect("loop control escaped a non-loop try")
+            }
+        }
+    }
+    pub async fn consuming(self) -> terrane_int_support::Int {
+        let mut __terrane_finally_guard_9 = __terrane_finally_guard();
+        let __terrane_maybe_completion_9: Option<
+            TerraneCompletion<terrane_int_support::Int>,
+        > = __terrane_cancel_operation(
+                &__terrane_finally_guard_9,
+                async {
+                    let __terrane_try_9: TerraneCompletion<terrane_int_support::Int> = async {
+                        let mut __terrane_finally_guard_10 = __terrane_finally_guard();
+                        let __terrane_maybe_completion_10: Option<
+                            TerraneCompletion<terrane_int_support::Int>,
+                        > = __terrane_cancel_operation(
+                                &__terrane_finally_guard_10,
+                                async {
+                                    let __terrane_try_10: TerraneCompletion<
+                                        terrane_int_support::Int,
+                                    > = async {
+                                        return TerraneCompletion::Return(
+                                            __terrane_traced_completion!(
+                                                __terrane_await({ let __terrane_future =
+                                                pending_value(terrane_int_support::Int::from(0_i128)); async
+                                                move { __terrane_raised_err(__terrane_future. await,
+                                                9 /* terrane-site: src/main.trn:90:30-90:46 */) } }).
+                                                await, 9 /* terrane-site: src/main.trn:90:30-90:46 */
+                                            ),
+                                        );
+                                    }
+                                        .await;
+                                    match __terrane_try_10 {
+                                        TerraneCompletion::Return(value) => {
+                                            return TerraneCompletion::Return(value);
+                                        }
+                                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                                        TerraneCompletion::Continue => {
+                                            return TerraneCompletion::Continue;
+                                        }
+                                        TerraneCompletion::Normal => {}
+                                        TerraneCompletion::Error(__terrane_error_10) => {
+                                            let mut __terrane_handled_10 = false;
+                                            if !__terrane_handled_10 {
+                                                return TerraneCompletion::Error(__terrane_error_10);
+                                            }
+                                        }
+                                    }
+                                    TerraneCompletion::Normal
+                                },
+                            )
+                            .await;
+                        let __terrane_cancelled_10 = __terrane_maybe_completion_10
+                            .is_none();
+                        let mut __terrane_completion_10 = __terrane_maybe_completion_10
+                            .unwrap_or(TerraneCompletion::Normal);
+                        let __terrane_finally_10: TerraneCompletion<
+                            terrane_int_support::Int,
+                        > = (|| {
+                            __terrane_raised_completion!(
+                                record_async_entry_cleanup(), 10 /* terrane-site: src/main.trn:92:17-92:44 */
+                            );
+                            TerraneCompletion::Normal
+                        })();
+                        match __terrane_finally_10 {
+                            TerraneCompletion::Normal => {}
+                            replacement => __terrane_completion_10 = replacement,
+                        }
+                        if __terrane_cancelled_10
+                            && matches!(
+                                &__terrane_completion_10, TerraneCompletion::Normal
+                            )
+                        {
+                            __terrane_finish_cancelled_finally(
+                                    __terrane_finally_guard_10,
+                                )
+                                .await;
+                        }
+                        __terrane_finally_guard_10.finish();
+                        match __terrane_completion_10 {
+                            TerraneCompletion::Normal => {
+                                __terrane_generated_defect(
+                                    "non-fallthrough try completed normally",
+                                )
+                            }
+                            TerraneCompletion::Return(value) => {
+                                return TerraneCompletion::Return(value);
+                            }
+                            TerraneCompletion::Error(error) => {
+                                return TerraneCompletion::Error(error);
+                            }
+                            TerraneCompletion::Break | TerraneCompletion::Continue => {
+                                __terrane_generated_defect(
+                                    "loop control escaped a non-loop try",
+                                )
+                            }
+                        }
+                    }
+                        .await;
+                    match __terrane_try_9 {
+                        TerraneCompletion::Return(value) => {
+                            return TerraneCompletion::Return(value);
+                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                        TerraneCompletion::Normal => {}
+                        TerraneCompletion::Error(__terrane_error_9) => {
+                            let mut __terrane_handled_9 = false;
+                            if !__terrane_handled_9 {
+                                return TerraneCompletion::Error(__terrane_error_9);
+                            }
+                        }
+                    }
+                    TerraneCompletion::Normal
+                },
+            )
+            .await;
+        let __terrane_cancelled_9 = __terrane_maybe_completion_9.is_none();
+        let mut __terrane_completion_9 = __terrane_maybe_completion_9
+            .unwrap_or(TerraneCompletion::Normal);
+        let __terrane_finally_9: TerraneCompletion<terrane_int_support::Int> = (|| {
+            __terrane_raised_completion!(
+                record_async_entry_cleanup(), 11 /* terrane-site: src/main.trn:94:13-94:40 */
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_finally_9 {
+            TerraneCompletion::Normal => {}
+            replacement => __terrane_completion_9 = replacement,
+        }
+        if __terrane_cancelled_9
+            && matches!(&__terrane_completion_9, TerraneCompletion::Normal)
+        {
+            __terrane_finish_cancelled_finally(__terrane_finally_guard_9).await;
+        }
+        __terrane_finally_guard_9.finish();
+        match __terrane_completion_9 {
             TerraneCompletion::Normal => {
                 __terrane_generated_defect("non-fallthrough try completed normally")
             }

@@ -143,6 +143,23 @@ impl Emitter<'_> {
         self.emit_function_as(node, Some(receiver), None);
     }
 
+    pub(super) fn object_shared_async_method(&mut self, node: &SyntaxNode) {
+        let contract = self
+            .unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .expect("object method must have an analyzed contract");
+        let previous = std::mem::replace(&mut self.shared_async_receiver, true);
+        let name = format!(
+            "__terrane_shared_async_{}",
+            function_name(self.package, contract)
+        );
+        let receiver = "__terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone";
+        self.emit_function_as(node, Some(receiver), Some(&name));
+        self.shared_async_receiver = previous;
+    }
+
     pub(super) fn object_static_method(&mut self, node: &SyntaxNode) {
         let contract = self
             .unit
