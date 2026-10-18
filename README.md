@@ -175,6 +175,85 @@ python docs/generate-test-scoreboard.py --check
 
 Repository-local binaries record their build revision and compiler-input fingerprint. Rebuild if they warn that the checkout changed; installed/copied binaries do not inspect a working tree.
 
+### Rust implementation coverage
+
+Coverage is a separate diagnostic run, not a timing-scoreboard refresh. It measures
+the handwritten Rust under `crates/*/src`, including support crates executed by
+generated conformance programs and native test runners. It does not implement
+Terrane source coverage.
+
+Use the selected Rust toolchain and matching LLVM tools:
+
+```sh
+rustup component add llvm-tools-preview
+python tools/coverage.py
+```
+
+The command writes `target/coverage/index.html` by default. Open that file
+directly in a browser: the aggregate report navigates through directories to
+annotated source, with execution counts and next-uncovered-line/region navigation.
+Reports are self-contained static files; no IDE, service, or external assets are
+required. `--output <directory>` selects the exact report directory. Each run
+replaces the previous report, profiles, and executable coverage objects in that
+directory while retaining its reusable `build/` cache. Use a different output
+directory when you want to keep a separate report.
+
+For individual Rust-test attribution, run a focused selection first:
+
+```sh
+python tools/coverage.py --per-test -- -p terrane-string-support --lib
+python tools/coverage.py --filter tracked_native_testing_package_covers_all_tiers -- -p terrane-cli --test package_cli
+TERRANE_CONFORMANCE_FILTER=time-exact-values python tools/coverage.py -- -p terrane-compiler --test conformance
+```
+
+Arguments after `--` select Cargo packages/targets; `--filter` selects Rust test
+names. Without a Cargo selection the runner uses `--workspace`. Per-test mode
+runs each non-ignored Rust test in its own process and adds linked source reports,
+duration, covered-function footprint, functions unique within the selection, and
+the most overlapping test. Function identities for overlap use canonical source
+body ranges, merging generic instantiations. Broad execution or overlap is a
+review aid, not proof of redundant assertions. Conformance attribution is at the
+outer Rust harness-test level, not individual Terrane cases.
+The attribution regression checks run with `python tools/test_coverage.py` or
+`python -m unittest tools.test_coverage`.
+
+The report records revision, dirty-tree status, filters, environment overrides,
+toolchain, and failures in `run.json`. Failed test executions still produce reports
+and a nonzero exit status, including crashes that produce no execution profile:
+those tests have unavailable coverage, not zero coverage, and are excluded from
+overlap calculations. Build/report errors other than absent profiles stop the
+command. Outer workspace build-script and test-discovery profiles are retained
+separately and excluded from execution totals. Nested generated Cargo preparation
+runs inside a test's capture environment, so its instrumented build-script
+execution can contribute profiles alongside generated-program execution.
+LLVM diagnostics are retained and linked from a coverage-fidelity warning on the
+landing page; reports with mapping warnings are not clean baselines.
+LLVM may warn about dependency or fixture mappings before source filtering;
+the warning count is not a count of missed compiler/support functions.
+Coverage runs do not update the tracked scoreboards, and should not compete with
+other Cargo/suite runs. There is no outer Rust-test timeout; callers needing a
+deadline must supervise the command. Native test-runner deadlines are unchanged.
+
+Scope limits are explicit: stable doctests, integration-test source files, generated
+Rust, third-party dependencies, and `build.rs` are outside the report. Unit-test
+bodies colocated under `src` remain included. Embedded runtime fragments that only
+execute as generated Rust are not remapped to their original fragments. Source
+files absent from coverage mappings—including those fragments, unbuilt modules,
+and configuration-specific code—are listed as **unmeasured**, not silently omitted
+from the inventory or presented as covered. LLVM percentages apply to mapped
+executable code, not all Rust files. Force-killed/aborted subprocesses may not flush
+their counters, and application subprocesses that explicitly clear the coverage
+environment may not contribute profiles. No branch-coverage claim is made.
+Debugger-host code is measured, but native debuggees retain the caller's original
+Rust flags rather than coverage instrumentation: injected counters change native
+sequence points and would invalidate the source-stepping tests.
+
+The workspace protocol tests currently require the local, Git-ignored
+`projects/godot-test` fixture, including `tests/unit/godot-view.trn` and its package
+sources/manifest. A fresh clone or detached worktree must supply that fixture;
+otherwise the outside-namespace-root language-server test fails before analyzing
+the document. That is a test-environment prerequisite, not a coverage-tool failure.
+
 ## License
 
 Terrane is dual-licensed under the [Apache License 2.0](LICENSE-APACHE) and the [MIT license](LICENSE-MIT), at your option.

@@ -12,6 +12,10 @@ docs/MEMORY.md
 **/.trn/
 **/target/
 
+# LLVM execution profiles, including children with a cleared environment.
+*.profraw
+*.profdata
+
 # Generated projection-census application surfaces
 /compatibility/projection-census/application-surfaces.yaml
 /compatibility/projection-census/application-surfaces/*.yaml
