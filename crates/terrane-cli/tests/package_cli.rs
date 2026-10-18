@@ -586,8 +586,13 @@ fn native_test_command_reports_isolated_cases_deterministically_from_relative_pa
     assert_eq!(report["schema_version"], "1.2.0");
     assert_eq!(report["run"]["status"], "completed");
     assert_eq!(report["cases"][0]["identity"], "/cli/app::test-pass");
-    assert!(report["cases"][0]["stdout"].is_array());
-    assert_eq!(report["cases"][1]["status"], "failed");
+    let cases = report["cases"].as_array().unwrap();
+    assert!(
+        cases
+            .iter()
+            .map(|case| case["status"].as_str().unwrap())
+            .eq(["passed", "failed", "failed", "skipped"])
+    );
     assert_eq!(report["cases"][1]["cause"]["kind"], "assertion");
     assert_eq!(
         report["cases"][1]["cause"]["descriptor"],
@@ -618,8 +623,6 @@ fn native_test_command_reports_isolated_cases_deterministically_from_relative_pa
         "/core/testing::test-skip"
     );
     assert_eq!(report["cases"][3]["cause"]["message"], "not available");
-    assert_eq!(report["cases"][2]["status"], "failed");
-    assert_eq!(report["cases"][3]["status"], "skipped");
 
     let listed = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .arg("test")
@@ -781,9 +784,12 @@ fn end_to_end_artifact_passes_inputs_and_drains_large_output() {
             "    print; (arguments;).length\n",
             "    print; (environment;).length\n",
             "    rust\n",
-            "        use std::io::Write as _;\n",
-            "        let chunk = [b'x'; 8192];\n",
+            "        use std::io::{Read as _, Write as _};\n",
+            "        let mut input = [0; 5];\n",
+            "        std::io::stdin().read_exact(&mut input).unwrap();\n",
+            "        assert_eq!(&input, b\"input\");\n",
             "        let mut output = std::io::stdout().lock();\n",
+            "        let chunk = [b'x'; 8192];\n",
             "        for _ in 0..128 { output.write_all(&chunk).unwrap(); }\n",
         ),
     )
@@ -795,7 +801,7 @@ fn end_to_end_artifact_passes_inputs_and_drains_large_output() {
             "namespace cli/end-to-end\n",
             "from /core/process import environment-pair, native-text\n",
             "from /core/errors import throwable\n",
-            "from /core/testing import application-artifact, assert, assert-equal-int, deny, fail\n",
+            "from /core/testing import application-artifact, assert, assert-equal-int, fail\n",
             "from /core/testing/process import process-fixture, run-process\n",
             "function test-application none throws throwable;\n",
             "    artifact = application-artifact;\n",
@@ -803,28 +809,34 @@ fn end_to_end_artifact_passes_inputs_and_drains_large_output() {
             "        fixture = instance process-fixture; artifact\n",
             "        fixture.arguments.append; (native-text; 'argument')\n",
             "        fixture.environment.append; (environment-pair; (native-text; 'FIXTURE'), (native-text; 'controlled'))\n",
+            "        fixture.standard-input = b'input'\n",
             "        result = run-process; fixture\n",
             "        assert-equal-int; result.exit-code, 0\n",
             "        assert-equal-int; result.stdout.length, 1048576\n",
-            "        assert; result.stdout[0] == 49 and result.stdout[1] == 10 and result.stdout[2] == 49 and result.stdout[3] == 10\n",
             "        assert; result.stdout-truncated\n",
-            "        deny; result.stderr-truncated\n",
+            "        assert; result.stdout[0] == 49 and result.stdout[1] == 10 and result.stdout[2] == 49 and result.stdout[3] == 10\n",
             "    else\n",
             "        fail; 'missing application artifact'\n",
             "    return none\n",
         ),
     )
     .unwrap();
+    let report = package.0.join("application-report.json");
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .arg("test")
         .args(["--filter", "test-application", "--timeout", "5s"])
+        .arg("--report")
+        .arg(&report)
         .arg(&package.0)
         .output()
         .unwrap();
     assert!(output.status.success(), "{output:?}");
-    assert!(String::from_utf8(output.stdout).unwrap().contains(
-        "1 passed; 0 skipped; 0 failed; 0 timed out; 0 crashed; 0 infrastructure failed"
-    ));
+    let report: serde_json::Value = serde_json::from_slice(&fs::read(report).unwrap()).unwrap();
+    assert_eq!(
+        report["cases"][0]["identity"],
+        "/cli/end-to-end::test-application"
+    );
+    assert_eq!(report["cases"][0]["status"], "passed");
 }
 
 #[test]

@@ -71,6 +71,18 @@ fn executable_sidecar(executable: &Path) -> PathBuf {
     ))
 }
 
+fn dap_program_arguments(arguments: &[OsString]) -> Result<Vec<Value>, CliFailure> {
+    arguments
+        .iter()
+        .map(|argument| {
+            argument
+                .to_str()
+                .map(|argument| Value::String(argument.to_owned()))
+                .ok_or_else(|| debugger_failure("debugger program arguments must be valid UTF-8"))
+        })
+        .collect()
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the compact interactive command grammar keeps debugger session state in one loop"
@@ -81,15 +93,7 @@ pub(super) fn run_cli(
     arguments: &[OsString],
 ) -> Result<ExitCode, CliFailure> {
     let provenance = load_and_validate(sidecar, executable, None)?;
-    let arguments = arguments
-        .iter()
-        .map(|argument| {
-            argument
-                .to_str()
-                .map(|argument| Value::String(argument.to_owned()))
-                .ok_or_else(|| debugger_failure("debugger program arguments must be valid UTF-8"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+    let arguments = dap_program_arguments(arguments)?;
     let mut backend = Backend::start()?;
     backend.request(
         "initialize",
@@ -1190,6 +1194,15 @@ mod tests {
     use crate::debug_command::adapter::Adapter;
 
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn invalid_utf8_arguments_are_rejected() {
+        use std::os::unix::ffi::OsStringExt as _;
+
+        let failure = dap_program_arguments(&[OsString::from_vec(vec![0xff])]).unwrap_err();
+        assert_eq!(failure.code, 5);
+    }
 
     fn provenance() -> ProvenanceManifest {
         let mut provenance: ProvenanceManifest = serde_json::from_value(json!({

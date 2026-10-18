@@ -205,6 +205,25 @@ fn serves_semantic_tokens_for_an_open_document() {
 
 #[test]
 fn serves_an_open_file_outside_its_package_namespace_roots() {
+    struct FixtureCopy(std::path::PathBuf);
+    impl Drop for FixtureCopy {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    let fixture = FixtureCopy(std::env::temp_dir().join(format!(
+        "terrane-lsp-outside-namespace-{}",
+        std::process::id()
+    )));
+    std::fs::create_dir(&fixture.0).unwrap();
+    let source = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/lsp-outside-namespace");
+    for relative in ["package.toml", "src/value.trn", "tests/unit/value.trn"] {
+        let destination = fixture.0.join(relative);
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::copy(source.join(relative), destination).unwrap();
+    }
     let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -212,11 +231,7 @@ fn serves_an_open_file_outside_its_package_namespace_roots() {
         .unwrap();
     let mut stdin = child.stdin.take().unwrap();
     let mut stdout = BufReader::new(child.stdout.take().unwrap());
-    let repository = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .canonicalize()
-        .expect("repository root");
-    let path = repository.join("tests/fixtures/lsp-outside-namespace/tests/unit/value.trn");
+    let path = fixture.0.join("tests/unit/value.trn");
     let uri = format!("file://{}", path.display());
     let text = std::fs::read_to_string(path).expect("outside-namespace fixture source");
 

@@ -161,6 +161,8 @@ Use focused checks while working, such as `cargo clippy --workspace --all-target
 Keep regression programs minimal and self-contained under tracked test fixtures.
 Keep each full test name at most 80 characters, including Rust module prefixes;
 the scoreboard generator rejects longer names rather than truncating them.
+Assert result classifications and failure details through structured reports rather
+than pinning the wording of human-readable summaries.
 Combine related CLI assertions when they can share one native build without
 losing a distinct failure case. Prefer small local Rust witnesses for projection
 shapes; `projected-generated-api-reexport` generates a hidden owner API in a build
@@ -182,6 +184,9 @@ python docs/measure-test-times.py -- --workspace
 ```
 
 The collector returns Cargo's exit status and updates the tracked YAML/HTML test scoreboards. Review and commit both generated files together. It uses bounded parallelism; reduce `TERRANE_SCORECARD_JOBS` or `TERRANE_CONFORMANCE_JOBS` on constrained hosts, and do not run competing Cargo processes during collection.
+Name validation runs after measurement but before publishing either scoreboard file,
+including with `--no-html`; invalid names leave the existing files unchanged. This
+is not a pre-run test-discovery check.
 
 To regenerate or verify only the scoreboard view:
 

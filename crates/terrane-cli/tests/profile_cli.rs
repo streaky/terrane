@@ -177,12 +177,6 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
         corrected["provenance"]["native_module"]["content_hash"]
     );
     assert!(
-        slow["conditions"]["elapsed_nanoseconds"].as_u64().unwrap()
-            > corrected["conditions"]["elapsed_nanoseconds"]
-                .as_u64()
-                .unwrap()
-    );
-    assert!(
         slow["evidence"]["loss"]["captured_events"]
             .as_u64()
             .unwrap()

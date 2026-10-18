@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).with_name("measure-test-times.py")
@@ -88,6 +91,36 @@ class CompleteWorkspaceRunTests(unittest.TestCase):
                 self.assertEqual(
                     [test["id"] for test in updated["tests"]], ["active", "deleted"]
                 )
+
+
+class NameLimitPublicationTests(unittest.TestCase):
+    def test_name_limit_preserves_scoreboard_on_rejection(self) -> None:
+        for length in (80, 81):
+            with self.subTest(length=length), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory) / "scoreboard.yaml"
+                original = MEASURE.yaml.safe_dump(MEASURE.base_scoreboard())
+                output.write_text(original, encoding="utf-8")
+                measured = active_measurement()
+                measured[0]["name"] = "x" * length
+                measured[0]["id"] = "unit::" + measured[0]["name"]
+                options = argparse.Namespace(output=output, cargo_args=[], no_html=True)
+                with (
+                    patch.object(MEASURE, "parse_args", return_value=options),
+                    patch.object(
+                        MEASURE,
+                        "run_tests",
+                        return_value=(0, 1.0, measured, ["cargo", "test", "--workspace"]),
+                    ),
+                    patch.object(MEASURE, "command_text", return_value="fixture"),
+                ):
+                    result = MEASURE.main()
+                if length == 80:
+                    self.assertEqual(result, 0)
+                    published = MEASURE.yaml.safe_load(output.read_text(encoding="utf-8"))
+                    self.assertEqual(published["tests"][0]["name"], "x" * 80)
+                else:
+                    self.assertEqual(result, 2)
+                    self.assertEqual(output.read_text(encoding="utf-8"), original)
 
 
 if __name__ == "__main__":

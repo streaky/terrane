@@ -64,8 +64,18 @@ impl Query<'_> {
     }
 
     pub async fn execute<E: Executor>(self, mut executor: E) -> Result<(), QueryError> {
-        std::future::ready(()).await;
         let connection = executor.connection();
+        let mut yielded = false;
+        std::future::poll_fn(|context| {
+            if yielded {
+                std::task::Poll::Ready(())
+            } else {
+                yielded = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        })
+        .await;
         match self.operation {
             "insert" => {
                 if let Some(row) = self.bound {
