@@ -159,6 +159,8 @@ The [Terrane manual](https://github.com/streaky/terrane-manual) is maintained in
 Use focused checks while working, such as `cargo clippy --workspace --all-targets -- -D warnings`. For a specific conformance case, set `TERRANE_CONFORMANCE_FILTER=<case-name-or-comma-separated-fragments>` and run `cargo test -p terrane-compiler --test conformance every_manifest_drives_a_conformance_case`. Debug package-shaped fixtures from disposable copies, not their tracked source directories.
 
 Keep regression programs minimal and self-contained under tracked test fixtures.
+Keep each full test name at most 80 characters, including Rust module prefixes;
+the scoreboard generator rejects longer names rather than truncating them.
 Combine related CLI assertions when they can share one native build without
 losing a distinct failure case. Prefer small local Rust witnesses for projection
 shapes; `projected-generated-api-reexport` generates a hidden owner API in a build

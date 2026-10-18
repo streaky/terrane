@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn docs_cross_annotations_and_parameters_keep_their_own_applications() {
+    fn docs_cross_annotations_and_parameters() {
         let parsed = parse_text(
             "/// Command.\n@[command; name = 'report']\nfunction report int; (\n    @[option; 'limit', help = 'Maximum'] limit int = 10,\n)\n    return limit\n",
         );
@@ -195,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn decorative_comment_delimiters_remain_ordinary_comments() {
+    fn decorative_delimiters_remain_comments() {
         for banner in [
             "//// separator",
             "/***** banner *****/",
@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    fn blank_lines_and_ordinary_comments_break_documentation_attachment() {
+    fn comments_break_documentation_attachment() {
         for separator in [
             "\n",
             "# implementation\n",
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn malformed_annotation_arguments_and_statement_targets_diagnose() {
+    fn malformed_annotation_args_and_targets_diagnose() {
         for source in [
             "@[tag]\nfunction main;\n    return\n",
             "@[tag; name = 'x', 1]\nfunction main;\n    return\n",
@@ -252,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn decorated_and_plain_blocks_preserve_paragraphs_and_meaningful_indentation() {
+    fn doc_blocks_preserve_paragraphs_and_indentation() {
         let decorated = "/**\n * Summary.\n *\n *     example\n */";
         let plain = "/**\n Summary.\n\n     example\n */";
         assert_eq!(normalize(decorated, true), "Summary.\n\n    example");

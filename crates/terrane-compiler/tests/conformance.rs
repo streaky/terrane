@@ -257,9 +257,10 @@ struct CaseTiming {
 }
 
 impl CaseTiming {
-    fn new(case: &Path) -> Self {
+    fn new(case: &Path, build_root: &Path) -> Self {
         Self::with_output(
             case.strip_prefix(corpus())
+                .or_else(|_| case.strip_prefix(build_root))
                 .unwrap_or(case)
                 .to_string_lossy()
                 .replace('\\', "/"),
@@ -682,7 +683,7 @@ fn prepare_conformance_case(
 ) -> Option<PreparedGeneratedCase> {
     let binary_name = format!("terrane_conformance_case_{case_index}");
     let case = manifest_path.parent().unwrap();
-    let mut timing = CaseTiming::new(case);
+    let mut timing = CaseTiming::new(case, &build.root);
     let manifest = fs::read_to_string(manifest_path).unwrap();
     let phase = field(&manifest, "phase").unwrap();
     let status = field(&manifest, "status").unwrap();

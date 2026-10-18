@@ -7,7 +7,7 @@ use super::super::test_support::dependency;
 use super::*;
 
 #[test]
-fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {
+fn facade_keeps_unrelated_fragments() {
     let declared = BTreeMap::from([(
         "std::io::error::Error".to_owned(),
         "std::io::Error".to_owned(),
@@ -39,7 +39,7 @@ fn facade_aliases_do_not_rewrite_unrelated_provider_fragments() {
 }
 
 #[test]
-fn external_owner_resolution_declines_ambiguous_library_targets() {
+fn ambiguous_library_owners_decline() {
     let metadata = json!({
         "packages": [
             {
@@ -61,7 +61,7 @@ fn external_owner_resolution_declines_ambiguous_library_targets() {
     assert!(reason.contains("owner-two@2.0.0"));
 }
 #[test]
-fn explicit_io_error_reexports_are_independent_of_the_defining_crate() {
+fn io_error_reexport_ignores_owner() {
     for (owner, path, admitted) in [
         ("std", vec!["std", "io", "Error"], true),
         ("core", vec!["core", "io", "error", "Error"], true),
@@ -153,7 +153,7 @@ fn explicit_io_error_reexports_are_independent_of_the_defining_crate() {
     }
 }
 #[test]
-fn owner_rustdoc_identity_mismatch_regenerates_usable_cache() {
+fn owner_mismatch_rebuilds_cache() {
     let workspace = std::env::temp_dir().join(format!(
         "terrane-owner-rustdoc-cache-{}",
         std::process::id()

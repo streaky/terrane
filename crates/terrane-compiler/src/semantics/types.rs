@@ -1926,7 +1926,7 @@ mod tests {
     use crate::semantics::ObjectIdentity;
 
     #[test]
-    fn nominal_compatibility_preserves_source_identity_and_exact_native_aliases() {
+    fn nominal_compatibility_preserves_identity_and_aliases() {
         let source = ObjectIdentity::new("/app", "Record");
         assert!(object_types_compatible(&[], &source, &source));
         assert!(!object_types_compatible(
@@ -1946,7 +1946,7 @@ mod tests {
     }
 
     #[test]
-    fn nominal_compatibility_accepts_redundant_but_not_hidden_native_arguments() {
+    fn nominal_compatibility_rejects_hidden_native_args() {
         use crate::ScalarType;
         use crate::semantics::ValueType;
         use std::collections::BTreeMap;
@@ -1977,7 +1977,7 @@ mod tests {
     }
 
     #[test]
-    fn native_argument_positions_follow_declarations_not_values_or_map_order() {
+    fn native_argument_positions_follow_declarations() {
         use crate::ScalarType;
         use crate::semantics::ValueType;
         use std::collections::BTreeMap;

@@ -557,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    fn native_discriminants_preserve_signed_native_bits() {
+    fn native_discriminants_preserve_signed_bits() {
         assert_eq!(native_discriminant(&json!({"value": "-1"})), Some(u64::MAX));
         assert_eq!(
             native_discriminant(&json!({"value": "-2147483648"})),

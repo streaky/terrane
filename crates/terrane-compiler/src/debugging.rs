@@ -709,7 +709,7 @@ mod tests {
     }
 
     #[test]
-    fn debug_information_keeps_multifile_function_spans_with_their_sources() {
+    fn debug_multifile_function_spans_keep_source_ids() {
         let mut package = Package::implicit(
             "src/main.trn",
             "namespace multifile-debug\nfunction main;\n  helper;\n".to_owned(),

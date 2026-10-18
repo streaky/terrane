@@ -55,7 +55,7 @@ fn ambiguous_projection() -> Projection {
 }
 
 #[test]
-fn explicit_same_name_import_aliases_are_rejected_at_every_lexical_depth() {
+fn same_name_import_aliases_rejected_at_every_depth() {
     for source in [
         "namespace app\nfrom /core/types import int as int\n",
         "namespace app\nfrom /core/types import string, int as int\n",
@@ -133,7 +133,7 @@ fn ambiguous_projected_destination_names_every_rust_identity() {
 }
 
 #[test]
-fn projected_public_reexports_are_addressable_before_authored_imports() {
+fn projected_reexports_precede_authored_imports() {
     let mut projection = ambiguous_projection();
     for (dependency, namespace) in projection
         .dependencies

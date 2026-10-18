@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn durable_dependency_lock_seeds_and_records_the_complete_cargo_graph() {
+fn lock_seeds_complete_graph() {
     let root = std::env::temp_dir().join(format!(
         "terrane-durable-dependency-lock-{}",
         std::process::id()

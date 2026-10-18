@@ -2224,7 +2224,7 @@ mod identity_tests {
     use std::collections::BTreeSet;
 
     #[test]
-    fn derived_native_parameter_order_does_not_change_identity() {
+    fn native_parameter_order_is_irrelevant() {
         let identity = ObjectIdentity::new("/deps/witness", "Boxed")
             .with_type_arguments(vec![ValueType::Scalar(ScalarType::Int)]);
         let annotated = identity

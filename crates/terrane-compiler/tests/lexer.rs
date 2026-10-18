@@ -259,7 +259,7 @@ fn block_strings_are_contextual_and_require_a_clean_marker_line() {
 }
 
 #[test]
-fn parenthesized_continuation_survives_nested_block_strings_comments_and_trailing_commas() {
+fn nested_block_continuation_preserves_comments() {
     let lexed =
         lex_source("value = (\n  (\n    >>\n      text\n    , # after block\n  ),\n)\nnext = 1\n");
     let newlines = lexed

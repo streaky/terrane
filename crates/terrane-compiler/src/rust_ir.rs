@@ -1145,7 +1145,7 @@ mod tests {
     }
 
     #[test]
-    fn encodes_site_comments_after_unicode_without_slicing_mid_character() {
+    fn encodes_site_comments_after_unicode_safely() {
         assert_eq!(
             encode_terrane_comments("é7 /* terrane-site: source */"),
             "é__terrane_comment!(7, \"source\")"
@@ -1153,7 +1153,7 @@ mod tests {
     }
 
     #[test]
-    fn module_comment_codec_does_not_capture_authored_marker_like_macros() {
+    fn module_comment_codec_ignores_authored_macros() {
         let rendered = "__terrane_generated_module_comment!(\"authored\");\n\
                         // Source: case.trn\n\
                         // Namespace: hello\n\
@@ -1291,7 +1291,7 @@ mod tests {
     }
 
     #[test]
-    fn native_generic_selection_distinguishes_binders_from_qualified_names() {
+    fn generic_selection_distinguishes_binders_from_paths() {
         let names = super::rust_type_parameter_names(
             "<Holder<Outer<T>> as Trait<U, std::marker::T>>::operation",
         );
@@ -1303,7 +1303,7 @@ mod tests {
     }
 
     #[test]
-    fn native_substitution_preserves_qualified_names_and_selects_nested_binders() {
+    fn native_substitution_selects_nested_binders() {
         let replacements = std::collections::BTreeMap::from([
             ("T".to_owned(), "&mut String".to_owned()),
             ("U".to_owned(), "bool".to_owned()),
@@ -1342,7 +1342,7 @@ mod tests {
     }
 
     #[test]
-    fn split_entrypoint_import_canonicalizes_without_moving_authored_comments() {
+    fn entrypoint_import_canonicalizes_preserving_comments() {
         let rendered = "include!(\"main.support.rs\");\n\
                         // Source: case.trn\n\
                         // Namespace: hello\n\

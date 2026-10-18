@@ -1293,7 +1293,7 @@ mod tests {
     }
 
     #[test]
-    fn breakpoint_resolution_preserves_every_native_location_and_adjusts_in_function() {
+    fn breakpoint_resolution_keeps_native_locations_and_adjusts() {
         let provenance = provenance();
         let exact = resolve_breakpoint(&provenance, Path::new("/source/source.trn"), 4);
         assert_eq!(
@@ -1317,7 +1317,7 @@ mod tests {
     }
 
     #[test]
-    fn rust_lldb_initialization_precedes_client_commands_when_available() {
+    fn rust_lldb_init_precedes_client_commands_when_available() {
         let mut arguments = json!({"initCommands": ["settings set target.language c++"]});
         add_rust_lldb_init_commands(
             &mut arguments,
@@ -1340,7 +1340,7 @@ mod tests {
     }
 
     #[test]
-    fn variable_translation_redacts_secret_fields_before_frontend_exposure() {
+    fn variable_translation_redacts_secrets_before_exposure() {
         let provenance = provenance();
         let mut references = BTreeMap::new();
         let mut locals = json!({"variables": [{
@@ -1474,7 +1474,7 @@ mod tests {
     }
 
     #[test]
-    fn resuming_invalidates_session_variable_handles_before_backend_io() {
+    fn resuming_invalidates_variable_handles_before_io() {
         let mut adapter = Adapter::default();
         adapter.variable_objects.insert(7, "object".to_owned());
         assert!(adapter.handle("continue", json!({"threadId": 1})).is_err());

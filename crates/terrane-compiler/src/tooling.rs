@@ -3374,7 +3374,7 @@ mod tests {
     static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
 
     #[test]
-    fn generic_members_parameters_and_enum_variants_keep_canonical_navigation() {
+    fn generic_members_and_variants_keep_navigation() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/generic-navigation.trn";
         let text = "namespace generic-navigation\n\nclass envelope of (T)\n    payload T\n    function construct; payload T\n        this.payload = payload\n\nfunction identity of (T) T; value T\n    return value\n\nenum state of (T)\n    pending\n    completed; result T\n\nfunction main;\n    item = instance envelope; 41\n    number int = item.payload\n    copied int = identity; number\n    explicit int = ((identity of int); number)\n    completed state of int = instance state::completed; result = copied\n";
@@ -3598,7 +3598,7 @@ mod tests {
     }
 
     #[test]
-    fn semantic_identity_drives_definition_references_and_paged_matching() {
+    fn semantic_identity_drives_definitions_and_paged_refs() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/query.trn";
         let text = "namespace query\n\nfunction answer int;\n    return 42\n\nfunction main;\n    value int = answer;\n";
@@ -3691,7 +3691,7 @@ mod tests {
     }
 
     #[test]
-    fn callable_documentation_reports_the_origin_without_copying_to_value_aliases() {
+    fn callable_docs_report_origin_not_value_aliases() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/origins.trn";
         let source = "namespace origins\n/// Original documentation.\nfunction answer int;\n    return 42\n\nfunction main;\n    alias = answer\n    _ = answer;\n    _ = alias;\n";
@@ -3724,7 +3724,7 @@ mod tests {
     }
 
     #[test]
-    fn formatter_preserves_documentation_content_while_formatting_the_declaration() {
+    fn formatter_preserves_docs_while_formatting_declaration() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/documented.trn";
         let source = "/**\n * A paragraph with a hard break.  \n *\n *     indented example  \n */\nfunction main;   \n    value int=1\n";
@@ -3911,7 +3911,7 @@ mod tests {
         assert_eq!(error.code, "mismatched-build");
     }
     #[test]
-    fn member_navigation_uses_receiver_type_instead_of_bare_name_resolution() {
+    fn member_navigation_uses_receiver_type() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/members.trn";
         let text = "namespace members\n\ninterface responder\n    function answer int;\n\nclass first implements responder\n    count int = 0\n\n    function answer int;\n        return 1\n\nclass second\n    function answer int;\n        return 2\n\nfunction main;\n    left = instance first;\n    right = instance second;\n    one int = left.answer;\n    two int = right.answer;\n";
@@ -3993,7 +3993,7 @@ mod tests {
     }
 
     #[test]
-    fn implementation_navigation_finds_descriptor_and_method_implementors() {
+    fn implementation_navigation_finds_descriptor_methods() {
         let mut engine = ToolingEngine::default();
         let uri = "file:///workspace/implementations.trn";
         let text = "namespace implementations\n\ninterface worker\n    function run int;\n\nclass first implements worker\n    function run int;\n        return 1\n\nclass second implements worker\n    function run int;\n        return 2\n\nfunction main;\n    item = instance first;\n    result int = item.run;\n";
@@ -4363,7 +4363,7 @@ mod tests {
     }
 
     #[test]
-    fn package_rename_is_identity_safe_preflighted_and_comment_preserving() {
+    fn package_rename_is_preflighted_and_comment_preserving() {
         let directory = TemporaryDirectory::new("package-rename");
         let root = directory.path();
         let child_directory = root.join("app/child");
@@ -4507,7 +4507,7 @@ mod tests {
         );
     }
     #[test]
-    fn real_dependency_inputs_drive_snapshot_and_projection_invalidation() {
+    fn dependency_inputs_drive_snapshot_invalidation() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/conformance/check/rust-dependency-reqwest")
             .canonicalize()
@@ -4587,7 +4587,7 @@ mod tests {
     }
 
     #[test]
-    fn unsaved_manifest_dependencies_and_new_units_drive_tooling_snapshots() {
+    fn unsaved_dependencies_and_units_drive_tooling_snapshots() {
         let directory = TemporaryDirectory::new("terrane-library-overlay");
         let app = directory.path().join("app");
         let library = directory.path().join("library");

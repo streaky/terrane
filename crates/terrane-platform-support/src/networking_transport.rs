@@ -1115,7 +1115,7 @@ mod backlog_tests {
     }
 
     #[test]
-    fn automatic_policy_parses_and_clamps_configured_capacity() {
+    fn policy_parses_and_clamps_capacity() {
         for (input, expected) in [
             (b" \t4096\r\n".as_slice(), 4096),
             (b"2147483648\n".as_slice(), i32::MAX),
@@ -1138,7 +1138,7 @@ mod backlog_tests {
     }
 
     #[test]
-    fn automatic_policy_falls_back_for_unavailable_or_invalid_settings() {
+    fn invalid_or_missing_policy_falls_back() {
         assert_eq!(
             resolve_tcp_backlog_with(-1, || None)
                 .unwrap_or_else(|error| panic!("{}", error.message)),
@@ -1191,7 +1191,7 @@ mod backlog_tests {
     }
 
     #[test]
-    fn bounded_reader_handles_fragmentation_and_interrupted_boundary_probe() {
+    fn reader_handles_fragments_and_interruption() {
         let mut fragmented = Chunked {
             remaining: b"4096\n",
             chunk: 1,
@@ -1219,7 +1219,7 @@ mod backlog_tests {
     }
 
     #[test]
-    fn explicit_backlogs_preserve_boundaries_without_discovery() {
+    fn explicit_backlogs_skip_discovery() {
         for value in [0, 16, i128::from(i32::MAX)] {
             assert_eq!(
                 resolve_tcp_backlog_with(value, || panic!("explicit backlog queried the OS"))

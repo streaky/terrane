@@ -35,7 +35,7 @@ mod native_group_drop {
     include!("../src/runtime/task_groups_native.rs");
 
     #[tokio::test(flavor = "current_thread")]
-    async fn dropping_undrained_group_requests_cancellation_before_boundary_cleanup_joins_child() {
+    async fn drop_group_cancels_before_cleanup() {
         let proof = async {
             let (parent_continued, parent_continued_rx) = tokio::sync::oneshot::channel();
             let (child_started, child_started_rx) = tokio::sync::oneshot::channel();

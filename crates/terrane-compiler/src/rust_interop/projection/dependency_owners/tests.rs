@@ -9,7 +9,7 @@ use super::*;
     reason = "one regression covers decline, private alias admission, facade visibility, and ambiguous-version rejection"
 )]
 #[test]
-fn transitive_type_owner_uses_unique_locked_recursive_package() {
+fn locked_transitive_owner() {
     let directory =
         std::env::temp_dir().join(format!("terrane-transitive-owner-{}", std::process::id()));
     fs::create_dir_all(&directory).unwrap();

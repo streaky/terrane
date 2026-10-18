@@ -7,7 +7,7 @@ use super::super::{
 use super::*;
 
 #[test]
-fn projection_cache_removes_only_legacy_projection_records() {
+fn cache_removes_only_legacy_records() {
     let directory =
         std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));
     let stable = directory.join("projection.json");
@@ -65,7 +65,7 @@ fn projection_cache_removes_only_legacy_projection_records() {
     fs::remove_dir_all(directory).unwrap();
 }
 #[test]
-fn remote_artifact_requires_exact_projection_inputs() {
+fn remote_requires_exact_inputs() {
     let dependency = RustDependency {
         name: "witness".to_owned(),
         package: "witness-package".to_owned(),

@@ -545,7 +545,7 @@ mod constant_expression_tests {
     use super::project_rust_constant_expression;
 
     #[test]
-    fn rust_string_literals_are_not_terrane_constant_expressions() {
+    fn rust_str_not_const() {
         assert_eq!(project_rust_constant_expression(r#""hello world""#), None);
         assert_eq!(project_rust_constant_expression(r#""don't""#), None);
         assert_eq!(project_rust_constant_expression(r#""line\nbreak""#), None);

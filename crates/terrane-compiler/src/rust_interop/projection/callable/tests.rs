@@ -6,7 +6,7 @@ use rustdoc_types::{ItemKind, Trait};
     clippy::too_many_lines,
     reason = "one identity matrix keeps callable and marker trait aliases together"
 )]
-fn builtin_callback_trait_recognition_uses_canonical_identity() {
+fn builtin_traits_use_canonical_identity() {
     let fn_id = Id(1);
     let spoofed_fn_id = Id(2);
     let fn_mut_id = Id(3);
@@ -141,7 +141,7 @@ fn builtin_callback_trait_recognition_uses_canonical_identity() {
 }
 
 #[test]
-fn custom_callable_traits_reject_restrictive_shapes() {
+fn restrictive_custom_traits_decline() {
     let base = Trait {
         is_auto: false,
         is_unsafe: false,

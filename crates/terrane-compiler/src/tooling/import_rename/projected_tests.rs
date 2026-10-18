@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 #[test]
-fn projected_dependency_alias_rename_and_removal_update_only_its_bound_uses() {
+fn dependency_alias_updates_bound_uses() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/conformance/check/rust-dependency-reqwest")
         .canonicalize()

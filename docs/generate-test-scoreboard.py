@@ -48,6 +48,7 @@ def validate(data: Any) -> dict[str, Any]:
         seen.add(test["id"])
         require(isinstance(test.get("target"), str) and test["target"], f"{prefix}.target is required")
         require(isinstance(test.get("name"), str) and test["name"], f"{prefix}.name is required")
+        require(len(test["name"]) <= 80, f"{prefix}.name exceeds 80 characters: {test['name']}")
         require(test.get("status") in STATUSES, f"{prefix}.status is invalid")
         require(isinstance(test.get("seconds"), (int, float)) and test["seconds"] >= 0, f"{prefix}.seconds is invalid")
         previous = test.get("previous_seconds")

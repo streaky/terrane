@@ -52,7 +52,7 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn development_binary_detection_accepts_profiles_and_target_triples() {
+    fn binary_detection_accepts_profiles_and_triples() {
         let root = Path::new("/workspace/terrane");
         assert!(is_repository_target_binary(
             Path::new("/workspace/terrane/target/release/terrane"),

@@ -1018,7 +1018,7 @@ fn cli_returns_the_debuggee_exit_status() {
 }
 
 #[test]
-fn adapter_renders_explicitly_embedded_generated_source_when_build_tree_is_unavailable() {
+fn adapter_renders_embedded_source_without_build_tree() {
     let fixture = DebugFixture::new();
     let (executable, provenance) = fixture.build_with_flags(&["--embed-generated-sources"]);
     let generated = provenance.parent().unwrap().join("src/main.rs");

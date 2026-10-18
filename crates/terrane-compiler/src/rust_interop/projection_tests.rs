@@ -57,7 +57,7 @@ fn projected_foreign_type_item(
 }
 
 #[test]
-fn canonical_projected_item_name_wins_over_provider_path_hash() {
+fn canonical_name_beats_provider_hash() {
     let point = projected_foreign_type_item("/deps/iced", "Point", "iced::Point", "distance");
     let mut rectangle =
         projected_foreign_type_item("/deps/iced", "Rectangle", "iced::Rectangle", "center");
@@ -81,7 +81,7 @@ fn canonical_projected_item_name_wins_over_provider_path_hash() {
 }
 
 #[test]
-fn canonical_public_reexports_share_demanded_members() {
+fn public_reexports_share_members() {
     let facade = projected_foreign_type_item("/deps/api", "Value", "api::Value", "read");
     let provider = projected_foreign_type_item("/deps/owner", "Value", "owner::Value", "read");
     let demanded = ProjectedMemberDemands::from([(
@@ -145,7 +145,7 @@ fn canonical_public_reexports_share_demanded_members() {
 }
 
 #[test]
-fn inventory_member_admission_requires_syntax_valid_rendering() {
+fn admission_requires_valid_syntax() {
     let ProjectedKind::Function(valid) =
         projected_function_item("/deps/witness", "ready", "witness::ready").kind
     else {
@@ -165,7 +165,7 @@ fn inventory_member_admission_requires_syntax_valid_rendering() {
 }
 
 #[test]
-fn projected_type_lookup_is_scoped_to_canonical_namespace() {
+fn type_lookup_uses_canonical_namespace() {
     let item = |namespace: &str, rust_path: &str| {
         let mut item = projected_function_item(namespace, "make", rust_path);
         let ProjectedKind::Function(function) = &mut item.kind else {
@@ -233,7 +233,7 @@ fn bound_alias_rewrite_only_changes_path_roots() {
     );
 }
 #[test]
-fn equally_short_public_paths_use_lexical_tie_breaking() {
+fn short_path_ties_use_lexical_order() {
     let id = Id(1);
     let mut paths = BTreeMap::new();
     prefer_public_path(&mut paths, id, "crate::zeta::Item".to_owned());
@@ -241,7 +241,7 @@ fn equally_short_public_paths_use_lexical_tie_breaking() {
     assert_eq!(paths[&id], "crate::alpha::Item");
 }
 #[test]
-fn substantive_public_paths_beat_shorter_prelude_paths() {
+fn public_paths_beat_shorter_preludes() {
     let id = Id(1);
     let mut paths = BTreeMap::new();
     prefer_public_path(&mut paths, id, "crate::prelude::Item".to_owned());
@@ -264,7 +264,7 @@ fn projected_map_and_set_keys_require_scalars() {
     assert!(!ProjectedType::Tuple(vec![ProjectedType::String]).is_terrane_scalar());
 }
 #[test]
-fn generated_projection_document_splits_into_one_namespace_units() {
+fn documents_split_into_namespace_units() {
     let document = "# report\n\
                         # Generated source unit: /deps/iced\n\
                         # Native path: iced::Element\n\
@@ -290,7 +290,7 @@ fn generated_projection_document_splits_into_one_namespace_units() {
 }
 
 #[test]
-fn generated_projection_unit_rejects_a_mismatched_namespace() {
+fn unit_rejects_wrong_namespace() {
     let error = generated_projection_units(
         "# Generated source unit: /deps/iced\nnamespace deps/other\nclass Element\n",
     )
@@ -299,7 +299,7 @@ fn generated_projection_unit_rejects_a_mismatched_namespace() {
 }
 
 #[test]
-fn projected_callback_name_is_the_language_server_signature() {
+fn callback_name_is_lsp_signature() {
     let callback = ProjectedType::Callback {
         rust_name: "F".to_owned(),
         native_bound: None,
@@ -328,7 +328,7 @@ fn projected_callback_name_is_the_language_server_signature() {
     clippy::too_many_lines,
     reason = "one inventory scenario verifies direct, inherited, admitted, and unused ordering"
 )]
-fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
+fn inventory_separates_unused_and_demanded() {
     let projection = Projection {
         native_owner_aliases: BTreeMap::default(),
         cache_identity: "inventory".to_owned(),
@@ -470,7 +470,7 @@ fn unavailable_inventory_distinguishes_unused_and_demanded_declines() {
 }
 
 #[test]
-fn documented_inventory_populates_admitted_members_and_comments_declines() {
+fn inventory_records_admissions_and_declines() {
     let projection = Projection {
         native_owner_aliases: BTreeMap::default(),
         cache_identity: "members".to_owned(),
@@ -520,7 +520,7 @@ fn documented_inventory_populates_admitted_members_and_comments_declines() {
 }
 
 #[test]
-fn exact_decline_path_wins_over_conflicting_suffixes() {
+fn exact_decline_beats_suffixes() {
     let dependency = |name: &str, rust_path: &str, reason: &str| ProjectedDependency {
         name: name.to_owned(),
         native_alias_identities: BTreeMap::new(),
@@ -548,7 +548,7 @@ fn exact_decline_path_wins_over_conflicting_suffixes() {
 }
 
 #[test]
-fn ambiguous_projected_type_identities_do_not_resolve() {
+fn ambiguous_types_do_not_resolve() {
     let dependency = |name: &str, rust_path: &str| ProjectedDependency {
         name: name.to_owned(),
         native_alias_identities: BTreeMap::new(),
@@ -642,7 +642,7 @@ fn ambiguous_projected_type_identities_do_not_resolve() {
 }
 
 #[test]
-fn static_reference_aliases_cannot_bypass_parameter_admission() {
+fn static_ref_aliases_cannot_bypass_admission() {
     let generics = Generics {
         params: Vec::new(),
         where_predicates: Vec::new(),
@@ -720,7 +720,7 @@ fn static_reference_aliases_cannot_bypass_parameter_admission() {
 }
 
 #[test]
-fn instantiated_generic_paths_share_public_name_and_keep_native_identity() {
+fn generic_paths_keep_names_and_native_identity() {
     let id = Id(1);
     let paths = HashMap::from([(
         id,
@@ -864,7 +864,7 @@ fn standard_aggregates_project_recursively() {
 }
 
 #[test]
-fn method_lookup_keeps_colliding_foreign_types_in_their_namespaces() {
+fn method_lookup_keeps_colliding_namespaces() {
     let projection: Projection = serde_json::from_value(json!({
         "cache_identity": "test",
         "containment": "Unavailable",
@@ -923,7 +923,7 @@ fn method_lookup_keeps_colliding_foreign_types_in_their_namespaces() {
 }
 
 #[test]
-fn function_signatures_keep_same_named_foreign_types_distinct() {
+fn signatures_distinguish_same_named_types() {
     let projection: Projection = serde_json::from_value(json!({
         "cache_identity": "test",
         "containment": "Unavailable",
@@ -1026,7 +1026,7 @@ fn wider_primitives_project_without_narrowing() {
 }
 
 #[test]
-fn dynamic_trait_shape_rejects_multiple_non_auto_traits() {
+fn dynamic_traits_reject_multiple_non_auto() {
     let bound = |id, path: &str| GenericBound::TraitBound {
         trait_: RustdocPath {
             path: path.to_owned(),

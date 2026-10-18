@@ -15,7 +15,7 @@ impl Drop for Cleanup {
     }
 }
 #[test]
-fn changing_debug_options_and_reloading_symbols_preserves_user_breakpoint_coordinates() {
+fn reload_debug_options_preserve_breakpoints() {
     let root = std::env::temp_dir().join(format!(
         "terrane-debug-cache-{}-{}",
         std::process::id(),

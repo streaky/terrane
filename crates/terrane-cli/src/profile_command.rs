@@ -2249,7 +2249,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn record_parser_separates_privacy_options_and_workload_arguments() {
+    fn record_parser_separates_privacy_and_workload_args() {
         let options = parse_record(&[
             "profile".into(),
             "record".into(),
@@ -2269,7 +2269,7 @@ mod tests {
     }
 
     #[test]
-    fn record_parser_allows_memory_timeline_alone_or_alongside_cpu() {
+    fn record_parser_allows_memory_timeline_with_or_without_cpu() {
         let timeline = parse_record(&[
             "profile".into(),
             "record".into(),
@@ -2293,7 +2293,7 @@ mod tests {
     }
 
     #[test]
-    fn perf_script_parser_accepts_padded_pids_and_retains_frame_details() {
+    fn perf_script_parser_keeps_padded_pids_and_frames() {
         let script = " 314007/314007 10.250000000: cpu-clock:u: \n\
 \t    400123 hot+0x3\n\
   /tmp/build/src/main.rs:42 (inlined)\n\
@@ -2336,7 +2336,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
     }
 
     #[test]
-    fn omitted_arguments_do_not_leak_into_collector_configuration() {
+    fn omitted_args_stay_out_of_collector_config() {
         let arguments = [OsString::from("secret-token")];
         let omitted = perf_record_configuration(Path::new("/program"), &arguments, false);
         assert!(!omitted.iter().any(|value| value == "secret-token"));
@@ -2347,7 +2347,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
     }
 
     #[test]
-    fn show_parser_accepts_source_focus_and_lower_level_expansion() {
+    fn show_parser_accepts_source_focus_and_expansion() {
         let options = parse_show(&[
             "profile".into(),
             "show".into(),
@@ -2421,7 +2421,7 @@ PERF_RECORD_LOST 1 LOST 37 events\n";
     }
 
     #[test]
-    fn report_limits_bound_every_row_expansion_and_shorten_build_paths() {
+    fn report_limits_bound_row_expansion_and_shorten_paths() {
         use terrane_compiler::debugging::SourceSpan;
         use terrane_compiler::profiling::{
             AttributionQuality, AttributionRow, GeneratedConstituent, NativeConstituent,

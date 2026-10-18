@@ -795,7 +795,7 @@ mod tests {
     }
 
     #[test]
-    fn alias_arguments_override_defaults_and_dependent_defaults_close_in_order() {
+    fn arguments_override_defaults() {
         let generic = ProjectedType::Generic("T".to_owned());
         let projection = projection(vec![(
             "facade::Alias",
@@ -830,7 +830,7 @@ mod tests {
     }
 
     #[test]
-    fn nested_aliases_expand_across_dependencies_and_canonical_owner_paths() {
+    fn nested_aliases_cross_owners() {
         let mut projection = projection(vec![(
             "facade::Outer",
             alias(
@@ -891,7 +891,7 @@ mod tests {
     }
 
     #[test]
-    fn nested_container_aliases_preserve_constructor_and_concrete_arguments() {
+    fn nested_containers_keep_arguments() {
         let projection = projection(vec![(
             "facade::Alias",
             alias(
@@ -919,7 +919,7 @@ mod tests {
     }
 
     #[test]
-    fn unresolved_arguments_and_unrecorded_nominal_types_have_no_alias_selection() {
+    fn unknown_args_decline_selection() {
         let projection = projection(vec![(
             "facade::Alias",
             alias(
@@ -953,7 +953,7 @@ mod tests {
     }
 
     #[test]
-    fn cycles_fail_even_when_they_expand_arguments_or_hide_inside_defaults() {
+    fn cycles_through_args_and_defaults() {
         for aliases in [
             vec![(
                 "facade::A",
@@ -1002,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    fn a_default_can_apply_the_same_alias_with_an_explicit_finite_argument() {
+    fn finite_alias_default_applies_alias() {
         let projection = projection(vec![(
             "facade::A",
             alias(
@@ -1107,7 +1107,7 @@ mod tests {
     }
 
     #[test]
-    fn alias_identity_is_recorded_without_the_target_owner_document() {
+    fn identity_without_owner_doc() {
         let (dependency, document, public_paths) = defaulted_alias_fixture();
         let mut projection = projection(Vec::new());
         project_closed_alias_members(
@@ -1131,7 +1131,7 @@ mod tests {
         clippy::too_many_lines,
         reason = "the regression constructs one complete Rustdoc alias/owner/member fixture"
     )]
-    fn alias_member_templates_rebind_different_declaration_and_impl_parameter_names() {
+    fn member_binders_rebind() {
         let (dependency, mut document, public_paths) = defaulted_alias_fixture();
         let owner_generics = rustdoc_types::Generics {
             params: vec![rustdoc_types::GenericParamDef {
@@ -1269,7 +1269,7 @@ mod tests {
     }
 
     #[test]
-    fn public_reexport_aliases_record_the_defining_documents_generic_defaults() {
+    fn reexports_keep_owner_defaults() {
         let (dependency, document, _) = defaulted_alias_fixture();
         let mut facade = document.clone();
         facade.index.remove(&Id(1));
@@ -1314,7 +1314,7 @@ mod tests {
     }
 
     #[test]
-    fn aliases_with_required_parameters_retain_the_source_declaration_binders() {
+    fn required_binders_survive() {
         let (dependency, mut document, public_paths) = defaulted_alias_fixture();
         let ItemEnum::TypeAlias(alias) = &mut document.index.get_mut(&Id(1)).unwrap().inner else {
             panic!("fixture contains a type alias");

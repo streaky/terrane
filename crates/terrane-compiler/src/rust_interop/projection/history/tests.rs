@@ -9,7 +9,7 @@ use crate::rust_interop::projection::*;
     reason = "the history regression records a complete two-generation cache transition"
 )]
 #[test]
-fn projection_history_retains_removed_members_across_checks_and_same_version_changes() {
+fn checks_versions_keep_removed() {
     for version in ["1.0.0", "2.0.0"] {
         let directory = std::env::temp_dir().join(format!(
             "terrane-projection-history-{}-{version}",
@@ -155,7 +155,7 @@ fn projection_history_retains_removed_members_across_checks_and_same_version_cha
 }
 
 #[test]
-fn projection_history_keeps_content_origin_across_cache_hits() {
+fn cache_hits_keep_content_origin() {
     let directory =
         std::env::temp_dir().join(format!("terrane-projection-origin-{}", std::process::id()));
     fs::create_dir_all(&directory).unwrap();
@@ -198,7 +198,7 @@ fn projection_history_keeps_content_origin_across_cache_hits() {
 }
 
 #[test]
-fn legacy_format_three_history_migrates_without_losing_removed_members() {
+fn v3_migration_keeps_removed_members() {
     let legacy = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tests/fixtures/projection-history/format-3.lock"
@@ -263,7 +263,7 @@ fn legacy_format_three_history_migrates_without_losing_removed_members() {
     fs::remove_dir_all(directory).unwrap();
 }
 #[test]
-fn projection_cache_migrates_provenance_and_detects_replay_drift() {
+fn migration_detects_replay_drift() {
     let directory = std::env::temp_dir().join(format!(
         "terrane-projection-provenance-{}",
         std::process::id()
@@ -343,7 +343,7 @@ fn empty_projection() -> Projection {
 }
 
 #[test]
-fn malformed_and_unsupported_projection_histories_are_replaced() {
+fn invalid_histories_are_replaced() {
     for (label, bytes) in [
         ("malformed", b"{truncated".as_slice()),
         (
@@ -372,7 +372,7 @@ fn malformed_and_unsupported_projection_histories_are_replaced() {
 }
 
 #[test]
-fn filesystem_cache_read_errors_are_not_discarded() {
+fn cache_read_errors_propagate() {
     let directory = std::env::temp_dir().join(format!(
         "terrane-projection-cache-read-error-{}",
         std::process::id()

@@ -473,7 +473,7 @@ mod tests {
         assert!(!close(&subscription).failed);
     }
     #[tokio::test]
-    async fn dropping_the_last_capability_during_dispatch_cannot_deadlock_the_worker() {
+    async fn last_capability_drop_during_dispatch_cannot_deadlock() {
         let _test_lock = TEST_LOCK.lock().await;
         let subscription = subscribe(&["interrupt".to_owned()])
             .capability
