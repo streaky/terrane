@@ -88,6 +88,47 @@ impl<T> Drop for TerraneSharedGuard<'_, T> {
     }
 }
 
+// The slot can be rebound, but a method invocation owns the selected object's
+// handle. Never hold the slot guard while accessing or dropping user objects.
+pub struct TerraneStaticObject<T> {
+    current: TerraneSharedCell<std::sync::Arc<TerraneSharedCell<T>>>,
+}
+
+impl<T> TerraneStaticObject<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            current: TerraneSharedCell::new(std::sync::Arc::new(TerraneSharedCell::new(value))),
+        }
+    }
+
+    /// Captures the current object without retaining the replaceable slot guard.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned or is recursively borrowed by this thread.
+    pub fn handle(&self) -> std::sync::Arc<TerraneSharedCell<T>> {
+        self.current
+            .lock()
+            .expect("static object slot lock poisoned")
+            .clone()
+    }
+
+    /// Installs a new object, releasing the slot before dropping its predecessor.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned, recursively borrowed, or its old object panics on drop.
+    pub fn replace(&self, value: T) {
+        let replacement = std::sync::Arc::new(TerraneSharedCell::new(value));
+        let previous = {
+            let mut current = self
+                .current
+                .lock()
+                .expect("static object slot lock poisoned");
+            std::mem::replace(&mut *current, replacement)
+        };
+        drop(previous);
+    }
+}
+
 // An async source method owns its handle, not a guard. Enum-backed inheritance
 // projects that handle onto the selected variant without copying the referent.
 pub trait TerraneSharedHandle<T> {
@@ -99,12 +140,6 @@ pub trait TerraneSharedHandle<T> {
 }
 
 impl<T> TerraneSharedHandle<T> for std::sync::Arc<TerraneSharedCell<T>> {
-    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
-        (**self).lock()
-    }
-}
-
-impl<T> TerraneSharedHandle<T> for &TerraneSharedCell<T> {
     fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
         (**self).lock()
     }

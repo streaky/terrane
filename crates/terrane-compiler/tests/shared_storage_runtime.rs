@@ -42,6 +42,52 @@ fn exercise_projection() {
     assert_eq!(*cell.as_ref().lock().unwrap_err().into_inner(), (1, 12));
 }
 
+fn exercise_static_identity() {
+    struct Value {
+        count: i32,
+        on_drop: Option<std::sync::Arc<TerraneStaticObject<Value>>>,
+        drops: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+    impl Drop for Value {
+        fn drop(&mut self) {
+            self.drops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if let Some(slot) = &self.on_drop {
+                slot.handle().lock().unwrap().count += 1;
+            }
+        }
+    }
+    let drops = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let slot = std::sync::Arc::new(TerraneStaticObject::new(Value {
+        count: 2,
+        on_drop: None,
+        drops: drops.clone(),
+    }));
+    let original = slot.handle();
+    original.lock().unwrap().on_drop = Some(slot.clone());
+    slot.replace(Value {
+        count: 100,
+        on_drop: None,
+        drops: drops.clone(),
+    });
+    assert_eq!(original.lock().unwrap().count, 2);
+    assert_eq!(slot.handle().lock().unwrap().count, 100);
+    assert_eq!(drops.load(std::sync::atomic::Ordering::SeqCst), 0);
+    drop(original);
+    assert_eq!(drops.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(slot.handle().lock().unwrap().count, 101);
+    slot.replace(Value {
+        count: 200,
+        on_drop: Some(slot.clone()),
+        drops: drops.clone(),
+    });
+    slot.replace(Value {
+        count: 300,
+        on_drop: None,
+        drops,
+    });
+    assert_eq!(slot.handle().lock().unwrap().count, 301);
+}
+
 fn exercise(mode: &str) {
     match mode {
         "nested" => {
@@ -128,6 +174,7 @@ fn exercise(mode: &str) {
             assert_eq!(*cell.lock().unwrap(), 8000);
         }
         "projection" => exercise_projection(),
+        "static-identity" => exercise_static_identity(),
         _ => panic!("unknown scenario {mode}"),
     }
 }
@@ -146,6 +193,7 @@ fn checked_shared_storage_behaviors_are_bounded() {
         "contention",
         "serialization",
         "projection",
+        "static-identity",
     ] {
         let mut child = std::process::Command::new(std::env::current_exe().unwrap())
             .args([

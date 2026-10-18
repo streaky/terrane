@@ -564,7 +564,7 @@ shared_read_guards: field reads through owning handles, weak observers and origi
 shared_write_guards: assignments, required slots and nested collection mutations target live storage, not read snapshots; capture receiver identity before evaluating RHS/arguments and acquire the mutation guard afterward
 shared_method_arguments: synchronous guarded source and native calls evaluate explicit arguments in written order and defaults before taking the invocation guard; bounded read snapshots and live write places retain their ordering
 shared_method_reentry: runtime checked exclusive shared storage rejects same-thread reacquisition immediately with a shared-reference borrow-conflict panic, including read/read reentry, independent of alias shape; different threads wait normally; guards do not survive await or migrate threads; poison semantics retained; no per-access allocation, recursive mutex or referent snapshot fallback; T0143 remains an early compile-time error for direct aliases and local straight-line copy/reassignment identities (owning/weak/original owner); loop proofs, return-identity inference in this check and transitive helper summaries are removed; cross-thread lock-order cycles and native locks remain application responsibilities, not a deadlock-freedom guarantee
-shared_async_methods: source async methods invoked through shared storage own a receiver handle and acquire bounded guards per access/synchronous call; no borrowed guard spans await and no whole-referent snapshot is mutated; writes persist, but other invocations can interleave across suspension
+shared_async_methods: source async methods invoked through shared storage own a receiver handle; each field access and synchronous method call acquires its own bounded guard, no borrowed guard spans await and no whole-referent snapshot is mutated; accesses may interleave on a threaded executor even without await, so this.total = this.total + 1 is not atomic, nor are await-free statements or segments or whole async methods transactions; put read-modify-write in a synchronous mutable helper invoked through this, whose body runs under one receiver guard
 source_method_dispatch: source methods keep their identity through plain/ref/shared-ref receivers, including inherited methods whose names match builtin families such as add, multiply, encode, parse or radix; source signatures are validated instead of builtin arity/policy rules; normal invocation authority still applies
 reference_escape: returns are accepted only when provenance reaches the selected external lender; ambiguous call-result lender paths, local or by-value-parameter return, post-lifetime-end use, and ref-to-shared-ref promotion are source errors
 resource_ownership: inferred transitively from compiler-known noncopyable fields; no 'linear class' qualifier
@@ -847,11 +847,14 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Class: single inheritance initially; subclass-to-base assignment preserves dynamic value (no slicing).
 - Overloading by implicit same-name signature dispatch is not initial behavior.
 - Mutation visible by default; immutable behavior explicit via `constant`/contracts.
-- Mutable static fields share lazily initialized storage per effective class through
-  `LazyLock<TerraneSharedCell<...>>`. Reads copy the requested value; mutable calls and nested
-  writes use the live guarded target. Same-thread reacquisition fails with a borrow conflict;
-  other threads wait normally. Poisoning is an internal runtime failure. Separate source
-  operations are not atomic; explicit concurrency objects retain their own contracts.
+- Mutable static fields share lazily initialized slots per effective class. Object-valued
+  slots hold shared object handles; receiver capture selects the current object before
+  arguments/future polling, and replacement never retargets an existing invocation.
+  Reads copy requested values; mutable calls/nested writes use live storage. Scalar slots
+  use direct checked cells without an object-handle allocation. Same-object reentry fails
+  with a borrow conflict; other threads wait normally. Slot guards do not span calls,
+  suspension or dropping old objects. Separate operations are not transactions; explicit
+  concurrency objects retain their own contracts.
 - A typed class or trait field may omit its initializer when its declared type has a canonical
   default: `bool` -> `false`; numeric -> typed zero; `string` -> `''`; `bytes` -> empty bytes;
   `T|none` -> `none`; `list`/`map`/`set`/`unordered-map`/`unordered-set` -> empty collection.

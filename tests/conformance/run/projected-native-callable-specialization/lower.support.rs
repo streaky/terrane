@@ -668,6 +668,40 @@ impl<T> Drop for TerraneSharedGuard<'_, T> {
         self.owner.store(0, std::sync::atomic::Ordering::Release);
     }
 }
+pub struct TerraneStaticObject<T> {
+    current: TerraneSharedCell<std::sync::Arc<TerraneSharedCell<T>>>,
+}
+impl<T> TerraneStaticObject<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            current: TerraneSharedCell::new(
+                std::sync::Arc::new(TerraneSharedCell::new(value)),
+            ),
+        }
+    }
+    /// Captures the current object without retaining the replaceable slot guard.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned or is recursively borrowed by this thread.
+    pub fn handle(&self) -> std::sync::Arc<TerraneSharedCell<T>> {
+        self.current.lock().expect("static object slot lock poisoned").clone()
+    }
+    /// Installs a new object, releasing the slot before dropping its predecessor.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned, recursively borrowed, or its old object panics on drop.
+    pub fn replace(&self, value: T) {
+        let replacement = std::sync::Arc::new(TerraneSharedCell::new(value));
+        let previous = {
+            let mut current = self
+                .current
+                .lock()
+                .expect("static object slot lock poisoned");
+            std::mem::replace(&mut *current, replacement)
+        };
+        drop(previous);
+    }
+}
 pub trait TerraneSharedHandle<T> {
     /// Acquires a bounded exclusive borrow of the receiver's live storage.
     ///
@@ -676,11 +710,6 @@ pub trait TerraneSharedHandle<T> {
     fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>>;
 }
 impl<T> TerraneSharedHandle<T> for std::sync::Arc<TerraneSharedCell<T>> {
-    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
-        (**self).lock()
-    }
-}
-impl<T> TerraneSharedHandle<T> for &TerraneSharedCell<T> {
     fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
         (**self).lock()
     }

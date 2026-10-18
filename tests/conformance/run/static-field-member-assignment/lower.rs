@@ -13,8 +13,8 @@ impl Inner {
         }
     }
 }
-pub static TERRANE_STATIC_HOLDER_SLOT: std::sync::LazyLock<TerraneSharedCell<Inner>> = std::sync::LazyLock::new(||
-TerraneSharedCell::new(Inner::terrane_construct()));
+pub static TERRANE_STATIC_HOLDER_SLOT: std::sync::LazyLock<TerraneStaticObject<Inner>> = std::sync::LazyLock::new(||
+TerraneStaticObject::new(Inner::terrane_construct()));
 #[derive(Clone)]
 pub struct Holder {}
 impl Holder {
@@ -23,11 +23,9 @@ impl Holder {
     }
     pub fn terrane_static_update() {
         {
+            let __terrane_owner = TERRANE_STATIC_HOLDER_SLOT.handle();
             let __terrane_value = terrane_int_support::Int::from(5_i128);
-            TERRANE_STATIC_HOLDER_SLOT
-                .lock()
-                .expect("static field lock poisoned")
-                .value = __terrane_value;
+            __terrane_owner.lock().expect("static field lock poisoned").value = __terrane_value;
         }
     }
 }
@@ -35,7 +33,7 @@ fn main() {
     Holder::terrane_static_update();
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
-        __terrane_result = TERRANE_STATIC_HOLDER_SLOT.lock()
+        __terrane_result = TERRANE_STATIC_HOLDER_SLOT.handle().lock()
         .expect("static field lock poisoned").value.clone(); __terrane_result };
         __terrane_snapshot })
     );

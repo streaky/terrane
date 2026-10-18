@@ -1931,7 +1931,7 @@ impl Emitter<'_> {
             let setup = if self.shared_async_receiver && self.text(receiver) == "this" {
                 "let __terrane_shared_call_handle = __terrane_shared_handle.clone(); ".to_owned()
             } else if let Some(storage) = self.static_storage_name(receiver) {
-                format!("let __terrane_shared_call_handle = &*{storage}; ")
+                format!("let __terrane_shared_call_handle = {storage}; ")
             } else {
                 match self.value_type(receiver) {
                     Some(ValueType::SharedReference(_)) => format!(

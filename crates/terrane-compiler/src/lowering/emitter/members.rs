@@ -341,10 +341,15 @@ impl Emitter<'_> {
         {
             return None;
         }
-        effective_object_fields(self.package, object)
-            .iter()
-            .any(|field| field.is_static && field.name == name)
-            .then(|| rust_static_field_name(self.package, &object.identity, name))
+        let field = effective_object_fields(self.package, object)
+            .into_iter()
+            .find(|field| field.is_static && field.name == name)?;
+        let storage = rust_static_field_name(self.package, &object.identity, name);
+        Some(if matches!(field.value_type, ValueType::Object(_)) {
+            format!("{storage}.handle()")
+        } else {
+            storage
+        })
     }
 
     pub(super) fn receiver_needs_live_guard(&self, receiver: &SyntaxNode) -> bool {
@@ -365,6 +370,26 @@ impl Emitter<'_> {
                 .is_some_and(|holder| self.receiver_needs_live_guard(holder))
     }
 
+    fn static_receiver_parts(&self, receiver: &SyntaxNode) -> Option<(String, String)> {
+        let storage = self.static_storage_name(receiver)?;
+        Some(
+            if matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::Object(_))
+            ) {
+                (
+                    format!("let __terrane_owner = {storage}; "),
+                    "__terrane_owner.lock().expect(\"static field lock poisoned\")".to_owned(),
+                )
+            } else {
+                (
+                    String::new(),
+                    format!("{storage}.lock().expect(\"static field lock poisoned\")"),
+                )
+            },
+        )
+    }
+
     // Capture shared identity before arguments, but acquire its guard only when
     // the returned place expression is evaluated. Nested fields stay live.
     pub(super) fn live_receiver_parts(&mut self, receiver: &SyntaxNode) -> (String, String) {
@@ -373,11 +398,8 @@ impl Emitter<'_> {
         {
             return self.live_receiver_parts(grouped);
         }
-        if let Some(storage) = self.static_storage_name(receiver) {
-            return (
-                String::new(),
-                format!("{storage}.lock().expect(\"static field lock poisoned\")"),
-            );
+        if let Some(parts) = self.static_receiver_parts(receiver) {
+            return parts;
         }
         if self.shared_async_receiver && self.text(receiver) == "this" {
             return (
@@ -625,13 +647,9 @@ impl Emitter<'_> {
         ) {
             return constant.rust_path.clone();
         }
-        if effective_object_fields(self.package, object)
-            .iter()
-            .any(|field| field.is_static && field.name == member_name)
-        {
+        if let Some(storage) = self.static_storage_name(node) {
             return format!(
-                "{{ let __terrane_value = {}.lock().expect(\"static field lock poisoned\").clone(); __terrane_value }}",
-                rust_static_field_name(self.package, &object.identity, member_name)
+                "{{ let __terrane_value = {storage}.lock().expect(\"static field lock poisoned\").clone(); __terrane_value }}"
             );
         }
         format!(

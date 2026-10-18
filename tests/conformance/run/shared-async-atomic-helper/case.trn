@@ -1,0 +1,22 @@
+namespace shared-async-atomic-helper
+
+class accumulator
+    total int = 0
+
+    mutable function increment;
+        this.total = this.total + 1
+
+    mutable async function add-many; count int
+        for i = 0; i < count; i++
+            this.increment;
+
+async function main;
+    value = instance accumulator;
+    owner = shared ref value
+    alias = owner
+    scope = task-scope;
+    first = scope.spawn; (owner.add-many; 20000)
+    second = scope.spawn; (alias.add-many; 20000)
+    first-result = await scope.join; first
+    second-result = await scope.join; second
+    print; first-result.completed, second-result.completed, owner.total

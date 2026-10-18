@@ -25,11 +25,11 @@ impl Counter {
     }
 }
 pub static TERRANE_STATIC_HOLDER_FIRST: std::sync::LazyLock<
-    TerraneSharedCell<Counter>,
-> = std::sync::LazyLock::new(|| TerraneSharedCell::new(Counter::terrane_construct()));
+    TerraneStaticObject<Counter>,
+> = std::sync::LazyLock::new(|| TerraneStaticObject::new(Counter::terrane_construct()));
 pub static TERRANE_STATIC_HOLDER_SECOND: std::sync::LazyLock<
-    TerraneSharedCell<Counter>,
-> = std::sync::LazyLock::new(|| TerraneSharedCell::new(Counter::terrane_construct()));
+    TerraneStaticObject<Counter>,
+> = std::sync::LazyLock::new(|| TerraneStaticObject::new(Counter::terrane_construct()));
 pub static TERRANE_STATIC_HOLDER_SCALAR: std::sync::LazyLock<
     TerraneSharedCell<terrane_int_support::Int>,
 > = std::sync::LazyLock::new(|| TerraneSharedCell::new(
@@ -45,36 +45,38 @@ impl Holder {
         let first_value: terrane_int_support::Int;
         let second_value: terrane_int_support::Int;
         first_value = {
-            let __terrane_call_result = TERRANE_STATIC_HOLDER_FIRST
+            let __terrane_owner = TERRANE_STATIC_HOLDER_FIRST.handle();
+            let __terrane_call_result = __terrane_owner
                 .lock()
                 .expect("static field lock poisoned")
                 .increment();
             __terrane_call_result
         };
         second_value = {
-            let __terrane_call_result = TERRANE_STATIC_HOLDER_SECOND
+            let __terrane_owner = TERRANE_STATIC_HOLDER_SECOND.handle();
+            let __terrane_call_result = __terrane_owner
                 .lock()
                 .expect("static field lock poisoned")
                 .increment();
             __terrane_call_result
         };
         {
+            let __terrane_owner = TERRANE_STATIC_HOLDER_FIRST.handle();
             let __terrane_value = first_value.clone() + second_value.clone()
                 + terrane_int_support::Int::from(1_i128);
-            TERRANE_STATIC_HOLDER_FIRST
-                .lock()
-                .expect("static field lock poisoned")
-                .value = __terrane_value;
+            __terrane_owner.lock().expect("static field lock poisoned").value = __terrane_value;
         }
         return {
-            let __terrane_call_result = TERRANE_STATIC_HOLDER_FIRST
+            let __terrane_owner = TERRANE_STATIC_HOLDER_FIRST.handle();
+            let __terrane_call_result = __terrane_owner
                 .lock()
                 .expect("static field lock poisoned")
                 .read();
             __terrane_call_result
         }
             + {
-                let __terrane_call_result = TERRANE_STATIC_HOLDER_SECOND
+                let __terrane_owner = TERRANE_STATIC_HOLDER_SECOND.handle();
+                let __terrane_call_result = __terrane_owner
                     .lock()
                     .expect("static field lock poisoned")
                     .read();
@@ -88,13 +90,13 @@ fn main() {
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
-        __terrane_result = TERRANE_STATIC_HOLDER_FIRST.lock()
+        __terrane_result = TERRANE_STATIC_HOLDER_FIRST.handle().lock()
         .expect("static field lock poisoned").value.clone(); __terrane_result };
         __terrane_snapshot })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
-        __terrane_result = TERRANE_STATIC_HOLDER_SECOND.lock()
+        __terrane_result = TERRANE_STATIC_HOLDER_SECOND.handle().lock()
         .expect("static field lock poisoned").value.clone(); __terrane_result };
         __terrane_snapshot })
     );

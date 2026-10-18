@@ -630,8 +630,13 @@ impl<'a> Emitter<'a> {
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for field in &static_fields {
                     let initializer = self.field_initial_value(*field);
+                    let storage = if matches!(field.field.value_type, ValueType::Object(_)) {
+                        "TerraneStaticObject"
+                    } else {
+                        "TerraneSharedCell"
+                    };
                     self.line(&format!(
-                        "pub static {}: std::sync::LazyLock<TerraneSharedCell<{}>> = std::sync::LazyLock::new(|| TerraneSharedCell::new({initializer}));",
+                        "pub static {}: std::sync::LazyLock<{storage}<{}>> = std::sync::LazyLock::new(|| {storage}::new({initializer}));",
                         rust_static_field_name(self.package, &object.identity, &field.field.name),
                         rust_value_type(self.package, field.field.value_type.clone())
                     ));

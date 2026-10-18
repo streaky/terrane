@@ -83,8 +83,8 @@ impl<TerraneType54> Counter<TerraneType54> {
     }
 }
 pub static TERRANE_STATIC_HOLDER_SLOT: std::sync::LazyLock<
-    TerraneSharedCell<Counter<terrane_int_support::Int>>,
-> = std::sync::LazyLock::new(|| TerraneSharedCell::new(
+    TerraneStaticObject<Counter<terrane_int_support::Int>>,
+> = std::sync::LazyLock::new(|| TerraneStaticObject::new(
     Counter::<terrane_int_support::Int>::terrane_construct(),
 ));
 #[derive(Clone)]
@@ -100,7 +100,7 @@ fn main() {
         let owner: std::sync::Arc<TerraneSharedCell<Counter<terrane_int_support::Int>>>;
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_await({ let
-            __terrane_shared_call_handle = &* TERRANE_STATIC_HOLDER_SLOT; let
+            __terrane_shared_call_handle = TERRANE_STATIC_HOLDER_SLOT.handle(); let
             __terrane_shared_argument_0 = terrane_int_support::Int::from(5_i128); let
             __terrane_shared_argument_1 = __terrane_shared_argument_0; Counter:: <
             terrane_int_support::Int >
@@ -109,7 +109,7 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
-            __terrane_result = TERRANE_STATIC_HOLDER_SLOT.lock()
+            __terrane_result = TERRANE_STATIC_HOLDER_SLOT.handle().lock()
             .expect("static field lock poisoned").total.clone(); __terrane_result };
             __terrane_snapshot })
         );

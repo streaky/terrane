@@ -233,35 +233,6 @@ impl Emitter<'_> {
             .flatten()
     }
 
-    pub(super) fn nested_static_assignment_target(&self, node: &SyntaxNode) -> Option<String> {
-        let [receiver, member] = node.children.as_slice() else {
-            return None;
-        };
-        if node.kind != SyntaxKind::MemberExpression {
-            return None;
-        }
-        let mut target = if receiver.kind == SyntaxKind::StaticMemberExpression {
-            let [class, field] = receiver.children.as_slice() else {
-                return None;
-            };
-            let object = self.class_designator(class)?;
-            let field_name = self.text(field);
-            effective_object_fields(self.package, object)
-                .iter()
-                .any(|candidate| candidate.is_static && candidate.name == field_name)
-                .then(|| {
-                    format!(
-                        "{}.lock().expect(\"static field lock poisoned\")",
-                        rust_static_field_name(self.package, &object.identity, field_name)
-                    )
-                })?
-        } else {
-            self.nested_static_assignment_target(receiver)?
-        };
-        write!(target, ".{}", rust_name(self.text(member))).unwrap();
-        Some(target)
-    }
-
     pub(super) fn assign_static_field(&mut self, left: &SyntaxNode, value: &str) -> bool {
         let [receiver, member] = left.children.as_slice() else {
             return false;
@@ -272,10 +243,14 @@ impl Emitter<'_> {
         let Some(object) = self.class_designator(receiver) else {
             return false;
         };
-        self.line(&format!(
-            "{{ let __terrane_static_value = {value}; *{}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}",
-            rust_static_field_name(self.package, &object.identity, self.text(member))
-        ));
+        let storage = rust_static_field_name(self.package, &object.identity, self.text(member));
+        if matches!(self.value_type(left), Some(ValueType::Object(_))) {
+            self.line(&format!("{storage}.replace({value});"));
+        } else {
+            self.line(&format!(
+                "{{ let __terrane_static_value = {value}; *{storage}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}"
+            ));
+        }
         true
     }
 
@@ -371,12 +346,6 @@ impl Emitter<'_> {
             value
         };
         if self.assign_static_field(left, &value) {
-            return;
-        }
-        if let Some(target) = self.nested_static_assignment_target(left) {
-            self.line(&format!(
-                "{{ let __terrane_value = {value}; {target} = __terrane_value; }}"
-            ));
             return;
         }
         if let [receiver, member] = left.children.as_slice()
