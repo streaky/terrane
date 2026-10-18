@@ -126,64 +126,6 @@ fn declaration_interface_export_survives_removal_of_original_source() {
 }
 
 #[test]
-fn test_discovery_prepares_native_consumer_generated_imports() {
-    let package = TempPackage::new();
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../");
-    for tool in ["cli-consumer", "protocol"] {
-        for relative in ["package.toml", "src/main.trn"] {
-            let destination = package.0.join("consumer-src").join(tool).join(relative);
-            fs::create_dir_all(destination.parent().unwrap()).unwrap();
-            fs::copy(
-                root.join("tools/annotation-consumers")
-                    .join(tool)
-                    .join(relative),
-                destination,
-            )
-            .unwrap();
-        }
-    }
-    let build = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .arg("build")
-        .arg(package.0.join("consumer-src/cli-consumer/package.toml"))
-        .output()
-        .unwrap();
-    assert!(
-        build.status.success(),
-        "{}",
-        String::from_utf8_lossy(&build.stderr)
-    );
-    let consumer = String::from_utf8(build.stdout).unwrap();
-    let consumer = consumer.trim();
-    fs::create_dir_all(package.0.join("schema")).unwrap();
-    fs::copy(
-        root.join("tools/annotation-consumers/cli/main.trn"),
-        package.0.join("schema/main.trn"),
-    )
-    .unwrap();
-    fs::write(package.0.join("package.toml"), format!(
-        "package = \"cli-package\"\n[namespaces]\n\"cli/app\" = \"app\"\nannotation-cli = \"schema\"\n[consumers.cli]\ncommand = {consumer:?}\ndeclarations = [\"/cli/app::command\"]\n",
-    )).unwrap();
-    fs::write(package.0.join("app/main.trn"), "namespace cli/app\nfrom /annotation-cli import command as cli-command\n@[cli-command;]\nfunction command int;\n  return 0\nfunction main;\n  return\n").unwrap();
-    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
-    fs::write(package.0.join("tests/unit/generated.trn"), "namespace cli/app\nfrom /generated/annotation-cli import run-command\nfunction test-generated;\n  result = run-command;\n").unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .args(["test", "--list"])
-        .arg(&package.0)
-        .output()
-        .unwrap();
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        String::from_utf8(output.stdout)
-            .unwrap()
-            .contains("/cli/app::test-generated")
-    );
-}
-
-#[test]
 fn implicit_source_does_not_reconcile_manifest_consumer_outputs() {
     let package = TempPackage::new();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../");
@@ -229,6 +171,31 @@ fn implicit_source_does_not_reconcile_manifest_consumer_outputs() {
         "namespace cli/app\nfrom /annotation-cli import command as cli-command\n@[cli-command;]\nfunction command int;\n  return 0\nfunction main;\n  return\n",
     )
     .unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    let generated_test = package.0.join("tests/unit/generated.trn");
+    fs::write(
+        &generated_test,
+        "namespace cli/app\nfrom /generated/annotation-cli import run-command\nfunction test-generated;\n  result = run-command;\n",
+    )
+    .unwrap();
+    let listed = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .arg("test")
+        .args(["--list"])
+        .arg(&package.0)
+        .output()
+        .unwrap();
+    assert!(
+        listed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&listed.stderr)
+    );
+    assert!(
+        String::from_utf8(listed.stdout)
+            .unwrap()
+            .contains("/cli/app::test-generated")
+    );
+    fs::remove_file(generated_test).unwrap();
+
     let invoke = |path: &Path| {
         let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
             .arg("check")
@@ -627,7 +594,7 @@ const DETERMINISTIC_TEST_CASES: &str = concat!(
 );
 
 #[test]
-fn native_test_command_reports_isolated_cases_deterministically() {
+fn native_test_command_reports_isolated_cases_deterministically_from_relative_paths() {
     let package = TempPackage::new();
     fs::create_dir_all(package.0.join("tests/unit")).unwrap();
     fs::write(
@@ -637,10 +604,11 @@ fn native_test_command_reports_isolated_cases_deterministically() {
     .unwrap();
     let report = package.0.join("test-report.json");
     let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .current_dir(package.0.parent().unwrap())
         .arg("test")
         .args(["--jobs", "2", "--report"])
         .arg(&report)
-        .arg(&package.0)
+        .arg(package.0.file_name().unwrap())
         .output()
         .unwrap();
     assert_eq!(
@@ -730,44 +698,6 @@ fn native_test_command_reports_isolated_cases_deterministically() {
             .unwrap()
             .contains("skipped /cli/app::test-ignored"),
     );
-}
-
-#[test]
-fn native_test_relative_package_paths_preserve_failure_results() {
-    let package = TempPackage::new();
-    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
-    fs::write(
-        package.0.join("tests/unit/failure.trn"),
-        concat!(
-            "namespace cli/app\n",
-            "from /core/testing import assert-equal-int, test-failure\n",
-            "function test-relative none throws test-failure;\n",
-            "    assert-equal-int; 41, 42\n",
-            "    return none\n",
-        ),
-    )
-    .unwrap();
-    let parent = package.0.parent().unwrap();
-    let relative = package.0.file_name().unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .current_dir(parent)
-        .arg("test")
-        .args(["--filter", "relative"])
-        .arg(relative)
-        .output()
-        .unwrap();
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    assert_eq!(
-        output.status.code(),
-        Some(1),
-        "{stdout}\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(
-        stdout.contains("failed /cli/app::test-relative"),
-        "{stdout}"
-    );
-    assert!(!stdout.contains("infrastructure-failed"), "{stdout}");
 }
 
 fn assert_explicit_selectors(package: &Path) {
@@ -1521,17 +1451,38 @@ fn changed_native_inputs_invalidate_check_stamps_and_remove_unused_platform_supp
 #[test]
 fn native_test_tiers_restore_their_own_binary_from_shared_cargo_cache() {
     let package = TempPackage::new();
-    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/native-testing");
-    for relative in [
-        "package.toml",
-        "src/application.trn",
-        "tests/unit/assertions.trn",
-        "tests/integration/public-surface.trn",
-        "tests/end-to-end/application.trn",
+    fs::write(
+        package.0.join("package.toml"),
+        "package = \"tier-cache\"\nprelude = false\n[namespaces]\nsample = \"src\"\n",
+    )
+    .unwrap();
+    fs::create_dir_all(package.0.join("src")).unwrap();
+    fs::create_dir_all(package.0.join("tests/unit")).unwrap();
+    fs::create_dir_all(package.0.join("tests/integration")).unwrap();
+    fs::create_dir_all(package.0.join("tests/end-to-end")).unwrap();
+    fs::write(
+        package.0.join("src/application.trn"),
+        "namespace sample\nfunction main;\n  return\n",
+    )
+    .unwrap();
+    for (path, namespace, name) in [
+        ("tests/unit/case.trn", "sample", "test-unit"),
+        (
+            "tests/integration/case.trn",
+            "sample-integration",
+            "test-integration",
+        ),
+        (
+            "tests/end-to-end/case.trn",
+            "sample-end-to-end",
+            "test-end-to-end",
+        ),
     ] {
-        let destination = package.0.join(relative);
-        fs::create_dir_all(destination.parent().unwrap()).unwrap();
-        fs::copy(fixture.join(relative), destination).unwrap();
+        fs::write(
+            package.0.join(path),
+            format!("namespace {namespace}\nfunction {name};\n  return\n"),
+        )
+        .unwrap();
     }
     let invoke = || {
         let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
@@ -1542,10 +1493,9 @@ fn native_test_tiers_restore_their_own_binary_from_shared_cargo_cache() {
         assert!(output.status.success(), "{output:?}");
         let text = String::from_utf8_lossy(&output.stdout);
         for case in [
-            "/sample::test-custom-value-comparison",
-            "/sample::test-controlled-async-time",
-            "/sample-integration::test-public-answer",
-            "/sample-end-to-end::test-production-application",
+            "/sample::test-unit",
+            "/sample-integration::test-integration",
+            "/sample-end-to-end::test-end-to-end",
         ] {
             assert!(text.contains(&format!("passed {case}")), "{text}");
         }

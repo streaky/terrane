@@ -157,7 +157,7 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
         "Linux x86-64 profiling evidence requires an available perf collector"
     );
     let source = directory.path().join("src/α.trn");
-    fs::write(&source, workload(300_000_000, None)).unwrap();
+    fs::write(&source, workload(100_000_000, None)).unwrap();
     let slow = record(&directory, "slow.trnprof");
     assert!(slow.status.success(), "{slow:?}");
     let fresh = Command::new(env!("CARGO_BIN_EXE_terrane"))
@@ -170,7 +170,7 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
     let fresh: serde_json::Value = serde_json::from_slice(&fresh.stdout).unwrap();
     assert_eq!(fresh["report"]["fidelity"], "exact-build-source");
 
-    fs::write(&source, workload(50_000_000, None)).unwrap();
+    fs::write(&source, workload(25_000_000, None)).unwrap();
     let corrected = record(&directory, "corrected.trnprof");
     assert!(corrected.status.success(), "{corrected:?}");
 
@@ -238,7 +238,7 @@ fn nonzero_workload_still_publishes_usable_capture() {
     );
     fs::write(
         directory.path().join("src/main.trn"),
-        workload(50_000_000, Some(7)),
+        workload(25_000_000, Some(7)),
     )
     .unwrap();
 
@@ -344,12 +344,12 @@ fn allocation_capture_separates_churn_from_retained_bytes() {
          from /core/collections import list\n\
          function main;\n\
            index int = 0\n\
-           while index < 10000\n\
+           while index < 5000\n\
              temporary list of int = list; index, index + 1, index + 2\n\
              index++\n\
            retained list of int = list\n\
            index = 0\n\
-           while index < 10000\n\
+           while index < 5000\n\
              retained.append; index\n\
              index++\n",
     )

@@ -216,9 +216,9 @@ fn serves_an_open_file_outside_its_package_namespace_roots() {
         .join("../..")
         .canonicalize()
         .expect("repository root");
-    let path = repository.join("projects/godot-test/tests/unit/godot-view.trn");
+    let path = repository.join("tests/fixtures/lsp-outside-namespace/tests/unit/value.trn");
     let uri = format!("file://{}", path.display());
-    let text = std::fs::read_to_string(path).expect("Godot unit test source");
+    let text = std::fs::read_to_string(path).expect("outside-namespace fixture source");
 
     send(
         &mut stdin,
@@ -251,11 +251,7 @@ fn serves_an_open_file_outside_its_package_namespace_roots() {
     );
     let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
     assert_eq!(diagnostics["params"]["version"], 1);
-    assert!(
-        diagnostics["params"]["diagnostics"]
-            .as_array()
-            .is_some_and(|items| items.iter().all(|item| item["code"] != "S2053"))
-    );
+    assert_eq!(diagnostics["params"]["diagnostics"], json!([]));
 
     send(
         &mut stdin,

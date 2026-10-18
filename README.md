@@ -158,6 +158,12 @@ The [Terrane manual](https://github.com/streaky/terrane-manual) is maintained in
 
 Use focused checks while working, such as `cargo clippy --workspace --all-targets -- -D warnings`. For a specific conformance case, set `TERRANE_CONFORMANCE_FILTER=<case-name-or-comma-separated-fragments>` and run `cargo test -p terrane-compiler --test conformance every_manifest_drives_a_conformance_case`. Debug package-shaped fixtures from disposable copies, not their tracked source directories.
 
+Keep regression programs minimal and self-contained under tracked test fixtures.
+Combine related CLI assertions when they can share one native build without
+losing a distinct failure case. Preserve real dependency integrations where the
+dependency's generated API or runtime behavior is the point of the test, and keep
+profiling workloads long enough to collect meaningful samples.
+
 For complete workspace verification, run the timing collector from a clean tree at a commit:
 
 ```sh
@@ -248,11 +254,10 @@ Debugger-host code is measured, but native debuggees retain the caller's origina
 Rust flags rather than coverage instrumentation: injected counters change native
 sequence points and would invalidate the source-stepping tests.
 
-The workspace protocol tests currently require the local, Git-ignored
-`projects/godot-test` fixture, including `tests/unit/godot-view.trn` and its package
-sources/manifest. A fresh clone or detached worktree must supply that fixture;
-otherwise the outside-namespace-root language-server test fails before analyzing
-the document. That is a test-environment prerequisite, not a coverage-tool failure.
+The language-server protocol tests use the checked-in
+`tests/fixtures/lsp-outside-namespace` package to exercise documents outside a
+package's namespace roots. Workspace tests do not require local applications
+under `projects/`.
 
 ## License
 

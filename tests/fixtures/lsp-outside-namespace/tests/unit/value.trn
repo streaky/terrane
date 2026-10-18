@@ -1,0 +1,6 @@
+namespace fixture
+
+from /fixture import answer
+
+function test-answer int;
+  return answer;
