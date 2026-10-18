@@ -1180,6 +1180,98 @@ Excluded: exposing concrete payloads through catch-all bindings, reflective or s
 error inspection, changes to throwable matching or propagation, and indexing beyond the
 annotation and selection lookups named above.
 
+### Milestone 31.8 — Revisit implicit shared-state synchronization semantics
+
+**Status:** planned design review. The current checked shared-storage contract is correct
+and documented. This milestone asks whether its shape is the one Terrane should keep. Do not
+change shared-state semantics before the review records a decision for each item below.
+
+`shared ref` storage is synchronized implicitly: the programmer never writes a lock. That
+choice decides where atomicity boundaries fall and whether developers can see them. Four
+parts of the current contract differ from what developers coming from mainstream languages
+are likely to expect. Each is documented, but each should be confirmed deliberately or
+changed. The manual's references `shared-deadlocks` and shared-state `advanced-boundaries`
+sections are the current authority.
+
+#### Current baseline this milestone builds on
+
+- Shared storage lowers to `Arc<TerraneSharedCell<T>>`, with runtime-checked exclusive guards.
+  Same-thread reentry fails fast with a borrow-conflict panic instead of self-waiting. Other
+  threads wait normally. The cheap `T0143` check rejects obvious cases early. Loop proofs and
+  transitive helper summaries were removed in favor of the runtime check and must not return
+  as an expanding alias solver.
+- Synchronous mutable methods hold one guard for the whole call, so they are atomic.
+- Async source methods receive a cloneable shared handle (`__terrane_shared_async_*`). Each
+  field access takes its own bounded guard, and no guard is held across `await`. Inherited
+  dispatch reuses the same handle through `TerraneSharedProjection`. As a result, async
+  read-modify-write is not atomic, even without an `await`. This is documented, and a
+  synchronous mutable helper called through `this` is the recommended pattern
+  (`run/shared-async-atomic-helper`).
+- Static object fields are `TerraneStaticObject` slots. A call captures the object's `Arc`
+  at call time, so replacing the slot mid-call does not retarget `this`, including when a
+  synchronous method replaces its own slot. Static scalars remain direct shared cells.
+- The default executor profile is `Threaded` (`ExecutionStrategy::Parallel`), so spawned
+  tasks run concurrently on real threads.
+- Cross-thread lock-order deadlocks remain possible. Deadlines do not interrupt blocking
+  acquisition. Try/timed acquisition, compatible reader borrows and generic guards are not
+  implemented.
+
+#### Review scope
+
+1. **Async atomicity granularity.** Swift actors make execution between `await` points
+   atomic. Terrane's per-access guards are finer than that, and they are finer than the
+   source text suggests. Evaluate:
+   - keeping per-access guards, with a best-effort warning for `this.f = <expression reading
+     this.f>` and similar read-then-write patterns in async methods on shared receivers;
+   - segment atomicity: one guard per span of code between awaits;
+   - an explicit exclusive block or method modifier.
+
+   Segment atomicity must still release the guard before every suspension. It must also
+   route nested `this` calls, including the synchronous-helper pattern, through the held
+   guard instead of taking a new one. Otherwise the documented helper would start hitting the
+   same-thread reentry check. Check how guard lifetimes interact with generated future frame
+   size, with the handle/projection lowering, and with task migration between threads.
+2. **Visibility of critical sections.** Whether code is atomic currently depends on whether
+   it is in a synchronous or an async method, and nothing at the call site shows it. Decide
+   whether the language should mark critical sections (for example a modifier or block), or
+   whether developer tools should (for example language-server hints marking guard extent).
+   Any marker must describe the lowering that actually happens, not a parallel model.
+3. **Non-reentrant implicit guards.** Java's implicit monitors are reentrant; Terrane's guards
+   are not, and they fail fast instead. Rust can't hand out two live `&mut` borrows of the
+   same value, so reentrancy through a second alias (a static path, or another `shared ref`
+   to the same object) can't simply be allowed. Calls through `this` already reuse the
+   current borrow. Decide whether to keep fail-fast as the contract, and whether its
+   diagnostics should name the conflicting object, path and source span. Also decide whether
+   the cheap `T0143` check should cover more obvious alias forms without becoming a solver.
+   Keep both the static-class self-reentry case and the synchronous self-replacement case as
+   pressure cases.
+4. **Parallel-by-default execution.** With a threaded default, races show up in ordinary
+   programs. That is honest, but newcomers meet it earlier than they would on a
+   single-threaded event loop. Decide whether the threaded default stays. Also decide whether
+   to add a deliberate stress or deterministic executor mode for tests, or more prominent
+   onboarding documentation. Counting-based atomicity evidence depends on genuinely parallel
+   execution, so a changed default must not hide such regressions.
+
+#### Exit criteria
+
+- Record a decision and rationale for each of the four items in the authoritative manual
+  sections and the concise specification. A decision may confirm the current contract.
+- Define each justified change as a separately reviewable implementation unit, with
+  acceptance criteria. Inspect the generated Rust for any change to guard placement or
+  handle lowering.
+- Preserve the existing evidence unless a recorded decision deliberately changes it:
+  - the `shared-async-*` and `static-async-*` run cases;
+  - `static-class-reentry` and the `shared-storage-reentry-*` cases;
+  - two-task counting probes, compared with a synchronous-method control, on the threaded
+    executor.
+- Any warning or static check stays best-effort and cheap. Runtime checking remains the
+  correctness backstop.
+
+Excluded from this review: preventing lock-order deadlocks, general async transactions or
+software transactional memory, deadline-interruptible acquisition, and the rest of the
+advanced synchronization toolkit. This review may decide that one of these becomes its own
+milestone.
+
 ### Milestone 31.9 — Investigate compiler-owned support dependency selection
 
 **Status:** planned investigation. Do not change support provisioning as part of the current
@@ -1545,6 +1637,8 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - give typed `catch` bindings their concrete payload type, retire the consumer protocol's static
   error origin, and measure (then index, if justified) annotation descriptor/node lookups
   (milestone 31.2);
+- revisit implicit shared-state synchronization: async atomicity granularity, visible critical
+  sections, non-reentrant guards, and the parallel default executor (milestone 31.8);
 - investigate compiler-owned support-crate selection and provisioning across generated artifacts,
   conformance, and production build paths, including dependencies without a support sidecar
   (milestone 31.9);
