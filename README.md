@@ -170,6 +170,8 @@ real-library evidence belongs in dedicated native-survey/application checks. Cac
 tests similarly use tiny real Rustdoc inputs while retaining separate real-sysroot coverage.
 Keep profiling workloads long enough to collect meaningful samples, and inspect
 fresh-source reports before rewriting a workload for comparison.
+Fixture registries may be symlinked into related rejection cases; retain the shared
+API those cases need and exercise the whole dependent case family after reducing it.
 
 For complete workspace verification, run the timing collector from a clean tree at a commit:
 

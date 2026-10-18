@@ -65,6 +65,21 @@ impl LineBuilder<'_> {
         self
     }
 
+    pub async fn pause(self) -> Self {
+        let mut yielded = false;
+        std::future::poll_fn(|context| {
+            if yielded {
+                std::task::Poll::Ready(())
+            } else {
+                yielded = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        })
+        .await;
+        self
+    }
+
     #[must_use]
     pub fn finish(self) -> String {
         format!("{}{}", self.prefix, self.value)
