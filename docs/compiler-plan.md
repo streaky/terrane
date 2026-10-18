@@ -1180,7 +1180,7 @@ Excluded: exposing concrete payloads through catch-all bindings, reflective or s
 error inspection, changes to throwable matching or propagation, and indexing beyond the
 annotation and selection lookups named above.
 
-### Milestone 31.8 — Revisit implicit shared-state synchronization semantics
+### Milestone 31.7 — Revisit implicit shared-state synchronization semantics
 
 **Status:** planned design review. The current checked shared-storage contract is correct
 and documented. This milestone asks whether its shape is the one Terrane should keep. Do not
@@ -1271,6 +1271,49 @@ Excluded from this review: preventing lock-order deadlocks, general async transa
 software transactional memory, deadline-interruptible acquisition, and the rest of the
 advanced synchronization toolkit. This review may decide that one of these becomes its own
 milestone.
+
+### Milestone 31.8 — Efficient borrowed reads and source/native composition
+
+**Status:** planned investigation and design review. Make efficient ordinary Terrane a
+genuine choice where authors currently need `rust` to avoid unnecessary copies or work
+around language/projection limitations. The `rust` escape hatch remains a first-class
+engineering tool; reducing its keyword count is not the goal.
+
+Use the [HTTP Rust-usage audit](docs/dump/http-server-rust-usage.md) **note: this isn't in repo** as initial evidence
+(G1–G13, last checked just after PR #107), not as a permanent dependency or an HTTP-specific
+implementation contract. Reproduce and reduce the findings before deciding their causes.
+
+#### Review scope
+
+- Preserve read-only loans through native fields, projected receivers/arguments,
+  callbacks, optional/result carriers, and bounded shared-storage guards. Investigate
+  unnecessary URI/string/buffer snapshots separately from required owned outputs.
+- Investigate short-circuiting byte/scalar scans without materialized collections or
+  per-scalar strings, and the unsupported indexing of `string.bytes` views. Ordinary
+  owned `bytes` indexing already exists.
+- Review native member exposure, borrowed text terminals, native iterator/tuple loans,
+  source-class/native generic contracts, and ownership-preserving `From`/`TryInto`/`Cow`
+  composition.
+- Check the remaining exploratory boundaries: native formatting, trait calls and static
+  values, native body trait implementation, and direct finite binary-float text parsing.
+  Distinguish actual gaps from overlooked existing source operations and deliberate
+  native integration choices; the method-comparison rewrite is already demonstrated.
+
+Reuse Milestone 31.1's projection/composition work rather than create a second integration
+pipeline. Coordinate shared-guard lifetime work with 31.7 without conflating efficient
+borrowing with changes to synchronization semantics. Do not add package-shaped compiler
+helpers, duplicate upstream parsers, or weaken value semantics to eliminate a Rust block.
+
+#### Exit criteria
+
+- Record a disposition for each gap: existing efficient source route, justified generic
+  implementation work, or an explicit retained boundary with rationale and revisit conditions.
+- Define justified changes as separately reviewable units with source-level acceptance
+  criteria. Preserve upstream parsing, malformed-input, ownership, and HTTP behavior.
+- Prove claimed efficient alternatives through runnable source programs and explicit
+  inspection of generated Rust for moves, borrows, clones, allocations, and guard lifetimes.
+  Source compilation alone is not evidence of equivalent cost. Keep durable decisions and
+  limitations in the appropriate manual/specification records, independent of the scratch audit.
 
 ### Milestone 31.9 — Investigate compiler-owned support dependency selection
 
@@ -1638,7 +1681,10 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
   error origin, and measure (then index, if justified) annotation descriptor/node lookups
   (milestone 31.2);
 - revisit implicit shared-state synchronization: async atomicity granularity, visible critical
-  sections, non-reentrant guards, and the parallel default executor (milestone 31.8);
+  sections, non-reentrant guards, and the parallel default executor (milestone 31.7);
+- investigate efficient borrowed reads and source/native composition, including avoidable
+  copies, text-view traversal/indexing, and the remaining HTTP audit capability gaps
+  (milestone 31.8);
 - investigate compiler-owned support-crate selection and provisioning across generated artifacts,
   conformance, and production build paths, including dependencies without a support sidecar
   (milestone 31.9);
