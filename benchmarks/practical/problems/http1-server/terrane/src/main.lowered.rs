@@ -677,7 +677,7 @@ fn main() {
                 }
                 endpoint = socket_address_from_string(String::from("127.0.0.1:0"));
                 bound = bind_tcp(
-                    endpoint.value,
+                    endpoint.value.clone(),
                     Some(
                         TcpListenerOptions::terrane_construct(
                             terrane_int_support::Int::from(1024_i128),

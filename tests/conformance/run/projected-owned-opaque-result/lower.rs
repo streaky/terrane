@@ -37,8 +37,8 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
         __terrane_raised(match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_opaque_result_witness::choose(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(identity)
-        .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(identity); move
+        | callback_argument_0 : i64 | { match | | -> Result < _, crate
         ::TerraneForeignError > { let callback_value =
         callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
         Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |

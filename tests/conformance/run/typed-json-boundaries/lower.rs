@@ -608,7 +608,7 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(bad
         .diagnostics.clone().length()))
     );
-    let __terrane_iterable_0 = bad.diagnostics.clone().clone();
+    let __terrane_iterable_0 = bad.diagnostics.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
@@ -676,7 +676,7 @@ fn main() {
             }
         }
     };
-    let __terrane_iterable_1 = nested.diagnostics.clone().clone();
+    let __terrane_iterable_1 = nested.diagnostics.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
     );

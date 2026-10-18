@@ -97,7 +97,11 @@ impl MutableSample {
         }
     }
     pub fn redeem(&mut self) -> terrane_int_support::Int {
-        self.total = self.total.clone() + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value = self.total.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.total = __terrane_value;
+        }
         return self.total.clone();
     }
 }

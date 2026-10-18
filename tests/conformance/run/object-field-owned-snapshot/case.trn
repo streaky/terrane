@@ -1,0 +1,105 @@
+namespace object-field-owned-snapshot
+
+from /core/collections import list
+
+class payload
+    value int = 7
+
+class holder
+    private required payload
+    private initialized payload = instance payload;
+
+    function construct;
+        this.required = instance payload;
+
+    function required-copy payload;
+        return this.required
+
+    function initialized-copy payload;
+        return this.initialized
+
+    function change-copy int;
+        local = this.required
+        local.value = 9
+        return local.value
+
+    function temporary-required-copy payload;
+        return (instance holder;).required
+
+    function required-from-borrow payload; owner ref holder
+        return owner.required
+
+    function required-from-shared payload; owner shared ref holder
+        return owner.required
+
+class plain-holder
+    value payload = instance payload;
+    words list of string = list; 'original'
+    text string = 'original'
+
+function make-holder plain-holder;
+    return instance plain-holder;
+
+function borrow-holder ref plain-holder; value ref plain-holder
+    return value
+
+class tracked-payload
+    value int = 7
+
+    function destruct;
+        print; 'released', this.value
+
+class tracked-holder
+    value tracked-payload = instance tracked-payload;
+
+function check-separated;
+    named = instance tracked-holder;
+    borrowed = ref named
+    snapshot = borrowed.value
+    snapshot.value = 17
+    print; snapshot.value
+    print; named.value.value
+
+function main;
+    original = instance holder;
+    first = original.required-copy;
+    second = original.initialized-copy;
+    print; first.value
+    print; second.value
+    print; (original.change-copy;)
+    unchanged = original.required-copy;
+    print; unchanged.value
+    from-call = (make-holder;).value
+    from-call.value = 11
+    from-constructor = (instance plain-holder;).value
+    from-constructor.value = 12
+    print; from-call.value
+    print; from-constructor.value
+    print; (original.temporary-required-copy;).value
+    named = instance plain-holder;
+    from-borrow = (borrow-holder; ref named).value
+    from-borrow.value = 13
+    print; from-borrow.value
+    print; named.value.value
+    shared = shared ref (instance plain-holder;)
+    from-shared = shared.value
+    from-shared.value = 14
+    print; from-shared.value
+    print; shared.value.value
+    required-borrow = original.required-from-borrow; ref original
+    required-borrow.value = 15
+    print; required-borrow.value
+    print; (original.required-copy;).value
+    shared-required = shared ref (instance holder;)
+    required-shared = original.required-from-shared; shared-required
+    required-shared.value = 16
+    print; required-shared.value
+    print; (original.required-from-shared; shared-required).value
+    words = (borrow-holder; ref named).words
+    words[0] = 'changed'
+    print; words[0]
+    print; named.words[0]
+    text = (borrow-holder; ref named).text
+    print; text
+    print; named.text
+    check-separated;

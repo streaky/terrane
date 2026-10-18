@@ -57,7 +57,10 @@ impl DataTag {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, target: Descriptor) {
-        self.target = Some(target);
+        {
+            let __terrane_value = target;
+            self.target = Some(__terrane_value);
+        }
     }
 }
 #[derive(Clone)]

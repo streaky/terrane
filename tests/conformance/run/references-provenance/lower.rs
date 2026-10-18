@@ -4,18 +4,18 @@ include!("lower.support.rs");
 // Namespace: references-provenance
 fn main() {
     let values: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let owned: terrane_collection_support::List<terrane_int_support::Int>;
     let transferred: terrane_collection_support::List<terrane_int_support::Int>;
     values = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(1_i128)]),
@@ -23,10 +23,14 @@ fn main() {
     );
     owner = values.clone();
     observer = std::sync::Arc::downgrade(&values.clone());
-    owner
-        .lock()
-        .expect("shared reference lock poisoned")
-        .append(terrane_int_support::Int::from(2_i128));
+    {
+        let __terrane_owner = owner.clone();
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(2_i128);
+        __terrane_owner
+            .lock()
+            .expect("shared reference lock poisoned")
+            .append(__terrane_collection_argument_0);
+    };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
         __terrane_value = values.lock().expect("reference lock poisoned").clone();

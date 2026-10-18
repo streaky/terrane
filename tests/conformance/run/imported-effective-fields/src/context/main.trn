@@ -1,0 +1,8 @@
+namespace app/context
+
+public trait api
+    request string|none = none
+    response int = 0
+
+public class parent
+    origin string = 'base'

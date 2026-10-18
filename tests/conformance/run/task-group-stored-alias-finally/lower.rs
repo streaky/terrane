@@ -50,9 +50,13 @@ async fn risky() -> Result<(), TerraneError> {
     });
 }
 async fn child(
-    observer: std::sync::Arc<std::sync::Mutex<State>>,
+    observer: std::sync::Arc<TerraneSharedCell<State>>,
 ) -> terrane_int_support::Int {
-    observer.lock().expect("shared reference lock poisoned").child_started = true;
+    {
+        let __terrane_owner = observer.clone();
+        let __terrane_value = true;
+        __terrane_owner.lock().expect("shared reference lock poisoned").child_started = __terrane_value;
+    }
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<
         TerraneCompletion<terrane_int_support::Int>,
@@ -73,10 +77,14 @@ async fn child(
                             )
                             .await;
                     }
-                    observer
-                        .lock()
-                        .expect("shared reference lock poisoned")
-                        .child_finished_normally = true;
+                    {
+                        let __terrane_owner = observer.clone();
+                        let __terrane_value = true;
+                        __terrane_owner
+                            .lock()
+                            .expect("shared reference lock poisoned")
+                            .child_finished_normally = __terrane_value;
+                    }
                     TerraneCompletion::Normal
                 }
                     .await;
@@ -102,7 +110,14 @@ async fn child(
     let mut __terrane_completion_0 = __terrane_maybe_completion_0
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-        observer.lock().expect("shared reference lock poisoned").child_cleaned = true;
+        {
+            let __terrane_owner = observer.clone();
+            let __terrane_value = true;
+            __terrane_owner
+                .lock()
+                .expect("shared reference lock poisoned")
+                .child_cleaned = __terrane_value;
+        }
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -126,7 +141,7 @@ async fn child(
     return terrane_int_support::Int::from(1_i128);
 }
 async fn worker(
-    observer: std::sync::Arc<std::sync::Mutex<State>>,
+    observer: std::sync::Arc<TerraneSharedCell<State>>,
 ) -> Result<(), TerraneError> {
     __terrane_group_frame(async move {
             let group: TerraneTaskGroup<terrane_int_support::Int>;
@@ -155,12 +170,13 @@ async fn worker(
                 };
                 group.spawn(__terrane_child);
             };
-            while !observer
-                .lock()
-                .expect("shared reference lock poisoned")
-                .child_started
-                .clone()
-            {
+            while !{
+                let __terrane_snapshot = observer
+                    .lock()
+                    .expect("shared reference lock poisoned")
+                    .child_started;
+                __terrane_snapshot
+            } {
                 {
                     let _: () = __terrane_await(
                             terrane_time_sleep_after(
@@ -255,9 +271,9 @@ async fn worker(
 }
 fn main() {
     __terrane_run(async move {
-        let observer: std::sync::Arc<std::sync::Mutex<State>>;
+        let observer: std::sync::Arc<TerraneSharedCell<State>>;
         observer = std::sync::Arc::new(
-            std::sync::Mutex::new(State::terrane_construct()),
+            TerraneSharedCell::new(State::terrane_construct()),
         );
         let __terrane_completion_2: TerraneCompletion<()> = async {
             let __terrane_try_2: TerraneCompletion<()> = async {
@@ -300,16 +316,19 @@ fn main() {
             }
         }
         println!(
-            "{}", terrane_scalar_support::scalar_text(&observer.lock()
-            .expect("shared reference lock poisoned").child_started.clone())
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
+            observer.lock().expect("shared reference lock poisoned").child_started;
+            __terrane_snapshot })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&observer.lock()
-            .expect("shared reference lock poisoned").child_finished_normally.clone())
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
+            observer.lock().expect("shared reference lock poisoned")
+            .child_finished_normally; __terrane_snapshot })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&observer.lock()
-            .expect("shared reference lock poisoned").child_cleaned.clone())
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
+            observer.lock().expect("shared reference lock poisoned").child_cleaned;
+            __terrane_snapshot })
         );
         {
             let _: () = __terrane_await(caught_call()).await;

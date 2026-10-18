@@ -17,7 +17,10 @@ impl MessageBox {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message.clone();
+        {
+            let __terrane_value = message.clone();
+            self.message = __terrane_value;
+        }
         println!(
             "{}{}", String::from("parameter:"),
             terrane_scalar_support::scalar_text(&message)

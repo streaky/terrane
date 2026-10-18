@@ -12,7 +12,10 @@ impl WorkItem {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, estimate: Option<terrane_int_support::Int>) {
-        self.estimate = estimate;
+        {
+            let __terrane_value = estimate;
+            self.estimate = __terrane_value;
+        }
     }
     pub fn estimate_units(&self) -> Option<terrane_int_support::Int> {
         return self.estimate.clone();

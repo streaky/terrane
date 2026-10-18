@@ -58,7 +58,7 @@ fn main() {
         let connected: StreamResult;
         let outcome: TerraneTaskOutcome<()>;
         parsed = socket_address_from_string(String::from("127.0.0.1:0"));
-        bound = bind_tcp(parsed.value, None);
+        bound = bind_tcp(parsed.value.clone(), None);
         address = socket_address_from_string(bound.value.local_address.clone());
         scope = TerraneTaskScope::new(None);
         server = {
@@ -79,7 +79,8 @@ fn main() {
                 }
             })
         };
-        connected = __terrane_await(connect_tcp(address.value, None, None)).await;
+        connected = __terrane_await(connect_tcp(address.value.clone(), None, None))
+            .await;
         __terrane_await(consume(<AsyncByteReader>::from(connected.value))).await;
         outcome = __terrane_await(scope.join(server)).await;
         println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));

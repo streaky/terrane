@@ -1,0 +1,37 @@
+namespace static-async-receiver-identity
+from /core/concurrency import channel, channel-block
+
+class item
+    total int = 0
+    function construct; initial int
+        this.total = initial
+    mutable async function accumulate int; delta int, started (channel-sender of int), gate (channel-receiver of int), results (channel-sender of int)
+        sent = await started.send; 1
+        if not sent.accepted
+            return -1
+        released = await gate.receive;
+        if not released.available
+            return -2
+        this.total = this.total + delta
+        reported = await results.send; this.total
+        if not reported.accepted
+            return -3
+        return this.total
+class holder
+    static slot item = instance item; 0
+async function main;
+    started = channel; int, 1, channel-block
+    gate = channel; int, 1, channel-block
+    results = channel; int, 1, channel-block
+    scope = task-scope;
+    call = holder::slot.accumulate; 5, started.sender, gate.receiver, results.sender
+    holder::slot = instance item; 100
+    child = scope.spawn; call
+    ready = await started.receiver.receive;
+    holder::slot = instance item; 200
+    released = await gate.sender.send; 1
+    done = await scope.join; child
+    reported = await results.receiver.receive;
+    print; reported.value
+    print; holder::slot.total
+    print; ready.available, released.accepted, done.completed, reported.available

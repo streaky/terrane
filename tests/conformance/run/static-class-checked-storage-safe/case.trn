@@ -1,0 +1,25 @@
+namespace static-class-checked-storage-safe
+
+class counter
+    value int = 0
+    mutable function increment int;
+        this.value = this.value + 1
+        return this.value
+    function read int;
+        return this.value
+
+class holder
+    static first counter = instance counter;
+    static second counter = instance counter;
+    static scalar int = 7
+    static function update int;
+        first_value = holder::first.increment;
+        second_value = holder::second.increment;
+        holder::first.value = first_value + second_value + 1
+        return (holder::first.read;) + (holder::second.read;)
+
+function main;
+    print; (holder::update;)
+    print; holder::first.value
+    print; holder::second.value
+    print; holder::scalar, holder::scalar

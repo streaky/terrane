@@ -1,0 +1,50 @@
+namespace shared-async-mutable-await-reader
+from /core/concurrency import channel, channel-block
+
+class accumulator
+    total int = 0
+    mutable async function add int; delta int, started (channel-sender of int), gate (channel-receiver of int)
+        sent = await started.send; 1
+        if not sent.accepted
+            return -1
+        released = await gate.receive;
+        if not released.available
+            return -2
+        this.total = this.total + delta
+        return this.total
+
+async function inspect; value shared ref accumulator, started (channel-receiver of int), observed (channel-sender of int), gate (channel-sender of int), done (channel-receiver of int)
+    signaled = await started.receive;
+    if not signaled.available
+        return
+    sent_before = await observed.send; value.total
+    released = await gate.send; 1
+    if not sent_before.accepted or not released.accepted
+        return
+    finished = await done.receive;
+    if finished.available
+        sent_after = await observed.send; value.total
+        if not sent_after.accepted
+            return
+
+async function main;
+    started = channel; int, 1, channel-block
+    gate = channel; int, 1, channel-block
+    observed = channel; int, 2, channel-block
+    done = channel; int, 1, channel-block
+    observations = observed.receiver
+    value = instance accumulator;
+    first = shared ref value
+    second = first
+    observer = ref value
+    scope = task-scope;
+    reader = scope.spawn; (inspect; second, started.receiver, observed.sender, gate.sender, done.receiver)
+    result = await observer.add; 3, started.sender, gate.receiver
+    finished = await done.sender.send; 1
+    before = await observations.receive;
+    after = await observations.receive;
+    if finished.accepted and before.available and after.available
+        print; before.value, after.value
+    print; result, first.total, second.total
+    reader_outcome = await scope.join; reader
+    print; reader_outcome.completed

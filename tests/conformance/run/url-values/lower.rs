@@ -10,7 +10,7 @@ fn main() {
         String::from("https://user:pass@bücher.example:443/a?x=1&x=2#f"),
     );
     println!("{}", terrane_scalar_support::scalar_text(&parsed.failed));
-    value = parsed.value;
+    value = parsed.value.clone();
     println!(
         "{}{}{}{}", terrane_scalar_support::scalar_text(&value.scheme),
         terrane_scalar_support::scalar_text(&value.host),

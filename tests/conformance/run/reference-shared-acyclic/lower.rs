@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: reference-shared-acyclic
 #[derive(Clone)]
@@ -12,12 +13,12 @@ impl Leaf {
         }
     }
 }
-fn make_leaf() -> std::sync::Arc<std::sync::Mutex<Leaf>> {
-    return std::sync::Arc::new(std::sync::Mutex::new(Leaf::terrane_construct()));
+fn make_leaf() -> std::sync::Arc<TerraneSharedCell<Leaf>> {
+    return std::sync::Arc::new(TerraneSharedCell::new(Leaf::terrane_construct()));
 }
 #[derive(Clone)]
 pub struct Holder {
-    pub child: std::sync::Arc<std::sync::Mutex<Leaf>>,
+    pub child: std::sync::Arc<TerraneSharedCell<Leaf>>,
 }
 impl Holder {
     pub fn terrane_construct() -> Self {
@@ -28,7 +29,8 @@ fn main() {
     let owner: Holder;
     owner = Holder::terrane_construct();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&owner.child.lock()
-        .expect("shared reference lock poisoned").value.clone())
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = owner.child
+        .lock().expect("shared reference lock poisoned").value.clone();
+        __terrane_snapshot })
     );
 }

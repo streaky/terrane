@@ -1,0 +1,39 @@
+namespace shared-async-direct-await
+from /core/concurrency import channel, channel-block
+
+class accumulator
+    total int = 0
+
+    mutable async function add int; (delta int, started (channel-sender of int), gate (channel-receiver of int))
+        sent = await started.send; delta
+        if not sent.accepted
+            return -1
+        released = await gate.receive;
+        if not released.available
+            return -2
+        this.total = this.total + delta
+        return this.total
+
+    mutable async function observe int; (started (channel-receiver of int), gate (channel-sender of int))
+        notice = await started.receive;
+        if not notice.available
+            return -1
+        observed = this.total
+        released = await gate.send; observed
+        if not released.accepted
+            return -2
+        return observed
+
+async function main;
+    started = channel; int, 1, channel-block
+    gate = channel; int, 1, channel-block
+    value = instance accumulator;
+    owner = shared ref value
+    alias = owner
+    scope = task-scope;
+    observer = scope.spawn; (alias.observe; started.receiver, gate.sender)
+    result = await owner.add; 5, started.sender, gate.receiver
+    observation = await scope.join; observer
+    observed-value = observation.value
+    if observed-value != none
+        print; result, observed-value, owner.total

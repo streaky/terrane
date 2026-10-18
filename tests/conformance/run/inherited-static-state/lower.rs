@@ -1,9 +1,10 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: inherited-static-state
 pub static TERRANE_STATIC_ANIMAL_CALLS: std::sync::LazyLock<
-    std::sync::Mutex<terrane_int_support::Int>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(
+    TerraneSharedCell<terrane_int_support::Int>,
+> = std::sync::LazyLock::new(|| TerraneSharedCell::new(
     terrane_int_support::Int::from(0_i128),
 ));
 #[derive(Clone)]
@@ -24,21 +25,27 @@ impl Animal {
     }
     pub fn terrane_static_increase() -> terrane_int_support::Int {
         {
-            let __terrane_static_value = TERRANE_STATIC_ANIMAL_CALLS
-                .lock()
-                .expect("static field lock poisoned")
-                .clone() + terrane_int_support::Int::from(1_i128);
+            let __terrane_static_value = {
+                let __terrane_value = TERRANE_STATIC_ANIMAL_CALLS
+                    .lock()
+                    .expect("static field lock poisoned")
+                    .clone();
+                __terrane_value
+            } + terrane_int_support::Int::from(1_i128);
             *TERRANE_STATIC_ANIMAL_CALLS.lock().expect("static field lock poisoned") = __terrane_static_value;
         }
-        return TERRANE_STATIC_ANIMAL_CALLS
-            .lock()
-            .expect("static field lock poisoned")
-            .clone();
+        return {
+            let __terrane_value = TERRANE_STATIC_ANIMAL_CALLS
+                .lock()
+                .expect("static field lock poisoned")
+                .clone();
+            __terrane_value
+        };
     }
 }
 pub static TERRANE_STATIC_DOG_CALLS: std::sync::LazyLock<
-    std::sync::Mutex<terrane_int_support::Int>,
-> = std::sync::LazyLock::new(|| std::sync::Mutex::new(
+    TerraneSharedCell<terrane_int_support::Int>,
+> = std::sync::LazyLock::new(|| TerraneSharedCell::new(
     terrane_int_support::Int::from(0_i128),
 ));
 #[derive(Clone)]
@@ -49,16 +56,22 @@ impl Dog {
     }
     pub fn terrane_static_increase() -> terrane_int_support::Int {
         {
-            let __terrane_static_value = TERRANE_STATIC_DOG_CALLS
-                .lock()
-                .expect("static field lock poisoned")
-                .clone() + terrane_int_support::Int::from(1_i128);
+            let __terrane_static_value = {
+                let __terrane_value = TERRANE_STATIC_DOG_CALLS
+                    .lock()
+                    .expect("static field lock poisoned")
+                    .clone();
+                __terrane_value
+            } + terrane_int_support::Int::from(1_i128);
             *TERRANE_STATIC_DOG_CALLS.lock().expect("static field lock poisoned") = __terrane_static_value;
         }
-        return TERRANE_STATIC_DOG_CALLS
-            .lock()
-            .expect("static field lock poisoned")
-            .clone();
+        return {
+            let __terrane_value = TERRANE_STATIC_DOG_CALLS
+                .lock()
+                .expect("static field lock poisoned")
+                .clone();
+            __terrane_value
+        };
     }
 }
 fn main() {

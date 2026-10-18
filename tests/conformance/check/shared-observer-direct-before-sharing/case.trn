@@ -1,0 +1,9 @@
+namespace shared-observer-direct-before-sharing
+class box
+  flag bool = true
+function read-flag bool; value ref box
+  return value.flag
+function main;
+  named = instance box;
+  owner shared ref box = shared ref named
+  read-flag; ref named

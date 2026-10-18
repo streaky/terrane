@@ -13,7 +13,10 @@ impl<TerraneType54> Envelope<TerraneType54> {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, payload: TerraneType54) {
-        self.payload = Some(payload);
+        {
+            let __terrane_value = payload;
+            self.payload = Some(__terrane_value);
+        }
     }
 }
 #[derive(Clone)]
@@ -25,7 +28,10 @@ impl<TerraneType54> Slot<TerraneType54> {
         Self { value: None }
     }
     pub fn set(&mut self, value: TerraneType54) {
-        self.value = Some(value);
+        {
+            let __terrane_value = Some(value);
+            self.value = __terrane_value;
+        }
     }
 }
 fn identity<TerraneType54>(value: TerraneType54) -> TerraneType54 {

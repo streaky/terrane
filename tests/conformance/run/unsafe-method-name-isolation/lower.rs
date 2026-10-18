@@ -13,7 +13,10 @@ impl ConfigError {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message;
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();
@@ -32,7 +35,10 @@ impl Item {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: terrane_int_support::Int) {
-        self.value = input.clone();
+        {
+            let __terrane_value = input.clone();
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]

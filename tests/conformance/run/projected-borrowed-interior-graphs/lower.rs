@@ -565,7 +565,7 @@ fn main() {
                     .map(
                         match || -> Result<_, crate::TerraneForeignError> {
                             Ok({
-                                let callback = anonymous_update.clone().clone();
+                                let callback = anonymous_update.clone();
                                 move |callback_argument_0: &mut http::HeaderValue| {
                                     match || -> Result<_, crate::TerraneForeignError> {
                                         let callback_value = callback(&mut *callback_argument_0);
@@ -749,7 +749,7 @@ fn main() {
                     .map(
                         match || -> Result<_, crate::TerraneForeignError> {
                             Ok({
-                                let callback = anonymous_read.clone().clone();
+                                let callback = anonymous_read.clone();
                                 move |callback_argument_0: &http::HeaderValue| {
                                     match || -> Result<_, crate::TerraneForeignError> {
                                         let callback_value = callback(&*callback_argument_0);
@@ -794,7 +794,7 @@ fn main() {
                     .map(
                         match || -> Result<_, crate::TerraneForeignError> {
                             Ok({
-                                let callback = anonymous_read.clone().clone();
+                                let callback = anonymous_read.clone();
                                 move |callback_argument_0: &mut http::HeaderValue| {
                                     match || -> Result<_, crate::TerraneForeignError> {
                                         let callback_value = callback(&mut *callback_argument_0);
@@ -1024,33 +1024,37 @@ fn main() {
         };
         println!("{}", terrane_scalar_support::scalar_text(&observer(&named_target)));
     }
-    observers.append(std::sync::Arc::new(read_sensitive));
-    __terrane_raised(
-        observers
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    53 /* terrane-site: src/main.trn:107:5-107:37 */,
-                ),
-                std::sync::Arc::new(read_sensitive),
+    {
+        let __terrane_collection_argument_0 = std::sync::Arc::new(read_sensitive);
+        observers.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
             ),
-        53 /* terrane-site: src/main.trn:107:5-107:37 */,
-    );
-    let _ = __terrane_raised(
-        observers
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    54 /* terrane-site: src/main.trn:108:5-108:34 */,
-                ),
-                std::sync::Arc::new(read_sensitive),
+            53 /* terrane-site: src/main.trn:107:5-107:37 */,
+        );
+        let __terrane_collection_argument_1 = std::sync::Arc::new(read_sensitive);
+        __terrane_raised(
+            observers
+                .set(__terrane_collection_argument_0, __terrane_collection_argument_1),
+            53 /* terrane-site: src/main.trn:107:5-107:37 */,
+        );
+    };
+    {
+        let __terrane_index = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
             ),
-        54 /* terrane-site: src/main.trn:108:5-108:34 */,
-    );
+            54 /* terrane-site: src/main.trn:108:5-108:34 */,
+        );
+        let __terrane_value = std::sync::Arc::new(read_sensitive);
+        let _ = __terrane_raised(
+            observers.set(__terrane_index, __terrane_value),
+            54 /* terrane-site: src/main.trn:108:5-108:34 */,
+        );
+    }
     let __terrane_iterable_1 = observers;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,

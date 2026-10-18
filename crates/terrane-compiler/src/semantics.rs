@@ -44,6 +44,8 @@ mod diagnostics;
 mod objects;
 mod ownership;
 mod selection;
+mod shared_reentry;
+mod shared_storage;
 pub(crate) use namespaces::namespace_capabilities;
 
 #[cfg(test)]

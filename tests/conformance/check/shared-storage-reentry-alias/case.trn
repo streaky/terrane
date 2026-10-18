@@ -1,0 +1,11 @@
+namespace shared-storage-reentry-alias
+class box
+    count int = 1
+    mutable function add-from int; other shared ref box
+        this.count = this.count + other.count
+        return this.count
+function main;
+    plain = instance box;
+    held shared ref box = shared ref plain
+    alias = held
+    print; (alias.add-from; held)

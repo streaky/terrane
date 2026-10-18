@@ -1,0 +1,63 @@
+namespace inherited-shared-field-writes
+from /core/collections import list
+
+class item
+    value int = 7
+
+class base
+    flag bool = true
+    count int = 5
+    values list of int = list; 1
+    required item
+    function construct;
+        this.required = instance item;
+    mutable function update; amount int
+        this.count = amount
+
+class derived extends base
+    extra int = 0
+    function construct;
+        this.required = instance item;
+
+function assign; value shared ref derived
+    value.count = 9
+
+function main;
+    plain = instance derived;
+    held = shared ref plain
+    held.flag = false
+    held.count = held.count + 1
+    held.values.append; held.count
+    print; plain.flag, ' ', plain.count, ' ', plain.values.length
+
+    assign; held
+    print; plain.count, ' ', held.count
+
+    weak = ref plain
+    weak.count = 12
+    print; plain.count, ' ', held.count
+    weak.values[0] = weak.count
+    print; plain.values[0], ' ', held.values[1]
+
+    other = instance base;
+    other-held = shared ref other
+    other-held.count = 14
+    other-observer = ref other
+    other-observer.flag = false
+    print; other.count, ' ', other-held.count, ' ', other.flag
+    other-held.values.append; other-observer.count
+    next = instance item;
+    other-held.required = next
+    other-observer.required.value = 25
+    other-held.update; other-observer.count + 1
+    print; other-held.count, ' ', other.required.value, ' ', other.values.length
+    print; other-held.flag, ' ', other-observer.flag
+
+    held.required.value = 17
+    print; plain.required.value, ' ', held.required.value
+    replacement = instance item;
+    replacement.value = 23
+    weak.required = replacement
+    print; plain.required.value, ' ', held.required.value
+    plain.count = 19
+    print; held.count

@@ -1,0 +1,12 @@
+namespace static-class-reentry
+
+class inner
+    value int = 0
+    mutable function bump;
+        this.value = holder::slot.value + 1
+
+class holder
+    static slot inner = instance inner;
+
+function main;
+    holder::slot.bump;

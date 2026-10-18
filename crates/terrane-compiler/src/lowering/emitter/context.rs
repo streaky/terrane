@@ -31,6 +31,9 @@ impl<'unit> Emitter<'unit> {
             return "()".to_owned();
         }
         if source_name == "this" {
+            if self.shared_async_receiver {
+                return "{ let __terrane_value = __terrane_shared_handle.lock().expect(\"shared async receiver lock poisoned\").clone(); __terrane_value }".to_owned();
+            }
             return self.receiver_capture_name(node);
         }
         if let Some(name) = self.narrowed_name(node) {
@@ -1117,7 +1120,7 @@ impl<'unit> Emitter<'unit> {
             format!("({}).clone()", self.local_storage_name(operand))
         } else {
             format!(
-                "std::sync::Arc::new(std::sync::Mutex::new({}))",
+                "std::sync::Arc::new(TerraneSharedCell::new({}))",
                 self.expression(operand)
             )
         }
@@ -1240,13 +1243,7 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn reference_backed(&self, binding: &TypedBinding) -> bool {
-        if matches!(
-            binding.value_type,
-            ValueType::Reference(_) | ValueType::SharedReference(_)
-        ) {
-            return false;
-        }
-        self.node_references_binding(&self.unit.tree.root, binding)
+        self.package.binding_uses_shared_storage(self.unit, binding)
     }
 
     pub(super) fn reference_uses_shared_storage(&self, node: &SyntaxNode) -> bool {
@@ -1266,14 +1263,8 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn reference_owner_uses_shared_storage(&self, owner: crate::Span) -> bool {
-        self.unit
-            .typed_bindings
-            .iter()
-            .find(|binding| binding.span == owner)
-            .is_some_and(|binding| {
-                matches!(binding.value_type, ValueType::SharedReference(_))
-                    || self.reference_backed(binding)
-            })
+        self.package
+            .reference_owner_uses_shared_storage(self.unit, owner)
     }
 
     pub(super) fn binding_is_reference_owner(&self, binding: &TypedBinding) -> bool {
@@ -1281,28 +1272,6 @@ impl<'unit> Emitter<'unit> {
             .reference_provenance
             .values()
             .any(|provenance| provenance.owner == binding.span)
-    }
-
-    pub(super) fn node_references_binding(
-        &self,
-        node: &SyntaxNode,
-        binding: &TypedBinding,
-    ) -> bool {
-        if node.kind == SyntaxKind::UnaryExpression
-            && self.unary_operator(node).as_deref() == Some("shared ref")
-            && let Some(operand) = node.children.last()
-            && operand.kind == SyntaxKind::Name
-            && self
-                .package
-                .resolve_name_at(self.unit, operand.span.start, self.text(operand))
-                .and_then(|symbol| symbol.declaration_span)
-                == Some(binding.span)
-        {
-            return true;
-        }
-        node.children
-            .iter()
-            .any(|child| self.node_references_binding(child, binding))
     }
 
     pub(super) fn text(&self, node: &SyntaxNode) -> &str {

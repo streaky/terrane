@@ -4,13 +4,13 @@ include!("lower.support.rs");
 // Namespace: shared-referenced-binding-retyping
 fn main() {
     let mut value: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     let owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        TerraneSharedCell<terrane_collection_support::List<terrane_int_support::Int>>,
     >;
     value = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(12_i128)]),
@@ -18,7 +18,7 @@ fn main() {
     );
     owner = value.clone();
     value = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(14_i128)]),

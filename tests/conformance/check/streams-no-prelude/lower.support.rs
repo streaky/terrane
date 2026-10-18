@@ -502,6 +502,167 @@ mod __terrane_trace {
         )
     }
 }
+static TERRANE_SHARED_NEXT_THREAD_TOKEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
+    1,
+);
+std::thread_local! {
+    static TERRANE_SHARED_THREAD_TOKEN : u64 = TERRANE_SHARED_NEXT_THREAD_TOKEN
+    .try_update(std::sync::atomic::Ordering::Relaxed,
+    std::sync::atomic::Ordering::Relaxed, | next | next.checked_add(1),)
+    .expect("shared storage thread token space exhausted");
+}
+#[derive(Debug)]
+pub struct TerraneSharedCell<T> {
+    owner: std::sync::atomic::AtomicU64,
+    value: std::sync::Mutex<T>,
+}
+impl<T> TerraneSharedCell<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            owner: std::sync::atomic::AtomicU64::new(0),
+            value: std::sync::Mutex::new(value),
+        }
+    }
+    /// Acquires exclusive shared-storage access, waiting for other threads.
+    ///
+    /// # Panics
+    /// Panics on same-thread reentry, before attempting to wait on itself.
+    ///
+    /// # Errors
+    /// Returns a poisoned guard if a previous holder unwound while borrowing.
+    pub fn lock(&self) -> std::sync::LockResult<TerraneSharedGuard<'_, T>> {
+        let token = TERRANE_SHARED_THREAD_TOKEN.with(|token| *token);
+        assert!(
+            self.owner.load(std::sync::atomic::Ordering::Acquire) != token,
+            "shared reference borrow conflict: storage is already borrowed by this thread"
+        );
+        let (guard, poisoned) = match self.value.lock() {
+            Ok(guard) => (guard, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        self.owner.store(token, std::sync::atomic::Ordering::Release);
+        let wrapped = TerraneSharedGuard {
+            owner: &self.owner,
+            guard,
+        };
+        if poisoned { Err(std::sync::PoisonError::new(wrapped)) } else { Ok(wrapped) }
+    }
+}
+#[derive(Debug)]
+pub struct TerraneSharedGuard<'a, T> {
+    owner: &'a std::sync::atomic::AtomicU64,
+    guard: std::sync::MutexGuard<'a, T>,
+}
+impl<T> std::ops::Deref for TerraneSharedGuard<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.guard
+    }
+}
+impl<T> std::ops::DerefMut for TerraneSharedGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.guard
+    }
+}
+impl<T> Drop for TerraneSharedGuard<'_, T> {
+    fn drop(&mut self) {
+        self.owner.store(0, std::sync::atomic::Ordering::Release);
+    }
+}
+pub struct TerraneStaticObject<T> {
+    current: TerraneSharedCell<std::sync::Arc<TerraneSharedCell<T>>>,
+}
+impl<T> TerraneStaticObject<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            current: TerraneSharedCell::new(
+                std::sync::Arc::new(TerraneSharedCell::new(value)),
+            ),
+        }
+    }
+    /// Captures the current object without retaining the replaceable slot guard.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned or is recursively borrowed by this thread.
+    pub fn handle(&self) -> std::sync::Arc<TerraneSharedCell<T>> {
+        self.current.lock().expect("static object slot lock poisoned").clone()
+    }
+    /// Installs a new object, releasing the slot before dropping its predecessor.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned, recursively borrowed, or its old object panics on drop.
+    pub fn replace(&self, value: T) {
+        let replacement = std::sync::Arc::new(TerraneSharedCell::new(value));
+        let previous = {
+            let mut current = self
+                .current
+                .lock()
+                .expect("static object slot lock poisoned");
+            std::mem::replace(&mut *current, replacement)
+        };
+        drop(previous);
+    }
+}
+pub trait TerraneSharedHandle<T> {
+    /// Acquires a bounded exclusive borrow of the receiver's live storage.
+    ///
+    /// # Errors
+    /// Returns the original cell's poison state with a guard to the selected value.
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>>;
+}
+impl<T> TerraneSharedHandle<T> for std::sync::Arc<TerraneSharedCell<T>> {
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
+        (**self).lock()
+    }
+}
+pub struct TerraneSharedProjection<H, U, T> {
+    handle: H,
+    read: fn(&U) -> &T,
+    write: fn(&mut U) -> &mut T,
+}
+impl<H, U, T> TerraneSharedProjection<H, U, T> {
+    pub fn new(handle: H, read: fn(&U) -> &T, write: fn(&mut U) -> &mut T) -> Self {
+        Self { handle, read, write }
+    }
+}
+impl<H: Clone, U, T> Clone for TerraneSharedProjection<H, U, T> {
+    fn clone(&self) -> Self {
+        Self::new(self.handle.clone(), self.read, self.write)
+    }
+}
+struct TerraneSharedProjectedGuard<G, U, T> {
+    guard: G,
+    read: fn(&U) -> &T,
+    write: fn(&mut U) -> &mut T,
+}
+impl<G: std::ops::Deref<Target = U>, U, T> std::ops::Deref
+for TerraneSharedProjectedGuard<G, U, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        (self.read)(&self.guard)
+    }
+}
+impl<G: std::ops::DerefMut<Target = U>, U, T> std::ops::DerefMut
+for TerraneSharedProjectedGuard<G, U, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        (self.write)(&mut self.guard)
+    }
+}
+impl<H: TerraneSharedHandle<U>, U, T> TerraneSharedHandle<T>
+for TerraneSharedProjection<H, U, T> {
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
+        let (guard, poisoned) = match self.handle.lock() {
+            Ok(guard) => (guard, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        let guard = TerraneSharedProjectedGuard {
+            guard,
+            read: self.read,
+            write: self.write,
+        };
+        if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
+    }
+}
 #[derive(Clone)]
 pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
 impl Default for TerranePlatformStreamHandle {
@@ -691,9 +852,18 @@ impl StreamOperationResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, deadline_exceeded: bool) {
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -735,12 +905,30 @@ impl ReadResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        self.data = data;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = data;
+            self.data = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -777,11 +965,26 @@ impl TextReadResult {
         failed: bool,
         message: String,
     ) {
-        self.text = text;
-        self.completed = completed.clone();
-        self.end = end;
-        self.failed = failed;
-        self.message = message;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = end;
+            self.end = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -822,14 +1025,32 @@ impl WriteResult {
         if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
             && !failed
         {
-            self.data = Vec::<u8>::from([]);
+            {
+                let __terrane_value = Vec::<u8>::from([]);
+                self.data = __terrane_value;
+            }
         } else {
-            self.data = data;
+            {
+                let __terrane_value = data;
+                self.data = __terrane_value;
+            }
         }
-        self.completed = completed.clone();
-        self.failed = failed;
-        self.message = message;
-        self.deadline_exceeded = deadline_exceeded;
+        {
+            let __terrane_value = completed.clone();
+            self.completed = __terrane_value;
+        }
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = deadline_exceeded;
+            self.deadline_exceeded = __terrane_value;
+        }
     }
 }
 pub struct ByteReader {
@@ -847,7 +1068,10 @@ impl ByteReader {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
         let raw: TerranePlatformReadResult;
@@ -856,11 +1080,11 @@ impl ByteReader {
             count,
         );
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
+            raw.data.clone(),
             raw.completed.clone(),
             raw.end,
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -900,7 +1124,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -957,7 +1181,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -987,7 +1211,7 @@ impl ByteReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1020,7 +1244,10 @@ impl ByteWriter {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
-        self.handle = Some(handle);
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
     }
     pub fn write(&self, data: Vec<u8>) -> WriteResult {
         let offset: i64;
@@ -1035,7 +1262,7 @@ impl ByteWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1057,7 +1284,7 @@ impl ByteWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -1089,7 +1316,7 @@ impl ByteWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1106,7 +1333,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1117,7 +1344,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1128,7 +1355,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1139,7 +1366,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1181,8 +1408,14 @@ impl TextReader {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn read(
         &self,
@@ -1204,7 +1437,7 @@ impl TextReader {
                 raw.completed.clone(),
                 raw.end,
                 raw.failed,
-                raw.message.clone().clone(),
+                raw.message.clone(),
             ),
         );
     }
@@ -1248,7 +1481,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -1314,7 +1547,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -1343,7 +1576,7 @@ impl TextReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1385,8 +1618,14 @@ impl TextWriter {
         handle: TerranePlatformStreamHandle,
         codec: terrane_string_support::Encoding,
     ) {
-        self.handle = Some(handle);
-        self.codec = codec;
+        {
+            let __terrane_value = handle;
+            self.handle = Some(__terrane_value);
+        }
+        {
+            let __terrane_value = codec;
+            self.codec = __terrane_value;
+        }
     }
     pub fn write(&self, text: String) -> WriteResult {
         let data: Vec<u8>;
@@ -1403,7 +1642,7 @@ impl TextWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1427,7 +1666,7 @@ impl TextWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -1459,7 +1698,7 @@ impl TextWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1482,7 +1721,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1493,7 +1732,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1504,7 +1743,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -1515,7 +1754,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }

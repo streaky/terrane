@@ -33,7 +33,10 @@ fn main() {
     let value: Pair<String, terrane_int_support::Int>;
     text_holder = Holder::<String>::terrane_construct();
     number_holder = Holder::<terrane_int_support::Int>::terrane_construct();
-    text_holder.count = terrane_int_support::Int::from(7_i128);
+    {
+        let __terrane_value = terrane_int_support::Int::from(7_i128);
+        text_holder.count = __terrane_value;
+    }
     println!("{}", terrane_scalar_support::scalar_text(&text_holder.count));
     println!("{}", terrane_scalar_support::scalar_text(&number_holder.count));
     value = Pair::<String, terrane_int_support::Int>::terrane_construct();

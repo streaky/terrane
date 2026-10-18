@@ -60,7 +60,10 @@ impl TerraneNsLeftSharedErrorIdentity2F6C656674007368617265642D6572726F72 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message;
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();
@@ -99,7 +102,10 @@ impl TerraneNsRightSharedErrorIdentity2F7269676874007368617265642D6572726F72 {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message;
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();

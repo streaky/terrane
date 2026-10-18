@@ -18,7 +18,7 @@ fn main() {
             std::panic::AssertUnwindSafe(|| terrane_deferred_callback_witness::produce(
                 match || -> Result<_, crate::TerraneForeignError> {
                     Ok({
-                        let callback = std::sync::Arc::new(message).clone();
+                        let callback = std::sync::Arc::new(message);
                         move || {
                             match || -> Result<_, crate::TerraneForeignError> {
                                 let callback_value = callback();
@@ -54,7 +54,7 @@ fn main() {
                 value.clone(),
                 match || -> Result<_, crate::TerraneForeignError> {
                     Ok({
-                        let callback = std::sync::Arc::new(length).clone();
+                        let callback = std::sync::Arc::new(length);
                         move |callback_argument_0: String| {
                             match || -> Result<_, crate::TerraneForeignError> {
                                 let callback_value = callback(callback_argument_0);

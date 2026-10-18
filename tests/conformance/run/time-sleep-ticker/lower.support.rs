@@ -543,6 +543,167 @@ mod __terrane_trace {
         )
     }
 }
+static TERRANE_SHARED_NEXT_THREAD_TOKEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
+    1,
+);
+std::thread_local! {
+    static TERRANE_SHARED_THREAD_TOKEN : u64 = TERRANE_SHARED_NEXT_THREAD_TOKEN
+    .try_update(std::sync::atomic::Ordering::Relaxed,
+    std::sync::atomic::Ordering::Relaxed, | next | next.checked_add(1),)
+    .expect("shared storage thread token space exhausted");
+}
+#[derive(Debug)]
+pub struct TerraneSharedCell<T> {
+    owner: std::sync::atomic::AtomicU64,
+    value: std::sync::Mutex<T>,
+}
+impl<T> TerraneSharedCell<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            owner: std::sync::atomic::AtomicU64::new(0),
+            value: std::sync::Mutex::new(value),
+        }
+    }
+    /// Acquires exclusive shared-storage access, waiting for other threads.
+    ///
+    /// # Panics
+    /// Panics on same-thread reentry, before attempting to wait on itself.
+    ///
+    /// # Errors
+    /// Returns a poisoned guard if a previous holder unwound while borrowing.
+    pub fn lock(&self) -> std::sync::LockResult<TerraneSharedGuard<'_, T>> {
+        let token = TERRANE_SHARED_THREAD_TOKEN.with(|token| *token);
+        assert!(
+            self.owner.load(std::sync::atomic::Ordering::Acquire) != token,
+            "shared reference borrow conflict: storage is already borrowed by this thread"
+        );
+        let (guard, poisoned) = match self.value.lock() {
+            Ok(guard) => (guard, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        self.owner.store(token, std::sync::atomic::Ordering::Release);
+        let wrapped = TerraneSharedGuard {
+            owner: &self.owner,
+            guard,
+        };
+        if poisoned { Err(std::sync::PoisonError::new(wrapped)) } else { Ok(wrapped) }
+    }
+}
+#[derive(Debug)]
+pub struct TerraneSharedGuard<'a, T> {
+    owner: &'a std::sync::atomic::AtomicU64,
+    guard: std::sync::MutexGuard<'a, T>,
+}
+impl<T> std::ops::Deref for TerraneSharedGuard<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.guard
+    }
+}
+impl<T> std::ops::DerefMut for TerraneSharedGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.guard
+    }
+}
+impl<T> Drop for TerraneSharedGuard<'_, T> {
+    fn drop(&mut self) {
+        self.owner.store(0, std::sync::atomic::Ordering::Release);
+    }
+}
+pub struct TerraneStaticObject<T> {
+    current: TerraneSharedCell<std::sync::Arc<TerraneSharedCell<T>>>,
+}
+impl<T> TerraneStaticObject<T> {
+    pub fn new(value: T) -> Self {
+        Self {
+            current: TerraneSharedCell::new(
+                std::sync::Arc::new(TerraneSharedCell::new(value)),
+            ),
+        }
+    }
+    /// Captures the current object without retaining the replaceable slot guard.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned or is recursively borrowed by this thread.
+    pub fn handle(&self) -> std::sync::Arc<TerraneSharedCell<T>> {
+        self.current.lock().expect("static object slot lock poisoned").clone()
+    }
+    /// Installs a new object, releasing the slot before dropping its predecessor.
+    ///
+    /// # Panics
+    /// Panics if the slot is poisoned, recursively borrowed, or its old object panics on drop.
+    pub fn replace(&self, value: T) {
+        let replacement = std::sync::Arc::new(TerraneSharedCell::new(value));
+        let previous = {
+            let mut current = self
+                .current
+                .lock()
+                .expect("static object slot lock poisoned");
+            std::mem::replace(&mut *current, replacement)
+        };
+        drop(previous);
+    }
+}
+pub trait TerraneSharedHandle<T> {
+    /// Acquires a bounded exclusive borrow of the receiver's live storage.
+    ///
+    /// # Errors
+    /// Returns the original cell's poison state with a guard to the selected value.
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>>;
+}
+impl<T> TerraneSharedHandle<T> for std::sync::Arc<TerraneSharedCell<T>> {
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
+        (**self).lock()
+    }
+}
+pub struct TerraneSharedProjection<H, U, T> {
+    handle: H,
+    read: fn(&U) -> &T,
+    write: fn(&mut U) -> &mut T,
+}
+impl<H, U, T> TerraneSharedProjection<H, U, T> {
+    pub fn new(handle: H, read: fn(&U) -> &T, write: fn(&mut U) -> &mut T) -> Self {
+        Self { handle, read, write }
+    }
+}
+impl<H: Clone, U, T> Clone for TerraneSharedProjection<H, U, T> {
+    fn clone(&self) -> Self {
+        Self::new(self.handle.clone(), self.read, self.write)
+    }
+}
+struct TerraneSharedProjectedGuard<G, U, T> {
+    guard: G,
+    read: fn(&U) -> &T,
+    write: fn(&mut U) -> &mut T,
+}
+impl<G: std::ops::Deref<Target = U>, U, T> std::ops::Deref
+for TerraneSharedProjectedGuard<G, U, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        (self.read)(&self.guard)
+    }
+}
+impl<G: std::ops::DerefMut<Target = U>, U, T> std::ops::DerefMut
+for TerraneSharedProjectedGuard<G, U, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        (self.write)(&mut self.guard)
+    }
+}
+impl<H: TerraneSharedHandle<U>, U, T> TerraneSharedHandle<T>
+for TerraneSharedProjection<H, U, T> {
+    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
+        let (guard, poisoned) = match self.handle.lock() {
+            Ok(guard) => (guard, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        let guard = TerraneSharedProjectedGuard {
+            guard,
+            read: self.read,
+            write: self.write,
+        };
+        if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
+    }
+}
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
     impl Future for YieldOnce {
@@ -834,7 +995,10 @@ impl DurationSubtraction {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, total: terrane_int_support::Int) {
-        self.total_nanoseconds = total.clone();
+        {
+            let __terrane_value = total.clone();
+            self.total_nanoseconds = __terrane_value;
+        }
     }
     pub fn checked(&self, other: Duration) -> Option<Duration> {
         let difference: terrane_int_support::Int;
@@ -878,14 +1042,26 @@ impl Duration {
         whole_seconds: terrane_int_support::Int,
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
-        self.seconds = whole_seconds.clone();
-        self.nanoseconds = fractional_nanoseconds.clone();
-        self.total_nanoseconds = whole_seconds.clone()
-            * terrane_int_support::Int::from(1000000000_i128)
-            + fractional_nanoseconds.clone();
-        self.subtract = DurationSubtraction::terrane_construct(
-            self.total_nanoseconds.clone(),
-        );
+        {
+            let __terrane_value = whole_seconds.clone();
+            self.seconds = __terrane_value;
+        }
+        {
+            let __terrane_value = fractional_nanoseconds.clone();
+            self.nanoseconds = __terrane_value;
+        }
+        {
+            let __terrane_value = whole_seconds.clone()
+                * terrane_int_support::Int::from(1000000000_i128)
+                + fractional_nanoseconds.clone();
+            self.total_nanoseconds = __terrane_value;
+        }
+        {
+            let __terrane_value = DurationSubtraction::terrane_construct(
+                self.total_nanoseconds.clone(),
+            );
+            self.subtract = __terrane_value;
+        }
     }
     pub fn add(&self, other: Duration) -> Duration {
         let fractional: terrane_int_support::Int;
@@ -1064,17 +1240,29 @@ impl MonotonicInstant {
         runtime_domain: terrane_int_support::Int,
         elapsed: terrane_int_support::Int,
     ) {
-        self.domain = runtime_domain.clone();
-        self.elapsed_nanoseconds = elapsed.clone();
+        {
+            let __terrane_value = runtime_domain.clone();
+            self.domain = __terrane_value;
+        }
+        {
+            let __terrane_value = elapsed.clone();
+            self.elapsed_nanoseconds = __terrane_value;
+        }
     }
     pub fn duration_until(
         &self,
         later: &MonotonicInstant,
     ) -> Result<Duration, TerraneError> {
         let elapsed: terrane_int_support::Int;
-        if self.domain.clone() != later.domain.clone().clone()
-            || later.elapsed_nanoseconds.clone().clone()
-                < self.elapsed_nanoseconds.clone()
+        if self.domain.clone()
+            != {
+                let __terrane_snapshot = later.domain.clone();
+                __terrane_snapshot
+            }
+            || {
+                let __terrane_snapshot = later.elapsed_nanoseconds.clone();
+                __terrane_snapshot
+            } < self.elapsed_nanoseconds.clone()
         {
             return Err({
                 let value = InvalidDuration::terrane_construct();
@@ -1093,8 +1281,10 @@ impl MonotonicInstant {
                 )
             });
         }
-        elapsed = later.elapsed_nanoseconds.clone().clone()
-            - self.elapsed_nanoseconds.clone();
+        elapsed = {
+            let __terrane_snapshot = later.elapsed_nanoseconds.clone();
+            __terrane_snapshot
+        } - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&elapsed, 1000000000.clone()),
@@ -1125,8 +1315,14 @@ impl Instant {
         seconds: terrane_int_support::Int,
         fractional_nanoseconds: terrane_int_support::Int,
     ) {
-        self.unix_seconds = seconds.clone();
-        self.nanoseconds = fractional_nanoseconds.clone();
+        {
+            let __terrane_value = seconds.clone();
+            self.unix_seconds = __terrane_value;
+        }
+        {
+            let __terrane_value = fractional_nanoseconds.clone();
+            self.nanoseconds = __terrane_value;
+        }
     }
 }
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -1145,7 +1341,10 @@ impl Deadline {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, target: MonotonicInstant) {
-        self.expires_at = target;
+        {
+            let __terrane_value = target;
+            self.expires_at = __terrane_value;
+        }
     }
     pub fn remaining(&self) -> Option<Duration> {
         let now: MonotonicInstant;
@@ -1227,9 +1426,18 @@ impl Tick {
         observed_at: MonotonicInstant,
         expirations: terrane_int_support::Int,
     ) {
-        self.scheduled = scheduled_at;
-        self.observed = observed_at;
-        self.count = expirations.clone();
+        {
+            let __terrane_value = scheduled_at;
+            self.scheduled = __terrane_value;
+        }
+        {
+            let __terrane_value = observed_at;
+            self.observed = __terrane_value;
+        }
+        {
+            let __terrane_value = expirations.clone();
+            self.count = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1262,8 +1470,14 @@ impl Ticker {
         value
     }
     pub fn construct(&mut self, interval: Duration) {
-        self.anchor = Clock::terrane_static_monotonic();
-        self.period = interval;
+        {
+            let __terrane_value = Clock::terrane_static_monotonic();
+            self.anchor = __terrane_value;
+        }
+        {
+            let __terrane_value = interval;
+            self.period = __terrane_value;
+        }
     }
     pub async fn next(&mut self) -> Tick {
         let period_total: terrane_int_support::Int;
@@ -1294,8 +1508,127 @@ impl Ticker {
             self.anchor.elapsed_nanoseconds.clone()
                 + period_total.clone() * observed_index.clone(),
         );
-        self.next_index = observed_index.clone()
-            + terrane_int_support::Int::from(1_i128);
+        {
+            let __terrane_value = observed_index.clone()
+                + terrane_int_support::Int::from(1_i128);
+            self.next_index = __terrane_value;
+        }
+        return Tick::terrane_construct(delivered, observed, count.clone());
+    }
+    pub async fn __terrane_shared_async_next(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+    ) -> Tick {
+        let period_total: terrane_int_support::Int;
+        let scheduled_nanoseconds: terrane_int_support::Int;
+        let observed: MonotonicInstant;
+        let elapsed: terrane_int_support::Int;
+        let mut observed_index: terrane_int_support::Int;
+        let count: terrane_int_support::Int;
+        let delivered: MonotonicInstant;
+        period_total = {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .period
+                .clone();
+            __terrane_snapshot
+        }
+            .total_nanoseconds
+            .clone();
+        scheduled_nanoseconds = {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .anchor
+                .clone();
+            __terrane_snapshot
+        }
+            .elapsed_nanoseconds
+            .clone()
+            + period_total.clone()
+                * {
+                    let __terrane_snapshot = __terrane_shared_handle
+                        .lock()
+                        .expect("shared async receiver lock poisoned")
+                        .next_index
+                        .clone();
+                    __terrane_snapshot
+                };
+        discard_none(
+            __terrane_await(terrane_platform_time_sleep_until(scheduled_nanoseconds))
+                .await,
+        );
+        observed = Clock::terrane_static_monotonic();
+        elapsed = observed.elapsed_nanoseconds.clone()
+            - {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .anchor
+                    .clone();
+                __terrane_snapshot
+            }
+                .elapsed_nanoseconds
+                .clone();
+        observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
+        if observed_index.clone()
+            < {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .next_index
+                    .clone();
+                __terrane_snapshot
+            }
+        {
+            observed_index = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .next_index
+                    .clone();
+                __terrane_snapshot
+            };
+        }
+        count = observed_index.clone()
+            - {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .next_index
+                    .clone();
+                __terrane_snapshot
+            } + terrane_int_support::Int::from(1_i128);
+        delivered = MonotonicInstant::terrane_construct(
+            {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .anchor
+                    .clone();
+                __terrane_snapshot
+            }
+                .domain
+                .clone(),
+            {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .anchor
+                    .clone();
+                __terrane_snapshot
+            }
+                .elapsed_nanoseconds
+                .clone() + period_total.clone() * observed_index.clone(),
+        );
+        {
+            let __terrane_value = observed_index.clone()
+                + terrane_int_support::Int::from(1_i128);
+            __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .next_index = __terrane_value;
+        }
         return Tick::terrane_construct(delivered, observed, count.clone());
     }
     pub fn destruct(&mut self) {

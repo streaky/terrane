@@ -24,7 +24,10 @@ impl Accumulator {
                 ),
             );
         }
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return Ok(self.total.clone());
     }
 }

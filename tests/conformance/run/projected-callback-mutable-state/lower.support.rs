@@ -599,7 +599,7 @@ pub fn apply_mutable(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     let callback = {
-        let callback = callback.clone();
+        let callback = callback;
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback

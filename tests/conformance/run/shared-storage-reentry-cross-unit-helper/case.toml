@@ -1,0 +1,5 @@
+phase = "run"
+status = "accept"
+canonical-rust = true
+runtime-error = "shared reference borrow conflict"
+entrypoint = "package.toml"

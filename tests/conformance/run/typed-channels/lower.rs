@@ -13,7 +13,10 @@ impl Message {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -31,7 +34,10 @@ impl StringBatch {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, values: terrane_collection_support::List<String>) {
-        self.values = values;
+        {
+            let __terrane_value = values;
+            self.values = __terrane_value;
+        }
     }
 }
 fn main() {
@@ -533,7 +539,10 @@ fn main() {
             );
         }
         values = terrane_collection_support::List::<String>::new(vec![]);
-        values.append(String::from("collection"));
+        {
+            let __terrane_collection_argument_0 = String::from("collection");
+            values.append(__terrane_collection_argument_0);
+        };
         batch_pair = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),

@@ -55,7 +55,10 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
     );
-    *view.terrane_field_value_mut() = terrane_int_support::Int::from(9_i128);
+    {
+        let __terrane_value = terrane_int_support::Int::from(9_i128);
+        *view.terrane_field_value_mut() = __terrane_value;
+    }
     println!(
         "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
     );

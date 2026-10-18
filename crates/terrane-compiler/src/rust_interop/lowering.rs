@@ -892,11 +892,9 @@ fn projected_callback_argument(
             "match {fallible_body} {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }}"
         )
     };
-    let capture = if invocation_mode == InvocationMode::Consuming {
-        name.to_owned()
-    } else {
-        format!("{name}.clone()")
-    };
+    // Argument lowering supplies an owned callback snapshot. Move it into the
+    // adapter; only repeated async invocations need another handle below.
+    let capture = name;
     if is_async {
         if invocation_mode == InvocationMode::Shared {
             format!(
@@ -1389,7 +1387,14 @@ pub(super) fn emit_dependency_unit(
                     parameter.binding_value_type(),
                     Some(ValueType::Reference(_) | ValueType::SharedReference(_))
                 ) {
-                format!("*{name}")
+                if matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Callback { .. }
+                ) {
+                    format!("(*{name}).clone()")
+                } else {
+                    format!("*{name}")
+                }
             } else {
                 name.clone()
             };

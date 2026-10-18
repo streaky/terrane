@@ -22,13 +22,19 @@ impl Counter {
         value
     }
     pub fn construct(&mut self, start: terrane_int_support::Int) {
-        self.value = start.clone();
+        {
+            let __terrane_value = start.clone();
+            self.value = __terrane_value;
+        }
     }
     pub fn increase(
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.value = self.value.clone() + amount.clone();
+        {
+            let __terrane_value = self.value.clone() + amount.clone();
+            self.value = __terrane_value;
+        }
         return self.value.clone();
     }
     pub fn shifted(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {

@@ -16,23 +16,26 @@ impl Record {
             row(),
             0 /* terrane-site: src/main.trn:8:14-8:18 */,
         );
-        self.value = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| (&source).decoded::<String>()),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "dependency",
-                            "(& source) . decoded::<String>",
-                        ),
-                    )
-                }
-            },
-            1 /* terrane-site: src/main.trn:9:18-9:33 */,
-        );
+        {
+            let __terrane_value = __terrane_raised(
+                match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| (&source).decoded::<String>()),
+                ) {
+                    Ok(value) => Ok(value),
+                    Err(payload) => {
+                        Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "dependency",
+                                "(& source) . decoded::<String>",
+                            ),
+                        )
+                    }
+                },
+                1 /* terrane-site: src/main.trn:9:18-9:33 */,
+            );
+            self.value = __terrane_value;
+        }
     }
 }
 fn decoded_value() -> String {

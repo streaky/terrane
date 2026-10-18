@@ -1867,9 +1867,18 @@ impl ConcurrencyOperationResult {
         exceeded_deadline: bool,
         detail: String,
     ) {
-        self.failed = did_fail;
-        self.deadline_exceeded = exceeded_deadline;
-        self.message = detail;
+        {
+            let __terrane_value = did_fail;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = exceeded_deadline;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1907,11 +1916,26 @@ impl ConcurrencyIntResult {
         detail: String,
         result_value: terrane_int_support::Int,
     ) {
-        self.failed = did_fail;
-        self.deadline_exceeded = exceeded_deadline;
-        self.available = has_value;
-        self.message = detail;
-        self.value = result_value.clone();
+        {
+            let __terrane_value = did_fail;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = exceeded_deadline;
+            self.deadline_exceeded = __terrane_value;
+        }
+        {
+            let __terrane_value = has_value;
+            self.available = __terrane_value;
+        }
+        {
+            let __terrane_value = detail;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = result_value.clone();
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -1933,9 +1957,18 @@ impl IntMutex {
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_mutex(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn load(&self) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -1991,9 +2024,18 @@ impl IntReadWriteLock {
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_int_rw_lock(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn read(&self) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -2029,7 +2071,10 @@ impl MemoryOrder {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, ordering_name: String) {
-        self.name = ordering_name;
+        {
+            let __terrane_value = ordering_name;
+            self.name = __terrane_value;
+        }
     }
 }
 pub fn relaxed_order() -> MemoryOrder {
@@ -2066,9 +2111,18 @@ impl AtomicInt64 {
     pub fn construct(&mut self, initial: i64) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_atomic_int64(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn load(&self, ordering: MemoryOrder) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;
@@ -2129,9 +2183,18 @@ impl ThreadLocalInt {
     pub fn construct(&mut self, initial: terrane_int_support::Int) {
         let raw: TerranePlatformResult;
         raw = terrane_platform_thread_local_int(initial);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
+        {
+            let __terrane_value = terrane_platform_result_failed(&raw);
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_message(&raw);
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_platform_result_capability(&raw);
+            self.handle = __terrane_value;
+        }
     }
     pub fn get(&self) -> ConcurrencyIntResult {
         let raw: TerranePlatformResult;

@@ -327,8 +327,8 @@ fn global_condition(input: i8) -> i8 {
 fn main() {
     let mut upper: i8;
     let mut intermediate: i8;
-    let shared_value: std::sync::Arc<std::sync::Mutex<i8>>;
-    let observer: std::sync::Arc<std::sync::Mutex<i8>>;
+    let shared_value: std::sync::Arc<TerraneSharedCell<i8>>;
+    let observer: std::sync::Arc<TerraneSharedCell<i8>>;
     println!("{}", terrane_scalar_support::scalar_text(&transition(42)));
     println!("{}", terrane_scalar_support::scalar_text(&transition(41)));
     positive_lower_bound(72);
@@ -451,7 +451,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&transition_int128(41)));
     println!("{}", terrane_scalar_support::scalar_text(&both_affine(41)));
     println!("{}", terrane_scalar_support::scalar_text(&nested_conditional(41)));
-    shared_value = std::sync::Arc::new(std::sync::Mutex::new(41));
+    shared_value = std::sync::Arc::new(TerraneSharedCell::new(41));
     observer = shared_value.clone();
     println!(
         "{}", terrane_scalar_support::scalar_text(&* observer.lock()

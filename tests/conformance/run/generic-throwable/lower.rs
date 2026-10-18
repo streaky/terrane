@@ -17,7 +17,10 @@ impl<TerraneType54> ImportedBoxedError<TerraneType54> {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String) {
-        self.message = message;
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();
@@ -40,8 +43,14 @@ impl<TerraneType54> BoxedError<TerraneType54> {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, message: String, payload: TerraneType54) {
-        self.message = message;
-        self.payload = Some(payload);
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = payload;
+            self.payload = Some(__terrane_value);
+        }
     }
     pub fn render(&self) -> String {
         return self.message.clone();

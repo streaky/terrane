@@ -12,7 +12,10 @@ impl OptionalValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, input: terrane_int_support::Int) {
-        self.value = Some(input.clone());
+        {
+            let __terrane_value = Some(input.clone());
+            self.value = __terrane_value;
+        }
     }
 }
 fn main() {

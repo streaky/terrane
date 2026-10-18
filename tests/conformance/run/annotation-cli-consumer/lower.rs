@@ -65,8 +65,14 @@ fn run_command() -> terrane_int_support::Int {
     schema_entries = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("flag:--help")]);
-    schema_entries.append(String::from("value:--name"));
-    schema_entries.append(String::from("value:--limit"));
+    {
+        let __terrane_collection_argument_0 = String::from("value:--name");
+        schema_entries.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = String::from("value:--limit");
+        schema_entries.append(__terrane_collection_argument_0);
+    };
     schema = CliSchema::terrane_construct(schema_entries);
     parsed = parse_command_line(schema, user_arguments);
     if terrane_int_support::Int::from(

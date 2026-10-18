@@ -153,7 +153,15 @@ impl Emitter<'_> {
                     .find(|borrow| borrow.binding == binding.span)
                     .map(|borrow| borrow.vector.clone())
             });
-        let receiver_value = self.receiver_guard_expression(receiver);
+        let (setup, receiver_value) = self.live_receiver_parts(receiver);
+        let mut argument_setup = String::new();
+        let mut argument_index = 0;
+        let mut stage_argument = |value: String| {
+            let name = format!("__terrane_collection_argument_{argument_index}");
+            argument_index += 1;
+            write!(argument_setup, "let {name} = {value}; ").unwrap();
+            name
+        };
         let values = arguments
             .children
             .iter()
@@ -161,7 +169,7 @@ impl Emitter<'_> {
             .collect::<Vec<_>>();
         let mutation = match (receiver_type, operation.as_str()) {
             (ValueType::List(item), "append") => {
-                let value = self.expression_as(values[0], item.value_type());
+                let value = stage_argument(self.expression_as(values[0], item.value_type()));
                 if matches!(
                     item.value_type_ref(),
                     ValueType::InvocationScopedNative { .. }
@@ -180,7 +188,8 @@ impl Emitter<'_> {
                     format!("terrane_collection_support::index_from_int(&({index}))"),
                     node,
                 );
-                let value = self.expression_as(values[1], item.value_type());
+                let index = stage_argument(index);
+                let value = stage_argument(self.expression_as(values[1], item.value_type()));
                 Some(self.fallible(format!("({receiver_value}).set({index}, {value})"), node))
             }
             (ValueType::List(_), "clear") => Some(format!("({receiver_value}).clear()")),
@@ -192,18 +201,18 @@ impl Emitter<'_> {
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                 Some(format!(
                     "({receiver_value}).set({}, {})",
-                    self.expression_as(values[0], key.value_type()),
-                    self.expression_as(values[1], value.value_type())
+                    stage_argument(self.expression_as(values[0], key.value_type())),
+                    stage_argument(self.expression_as(values[1], value.value_type()))
                 ))
             }
             (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove.checked") => {
                 Some(format!(
                     "let _ = ({receiver_value}).remove_checked(&({}))",
-                    self.expression_as(values[0], key.value_type())
+                    stage_argument(self.expression_as(values[0], key.value_type()))
                 ))
             }
             (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "remove") => {
-                let key = self.expression_as(values[0], key.value_type());
+                let key = stage_argument(self.expression_as(values[0], key.value_type()));
                 Some(format!(
                     "let _ = {}",
                     self.fallible(format!("({receiver_value}).remove(&({key}))"), node)
@@ -211,46 +220,17 @@ impl Emitter<'_> {
             }
             (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => Some(format!(
                 "({receiver_value}).add({})",
-                self.expression_as(values[0], item.value_type())
+                stage_argument(self.expression_as(values[0], item.value_type()))
             )),
             _ => None,
         };
-        mutation.map(|mutation| self.wrap_receiver_guard(receiver, mutation))
+        mutation.map(|mutation| format!("{{ {setup}{argument_setup}{mutation}; }}"))
     }
 
     pub(super) fn assigned_binding(&self, left: &SyntaxNode) -> Option<TypedBinding> {
         (left.kind == SyntaxKind::Name)
             .then(|| self.local_typed_binding(left).cloned())
             .flatten()
-    }
-
-    pub(super) fn nested_static_assignment_target(&self, node: &SyntaxNode) -> Option<String> {
-        let [receiver, member] = node.children.as_slice() else {
-            return None;
-        };
-        if node.kind != SyntaxKind::MemberExpression {
-            return None;
-        }
-        let mut target = if receiver.kind == SyntaxKind::StaticMemberExpression {
-            let [class, field] = receiver.children.as_slice() else {
-                return None;
-            };
-            let object = self.class_designator(class)?;
-            let field_name = self.text(field);
-            effective_object_fields(self.package, object)
-                .iter()
-                .any(|candidate| candidate.is_static && candidate.name == field_name)
-                .then(|| {
-                    format!(
-                        "{}.lock().expect(\"static field lock poisoned\")",
-                        rust_static_field_name(self.package, &object.identity, field_name)
-                    )
-                })?
-        } else {
-            self.nested_static_assignment_target(receiver)?
-        };
-        write!(target, ".{}", rust_name(self.text(member))).unwrap();
-        Some(target)
     }
 
     pub(super) fn assign_static_field(&mut self, left: &SyntaxNode, value: &str) -> bool {
@@ -263,10 +243,14 @@ impl Emitter<'_> {
         let Some(object) = self.class_designator(receiver) else {
             return false;
         };
-        self.line(&format!(
-            "{{ let __terrane_static_value = {value}; *{}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}",
-            rust_static_field_name(self.package, &object.identity, self.text(member))
-        ));
+        let storage = rust_static_field_name(self.package, &object.identity, self.text(member));
+        if matches!(self.value_type(left), Some(ValueType::Object(_))) {
+            self.line(&format!("{storage}.replace({value});"));
+        } else {
+            self.line(&format!(
+                "{{ let __terrane_static_value = {value}; *{storage}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}"
+            ));
+        }
         true
     }
 
@@ -283,7 +267,7 @@ impl Emitter<'_> {
             && let [receiver, index] = target.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
-            let receiver_value = self.receiver_guard_expression(receiver);
+            let (setup, receiver_value) = self.live_receiver_parts(receiver);
             match receiver_type {
                 ValueType::List(item) => {
                     let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
@@ -292,17 +276,20 @@ impl Emitter<'_> {
                         node,
                     );
                     let value = self.expression_as(value, item.value_type());
-                    let mutation =
-                        self.fallible(format!("({receiver_value}).set({index}, {value})"), node);
-                    let mutation = self.wrap_receiver_guard(receiver, mutation);
-                    self.line(&format!("let _ = {mutation};"));
+                    let mutation = self.fallible(
+                        format!("({receiver_value}).set(__terrane_index, __terrane_value)"),
+                        node,
+                    );
+                    self.line(&format!(
+                        "{{ {setup} let __terrane_index = {index}; let __terrane_value = {value}; let _ = {mutation}; }}"
+                    ));
                 }
                 ValueType::Map(key, value_type) | ValueType::UnorderedMap(key, value_type) => {
                     let key = self.expression_as(index, key.value_type());
                     let value = self.expression_as(value, value_type.value_type());
-                    let mutation = format!("({receiver_value}).set({key}, {value})");
-                    let mutation = self.wrap_receiver_guard(receiver, mutation);
-                    self.line(&format!("let _ = {mutation};"));
+                    self.line(&format!(
+                        "{{ {setup} let __terrane_key = {key}; let __terrane_value = {value}; ({receiver_value}).set(__terrane_key, __terrane_value); }}"
+                    ));
                 }
                 _ => {}
             }
@@ -358,20 +345,33 @@ impl Emitter<'_> {
         } else {
             value
         };
+        if self.assign_static_field(left, &value) {
+            return;
+        }
         if let [receiver, member] = left.children.as_slice()
             && left.kind == SyntaxKind::MemberExpression
             && let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver)
-            && source_field_is_required(self.package, &identity, self.text(member))
         {
-            let receiver_expression = self.receiver_expression(receiver);
-            let field = rust_name(self.text(member));
-            if self.wrapped_object_field(receiver, self.text(member)) {
-                self.line(&format!(
-                    "*({receiver_expression}).terrane_field_{field}_slot_mut() = Some({value});"
-                ));
+            let (setup, receiver_value) = self.live_receiver_parts(receiver);
+            let field = self.native_field_name(
+                Some(&ValueType::Object(identity.clone())),
+                self.text(member),
+            );
+            let required = source_field_is_required(self.package, &identity, self.text(member));
+            let wrapped = self.wrapped_object_field(receiver, self.text(member));
+            let target = match (wrapped, required) {
+                (true, true) => format!("*({receiver_value}).terrane_field_{field}_slot_mut()"),
+                (true, false) => format!("*({receiver_value}).terrane_field_{field}_mut()"),
+                (false, _) => format!("({receiver_value}).{field}"),
+            };
+            let assigned = if required {
+                "Some(__terrane_value)"
             } else {
-                self.line(&format!("({receiver_expression}).{field} = Some({value});"));
-            }
+                "__terrane_value"
+            };
+            self.line(&format!(
+                "{{ {setup} let __terrane_value = {value}; {target} = {assigned}; }}"
+            ));
             return;
         }
         if left.kind == SyntaxKind::Name && self.async_mutable_captures.contains(self.text(left)) {
@@ -379,9 +379,6 @@ impl Emitter<'_> {
             self.line(&format!(
                 "{{ let callable_capture_value = {value}; {target}.replace(callable_capture_value); }}"
             ));
-            return;
-        }
-        if self.assign_static_field(left, &value) {
             return;
         }
         let reference_backed = assigned_binding
@@ -393,17 +390,6 @@ impl Emitter<'_> {
             format!(
                 "*{}.lock().expect(\"reference lock poisoned\")",
                 self.local_storage_name(left)
-            )
-        } else if let Some(target) = self.nested_static_assignment_target(left) {
-            target
-        } else if let [receiver, member] = left.children.as_slice()
-            && left.kind == SyntaxKind::MemberExpression
-            && self.wrapped_object_field(receiver, self.text(member))
-        {
-            format!(
-                "*({}).terrane_field_{}_mut()",
-                self.receiver_expression(receiver),
-                rust_name(self.text(member))
             )
         } else {
             self.expression(left)
@@ -824,7 +810,13 @@ impl Emitter<'_> {
         let origin = self.error_site(node);
         let rethrow = self.is_throwable_value(error_node);
         let mut error = if rethrow {
-            format!("{}.clone().at({origin})", self.expression(error_node))
+            let value_type = self
+                .value_type(error_node)
+                .expect("semantic rethrow has a throwable value");
+            format!(
+                "{}.at({origin})",
+                self.expression_as(error_node, value_type)
+            )
         } else {
             let kind = self.rust_error_kind(error_node);
             if kind.starts_with("Custom(") {
@@ -1270,7 +1262,7 @@ impl Emitter<'_> {
                 value
             };
             let value = if reference_backed {
-                format!("std::sync::Arc::new(std::sync::Mutex::new({value}))")
+                format!("std::sync::Arc::new(TerraneSharedCell::new({value}))")
             } else {
                 value
             };
@@ -1366,7 +1358,7 @@ impl Emitter<'_> {
                     self.reference_owner_uses_shared_storage(provenance.owner)
                 }) {
             format!(
-                "std::sync::Weak<std::sync::Mutex<{}>>",
+                "std::sync::Weak<TerraneSharedCell<{}>>",
                 rust_element_type(self.package, item.clone())
             )
         } else if !binding.destination_arms.is_empty() || matches!(flow_type, ValueType::Union(_)) {
@@ -1377,7 +1369,7 @@ impl Emitter<'_> {
             rust_value_type(self.package, flow_type)
         };
         if reference_backed {
-            format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
+            format!("std::sync::Arc<TerraneSharedCell<{value_type}>>")
         } else {
             value_type
         }

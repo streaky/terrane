@@ -47,7 +47,10 @@ impl BaseStorage {
         return self.value.clone();
     }
     pub fn set(&mut self, value: terrane_int_support::Int) {
-        self.value = value.clone();
+        {
+            let __terrane_value = value.clone();
+            self.value = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!("{}", String::from("base-destruct"));
@@ -140,7 +143,10 @@ impl Child {
         return self.value.clone();
     }
     pub fn set(&mut self, value: terrane_int_support::Int) {
-        self.value = value.clone();
+        {
+            let __terrane_value = value.clone();
+            self.value = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!("{}", String::from("child-destruct"));

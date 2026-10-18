@@ -1,0 +1,15 @@
+namespace reentry-deep-helper
+class base
+    count int = 5
+    function peek int; other shared ref base
+        return other.count
+function inner int; first shared ref base, second shared ref base
+    return first.peek; second
+function middle int; left shared ref base, right shared ref base
+    return (inner; second = right, first = left)
+function outer int; alpha shared ref base, beta shared ref base
+    return (middle; right = beta, left = alpha)
+function main;
+    a = instance base;
+    held = shared ref a
+    print; (outer; beta = held, alpha = held)

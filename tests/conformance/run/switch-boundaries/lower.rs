@@ -21,7 +21,10 @@ impl Marker {
         value
     }
     pub fn construct(&mut self, name: String) {
-        self.name = name;
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
     }
     pub fn to_string(&self) -> String {
         return self.name.clone();
@@ -54,7 +57,10 @@ impl RequiredValue {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, text: String) {
-        self.text = text;
+        {
+            let __terrane_value = text;
+            self.text = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -70,9 +76,19 @@ impl Configured {
     pub fn construct(&mut self, value: String) {
         let __terrane_switch_value_429 = &value;
         if __terrane_switch_value_429.as_str() == "a" {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("first")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("first"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         } else {
-            self.slot = Some(RequiredValue::terrane_construct(String::from("other")));
+            {
+                let __terrane_value = RequiredValue::terrane_construct(
+                    String::from("other"),
+                );
+                self.slot = Some(__terrane_value);
+            }
         }
     }
 }

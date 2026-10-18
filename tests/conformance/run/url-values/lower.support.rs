@@ -578,9 +578,18 @@ impl UrlQuery {
         let values: terrane_collection_support::List<String>;
         keys = terrane_collection_support::List::<String>::new(vec![]);
         values = terrane_collection_support::List::<String>::new(vec![]);
-        self.keys = keys;
-        self.values = values;
-        self.count = terrane_int_support::Int::from(0_i128);
+        {
+            let __terrane_value = keys;
+            self.keys = __terrane_value;
+        }
+        {
+            let __terrane_value = values;
+            self.values = __terrane_value;
+        }
+        {
+            let __terrane_value = terrane_int_support::Int::from(0_i128);
+            self.count = __terrane_value;
+        }
     }
     pub fn length(&self) -> terrane_int_support::Int {
         return self.count.clone();
@@ -647,20 +656,20 @@ impl UrlQuery {
                     )
                     .as_str() == name.as_str()
                 {
-                    __terrane_list_append_0
-                        .push(
-                            __terrane_raised(
-                                self
-                                    .values
-                                    .get_or_error(
-                                        __terrane_raised(
-                                            terrane_collection_support::index_from_int(&index.clone()),
-                                            3 /* terrane-site: core/urls.trn:33:32-33:50 */,
-                                        ),
+                    {
+                        let __terrane_collection_argument_0 = __terrane_raised(
+                            self
+                                .values
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(&index.clone()),
+                                        3 /* terrane-site: core/urls.trn:33:32-33:50 */,
                                     ),
-                                3 /* terrane-site: core/urls.trn:33:32-33:50 */,
-                            ),
+                                ),
+                            3 /* terrane-site: core/urls.trn:33:32-33:50 */,
                         );
+                        __terrane_list_append_0.push(__terrane_collection_argument_0);
+                    };
                 }
                 index = index.clone() + terrane_int_support::Int::from(1_i128);
             }
@@ -669,9 +678,19 @@ impl UrlQuery {
     }
 }
 pub fn append_query_entry(mut query: UrlQuery, name: String, value: String) -> UrlQuery {
-    query.count = query.count.clone() + terrane_int_support::Int::from(1_i128);
-    query.keys.append(name);
-    query.values.append(value);
+    {
+        let __terrane_value = query.count.clone()
+            + terrane_int_support::Int::from(1_i128);
+        query.count = __terrane_value;
+    }
+    {
+        let __terrane_collection_argument_0 = name;
+        query.keys.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_collection_argument_0 = value;
+        query.values.append(__terrane_collection_argument_0);
+    };
     return query;
 }
 #[derive(Clone)]
@@ -745,17 +764,50 @@ impl Url {
         fragment: String,
         origin: String,
     ) {
-        self.serialized = serialized;
-        self.display = display;
-        self.scheme = scheme;
-        self.username = username;
-        self.password = password;
-        self.host = host;
-        self.port = port;
-        self.path = path;
-        self.query = query;
-        self.fragment = fragment;
-        self.origin = origin;
+        {
+            let __terrane_value = serialized;
+            self.serialized = __terrane_value;
+        }
+        {
+            let __terrane_value = display;
+            self.display = __terrane_value;
+        }
+        {
+            let __terrane_value = scheme;
+            self.scheme = __terrane_value;
+        }
+        {
+            let __terrane_value = username;
+            self.username = __terrane_value;
+        }
+        {
+            let __terrane_value = password;
+            self.password = __terrane_value;
+        }
+        {
+            let __terrane_value = host;
+            self.host = __terrane_value;
+        }
+        {
+            let __terrane_value = port;
+            self.port = __terrane_value;
+        }
+        {
+            let __terrane_value = path;
+            self.path = __terrane_value;
+        }
+        {
+            let __terrane_value = query;
+            self.query = __terrane_value;
+        }
+        {
+            let __terrane_value = fragment;
+            self.fragment = __terrane_value;
+        }
+        {
+            let __terrane_value = origin;
+            self.origin = __terrane_value;
+        }
     }
     pub fn string(&self) -> String {
         return self.display.clone();
@@ -793,9 +845,18 @@ impl UrlResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, parsed_url: Url) {
-        self.failed = failed;
-        self.message = message;
-        self.value = parsed_url;
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = parsed_url;
+            self.value = __terrane_value;
+        }
     }
 }
 pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult {

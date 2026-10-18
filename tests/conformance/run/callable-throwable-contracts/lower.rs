@@ -501,7 +501,10 @@ fn main() {
             .operation) (terrane_int_support::Int::from(1_i128)), 20 /* terrane-site: case.trn:116:11-116:30 */))
         );
         callable = CallableHolder::terrane_construct();
-        callable.render = std::sync::Arc::new(loud_render);
+        {
+            let __terrane_value = std::sync::Arc::new(loud_render);
+            callable.render = __terrane_value;
+        }
         println!(
             "{}", terrane_scalar_support::scalar_text(&(callable.render)
             (terrane_int_support::Int::from(1_i128)))

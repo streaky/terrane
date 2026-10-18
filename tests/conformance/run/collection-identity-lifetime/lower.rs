@@ -22,7 +22,10 @@ impl Marker {
         value
     }
     pub fn construct(&mut self, name: String) {
-        self.name = name;
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!(
@@ -54,32 +57,37 @@ fn release_order() {
             Marker::terrane_construct(String::from("destroy-last"))
         ],
     );
-    __terrane_raised(
-        values
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    0 /* terrane-site: case.trn:17:3-17:50 */,
-                ),
-                Marker::terrane_construct(String::from("replacement")),
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
             ),
-        0 /* terrane-site: case.trn:17:3-17:50 */,
-    );
+            0 /* terrane-site: case.trn:17:3-17:50 */,
+        );
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("replacement"),
+        );
+        __terrane_raised(
+            values.set(__terrane_collection_argument_0, __terrane_collection_argument_1),
+            0 /* terrane-site: case.trn:17:3-17:50 */,
+        );
+    };
     println!("{}", String::from("after-set"));
-    removed = __terrane_raised(
-        values
-            .remove(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(1_i128),
-                    ),
-                    1 /* terrane-site: case.trn:20:22-20:38 */,
+    removed = {
+        let __terrane_result = {
+            let __terrane_index = __terrane_raised(
+                terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
                 ),
-            ),
-        1 /* terrane-site: case.trn:20:22-20:38 */,
-    );
+                1 /* terrane-site: case.trn:20:22-20:38 */,
+            );
+            __terrane_raised(
+                values.remove(__terrane_index),
+                1 /* terrane-site: case.trn:20:22-20:38 */,
+            )
+        };
+        __terrane_result
+    };
     println!(
         "{}{}", String::from("after-remove-"),
         terrane_scalar_support::scalar_text(&removed.name)
@@ -87,11 +95,18 @@ fn release_order() {
     println!("{}", String::from("after-block"));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            __terrane_raised_completion!(
-                values
-                .remove(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(9_i128)),
-                2 /* terrane-site: case.trn:24:5-24:21 */)), 2 /* terrane-site: case.trn:24:5-24:21 */
-            );
+            {
+                let __terrane_result = {
+                    let __terrane_index = __terrane_raised_completion!(
+                        terrane_collection_support::index_from_int(&terrane_int_support::Int::from(9_i128)),
+                        2 /* terrane-site: case.trn:24:5-24:21 */
+                    );
+                    __terrane_raised_completion!(
+                        values.remove(__terrane_index), 2 /* terrane-site: case.trn:24:5-24:21 */
+                    )
+                };
+                __terrane_result
+            };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -130,25 +145,30 @@ fn release_order() {
             Marker::terrane_construct(String::from("clear-second"))
         ],
     );
-    cleared.clear();
+    {
+        cleared.clear();
+    };
     println!("{}", String::from("after-clear"));
     original = terrane_collection_support::List::<
         Marker,
     >::new(vec![Marker::terrane_construct(String::from("cow-original"))]);
     separated = original.clone();
-    __terrane_raised(
-        separated
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    ),
-                    3 /* terrane-site: case.trn:33:3-33:57 */,
-                ),
-                Marker::terrane_construct(String::from("cow-replacement")),
+    {
+        let __terrane_collection_argument_0 = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
             ),
-        3 /* terrane-site: case.trn:33:3-33:57 */,
-    );
+            3 /* terrane-site: case.trn:33:3-33:57 */,
+        );
+        let __terrane_collection_argument_1 = Marker::terrane_construct(
+            String::from("cow-replacement"),
+        );
+        __terrane_raised(
+            separated
+                .set(__terrane_collection_argument_0, __terrane_collection_argument_1),
+            3 /* terrane-site: case.trn:33:3-33:57 */,
+        );
+    };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(original
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
@@ -160,25 +180,25 @@ fn release_order() {
     println!("{}", String::from("after-cow"));
 }
 fn main() {
-    let left: std::sync::Arc<std::sync::Mutex<Marker>>;
-    let right: std::sync::Arc<std::sync::Mutex<Marker>>;
-    let left_reference: std::sync::Arc<std::sync::Mutex<Marker>>;
-    let same_reference: std::sync::Arc<std::sync::Mutex<Marker>>;
-    let other_reference: std::sync::Arc<std::sync::Mutex<Marker>>;
-    let left_weak: std::sync::Weak<std::sync::Mutex<Marker>>;
+    let left: std::sync::Arc<TerraneSharedCell<Marker>>;
+    let right: std::sync::Arc<TerraneSharedCell<Marker>>;
+    let left_reference: std::sync::Arc<TerraneSharedCell<Marker>>;
+    let same_reference: std::sync::Arc<TerraneSharedCell<Marker>>;
+    let other_reference: std::sync::Arc<TerraneSharedCell<Marker>>;
+    let left_weak: std::sync::Weak<TerraneSharedCell<Marker>>;
     let references: std::sync::Arc<
-        std::sync::Mutex<
-            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
+        TerraneSharedCell<
+            terrane_collection_support::List<std::sync::Arc<TerraneSharedCell<Marker>>>,
         >,
     >;
     let collection_reference: std::sync::Arc<
-        std::sync::Mutex<
-            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
+        TerraneSharedCell<
+            terrane_collection_support::List<std::sync::Arc<TerraneSharedCell<Marker>>>,
         >,
     >;
     let collection_alias: std::sync::Arc<
-        std::sync::Mutex<
-            terrane_collection_support::List<std::sync::Arc<std::sync::Mutex<Marker>>>,
+        TerraneSharedCell<
+            terrane_collection_support::List<std::sync::Arc<TerraneSharedCell<Marker>>>,
         >,
     >;
     let marker_type: TerraneDescriptor;
@@ -186,10 +206,10 @@ fn main() {
     let collection_type: TerraneDescriptor;
     release_order();
     left = std::sync::Arc::new(
-        std::sync::Mutex::new(Marker::terrane_construct(String::from("left"))),
+        TerraneSharedCell::new(Marker::terrane_construct(String::from("left"))),
     );
     right = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             {
                 let __terrane_value = left
                     .lock()
@@ -225,9 +245,9 @@ fn main() {
         std::sync::Arc::as_ptr(__terrane_identity_right)) })
     );
     references = std::sync::Arc::new(
-        std::sync::Mutex::new(
+        TerraneSharedCell::new(
             terrane_collection_support::List::<
-                std::sync::Arc<std::sync::Mutex<Marker>>,
+                std::sync::Arc<TerraneSharedCell<Marker>>,
             >::new(vec![left_reference.clone(), same_reference.clone()]),
         ),
     );

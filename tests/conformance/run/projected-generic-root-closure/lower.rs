@@ -3,7 +3,12 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn payload_value(value: &Payload) -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(value.0.clone() as i128);
+    return terrane_int_support::Int::from(
+        {
+            let __terrane_snapshot = value.0;
+            __terrane_snapshot
+        } as i128,
+    );
 }
 fn main() {
     let holder: Holder;

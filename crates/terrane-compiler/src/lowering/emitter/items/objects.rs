@@ -630,8 +630,13 @@ impl<'a> Emitter<'a> {
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for field in &static_fields {
                     let initializer = self.field_initial_value(*field);
+                    let storage = if matches!(field.field.value_type, ValueType::Object(_)) {
+                        "TerraneStaticObject"
+                    } else {
+                        "TerraneSharedCell"
+                    };
                     self.line(&format!(
-                        "pub static {}: std::sync::LazyLock<std::sync::Mutex<{}>> = std::sync::LazyLock::new(|| std::sync::Mutex::new({initializer}));",
+                        "pub static {}: std::sync::LazyLock<{storage}<{}>> = std::sync::LazyLock::new(|| {storage}::new({initializer}));",
                         rust_static_field_name(self.package, &object.identity, &field.field.name),
                         rust_value_type(self.package, field.field.value_type.clone())
                     ));
@@ -813,6 +818,14 @@ impl<'a> Emitter<'a> {
                     )
                     .expect("object method contract must retain its syntax");
                     self.object_method(method_node);
+                    if method.is_async
+                        && matches!(
+                            method.written_invocation_mode,
+                            InvocationMode::Shared | InvocationMode::Mutable
+                        )
+                    {
+                        self.object_shared_async_method(method_node);
+                    }
                 }
                 if descendants.is_empty() {
                     for method in &static_methods {
@@ -980,7 +993,8 @@ impl<'a> Emitter<'a> {
                         };
                         write!(
                             self.output,
-                            "pub {}fn {}({receiver}",
+                            "pub {}{}fn {}({receiver}",
+                            if method.is_async { "async " } else { "" },
                             if method.is_unsafe { "unsafe " } else { "" },
                             function_name(self.package, method)
                         )
@@ -1018,6 +1032,11 @@ impl<'a> Emitter<'a> {
                         }
                         let method_name = function_name(self.package, method);
                         let forward = |target: String| {
+                            let target = if method.is_async {
+                                format!("{target}.await")
+                            } else {
+                                target
+                            };
                             if method.is_unsafe {
                                 format!("unsafe {{ {target} }}")
                             } else {
@@ -1040,6 +1059,73 @@ impl<'a> Emitter<'a> {
                         self.line("}");
                         self.indent -= 1;
                         self.line("}");
+                        if method.is_async
+                            && matches!(
+                                method.written_invocation_mode,
+                                InvocationMode::Shared | InvocationMode::Mutable
+                            )
+                        {
+                            self.line_start();
+                            write!(
+                                self.output,
+                                "pub async fn __terrane_shared_async_{method_name}(__terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone"
+                            ).unwrap();
+                            for parameter in &method.parameters {
+                                let ty = parameter.binding_value_type().map_or_else(
+                                    || "i128".to_owned(),
+                                    |value_type| rust_value_type(self.package, value_type),
+                                );
+                                let name =
+                                    self.parameter_source_name(&parameter.name, parameter.span);
+                                write!(self.output, ", {name}: {ty}").unwrap();
+                            }
+                            self.output.push(')');
+                            if let Some(result) = forwarded_method_return_type(self.package, method)
+                            {
+                                write!(self.output, " -> {result}").unwrap();
+                            }
+                            self.output.push_str(" {\n");
+                            self.indent += 1;
+                            self.line("let __terrane_variant = {");
+                            self.indent += 1;
+                            self.line("let value = __terrane_shared_handle.lock().expect(\"shared async receiver lock poisoned\");");
+                            self.line("match &*value {");
+                            self.indent += 1;
+                            self.line("Self::Own(_) => 0,");
+                            for (index, descendant) in descendants.iter().enumerate() {
+                                let variant =
+                                    rust_object_type_name(self.package, &descendant.identity);
+                                self.line(&format!("Self::{variant}(_) => {},", index + 1));
+                            }
+                            self.indent -= 1;
+                            self.line("}");
+                            self.indent -= 1;
+                            self.line("};");
+                            self.line("match __terrane_variant {");
+                            self.indent += 1;
+                            for (index, (variant, target)) in
+                                std::iter::once(("Own".to_owned(), storage_type.clone()))
+                                    .chain(descendants.iter().map(|descendant| {
+                                        let ty = rust_object_type_name(
+                                            self.package,
+                                            &descendant.identity,
+                                        );
+                                        (ty.clone(), ty)
+                                    }))
+                                    .enumerate()
+                            {
+                                let target = target.replacen('<', "::<", 1);
+                                self.line(&format!(
+                                    "{index} => {target}::__terrane_shared_async_{method_name}(TerraneSharedProjection::new(__terrane_shared_handle, |value: &Self| match value {{ Self::{variant}(value) => value, _ => unreachable!(\"shared receiver variant changed\") }}, |value: &mut Self| match value {{ Self::{variant}(value) => value, _ => unreachable!(\"shared receiver variant changed\") }}){}{arguments}).await,",
+                                    if arguments.is_empty() { "" } else { ", " }
+                                ));
+                            }
+                            self.line("_ => unreachable!(\"invalid shared receiver variant\"),");
+                            self.indent -= 1;
+                            self.line("}");
+                            self.indent -= 1;
+                            self.line("}");
+                        }
                     }
                     for field in &instance_fields {
                         let field_name = rust_name(&field.name);

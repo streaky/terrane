@@ -13,6 +13,9 @@ impl Emitter<'_> {
         if let Some(value) = self.narrowed_storage_name(node, false, false) {
             return value;
         }
+        if self.static_storage_name(node).is_some() {
+            return format!("*({})", self.receiver_guard_expression(node));
+        }
         if self.reference_backed_name(node).is_some()
             && !matches!(
                 self.value_type(node),

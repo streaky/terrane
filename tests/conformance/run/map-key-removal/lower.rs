@@ -22,7 +22,10 @@ impl Marker {
         value
     }
     pub fn construct(&mut self, name: String) {
-        self.name = name;
+        {
+            let __terrane_value = name;
+            self.name = __terrane_value;
+        }
     }
     pub fn destruct(&mut self) {
         println!(
@@ -74,10 +77,16 @@ fn main() {
         ],
     );
     preserved = ordered.clone();
-    removed = __terrane_raised(
-        ordered.remove(&String::from("second")),
-        0 /* terrane-site: case.trn:15:17-15:41 */,
-    );
+    removed = {
+        let __terrane_result = {
+            let __terrane_key = String::from("second");
+            __terrane_raised(
+                ordered.remove(&__terrane_key),
+                0 /* terrane-site: case.trn:15:17-15:41 */,
+            )
+        };
+        __terrane_result
+    };
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&removed),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(ordered
@@ -85,14 +94,27 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(preserved
         .length()))
     );
-    absent = ordered.remove_checked(&String::from("missing"));
+    absent = {
+        let __terrane_result = {
+            let __terrane_key = String::from("missing");
+            ordered.remove_checked(&__terrane_key)
+        };
+        __terrane_result
+    };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&absent.is_none()),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(ordered
         .length()))
     );
-    ordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
-    let __terrane_iterable_0 = ordered.keys();
+    {
+        let __terrane_collection_argument_0 = String::from("second");
+        let __terrane_collection_argument_1 = terrane_int_support::Int::from(4_i128);
+        ordered.set(__terrane_collection_argument_0, __terrane_collection_argument_1);
+    };
+    let __terrane_iterable_0 = {
+        let __terrane_result = ordered.keys();
+        __terrane_result
+    };
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );
@@ -122,9 +144,13 @@ fn main() {
     }
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let _ = __terrane_raised_completion!(
-                ordered.remove(&String::from("missing")), 1 /* terrane-site: case.trn:25:5-25:30 */
-            );
+            {
+                let __terrane_collection_argument_0 = String::from("missing");
+                let _ = __terrane_raised_completion!(
+                    ordered.remove(&__terrane_collection_argument_0),
+                    1 /* terrane-site: case.trn:25:5-25:30 */
+                );
+            };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -170,12 +196,15 @@ fn main() {
     );
     unordered_preserved = unordered.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(unordered
-        .remove(&String::from("second")), 2 /* terrane-site: case.trn:31:11-31:37 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_result = { let
+        __terrane_key = String::from("second"); __terrane_raised(unordered
+        .remove(&__terrane_key), 2 /* terrane-site: case.trn:31:11-31:37 */) };
+        __terrane_result })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&unordered
-        .remove_checked(&String::from("missing")).is_none())
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_result = { let
+        __terrane_key = String::from("missing"); unordered.remove_checked(&__terrane_key)
+        }; __terrane_result } .is_none())
     );
     println!(
         "{}{}",
@@ -184,7 +213,10 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(unordered_preserved
         .length()))
     );
-    let __terrane_iterable_2 = unordered.entries();
+    let __terrane_iterable_2 = {
+        let __terrane_result = unordered.entries();
+        __terrane_result
+    };
     let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_2,
     );
@@ -198,8 +230,15 @@ fn main() {
             terrane_scalar_support::scalar_text(&pair.value.clone())
         );
     }
-    unordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
-    let __terrane_iterable_3 = unordered.entries();
+    {
+        let __terrane_collection_argument_0 = String::from("second");
+        let __terrane_collection_argument_1 = terrane_int_support::Int::from(4_i128);
+        unordered.set(__terrane_collection_argument_0, __terrane_collection_argument_1);
+    };
+    let __terrane_iterable_3 = {
+        let __terrane_result = unordered.entries();
+        __terrane_result
+    };
     let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_3,
     );
@@ -224,10 +263,13 @@ fn main() {
             Marker::terrane_construct(String::from("unordered")))
         ],
     );
-    let _ = __terrane_raised(
-        unordered_markers.remove(&String::from("item")),
-        3 /* terrane-site: case.trn:40:3-40:35 */,
-    );
+    {
+        let __terrane_collection_argument_0 = String::from("item");
+        let _ = __terrane_raised(
+            unordered_markers.remove(&__terrane_collection_argument_0),
+            3 /* terrane-site: case.trn:40:3-40:35 */,
+        );
+    };
     println!("{}", String::from("after-unordered"));
     unique = terrane_collection_support::Map::<
         String,
@@ -238,10 +280,13 @@ fn main() {
             Marker::terrane_construct(String::from("unique")))
         ],
     );
-    let _ = __terrane_raised(
-        unique.remove(&String::from("item")),
-        4 /* terrane-site: case.trn:44:3-44:24 */,
-    );
+    {
+        let __terrane_collection_argument_0 = String::from("item");
+        let _ = __terrane_raised(
+            unique.remove(&__terrane_collection_argument_0),
+            4 /* terrane-site: case.trn:44:3-44:24 */,
+        );
+    };
     println!("{}", String::from("after-unique"));
     shared = terrane_collection_support::Map::<
         String,
@@ -253,10 +298,16 @@ fn main() {
         ],
     );
     shared_alias = shared.clone();
-    removed_marker = __terrane_raised(
-        shared.remove(&String::from("item")),
-        5 /* terrane-site: case.trn:49:29-49:50 */,
-    );
+    removed_marker = {
+        let __terrane_result = {
+            let __terrane_key = String::from("item");
+            __terrane_raised(
+                shared.remove(&__terrane_key),
+                5 /* terrane-site: case.trn:49:29-49:50 */,
+            )
+        };
+        __terrane_result
+    };
     println!(
         "{}{}", String::from("removed-"),
         terrane_scalar_support::scalar_text(&removed_marker.name)

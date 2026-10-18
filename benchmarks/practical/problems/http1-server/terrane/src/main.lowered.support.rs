@@ -465,8 +465,9 @@ enum TerraneCompletion<T> {
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 3] = [
         "/benchmark-http1-server::benchmark-failure",
+        "/core/networking::network-error",
         "/core/time::invalid-duration",
     ];
 }
@@ -487,7 +488,7 @@ mod __terrane_trace {
         "core/streams.trn",
         "core/time.trn",
     ];
-    pub static FUNCTIONS: [&str; 25] = [
+    pub static FUNCTIONS: [&str; 27] = [
         "/benchmark-http1-server::read-message",
         "/benchmark-http1-server::handle-request",
         "/benchmark-http1-server::serve",
@@ -496,6 +497,8 @@ mod __terrane_trace {
         "/core/documents::make-document-list",
         "/core/documents::mapping-required-fields",
         "/core/documents::decode-document",
+        "/core/networking::into-native",
+        "/core/networking::listen-tcp",
         "/core/networking::lookup-dns",
         "/core/process::arguments",
         "/core/process::environment",
@@ -514,7 +517,7 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 49] = [
+    pub static SITES: [Site; 52] = [
         /* terrane-site-row: site 0: /benchmark-http1-server::read-message (src/main.trn:29:13-29:46) */
         { Site { function: 0, file: 0, line: 29, column: 13, end_line: 29, end_column: 46 } },
         /* terrane-site-row: site 1: /benchmark-http1-server::read-message (src/main.trn:38:17-38:50) */
@@ -575,44 +578,50 @@ mod __terrane_trace {
         { Site { function: 7, file: 1, line: 184, column: 36, end_line: 184, end_column: 73 } },
         /* terrane-site-row: site 29: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
         { Site { function: 7, file: 1, line: 185, column: 36, end_line: 185, end_column: 73 } },
-        /* terrane-site-row: site 30: /core/networking::lookup-dns (core/networking.trn:370:28-370:49) */
-        { Site { function: 8, file: 2, line: 370, column: 28, end_line: 370, end_column: 49 } },
-        /* terrane-site-row: site 31: /core/process::arguments (core/process.trn:45:49-45:63) */
-        { Site { function: 9, file: 3, line: 45, column: 49, end_line: 45, end_column: 63 } },
-        /* terrane-site-row: site 32: /core/process::environment (core/process.trn:54:40-54:54) */
-        { Site { function: 10, file: 3, line: 54, column: 40, end_line: 54, end_column: 54 } },
-        /* terrane-site-row: site 33: /core/process::environment (core/process.trn:55:41-55:59) */
-        { Site { function: 10, file: 3, line: 55, column: 41, end_line: 55, end_column: 59 } },
-        /* terrane-site-row: site 34: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
-        { Site { function: 11, file: 3, line: 90, column: 20, end_line: 90, end_column: 35 } },
-        /* terrane-site-row: site 35: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
-        { Site { function: 11, file: 3, line: 105, column: 43, end_line: 105, end_column: 62 } },
-        /* terrane-site-row: site 36: /core/streams::read (core/streams.trn:381:23-381:50) */
-        { Site { function: 12, file: 4, line: 381, column: 23, end_line: 381, end_column: 50 } },
-        /* terrane-site-row: site 37: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
-        { Site { function: 13, file: 4, line: 403, column: 23, end_line: 403, end_column: 46 } },
-        /* terrane-site-row: site 38: /core/streams::read-all (core/streams.trn:422:23-422:46) */
-        { Site { function: 14, file: 4, line: 422, column: 23, end_line: 422, end_column: 46 } },
-        /* terrane-site-row: site 39: /core/streams::read-async (core/streams.trn:427:23-427:50) */
-        { Site { function: 15, file: 4, line: 427, column: 23, end_line: 427, end_column: 50 } },
-        /* terrane-site-row: site 40: /core/time::multiply (core/time.trn:62:13-62:45) */
-        { Site { function: 16, file: 5, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 41: /core/time::seconds (core/time.trn:38:13-38:45) */
-        { Site { function: 17, file: 5, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 42: /core/time::milliseconds (core/time.trn:43:13-43:45) */
-        { Site { function: 18, file: 5, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 43: /core/time::microseconds (core/time.trn:48:13-48:45) */
-        { Site { function: 19, file: 5, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 44: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
-        { Site { function: 20, file: 5, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 45: /core/time::duration-until (core/time.trn:76:13-76:45) */
-        { Site { function: 21, file: 5, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 46: /core/time::at (core/time.trn:105:13-105:45) */
-        { Site { function: 22, file: 5, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 47: /core/time::sleep-until (core/time.trn:161:13-161:45) */
-        { Site { function: 23, file: 5, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 48: /core/time::interval (core/time.trn:172:13-172:45) */
-        { Site { function: 24, file: 5, line: 172, column: 13, end_line: 172, end_column: 45 } },
+        /* terrane-site-row: site 30: /core/networking::into-native (core/networking.trn:126:13-126:76) */
+        { Site { function: 8, file: 2, line: 126, column: 13, end_line: 126, end_column: 76 } },
+        /* terrane-site-row: site 31: /core/networking::into-native (core/networking.trn:236:13-236:76) */
+        { Site { function: 8, file: 2, line: 236, column: 13, end_line: 236, end_column: 76 } },
+        /* terrane-site-row: site 32: /core/networking::listen-tcp (core/networking.trn:285:9-285:65) */
+        { Site { function: 9, file: 2, line: 285, column: 9, end_line: 285, end_column: 65 } },
+        /* terrane-site-row: site 33: /core/networking::lookup-dns (core/networking.trn:404:28-404:49) */
+        { Site { function: 10, file: 2, line: 404, column: 28, end_line: 404, end_column: 49 } },
+        /* terrane-site-row: site 34: /core/process::arguments (core/process.trn:45:49-45:63) */
+        { Site { function: 11, file: 3, line: 45, column: 49, end_line: 45, end_column: 63 } },
+        /* terrane-site-row: site 35: /core/process::environment (core/process.trn:54:40-54:54) */
+        { Site { function: 12, file: 3, line: 54, column: 40, end_line: 54, end_column: 54 } },
+        /* terrane-site-row: site 36: /core/process::environment (core/process.trn:55:41-55:59) */
+        { Site { function: 12, file: 3, line: 55, column: 41, end_line: 55, end_column: 59 } },
+        /* terrane-site-row: site 37: /core/process::parse-command-line (core/process.trn:90:20-90:35) */
+        { Site { function: 13, file: 3, line: 90, column: 20, end_line: 90, end_column: 35 } },
+        /* terrane-site-row: site 38: /core/process::parse-command-line (core/process.trn:105:43-105:62) */
+        { Site { function: 13, file: 3, line: 105, column: 43, end_line: 105, end_column: 62 } },
+        /* terrane-site-row: site 39: /core/streams::read (core/streams.trn:381:23-381:50) */
+        { Site { function: 14, file: 4, line: 381, column: 23, end_line: 381, end_column: 50 } },
+        /* terrane-site-row: site 40: /core/streams::read-exact (core/streams.trn:403:23-403:46) */
+        { Site { function: 15, file: 4, line: 403, column: 23, end_line: 403, end_column: 46 } },
+        /* terrane-site-row: site 41: /core/streams::read-all (core/streams.trn:422:23-422:46) */
+        { Site { function: 16, file: 4, line: 422, column: 23, end_line: 422, end_column: 46 } },
+        /* terrane-site-row: site 42: /core/streams::read-async (core/streams.trn:427:23-427:50) */
+        { Site { function: 17, file: 4, line: 427, column: 23, end_line: 427, end_column: 50 } },
+        /* terrane-site-row: site 43: /core/time::multiply (core/time.trn:62:13-62:45) */
+        { Site { function: 18, file: 5, line: 62, column: 13, end_line: 62, end_column: 45 } },
+        /* terrane-site-row: site 44: /core/time::seconds (core/time.trn:38:13-38:45) */
+        { Site { function: 19, file: 5, line: 38, column: 13, end_line: 38, end_column: 45 } },
+        /* terrane-site-row: site 45: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        { Site { function: 20, file: 5, line: 43, column: 13, end_line: 43, end_column: 45 } },
+        /* terrane-site-row: site 46: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        { Site { function: 21, file: 5, line: 48, column: 13, end_line: 48, end_column: 45 } },
+        /* terrane-site-row: site 47: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        { Site { function: 22, file: 5, line: 53, column: 13, end_line: 53, end_column: 45 } },
+        /* terrane-site-row: site 48: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        { Site { function: 23, file: 5, line: 76, column: 13, end_line: 76, end_column: 45 } },
+        /* terrane-site-row: site 49: /core/time::at (core/time.trn:105:13-105:45) */
+        { Site { function: 24, file: 5, line: 105, column: 13, end_line: 105, end_column: 45 } },
+        /* terrane-site-row: site 50: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        { Site { function: 25, file: 5, line: 161, column: 13, end_line: 161, end_column: 45 } },
+        /* terrane-site-row: site 51: /core/time::interval (core/time.trn:172:13-172:45) */
+        { Site { function: 26, file: 5, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
     #[inline(never)]
@@ -2531,6 +2540,41 @@ pub fn terrane_platform_parse_socket(
 pub fn terrane_platform_parse_socket_text(text: String) -> TerranePlatformResult {
     terrane_platform_support::parse_socket_text(&text)
 }
+fn terrane_platform_tcp_listener_into_native(
+    listener: &TerranePlatformCapability,
+) -> std::io::Result<tokio::net::TcpListener> {
+    terrane_platform_support::into_native_tcp_listener(listener)
+}
+fn terrane_platform_tcp_stream_into_native(
+    stream: &TerranePlatformCapability,
+) -> std::io::Result<tokio::net::TcpStream> {
+    terrane_platform_support::into_native_tcp_stream(stream)
+}
+fn terrane_platform_native_result_failed<T>(result: &std::io::Result<T>) -> bool {
+    result.is_err()
+}
+fn terrane_platform_native_result_message<T>(result: &std::io::Result<T>) -> String {
+    result.as_ref().err().map_or_else(String::new, ToString::to_string)
+}
+fn terrane_platform_native_result_value<T>(result: std::io::Result<T>) -> T {
+    result.expect("native transfer result was checked")
+}
+pub async fn terrane_platform_tcp_listen_async(
+    address: String,
+    backlog: terrane_int_support::Int,
+    reuse_address: bool,
+    accepted_no_delay: bool,
+    accepted_ttl: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    terrane_platform_support::tcp_listen_async(
+            &address,
+            terrane_platform_i128!(backlog, "TCP backlog"),
+            reuse_address,
+            accepted_no_delay,
+            terrane_platform_i128!(accepted_ttl, "accepted TCP TTL"),
+        )
+        .await
+}
 pub fn terrane_platform_tcp_bind(
     address: String,
     backlog: terrane_int_support::Int,
@@ -3572,13 +3616,30 @@ pub fn decode_json(
     if parsed.failed {
         return parsed.clone();
     }
-    return deserialize_document(parsed.value, mapping);
+    return deserialize_document(parsed.value.clone(), mapping);
 }
 pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult {
     return stringify_json(serialize_document(value), options);
 }
 // Source: core/networking.trn
 // Namespace: core/networking
+#[derive(Clone)]
+pub struct NetworkError {
+    pub message: String,
+}
+impl NetworkError {
+    pub fn terrane_construct(message: String) -> Self {
+        let mut __terrane_constructed_value = Self { message: String::from("") };
+        __terrane_constructed_value.construct(message);
+        __terrane_constructed_value
+    }
+    pub fn construct(&mut self, message: String) {
+        self.message = message;
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
 #[derive(Clone)]
 pub struct TcpOptions {
     pub no_delay: bool,
@@ -3825,6 +3886,33 @@ impl TcpStream {
     }
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
         self.handle = Some(resource);
+    }
+    pub fn into_native(self) -> Result<NativeTcpStream, TerraneError> {
+        let raw: HostStreamTransfer;
+        raw = terrane_platform_tcp_stream_into_native(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        if terrane_platform_native_result_failed(&raw) {
+            return Err({
+                let value = NetworkError::terrane_construct(
+                    terrane_platform_native_result_message(&raw),
+                );
+                let rendered = value.render();
+                let original = &value.message;
+                let (message, rendered) = if &rendered == original {
+                    (rendered, None)
+                } else {
+                    (original.clone(), Some(rendered))
+                };
+                TerraneError::raised_with_rendered_message(
+                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    message,
+                    rendered,
+                    30 /* terrane-site: core/networking.trn:126:13-126:76 */,
+                )
+            });
+        }
+        return Ok(terrane_platform_native_result_value(raw));
     }
     pub async fn read_async(
         &self,
@@ -4259,6 +4347,33 @@ impl TcpListener {
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
         self.handle = Some(resource);
     }
+    pub fn into_native(self) -> Result<NativeTcpListener, TerraneError> {
+        let raw: HostListenerTransfer;
+        raw = terrane_platform_tcp_listener_into_native(
+            &self.handle.as_ref().expect("required field initialized"),
+        );
+        if terrane_platform_native_result_failed(&raw) {
+            return Err({
+                let value = NetworkError::terrane_construct(
+                    terrane_platform_native_result_message(&raw),
+                );
+                let rendered = value.render();
+                let original = &value.message;
+                let (message, rendered) = if &rendered == original {
+                    (rendered, None)
+                } else {
+                    (original.clone(), Some(rendered))
+                };
+                TerraneError::raised_with_rendered_message(
+                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    message,
+                    rendered,
+                    31 /* terrane-site: core/networking.trn:236:13-236:76 */,
+                )
+            });
+        }
+        return Ok(terrane_platform_native_result_value(raw));
+    }
     pub async fn accept(&self, options: Option<IoOperationOptions>) -> StreamResult {
         let operation_timeout: terrane_int_support::Int;
         let operation_token: Option<TerranePlatformCapability>;
@@ -4381,6 +4496,60 @@ pub fn bind_tcp(
         terrane_platform_result_message(&raw),
         listener,
     );
+}
+pub async fn listen_tcp(
+    address: String,
+    options: Option<TcpListenerOptions>,
+) -> Result<TcpListener, TerraneError> {
+    let settings: TcpListenerOptions;
+    let raw: TerranePlatformResult;
+    let mut listener: TcpListener;
+    if options.is_some() {
+        settings = match options {
+            Some(value) => value,
+            _ => unreachable!("flow-proven storage refinement"),
+        };
+    } else {
+        settings = TcpListenerOptions::terrane_construct(
+            terrane_int_support::Int::from(-1_i128),
+            false,
+            false,
+            terrane_int_support::Int::from(-1_i128),
+        );
+    }
+    raw = __terrane_await(
+            terrane_platform_tcp_listen_async(
+                address,
+                settings.backlog,
+                settings.reuse_address,
+                settings.accepted_no_delay,
+                settings.accepted_ttl,
+            ),
+        )
+        .await;
+    if terrane_platform_result_failed(&raw) {
+        return Err({
+            let value = NetworkError::terrane_construct(
+                terrane_platform_result_message(&raw),
+            );
+            let rendered = value.render();
+            let original = &value.message;
+            let (message, rendered) = if &rendered == original {
+                (rendered, None)
+            } else {
+                (original.clone(), Some(rendered))
+            };
+            TerraneError::raised_with_rendered_message(
+                TerraneErrorKind::Custom(DescriptorId(1)),
+                message,
+                rendered,
+                32 /* terrane-site: core/networking.trn:285:9-285:65 */,
+            )
+        });
+    }
+    listener = TcpListener::terrane_construct(terrane_platform_result_capability(&raw));
+    listener.local_address = terrane_platform_result_text(&raw);
+    return Ok(listener);
 }
 #[derive(Clone)]
 pub struct DatagramIoResult {
@@ -4747,7 +4916,7 @@ pub async fn lookup_dns(
                             let __terrane_receiver = &raw_candidates;
                             let __terrane_index = __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                30 /* terrane-site: core/networking.trn:370:28-370:49 */,
+                                33 /* terrane-site: core/networking.trn:404:28-404:49 */,
                             );
                             __terrane_receiver
                                 .get(__terrane_index)
@@ -4756,7 +4925,7 @@ pub async fn lookup_dns(
                                     __terrane_index,
                                 ))
                         },
-                        30 /* terrane-site: core/networking.trn:370:28-370:49 */,
+                        33 /* terrane-site: core/networking.trn:404:28-404:49 */,
                     ),
                 );
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -4879,7 +5048,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                 let __terrane_receiver = &encoded;
                                 let __terrane_index = __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    31 /* terrane-site: core/process.trn:45:49-45:63 */,
+                                    34 /* terrane-site: core/process.trn:45:49-45:63 */,
                                 );
                                 __terrane_receiver
                                     .get(__terrane_index)
@@ -4888,7 +5057,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                         __terrane_index,
                                     ))
                             },
-                            31 /* terrane-site: core/process.trn:45:49-45:63 */,
+                            34 /* terrane-site: core/process.trn:45:49-45:63 */,
                         ),
                     ),
                 );
@@ -4917,7 +5086,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         let __terrane_receiver = &encoded;
                         let __terrane_index = __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            32 /* terrane-site: core/process.trn:54:40-54:54 */,
+                            35 /* terrane-site: core/process.trn:54:40-54:54 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -4926,7 +5095,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    32 /* terrane-site: core/process.trn:54:40-54:54 */,
+                    35 /* terrane-site: core/process.trn:54:40-54:54 */,
                 ),
             );
             value = NativeString::terrane_construct(
@@ -4937,7 +5106,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            33 /* terrane-site: core/process.trn:55:41-55:59 */,
+                            36 /* terrane-site: core/process.trn:55:41-55:59 */,
                         );
                         __terrane_receiver
                             .get(__terrane_index)
@@ -4946,7 +5115,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                                 __terrane_index,
                             ))
                     },
-                    33 /* terrane-site: core/process.trn:55:41-55:59 */,
+                    36 /* terrane-site: core/process.trn:55:41-55:59 */,
                 ),
             );
             __terrane_list_append_1
@@ -5063,10 +5232,10 @@ pub fn parse_command_line(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            34 /* terrane-site: core/process.trn:90:20-90:35 */,
+                            37 /* terrane-site: core/process.trn:90:20-90:35 */,
                         ),
                     ),
-                34 /* terrane-site: core/process.trn:90:20-90:35 */,
+                37 /* terrane-site: core/process.trn:90:20-90:35 */,
             );
             if !argument.is_text {
                 __terrane_list_append_2.push(index.clone());
@@ -5113,10 +5282,10 @@ pub fn parse_command_line(
                                                 terrane_collection_support::index_from_int(
                                                     &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                                 ),
-                                                35 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                                38 /* terrane-site: core/process.trn:105:43-105:62 */,
                                             ),
                                         ),
-                                    35 /* terrane-site: core/process.trn:105:43-105:62 */,
+                                    38 /* terrane-site: core/process.trn:105:43-105:62 */,
                                 ),
                             );
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -5792,11 +5961,11 @@ impl ByteReader {
             count,
         );
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
+            raw.data.clone(),
             raw.completed.clone(),
             raw.end,
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -5836,7 +6005,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -5893,7 +6062,7 @@ impl ByteReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -5930,11 +6099,11 @@ impl ByteReader {
             )
             .await;
         return ReadResult::terrane_construct(
-            raw.data.clone().clone(),
+            raw.data.clone(),
             raw.completed.clone(),
             raw.end,
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             raw.deadline_exceeded,
         );
     }
@@ -6037,7 +6206,7 @@ impl ByteReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6123,7 +6292,7 @@ impl ByteWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6145,7 +6314,7 @@ impl ByteWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -6177,7 +6346,7 @@ impl ByteWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6202,10 +6371,10 @@ impl ByteWriter {
             )
             .await;
         return WriteResult::terrane_construct(
-            raw.data.clone().clone(),
+            raw.data.clone(),
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             raw.deadline_exceeded,
         );
     }
@@ -6237,9 +6406,9 @@ impl ByteWriter {
                     part.completed.clone(),
                     part.failed,
                     part.deadline_exceeded,
-                    part.message.clone().clone(),
+                    part.message.clone(),
                 );
-            data = part.data.clone().clone();
+            data = part.data.clone();
         }
         return progress.result(data);
     }
@@ -6256,7 +6425,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6267,7 +6436,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6278,7 +6447,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6289,7 +6458,7 @@ impl ByteWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6370,7 +6539,7 @@ impl TextReader {
         );
         text = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            36 /* terrane-site: core/streams.trn:381:23-381:50 */,
+            39 /* terrane-site: core/streams.trn:381:23-381:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -6378,7 +6547,7 @@ impl TextReader {
                 raw.completed.clone(),
                 raw.end,
                 raw.failed,
-                raw.message.clone().clone(),
+                raw.message.clone(),
             ),
         );
     }
@@ -6422,7 +6591,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -6436,7 +6605,7 @@ impl TextReader {
         }
         text = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            37 /* terrane-site: core/streams.trn:403:23-403:46 */,
+            40 /* terrane-site: core/streams.trn:403:23-403:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -6488,7 +6657,7 @@ impl TextReader {
             completed = completed.clone() + part.completed.clone();
             end = part.end;
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.end && !part.failed
             {
@@ -6498,7 +6667,7 @@ impl TextReader {
         }
         text = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            38 /* terrane-site: core/streams.trn:422:23-422:46 */,
+            41 /* terrane-site: core/streams.trn:422:23-422:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -6527,7 +6696,7 @@ impl TextReader {
             .await;
         text = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            39 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            42 /* terrane-site: core/streams.trn:427:23-427:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -6535,7 +6704,7 @@ impl TextReader {
                 raw.completed.clone(),
                 raw.end,
                 raw.failed,
-                raw.message.clone().clone(),
+                raw.message.clone(),
             ),
         );
     }
@@ -6546,7 +6715,7 @@ impl TextReader {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6606,7 +6775,7 @@ impl TextWriter {
             data,
             raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6630,7 +6799,7 @@ impl TextWriter {
             );
             completed = completed.clone() + part.completed.clone();
             failed = part.failed;
-            message = part.message.clone().clone();
+            message = part.message.clone();
             if part.completed.clone() == terrane_int_support::Int::from(0_i128)
                 && !part.failed
             {
@@ -6662,7 +6831,7 @@ impl TextWriter {
             prior.data.clone(),
             prior.completed.clone() + raw.completed.clone(),
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6688,7 +6857,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6699,7 +6868,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6710,7 +6879,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6721,7 +6890,7 @@ impl TextWriter {
         );
         return StreamOperationResult::terrane_construct(
             raw.failed,
-            raw.message.clone().clone(),
+            raw.message.clone(),
             false,
         );
     }
@@ -6877,6 +7046,13 @@ pub fn operation_deadline(
     }
     return terrane_int_support::Int::from(-1_i128);
 }
+// Source: core/networking_native.trn
+// Namespace: core/networking/native
+pub type NativeTcpListener = tokio::net::TcpListener;
+pub type NativeTcpStream = tokio::net::TcpStream;
+pub type NativeSocketAddress = std::net::SocketAddr;
+pub type HostListenerTransfer = std::io::Result<tokio::net::TcpListener>;
+pub type HostStreamTransfer = std::io::Result<tokio::net::TcpStream>;
 // Source: core/time.trn
 // Namespace: core/time
 #[derive(Clone)]
@@ -6984,10 +7160,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    40 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    43 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -7013,10 +7189,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    41 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    44 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -7041,10 +7217,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    42 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    45 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -7070,10 +7246,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    43 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    46 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -7099,10 +7275,10 @@ impl Duration {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    44 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    47 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -7144,9 +7320,8 @@ impl MonotonicInstant {
         later: &MonotonicInstant,
     ) -> Result<Duration, TerraneError> {
         let elapsed: terrane_int_support::Int;
-        if self.domain.clone() != later.domain.clone().clone()
-            || later.elapsed_nanoseconds.clone().clone()
-                < self.elapsed_nanoseconds.clone()
+        if self.domain.clone() != later.domain.clone()
+            || later.elapsed_nanoseconds.clone() < self.elapsed_nanoseconds.clone()
         {
             return Err({
                 let value = InvalidDuration::terrane_construct();
@@ -7158,15 +7333,14 @@ impl MonotonicInstant {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    45 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    48 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
-        elapsed = later.elapsed_nanoseconds.clone().clone()
-            - self.elapsed_nanoseconds.clone();
+        elapsed = later.elapsed_nanoseconds.clone() - self.elapsed_nanoseconds.clone();
         return Ok(
             Duration::terrane_construct(
                 terrane_platform_time_div(&elapsed, 1000000000.clone()),
@@ -7253,10 +7427,10 @@ impl Deadline {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    46 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    49 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -7421,10 +7595,10 @@ impl Clock {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    47 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    50 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -7457,10 +7631,10 @@ impl Clock {
                     (original.clone(), Some(rendered))
                 };
                 TerraneError::raised_with_rendered_message(
-                    TerraneErrorKind::Custom(DescriptorId(1)),
+                    TerraneErrorKind::Custom(DescriptorId(2)),
                     message,
                     rendered,
-                    48 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    51 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

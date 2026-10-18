@@ -43,20 +43,23 @@ fn main() {
         ],
     );
     independent = original.clone();
-    independent.append(terrane_int_support::Int::from(3_i128));
-    let _ = __terrane_raised(
-        independent
-            .set(
-                __terrane_raised(
-                    terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(1_i128),
-                    ),
-                    0 /* terrane-site: case.trn:8:3-8:21 */,
-                ),
-                terrane_int_support::Int::from(4_i128),
+    {
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(3_i128);
+        independent.append(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_index = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(1_i128),
             ),
-        0 /* terrane-site: case.trn:8:3-8:21 */,
-    );
+            0 /* terrane-site: case.trn:8:3-8:21 */,
+        );
+        let __terrane_value = terrane_int_support::Int::from(4_i128);
+        let _ = __terrane_raised(
+            independent.set(__terrane_index, __terrane_value),
+            0 /* terrane-site: case.trn:8:3-8:21 */,
+        );
+    }
     println!(
         "{}{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(original
@@ -80,8 +83,16 @@ fn main() {
             terrane_int_support::Int::from(2_i128))
         ],
     );
-    ordered.set(String::from("third"), terrane_int_support::Int::from(3_i128));
-    let _ = ordered.set(String::from("second"), terrane_int_support::Int::from(4_i128));
+    {
+        let __terrane_collection_argument_0 = String::from("third");
+        let __terrane_collection_argument_1 = terrane_int_support::Int::from(3_i128);
+        ordered.set(__terrane_collection_argument_0, __terrane_collection_argument_1);
+    };
+    {
+        let __terrane_key = String::from("second");
+        let __terrane_value = terrane_int_support::Int::from(4_i128);
+        ordered.set(__terrane_key, __terrane_value);
+    }
     let __terrane_iterable_0 = ordered.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
@@ -112,7 +123,10 @@ fn main() {
     unique = terrane_collection_support::Set::<
         String,
     >::new(vec![String::from("b"), String::from("a"), String::from("b")]);
-    unique.add(String::from("c"));
+    {
+        let __terrane_collection_argument_0 = String::from("c");
+        unique.add(__terrane_collection_argument_0);
+    };
     let __terrane_iterable_1 = unique;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_1,
@@ -251,8 +265,11 @@ fn main() {
             terrane_int_support::Int::from(2_i128))
         ],
     );
-    let _ = deterministic_map
-        .set(String::from("second"), terrane_int_support::Int::from(3_i128));
+    {
+        let __terrane_key = String::from("second");
+        let __terrane_value = terrane_int_support::Int::from(3_i128);
+        deterministic_map.set(__terrane_key, __terrane_value);
+    }
     println!(
         "{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(deterministic_map
@@ -284,8 +301,17 @@ fn main() {
     deterministic_set = terrane_collection_support::UnorderedSet::<
         String,
     >::new(vec![String::from("x"), String::from("y")]);
-    deterministic_set.add(String::from("z"));
-    deterministic_set.remove(&String::from("x"));
+    {
+        let __terrane_collection_argument_0 = String::from("z");
+        deterministic_set.add(__terrane_collection_argument_0);
+    };
+    {
+        let __terrane_result = {
+            let __terrane_value = String::from("x");
+            deterministic_set.remove(&__terrane_value)
+        };
+        __terrane_result
+    };
     println!(
         "{}", terrane_scalar_support::scalar_text(&deterministic_set
         .contains(&String::from("y")))
@@ -310,12 +336,19 @@ fn main() {
     empty_list = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(Vec::new());
-    empty_list.append(terrane_int_support::Int::from(5_i128));
+    {
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(5_i128);
+        empty_list.append(__terrane_collection_argument_0);
+    };
     empty_map = terrane_collection_support::Map::<
         terrane_int_support::Int,
         String,
     >::new(Vec::new());
-    empty_map.set(terrane_int_support::Int::from(1_i128), String::from("one"));
+    {
+        let __terrane_collection_argument_0 = terrane_int_support::Int::from(1_i128);
+        let __terrane_collection_argument_1 = String::from("one");
+        empty_map.set(__terrane_collection_argument_0, __terrane_collection_argument_1);
+    };
     nested = terrane_collection_support::List::<
         terrane_collection_support::List<terrane_int_support::Int>,
     >::new(

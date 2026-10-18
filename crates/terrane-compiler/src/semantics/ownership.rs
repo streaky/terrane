@@ -1090,7 +1090,10 @@ fn symbolic_lender_parameter(
     let binding = binding_at(unit, node)?;
     if let Some(index) = contract.parameters.iter().position(|parameter| {
         parameter.name == binding.name
-            && matches!(parameter.value_type, Some(ValueType::Reference(_)))
+            && matches!(
+                parameter.value_type,
+                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            )
     }) {
         return Some(index);
     }
@@ -1351,6 +1354,42 @@ fn validate_reference_return(
     Ok(())
 }
 
+fn record_reference_assignment(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &mut BTreeMap<(usize, usize), ReferenceProvenance>,
+    return_lenders: &BTreeMap<FunctionKey, usize>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::Assignment
+        && let [target, initializer] = node.children.as_slice()
+        && target.kind == SyntaxKind::Name
+        && let Some(binding) = binding_at(unit, target)
+        && matches!(binding.value_type, ValueType::Reference(_))
+        && let Some(provenance) =
+            expression_provenance(package, unit, initializer, proven, return_lenders)
+    {
+        let key = (binding.span.start, binding.span.end);
+        if let Some(initial) = proven.get(&key) {
+            if package.reference_owner_uses_shared_storage(unit, initial.owner)
+                != package.reference_owner_uses_shared_storage(unit, provenance.owner)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0142",
+                    "an ordinary observer cannot be reassigned between plain and shared-backed storage; use a separate observer binding",
+                    initializer.span,
+                ));
+            }
+        } else {
+            // Inferred declarations are assignments. Later writes must not rebase the
+            // declaration's provenance onto an owner absent at earlier reads.
+            proven.insert(key, provenance);
+        }
+    }
+    Ok(())
+}
+
 fn record_reference_provenance(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1401,6 +1440,7 @@ fn record_reference_provenance(
     {
         proven.insert((binding.span.start, binding.span.end), provenance);
     }
+    record_reference_assignment(package, unit, node, proven, return_lenders)?;
     validate_reference_return(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::ForStatement
         && let [target, collection, _block] = node.children.as_slice()

@@ -1,0 +1,22 @@
+namespace shared-async-inherited-dispatch
+class base
+    total int = 0
+    mutable async function accumulate int; delta int
+        this.total = this.total + delta
+        return this.total
+class derived extends base
+    bonus int = 10
+    mutable async function accumulate int; delta int
+        this.total = this.total + delta + this.bonus
+        return this.total
+class leaf extends derived
+    tag int = 1
+async function main;
+    plain = instance base;
+    plain-owner = shared ref plain
+    print; await plain-owner.accumulate; 2
+    value base = instance leaf;
+    owner = shared ref value
+    alias = owner
+    print; await owner.accumulate; 5
+    print; alias.total

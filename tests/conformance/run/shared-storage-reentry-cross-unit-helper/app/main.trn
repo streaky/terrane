@@ -1,0 +1,6 @@
+namespace app
+from /helpers import base, middle
+function main;
+    a = instance base;
+    held = shared ref a
+    print; (middle; right = held, left = held)

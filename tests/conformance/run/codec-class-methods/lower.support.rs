@@ -591,9 +591,18 @@ impl DecodeResult {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, failed: bool, message: String, data: Vec<u8>) {
-        self.failed = failed;
-        self.message = message;
-        self.value = data;
+        {
+            let __terrane_value = failed;
+            self.failed = __terrane_value;
+        }
+        {
+            let __terrane_value = message;
+            self.message = __terrane_value;
+        }
+        {
+            let __terrane_value = data;
+            self.value = __terrane_value;
+        }
     }
 }
 #[derive(Clone)]
@@ -626,7 +635,10 @@ impl Base64Codec {
         __terrane_constructed_value
     }
     pub fn construct(&mut self, url_safe: bool) {
-        self.url_safe = url_safe;
+        {
+            let __terrane_value = url_safe;
+            self.url_safe = __terrane_value;
+        }
     }
     pub fn encode(&self, data: Vec<u8>, padded: bool) -> String {
         return terrane_platform_base64_encode(data, self.url_safe, padded);

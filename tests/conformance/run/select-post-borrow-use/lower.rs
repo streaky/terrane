@@ -16,8 +16,38 @@ impl Accumulator {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.total = self.total.clone() + delta.clone();
+        {
+            let __terrane_value = self.total.clone() + delta.clone();
+            self.total = __terrane_value;
+        }
         return self.total.clone();
+    }
+    pub async fn __terrane_shared_async_add(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        delta: terrane_int_support::Int,
+    ) -> terrane_int_support::Int {
+        {
+            let __terrane_value = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .total
+                    .clone();
+                __terrane_snapshot
+            } + delta.clone();
+            __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .total = __terrane_value;
+        }
+        return {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .total
+                .clone();
+            __terrane_snapshot
+        };
     }
 }
 #[derive(Clone)]
@@ -35,6 +65,19 @@ impl Reader {
         delta: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
         return self.total.clone() + delta.clone();
+    }
+    pub async fn __terrane_shared_async_peek(
+        __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
+        delta: terrane_int_support::Int,
+    ) -> terrane_int_support::Int {
+        return {
+            let __terrane_snapshot = __terrane_shared_handle
+                .lock()
+                .expect("shared async receiver lock poisoned")
+                .total
+                .clone();
+            __terrane_snapshot
+        } + delta.clone();
     }
 }
 async fn text() -> String {
@@ -161,7 +204,10 @@ fn main() {
             }
         }
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
-        acc.total = terrane_int_support::Int::from(9_i128);
+        {
+            let __terrane_value = terrane_int_support::Int::from(9_i128);
+            acc.total = __terrane_value;
+        }
         println!("{}", terrane_scalar_support::scalar_text(&acc.total));
         r = Reader::terrane_construct();
         {
@@ -274,7 +320,10 @@ fn main() {
                 _ => unreachable!("selected winner is within the case count"),
             }
         }
-        r.total = terrane_int_support::Int::from(8_i128);
+        {
+            let __terrane_value = terrane_int_support::Int::from(8_i128);
+            r.total = __terrane_value;
+        }
         println!("{}", terrane_scalar_support::scalar_text(&r.total));
     });
 }

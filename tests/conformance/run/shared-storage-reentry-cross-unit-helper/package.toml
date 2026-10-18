@@ -1,0 +1,4 @@
+package = "shared-storage-reentry-cross-unit-helper"
+[namespaces]
+app = "app"
+helpers = "helpers"
