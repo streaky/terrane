@@ -496,7 +496,7 @@ mod __terrane_error_registry {
     pub static DESCRIPTORS: [&str; 3] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
-        "/deps/sqlx::Error",
+        "/deps/terrane-chain-witness::LookupError",
     ];
 }
 mod __terrane_trace {
@@ -513,8 +513,8 @@ mod __terrane_trace {
     pub static SITES: [Site; 3] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:5:20-5:36) */
         { Site { function: 0, file: 0, line: 5, column: 20, end_line: 5, end_column: 36 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:6:22-6:81) */
-        { Site { function: 0, file: 0, line: 6, column: 22, end_line: 6, end_column: 81 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:6:22-6:79) */
+        { Site { function: 0, file: 0, line: 6, column: 22, end_line: 6, end_column: 79 } },
         /* terrane-site-row: site 2: /app::main (src/main.trn:8:21-8:60) */
         { Site { function: 0, file: 0, line: 8, column: 21, end_line: 8, end_column: 60 } },
     ];
@@ -773,30 +773,18 @@ async fn __terrane_dependency_await_unwind<F: Future>(
         })
         .await
 }
-extern crate __terrane_recursive_tokio as tokio;
 // Source: <terrane>/projected/deps/terrane-chain-witness.trn
 // Namespace: deps/terrane-chain-witness
 pub use terrane_chain_witness::Database;
 pub use terrane_chain_witness::LineBuilder;
-pub use terrane_chain_witness::ScalarQuery;
+pub use terrane_chain_witness::ScalarLookup;
 pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             terrane_chain_witness::memory_database(),
         )
         .await
     {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::DescriptorId(2),
-                        error.to_string(),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
+        Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(

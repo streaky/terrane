@@ -1948,11 +1948,15 @@ native future transfer evidence. Typed failure preservation currently means cano
 identity plus `message`; arbitrary fields and the native Rust error value do not cross the
 throwable boundary. The independent payload and nested-outcome witnesses, direct Markdown
 rendering, and peer-driven WebSocket protocol scenario cover the required outcomes. The bounded
-protocol witness constructs and sends Axum's optional-foreign-payload `Message::Close`, observes it
-from the peer, and keeps the close decision in Terrane. The Markdown HTML bridge, PDF bridge, and
-Axum callback/server bridges have been removed. Their direct projection evidence is
-`projected-pdf-html-bytes`, `projected-into-future-output`, and the bounded
-`projected-websocket-protocol` runtime case.
+protocol witness originally constructed and sent Axum's optional-foreign-payload
+`Message::Close`, observed it from the peer, and kept the close decision in Terrane.
+The Markdown HTML bridge, PDF bridge, and Axum callback/server bridges have been removed.
+Ordinary compiler regressions now use local `projected-document-bytes` and
+`projected-websocket-protocol` witnesses, alongside `projected-into-future-output`.
+The document case checks owned UTF-8 byte output and demand-limited cyclic member metadata,
+not PDF rendering. The socket case exchanges real bounded short RFC 6455 frames over loopback
+and covers the same enum/outcome transitions, not HTTP upgrade or Axum compatibility.
+Actual library compatibility is separate native-survey/application evidence.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
@@ -3425,8 +3429,15 @@ compiler gates. A dependency-boundary test continues to guard the analysis crate
 or CLI dependencies.
 Projection schema 55 additionally admits open generic/lifetime state for expression-local roots
 and records the removal of trait-name-based borrowing from unspecialized projected parameters:
-`projected-sqlx-query-chain` directly runs SQLx query, bind, execute, fetch-all, fetch-one, and row
-access operations. The query value remains unbindable and non-escaping. Per-call oracle evidence
+The original SQLx query-chain case ran query, bind, execute, fetch-all, fetch-one, and row
+access directly. Its structural successor, `projected-query-chain`, uses a small local
+generic executor/query/row API. Both row fixtures retain `Row::try_get` as a provided method
+on an external trait, including its receiver lifetime, associated database type, input-selected
+column index, and correlated destination-selected decode/type bounds. `projected-row-destination`
+checks byte results and missing-column/wrong-value-type failures; `projected-connection-lifecycle`
+retains consuming async connection closure and builder state. These are compiler regressions,
+not SQLx runtime checks.
+The query value remains unbindable and non-escaping. Per-call oracle evidence
 selects direct, shared, or mutable argument representation against the concrete executor type;
 lowering consumes that recorded specialization rather than matching trait names. Compilation of
 the exact emitted call validates the closed Rust application. Four focused rejects continue to fix
@@ -3453,6 +3464,12 @@ proven.
 ### Milestone 20 — Byte and text streams and process standard streams
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
+
+The synchronous standard-stream fast path must consider retained bundled consumers as
+well as application source before omitting IO/time declarations. The minimized native
+test-report fixture exposed `core/testing::test-deadline` referring to an omitted `duration`;
+advanced-demand classification now includes every emitted unit except the three fast-path
+modules themselves, preserving the declarations required by their consumers.
 
 
 Deliver:
@@ -5241,6 +5258,10 @@ Deliver:
 - transparent commands/views for generated Rust, unfiltered native frames, raw values, memory,
   registers, and backend LLDB requests.
 
+CLI launch arguments cross LLDB DAP as exact UTF-8 JSON strings, not platform-specific
+`OsString` serialization objects. Non-UTF-8 arguments are rejected explicitly. The shared
+locals fixture exercises spaced Unicode arguments while reusing one native debug artifact.
+
 Emit a versioned provenance manifest beside generated Rust and the executable. It identifies
 compiler/schema and selected Rust toolchain versions, target and debug settings, manifest/lock and
 projection inputs, logical source URIs and hashes, final formatted generated-file hashes, and the
@@ -5444,6 +5465,11 @@ Deleting the registry does not erase unresolved work:
 
 Godot's former `projection/godot-generated-reexport-surface` gap closed in the dedicated
 generated-API milestone.
+Its ordinary regression is now `run/projected-generated-api-reexport`: a minimal local
+build-script-generated owner and facade exercise hidden definitions, external module/glob
+reexports, constructors, scalar results, and borrowed class methods with native execution.
+The real Godot graph and application remain separate native-survey profile evidence, not
+a dependency of the ordinary conformance case.
 The former `projection/mutually-referential-namespace-sources` gap is also closed:
 generated dependency declarations are staged together even when their signatures form
 a namespace cycle. `projected-demanded-member-cycle` now executes the round trip and

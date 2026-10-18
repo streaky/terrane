@@ -1,0 +1,9 @@
+package = "projected-http-client"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-http-client-witness"
+version = "=0.1.0"
+effects = ["build", "networking"]

@@ -73,3 +73,20 @@ fn unsupported_reference_address_shape_returns_a_lowering_failure() {
         "validated reference expression `value` has no native address lowering"
     );
 }
+
+#[test]
+fn sync_filesystem_streams_do_not_require_async_runtime() {
+    let compilation = crate::compile(
+        "case.trn",
+        include_str!("../../../../tests/conformance/run/core-facility-composition/case.trn")
+            .to_owned(),
+    )
+    .unwrap();
+    assert!(!compilation.requires_async_runtime);
+    assert!(
+        compilation
+            .rust_dependencies
+            .iter()
+            .all(|dependency| dependency.package != "parking_lot")
+    );
+}

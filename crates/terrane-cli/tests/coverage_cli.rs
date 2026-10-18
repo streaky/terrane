@@ -32,8 +32,8 @@ impl Fixture {
             path.join("witness.rs"),
             concat!(
                 "#[inline(never)]\n",
-                "pub fn coverage_witness_count() -> terrane_int_support::Int {\n",
-                "    terrane_int_support::Int::from(42_i64)\n}\n",
+                "pub fn coverage_witness_count() -> i64 {\n",
+                "    42_i64\n}\n",
             ),
         )
         .unwrap();
@@ -41,7 +41,7 @@ impl Fixture {
             path.join("app/main.trn"),
             concat!(
                 "namespace coverage/app\nfrom /core/output import print\n",
-                "function main;\n  answer int = rust\n",
+                "function main;\n  answer int64 = rust\n",
                 "    crate::witness::coverage_witness_count()\n  print; answer\n",
             ),
         )
@@ -50,9 +50,9 @@ impl Fixture {
             path.join("tests/unit/case.trn"),
             concat!(
                 "namespace coverage/app\nfrom /core/errors import throwable\n",
-                "from /core/testing import assert-equal-int\n",
-                "function test-counter none throws throwable;\n  answer int = rust\n",
-                "    crate::witness::coverage_witness_count()\n  assert-equal-int; answer, 42\n",
+                "from /core/testing import assert\n",
+                "function test-counter none throws throwable;\n  answer int64 = rust\n",
+                "    crate::witness::coverage_witness_count()\n  assert; answer == 42\n",
                 "  return none\n",
             ),
         )
@@ -209,11 +209,15 @@ fn native_coverage_records_execution_on_cache_hits_and_in_cleared_test_children(
 #[test]
 fn coverage_debugger_honors_per_invocation_rust_configuration() {
     let fixture = Fixture::new();
-    fs::write(fixture.0.join("witness.rs"), concat!(
-        "#![allow(unexpected_cfgs)]\n",
-        "pub fn coverage_witness_count() -> terrane_int_support::Int {\n",
-        "    terrane_int_support::Int::from(if cfg!(coverage_debugger_caller) { 42_i64 } else { 41_i64 })\n}\n",
-    )).unwrap();
+    fs::write(
+        fixture.0.join("witness.rs"),
+        concat!(
+            "#![allow(unexpected_cfgs)]\n",
+            "pub fn coverage_witness_count() -> i64 {\n",
+            "    if cfg!(coverage_debugger_caller) { 42_i64 } else { 41_i64 }\n}\n",
+        ),
+    )
+    .unwrap();
     let mut child = fixture
         .command("debug", &fixture.0.join("debug-capture"))
         .env("RUSTFLAGS", "--cfg coverage_debugger_caller")

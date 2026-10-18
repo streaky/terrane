@@ -24,9 +24,9 @@ fn main() {
         answer = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
-                        let __terrane_call = terrane_chain_witness::query_scalar(
+                        let __terrane_call = terrane_chain_witness::lookup_scalar(
                                 &database,
-                                String::from("select ?1"),
+                                String::from("answer"),
                             )
                             .bind(
                                 match || -> Result<_, crate::TerraneForeignError> {
@@ -69,7 +69,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "terrane_chain_witness",
-                                            "terrane_chain_witness::ScalarQuery::fetch_one",
+                                            "terrane_chain_witness::ScalarLookup::fetch_one",
                                         ),
                                     )
                                 }
@@ -79,12 +79,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            1 /* terrane-site: src/main.trn:6:22-6:81 */,
+                            1 /* terrane-site: src/main.trn:6:22-6:79 */,
                         )
                     }
                 })
                 .await,
-            1 /* terrane-site: src/main.trn:6:22-6:81 */,
+            1 /* terrane-site: src/main.trn:6:22-6:79 */,
         );
         prefix = String::from("value=");
         rendered = __terrane_raised(

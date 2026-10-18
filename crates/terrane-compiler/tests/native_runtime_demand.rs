@@ -63,7 +63,7 @@ impl Drop for Fixture {
 }
 
 #[test]
-fn ordinary_networking_allows_multiple_tokio_owners_but_native_transfer_rejects_them() {
+fn networking_allows_tokio_owners_native_transfer_rejects() {
     let fixture = Fixture::new();
     let package = fixture.package(concat!(
         "namespace app\nfrom /core/networking import listen-tcp\n",

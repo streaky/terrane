@@ -108,7 +108,31 @@ fn references_advanced_symbol(
             .any(|child| references_advanced_symbol(package, unit, child))
 }
 pub(crate) fn package_uses_advanced_streams(package: &SemanticPackage) -> bool {
-    for unit in package.units.iter().filter(|unit| !unit.bundled) {
+    // Retained bundled units only force this path for the IO/time declarations it drops.
+    // Their own capability intrinsics and raw host types do not request async streams.
+    for unit in package.units.iter().filter(|unit| {
+        !unit.bundled
+            || !matches!(
+                unit.namespace.as_str(),
+                "/core/streams" | "/core/io" | "/core/time"
+            )
+    }) {
+        if unit.bundled {
+            if unit
+                .scopes
+                .iter()
+                .flat_map(|scope| scope.symbols.values().flatten())
+                .any(|symbol| {
+                    let identity = symbol.compiler_identity();
+                    matches!(identity, "/core/io" | "/core/time")
+                        || identity.starts_with("/core/io::")
+                        || identity.starts_with("/core/time::")
+                })
+            {
+                return true;
+            }
+            continue;
+        }
         if unit
             .functions
             .iter()

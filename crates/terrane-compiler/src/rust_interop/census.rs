@@ -607,7 +607,7 @@ mod tests {
     }
 
     #[test]
-    fn classification_marks_unmatched_discovery_as_contextual() {
+    fn unmatched_discovery_is_contextual() {
         assert_eq!(
             classify_paths(
                 "crate::public",

@@ -908,7 +908,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn c_variadic_tail_cannot_be_erased_into_a_fixed_arity_contract() {
+    fn c_variadic_tail_is_not_fixed_arity() {
         let mut function = Function {
             sig: rustdoc_types::FunctionSignature {
                 inputs: vec![("count".to_owned(), Type::Primitive("i32".to_owned()))],

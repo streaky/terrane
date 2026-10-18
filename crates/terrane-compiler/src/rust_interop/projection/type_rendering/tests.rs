@@ -2,7 +2,7 @@ use super::super::{ProjectedType, foreign_aliases};
 use super::*;
 
 #[test]
-fn generic_foreign_name_is_disambiguated_only_on_collision() {
+fn names_disambiguate_collisions() {
     let arc_custom = "std::sync::Arc<iced::theme::Custom>";
     let arc_name = instantiated_type_name("Arc", arc_custom);
     let aliases = foreign_aliases(&BTreeMap::from([(arc_custom.to_owned(), arc_name)]));
@@ -24,7 +24,7 @@ fn generic_foreign_name_is_disambiguated_only_on_collision() {
     assert_eq!(aliases[arc_other], "Arc-of-witness-Other");
 }
 #[test]
-fn instantiated_foreign_names_describe_their_canonical_arguments() {
+fn names_describe_arguments() {
     assert_eq!(
         instantiated_type_name(
             "RangeInclusive",

@@ -3,7 +3,7 @@ use std::future::Future;
 use std::task::Poll;
 
 #[test]
-fn sync_udp_after_async_use_waits_for_deadline_and_remains_usable() {
+fn sync_udp_after_async_honors_deadline() {
     let origin = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -25,7 +25,7 @@ fn sync_udp_after_async_use_waits_for_deadline_and_remains_usable() {
 }
 
 #[test]
-fn retained_udp_registration_wakes_other_runtime_and_reports_origin_shutdown() {
+fn retained_udp_wakes_peer_and_reports_shutdown() {
     let origin = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -73,7 +73,7 @@ fn retained_udp_registration_wakes_other_runtime_and_reports_origin_shutdown() {
 }
 
 #[test]
-fn sync_tcp_on_current_thread_requires_explicit_blocking_delegation() {
+fn sync_tcp_needs_explicit_blocking_delegation() {
     let bound = tcp_bind("127.0.0.1:0", 16, false, false, -1);
     let listener = bound.capability.unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -87,7 +87,7 @@ fn sync_tcp_on_current_thread_requires_explicit_blocking_delegation() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn sync_buffer_callback_is_safe_inside_async_context_and_preserves_progress() {
+async fn sync_buffer_callback_preserves_async_progress() {
     let buffer = buffer_create(4).capability.unwrap();
     let result = buffer_read_with(&buffer, |storage| {
         storage[..2].copy_from_slice(b"ab");

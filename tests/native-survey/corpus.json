@@ -42,7 +42,7 @@
     },
     {
       "name": "sqlx-query-chain",
-      "fixture": "run/projected-sqlx-query-chain",
+      "fixture": "run/projected-query-chain",
       "packages": [
         {"name": "sqlx-core", "version": "=0.8.6"},
         {"name": "sqlx-sqlite", "version": "=0.8.6", "features": ["bundled"]}
@@ -50,7 +50,7 @@
       "target": "x86_64-unknown-linux-gnu",
       "rustdoc-toolchain": "nightly-2026-04-29",
       "containment": "enforced",
-      "purpose": "required generic lifetime-bearing query-chain evidence",
+      "purpose": "resolved SQLx graph survey plus an independent local generic query-chain regression; the fixture does not test SQLx compatibility",
       "selection": {
         "kind": "required",
         "source": "M4 SQLx application",
@@ -63,7 +63,7 @@
     },
     {
       "name": "pdf-member-graph",
-      "fixture": "run/projected-pdf-html-bytes",
+      "fixture": "run/projected-document-bytes",
       "packages": [
         {"name": "pdf_oxide", "version": "=0.3.78"},
         {"name": "office_oxide", "version": "=0.1.11", "survey": false}
@@ -71,7 +71,7 @@
       "target": "x86_64-unknown-linux-gnu",
       "rustdoc-toolchain": "nightly-2026-04-29",
       "containment": "enforced",
-      "purpose": "required demand-limited foreign-member evidence",
+      "purpose": "resolved PDF graph survey plus an independent local demand-limited document-byte regression; the fixture does not test PDF rendering",
       "selection": {
         "kind": "required",
         "source": "M5 PDF application",
@@ -102,7 +102,7 @@
     },
     {
       "name": "godot-generated-api-compile",
-      "fixture": "check/godot-generated-api-projection",
+      "fixture": "run/projected-generated-api-reexport",
       "packages": [
         {"name": "godot", "version": "=0.5.5", "default-features": true},
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}
@@ -125,7 +125,7 @@
     },
     {
       "name": "godot-generated-api-runtime",
-      "fixture": "check/godot-generated-api-projection",
+      "fixture": "run/projected-generated-api-reexport",
       "packages": [
         {"name": "godot", "version": "=0.5.5", "default-features": true},
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}

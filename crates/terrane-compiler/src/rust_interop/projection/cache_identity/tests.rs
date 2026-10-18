@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn target_identity_reads_effective_cargo_configuration() {
+fn target_reads_cargo_config() {
     let directory =
         std::env::temp_dir().join(format!("terrane-projection-target-{}", std::process::id()));
     fs::create_dir_all(directory.join(".cargo")).unwrap();

@@ -1,0 +1,23 @@
+namespace app
+
+from /deps/terrane-query-witness import ConnectionOptions, Row, query
+from /deps/terrane-query-contract import QueryError
+
+async function main;
+  options = ConnectionOptions::new;
+  connection = await options.connect;
+  selector = 'first'
+  row Row = await (query; selector).fetch_one; ref connection
+  body bytes = Row::try_get; row, 'body'
+  print; body.length, body[0], body[1]
+  try
+    missing bytes = Row::try_get; row, 'missing'
+    print; missing.length
+  catch QueryError as failure
+    print; failure.message
+  try
+    incompatible bytes = Row::try_get; row, 'count'
+    print; incompatible.length
+  catch QueryError as failure
+    print; failure.message
+  await connection.close;

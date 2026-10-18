@@ -13,7 +13,7 @@ fn parse_rustdoc(
 }
 
 #[test]
-fn receiver_kind_preserves_only_plain_self_receivers() {
+fn only_plain_self_receivers() {
     let borrowed = |is_mutable| Type::BorrowedRef {
         lifetime: None,
         is_mutable,
@@ -31,7 +31,7 @@ fn receiver_kind_preserves_only_plain_self_receivers() {
     assert!(receiver_kind(&Type::Primitive("str".to_owned())).is_err());
 }
 #[test]
-fn rustdoc_schema_mismatch_is_explicit() {
+fn schema_mismatch_is_explicit() {
     let document = json!({
         "root": 0,
         "crate_version": "1.0.0",
@@ -68,7 +68,7 @@ fn rustdoc_schema_mismatch_is_explicit() {
 }
 
 #[test]
-fn malformed_rustdoc_json_is_not_silently_declined() {
+fn malformed_json_is_not_declined() {
     let dependency = RustDependency {
         name: "witness".to_owned(),
         package: "witness".to_owned(),

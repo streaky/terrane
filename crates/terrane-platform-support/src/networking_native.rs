@@ -56,7 +56,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn transferred_stream_survives_source_close_and_half_closes() {
+    async fn transferred_stream_outlives_source_and_half_closes() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let client = tokio::net::TcpStream::connect(address).await.unwrap();

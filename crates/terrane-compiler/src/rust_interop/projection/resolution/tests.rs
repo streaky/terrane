@@ -9,7 +9,7 @@ use super::super::test_support::dependency;
 use super::*;
 
 #[test]
-fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
+fn unproven_bounds_decline_functions() {
     let mut dependencies = vec![ProjectedDependency {
         name: "witness".to_owned(),
         native_alias_identities: BTreeMap::new(),
@@ -113,7 +113,7 @@ fn failed_impl_witness_declines_bound_functions_with_the_unproven_interface() {
     );
 }
 #[test]
-fn dependency_free_resolution_records_its_outcome() {
+fn dependency_free_outcome_is_recorded() {
     let projection = resolve(std::path::Path::new("."), &[], None).unwrap();
     assert_eq!(
         projection.resolution.outcome,
@@ -126,7 +126,7 @@ fn dependency_free_resolution_records_its_outcome() {
     );
 }
 #[test]
-fn resolve_regenerates_projection_after_identity_mismatch() {
+fn identity_mismatch_rebuilds() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/projection-identity-regression")
         .join(std::process::id().to_string());

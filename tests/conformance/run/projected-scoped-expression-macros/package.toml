@@ -1,0 +1,9 @@
+package = "projected-scoped-expression-macros"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-scoped-macro-witness"
+version = "=0.1.0"
+effects = ["build"]

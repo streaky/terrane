@@ -1,0 +1,13 @@
+namespace app
+
+from /deps/witness import Error
+from /deps/witness/api import Document
+
+function main;
+  document Document = Document::from_text; 'π'
+  data bytes = document.save_to_bytes;
+  print; data.length, ' ', data[0], ' ', data[1]
+  try
+    invalid = Document::from_text; ''
+  catch Error as failure
+    print; failure.message

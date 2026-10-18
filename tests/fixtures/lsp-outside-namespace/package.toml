@@ -1,0 +1,4 @@
+package = "lsp-outside-namespace"
+
+[namespaces]
+fixture = "src"

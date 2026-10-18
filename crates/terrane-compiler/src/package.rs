@@ -2365,7 +2365,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn implicit_source_paths_are_normalized_relative_to_the_package_root() {
+    fn implicit_source_paths_normalize_to_package_root() {
         let package = Package::implicit("/workspace/example/app/main.trn", String::new());
         assert_eq!(package.root, PathBuf::from("/workspace/example/app"));
         assert_eq!(package.units[0].relative_path, PathBuf::from("main.trn"));
@@ -2428,7 +2428,7 @@ mod tests {
     }
 
     #[test]
-    fn rust_dependency_manifest_parts_preserve_target_alias_and_features() {
+    fn dependency_manifest_preserves_target_alias_and_features() {
         let dependency = RustDependency {
             name: "date-codec".to_owned(),
             package: "httpdate".to_owned(),

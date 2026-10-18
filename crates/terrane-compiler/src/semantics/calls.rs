@@ -1679,7 +1679,7 @@ mod tests {
     }
 
     #[test]
-    fn nominal_arguments_bind_without_redundant_native_metadata() {
+    fn nominal_arguments_bind_without_native_metadata() {
         use crate::semantics::ObjectIdentity;
 
         let generic = ValueType::ProjectedGeneric("T".to_owned());

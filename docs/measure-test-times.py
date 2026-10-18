@@ -10,6 +10,7 @@ import os
 import platform
 import re
 import subprocess
+import runpy
 import sys
 import time
 import tempfile
@@ -329,13 +330,14 @@ def main() -> int:
         data = load_scoreboard(args.output)
         exit_code, elapsed, measured, command = run_tests(cargo_args)
         data = update_scoreboard(data, measured, command, elapsed, exit_code)
+        generator = Path(__file__).with_name("generate-test-scoreboard.py")
+        runpy.run_path(str(generator))["validate"](data)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(
             yaml.safe_dump(data, sort_keys=False, allow_unicode=True, width=100), encoding="utf-8"
         )
         print(f"updated {args.output} with {len(measured)} test timings")
         if not args.no_html:
-            generator = Path(__file__).with_name("generate-test-scoreboard.py")
             generated = subprocess.run([sys.executable, str(generator), "--input", str(args.output)])
             if generated.returncode != 0:
                 return generated.returncode

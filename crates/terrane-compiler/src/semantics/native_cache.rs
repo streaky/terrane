@@ -157,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn changed_projection_or_damaged_snapshot_cannot_supply_old_selections() {
+    fn changed_or_corrupt_has_no_old_selection() {
         crate::with_compilation_cache(|| {
             let root = Root::new();
             let key = query_key(&("signature", "NativePayload"));
@@ -190,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_answers_reuse_and_unused_queries_are_pruned() {
+    fn unavailable_reuse_prunes_unused() {
         crate::with_compilation_cache(|| {
             let root = Root::new();
             let mut cache = NativeCache::load(&root.0, "graph".to_owned());

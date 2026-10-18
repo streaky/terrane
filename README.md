@@ -158,6 +158,25 @@ The [Terrane manual](https://github.com/streaky/terrane-manual) is maintained in
 
 Use focused checks while working, such as `cargo clippy --workspace --all-targets -- -D warnings`. For a specific conformance case, set `TERRANE_CONFORMANCE_FILTER=<case-name-or-comma-separated-fragments>` and run `cargo test -p terrane-compiler --test conformance every_manifest_drives_a_conformance_case`. Debug package-shaped fixtures from disposable copies, not their tracked source directories.
 
+Keep regression programs minimal and self-contained under tracked test fixtures.
+Keep each full test name at most 80 characters, including Rust module prefixes;
+the scoreboard generator rejects longer names rather than truncating them.
+Assert result classifications and failure details through structured reports rather
+than pinning the wording of human-readable summaries.
+Combine related CLI assertions when they can share one native build without
+losing a distinct failure case. Prefer small local Rust witnesses for projection
+shapes; `projected-generated-api-reexport` generates a hidden owner API in a build
+script and executes calls through a separate facade without pulling Godot into
+ordinary conformance. The scoped-expression, document-byte, query, and framed-socket
+fixtures similarly preserve the relevant native type and runtime boundaries with local
+crates. They do not assert Iced, PDF rendering, SQLx, Axum, or Reqwest compatibility;
+real-library evidence belongs in dedicated native-survey/application checks. Cache-key
+tests similarly use tiny real Rustdoc inputs while retaining separate real-sysroot coverage.
+Keep profiling workloads long enough to collect meaningful samples, and inspect
+fresh-source reports before rewriting a workload for comparison.
+Fixture registries may be symlinked into related rejection cases; retain the shared
+API those cases need and exercise the whole dependent case family after reducing it.
+
 For complete workspace verification, run the timing collector from a clean tree at a commit:
 
 ```sh
@@ -165,6 +184,9 @@ python docs/measure-test-times.py -- --workspace
 ```
 
 The collector returns Cargo's exit status and updates the tracked YAML/HTML test scoreboards. Review and commit both generated files together. It uses bounded parallelism; reduce `TERRANE_SCORECARD_JOBS` or `TERRANE_CONFORMANCE_JOBS` on constrained hosts, and do not run competing Cargo processes during collection.
+Name validation runs after measurement but before publishing either scoreboard file,
+including with `--no-html`; invalid names leave the existing files unchanged. This
+is not a pre-run test-discovery check.
 
 To regenerate or verify only the scoreboard view:
 
@@ -248,11 +270,10 @@ Debugger-host code is measured, but native debuggees retain the caller's origina
 Rust flags rather than coverage instrumentation: injected counters change native
 sequence points and would invalidate the source-stepping tests.
 
-The workspace protocol tests currently require the local, Git-ignored
-`projects/godot-test` fixture, including `tests/unit/godot-view.trn` and its package
-sources/manifest. A fresh clone or detached worktree must supply that fixture;
-otherwise the outside-namespace-root language-server test fails before analyzing
-the document. That is a test-environment prerequisite, not a coverage-tool failure.
+The language-server protocol tests use the checked-in
+`tests/fixtures/lsp-outside-namespace` package to exercise documents outside a
+package's namespace roots. Workspace tests do not require local applications
+under `projects/`.
 
 ## License
 

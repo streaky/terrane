@@ -676,7 +676,7 @@ mod tests {
     }
 
     #[test]
-    fn oracle_cache_regenerates_corrupt_same_identity_and_resets_on_identity_change() {
+    fn oracle_cache_recovers_corruption_and_resets_on_identity_change() {
         let workspace = workspace("stable-cache");
         let witness = workspace.join("src/lib.rs");
         fs::write(&witness, "pub struct Local;\npub trait Marker {}\n").unwrap();
@@ -855,7 +855,7 @@ mod tests {
     }
 
     #[test]
-    fn call_probe_selects_shared_and_mutable_representations_without_trait_name_heuristics() {
+    fn call_probe_selects_representations_without_trait_heuristics() {
         let workspace = workspace("argument-representations");
         let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
         let prelude = "trait AccessTarget {}\nstruct Shared;\nstruct Mutable;\nimpl AccessTarget for &Shared {}\nimpl AccessTarget for &mut Mutable {}\nfn invoke<T: AccessTarget>(_: T) {}\n";

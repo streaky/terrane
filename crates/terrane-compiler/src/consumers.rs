@@ -996,7 +996,7 @@ mod tests {
     }
 
     #[test]
-    fn consumer_selection_ignores_unselected_field_static_identity_collisions() {
+    fn consumer_selection_ignores_unselected_collisions() {
         let package = Package::implicit(
             "consumer-selection.trn",
             concat!(
@@ -1113,7 +1113,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_sources_use_stable_identity_paths_and_reject_traversal() {
+    fn generated_sources_use_stable_paths_and_reject_traversal() {
         let (mut package, root) = temporary_package();
         let mut sources = vec![
             ("codec::typed-codec-a1".to_owned(), "source a".to_owned()),
@@ -1183,7 +1183,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_source_identities_reject_traversal_and_empty_components() {
+    fn generated_identities_reject_invalid_components() {
         for invalid in [
             "",
             ".",
@@ -1230,7 +1230,7 @@ mod tests {
     }
 
     #[test]
-    fn declaration_interfaces_validate_format_and_metadata_fingerprint() {
+    fn declaration_interfaces_validate_metadata_fingerprint() {
         let mut interface = crate::DeclarationInterface {
             format: 1,
             package: "example/library".to_owned(),
@@ -1250,7 +1250,7 @@ mod tests {
     }
 
     #[test]
-    fn process_output_reader_retains_only_limit_plus_one_while_draining() {
+    fn output_reader_retains_limit_plus_one_while_draining() {
         let input = vec![b'x'; MAX_OUTPUT + 4096];
         let output = read_bounded(std::io::Cursor::new(input)).unwrap();
         assert_eq!(output.len(), MAX_OUTPUT + 1);

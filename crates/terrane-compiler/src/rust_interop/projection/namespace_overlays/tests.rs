@@ -1,7 +1,7 @@
 use super::super::test_support::{dependency, projected_function_item};
 use super::*;
 #[test]
-fn dependency_metadata_uses_resolved_default_features_and_renamed_packages_for_overlays() {
+fn resolved_features_and_names() {
     let dependencies = [
         dependency("storage", "data-engine", &[]),
         dependency("overlays", "integration-overlays", &[]),
@@ -61,7 +61,7 @@ fn dependency_metadata_uses_resolved_default_features_and_renamed_packages_for_o
     );
 }
 #[test]
-fn namespace_overlays_require_a_direct_target_and_reject_collisions() {
+fn direct_target_no_collision() {
     let metadata = serde_json::json!({
         "packages": [{
             "id": "path+adapter@1.0.0",

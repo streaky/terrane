@@ -350,7 +350,7 @@ mod tests {
             .expect("snapshot")
     }
     #[test]
-    fn import_alias_rename_preserves_exports_other_aliases_and_shadowed_uses() {
+    fn alias_rename_keeps_exports_and_shadowing() {
         let exporter =
             "namespace library\npublic function Answer int;\n    return 42\npublic class Model\n";
         let uri = "file:///workspace/consumer.trn";
@@ -442,7 +442,7 @@ mod tests {
     }
 
     #[test]
-    fn removing_an_import_alias_preserves_comments_and_checks_capture() {
+    fn alias_removal_keeps_comments_and_capture() {
         let uri = "file:///workspace/remove-alias.trn";
         for (gap, expected_gap) in [
             (" as local-int", ""),
@@ -543,7 +543,7 @@ mod tests {
     }
 
     #[test]
-    fn aliased_export_token_boundaries_reject_without_a_candidate_diagnostic() {
+    fn export_token_boundaries_reject_without_candidate() {
         let uri = "file:///workspace/export-token.trn";
         let source = "namespace app\nfrom /core/types import int as local-int\nfunction main;\n    value local-int = 42\n";
         let mut engine = ToolingEngine::default();
@@ -566,7 +566,7 @@ mod tests {
     }
 
     #[test]
-    fn keyword_and_internal_whitespace_select_the_alias_clause() {
+    fn keyword_whitespace_selects_alias_clause() {
         let uri = "file:///workspace/alias-clause.trn";
         let source = "namespace app\nfrom /core/types import int  as  local-int\nfunction main;\n    value local-int = 42\n";
         let expected = source.replace("local-int", "amount");

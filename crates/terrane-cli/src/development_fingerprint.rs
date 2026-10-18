@@ -53,7 +53,7 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn fingerprint_tracks_compiler_inputs_and_ignores_documentation() {
+    fn fingerprint_tracks_compiler_inputs_not_docs() {
         let root = std::env::temp_dir().join(format!(
             "terrane-development-fingerprint-{}",
             std::process::id()

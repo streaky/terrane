@@ -506,7 +506,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn intermediate_bounds_narrow_an_affine_region() {
+    fn intermediate_bounds_narrow() {
         let bounds = fixed_integer_bounds(ScalarType::Int8).unwrap();
         let multiplication = affine_range(&BigInt::from(3_u8), &BigInt::from(0_u8), &bounds)
             .expect("3 * value has an int8-safe interval");
@@ -518,7 +518,7 @@ mod tests {
     }
 
     #[test]
-    fn signed_fast_intervals_are_clamped_to_nonnegative_inputs() {
+    fn fast_intervals_nonnegative() {
         let valid = IntegerInterval {
             lower: BigInt::from(-42_i8),
             upper: BigInt::from(42_i8),
@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn signed_division_rounds_interval_edges_outward() {
+    fn division_rounds_outward() {
         assert_eq!(
             floor_div(&BigInt::from(-128_i16), &BigInt::from(3_u8)),
             BigInt::from(-43_i8)
@@ -559,7 +559,7 @@ mod tests {
     }
 
     #[test]
-    fn monotonic_loop_proof_requires_one_unconditional_increment() {
+    fn loop_needs_one_increment() {
         for (body, expected) in [
             ("    index++\n", Some((0, 8))),
             ("    index++\n    index++\n", None),
@@ -584,7 +584,7 @@ mod tests {
     }
 
     #[test]
-    fn bounded_float_conversion_proof_respects_precision_edges() {
+    fn float_precision_edges() {
         for (upper, destination, exact) in [
             ("16777216", ScalarType::Float32, true),
             ("16777217", ScalarType::Float32, false),
@@ -610,7 +610,7 @@ mod tests {
     }
 
     #[test]
-    fn affine_safe_regions_match_the_complete_int8_domain() {
+    fn safe_regions_match_int8() {
         let bounds = fixed_integer_bounds(ScalarType::Int8).unwrap();
         for coefficient in [-3, -1, 0, 1, 3] {
             for constant in [-129, -128, -7, 0, 127, 128] {

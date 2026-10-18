@@ -64,7 +64,7 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn finds_executable_sccache_and_ignores_non_executable_files() {
+    fn finds_executable_sccache() {
         let root =
             std::env::temp_dir().join(format!("terrane-sccache-path-{}", std::process::id()));
         let unavailable = root.join("unavailable");

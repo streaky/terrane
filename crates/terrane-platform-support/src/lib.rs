@@ -1990,7 +1990,7 @@ mod tests {
     }
 
     #[test]
-    fn asynchronous_connections_support_blocking_and_async_io_on_the_same_transport() {
+    fn connections_share_transport_for_sync_and_async_io() {
         let listener = result_capability(tcp_bind("127.0.0.1:0", 128, false, false, -1));
         let address = listener.0.as_ref();
         let address = match address {
