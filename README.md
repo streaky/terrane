@@ -214,18 +214,25 @@ the most overlapping test. Function identities for overlap use canonical source
 body ranges, merging generic instantiations. Broad execution or overlap is a
 review aid, not proof of redundant assertions. Conformance attribution is at the
 outer Rust harness-test level, not individual Terrane cases.
-The attribution regression checks run with `python tools/test_coverage.py`.
+The attribution regression checks run with `python tools/test_coverage.py` or
+`python -m unittest tools.test_coverage`.
 
 The report records revision, dirty-tree status, filters, environment overrides,
 toolchain, and failures in `run.json`. Failed test executions still produce reports
-and a nonzero exit status; build/report failures stop the command. Build-script and
-test-discovery profiles are retained separately and excluded from execution totals.
+and a nonzero exit status, including crashes that produce no execution profile:
+those tests have unavailable coverage, not zero coverage, and are excluded from
+overlap calculations. Build/report errors other than absent profiles stop the
+command. Outer workspace build-script and test-discovery profiles are retained
+separately and excluded from execution totals. Nested generated Cargo preparation
+runs inside a test's capture environment, so its instrumented build-script
+execution can contribute profiles alongside generated-program execution.
 LLVM diagnostics are retained and linked from a coverage-fidelity warning on the
 landing page; reports with mapping warnings are not clean baselines.
 LLVM may warn about dependency or fixture mappings before source filtering;
 the warning count is not a count of missed compiler/support functions.
 Coverage runs do not update the tracked scoreboards, and should not compete with
-other Cargo/suite runs.
+other Cargo/suite runs. There is no outer Rust-test timeout; callers needing a
+deadline must supervise the command. Native test-runner deadlines are unchanged.
 
 Scope limits are explicit: stable doctests, integration-test source files, generated
 Rust, third-party dependencies, and `build.rs` are outside the report. Unit-test
@@ -240,6 +247,12 @@ environment may not contribute profiles. No branch-coverage claim is made.
 Debugger-host code is measured, but native debuggees retain the caller's original
 Rust flags rather than coverage instrumentation: injected counters change native
 sequence points and would invalidate the source-stepping tests.
+
+The workspace protocol tests currently require the local, Git-ignored
+`projects/godot-test` fixture, including `tests/unit/godot-view.trn` and its package
+sources/manifest. A fresh clone or detached worktree must supply that fixture;
+otherwise the outside-namespace-root language-server test fails before analyzing
+the document. That is a test-environment prerequisite, not a coverage-tool failure.
 
 ## License
 

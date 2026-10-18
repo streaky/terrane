@@ -729,7 +729,7 @@ fn artifact_identity(
     }
     hash.update(format!("{containment:?}/{artifact_kind:?}"));
     if coverage_directory().is_some() {
-        hash.update(b"rust-implementation-coverage-v3\0");
+        hash.update(b"rust-implementation-coverage-v4\0");
     }
     if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
         hash.update(b"role-owned-library-basename-v1\0");
@@ -930,10 +930,10 @@ fn coverage_rustflags(
     profile: CargoProfile,
 ) -> std::ffi::OsString {
     if coverage_directory().is_some() {
-        // Instrumentation introduces native sequence points. Keep inspected
-        // debuggees exact; their compiler/debugger host remains instrumented.
+        // Debuggees retain the caller's exact compiler flags; the wrapper
+        // instruments only its outer `cargo test --no-run` build.
         if profile == CargoProfile::Debugger {
-            return std::env::var_os("TERRANE_COVERAGE_BASE_RUSTFLAGS").unwrap_or_default();
+            return flags;
         }
         flags.push(" -C instrument-coverage");
         // Distinguish independently built support graphs whose MIR/coverage
