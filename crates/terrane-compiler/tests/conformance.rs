@@ -1,5 +1,7 @@
 use parking_lot::Mutex as ToolMutex;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::{BufRead as _, BufReader, Read as _, Write as _};
@@ -13,6 +15,110 @@ static TIMING_WRITE_LOCK: Mutex<()> = Mutex::new(());
 static NEXT_BUILD_ID: AtomicUsize = AtomicUsize::new(0);
 static NATIVE_TOOL_ARTIFACTS: ToolMutex<BTreeMap<PathBuf, PathBuf>> =
     ToolMutex::new(BTreeMap::new());
+
+fn coverage_dir() -> Option<PathBuf> {
+    std::env::var_os("TERRANE_COVERAGE_DIR")
+        .map(PathBuf::from)
+        .map(|path| {
+            if path.is_absolute() {
+                path
+            } else {
+                std::env::current_dir()
+                    .expect("resolve coverage directory")
+                    .join(path)
+            }
+        })
+}
+
+fn coverage_rustflags(build: &ConformanceBuild) -> std::borrow::Cow<'static, str> {
+    if coverage_dir().is_none() {
+        return std::borrow::Cow::Borrowed("-Dwarnings");
+    }
+    let mut flags = "-Dwarnings".to_owned();
+    let inherited = std::env::var("RUSTFLAGS").unwrap_or_default();
+    flags.push(' ');
+    flags.push_str(&inherited);
+    flags.push_str(" -C instrument-coverage");
+    let identity = Sha256::digest(build.root.as_os_str().as_encoded_bytes());
+    write!(flags, " -C metadata=terrane-coverage-{identity:x}").unwrap();
+    write!(
+        flags,
+        " --remap-path-prefix={}={}",
+        build.root.join("support").display(),
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .display()
+    )
+    .unwrap();
+    std::borrow::Cow::Owned(flags)
+}
+
+fn coverage_profile_file() -> Option<OsString> {
+    coverage_dir().map(|directory| {
+        let profiles = directory.join("profiles");
+        fs::create_dir_all(&profiles).expect("create coverage profile directory");
+        profiles.join("%m-%p.profraw").into_os_string()
+    })
+}
+
+fn preserve_coverage_object(path: &Path) {
+    let Some(directory) = coverage_dir() else {
+        return;
+    };
+    if !path.is_file() || !is_executable(path) {
+        return;
+    }
+    let mut file = fs::File::open(path).expect("open coverage executable");
+    let mut hash = Sha256::new();
+    std::io::copy(&mut file, &mut HashWriter(&mut hash)).expect("hash coverage executable");
+    let digest = format!("{:x}", hash.finalize());
+    let objects = directory.join("objects");
+    fs::create_dir_all(&objects).expect("create coverage object directory");
+    let destination = objects.join(format!(
+        "{digest}-{}",
+        path.file_name().unwrap().to_string_lossy()
+    ));
+    if !destination.exists() {
+        fs::copy(path, destination).expect("preserve coverage executable");
+    }
+}
+
+#[cfg(unix)]
+fn is_executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::metadata(path).is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(windows)]
+fn is_executable(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn is_executable(_: &Path) -> bool {
+    true
+}
+
+struct HashWriter<'a>(&'a mut Sha256);
+impl std::io::Write for HashWriter<'_> {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.update(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn coverage_test_environment(command: &mut Command) {
+    if let Some(profile) = coverage_profile_file() {
+        command
+            .env("TERRANE_COVERAGE_DIR", coverage_dir().unwrap())
+            .env("LLVM_PROFILE_FILE", profile);
+    }
+}
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
@@ -35,7 +141,14 @@ impl ConformanceBuild {
         }
         fs::create_dir_all(root.join("src")).unwrap();
         write_support_crates(&root);
-        let target = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/conformance");
+        let target = if coverage_dir().is_some() {
+            PathBuf::from(
+                std::env::var_os("TERRANE_COVERAGE_TARGET_DIR").expect("coverage target directory"),
+            )
+            .join("conformance")
+        } else {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/conformance")
+        };
         Self { root, target }
     }
 
@@ -817,17 +930,25 @@ fn build_generated_binaries(
     build: &ConformanceBuild,
 ) -> std::process::Output {
     build.write_manifest(binary_names, dependencies, requires_unsafe_code);
-    Command::new("cargo")
+    let mut command = Command::new("cargo");
+    command
         .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
         .args(["build", "--quiet", "--manifest-path"])
         .arg(build.root.join("Cargo.toml"))
         .env("CARGO_TARGET_DIR", &build.target)
-        .env("RUSTFLAGS", "-Dwarnings")
-        .current_dir(&build.root)
-        .output()
-        .unwrap()
+        .env("RUSTFLAGS", coverage_rustflags(build).as_ref())
+        .current_dir(&build.root);
+    if let Some(profile) = coverage_profile_file() {
+        command.env("LLVM_PROFILE_FILE", profile);
+    }
+    let output = command.output().unwrap();
+    if output.status.success() {
+        for name in binary_names {
+            preserve_coverage_object(&binary_path(name, build));
+        }
+    }
+    output
 }
-
 fn binary_path(binary_name: &str, build: &ConformanceBuild) -> PathBuf {
     let mut path = build.target.join("debug").join(binary_name);
     path.set_extension(std::env::consts::EXE_EXTENSION);
@@ -914,15 +1035,30 @@ fn compile_and_maybe_run(
         String::from_utf8_lossy(&output.stderr)
     );
     if field(manifest, "dependency-panic-test").is_some() {
-        let output = Command::new("cargo")
+        let mut command = Command::new("cargo");
+        command
             .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
             .args(["test", "--quiet", "--manifest-path"])
             .arg(build.root.join("Cargo.toml"))
             .env("CARGO_TARGET_DIR", &build.target)
-            .env("RUSTFLAGS", "-Dwarnings")
-            .current_dir(&build.root)
-            .output()
-            .unwrap();
+            .env("RUSTFLAGS", coverage_rustflags(build).as_ref())
+            .current_dir(&build.root);
+        if let Some(profile) = coverage_profile_file() {
+            command.env("LLVM_PROFILE_FILE", profile);
+        }
+        let output = command.output().unwrap();
+        let deps = build.target.join("debug/deps");
+        if let Ok(entries) = fs::read_dir(deps) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.file_name().is_some_and(|name| {
+                    name.to_string_lossy()
+                        .starts_with(&format!("{}-", binary_name.replace('-', "_")))
+                }) {
+                    preserve_coverage_object(&path);
+                }
+            }
+        }
         assert!(
             output.status.success(),
             "{} generated dependency panic test failed:\nstdout:\n{}\nstderr:\n{}",
@@ -1035,6 +1171,7 @@ fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
         }
         command.current_dir(working_directory);
     }
+    coverage_test_environment(&mut command);
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

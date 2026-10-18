@@ -728,6 +728,9 @@ fn artifact_identity(
         hash.update(b"\0");
     }
     hash.update(format!("{containment:?}/{artifact_kind:?}"));
+    if coverage_directory().is_some() {
+        hash.update(b"rust-implementation-coverage-v3\0");
+    }
     if artifact_kind == terrane_compiler::ArtifactKind::DynamicLibrary {
         hash.update(b"role-owned-library-basename-v1\0");
     }
@@ -881,6 +884,12 @@ fn prepare_artifact(
             CliFailure::backend(format!("cannot record artifact identity: {error}"))
         })?;
     }
+    if artifact_kind == terrane_compiler::ArtifactKind::Executable
+        && profile != CargoProfile::Debugger
+        && let Some(directory) = coverage_directory()
+    {
+        preserve_coverage_object(&directory, &artifact)?;
+    }
     artifact
         .canonicalize()
         .map(Some)
@@ -909,6 +918,68 @@ fn artifact_path(
             unreachable!("library packages are never prepared as standalone native artifacts")
         }
     }
+}
+
+fn coverage_directory() -> Option<PathBuf> {
+    std::env::var_os("TERRANE_COVERAGE_DIR").map(PathBuf::from)
+}
+
+fn coverage_rustflags(
+    mut flags: std::ffi::OsString,
+    crate_dir: &Path,
+    profile: CargoProfile,
+) -> std::ffi::OsString {
+    if coverage_directory().is_some() {
+        // Instrumentation introduces native sequence points. Keep inspected
+        // debuggees exact; their compiler/debugger host remains instrumented.
+        if profile == CargoProfile::Debugger {
+            return std::env::var_os("TERRANE_COVERAGE_BASE_RUSTFLAGS").unwrap_or_default();
+        }
+        flags.push(" -C instrument-coverage");
+        // Distinguish independently built support graphs whose MIR/coverage
+        // hashes can differ despite identical Cargo crate disambiguators.
+        let identity = Sha256::digest(crate_dir.as_os_str().as_encoded_bytes());
+        flags.push(format!(" -C metadata=terrane-coverage-{identity:x}"));
+        flags.push(" --remap-path-prefix=");
+        flags.push(crate_dir.join("support"));
+        flags.push("=");
+        flags.push(Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap());
+    }
+    flags
+}
+
+fn preserve_coverage_object(directory: &Path, source: &Path) -> Result<(), CliFailure> {
+    use std::io::Read as _;
+    let mut input = fs::File::open(source).map_err(|error| {
+        CliFailure::backend(format!("cannot open coverage executable: {error}"))
+    })?;
+    let mut hash = Sha256::new();
+    let mut buffer = [0; 8 * 1024];
+    loop {
+        let count = input.read(&mut buffer).map_err(|error| {
+            CliFailure::backend(format!("cannot hash coverage executable: {error}"))
+        })?;
+        if count == 0 {
+            break;
+        }
+        hash.update(&buffer[..count]);
+    }
+    let name = source
+        .file_name()
+        .expect("coverage executable has a filename");
+    let destination =
+        directory
+            .join("objects")
+            .join(format!("{:x}-{}", hash.finalize(), name.to_string_lossy()));
+    fs::create_dir_all(destination.parent().expect("coverage object has a parent")).map_err(
+        |error| CliFailure::backend(format!("cannot create coverage object directory: {error}")),
+    )?;
+    if !destination.exists() {
+        fs::copy(source, destination).map_err(|error| {
+            CliFailure::backend(format!("cannot preserve coverage executable: {error}"))
+        })?;
+    }
+    Ok(())
 }
 
 #[cfg(any(test, all(target_os = "windows", target_env = "msvc")))]
@@ -1072,7 +1143,10 @@ fn run_cargo(
     let output = cargo
         .current_dir(&canonical_crate)
         .env("CARGO_TARGET_DIR", &canonical_target)
-        .env("RUSTFLAGS", rustflags)
+        .env(
+            "RUSTFLAGS",
+            coverage_rustflags(rustflags, &canonical_crate, profile),
+        )
         .output()
         .map_err(|error| CliFailure::backend(format!("failed to start Cargo: {error}")))?;
     if output.status.success() {

@@ -611,6 +611,7 @@ fn execute_case(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    forward_coverage_environment(&mut command);
     if let Some(artifact) = application_artifact {
         command.env("TERRANE_TEST_ARTIFACT", artifact);
     }
@@ -672,6 +673,23 @@ fn execute_case(
         stdout,
         stderr,
         cause: failure_cause,
+    }
+}
+
+fn forward_coverage_environment(command: &mut Command) {
+    if let Some(value) = std::env::var_os("TERRANE_COVERAGE_DIR") {
+        command.env("TERRANE_COVERAGE_DIR", value);
+    }
+    if let Some(value) = std::env::var_os("LLVM_PROFILE_FILE") {
+        let path = PathBuf::from(value);
+        let path = if path.is_absolute() {
+            path
+        } else {
+            std::env::current_dir()
+                .map(|directory| directory.join(&path))
+                .unwrap_or(path)
+        };
+        command.env("LLVM_PROFILE_FILE", path);
     }
 }
 

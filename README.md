@@ -175,6 +175,72 @@ python docs/generate-test-scoreboard.py --check
 
 Repository-local binaries record their build revision and compiler-input fingerprint. Rebuild if they warn that the checkout changed; installed/copied binaries do not inspect a working tree.
 
+### Rust implementation coverage
+
+Coverage is a separate diagnostic run, not a timing-scoreboard refresh. It measures
+the handwritten Rust under `crates/*/src`, including support crates executed by
+generated conformance programs and native test runners. It does not implement
+Terrane source coverage.
+
+Use the selected Rust toolchain and matching LLVM tools:
+
+```sh
+rustup component add llvm-tools-preview
+python tools/coverage.py
+```
+
+The command writes `target/coverage/index.html` by default. Open that file
+directly in a browser: the aggregate report navigates through directories to
+annotated source, with execution counts and next-uncovered-line/region navigation.
+Reports are self-contained static files; no IDE, service, or external assets are
+required. `--output <directory>` selects the exact report directory. Each run
+replaces the previous report, profiles, and executable coverage objects in that
+directory while retaining its reusable `build/` cache. Use a different output
+directory when you want to keep a separate report.
+
+For individual Rust-test attribution, run a focused selection first:
+
+```sh
+python tools/coverage.py --per-test -- -p terrane-string-support --lib
+python tools/coverage.py --filter tracked_native_testing_package_covers_all_tiers -- -p terrane-cli --test package_cli
+TERRANE_CONFORMANCE_FILTER=time-exact-values python tools/coverage.py -- -p terrane-compiler --test conformance
+```
+
+Arguments after `--` select Cargo packages/targets; `--filter` selects Rust test
+names. Without a Cargo selection the runner uses `--workspace`. Per-test mode
+runs each non-ignored Rust test in its own process and adds linked source reports,
+duration, covered-function footprint, functions unique within the selection, and
+the most overlapping test. Function identities for overlap use canonical source
+body ranges, merging generic instantiations. Broad execution or overlap is a
+review aid, not proof of redundant assertions. Conformance attribution is at the
+outer Rust harness-test level, not individual Terrane cases.
+The attribution regression checks run with `python tools/test_coverage.py`.
+
+The report records revision, dirty-tree status, filters, environment overrides,
+toolchain, and failures in `run.json`. Failed test executions still produce reports
+and a nonzero exit status; build/report failures stop the command. Build-script and
+test-discovery profiles are retained separately and excluded from execution totals.
+LLVM diagnostics are retained and linked from a coverage-fidelity warning on the
+landing page; reports with mapping warnings are not clean baselines.
+LLVM may warn about dependency or fixture mappings before source filtering;
+the warning count is not a count of missed compiler/support functions.
+Coverage runs do not update the tracked scoreboards, and should not compete with
+other Cargo/suite runs.
+
+Scope limits are explicit: stable doctests, integration-test source files, generated
+Rust, third-party dependencies, and `build.rs` are outside the report. Unit-test
+bodies colocated under `src` remain included. Embedded runtime fragments that only
+execute as generated Rust are not remapped to their original fragments. Source
+files absent from coverage mappings—including those fragments, unbuilt modules,
+and configuration-specific code—are listed as **unmeasured**, not silently omitted
+from the inventory or presented as covered. LLVM percentages apply to mapped
+executable code, not all Rust files. Force-killed/aborted subprocesses may not flush
+their counters, and application subprocesses that explicitly clear the coverage
+environment may not contribute profiles. No branch-coverage claim is made.
+Debugger-host code is measured, but native debuggees retain the caller's original
+Rust flags rather than coverage instrumentation: injected counters change native
+sequence points and would invalidate the source-stepping tests.
+
 ## License
 
 Terrane is dual-licensed under the [Apache License 2.0](LICENSE-APACHE) and the [MIT license](LICENSE-MIT), at your option.
