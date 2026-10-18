@@ -1,0 +1,12 @@
+package = "projected-generated-api-reexport"
+
+[profile]
+name = "generated-api-reexport"
+capabilities = ["build"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-generated-api-facade]
+version = "=0.1.0"
+effects = ["build"]

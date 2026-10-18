@@ -1,0 +1,8 @@
+[package]
+name = "terrane-generated-api-facade"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+terrane-generated-api-owner = "=0.1.0"

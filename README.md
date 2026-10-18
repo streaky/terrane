@@ -160,9 +160,12 @@ Use focused checks while working, such as `cargo clippy --workspace --all-target
 
 Keep regression programs minimal and self-contained under tracked test fixtures.
 Combine related CLI assertions when they can share one native build without
-losing a distinct failure case. Preserve real dependency integrations where the
-dependency's generated API or runtime behavior is the point of the test, and keep
-profiling workloads long enough to collect meaningful samples.
+losing a distinct failure case. Prefer small local Rust witnesses for projection
+shapes; `projected-generated-api-reexport` generates a hidden owner API in a build
+script and executes calls through a separate facade without pulling Godot into
+ordinary conformance. Real Godot compatibility remains in dedicated native-survey
+profiles. Preserve real dependencies when their actual behavior is the assertion,
+and keep profiling workloads long enough to collect meaningful samples.
 
 For complete workspace verification, run the timing collector from a clean tree at a commit:
 

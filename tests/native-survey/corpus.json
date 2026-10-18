@@ -102,7 +102,7 @@
     },
     {
       "name": "godot-generated-api-compile",
-      "fixture": "check/godot-generated-api-projection",
+      "fixture": "run/projected-generated-api-reexport",
       "packages": [
         {"name": "godot", "version": "=0.5.5", "default-features": true},
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}
@@ -125,7 +125,7 @@
     },
     {
       "name": "godot-generated-api-runtime",
-      "fixture": "check/godot-generated-api-projection",
+      "fixture": "run/projected-generated-api-reexport",
       "packages": [
         {"name": "godot", "version": "=0.5.5", "default-features": true},
         {"name": "godot-core", "version": "=0.5.5", "default-features": true}

@@ -5444,6 +5444,11 @@ Deleting the registry does not erase unresolved work:
 
 Godot's former `projection/godot-generated-reexport-surface` gap closed in the dedicated
 generated-API milestone.
+Its ordinary regression is now `run/projected-generated-api-reexport`: a minimal local
+build-script-generated owner and facade exercise hidden definitions, external module/glob
+reexports, constructors, scalar results, and borrowed class methods with native execution.
+The real Godot graph and application remain separate native-survey profile evidence, not
+a dependency of the ordinary conformance case.
 The former `projection/mutually-referential-namespace-sources` gap is also closed:
 generated dependency declarations are staged together even when their signatures form
 a namespace cycle. `projected-demanded-member-cycle` now executes the round trip and

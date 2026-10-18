@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-string-support
+// Vendored support crates: terrane-int-support, terrane-collection-support, terrane-scalar-support, terrane-string-support
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -508,17 +508,22 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 2] = [
+    pub static FUNCTIONS: [&str; 3] = [
         "/app::vector-length",
         "/app::generated-position",
+        "/app::main",
     ];
-    pub static SITES: [Site; 3] = [
+    pub static SITES: [Site; 5] = [
         /* terrane-site-row: site 0: /app::vector-length (src/main.trn:7:16-7:34) */
         { Site { function: 0, file: 0, line: 7, column: 16, end_line: 7, end_column: 34 } },
         /* terrane-site-row: site 1: /app::vector-length (src/main.trn:8:12-8:28) */
         { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 28 } },
-        /* terrane-site-row: site 2: /app::generated-position (src/main.trn:13:12-13:30) */
-        { Site { function: 1, file: 0, line: 13, column: 12, end_line: 13, end_column: 30 } },
+        /* terrane-site-row: site 2: /app::generated-position (src/main.trn:11:12-11:30) */
+        { Site { function: 1, file: 0, line: 11, column: 12, end_line: 11, end_column: 30 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:16:19-16:41) */
+        { Site { function: 2, file: 0, line: 16, column: 19, end_line: 16, end_column: 41 } },
+        /* terrane-site-row: site 4: /app::main (src/main.trn:18:13-18:29) */
+        { Site { function: 2, file: 0, line: 18, column: 13, end_line: 18, end_column: 29 } },
     ];
     #[cold]
     #[inline(never)]
@@ -532,171 +537,10 @@ mod __terrane_trace {
         )
     }
 }
-static TERRANE_SHARED_NEXT_THREAD_TOKEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(
-    1,
-);
-std::thread_local! {
-    static TERRANE_SHARED_THREAD_TOKEN : u64 = TERRANE_SHARED_NEXT_THREAD_TOKEN
-    .try_update(std::sync::atomic::Ordering::Relaxed,
-    std::sync::atomic::Ordering::Relaxed, | next | next.checked_add(1),)
-    .expect("shared storage thread token space exhausted");
-}
-#[derive(Debug)]
-pub struct TerraneSharedCell<T> {
-    owner: std::sync::atomic::AtomicU64,
-    value: std::sync::Mutex<T>,
-}
-impl<T> TerraneSharedCell<T> {
-    pub fn new(value: T) -> Self {
-        Self {
-            owner: std::sync::atomic::AtomicU64::new(0),
-            value: std::sync::Mutex::new(value),
-        }
-    }
-    /// Acquires exclusive shared-storage access, waiting for other threads.
-    ///
-    /// # Panics
-    /// Panics on same-thread reentry, before attempting to wait on itself.
-    ///
-    /// # Errors
-    /// Returns a poisoned guard if a previous holder unwound while borrowing.
-    pub fn lock(&self) -> std::sync::LockResult<TerraneSharedGuard<'_, T>> {
-        let token = TERRANE_SHARED_THREAD_TOKEN.with(|token| *token);
-        assert!(
-            self.owner.load(std::sync::atomic::Ordering::Acquire) != token,
-            "shared reference borrow conflict: storage is already borrowed by this thread"
-        );
-        let (guard, poisoned) = match self.value.lock() {
-            Ok(guard) => (guard, false),
-            Err(error) => (error.into_inner(), true),
-        };
-        self.owner.store(token, std::sync::atomic::Ordering::Release);
-        let wrapped = TerraneSharedGuard {
-            owner: &self.owner,
-            guard,
-        };
-        if poisoned { Err(std::sync::PoisonError::new(wrapped)) } else { Ok(wrapped) }
-    }
-}
-#[derive(Debug)]
-pub struct TerraneSharedGuard<'a, T> {
-    owner: &'a std::sync::atomic::AtomicU64,
-    guard: std::sync::MutexGuard<'a, T>,
-}
-impl<T> std::ops::Deref for TerraneSharedGuard<'_, T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        &self.guard
-    }
-}
-impl<T> std::ops::DerefMut for TerraneSharedGuard<'_, T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.guard
-    }
-}
-impl<T> Drop for TerraneSharedGuard<'_, T> {
-    fn drop(&mut self) {
-        self.owner.store(0, std::sync::atomic::Ordering::Release);
-    }
-}
-pub struct TerraneStaticObject<T> {
-    current: TerraneSharedCell<std::sync::Arc<TerraneSharedCell<T>>>,
-}
-impl<T> TerraneStaticObject<T> {
-    pub fn new(value: T) -> Self {
-        Self {
-            current: TerraneSharedCell::new(
-                std::sync::Arc::new(TerraneSharedCell::new(value)),
-            ),
-        }
-    }
-    /// Captures the current object without retaining the replaceable slot guard.
-    ///
-    /// # Panics
-    /// Panics if the slot is poisoned or is recursively borrowed by this thread.
-    pub fn handle(&self) -> std::sync::Arc<TerraneSharedCell<T>> {
-        self.current.lock().expect("static object slot lock poisoned").clone()
-    }
-    /// Installs a new object, releasing the slot before dropping its predecessor.
-    ///
-    /// # Panics
-    /// Panics if the slot is poisoned, recursively borrowed, or its old object panics on drop.
-    pub fn replace(&self, value: T) {
-        let replacement = std::sync::Arc::new(TerraneSharedCell::new(value));
-        let previous = {
-            let mut current = self
-                .current
-                .lock()
-                .expect("static object slot lock poisoned");
-            std::mem::replace(&mut *current, replacement)
-        };
-        drop(previous);
-    }
-}
-pub trait TerraneSharedHandle<T> {
-    /// Acquires a bounded exclusive borrow of the receiver's live storage.
-    ///
-    /// # Errors
-    /// Returns the original cell's poison state with a guard to the selected value.
-    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>>;
-}
-impl<T> TerraneSharedHandle<T> for std::sync::Arc<TerraneSharedCell<T>> {
-    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
-        (**self).lock()
-    }
-}
-pub struct TerraneSharedProjection<H, U, T> {
-    handle: H,
-    read: fn(&U) -> &T,
-    write: fn(&mut U) -> &mut T,
-}
-impl<H, U, T> TerraneSharedProjection<H, U, T> {
-    pub fn new(handle: H, read: fn(&U) -> &T, write: fn(&mut U) -> &mut T) -> Self {
-        Self { handle, read, write }
-    }
-}
-impl<H: Clone, U, T> Clone for TerraneSharedProjection<H, U, T> {
-    fn clone(&self) -> Self {
-        Self::new(self.handle.clone(), self.read, self.write)
-    }
-}
-struct TerraneSharedProjectedGuard<G, U, T> {
-    guard: G,
-    read: fn(&U) -> &T,
-    write: fn(&mut U) -> &mut T,
-}
-impl<G: std::ops::Deref<Target = U>, U, T> std::ops::Deref
-for TerraneSharedProjectedGuard<G, U, T> {
-    type Target = T;
-    fn deref(&self) -> &T {
-        (self.read)(&self.guard)
-    }
-}
-impl<G: std::ops::DerefMut<Target = U>, U, T> std::ops::DerefMut
-for TerraneSharedProjectedGuard<G, U, T> {
-    fn deref_mut(&mut self) -> &mut T {
-        (self.write)(&mut self.guard)
-    }
-}
-impl<H: TerraneSharedHandle<U>, U, T> TerraneSharedHandle<T>
-for TerraneSharedProjection<H, U, T> {
-    fn lock(&self) -> std::sync::LockResult<impl std::ops::DerefMut<Target = T>> {
-        let (guard, poisoned) = match self.handle.lock() {
-            Ok(guard) => (guard, false),
-            Err(error) => (error.into_inner(), true),
-        };
-        let guard = TerraneSharedProjectedGuard {
-            guard,
-            read: self.read,
-            write: self.write,
-        };
-        if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
-    }
-}
-// Source: <terrane>/projected/deps/godot/builtin.trn
-// Namespace: deps/godot/builtin
-pub use godot::classes::Node2D;
-pub use godot::builtin::Vector2;
+// Source: <terrane>/projected/deps/terrane-generated-api-facade/builtin.trn
+// Namespace: deps/terrane-generated-api-facade/builtin
+pub use terrane_generated_api_facade::classes::Node2D;
+pub use terrane_generated_api_facade::builtin::Vector2;
 pub fn terrane_static_trn_566563746f7232_new(
     x: f32,
     y: f32,
@@ -704,19 +548,46 @@ pub fn terrane_static_trn_566563746f7232_new(
     let x = x;
     let y = y;
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| godot::builtin::Vector2::new(x, y)),
+        std::panic::AssertUnwindSafe(|| terrane_generated_api_facade::builtin::Vector2::new(
+            x,
+            y,
+        )),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "godot",
-                    "godot::builtin::Vector2",
+                    "terrane-generated-api-facade",
+                    "terrane_generated_api_facade::builtin::Vector2",
                 ),
             )
         }
     }
 }
-// Source: <terrane>/projected/deps/godot/classes.trn
-// Namespace: deps/godot/classes
+// Source: <terrane>/projected/deps/terrane-generated-api-facade/classes.trn
+// Namespace: deps/terrane-generated-api-facade/classes
+pub fn terrane_static_trn_4e6f64653244_new(
+    x: f32,
+    y: f32,
+) -> Result<Node2D, crate::TerraneForeignError> {
+    let x = x;
+    let y = y;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_generated_api_facade::classes::Node2D::new(
+            x,
+            y,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-generated-api-facade",
+                    "terrane_generated_api_facade::classes::Node2D",
+                ),
+            )
+        }
+    }
+}
