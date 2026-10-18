@@ -444,6 +444,15 @@ fn load_core_rustdoc(
     }
     let sysroot = PathBuf::from(String::from_utf8_lossy(&sysroot_output.stdout).trim());
     let source_root = sysroot.join("lib/rustlib/src/rust/library/core");
+    let document = load_core_rustdoc_from_source(output_root, target, &source_root)?;
+    Ok((document, source_root))
+}
+
+fn load_core_rustdoc_from_source(
+    output_root: &Path,
+    target: &str,
+    source_root: &Path,
+) -> Result<rustdoc_types::Crate, AnalysisError> {
     let source = source_root.join("src/lib.rs");
     if !source.is_file() {
         return Err(AnalysisError {
@@ -482,7 +491,7 @@ fn load_core_rustdoc(
         match fs::read(&rustdoc_path) {
             Ok(bytes) => {
                 if let Ok(document) = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN) {
-                    return Ok((document, source_root));
+                    return Ok(document);
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -526,7 +535,7 @@ fn load_core_rustdoc(
     let bytes = fs::read(&rustdoc_path).map_err(io_error("read generated core Rustdoc"))?;
     let document = parse_rustdoc("core", &bytes, RUSTDOC_TOOLCHAIN)?;
     fs::write(&identity_path, identity).map_err(io_error("write core survey identity"))?;
-    Ok((document, source_root))
+    Ok(document)
 }
 
 fn package_source_root(package: &MetadataPackage) -> Result<&Path, AnalysisError> {
@@ -1055,31 +1064,44 @@ mod tests {
     fn core_survey_rebuilds_unmarked_and_obsolete_caches() {
         let directory = temporary_directory("stale-core-cache");
         let target = host_target().unwrap();
+        let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/core-cache");
+        let source = fixtures.join("current");
+        load_core_rustdoc_from_source(&directory, &target, &fixtures.join("obsolete")).unwrap();
         let cache = directory.join("core").join(&target);
         let marker = cache.join(".artifact-identity");
         let current_identity = format!(
             "build-toolchain={BUILD_TOOLCHAIN}\nrustdoc-toolchain={RUSTDOC_TOOLCHAIN}\nrustdoc-format={}\ntarget={target}\n",
             rustdoc_types::FORMAT_VERSION
         );
+        // Valid stale JSON isolates identity invalidation from corrupt-JSON recovery.
+        let stale_document = fs::read(cache.join("core.json")).unwrap();
         let unrelated = directory.join("unrelated-cache");
         fs::write(&unrelated, "preserve").unwrap();
         for stale_identity in [
             None,
-            Some(current_identity.replace(BUILD_TOOLCHAIN, "1.98.1")),
-            Some(current_identity.replace(RUSTDOC_TOOLCHAIN, "nightly-2026-04-29")),
+            Some(current_identity.replace(
+                &format!("build-toolchain={BUILD_TOOLCHAIN}"),
+                "build-toolchain=obsolete",
+            )),
+            Some(current_identity.replace(
+                &format!("rustdoc-toolchain={RUSTDOC_TOOLCHAIN}"),
+                "rustdoc-toolchain=obsolete",
+            )),
             Some(current_identity.replace(
                 &format!("rustdoc-format={}", rustdoc_types::FORMAT_VERSION),
-                "rustdoc-format=57",
+                "rustdoc-format=0",
             )),
-            Some(current_identity.replace(&target, "obsolete-target")),
+            Some(current_identity.replace(&format!("target={target}"), "target=obsolete")),
         ] {
             fs::create_dir_all(&cache).unwrap();
-            fs::write(cache.join("core.json"), br#"{"format_version":57}"#).unwrap();
+            fs::write(cache.join("core.json"), &stale_document).unwrap();
             fs::write(cache.join("obsolete-output"), "obsolete").unwrap();
             if let Some(stale_identity) = stale_identity {
                 fs::write(&marker, stale_identity).unwrap();
+            } else {
+                fs::remove_file(&marker).unwrap();
             }
-            let document = core_rustdoc(&directory, &target).unwrap();
+            let document = load_core_rustdoc_from_source(&directory, &target, &source).unwrap();
             assert_eq!(document.format_version, rustdoc_types::FORMAT_VERSION);
             assert!(
                 public_paths(&document)

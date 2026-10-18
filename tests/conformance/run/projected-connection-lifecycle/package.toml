@@ -1,0 +1,13 @@
+package = "projected-connection-lifecycle"
+executor = "threaded"
+
+[profile]
+name = "projected-connection-lifecycle"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-lifecycle-witness]
+version = "=0.1.0"
+effects = ["build"]

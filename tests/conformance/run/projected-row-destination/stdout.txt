@@ -1,0 +1,3 @@
+212
+missing column: missing
+incompatible value type

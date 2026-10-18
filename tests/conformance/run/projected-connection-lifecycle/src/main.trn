@@ -1,0 +1,21 @@
+namespace app
+
+from /deps/terrane-lifecycle-witness import ConnectionOptions, LifecycleError
+
+async function main;
+  path string = 'fixture.db'
+  missing_options = ConnectionOptions::new;
+  missing_options = missing_options.filename; path
+  missing_options = missing_options.create_if_missing; false
+  try
+    missing_connection = await missing_options.connect;
+    print; 'unexpected-open'
+    await missing_connection.close;
+  catch LifecycleError
+    print; 'missing'
+  create_options = ConnectionOptions::new;
+  create_options = create_options.filename; path
+  create_options = create_options.create_if_missing; true
+  connection = await create_options.connect;
+  await connection.close;
+  print; 'created-and-closed'

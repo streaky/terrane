@@ -81,6 +81,15 @@ pub(super) fn run_cli(
     arguments: &[OsString],
 ) -> Result<ExitCode, CliFailure> {
     let provenance = load_and_validate(sidecar, executable, None)?;
+    let arguments = arguments
+        .iter()
+        .map(|argument| {
+            argument
+                .to_str()
+                .map(|argument| Value::String(argument.to_owned()))
+                .ok_or_else(|| debugger_failure("debugger program arguments must be valid UTF-8"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     let mut backend = Backend::start()?;
     backend.request(
         "initialize",
@@ -94,11 +103,11 @@ pub(super) fn run_cli(
     )?;
     let mut backend_arguments = json!({
         "program": executable,
-        "args": arguments,
         "cwd": provenance.relocation.source_root,
         "stopOnEntry": true,
         "disableASLR": false
     });
+    backend_arguments["args"] = Value::Array(arguments);
     add_rust_lldb_init_commands(
         &mut backend_arguments,
         discover_rust_lldb_formatter(&provenance.rust_sysroot).as_deref(),

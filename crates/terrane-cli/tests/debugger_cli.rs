@@ -991,9 +991,9 @@ fn cli_returns_the_debuggee_exit_status() {
         &fixture.source,
         concat!(
             "namespace exit-debugger\n",
-            "from /core/process import exit, make-exit-status\n",
             "function main;\n",
-            "  exit; (make-exit-status; 7)\n",
+            "  rust\n",
+            "    std::process::exit(7);\n",
         ),
     )
     .unwrap();
@@ -1298,42 +1298,38 @@ fn cli_locals_show_the_function_binding_through_control_flow() {
 
 #[test]
 fn cli_locals_decode_active_union_arms_and_uncertain_availability() {
-    for (body, line, choose, expected) in [
-        (
-            "  if choose\n    value int = 3\n  else\n    value string = 'cat'\n  print; value\n",
-            8,
-            true,
-            "value = 3",
-        ),
-        (
-            "  if choose\n    value int = 3\n  else\n    value string = 'cat'\n  print; value\n",
-            8,
-            false,
-            "value = \"cat\"",
-        ),
-        (
-            "  if choose\n    pending int = 3\n  print; 'before-read'\n  print; pending\n",
-            6,
-            true,
-            "pending = 3",
-        ),
-        (
-            "  if choose\n    pending int = 3\n  print; 'before-read'\n  print; pending\n",
-            6,
-            false,
-            "pending = <unassigned>",
-        ),
+    let fixture = DebugFixture::new();
+    let body = concat!(
+        "  if choose\n",
+        "    value int = 3\n",
+        "  else\n",
+        "    value string = 'cat'\n",
+        "  print; value\n",
+        "  if choose\n",
+        "    pending int = 3\n",
+        "  print; 'before-read'\n",
+        "  print; pending\n",
+        "function main;\n",
+        "  choose bool = rust\n",
+        "    std::env::args().nth(1).as_deref() == Some(\"true π\")\n",
+        "  show; choose\n",
+    );
+    fs::write(
+        &fixture.source,
+        format!("namespace debugger\n\nfunction show; choose bool\n{body}"),
+    )
+    .unwrap();
+    // Both probes use the same source and cached native executable.
+    let commands = format!(
+        "break {}:11\ncontinue\nlocals\nquit\n",
+        fixture.source.display()
+    );
+    for (argument, expected_value, expected_pending) in [
+        ("true π", "value = 3", "pending = 3"),
+        ("false π", "value = \"cat\"", "pending = <unassigned>"),
     ] {
-        let fixture = DebugFixture::new();
-        fs::write(&fixture.source, format!(
-            "namespace debugger\n\nfunction show; choose bool\n{body}function main;\n  show; {choose}\n"
-        )).unwrap();
-        let commands = format!(
-            "break {}:{line}\ncontinue\nlocals\nquit\n",
-            fixture.source.display()
-        );
         let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
-            .args(["debug", fixture.source.to_str().unwrap()])
+            .args(["debug", fixture.source.to_str().unwrap(), "--", argument])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -1345,7 +1341,8 @@ fn cli_locals_decode_active_union_arms_and_uncertain_availability() {
             .unwrap();
         let stderr = String::from_utf8(output.stderr).unwrap();
         assert!(output.status.success(), "{stderr}");
-        assert!(stderr.contains(expected), "expected {expected}:\n{stderr}");
+        assert!(stderr.contains(expected_value), "{stderr}");
+        assert!(stderr.contains(expected_pending), "{stderr}");
     }
 }
 

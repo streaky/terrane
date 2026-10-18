@@ -1,0 +1,17 @@
+package = "projected-row-destination"
+executor = "threaded"
+
+[profile]
+name = "projected-row-destination"
+capabilities = ["build", "threads"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-query-witness]
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.terrane-query-contract]
+version = "=0.1.0"
+effects = ["build"]

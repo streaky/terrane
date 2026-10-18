@@ -1,42 +1,51 @@
-pub struct Database(sqlx::SqlitePool);
+#[derive(Debug)]
+pub struct LookupError;
+impl std::fmt::Display for LookupError {
+    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        output.write_str("missing key")
+    }
+}
+impl std::error::Error for LookupError {}
 
-pub async fn memory_database() -> Result<Database, sqlx::Error> {
-    Ok(Database(
-        sqlx::SqlitePool::connect("sqlite::memory:").await?,
-    ))
+pub struct Database {
+    key: String,
 }
 
-pub struct ScalarQuery<'q> {
+pub async fn memory_database() -> Database {
+    std::future::ready(()).await;
+    Database {
+        key: "answer".to_owned(),
+    }
+}
+
+pub struct ScalarLookup<'q> {
     database: &'q Database,
-    sql: String,
+    key: String,
     value: i64,
 }
 
-pub fn query_scalar(database: &Database, sql: String) -> ScalarQuery<'_> {
-    ScalarQuery {
+pub fn lookup_scalar(database: &Database, key: String) -> ScalarLookup<'_> {
+    ScalarLookup {
         database,
-        sql,
+        key,
         value: 0,
     }
 }
 
-impl ScalarQuery<'_> {
+impl ScalarLookup<'_> {
     #[must_use]
     pub fn bind(mut self, value: i64) -> Self {
         self.value = value;
         self
     }
 
-    pub async fn pause(self) -> Self {
+    pub async fn fetch_one(self) -> Result<i64, LookupError> {
         std::future::ready(()).await;
-        self
-    }
-
-    pub async fn fetch_one(self) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar::<_, i64>(&self.sql)
-            .bind(self.value)
-            .fetch_one(&self.database.0)
-            .await
+        if self.key == self.database.key {
+            Ok(self.value)
+        } else {
+            Err(LookupError)
+        }
     }
 }
 
@@ -53,11 +62,6 @@ impl LineBuilder<'_> {
     #[must_use]
     pub fn number(mut self, value: i64) -> Self {
         self.value = value;
-        self
-    }
-
-    pub async fn pause(self) -> Self {
-        std::future::ready(()).await;
         self
     }
 

@@ -163,9 +163,13 @@ Combine related CLI assertions when they can share one native build without
 losing a distinct failure case. Prefer small local Rust witnesses for projection
 shapes; `projected-generated-api-reexport` generates a hidden owner API in a build
 script and executes calls through a separate facade without pulling Godot into
-ordinary conformance. Real Godot compatibility remains in dedicated native-survey
-profiles. Preserve real dependencies when their actual behavior is the assertion,
-and keep profiling workloads long enough to collect meaningful samples.
+ordinary conformance. The scoped-expression, document-byte, query, and framed-socket
+fixtures similarly preserve the relevant native type and runtime boundaries with local
+crates. They do not assert Iced, PDF rendering, SQLx, Axum, or Reqwest compatibility;
+real-library evidence belongs in dedicated native-survey/application checks. Cache-key
+tests similarly use tiny real Rustdoc inputs while retaining separate real-sysroot coverage.
+Keep profiling workloads long enough to collect meaningful samples, and inspect
+fresh-source reports before rewriting a workload for comparison.
 
 For complete workspace verification, run the timing collector from a clean tree at a commit:
 

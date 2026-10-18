@@ -84,16 +84,11 @@ fn heaptrack_available() -> bool {
 }
 
 fn workload(iterations: u64, exit: Option<i32>) -> String {
-    let exit_import = if exit.is_some() {
-        "from /core/process import exit, make-exit-status\n\n"
-    } else {
-        ""
-    };
     let exit_statement = exit.map_or_else(String::new, |status| {
-        format!("  exit; (make-exit-status; {status})\n")
+        format!("  rust\n    std::process::exit({status});\n")
     });
     format!(
-        "namespace profile\n\n{exit_import}function main;\n  count int64 = {iterations}\n  index int64 = 0\n  total int64 = 0\n  while index < count\n    total = total + (index % 97)\n    index++\n  print; total\n{exit_statement}"
+        "namespace profile\n\nfunction main;\n  count int64 = {iterations}\n  index int64 = 0\n  total int64 = 0\n  while index < count\n    total = total + (index % 97)\n    index++\n  print; total\n{exit_statement}"
     )
 }
 
@@ -157,20 +152,17 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
         "Linux x86-64 profiling evidence requires an available perf collector"
     );
     let source = directory.path().join("src/α.trn");
-    fs::write(&source, workload(100_000_000, None)).unwrap();
+    fs::write(&source, workload(20_000_000, None)).unwrap();
     let slow = record(&directory, "slow.trnprof");
     assert!(slow.status.success(), "{slow:?}");
-    let fresh = Command::new(env!("CARGO_BIN_EXE_terrane"))
+    let shown = Command::new(env!("CARGO_BIN_EXE_terrane"))
         .args(["profile", "show"])
         .arg(directory.path().join("slow.trnprof"))
-        .args(["--format", "json"])
+        .args(["--format", "json", "--focus", "src/α.trn:7"])
         .output()
         .unwrap();
-    assert!(fresh.status.success(), "{fresh:?}");
-    let fresh: serde_json::Value = serde_json::from_slice(&fresh.stdout).unwrap();
-    assert_eq!(fresh["report"]["fidelity"], "exact-build-source");
-
-    fs::write(&source, workload(25_000_000, None)).unwrap();
+    assert!(shown.status.success(), "{shown:?}");
+    fs::write(&source, workload(2_000_000, None)).unwrap();
     let corrected = record(&directory, "corrected.trnprof");
     assert!(corrected.status.success(), "{corrected:?}");
 
@@ -201,14 +193,8 @@ fn real_cpu_profiles_distinguish_slow_and_corrected_exact_builds() {
     assert_eq!(slow["conditions"]["argument_policy"], "omitted");
     assert!(!slow.to_string().contains("private-workload-argument"));
 
-    let shown = Command::new(env!("CARGO_BIN_EXE_terrane"))
-        .args(["profile", "show"])
-        .arg(directory.path().join("slow.trnprof"))
-        .args(["--format", "json", "--focus", "src/α.trn:7"])
-        .output()
-        .unwrap();
-    assert!(shown.status.success(), "{shown:?}");
     let report: serde_json::Value = serde_json::from_slice(&shown.stdout).unwrap();
+    assert_eq!(report["report"]["fidelity"], "exact-build-source");
     let captured = report["report"]["captured_samples"].as_u64().unwrap();
     let buckets = report["report"]["buckets"].as_object().unwrap();
     assert_eq!(
@@ -238,7 +224,7 @@ fn nonzero_workload_still_publishes_usable_capture() {
     );
     fs::write(
         directory.path().join("src/main.trn"),
-        workload(25_000_000, Some(7)),
+        workload(2_000_000, Some(7)),
     )
     .unwrap();
 
@@ -295,7 +281,13 @@ fn interruption_forwards_to_the_workload_and_finalizes_the_capture() {
     );
     fs::write(
         directory.path().join("src/main.trn"),
-        workload(100_000_000_000, None),
+        concat!(
+            "namespace profile\n",
+            "function main;\n",
+            "  rust\n",
+            "    let stop = std::time::Instant::now() + std::time::Duration::from_secs(10);\n",
+            "    while std::time::Instant::now() < stop { std::hint::spin_loop(); }\n",
+        ),
     )
     .unwrap();
     let output = directory.path().join("interrupted.trnprof");
@@ -344,12 +336,12 @@ fn allocation_capture_separates_churn_from_retained_bytes() {
          from /core/collections import list\n\
          function main;\n\
            index int = 0\n\
-           while index < 5000\n\
+           while index < 500\n\
              temporary list of int = list; index, index + 1, index + 2\n\
              index++\n\
            retained list of int = list\n\
            index = 0\n\
-           while index < 5000\n\
+           while index < 500\n\
              retained.append; index\n\
              index++\n",
     )

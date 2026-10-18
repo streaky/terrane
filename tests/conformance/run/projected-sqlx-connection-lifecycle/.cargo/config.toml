@@ -1,2 +1,0 @@
-[patch.crates-io]
-terrane-sqlx-lifecycle-witness = { path = "fixture-registry/terrane-sqlx-lifecycle-witness-0.1.0" }

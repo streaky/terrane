@@ -108,7 +108,15 @@ fn references_advanced_symbol(
             .any(|child| references_advanced_symbol(package, unit, child))
 }
 pub(crate) fn package_uses_advanced_streams(package: &SemanticPackage) -> bool {
-    for unit in package.units.iter().filter(|unit| !unit.bundled) {
+    // Only the fast-path modules themselves may have their unused advanced items omitted.
+    // Other emitted bundled units still need the IO/time types in their signatures and bodies.
+    for unit in package.units.iter().filter(|unit| {
+        !unit.bundled
+            || !matches!(
+                unit.namespace.as_str(),
+                "/core/streams" | "/core/io" | "/core/time"
+            )
+    }) {
         if unit
             .functions
             .iter()
