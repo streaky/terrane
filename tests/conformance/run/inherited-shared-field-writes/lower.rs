@@ -215,22 +215,24 @@ fn main() {
             .append(__terrane_collection_argument_0);
     };
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
-        plain.lock().expect("reference lock poisoned").flag; __terrane_snapshot }),
-        String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
-        = plain.lock().expect("reference lock poisoned").count.clone();
-        __terrane_snapshot }), String::from(" "),
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = {
+        let __terrane_result = plain.lock().expect("reference lock poisoned").flag;
+        __terrane_result }; __terrane_snapshot }), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = plain.lock().expect("reference lock poisoned").count.clone();
+        __terrane_result }; __terrane_snapshot }), String::from(" "),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
-        __terrane_snapshot = plain.lock().expect("reference lock poisoned").values
-        .clone(); __terrane_snapshot } .length()))
+        __terrane_snapshot = { let __terrane_result = plain.lock()
+        .expect("reference lock poisoned").values.clone(); __terrane_result };
+        __terrane_snapshot } .length()))
     );
     assign(held.clone());
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = plain
-        .lock().expect("reference lock poisoned").count.clone(); __terrane_snapshot }),
-        String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
-        = held.lock().expect("shared reference lock poisoned").count.clone();
-        __terrane_snapshot })
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = plain.lock().expect("reference lock poisoned").count.clone();
+        __terrane_result }; __terrane_snapshot }), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = held.lock()
+        .expect("shared reference lock poisoned").count.clone(); __terrane_snapshot })
     );
     weak = std::sync::Arc::downgrade(&plain.clone());
     {
@@ -239,11 +241,11 @@ fn main() {
         __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = plain
-        .lock().expect("reference lock poisoned").count.clone(); __terrane_snapshot }),
-        String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
-        = held.lock().expect("shared reference lock poisoned").count.clone();
-        __terrane_snapshot })
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = plain.lock().expect("reference lock poisoned").count.clone();
+        __terrane_result }; __terrane_snapshot }), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = held.lock()
+        .expect("shared reference lock poisoned").count.clone(); __terrane_snapshot })
     );
     {
         let __terrane_owner = weak.upgrade().expect("reference expired");
@@ -271,8 +273,9 @@ fn main() {
     }
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised({ let
-        __terrane_snapshot = plain.lock().expect("reference lock poisoned").values
-        .clone(); __terrane_snapshot }
+        __terrane_snapshot = { let __terrane_result = plain.lock()
+        .expect("reference lock poisoned").values.clone(); __terrane_result };
+        __terrane_snapshot }
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         1 /* terrane-site: case.trn:40:12-40:27 */)), 1 /* terrane-site: case.trn:40:12-40:27 */)), String::from(" "),
         terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_snapshot =
@@ -301,14 +304,15 @@ fn main() {
             .terrane_field_flag_mut() = __terrane_value;
     }
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
-        other.lock().expect("reference lock poisoned").terrane_field_count().clone();
-        __terrane_snapshot }), String::from(" "), terrane_scalar_support::scalar_text(&{
-        let __terrane_snapshot = other_held.lock()
-        .expect("shared reference lock poisoned").terrane_field_count().clone();
-        __terrane_snapshot }), String::from(" "), terrane_scalar_support::scalar_text(&{
-        let __terrane_snapshot = * other.lock().expect("reference lock poisoned")
-        .terrane_field_flag(); __terrane_snapshot })
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = {
+        let __terrane_result = other.lock().expect("reference lock poisoned")
+        .terrane_field_count().clone(); __terrane_result }; __terrane_snapshot }),
+        String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
+        = other_held.lock().expect("shared reference lock poisoned")
+        .terrane_field_count().clone(); __terrane_snapshot }), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = * other.lock().expect("reference lock poisoned")
+        .terrane_field_flag(); __terrane_result }; __terrane_snapshot })
     );
     {
         let __terrane_owner = other_held.clone();
@@ -377,12 +381,14 @@ fn main() {
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
         other_held.lock().expect("shared reference lock poisoned").terrane_field_count()
         .clone(); __terrane_snapshot }), String::from(" "),
-        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = other.lock()
-        .expect("reference lock poisoned").terrane_field_required().clone();
-        __terrane_snapshot } .value), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = other.lock().expect("reference lock poisoned")
+        .terrane_field_required().clone(); __terrane_result }; __terrane_snapshot }
+        .value), String::from(" "),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
-        __terrane_snapshot = other.lock().expect("reference lock poisoned")
-        .terrane_field_values().clone(); __terrane_snapshot } .length()))
+        __terrane_snapshot = { let __terrane_result = other.lock()
+        .expect("reference lock poisoned").terrane_field_values().clone();
+        __terrane_result }; __terrane_snapshot } .length()))
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = *
@@ -404,11 +410,12 @@ fn main() {
             .value = __terrane_value;
     }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = plain
-        .lock().expect("reference lock poisoned").required.as_ref()
-        .expect("required field initialized").clone(); __terrane_snapshot } .value),
-        String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
-        = held.lock().expect("shared reference lock poisoned").required.as_ref()
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = plain.lock().expect("reference lock poisoned").required
+        .as_ref().expect("required field initialized").clone(); __terrane_result };
+        __terrane_snapshot } .value), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = held.lock()
+        .expect("shared reference lock poisoned").required.as_ref()
         .expect("required field initialized").clone(); __terrane_snapshot } .value)
     );
     replacement = Item::terrane_construct();
@@ -424,11 +431,12 @@ fn main() {
         );
     }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = plain
-        .lock().expect("reference lock poisoned").required.as_ref()
-        .expect("required field initialized").clone(); __terrane_snapshot } .value),
-        String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
-        = held.lock().expect("shared reference lock poisoned").required.as_ref()
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = plain.lock().expect("reference lock poisoned").required
+        .as_ref().expect("required field initialized").clone(); __terrane_result };
+        __terrane_snapshot } .value), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = held.lock()
+        .expect("shared reference lock poisoned").required.as_ref()
         .expect("required field initialized").clone(); __terrane_snapshot } .value)
     );
     {

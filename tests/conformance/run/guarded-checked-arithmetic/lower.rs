@@ -501,7 +501,7 @@ fn main() {
         );
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&* shared_value.lock()
-        .expect("reference lock poisoned"))
+        "{}", { let __terrane_result = terrane_scalar_support::scalar_text(&*
+        shared_value.lock().expect("reference lock poisoned")); __terrane_result }
     );
 }
