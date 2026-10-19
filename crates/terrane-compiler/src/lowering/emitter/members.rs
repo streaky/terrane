@@ -441,11 +441,10 @@ impl Emitter<'_> {
                 "__terrane_owner.lock().expect(\"reference lock poisoned\")",
             )
         } else if self.reference_backed_name(receiver).is_some() {
-            let storage = self.raw_storage_name(receiver);
             let owner = if mutable {
-                format!("{storage}.clone()")
+                self.reference_storage_expression(receiver)
             } else {
-                format!("&{storage}")
+                self.borrowed_receiver_handle(receiver)
             };
             (
                 owner,
@@ -454,7 +453,12 @@ impl Emitter<'_> {
         } else {
             return None;
         };
-        Some((format!("let __terrane_owner = {owner}; "), guard.to_owned()))
+        // Refine the guarded payload only when the returned place is used. In
+        // particular, staging the owner must not acquire a guard before arguments.
+        let value = self
+            .narrowed_storage_projection(receiver, guard, mutable)
+            .unwrap_or_else(|| guard.to_owned());
+        Some((format!("let __terrane_owner = {owner}; "), value))
     }
 
     fn receiver_place_parts(&mut self, receiver: &SyntaxNode, mutable: bool) -> (String, String) {

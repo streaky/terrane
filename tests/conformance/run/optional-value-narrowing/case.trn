@@ -1,4 +1,32 @@
 namespace optional-value-narrowing
+from /core/collections import list
+
+class counter
+    total int = 0
+    tag string|none = 'tag'
+    items list of int = list; 0
+    mutable function bump; amount int = 1
+        this.total = this.total + amount
+
+class derived-counter extends counter
+    extra int = 0
+
+function mutate-counter; value counter|none
+    _observer = shared ref value
+    if value != none
+        (value).bump;
+        print; value.total
+        value.bump; value.total
+        print; value.total
+        value.total = 10
+        value.total = value.total + 1
+        value.items.append; value.total
+        value.items[value.total - 11] = value.total + 1
+        print; value.total, '/', value.items[0], '/', value.items[1]
+        print; (value.tag) != none, none == value.tag
+        value.tag = none
+        print; value.tag == none
+
 function helper;
     found string = 'shadow'
     print; found
@@ -68,3 +96,12 @@ function main;
         _lateowner = shared ref late
     if late != none
         print; late, late
+    mutate-counter; (instance counter;)
+    mutate-counter; (instance derived-counter;)
+    if enabled;
+        latecounter counter|none = instance counter;
+        _counterowner = shared ref latecounter
+    if latecounter != none
+        latecounter.bump;
+        latecounter.total = latecounter.total + 9
+        print; latecounter.total, latecounter.tag != none

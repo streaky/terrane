@@ -1414,15 +1414,7 @@ impl<'unit> Emitter<'unit> {
         self.line(&format!("__terrane_debug_point!({comment:?});"));
     }
 
-    pub(super) fn narrowed_storage_name(
-        &self,
-        node: &SyntaxNode,
-        owned: bool,
-        mutable: bool,
-    ) -> Option<String> {
-        if self.assignment_target {
-            return None;
-        }
+    fn storage_refinement(&self, node: &SyntaxNode) -> Option<(&ValueType, String)> {
         let key = (node.span.file, node.span.start, node.span.end);
         let identity = *self.unit.flow_binding_ids.get(&key)?;
         let physical = self.unit.flow_binding_types.get(&identity).or_else(|| {
@@ -1441,6 +1433,36 @@ impl<'unit> Emitter<'unit> {
             ValueType::Optional(inner) if inner.as_ref() == value_type => "Some".to_owned(),
             _ => return None,
         };
+        Some((value_type, variant))
+    }
+
+    fn storage_refinement_expression(access: &str, variant: &str) -> String {
+        format!(
+            "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
+        )
+    }
+
+    pub(super) fn narrowed_storage_projection(
+        &self,
+        node: &SyntaxNode,
+        guard: &str,
+        mutable: bool,
+    ) -> Option<String> {
+        let (_, variant) = self.storage_refinement(node)?;
+        let access = format!("&{}*{guard}", if mutable { "mut " } else { "" });
+        Some(Self::storage_refinement_expression(&access, &variant))
+    }
+
+    pub(super) fn narrowed_storage_name(
+        &self,
+        node: &SyntaxNode,
+        owned: bool,
+        mutable: bool,
+    ) -> Option<String> {
+        if self.assignment_target {
+            return None;
+        }
+        let (value_type, variant) = self.storage_refinement(node)?;
         let shared = self
             .local_typed_binding(node)
             .is_some_and(|binding| self.reference_backed(binding));
@@ -1475,9 +1497,7 @@ impl<'unit> Emitter<'unit> {
         } else {
             access
         };
-        let value = format!(
-            "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
-        );
+        let value = Self::storage_refinement_expression(&access, &variant);
         let value = if mutable || take {
             format!("({value})")
         } else if copy {
