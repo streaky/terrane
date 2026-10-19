@@ -30,5 +30,12 @@ async function main;
     first = outcomes[0]
     second = outcomes[1]
     print; first.cancelled and not first.completed
-    print; second.error != none
+    propagated bool = false
+    try
+        error = second.error
+        if error != none
+            throw error
+    catch worker-error
+        propagated = true
+    print; propagated
     print; observer.cleaned

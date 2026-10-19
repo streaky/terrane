@@ -1038,7 +1038,10 @@ impl<'unit> Emitter<'unit> {
                         .iter()
                         .any(|field| {
                             field.name == name
-                                && matches!(field.value_type, ValueType::Function(..))
+                                && matches!(
+                                    field.value_type,
+                                    ValueType::Function(..) | ValueType::AsyncFunction(..)
+                                )
                         })
                 })
     }

@@ -49,6 +49,7 @@ pub(super) struct LoweringRegistry {
     pub(super) descriptor_ids: RefCell<BTreeMap<String, u32>>,
     pub(super) uses_float_coercion_error: Cell<bool>,
     pub(super) uses_mutable_callable: Cell<bool>,
+    pub(super) uses_async_mutable_state: Cell<bool>,
     pub(super) uses_consuming_callable: Cell<bool>,
     pub(super) mutable_native_callback_parameters: RefCell<BTreeSet<CallbackParameterKey>>,
 }

@@ -11,7 +11,7 @@ use crate::{
         },
     },
     semantics::{
-        ClosureWrites, FunctionContract, InvocationMode, ValueType,
+        ClosureWrites, FunctionContract, InvocationMode, ParameterContract, ValueType,
         binding_requires_mutable_storage, binding_storage_is_replaced, binding_store_value_is_read,
     },
     syntax::{SyntaxKind, SyntaxNode},
@@ -330,24 +330,47 @@ impl Emitter<'_> {
             })
             .collect()
     }
-    fn emit_parameter_union_carriers(&mut self, contract: &FunctionContract) {
+    fn parameter_needs_shared_storage(&self, parameter: &ParameterContract) -> bool {
+        self.reference_owner_uses_shared_storage(parameter.span)
+            && (parameter.variadic
+                || !matches!(
+                    parameter.value_type,
+                    Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                ))
+    }
+
+    fn emit_parameter_carriers(&mut self, contract: &FunctionContract) {
         for parameter in &contract.parameters {
-            let Some(ValueType::Union(arms)) = self.unit.flow_binding_types.get(&parameter.span)
-            else {
+            let shared = self.parameter_needs_shared_storage(parameter);
+            let flow_type = self.unit.flow_binding_types.get(&parameter.span);
+            if !shared && !matches!(flow_type, Some(ValueType::Union(_))) {
                 continue;
-            };
+            }
             let Some(source_type) = parameter.binding_value_type() else {
                 continue;
             };
-            let Some(index) = arms.iter().position(|arm| arm == &source_type) else {
-                continue;
+            let union_arm = match flow_type {
+                Some(ValueType::Union(arms)) => arms.iter().position(|arm| arm == &source_type),
+                _ => None,
             };
             let name = self.storage_name_at(&parameter.name, parameter.span);
-            let carrier = union_type_name_for_span(parameter.span);
-            self.line(&format!(
-                "let mut {name}: {carrier} = {carrier}::Arm{index}({});",
-                self.parameter_source_name(&parameter.name, parameter.span)
-            ));
+            let source = self.parameter_source_name(&parameter.name, parameter.span);
+            if shared {
+                let value = if let Some(index) = union_arm {
+                    let carrier = union_type_name_for_span(parameter.span);
+                    format!("{carrier}::Arm{index}({source})")
+                } else {
+                    source
+                };
+                self.line(&format!(
+                    "let {name} = std::sync::Arc::new(TerraneSharedCell::new({value}));"
+                ));
+            } else if let Some(index) = union_arm {
+                let carrier = union_type_name_for_span(parameter.span);
+                self.line(&format!(
+                    "let mut {name}: {carrier} = {carrier}::Arm{index}({source});"
+                ));
+            }
         }
     }
     #[expect(
@@ -503,6 +526,7 @@ impl Emitter<'_> {
                             )
                     );
             let mutable_storage = parameter.mutable
+                && !self.parameter_needs_shared_storage(parameter)
                 && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
                     || binding_storage_is_replaced(
                         self.package,
@@ -661,7 +685,7 @@ impl Emitter<'_> {
         for function in &local_functions {
             self.local_function(function);
         }
-        self.emit_parameter_union_carriers(contract);
+        self.emit_parameter_carriers(contract);
         self.emit_function_storage(contract);
         let unused_parameters = contract
             .parameters
@@ -828,6 +852,7 @@ impl Emitter<'_> {
                 let native_mutable_reference =
                     self.mutable_native_reference_parameter(contract, index, binding_type.as_ref());
                 let mutable_storage = parameter.mutable
+                    && !self.parameter_needs_shared_storage(parameter)
                     && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
                         || binding_storage_is_replaced(
                             self.package,
@@ -957,7 +982,7 @@ impl Emitter<'_> {
             for function in &local_functions {
                 self.local_function(function);
             }
-            self.emit_parameter_union_carriers(contract);
+            self.emit_parameter_carriers(contract);
             self.emit_function_storage(contract);
             self.block(block);
             if result == ValueType::Scalar(ScalarType::None) && block_may_fall_through(block) {
@@ -979,6 +1004,7 @@ impl Emitter<'_> {
             self.anonymous_function_captures(node, contract);
         let invocation_guard =
             if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
+                self.registry.uses_async_mutable_state.set(true);
                 captures.push_str("let __terrane_invocation = TerraneAsyncInvocationGate::new(); ");
                 invocation_captures
                     .push_str("let __terrane_invocation = __terrane_invocation.share(); ");
@@ -1049,6 +1075,7 @@ impl Emitter<'_> {
                         })
             });
             if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
+                self.registry.uses_async_mutable_state.set(true);
                 write!(
                     captures,
                     "let {name} = TerraneAsyncMutableState::new({source}.clone()); "

@@ -271,6 +271,17 @@ impl SyntaxNode {
         }
     }
 
+    pub(crate) fn type_designator_head(&self) -> Option<&Self> {
+        let mut node = self;
+        while matches!(
+            node.kind,
+            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType
+        ) {
+            node = node.children.first()?;
+        }
+        Some(node)
+    }
+
     pub(crate) fn switch_selector(&self) -> Option<&SyntaxNode> {
         if self.kind != SyntaxKind::SwitchStatement {
             return None;

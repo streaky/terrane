@@ -3,13 +3,26 @@ namespace callable-mode-fields-only
 function noop;
   return
 
+async function increment int; value int
+  return value + 1
+
 class operations
   change mutable function to none = noop
   finish consuming function to none = noop
+  read async function from int to int = increment
+  change-async mutable async function from int to int = increment
+  finish-async consuming async function from int to int = increment
 
-function main;
+async function main;
   value operations = instance operations;
   value.change;
+  read = value.read
+  change = value.change-async
+  finish = value.finish-async
+  first = await read; 1
+  second = await change; 2
+  third = await finish; 3
+  print; first, second, third
   print; >changed
   value.finish;
   print; >finished

@@ -1019,7 +1019,13 @@ impl Emitter<'_> {
                 self.expression(node)
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
-                if node.kind == SyntaxKind::Name =>
+                if node.kind == SyntaxKind::Name
+                    || node.kind == SyntaxKind::MemberExpression
+                        && matches!(
+                            node.children.as_slice(),
+                            [receiver, member]
+                                if self.callable_object_field(receiver, self.text(member))
+                        ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1123,13 +1129,16 @@ impl Emitter<'_> {
                         "let receiver = receiver.clone(); ",
                         format!("receiver.{method}({arguments}).await"),
                     ),
-                    InvocationMode::Mutable => (
-                        format!("TerraneAsyncMutableState::new({receiver})"),
-                        "let receiver = receiver.share(); ",
-                        format!(
-                            "receiver.with_receiver(move |receiver| Box::pin(async move {{ receiver.{method}({arguments}).await }})).await"
-                        ),
-                    ),
+                    InvocationMode::Mutable => {
+                        self.registry.uses_async_mutable_state.set(true);
+                        (
+                            format!("TerraneAsyncMutableState::new({receiver})"),
+                            "let receiver = receiver.share(); ",
+                            format!(
+                                "receiver.with_receiver(move |receiver| Box::pin(async move {{ receiver.{method}({arguments}).await }})).await"
+                            ),
+                        )
+                    }
                     InvocationMode::Consuming => (
                         receiver,
                         "",

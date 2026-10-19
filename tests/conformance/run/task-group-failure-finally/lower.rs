@@ -139,6 +139,8 @@ fn main() {
                 >;
                 let first: TerraneTaskOutcome<terrane_int_support::Int>;
                 let second: TerraneTaskOutcome<terrane_int_support::Int>;
+                let mut propagated: bool;
+                let mut error: Option<Option<TerraneError>> = None;
                 observer = std::sync::Arc::new(
                     TerraneSharedCell::new(State::terrane_construct()),
                 );
@@ -219,9 +221,58 @@ fn main() {
                     "{}", terrane_scalar_support::scalar_text(&(first.cancelled &&! first
                     .completed))
                 );
-                println!(
-                    "{}", terrane_scalar_support::scalar_text(&second.error.is_some())
-                );
+                propagated = false;
+                let __terrane_completion_1: TerraneCompletion<()> = (|| {
+                    let __terrane_try_1: TerraneCompletion<()> = (|| {
+                        let _ = error.insert(second.error);
+                        if error
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .clone()
+                            .is_some()
+                        {
+                            return TerraneCompletion::Error(
+                                match error.take().expect("flow-proven availability") {
+                                    Some(value) => value,
+                                    _ => unreachable!("flow-proven storage refinement"),
+                                }
+                                    .at(5 /* terrane-site: case.trn:37:13-37:24 */),
+                            );
+                        }
+                        TerraneCompletion::Normal
+                    })();
+                    match __terrane_try_1 {
+                        TerraneCompletion::Return(value) => {
+                            return TerraneCompletion::Return(value);
+                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                        TerraneCompletion::Normal => {}
+                        TerraneCompletion::Error(__terrane_error_1) => {
+                            let mut __terrane_handled_1 = false;
+                            if !__terrane_handled_1
+                                && __terrane_error_1.kind
+                                    == TerraneErrorKind::Custom(DescriptorId(0))
+                            {
+                                __terrane_handled_1 = true;
+                                propagated = true;
+                            }
+                            if !__terrane_handled_1 {
+                                return TerraneCompletion::Error(__terrane_error_1);
+                            }
+                        }
+                    }
+                    TerraneCompletion::Normal
+                })();
+                match __terrane_completion_1 {
+                    TerraneCompletion::Normal => {}
+                    TerraneCompletion::Return(value) => return value,
+                    TerraneCompletion::Error(error) => __terrane_uncaught(error),
+                    TerraneCompletion::Break | TerraneCompletion::Continue => {
+                        __terrane_generated_defect("loop control escaped a non-loop try")
+                    }
+                }
+                println!("{}", terrane_scalar_support::scalar_text(&propagated));
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
                     observer.lock().expect("shared reference lock poisoned").cleaned;

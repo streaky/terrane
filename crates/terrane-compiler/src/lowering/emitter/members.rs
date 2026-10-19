@@ -565,15 +565,7 @@ impl Emitter<'_> {
     }
 
     pub(super) fn class_designator(&self, node: &SyntaxNode) -> Option<&DescriptorContract> {
-        match node.kind {
-            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType => {
-                return node
-                    .children
-                    .first()
-                    .and_then(|child| self.class_designator(child));
-            }
-            _ => {}
-        }
+        let node = node.type_designator_head()?;
         let name = self.text(node);
         if name == "self" {
             let identity = self.current_object.as_ref()?;

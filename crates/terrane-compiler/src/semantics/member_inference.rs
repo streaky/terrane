@@ -559,7 +559,7 @@ fn infer_member_type(
             "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
             "value" => Ok(Some(ValueType::Optional(Box::new(result.value_type())))),
             "error" => Ok(Some(ValueType::Optional(Box::new(ValueType::Object(
-                ObjectIdentity::new("/core/errors", "TerraneError"),
+                ObjectIdentity::new("/core/errors", "throwable"),
             ))))),
             _ => Err(failure(
                 &unit.source,

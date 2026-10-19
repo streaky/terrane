@@ -1130,6 +1130,7 @@ pub(super) fn index_projected_static_method_references(
     ) {
         if node.kind == SyntaxKind::StaticMemberExpression
             && let [receiver, member] = node.children.as_slice()
+            && let Some(receiver) = receiver.type_designator_head()
             && let Some(symbol) = package.resolve_name_at(
                 unit,
                 receiver.span.start,
