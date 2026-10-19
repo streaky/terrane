@@ -1584,6 +1584,58 @@ impl Emitter<'_> {
         {
             place = inner;
         }
+        if place.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = place.children.as_slice()
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::Object(_) | ValueType::TaskOutcome(_))
+            )
+            && matches!(self.value_type(place), Some(ValueType::Optional(_)))
+            && !self.is_throwable_value(receiver)
+        {
+            let member_name = self.text(member).to_owned();
+            let task_outcome = matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::TaskOutcome(_))
+            );
+            let (setup, receiver_value) = self.borrowed_receiver_parts(receiver);
+            let access = if task_outcome {
+                format!("&({receiver_value}).{member_name}")
+            } else {
+                let field = self
+                    .native_field_name(self.receiver_value_type(receiver).as_ref(), &member_name);
+                let required = self.receiver_value_type(receiver).is_some_and(|ty| {
+                    matches!(ty, ValueType::Object(identity)
+                        if source_field_is_required(self.package, &identity, &member_name))
+                });
+                let wrapped = self.wrapped_object_field(receiver, &member_name);
+                match (wrapped, required) {
+                    (true, true) => format!(
+                        "({receiver_value}).terrane_field_{field}_slot().as_ref().expect(\"required field initialized\")"
+                    ),
+                    (true, false) => {
+                        format!("({receiver_value}).terrane_field_{field}()")
+                    }
+                    (false, true) => format!(
+                        "({receiver_value}).{field}.as_ref().expect(\"required field initialized\")"
+                    ),
+                    (false, false) => format!("&({receiver_value}).{field}"),
+                }
+            };
+            let presence = format!(
+                "({access}).{}",
+                if operator == "==" {
+                    "is_none()"
+                } else {
+                    "is_some()"
+                }
+            );
+            return if setup.is_empty() {
+                presence
+            } else {
+                format!("{{ {setup} {presence} }}")
+            };
+        }
         let value = if place.kind == SyntaxKind::Name {
             if let Some(binding) = self
                 .local_typed_binding(place)
@@ -1607,7 +1659,6 @@ impl Emitter<'_> {
             format!("({value}).is_some()")
         }
     }
-
     pub(super) fn optional_none_comparison(
         &mut self,
         left: &SyntaxNode,

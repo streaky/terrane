@@ -34,7 +34,7 @@ fn main() {
         outcome = __terrane_await(scope.join(child)).await;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&outcome.cancelled),
-            terrane_scalar_support::scalar_text(&outcome.value.clone().is_none())
+            terrane_scalar_support::scalar_text(&(&outcome.value).is_none())
         );
     });
 }

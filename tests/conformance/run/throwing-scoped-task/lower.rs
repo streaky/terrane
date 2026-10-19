@@ -39,8 +39,8 @@ fn main() {
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
             terrane_scalar_support::scalar_text(&outcome.cancelled),
-            terrane_scalar_support::scalar_text(&outcome.value.clone().is_none())
+            terrane_scalar_support::scalar_text(&(&outcome.value).is_none())
         );
-        println!("{}", terrane_scalar_support::scalar_text(&outcome.error.is_some()));
+        println!("{}", terrane_scalar_support::scalar_text(&(&outcome.error).is_some()));
     });
 }
