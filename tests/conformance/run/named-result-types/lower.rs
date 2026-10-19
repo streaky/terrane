@@ -34,7 +34,7 @@ fn main() {
     );
     text = String::from("banana");
     found = terrane_string_support::find(&text, &String::from("ana"));
-    if found.is_some() {
+    if (&found).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &found { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") } .text()

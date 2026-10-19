@@ -27,7 +27,7 @@ fn main() {
         value.response = __terrane_value;
     }
     request = value.request.clone();
-    if request.is_some() {
+    if (&request).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &request { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

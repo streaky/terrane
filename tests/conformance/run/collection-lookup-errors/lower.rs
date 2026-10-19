@@ -54,7 +54,7 @@ fn main() {
         )
         .ok()
         .and_then(|index| values.get(index).cloned());
-    println!("{}", terrane_scalar_support::scalar_text(&checked_index.is_none()));
+    println!("{}", terrane_scalar_support::scalar_text(&(&checked_index).is_none()));
     values_by_key = terrane_collection_support::Map::<
         String,
         terrane_int_support::Int,
@@ -104,7 +104,7 @@ fn main() {
     checked_key = values_by_key.get(&String::from("absent")).cloned();
     present_key = values_by_key.get(&String::from("present")).cloned();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&checked_key.is_none()),
-        terrane_scalar_support::scalar_text(&present_key.is_some())
+        "{}{}", terrane_scalar_support::scalar_text(&(&checked_key).is_none()),
+        terrane_scalar_support::scalar_text(&(&present_key).is_some())
     );
 }

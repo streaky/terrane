@@ -104,7 +104,7 @@ fn main() {
     pending = Slot::<String>::terrane_construct();
     pending.set(String::from("ready"));
     value = pending.value;
-    if value.is_some() {
+    if (&value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &value { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

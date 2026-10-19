@@ -37,7 +37,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&outcome.cancelled)
         );
         value = outcome.value.clone();
-        if value.is_some() {
+        if (&value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &value { Some(value) =>
                 value, _ => unreachable!("flow-proven storage refinement") })

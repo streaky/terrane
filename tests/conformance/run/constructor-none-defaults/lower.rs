@@ -38,7 +38,7 @@ impl Holder {
     }
 }
 fn describe(value: Option<Payload>) -> String {
-    if value.is_some() {
+    if (&value).is_some() {
         return {
             let mut __terrane_text = String::with_capacity(6);
             __terrane_text.push_str("value=");
@@ -75,7 +75,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&partial.value.is_none())
     );
     owned = present.value.clone();
-    if owned.is_some() {
+    if (&owned).is_some() {
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&present.tag),
             String::from(":"), terrane_scalar_support::scalar_text(&match &owned {

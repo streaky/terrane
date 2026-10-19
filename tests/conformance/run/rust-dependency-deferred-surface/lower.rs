@@ -77,6 +77,6 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >
         terrane_int_support::Int::from(0_i128)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&candidate.is_some()));
+    println!("{}", terrane_scalar_support::scalar_text(&(&candidate).is_some()));
     println!("{}", terrane_scalar_support::scalar_text(&(data != io)));
 }

@@ -20,7 +20,7 @@ fn main() {
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:7:10-7:19 */)), 0 /* terrane-site: case.trn:7:10-7:19 */))
     );
-    if found.is_some() {
+    if (&found).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &found { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

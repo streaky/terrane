@@ -68,7 +68,7 @@ fn main() {
         );
     }
     value = decoded.value.clone();
-    if value.is_some() {
+    if (&value).is_some() {
         println!(
             "{}{}{}{}{}", terrane_scalar_support::scalar_text(&match &value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") } .account_id),
@@ -97,7 +97,7 @@ fn main() {
             );
         }
         document = encoded.value.clone();
-        if document.is_some() {
+        if (&document).is_some() {
             text = canonical_json(
                 match document {
                     Some(value) => value,
@@ -135,14 +135,14 @@ fn main() {
         );
     }
     default_value = defaults.value.clone();
-    if default_value.is_some() {
+    if (&default_value).is_some() {
         nickname = match &default_value {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
         }
             .nickname
             .clone();
-        if nickname.is_some() {
+        if (&nickname).is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&match &default_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -230,7 +230,7 @@ fn main() {
         );
     }
     profile_document = profile_encoded.value.clone();
-    if profile_document.is_some() {
+    if (&profile_document).is_some() {
         profile_decoded = decode_profile(
             match profile_document {
                 Some(value) => value,
@@ -246,7 +246,7 @@ fn main() {
             );
         }
         profile_roundtrip = profile_decoded.value.clone();
-        if profile_roundtrip.is_some() {
+        if (&profile_roundtrip).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &profile_roundtrip {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -721,7 +721,7 @@ fn encode_account(value: Account) -> AccountEncoded {
         .append(String::from("label"), make_document_string(value.display_name.clone()));
     entries.append(String::from("active"), make_document_bool(value.active));
     value_field3 = value.age;
-    if value_field3.is_some() {
+    if (&value_field3).is_some() {
         encoded_value3 = make_document_integer({
             let mut __terrane_text = String::with_capacity(0);
             __terrane_text.push_str("");
@@ -744,7 +744,7 @@ fn encode_account(value: Account) -> AccountEncoded {
         entries.append(String::from("age"), make_document_none());
     }
     value_field4 = value.nickname.clone();
-    if value_field4.is_some() {
+    if (&value_field4).is_some() {
         entries
             .append(
                 String::from("nickname"),

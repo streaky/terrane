@@ -50,7 +50,7 @@ fn describe(value: terrane_int_support::Int) -> String {
     }
 }
 fn narrow(value: Option<String>) -> String {
-    if value.is_some() {
+    if (&value).is_some() {
         return match value {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),

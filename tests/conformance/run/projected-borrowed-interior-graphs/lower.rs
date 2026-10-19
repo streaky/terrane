@@ -203,7 +203,7 @@ fn main() {
         },
         11 /* terrane-site: src/main.trn:24:27-24:63 */,
     );
-    if selected.is_some() {
+    if (&selected).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | match &selected {
@@ -255,7 +255,7 @@ fn main() {
         },
         14 /* terrane-site: src/main.trn:28:23-28:68 */,
     );
-    if mapped.is_some() {
+    if (&mapped).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &mapped { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -400,7 +400,7 @@ fn main() {
         },
         26 /* terrane-site: src/main.trn:42:25-42:75 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&missing.is_none()));
+    println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
     name = __terrane_raised(
         terrane_static_trn_4865616465724e616d65_from_str(String::from("forwarded")),
         27 /* terrane-site: src/main.trn:44:12-44:45 */,
@@ -457,7 +457,7 @@ fn main() {
         },
         30 /* terrane-site: src/main.trn:47:24-47:70 */,
     );
-    if before.is_some() {
+    if (&before).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &before { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -492,7 +492,7 @@ fn main() {
         },
         31 /* terrane-site: src/main.trn:50:24-50:74 */,
     );
-    if marked.is_some() {
+    if (&marked).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &marked { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -527,7 +527,7 @@ fn main() {
         },
         32 /* terrane-site: src/main.trn:53:33-53:84 */,
     );
-    if anonymous_reset.is_some() {
+    if (&anonymous_reset).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &anonymous_reset {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
@@ -596,7 +596,7 @@ fn main() {
         },
         34 /* terrane-site: src/main.trn:59:34-59:86 */,
     );
-    if anonymous_result.is_some() {
+    if (&anonymous_result).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &anonymous_result {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
@@ -631,7 +631,7 @@ fn main() {
         },
         35 /* terrane-site: src/main.trn:62:36-62:82 */,
     );
-    if anonymous_observed.is_some() {
+    if (&anonymous_observed).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &anonymous_observed {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
@@ -685,7 +685,7 @@ fn main() {
         },
         37 /* terrane-site: src/main.trn:66:25-66:76 */,
     );
-    if cleared.is_some() {
+    if (&cleared).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &cleared { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -780,7 +780,7 @@ fn main() {
         },
         40 /* terrane-site: src/main.trn:72:39-72:85 */,
     );
-    if anonymous_read_result.is_some() {
+    if (&anonymous_read_result).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &anonymous_read_result {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
@@ -825,19 +825,19 @@ fn main() {
         },
         41 /* terrane-site: src/main.trn:75:30-75:80 */,
     );
-    if mutable_read.is_some() {
+    if (&mutable_read).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &mutable_read {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    if after.is_some() {
+    if (&after).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &after { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    if snapshot.is_some() {
+    if (&snapshot).is_some() {
         __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| {
@@ -930,7 +930,7 @@ fn main() {
         },
         45 /* terrane-site: src/main.trn:84:23-84:88 */,
     );
-    println!("{}", terrane_scalar_support::scalar_text(&empty.is_none()));
+    println!("{}", terrane_scalar_support::scalar_text(&(&empty).is_none()));
     __trn_66696e616c = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
@@ -960,7 +960,7 @@ fn main() {
         },
         46 /* terrane-site: src/main.trn:86:23-86:69 */,
     );
-    if __trn_66696e616c.is_some() {
+    if (&__trn_66696e616c).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &__trn_66696e616c {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })

@@ -306,7 +306,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&item.value));
     println!(
         "{}{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&number),
-        terrane_scalar_support::scalar_text(&optional.is_some()),
+        terrane_scalar_support::scalar_text(&(&optional).is_some()),
         terrane_scalar_support::scalar_text(&(data.len() as i128)),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
         .length())),

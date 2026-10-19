@@ -178,7 +178,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&describe_value(kept)));
     input = <Source<String>>::from(MessageSource::terrane_construct());
     first = next_string(input.clone());
-    if first.is_some() {
+    if (&first).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &first { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -186,7 +186,7 @@ fn main() {
     }
     input.next();
     second = input.next();
-    if second.is_none() {
+    if (&second).is_none() {
         println!("{}", String::from("none"));
     }
     peer = Address::terrane_construct();

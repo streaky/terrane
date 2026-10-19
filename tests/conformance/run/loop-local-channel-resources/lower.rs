@@ -28,7 +28,7 @@ fn main() {
             received = __terrane_await(Box::pin(receiver.receive())).await;
             value = received.value;
             remaining = receiver.close();
-            if value.is_some() {
+            if (&value).is_some() {
                 println!(
                     "{}{}{}", terrane_scalar_support::scalar_text(&sent.accepted),
                     terrane_scalar_support::scalar_text(&match &value { Some(value) =>
