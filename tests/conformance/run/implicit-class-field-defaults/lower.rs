@@ -106,7 +106,7 @@ fn main() {
         .unordered_tags.length()))
     );
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&value.note.is_none()),
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&(&value.note).is_none()),
         String::from(":"), terrane_scalar_support::scalar_text(&value.explicit),
         String::from(":"), { let __terrane_result =
         terrane_scalar_support::scalar_text(&* TERRANE_STATIC_DEFAULTS_SHARED.lock()

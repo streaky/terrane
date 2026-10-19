@@ -68,11 +68,11 @@ fn main() {
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&omitted.tag), String::from(":"),
-        terrane_scalar_support::scalar_text(&omitted.value.is_none())
+        terrane_scalar_support::scalar_text(&(&omitted.value).is_none())
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&partial.tag), String::from(":"),
-        terrane_scalar_support::scalar_text(&partial.value.is_none())
+        terrane_scalar_support::scalar_text(&(&partial.value).is_none())
     );
     owned = present.value.clone();
     if (&owned).is_some() {

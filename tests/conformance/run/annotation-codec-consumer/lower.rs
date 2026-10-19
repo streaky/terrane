@@ -76,10 +76,10 @@ fn main() {
             => unreachable!("flow-proven storage refinement") } .display_name),
             terrane_scalar_support::scalar_text(&match &value { Some(value) => value, _
             => unreachable!("flow-proven storage refinement") } .active),
-            terrane_scalar_support::scalar_text(&match &value { Some(value) => value, _
-            => unreachable!("flow-proven storage refinement") } .age.is_none()),
-            terrane_scalar_support::scalar_text(&match &value { Some(value) => value, _
-            => unreachable!("flow-proven storage refinement") } .nickname.is_none())
+            terrane_scalar_support::scalar_text(&(&match &value { Some(value) => value, _
+            => unreachable!("flow-proven storage refinement") } .age).is_none()),
+            terrane_scalar_support::scalar_text(&(&match &value { Some(value) => value, _
+            => unreachable!("flow-proven storage refinement") } .nickname).is_none())
         );
         encoded = encode_account(
             match &value {

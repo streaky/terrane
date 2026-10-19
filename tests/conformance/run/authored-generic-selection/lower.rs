@@ -49,7 +49,7 @@ fn main() {
     let left: terrane_int_support::Int;
     let right: terrane_int_support::Int;
     empty = Slot::<String>::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&empty.value.is_none()));
+    println!("{}", terrane_scalar_support::scalar_text(&(&empty.value).is_none()));
     missing = absent();
     println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
     keep = std::sync::Arc::new(identity);

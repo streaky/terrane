@@ -174,11 +174,10 @@ fn main() {
                                     terrane_collection_support::IterationStep::End => break,
                                 },
                             );
-                        if outcome
+                        if (&outcome
                             .as_ref()
                             .expect("flow-proven available binding")
-                            .clone()
-                            .error
+                            .error)
                             .is_some()
                         {
                             exit(
