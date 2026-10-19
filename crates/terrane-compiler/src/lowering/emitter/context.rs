@@ -1295,6 +1295,27 @@ impl<'unit> Emitter<'unit> {
             .collect::<Vec<_>>()
             .join("\n")
     }
+    fn rust_block_needs_snapshot(&self, binding: &TypedBinding, node: &SyntaxNode) -> bool {
+        if self.reference_backed(binding)
+            || self.binding_is_reference_owner(binding)
+            || self.binding_may_be_unassigned(binding)
+            || matches!(&binding.value_type, ValueType::Object(object) if self.object_requires_separation(object))
+            || binding_read_value_is_reused(self.package, binding.span, node.span)
+        {
+            return true;
+        }
+        // A last lexical read of a captured value can execute on every invocation.
+        // Rust identifiers are opaque to source capture inference, so compare owners.
+        self.unit.functions.iter().any(|contract| {
+            contract.span.file == node.span.file
+                && contract.span.start <= node.span.start
+                && node.span.end <= contract.span.end
+                && contract.written_invocation_mode != InvocationMode::Consuming
+                && !(contract.span.start <= binding.span.start
+                    && binding.span.end <= contract.span.end)
+        })
+    }
+
     pub(super) fn rust_block_clone_prelude(&self, node: &SyntaxNode) -> String {
         let identifiers = crate::rust_ir::rust_syntactic_identifiers(&self.rust_block_body(node));
         self.unit
@@ -1308,6 +1329,7 @@ impl<'unit> Emitter<'unit> {
                     && identifiers.contains(crate::lowering::binding_storage_rust_name(
                         self.unit, binding,
                     ))
+                    && self.rust_block_needs_snapshot(binding, node)
             })
             .map(|binding| {
                 let name = crate::lowering::binding_storage_rust_name(self.unit, binding);

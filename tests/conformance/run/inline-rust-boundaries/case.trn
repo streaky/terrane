@@ -20,8 +20,38 @@ function inspect-cloned-input int; input string
   print; input
   return size
 
+function borrowed-address uint64; input ref string
+  return rust
+    input.as_ptr() as u64
+
+function owned-address uint64; input string
+  return rust
+    input.as_ptr() as u64
+
+function identity string; value string
+  return value
+
 function main;
   print; (add; 20, 22)
   print; (inspect-pointer;)
   rust-statement;
   print; (inspect-cloned-input; 'copy me')
+  input = 'owned handoff'
+  address = borrowed-address; ref input
+  print; address == (owned-address; move input)
+  value = 'repeat'
+  copied = identity; value
+  observed string = rust
+    value
+  print; copied == observed
+  index = 0
+  while index < 2
+    observed string = rust
+      value
+    print; observed
+    index++
+  callback = function string;
+    return rust
+      value
+  print; (callback;)
+  print; (callback;)

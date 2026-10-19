@@ -734,6 +734,28 @@ pub(super) fn collect_binding_events(
         );
         return;
     }
+    if matches!(
+        node.kind,
+        SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+    ) {
+        let identifiers = crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
+        for binding in &unit.typed_bindings {
+            if binding.scope.is_some()
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+                && identifiers.contains(crate::lowering::binding_storage_rust_name(unit, binding))
+            {
+                events
+                    .entry(span_key(binding.span))
+                    .or_default()
+                    .push(BindingEvent::Read {
+                        span: node.span,
+                        loops: loops.clone(),
+                        regions: regions.clone(),
+                    });
+            }
+        }
+        return;
+    }
 
     let declares_binding = node_may_declare_typed_binding(node)
         && declared_bindings_at_node(unit, node).next().is_some();
