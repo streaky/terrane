@@ -5,3 +5,20 @@ function main;
         return rust
             parameter + local
     print; (helper; 4)
+    max = 3
+    value = 'outer'
+    len = 4
+    field = 5
+    function math int;
+        return rust
+            terrane_int_support::Int::from(std::cmp::max(1 as i128, 2 as i128))
+    function shadow int;
+        return rust
+            {
+                struct Local { field: i128 }
+                let value = Local { field: 41 };
+                let values = [value.field];
+                terrane_int_support::Int::from(values[0] + values.len() as i128)
+            }
+    print; (math;), (shadow;)
+    print; max, value, len, field

@@ -1320,7 +1320,7 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn rust_block_clone_prelude(&self, node: &SyntaxNode) -> String {
-        let identifiers = crate::rust_ir::rust_syntactic_identifiers(&self.rust_block_body(node));
+        let identifiers = crate::rust_ir::rust_free_value_identifiers(&self.rust_block_body(node));
         self.unit
             .typed_bindings
             .iter()

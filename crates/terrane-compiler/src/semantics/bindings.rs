@@ -720,7 +720,7 @@ fn record_rust_binding_reads(
     loops: &[Span],
     regions: &[ControlRegion],
 ) {
-    let identifiers = crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
+    let identifiers = crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
     for binding in &unit.typed_bindings {
         if binding.scope.is_some()
             && binding.is_visible_at(unit.source.id(), node.span.start)
