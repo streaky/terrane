@@ -9,6 +9,13 @@ function maybe int8|none;
     return 4
 function missing int8|none;
     return none
+function enabled bool;
+    return true
+function shared-snapshot string; value string|none
+    _owner = shared ref value
+    if value != none
+        return value
+    return 'missing'
 function main;
     value int8|none = 7
     if (value) != none
@@ -40,7 +47,24 @@ function main;
             print; found.text
     sharedvalue string|none = 'retained'
     _observer = shared ref sharedvalue
+    print; sharedvalue != none, none == (sharedvalue)
+    print; sharedvalue != none, sharedvalue
     if (sharedvalue) != none
         print; sharedvalue == none
+        print; sharedvalue, sharedvalue
+        snapshot string = sharedvalue
+        sharedvalue = 'changed'
+        print; snapshot, sharedvalue
     sharedvalue = none
     print; none == (sharedvalue)
+    print; sharedvalue != none, none == sharedvalue
+    print; (shared-snapshot; 'parameter')
+    sharednumber int8|none = 7
+    _numberowner = shared ref sharednumber
+    if sharednumber != none
+        print; sharednumber, sharednumber
+    if enabled;
+        late string|none = 'late'
+        _lateowner = shared ref late
+    if late != none
+        print; late, late

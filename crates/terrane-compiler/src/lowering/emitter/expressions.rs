@@ -1643,10 +1643,16 @@ impl Emitter<'_> {
             {
                 let storage = self.available_storage_reference(binding, place, false);
                 if self.reference_backed(binding) {
-                    format!("({storage}).lock().expect(\"reference lock poisoned\")")
-                } else {
-                    storage
+                    return format!(
+                        "{{ let __terrane_present = ({storage}).lock().expect(\"reference lock poisoned\").{}(); __terrane_present }}",
+                        if operator == "==" {
+                            "is_none"
+                        } else {
+                            "is_some"
+                        }
+                    );
                 }
+                storage
             } else {
                 self.expression(operand)
             }

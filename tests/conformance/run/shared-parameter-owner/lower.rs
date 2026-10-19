@@ -96,8 +96,9 @@ fn share(owner: Tracked) {
         __terrane_owner.lock().expect("shared reference lock poisoned").value = __terrane_value;
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = owner
-        .lock().expect("reference lock poisoned").value.clone(); __terrane_snapshot })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = owner.lock().expect("reference lock poisoned").value.clone();
+        __terrane_result }; __terrane_snapshot })
     );
 }
 async fn share_async(owner: Tracked) {
@@ -110,8 +111,9 @@ async fn share_async(owner: Tracked) {
         __terrane_owner.lock().expect("shared reference lock poisoned").value = __terrane_value;
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = owner
-        .lock().expect("reference lock poisoned").value.clone(); __terrane_snapshot })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = owner.lock().expect("reference lock poisoned").value.clone();
+        __terrane_result }; __terrane_snapshot })
     );
 }
 #[derive(Clone)]
@@ -141,10 +143,11 @@ fn replace(owner: Counter) {
         __terrane_owner.lock().expect("shared reference lock poisoned").value = __terrane_value;
     }
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = owner
-        .lock().expect("reference lock poisoned").value.clone(); __terrane_snapshot }),
-        terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = alias.lock()
-        .expect("shared reference lock poisoned").value.clone(); __terrane_snapshot })
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
+        __terrane_result = owner.lock().expect("reference lock poisoned").value.clone();
+        __terrane_result }; __terrane_snapshot }), terrane_scalar_support::scalar_text(&{
+        let __terrane_snapshot = alias.lock().expect("shared reference lock poisoned")
+        .value.clone(); __terrane_snapshot })
     );
 }
 fn main() {
@@ -171,7 +174,8 @@ fn main() {
                 }
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot =
-                    owner.lock().expect("reference lock poisoned").value.clone();
+                    { let __terrane_result = owner.lock()
+                    .expect("reference lock poisoned").value.clone(); __terrane_result };
                     __terrane_snapshot })
                 );
                 ()

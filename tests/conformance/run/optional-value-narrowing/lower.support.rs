@@ -160,3 +160,14 @@ for TerraneSharedProjection<H, U, T> {
         if poisoned { Err(std::sync::PoisonError::new(guard)) } else { Ok(guard) }
     }
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}

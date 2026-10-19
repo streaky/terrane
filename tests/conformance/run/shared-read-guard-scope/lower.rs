@@ -250,6 +250,7 @@ fn main() {
         "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = held
         .lock().expect("shared reference lock poisoned").flag; __terrane_snapshot }),
         String::from(" "), terrane_scalar_support::scalar_text(&{ let __terrane_snapshot
-        = plain.lock().expect("reference lock poisoned").flag; __terrane_snapshot })
+        = { let __terrane_result = plain.lock().expect("reference lock poisoned").flag;
+        __terrane_result }; __terrane_snapshot })
     );
 }

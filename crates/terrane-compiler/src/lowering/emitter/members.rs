@@ -569,7 +569,9 @@ impl Emitter<'_> {
         receiver: &SyntaxNode,
         expression: String,
     ) -> String {
-        if self.static_storage_name(receiver).is_some() {
+        if self.static_storage_name(receiver).is_some()
+            || !self.assignment_target && self.reference_backed_name(receiver).is_some()
+        {
             format!("{{ let __terrane_result = {expression}; __terrane_result }}")
         } else if self.reference_uses_shared_storage(receiver) {
             format!(

@@ -1119,7 +1119,11 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {
-        if self.reference_backed_name(operand).is_some() {
+        if let Some(binding) = self.reference_backed_name(operand) {
+            if self.binding_may_be_unassigned(binding) {
+                let handle = self.available_storage_reference(binding, operand, false);
+                return format!("({handle}).clone()");
+            }
             format!("({}).clone()", self.local_storage_name(operand))
         } else {
             format!(
@@ -1437,13 +1441,18 @@ impl<'unit> Emitter<'unit> {
             ValueType::Optional(inner) if inner.as_ref() == value_type => "Some".to_owned(),
             _ => return None,
         };
+        let shared = self
+            .local_typed_binding(node)
+            .is_some_and(|binding| self.reference_backed(binding));
         let copy = rust_value_is_copy(value_type) || matches!(value_type, ValueType::Reference(_));
         let take = owned
             && !mutable
+            && !shared
             && !copy
             && !self.value_type_owns_resource(value_type)
             && !self.binding_value_is_reused(node)
             && !self.non_consuming_capture_read(node);
+        let mutable_storage = mutable && !shared;
         let access = if take {
             self.owned_storage_value(node)
         } else {
@@ -1451,17 +1460,25 @@ impl<'unit> Emitter<'unit> {
                 || {
                     format!(
                         "{}{}",
-                        if mutable { "&mut " } else { "&" },
+                        if mutable_storage { "&mut " } else { "&" },
                         self.local_storage_name(node)
                     )
                 },
-                |binding| self.available_storage_reference(binding, node, mutable),
+                |binding| self.available_storage_reference(binding, node, mutable_storage),
             )
+        };
+        let access = if shared {
+            format!(
+                "&{}*({access}).lock().expect(\"reference lock poisoned\")",
+                if mutable { "mut " } else { "" }
+            )
+        } else {
+            access
         };
         let value = format!(
             "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
         );
-        Some(if mutable || take {
+        let value = if mutable || take {
             format!("({value})")
         } else if copy {
             format!("*({value})")
@@ -1469,11 +1486,21 @@ impl<'unit> Emitter<'unit> {
             format!("({value}).clone()")
         } else {
             format!("({value})")
-        })
+        };
+        Some(
+            if shared && owned && !self.value_type_owns_resource(value_type) {
+                format!("{{ let __terrane_value = {value}; __terrane_value }}")
+            } else {
+                value
+            },
+        )
     }
 
     fn narrowed_name(&self, node: &SyntaxNode) -> Option<String> {
-        if let Some(value) = self.narrowed_storage_name(node, false, false) {
+        let shared = self
+            .local_typed_binding(node)
+            .is_some_and(|binding| self.reference_backed(binding));
+        if let Some(value) = self.narrowed_storage_name(node, shared, false) {
             return Some(value);
         }
         let source_name = self.text(node);
