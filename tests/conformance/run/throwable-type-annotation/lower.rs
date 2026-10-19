@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: throwable-type-annotation
 fn report(failure: Option<TerraneError>) {
-    if failure.is_some() {
+    if (&failure).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &failure { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") } .message()

@@ -1,0 +1,51 @@
+namespace shared-parameter-owner
+
+class state
+    total int = 0
+    drops int = 0
+
+    mutable function record; value int
+        this.total = this.total + value
+        this.drops = this.drops + 1
+
+class tracked
+    observer shared ref state
+    value int = 0
+
+    function construct; observer shared ref state
+        this.observer = observer
+
+    consuming function destruct;
+        this.observer.record; this.value
+
+function share; owner tracked
+    alias = shared ref owner
+    alias.value = 3
+    print; owner.value
+
+async function share-async; owner tracked
+    alias = shared ref owner
+    alias.value = 5
+    print; owner.value
+
+class counter
+    value int = 0
+
+function replace; owner counter
+    alias = shared ref owner
+    owner = instance counter;
+    owner.value = 99
+    alias.value = 11
+    print; owner.value, alias.value
+
+async function main;
+    observer = shared ref (instance state;)
+    share; (instance tracked; observer)
+    await share-async; (instance tracked; observer)
+    callback = function; owner tracked
+        alias = shared ref owner
+        alias.value = 7
+        print; owner.value
+    callback; (instance tracked; observer)
+    print; observer.total, observer.drops
+    replace; (instance counter;)

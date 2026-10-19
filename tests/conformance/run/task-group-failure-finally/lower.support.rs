@@ -494,7 +494,7 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 14] = [
+    pub static SITES: [Site; 15] = [
         /* terrane-site-row: site 0: /task-group-failure-finally::wait (case.trn:15:17-15:38) */
         { Site { function: 0, file: 0, line: 15, column: 17, end_line: 15, end_column: 38 } },
         /* terrane-site-row: site 1: /task-group-failure-finally::fail (case.trn:22:5-22:33) */
@@ -505,23 +505,25 @@ mod __terrane_trace {
         { Site { function: 2, file: 0, line: 30, column: 13, end_line: 30, end_column: 24 } },
         /* terrane-site-row: site 4: /task-group-failure-finally::main (case.trn:31:14-31:25) */
         { Site { function: 2, file: 0, line: 31, column: 14, end_line: 31, end_column: 25 } },
-        /* terrane-site-row: site 5: /core/time::multiply (core/time.trn:62:13-62:45) */
+        /* terrane-site-row: site 5: /task-group-failure-finally::main (case.trn:38:13-38:24) */
+        { Site { function: 2, file: 0, line: 38, column: 13, end_line: 38, end_column: 24 } },
+        /* terrane-site-row: site 6: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 3, file: 1, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 6: /core/time::seconds (core/time.trn:38:13-38:45) */
+        /* terrane-site-row: site 7: /core/time::seconds (core/time.trn:38:13-38:45) */
         { Site { function: 4, file: 1, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 7: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        /* terrane-site-row: site 8: /core/time::milliseconds (core/time.trn:43:13-43:45) */
         { Site { function: 5, file: 1, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 8: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        /* terrane-site-row: site 9: /core/time::microseconds (core/time.trn:48:13-48:45) */
         { Site { function: 6, file: 1, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 9: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        /* terrane-site-row: site 10: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
         { Site { function: 7, file: 1, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 10: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        /* terrane-site-row: site 11: /core/time::duration-until (core/time.trn:76:13-76:45) */
         { Site { function: 8, file: 1, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 11: /core/time::at (core/time.trn:105:13-105:45) */
+        /* terrane-site-row: site 12: /core/time::at (core/time.trn:105:13-105:45) */
         { Site { function: 9, file: 1, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 12: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        /* terrane-site-row: site 13: /core/time::sleep-until (core/time.trn:161:13-161:45) */
         { Site { function: 10, file: 1, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 13: /core/time::interval (core/time.trn:172:13-172:45) */
+        /* terrane-site-row: site 14: /core/time::interval (core/time.trn:172:13-172:45) */
         { Site { function: 11, file: 1, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
@@ -1219,37 +1221,40 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-async fn __terrane_cancellable<F: Future>(
+fn __terrane_cancellable<F: Future>(
     future: F,
     cancellation: TerraneCancellation,
     deadline: Option<terrane_int_support::Int>,
-) -> Option<F::Output> {
-    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
-    let context = TerraneCancellationContext {
-        cancellation: cancellation.clone(),
-        deadline: deadline.clone(),
-        finalizers: finalizers.clone(),
-    };
-    TERRANE_CANCELLATION_CONTEXT
-        .scope(
-            context,
-            async {
-                let mut future = std::pin::pin!(future);
-                let output = tokio::select! {
-                    biased; output = future.as_mut() => Some(output), () =
-                    __terrane_cancellation_requested(cancellation, deadline.clone()) => {
-                    finalizers.drain_task_groups(). await; std::future::poll_fn(| cx | {
-                    match Future::poll(future.as_mut(), cx) {
-                    std::task::Poll::Ready(output) =>
-                    std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
-                    finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
-                    std::task::Poll::Pending => std::task::Poll::Pending, } }). await },
-                };
-                finalizers.drain_task_groups().await;
-                output
-            },
-        )
-        .await
+) -> impl Future<Output = Option<F::Output>> {
+    let mut future = Box::pin(future);
+    async move {
+        let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+        let context = TerraneCancellationContext {
+            cancellation: cancellation.clone(),
+            deadline: deadline.clone(),
+            finalizers: finalizers.clone(),
+        };
+        TERRANE_CANCELLATION_CONTEXT
+            .scope(
+                context,
+                async move {
+                    let output = tokio::select! {
+                        biased; output = future.as_mut() => Some(output), () =
+                        __terrane_cancellation_requested(cancellation, deadline.clone())
+                        => { finalizers.drain_task_groups(). await;
+                        std::future::poll_fn(| cx | { match Future::poll(future.as_mut(),
+                        cx) { std::task::Poll::Ready(output) =>
+                        std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
+                        finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
+                        std::task::Poll::Pending => std::task::Poll::Pending, } }). await
+                        },
+                    };
+                    finalizers.drain_task_groups().await;
+                    output
+                },
+            )
+            .await
+    }
 }
 #[allow(
     dead_code,
@@ -1800,7 +1805,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    5 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    6 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -1829,7 +1834,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    6 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    7 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -1857,7 +1862,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    7 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    8 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -1886,7 +1891,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    8 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    9 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -1915,7 +1920,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    9 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    10 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -1986,7 +1991,7 @@ impl MonotonicInstant {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    10 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    11 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -2092,7 +2097,7 @@ impl Deadline {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    11 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    12 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -2394,7 +2399,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    12 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    13 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -2430,7 +2435,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    13 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    14 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

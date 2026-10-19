@@ -1128,12 +1128,31 @@ pub(super) fn index_projected_static_method_references(
         node: &SyntaxNode,
         references: &mut StaticMethodReferences,
     ) {
+        // Direct specialized calls name the native function, not its static shim.
+        // Keep walking arguments: they can independently require projected wrappers.
+        if node.kind == SyntaxKind::CallExpression
+            && unit
+                .projected_call_specializations
+                .get(&(node.span.file, node.span.start, node.span.end))
+                .is_some_and(|specialization| specialization.direct_projected_call)
+            && node
+                .children
+                .first()
+                .and_then(SyntaxNode::type_designator_head)
+                .is_some_and(|callee| callee.kind == SyntaxKind::StaticMemberExpression)
+        {
+            for argument in node.children.iter().skip(1) {
+                collect(package, unit, argument, references);
+            }
+            return;
+        }
         if node.kind == SyntaxKind::StaticMemberExpression
             && let [receiver, member] = node.children.as_slice()
+            && let Some(receiver_head) = receiver.type_designator_head()
             && let Some(symbol) = package.resolve_name_at(
                 unit,
-                receiver.span.start,
-                &unit.source.text()[receiver.span.start..receiver.span.end],
+                receiver_head.span.start,
+                &unit.source.text()[receiver_head.span.start..receiver_head.span.end],
             )
         {
             references.insert((

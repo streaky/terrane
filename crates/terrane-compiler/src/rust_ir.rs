@@ -6,6 +6,9 @@ use syn::parse::Parser as _;
 
 use crate::Span;
 
+mod free_values;
+pub(crate) use free_values::rust_free_value_identifiers;
+
 /// Collects every identifier token from a Rust fragment without performing Rust name resolution.
 ///
 /// This is deliberately a conservative syntactic inventory: path segments, field names, macro

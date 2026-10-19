@@ -3,3 +3,9 @@
 inline statement
 copy me
 7
+true
+true
+repeat
+repeat
+repeat
+repeat

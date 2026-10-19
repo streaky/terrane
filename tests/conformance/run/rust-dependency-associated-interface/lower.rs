@@ -505,7 +505,7 @@ fn main() {
     maybe_applied = Some(
         <Sequence<terrane_int_support::Int>>::from(Ints::terrane_construct()),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&maybe_applied.is_some()));
+    println!("{}", terrane_scalar_support::scalar_text(&(&maybe_applied).is_some()));
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(MoreInts::terrane_construct()),

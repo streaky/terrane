@@ -26,7 +26,7 @@ fn inspect_next(mode: i64) {
                         1 /* terrane-site: src/main.trn:8:25-8:41 */
                     ),
                 );
-            if value.as_ref().expect("flow-proven available binding").clone().is_some() {
+            if value.as_ref().expect("flow-proven available binding").is_some() {
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&match value.as_ref()
                     .expect("flow-proven available binding") { Some(value) => value, _ =>
@@ -96,7 +96,7 @@ fn inspect_outer(mode: i64) {
                         3 /* terrane-site: src/main.trn:19:25-19:42 */
                     ),
                 );
-            if value.as_ref().expect("flow-proven available binding").clone().is_some() {
+            if value.as_ref().expect("flow-proven available binding").is_some() {
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&match value.as_ref()
                     .expect("flow-proven available binding") { Some(value) => value, _ =>

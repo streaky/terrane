@@ -1,0 +1,17 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import Builder, Envelope
+
+async function exercise;
+    builder = Builder::new;
+    result = await builder.serve;
+    print; result
+    builder.set; 7
+    result = await builder.serve;
+    print; result
+
+async function main;
+    group = task-group; none
+    group.spawn; (exercise;)
+    outcomes = await group.drain;
+    wrapped Envelope of bool = (Envelope of bool)::new; true
+    print; (wrapped.into_value;), outcomes[0].completed

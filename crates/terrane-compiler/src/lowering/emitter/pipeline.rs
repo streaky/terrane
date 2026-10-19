@@ -433,9 +433,6 @@ fn lower_with_tests(
         package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Mutable);
     let has_consuming_callables =
         package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Consuming);
-    let has_async_mutable_callables = package_has_callable(&|is_async, effects| {
-        is_async && effects.modes.written == InvocationMode::Mutable
-    });
     let has_channels = package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
             matches!(
@@ -502,15 +499,6 @@ fn lower_with_tests(
             source_files: vec!["mutable_callable.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/mutable_callable.rs"
-            ))],
-        });
-    }
-    if has_async_mutable_callables {
-        runtime.push(GeneratedModule {
-            name: "async-mutable-state",
-            source_files: vec!["async_mutable_state.rs"],
-            items: vec![Item::generated(include_str!(
-                "../../runtime/async_mutable_state.rs"
             ))],
         });
     }
@@ -977,6 +965,16 @@ fn lower_with_tests(
             })
         })
         .collect::<Result<Vec<_>, LoweringFailure>>()?;
+    let has_async_mutable_callables = registry.uses_async_mutable_state.get();
+    if has_async_mutable_callables {
+        runtime.push(GeneratedModule {
+            name: "async-mutable-state",
+            source_files: vec!["async_mutable_state.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/async_mutable_state.rs"
+            ))],
+        });
+    }
     if !has_mutable_callables && registry.uses_mutable_callable.get() {
         runtime.push(GeneratedModule {
             name: "mutable-callable",

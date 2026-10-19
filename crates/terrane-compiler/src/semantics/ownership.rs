@@ -129,7 +129,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
         ) {
             let identifiers =
-                crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
+                crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
             if let Some((_, binding)) =
                 unit.typed_bindings
                     .iter()
@@ -1722,9 +1722,18 @@ fn validate_named_function_capture(
     function: Option<Span>,
     symbol: Option<&Symbol>,
 ) -> Result<(), SemanticFailure> {
-    let (Some(function), Some(symbol)) = (function, symbol) else {
-        return Ok(());
-    };
+    if let (Some(function), Some(symbol)) = (function, symbol) {
+        validate_named_function_capture_symbol(unit, node, function, symbol)?;
+    }
+    Ok(())
+}
+
+fn validate_named_function_capture_symbol(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    function: Span,
+    symbol: &Symbol,
+) -> Result<(), SemanticFailure> {
     if symbol.kind != SymbolKind::Binding || symbol.global {
         return Ok(());
     }
@@ -1751,6 +1760,31 @@ fn validate_named_function_capture(
     ))
 }
 
+fn validate_named_function_rust_capture(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    function: Span,
+) -> Result<(), SemanticFailure> {
+    let identifiers = crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
+    for binding in &unit.typed_bindings {
+        if binding.scope.is_some()
+            && binding.is_visible_at(unit.source.id(), node.span.start)
+            && identifiers.contains(crate::lowering::binding_storage_rust_name(unit, binding))
+            && let Some(symbol) = unit
+                .scopes
+                .iter()
+                .flat_map(|scope| scope.symbols.values().flatten())
+                .find(|symbol| {
+                    symbol.kind == SymbolKind::Binding
+                        && symbol.declaration_span == Some(binding.span)
+                })
+        {
+            validate_named_function_capture_symbol(unit, node, function, symbol)?;
+        }
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "reference validation keeps ownership forms in one ordered syntax traversal"
@@ -1771,6 +1805,11 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             named_function
         };
         match node.kind {
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock => {
+                if let Some(function) = named_function {
+                    validate_named_function_rust_capture(unit, node, function)?;
+                }
+            }
             SyntaxKind::Name => {
                 let name = node_text(&unit.source, node);
                 let resolved = package.resolve_name_at(unit, node.span.start, name);
@@ -1820,8 +1859,8 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             | SyntaxKind::FunctionType => {}
             SyntaxKind::Binding
             | SyntaxKind::Assignment
-            | SyntaxKind::FunctionDeclaration
             | SyntaxKind::AnonymousFunction
+            | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TraitDeclaration

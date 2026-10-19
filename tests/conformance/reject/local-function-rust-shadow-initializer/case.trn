@@ -1,0 +1,7 @@
+namespace local-function-rust-shadow-initializer
+function main;
+    value = 'outer'
+    function inner string;
+        return rust
+            { let value = value.clone(); value }
+    print; (inner;)

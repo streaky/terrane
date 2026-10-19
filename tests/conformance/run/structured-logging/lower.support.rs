@@ -1059,37 +1059,40 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-async fn __terrane_cancellable<F: Future>(
+fn __terrane_cancellable<F: Future>(
     future: F,
     cancellation: TerraneCancellation,
     deadline: Option<terrane_int_support::Int>,
-) -> Option<F::Output> {
-    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
-    let context = TerraneCancellationContext {
-        cancellation: cancellation.clone(),
-        deadline: deadline.clone(),
-        finalizers: finalizers.clone(),
-    };
-    TERRANE_CANCELLATION_CONTEXT
-        .scope(
-            context,
-            async {
-                let mut future = std::pin::pin!(future);
-                let output = tokio::select! {
-                    biased; output = future.as_mut() => Some(output), () =
-                    __terrane_cancellation_requested(cancellation, deadline.clone()) => {
-                    finalizers.drain_task_groups(). await; std::future::poll_fn(| cx | {
-                    match Future::poll(future.as_mut(), cx) {
-                    std::task::Poll::Ready(output) =>
-                    std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
-                    finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
-                    std::task::Poll::Pending => std::task::Poll::Pending, } }). await },
-                };
-                finalizers.drain_task_groups().await;
-                output
-            },
-        )
-        .await
+) -> impl Future<Output = Option<F::Output>> {
+    let mut future = Box::pin(future);
+    async move {
+        let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+        let context = TerraneCancellationContext {
+            cancellation: cancellation.clone(),
+            deadline: deadline.clone(),
+            finalizers: finalizers.clone(),
+        };
+        TERRANE_CANCELLATION_CONTEXT
+            .scope(
+                context,
+                async move {
+                    let output = tokio::select! {
+                        biased; output = future.as_mut() => Some(output), () =
+                        __terrane_cancellation_requested(cancellation, deadline.clone())
+                        => { finalizers.drain_task_groups(). await;
+                        std::future::poll_fn(| cx | { match Future::poll(future.as_mut(),
+                        cx) { std::task::Poll::Ready(output) =>
+                        std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
+                        finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
+                        std::task::Poll::Pending => std::task::Poll::Pending, } }). await
+                        },
+                    };
+                    finalizers.drain_task_groups().await;
+                    output
+                },
+            )
+            .await
+    }
 }
 #[allow(
     dead_code,
@@ -4252,7 +4255,7 @@ pub async fn consume_events(
     while open {
         received = __terrane_await(Box::pin(source.receive())).await;
         event = received.value;
-        if event.is_some() {
+        if (&event).is_some() {
             written = write_event(
                 default_logger(target.clone()),
                 match event {

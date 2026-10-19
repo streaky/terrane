@@ -23,7 +23,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = (&options).connect();
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -51,7 +51,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -73,7 +73,7 @@ fn main() {
                         let __terrane_call = terrane_query_witness::query(&insert_op)
                             .bind(Vec::<u8>::from([102, 105, 114, 115, 116]))
                             .execute(&mut connection);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -101,7 +101,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -119,7 +119,7 @@ fn main() {
                         let __terrane_call = terrane_query_witness::query(&insert_op)
                             .bind(Vec::<u8>::from([115, 101, 99, 111, 110, 100]))
                             .execute(&mut connection);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -147,7 +147,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -164,7 +164,7 @@ fn main() {
                     let __terrane_future = {
                         let __terrane_call = terrane_query_witness::query(&first_op)
                             .fetch_all(&mut connection);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -194,7 +194,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -216,7 +216,7 @@ fn main() {
                     let __terrane_future = {
                         let __terrane_call = terrane_query_witness::query(&first_op)
                             .fetch_one(&mut connection);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -244,7 +244,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -298,7 +298,7 @@ fn main() {
                     let __terrane_future = {
                         let __terrane_call = terrane_query_witness::query(&second_op)
                             .fetch_one(&mut connection);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -326,7 +326,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -380,14 +380,14 @@ fn main() {
                 __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future = { let __terrane_call =
                     terrane_query_witness::query(&invalid_op).execute(&mut connection);
-                    async move { match crate
+                    Box::pin(async move { match crate
                     ::__terrane_dependency_await_unwind(__terrane_call). await {
                     Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
                     ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
                     Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
                     "terrane_query_witness", "terrane_query_witness::Query::execute")) }
-                    } }; async move { __terrane_raised_err(__terrane_future. await,
+                    }) }; async move { __terrane_raised_err(__terrane_future. await,
                     11 /* terrane-site: src/main.trn:24:11-24:54 */) } }). await,
                     11 /* terrane-site: src/main.trn:24:11-24:54 */
                 );
@@ -430,7 +430,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = connection.close();
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -458,7 +458,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(

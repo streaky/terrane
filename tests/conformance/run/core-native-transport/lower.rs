@@ -8,11 +8,9 @@ async fn serve_one(listener: NativeTcpListener) {
     return __terrane_await(serve_borrowed(&listener)).await;
 }
 async fn serve_borrowed(listener: &NativeTcpListener) {
-    let _ = &listener;
     return crate::native::serve_one(listener).await;
 }
 async fn exchange(stream: &NativeTcpStream) -> String {
-    let _ = &stream;
     return crate::native::exchange(stream).await;
 }
 fn main() {
@@ -176,11 +174,10 @@ fn main() {
                                     terrane_collection_support::IterationStep::End => break,
                                 },
                             );
-                        if outcome
+                        if (&outcome
                             .as_ref()
                             .expect("flow-proven available binding")
-                            .clone()
-                            .error
+                            .error)
                             .is_some()
                         {
                             exit(

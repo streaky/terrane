@@ -393,10 +393,79 @@ impl Emitter<'_> {
     // Capture shared identity before arguments, but acquire its guard only when
     // the returned place expression is evaluated. Nested fields stay live.
     pub(super) fn live_receiver_parts(&mut self, receiver: &SyntaxNode) -> (String, String) {
+        self.receiver_place_parts(receiver, true)
+    }
+
+    pub(super) fn borrowed_receiver_parts(&mut self, receiver: &SyntaxNode) -> (String, String) {
+        self.receiver_place_parts(receiver, false)
+    }
+
+    fn borrowed_receiver_handle(&mut self, receiver: &SyntaxNode) -> String {
+        if receiver.kind == SyntaxKind::Name
+            && let Some(binding) = self
+                .local_typed_binding(receiver)
+                .filter(|binding| binding.scope.is_some())
+        {
+            self.available_storage_reference(binding, receiver, false)
+        } else {
+            self.expression(receiver)
+        }
+    }
+
+    fn guarded_receiver_parts(
+        &mut self,
+        receiver: &SyntaxNode,
+        mutable: bool,
+    ) -> Option<(String, String)> {
+        let (owner, guard) = if matches!(
+            self.value_type(receiver),
+            Some(ValueType::SharedReference(_))
+        ) {
+            let owner = if mutable {
+                format!("({}).clone()", self.expression(receiver))
+            } else {
+                self.borrowed_receiver_handle(receiver)
+            };
+            (
+                owner,
+                "__terrane_owner.lock().expect(\"shared reference lock poisoned\")",
+            )
+        } else if self.reference_uses_shared_storage(receiver) {
+            let handle = if mutable {
+                self.expression(receiver)
+            } else {
+                self.borrowed_receiver_handle(receiver)
+            };
+            (
+                format!("({handle}).upgrade().expect(\"reference expired\")"),
+                "__terrane_owner.lock().expect(\"reference lock poisoned\")",
+            )
+        } else if self.reference_backed_name(receiver).is_some() {
+            let owner = if mutable {
+                self.reference_storage_expression(receiver)
+            } else {
+                self.borrowed_receiver_handle(receiver)
+            };
+            (
+                owner,
+                "__terrane_owner.lock().expect(\"reference lock poisoned\")",
+            )
+        } else {
+            return None;
+        };
+        // Refine the guarded payload only when the returned place is used. In
+        // particular, staging the owner must not acquire a guard before arguments.
+        let value = self
+            .narrowed_storage_projection(receiver, guard, mutable)
+            .unwrap_or_else(|| guard.to_owned());
+        Some((format!("let __terrane_owner = {owner}; "), value))
+    }
+
+    fn receiver_place_parts(&mut self, receiver: &SyntaxNode, mutable: bool) -> (String, String) {
         if receiver.kind == SyntaxKind::GroupExpression
             && let [grouped] = receiver.children.as_slice()
         {
-            return self.live_receiver_parts(grouped);
+            return self.receiver_place_parts(grouped, mutable);
         }
         if let Some(parts) = self.static_receiver_parts(receiver) {
             return parts;
@@ -408,53 +477,28 @@ impl Emitter<'_> {
                     .to_owned(),
             );
         }
-        if matches!(
-            self.value_type(receiver),
-            Some(ValueType::SharedReference(_))
-        ) {
-            return (
-                format!(
-                    "let __terrane_owner = ({}).clone(); ",
-                    self.expression(receiver)
-                ),
-                "__terrane_owner.lock().expect(\"shared reference lock poisoned\")".to_owned(),
-            );
-        }
-        if self.reference_uses_shared_storage(receiver) {
-            return (
-                format!(
-                    "let __terrane_owner = ({}).upgrade().expect(\"reference expired\"); ",
-                    self.expression(receiver)
-                ),
-                "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned(),
-            );
-        }
-        if self.reference_backed_name(receiver).is_some() {
-            return (
-                format!(
-                    "let __terrane_owner = {}.clone(); ",
-                    self.raw_storage_name(receiver)
-                ),
-                "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned(),
-            );
+        if let Some(parts) = self.guarded_receiver_parts(receiver, mutable) {
+            return parts;
         }
         if receiver.kind == SyntaxKind::MemberExpression
             && let [holder, member] = receiver.children.as_slice()
         {
-            let (setup, holder_value) = self.live_receiver_parts(holder);
+            let (setup, holder_value) = self.receiver_place_parts(holder, mutable);
             let field = self
                 .native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
             let wrapped = self.wrapped_object_field(holder, self.text(member));
             let required = self.receiver_value_type(holder).is_some_and(|value| {
                 matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
             });
+            let suffix = if mutable { "_mut" } else { "" };
+            let borrow = if mutable { "as_mut" } else { "as_ref" };
             let value = match (wrapped, required) {
                 (true, true) => format!(
-                    "({holder_value}).terrane_field_{field}_slot_mut().as_mut().expect(\"required field initialized\")"
+                    "({holder_value}).terrane_field_{field}_slot{suffix}().{borrow}().expect(\"required field initialized\")"
                 ),
-                (true, false) => format!("({holder_value}).terrane_field_{field}_mut()"),
+                (true, false) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
                 (false, true) => format!(
-                    "({holder_value}).{field}.as_mut().expect(\"required field initialized\")"
+                    "({holder_value}).{field}.{borrow}().expect(\"required field initialized\")"
                 ),
                 (false, false) => format!("({holder_value}).{field}"),
             };
@@ -463,7 +507,8 @@ impl Emitter<'_> {
         if receiver.kind != SyntaxKind::Name {
             return (
                 format!(
-                    "let __terrane_receiver_value = &mut ({}); ",
+                    "let __terrane_receiver_value = &{}({}); ",
+                    if mutable { "mut " } else { "" },
                     self.expression(receiver)
                 ),
                 "__terrane_receiver_value".to_owned(),
@@ -472,13 +517,13 @@ impl Emitter<'_> {
         let value = if receiver.kind == SyntaxKind::Name
             && !matches!(self.value_type(receiver), Some(ValueType::Reference(_)))
         {
-            self.narrowed_storage_name(receiver, false, true)
+            self.narrowed_storage_name(receiver, false, mutable)
                 .unwrap_or_else(|| {
                     self.local_typed_binding(receiver)
                         .filter(|binding| self.binding_may_be_unassigned(binding))
                         .map_or_else(
                             || self.raw_storage_name(receiver),
-                            |binding| self.available_storage_reference(binding, receiver, true),
+                            |binding| self.available_storage_reference(binding, receiver, mutable),
                         )
                 })
         } else {
@@ -528,7 +573,9 @@ impl Emitter<'_> {
         receiver: &SyntaxNode,
         expression: String,
     ) -> String {
-        if self.static_storage_name(receiver).is_some() {
+        if self.static_storage_name(receiver).is_some()
+            || !self.assignment_target && self.reference_backed_name(receiver).is_some()
+        {
             format!("{{ let __terrane_result = {expression}; __terrane_result }}")
         } else if self.reference_uses_shared_storage(receiver) {
             format!(
@@ -565,15 +612,7 @@ impl Emitter<'_> {
     }
 
     pub(super) fn class_designator(&self, node: &SyntaxNode) -> Option<&DescriptorContract> {
-        match node.kind {
-            SyntaxKind::GroupExpression | SyntaxKind::TypeExpression | SyntaxKind::AppliedType => {
-                return node
-                    .children
-                    .first()
-                    .and_then(|child| self.class_designator(child));
-            }
-            _ => {}
-        }
+        let node = node.type_designator_head()?;
         let name = self.text(node);
         if name == "self" {
             let identity = self.current_object.as_ref()?;

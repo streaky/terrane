@@ -1202,6 +1202,25 @@ fn assignment_flow_value(
     (name, plain_assignment, value_type)
 }
 
+fn record_assignment_reads(
+    unit: &mut SemanticUnit,
+    statement: &SyntaxNode,
+    value: Option<&SyntaxNode>,
+    state: &FlowEnv,
+) {
+    if statement.kind == SyntaxKind::Assignment
+        && let Some(destination) = statement.children.first()
+        && destination.kind != SyntaxKind::Name
+    {
+        // A compound destination reads its receiver/index, even though the
+        // selected field or element is written rather than read.
+        record_flow_reads(unit, destination, state);
+    }
+    if let Some(value) = value {
+        record_flow_reads(unit, value, state);
+    }
+}
+
 fn flow_assignment(
     unit: &mut SemanticUnit,
     statement: &SyntaxNode,
@@ -1226,9 +1245,7 @@ fn flow_assignment(
     } else {
         statement.children.get(1)
     };
-    if let Some(value) = value {
-        record_flow_reads(unit, value, &state);
-    }
+    record_assignment_reads(unit, statement, value, &state);
     if let Some(target) = target.filter(|target| node_text(&unit.source, target) != "_") {
         let (name, plain_assignment, value_type) =
             assignment_flow_value(unit, statement, target, value, &state);

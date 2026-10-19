@@ -394,12 +394,7 @@ fn main() {
                                 .and_then(|detail| detail.cause.as_deref())
                                 .cloned(),
                         );
-                    if cause
-                        .as_ref()
-                        .expect("flow-proven available binding")
-                        .clone()
-                        .is_some()
-                    {
+                    if cause.as_ref().expect("flow-proven available binding").is_some() {
                         println!(
                             "{}", terrane_scalar_support::scalar_text(&match cause
                             .as_ref().expect("flow-proven available binding") {

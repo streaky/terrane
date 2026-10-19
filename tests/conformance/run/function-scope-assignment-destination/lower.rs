@@ -84,11 +84,11 @@ fn main() {
     let absent: Option<String>;
     let present: Option<String>;
     absent = optional_result(false);
-    if absent.is_none() {
+    if (&absent).is_none() {
         println!("{}", String::from("absent"));
     }
     present = optional_result(true);
-    if present.is_some() {
+    if (&present).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &present { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

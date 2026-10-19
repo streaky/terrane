@@ -173,7 +173,7 @@ fn main() {
         };
         received_first = __terrane_await(Box::pin(rx.receive())).await;
         received_first_value = received_first.value;
-        if received_first_value.is_some() {
+        if (&received_first_value).is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&received_first.available),
                 terrane_scalar_support::scalar_text(&match &received_first_value {
@@ -183,7 +183,7 @@ fn main() {
         }
         delivered = __terrane_await(scope.join(blocked)).await;
         delivered_value = delivered.value.clone();
-        if delivered_value.is_some() {
+        if (&delivered_value).is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&delivered.completed),
                 terrane_scalar_support::scalar_text(&match &delivered_value { Some(value)
@@ -217,7 +217,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&refused.dropped)
         );
         rejected_value = refused.rejected_value;
-        if rejected_value.is_some() {
+        if (&rejected_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &rejected_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -245,7 +245,7 @@ fn main() {
         newest_drop = __terrane_await(Box::pin(newest_tx.send(String::from("dropped"))))
             .await;
         newest_dropped_value = newest_drop.dropped_value;
-        if newest_dropped_value.is_some() {
+        if (&newest_dropped_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &newest_dropped_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -260,7 +260,7 @@ fn main() {
         );
         newest_value = __terrane_await(Box::pin(newest_rx.receive())).await;
         newest_result = newest_value.value;
-        if newest_result.is_some() {
+        if (&newest_result).is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&newest_value.available),
                 terrane_scalar_support::scalar_text(&match &newest_result { Some(value)
@@ -281,7 +281,7 @@ fn main() {
         oldest_drop = __terrane_await(Box::pin(oldest_tx.send(String::from("new"))))
             .await;
         oldest_dropped_value = oldest_drop.dropped_value;
-        if oldest_dropped_value.is_some() {
+        if (&oldest_dropped_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &oldest_dropped_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -296,7 +296,7 @@ fn main() {
         );
         oldest_value = __terrane_await(Box::pin(oldest_rx.receive())).await;
         oldest_result = oldest_value.value;
-        if oldest_result.is_some() {
+        if (&oldest_result).is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&oldest_value.available),
                 terrane_scalar_support::scalar_text(&match &oldest_result { Some(value)
@@ -390,7 +390,7 @@ fn main() {
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             0 /* terrane-site: src/main.trn:104:32-104:48 */)), 0 /* terrane-site: src/main.trn:104:32-104:48 */))
         );
-        if closed_result.is_some() {
+        if (&closed_result).is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&closed_fill.accepted),
                 terrane_scalar_support::scalar_text(&closed_outcome.completed),
@@ -413,7 +413,7 @@ fn main() {
             )
             .await;
         rejected_item = rejected_send.rejected_value;
-        if rejected_item.is_some() {
+        if (&rejected_item).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &rejected_item {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -461,8 +461,8 @@ fn main() {
             .await;
         rendezvous_value = rendezvous_received.value;
         rendezvous_outcome = rendezvous_delivered.value.clone();
-        if rendezvous_value.is_some() {
-            if rendezvous_outcome.is_some() {
+        if (&rendezvous_value).is_some() {
+            if (&rendezvous_outcome).is_some() {
                 println!(
                     "{}{}{}{}", terrane_scalar_support::scalar_text(&match
                     &rendezvous_value { Some(value) => value, _ =>
@@ -504,7 +504,7 @@ fn main() {
         while remaining.clone() > terrane_int_support::Int::from(0_i128) {
             stress_received = __terrane_await(Box::pin(stress_rx.receive())).await;
             stress_value = stress_received.value;
-            if stress_value.is_some() {
+            if (&stress_value).is_some() {
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&match &stress_value {
                     Some(value) => value, _ =>
@@ -531,7 +531,7 @@ fn main() {
         message_tx.close();
         message_receive = __terrane_await(Box::pin(message_rx.receive())).await;
         message_value = message_receive.value;
-        if message_value.is_some() {
+        if (&message_value).is_some() {
             println!(
                 "{}{}", terrane_scalar_support::scalar_text(&message_send.accepted),
                 terrane_scalar_support::scalar_text(&match &message_value { Some(value)
@@ -559,7 +559,7 @@ fn main() {
         batch_tx.close();
         batch_receive = __terrane_await(Box::pin(batch_rx.receive())).await;
         batch_value = batch_receive.value;
-        if batch_value.is_some() {
+        if (&batch_value).is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&batch_send.accepted),
                 terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(match

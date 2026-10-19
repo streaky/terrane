@@ -281,7 +281,7 @@ fn main() {
         };
         failed = __terrane_await(scope.join(failing)).await;
         joined = __terrane_await(scope.join(pending)).await;
-        println!("{}", terrane_scalar_support::scalar_text(&failed.error.is_some()));
+        println!("{}", terrane_scalar_support::scalar_text(&(&failed.error).is_some()));
         println!("{}", terrane_scalar_support::scalar_text(&joined.cancelled));
         println!(
             "{}", terrane_scalar_support::scalar_text(&({ let __terrane_snapshot =

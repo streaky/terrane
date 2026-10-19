@@ -939,12 +939,25 @@ pub(super) fn concrete_into_future_output(
         else {
             continue;
         };
+        // Rustdoc lists blanket IntoFuture candidates even when their predicate
+        // is not established. Read the concrete implementation's Output instead.
+        if implementation.blanket_impl.is_some() || implementation.is_negative {
+            continue;
+        }
         let trait_path = implementation
             .trait_
             .as_ref()
             .and_then(|trait_| paths.get(&trait_.id))
             .map(|summary| summary.path.join("::"));
-        if trait_path.as_deref() != Some("core::future::into_future::IntoFuture") {
+        if !matches!(
+            trait_path.as_deref(),
+            Some(
+                "core::future::into_future::IntoFuture"
+                    | "core::future::future::Future"
+                    | "core::future::Future"
+                    | "std::future::Future"
+            )
+        ) {
             continue;
         }
         for item_id in &implementation.items {

@@ -103,11 +103,7 @@ fn main() {
                                 .and_then(|detail| detail.cause.as_deref())
                                 .cloned(),
                         );
-                    if origin
-                        .as_ref()
-                        .expect("flow-proven available binding")
-                        .clone()
-                        .is_some()
+                    if origin.as_ref().expect("flow-proven available binding").is_some()
                     {
                         let _ = returned
                             .insert(

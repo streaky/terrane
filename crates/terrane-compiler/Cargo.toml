@@ -18,7 +18,7 @@ serde_json = { version = "1", features = ["raw_value"] }
 rustdoc-types.workspace = true
 terrane-rust-analysis = { path = "../terrane-rust-analysis" }
 sha2 = "0.10"
-syn = { version = "2", features = ["extra-traits", "fold", "full"] }
+syn = { version = "2", features = ["extra-traits", "fold", "full", "visit"] }
 ureq.workspace = true
 rustls.workspace = true
 toml = "0.8"

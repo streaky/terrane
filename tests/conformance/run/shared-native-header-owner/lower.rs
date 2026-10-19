@@ -22,12 +22,8 @@ impl RequestBuilderOwner {
     }
     pub fn set_method(&self, value: String) {
         let builder: std::sync::Arc<TerraneSharedCell<Builder>>;
-        let _ = &value;
         builder = self.builder.as_ref().expect("required field initialized").clone();
-        let _ = &builder;
         {
-            let value = value.clone();
-            let builder = builder.clone();
             let replacement = ::http::Request::builder()
                 .method(::http::Method::from_bytes(value.as_bytes()).unwrap());
             let _ = std::mem::replace(&mut *builder.lock().expect("lock"), replacement);
@@ -37,11 +33,7 @@ impl RequestBuilderOwner {
         let builder: std::sync::Arc<TerraneSharedCell<Builder>>;
         let value: String;
         builder = self.builder.as_ref().expect("required field initialized").clone();
-        let _ = &builder;
-        value = {
-            let builder = builder.clone();
-            builder.lock().expect("lock").method_ref().unwrap().as_str().to_owned()
-        };
+        value = builder.lock().expect("lock").method_ref().unwrap().as_str().to_owned();
         return value;
     }
 }

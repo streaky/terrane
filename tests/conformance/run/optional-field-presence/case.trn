@@ -1,0 +1,53 @@
+namespace optional-field-presence
+class plain-box
+    value string|none = 'kept'
+
+class base-box
+    value string|none = 'kept'
+
+class derived-box extends base-box
+    extra int = 1
+
+class required-box
+    value string|none
+    function construct;
+        this.value = 'required'
+
+class outer-box
+    inner base-box = instance base-box;
+
+function make-box plain-box;
+    print; 'called'
+    return instance plain-box;
+
+function inspect; value ref base-box
+    print; (value.value) != none, none == value.value
+
+function inspect-shared; value shared ref base-box
+    print; value.value != none, none == (value.value)
+
+function main;
+    plain = instance plain-box;
+    print; plain.value != none, none == plain.value
+    plain.value = none
+    print; (plain.value) == none
+    base = instance base-box;
+    inspect; ref base
+    derived base-box = instance derived-box;
+    inspect; ref derived
+    shared-owner base-box = instance derived-box;
+    shared = shared ref shared-owner
+    inspect-shared; shared
+    observer = ref shared-owner
+    print; observer.value != none, none == observer.value
+    shared.value = none
+    print; shared.value == none
+    required = instance required-box;
+    print; required.value != none
+    required.value = none
+    print; required.value == none
+    outer = shared ref (instance outer-box;)
+    print; outer.inner.value != none
+    outer.inner.value = none
+    print; outer.inner.value == none
+    print; (make-box;).value != none

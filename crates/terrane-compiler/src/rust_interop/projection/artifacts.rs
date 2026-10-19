@@ -186,12 +186,13 @@ fn validate_projection_artifact(
 }
 
 pub(super) fn projection_content_hash(projection: &Projection) -> Result<String, ProjectionError> {
+    // Elapsed probe time is telemetry, not projection semantics. Including it makes identical
+    // Rustdoc/probe evidence hash differently across cold and warm resolution paths.
     let payload = serde_json::to_vec(&(
         &projection.cache_identity,
         &projection.dependencies,
         &projection.native_owner_aliases,
         &projection.probes,
-        projection.probe_wall_time_ms,
     ))
     .map_err(|error| ProjectionError {
         message: format!("cannot encode projection content hash: {error}"),

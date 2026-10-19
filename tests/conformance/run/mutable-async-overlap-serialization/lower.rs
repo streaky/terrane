@@ -288,14 +288,14 @@ fn main() {
             .await;
         first_value = first_outcome.value.clone();
         second_value = second_outcome.value.clone();
-        if first_value.is_some() {
+        if (&first_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &first_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
                 })
             );
         }
-        if second_value.is_some() {
+        if (&second_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &second_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -510,14 +510,14 @@ fn main() {
             .await;
         closure_first_value = closure_first_outcome.value.clone();
         closure_second_value = closure_second_outcome.value.clone();
-        if closure_first_value.is_some() {
+        if (&closure_first_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &closure_first_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
                 })
             );
         }
-        if closure_second_value.is_some() {
+        if (&closure_second_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &closure_second_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")

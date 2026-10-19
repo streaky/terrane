@@ -75,14 +75,13 @@ fn main() {
             < i64 > (&callback_value).map_err(| error | crate ::TerraneForeignError(crate
             ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } . await {
             Ok(value) => value, Err(error) => std::panic::panic_any(error.0) } }) } }) }
-            () { Ok(value) => value, Err(error) => std::panic::panic_any(error) }); async
-            move { match crate ::__terrane_dependency_await_unwind(__terrane_call). await
-            { Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-            Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "terrane-callback-witness", "terrane_callback_witness::open_async")) } } };
-            async move { __terrane_raised_err(__terrane_future. await,
-            2 /* terrane-site: src/main.trn:13:19-13:48 */) } }). await,
-            3 /* terrane-site: src/main.trn:13:18-13:49 */))
+            () { Ok(value) => value, Err(error) => std::panic::panic_any(error) });
+            Box::pin(async move { match crate
+            ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(value) =>
+            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
+            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::open_async")) } }) }; async move {
+            __terrane_raised_err(__terrane_future. await, 2 /* terrane-site: src/main.trn:13:19-13:48 */) } }). await, 3 /* terrane-site: src/main.trn:13:18-13:49 */))
         );
     });
 }

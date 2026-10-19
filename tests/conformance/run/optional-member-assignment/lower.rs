@@ -23,7 +23,7 @@ fn main() {
     let value: Option<terrane_int_support::Int>;
     holder = OptionalValue::terrane_construct(terrane_int_support::Int::from(7_i128));
     value = holder.value.clone();
-    if value.is_some() {
+    if (&value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &value { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

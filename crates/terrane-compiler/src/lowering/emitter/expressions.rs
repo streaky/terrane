@@ -1019,7 +1019,13 @@ impl Emitter<'_> {
                 self.expression(node)
             }
             ValueType::AsyncFunction(parameters, _, transferability, expected_effects)
-                if node.kind == SyntaxKind::Name =>
+                if node.kind == SyntaxKind::Name
+                    || node.kind == SyntaxKind::MemberExpression
+                        && matches!(
+                            node.children.as_slice(),
+                            [receiver, member]
+                                if self.callable_object_field(receiver, self.text(member))
+                        ) =>
             {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
@@ -1123,13 +1129,16 @@ impl Emitter<'_> {
                         "let receiver = receiver.clone(); ",
                         format!("receiver.{method}({arguments}).await"),
                     ),
-                    InvocationMode::Mutable => (
-                        format!("TerraneAsyncMutableState::new({receiver})"),
-                        "let receiver = receiver.share(); ",
-                        format!(
-                            "receiver.with_receiver(move |receiver| Box::pin(async move {{ receiver.{method}({arguments}).await }})).await"
-                        ),
-                    ),
+                    InvocationMode::Mutable => {
+                        self.registry.uses_async_mutable_state.set(true);
+                        (
+                            format!("TerraneAsyncMutableState::new({receiver})"),
+                            "let receiver = receiver.share(); ",
+                            format!(
+                                "receiver.with_receiver(move |receiver| Box::pin(async move {{ receiver.{method}({arguments}).await }})).await"
+                            ),
+                        )
+                    }
                     InvocationMode::Consuming => (
                         receiver,
                         "",
@@ -1564,7 +1573,98 @@ impl Emitter<'_> {
             _ => None,
         }
     }
-
+    pub(super) fn optional_presence_check(
+        &mut self,
+        operand: &SyntaxNode,
+        operator: &str,
+    ) -> String {
+        let mut place = operand;
+        while place.kind == SyntaxKind::GroupExpression
+            && let Some(inner) = place.children.first()
+        {
+            place = inner;
+        }
+        if place.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = place.children.as_slice()
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::Object(_) | ValueType::TaskOutcome(_))
+            )
+            && matches!(self.value_type(place), Some(ValueType::Optional(_)))
+            && !self.is_throwable_value(receiver)
+        {
+            let member_name = self.text(member).to_owned();
+            let task_outcome = matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::TaskOutcome(_))
+            );
+            let (setup, receiver_value) = self.borrowed_receiver_parts(receiver);
+            let access = if task_outcome {
+                format!("&({receiver_value}).{member_name}")
+            } else {
+                let field = self
+                    .native_field_name(self.receiver_value_type(receiver).as_ref(), &member_name);
+                let required = self.receiver_value_type(receiver).is_some_and(|ty| {
+                    matches!(ty, ValueType::Object(identity)
+                        if source_field_is_required(self.package, &identity, &member_name))
+                });
+                let wrapped = self.wrapped_object_field(receiver, &member_name);
+                match (wrapped, required) {
+                    (true, true) => format!(
+                        "({receiver_value}).terrane_field_{field}_slot().as_ref().expect(\"required field initialized\")"
+                    ),
+                    (true, false) => {
+                        format!("({receiver_value}).terrane_field_{field}()")
+                    }
+                    (false, true) => format!(
+                        "({receiver_value}).{field}.as_ref().expect(\"required field initialized\")"
+                    ),
+                    (false, false) => format!("&({receiver_value}).{field}"),
+                }
+            };
+            let presence = format!(
+                "({access}).{}",
+                if operator == "==" {
+                    "is_none()"
+                } else {
+                    "is_some()"
+                }
+            );
+            return if setup.is_empty() {
+                presence
+            } else {
+                format!("{{ {setup} {presence} }}")
+            };
+        }
+        let value = if place.kind == SyntaxKind::Name {
+            if let Some(binding) = self
+                .local_typed_binding(place)
+                .filter(|binding| binding.scope.is_some())
+            {
+                let storage = self.available_storage_reference(binding, place, false);
+                if self.reference_backed(binding) {
+                    return format!(
+                        "{{ let __terrane_present = ({storage}).lock().expect(\"reference lock poisoned\").{}(); __terrane_present }}",
+                        if operator == "==" {
+                            "is_none"
+                        } else {
+                            "is_some"
+                        }
+                    );
+                }
+                storage
+            } else {
+                self.expression(operand)
+            }
+        } else {
+            self.expression(operand)
+        };
+        if operator == "==" {
+            format!("({value}).is_none()")
+        } else {
+            format!("({value}).is_some()")
+        }
+    }
     pub(super) fn optional_none_comparison(
         &mut self,
         left: &SyntaxNode,
@@ -1581,18 +1681,11 @@ impl Emitter<'_> {
             || left_type == Some(ValueType::Scalar(ScalarType::None));
         let right_is_none = self.text(right).trim() == "none"
             || right_type == Some(ValueType::Scalar(ScalarType::None));
-        let presence_check = |value: String| {
-            if operator == "==" {
-                format!("({value}).is_none()")
-            } else {
-                format!("({value}).is_some()")
-            }
-        };
         if is_optional(left_type) && right_is_none {
-            return Some(presence_check(self.expression(left)));
+            return Some(self.optional_presence_check(left, operator));
         }
         if left_is_none && is_optional(right_type) {
-            return Some(presence_check(self.expression(right)));
+            return Some(self.optional_presence_check(right, operator));
         }
         let optional_origin = |mut operand: &SyntaxNode| {
             while operand.kind == SyntaxKind::GroupExpression
@@ -1611,12 +1704,7 @@ impl Emitter<'_> {
         } else {
             None
         };
-        refined.map(|operand| {
-            let value = self.expression(operand);
-            let present = self.value_type(operand) != Some(ValueType::Scalar(ScalarType::None));
-            let result = present == (operator == "!=");
-            format!("{{ let _ = &{value}; {result} }}")
-        })
+        refined.map(|operand| self.optional_presence_check(operand, operator))
     }
     pub(super) fn string_comparison_operand(&mut self, node: &SyntaxNode) -> String {
         if node.kind == SyntaxKind::Literal {

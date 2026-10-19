@@ -61,7 +61,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&precise.nanoseconds),
         terrane_scalar_support::scalar_text(&minimum.nanoseconds)
     );
-    if reduced.is_some() {
+    if (&reduced).is_some() {
         println!(
             "{}{}{}{}", terrane_scalar_support::scalar_text(&sum.seconds),
             terrane_scalar_support::scalar_text(&sum.nanoseconds),

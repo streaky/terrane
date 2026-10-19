@@ -517,7 +517,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&released.accepted));
         outcome = __terrane_await(scope.join(child)).await;
         result = outcome.value.clone();
-        if result.is_some() {
+        if (&result).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &result { Some(value) =>
                 value, _ => unreachable!("flow-proven storage refinement") })

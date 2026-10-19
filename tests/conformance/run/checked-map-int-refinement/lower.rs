@@ -15,7 +15,7 @@ fn main() {
         ],
     );
     current = counts.get(&String::from("apple")).cloned();
-    if current.is_some() {
+    if (&current).is_some() {
         {
             let __terrane_key = String::from("apple");
             let __terrane_value = match &current {

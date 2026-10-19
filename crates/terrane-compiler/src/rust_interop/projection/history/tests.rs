@@ -310,16 +310,21 @@ fn migration_detects_replay_drift() {
     let cache_path = directory.join(".trn/projection-cache.json");
     let stable_bytes = fs::read(&cache_path).unwrap();
 
+    let semantic_hash = projection.content_hash.clone();
     projection.probe_wall_time_ms = 1;
     projection.content_hash = projection_content_hash(&projection).unwrap();
+    assert_eq!(projection.content_hash, semantic_hash);
+    apply_projection_history(&directory, &mut projection).unwrap();
+    assert_eq!(fs::read(&cache_path).unwrap(), stable_bytes);
+    projection
+        .native_owner_aliases
+        .insert("foo::State".to_owned(), "foo::state::State".to_owned());
+    projection.content_hash = projection_content_hash(&projection).unwrap();
     let error = apply_projection_history(&directory, &mut projection).unwrap_err();
-    assert!(
-        error
-            .message
-            .contains(changed_source.content_hash.as_deref().unwrap())
-    );
+    assert!(error.message.contains("projection cache replay mismatch"));
+    assert!(error.message.contains(&semantic_hash));
     assert!(error.message.contains(&projection.content_hash));
-    assert!(error.message.contains(cache_path.to_str().unwrap()));
+    assert!(error.message.contains(&cache_path.display().to_string()));
     assert_eq!(fs::read(&cache_path).unwrap(), stable_bytes);
     fs::remove_dir_all(directory).unwrap();
 }

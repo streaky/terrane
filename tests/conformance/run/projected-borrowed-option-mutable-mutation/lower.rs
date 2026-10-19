@@ -179,7 +179,7 @@ fn main() {
         },
         9 /* terrane-site: src/main.trn:42:24-42:63 */,
     );
-    if result.is_some() {
+    if (&result).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &result { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -214,7 +214,7 @@ fn main() {
         },
         10 /* terrane-site: src/main.trn:45:24-45:57 */,
     );
-    if marked.is_some() {
+    if (&marked).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &marked { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -249,7 +249,7 @@ fn main() {
         },
         11 /* terrane-site: src/main.trn:48:25-48:68 */,
     );
-    if cleared.is_some() {
+    if (&cleared).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &cleared { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -284,7 +284,7 @@ fn main() {
         },
         12 /* terrane-site: src/main.trn:51:23-51:56 */,
     );
-    if after.is_some() {
+    if (&after).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &after { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

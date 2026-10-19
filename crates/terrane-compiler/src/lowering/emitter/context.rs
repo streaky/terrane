@@ -1038,7 +1038,10 @@ impl<'unit> Emitter<'unit> {
                         .iter()
                         .any(|field| {
                             field.name == name
-                                && matches!(field.value_type, ValueType::Function(..))
+                                && matches!(
+                                    field.value_type,
+                                    ValueType::Function(..) | ValueType::AsyncFunction(..)
+                                )
                         })
                 })
     }
@@ -1116,7 +1119,11 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {
-        if self.reference_backed_name(operand).is_some() {
+        if let Some(binding) = self.reference_backed_name(operand) {
+            if self.binding_may_be_unassigned(binding) {
+                let handle = self.available_storage_reference(binding, operand, false);
+                return format!("({handle}).clone()");
+            }
             format!("({}).clone()", self.local_storage_name(operand))
         } else {
             format!(
@@ -1295,8 +1302,29 @@ impl<'unit> Emitter<'unit> {
             .collect::<Vec<_>>()
             .join("\n")
     }
+    fn rust_block_needs_snapshot(&self, binding: &TypedBinding, node: &SyntaxNode) -> bool {
+        if self.reference_backed(binding)
+            || self.binding_is_reference_owner(binding)
+            || self.binding_may_be_unassigned(binding)
+            || matches!(&binding.value_type, ValueType::Object(object) if self.object_requires_separation(object))
+            || binding_read_value_is_reused(self.package, binding.span, node.span)
+        {
+            return true;
+        }
+        // A last lexical read of a captured value can execute on every invocation.
+        // Rust identifiers are opaque to source capture inference, so compare owners.
+        self.unit.functions.iter().any(|contract| {
+            contract.span.file == node.span.file
+                && contract.span.start <= node.span.start
+                && node.span.end <= contract.span.end
+                && contract.written_invocation_mode != InvocationMode::Consuming
+                && !(contract.span.start <= binding.span.start
+                    && binding.span.end <= contract.span.end)
+        })
+    }
+
     pub(super) fn rust_block_clone_prelude(&self, node: &SyntaxNode) -> String {
-        let identifiers = crate::rust_ir::rust_syntactic_identifiers(&self.rust_block_body(node));
+        let identifiers = crate::rust_ir::rust_free_value_identifiers(&self.rust_block_body(node));
         self.unit
             .typed_bindings
             .iter()
@@ -1308,6 +1336,7 @@ impl<'unit> Emitter<'unit> {
                     && identifiers.contains(crate::lowering::binding_storage_rust_name(
                         self.unit, binding,
                     ))
+                    && self.rust_block_needs_snapshot(binding, node)
             })
             .map(|binding| {
                 let name = crate::lowering::binding_storage_rust_name(self.unit, binding);
@@ -1385,15 +1414,7 @@ impl<'unit> Emitter<'unit> {
         self.line(&format!("__terrane_debug_point!({comment:?});"));
     }
 
-    pub(super) fn narrowed_storage_name(
-        &self,
-        node: &SyntaxNode,
-        owned: bool,
-        mutable: bool,
-    ) -> Option<String> {
-        if self.assignment_target {
-            return None;
-        }
+    fn storage_refinement(&self, node: &SyntaxNode) -> Option<(&ValueType, String)> {
         let key = (node.span.file, node.span.start, node.span.end);
         let identity = *self.unit.flow_binding_ids.get(&key)?;
         let physical = self.unit.flow_binding_types.get(&identity).or_else(|| {
@@ -1412,13 +1433,48 @@ impl<'unit> Emitter<'unit> {
             ValueType::Optional(inner) if inner.as_ref() == value_type => "Some".to_owned(),
             _ => return None,
         };
+        Some((value_type, variant))
+    }
+
+    fn storage_refinement_expression(access: &str, variant: &str) -> String {
+        format!(
+            "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
+        )
+    }
+
+    pub(super) fn narrowed_storage_projection(
+        &self,
+        node: &SyntaxNode,
+        guard: &str,
+        mutable: bool,
+    ) -> Option<String> {
+        let (_, variant) = self.storage_refinement(node)?;
+        let access = format!("&{}*{guard}", if mutable { "mut " } else { "" });
+        Some(Self::storage_refinement_expression(&access, &variant))
+    }
+
+    pub(super) fn narrowed_storage_name(
+        &self,
+        node: &SyntaxNode,
+        owned: bool,
+        mutable: bool,
+    ) -> Option<String> {
+        if self.assignment_target {
+            return None;
+        }
+        let (value_type, variant) = self.storage_refinement(node)?;
+        let shared = self
+            .local_typed_binding(node)
+            .is_some_and(|binding| self.reference_backed(binding));
         let copy = rust_value_is_copy(value_type) || matches!(value_type, ValueType::Reference(_));
         let take = owned
             && !mutable
+            && !shared
             && !copy
             && !self.value_type_owns_resource(value_type)
             && !self.binding_value_is_reused(node)
             && !self.non_consuming_capture_read(node);
+        let mutable_storage = mutable && !shared;
         let access = if take {
             self.owned_storage_value(node)
         } else {
@@ -1426,17 +1482,23 @@ impl<'unit> Emitter<'unit> {
                 || {
                     format!(
                         "{}{}",
-                        if mutable { "&mut " } else { "&" },
+                        if mutable_storage { "&mut " } else { "&" },
                         self.local_storage_name(node)
                     )
                 },
-                |binding| self.available_storage_reference(binding, node, mutable),
+                |binding| self.available_storage_reference(binding, node, mutable_storage),
             )
         };
-        let value = format!(
-            "match {access} {{ {variant}(value) => value, _ => unreachable!(\"flow-proven storage refinement\") }}"
-        );
-        Some(if mutable || take {
+        let access = if shared {
+            format!(
+                "&{}*({access}).lock().expect(\"reference lock poisoned\")",
+                if mutable { "mut " } else { "" }
+            )
+        } else {
+            access
+        };
+        let value = Self::storage_refinement_expression(&access, &variant);
+        let value = if mutable || take {
             format!("({value})")
         } else if copy {
             format!("*({value})")
@@ -1444,11 +1506,21 @@ impl<'unit> Emitter<'unit> {
             format!("({value}).clone()")
         } else {
             format!("({value})")
-        })
+        };
+        Some(
+            if shared && owned && !self.value_type_owns_resource(value_type) {
+                format!("{{ let __terrane_value = {value}; __terrane_value }}")
+            } else {
+                value
+            },
+        )
     }
 
     fn narrowed_name(&self, node: &SyntaxNode) -> Option<String> {
-        if let Some(value) = self.narrowed_storage_name(node, false, false) {
+        let shared = self
+            .local_typed_binding(node)
+            .is_some_and(|binding| self.reference_backed(binding));
+        if let Some(value) = self.narrowed_storage_name(node, shared, false) {
             return Some(value);
         }
         let source_name = self.text(node);

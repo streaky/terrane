@@ -496,7 +496,7 @@ fn main() {
         producer.close();
         consumed = __terrane_await(consumer_scope.join(consumer)).await;
         consumed_value = consumed.value.clone();
-        if consumed_value.is_some() {
+        if (&consumed_value).is_some() {
             println!(
                 "{}{}{}{}", terrane_scalar_support::scalar_text(&first_sent.accepted),
                 terrane_scalar_support::scalar_text(&second_sent.accepted),
@@ -565,7 +565,7 @@ fn main() {
         failing_producer.close();
         failing_consumed = __terrane_await(failing_scope.join(failing_consumer)).await;
         failing_consumed_value = failing_consumed.value.clone();
-        if failing_consumed_value.is_some() {
+        if (&failing_consumed_value).is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&failing_sent.accepted),
                 terrane_scalar_support::scalar_text(&failing_consumed.completed),

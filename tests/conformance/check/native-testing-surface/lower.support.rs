@@ -1802,7 +1802,7 @@ pub fn assert_not_equal_bytes(
 pub fn assert_present_int(
     actual: Option<terrane_int_support::Int>,
 ) -> Result<(), TerraneError> {
-    if actual.is_none() {
+    if (&actual).is_none() {
         __terrane_traced_err(
             fail(String::from("expected a present integer")),
             27 /* terrane-site: core/testing.trn:131:9-131:43 */,
@@ -1813,7 +1813,7 @@ pub fn assert_present_int(
 pub fn assert_none_int(
     actual: Option<terrane_int_support::Int>,
 ) -> Result<(), TerraneError> {
-    if actual.is_some() {
+    if (&actual).is_some() {
         __terrane_traced_err(
             fail(String::from("expected no integer")),
             28 /* terrane-site: core/testing.trn:136:9-136:36 */,
@@ -1822,7 +1822,7 @@ pub fn assert_none_int(
     return Ok(());
 }
 pub fn assert_present_string(actual: Option<String>) -> Result<(), TerraneError> {
-    if actual.is_none() {
+    if (&actual).is_none() {
         __terrane_traced_err(
             fail(String::from("expected a present string")),
             29 /* terrane-site: core/testing.trn:141:9-141:42 */,
@@ -1831,7 +1831,7 @@ pub fn assert_present_string(actual: Option<String>) -> Result<(), TerraneError>
     return Ok(());
 }
 pub fn assert_none_string(actual: Option<String>) -> Result<(), TerraneError> {
-    if actual.is_some() {
+    if (&actual).is_some() {
         __terrane_traced_err(
             fail(String::from("expected no string")),
             30 /* terrane-site: core/testing.trn:146:9-146:35 */,
@@ -1840,7 +1840,7 @@ pub fn assert_none_string(actual: Option<String>) -> Result<(), TerraneError> {
     return Ok(());
 }
 pub fn assert_present_bool(actual: Option<bool>) -> Result<(), TerraneError> {
-    if actual.is_none() {
+    if (&actual).is_none() {
         __terrane_traced_err(
             fail(String::from("expected a present boolean")),
             31 /* terrane-site: core/testing.trn:151:9-151:43 */,
@@ -1849,7 +1849,7 @@ pub fn assert_present_bool(actual: Option<bool>) -> Result<(), TerraneError> {
     return Ok(());
 }
 pub fn assert_none_bool(actual: Option<bool>) -> Result<(), TerraneError> {
-    if actual.is_some() {
+    if (&actual).is_some() {
         __terrane_traced_err(
             fail(String::from("expected no boolean")),
             32 /* terrane-site: core/testing.trn:156:9-156:36 */,
@@ -1858,7 +1858,7 @@ pub fn assert_none_bool(actual: Option<bool>) -> Result<(), TerraneError> {
     return Ok(());
 }
 pub fn assert_present_float64(actual: Option<f64>) -> Result<(), TerraneError> {
-    if actual.is_none() {
+    if (&actual).is_none() {
         __terrane_traced_err(
             fail(String::from("expected a present floating value")),
             33 /* terrane-site: core/testing.trn:161:9-161:50 */,
@@ -1867,7 +1867,7 @@ pub fn assert_present_float64(actual: Option<f64>) -> Result<(), TerraneError> {
     return Ok(());
 }
 pub fn assert_none_float64(actual: Option<f64>) -> Result<(), TerraneError> {
-    if actual.is_some() {
+    if (&actual).is_some() {
         __terrane_traced_err(
             fail(String::from("expected no floating value")),
             34 /* terrane-site: core/testing.trn:166:9-166:43 */,
@@ -1876,7 +1876,7 @@ pub fn assert_none_float64(actual: Option<f64>) -> Result<(), TerraneError> {
     return Ok(());
 }
 pub fn assert_present_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError> {
-    if actual.is_none() {
+    if (&actual).is_none() {
         __terrane_traced_err(
             fail(String::from("expected present bytes")),
             35 /* terrane-site: core/testing.trn:171:9-171:39 */,
@@ -1885,7 +1885,7 @@ pub fn assert_present_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError>
     return Ok(());
 }
 pub fn assert_none_bytes(actual: Option<Vec<u8>>) -> Result<(), TerraneError> {
-    if actual.is_some() {
+    if (&actual).is_some() {
         __terrane_traced_err(
             fail(String::from("expected no bytes")),
             36 /* terrane-site: core/testing.trn:176:9-176:34 */,

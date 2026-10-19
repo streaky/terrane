@@ -171,7 +171,7 @@ fn main() {
             4 /* terrane-site: src/main.trn:28:31-28:61 */,
         ),
     );
-    if header.is_some() {
+    if (&header).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&sensitive(match &header {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") }))

@@ -3302,7 +3302,7 @@ impl Emitter<'_> {
                 )
             };
             if method.is_async {
-                format!("{{ let __terrane_call = {call}; async move {{ {mapped} }} }}")
+                format!("{{ let __terrane_call = {call}; Box::pin(async move {{ {mapped} }}) }}")
             } else {
                 mapped
             }

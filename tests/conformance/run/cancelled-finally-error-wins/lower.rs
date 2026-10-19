@@ -118,6 +118,6 @@ fn main() {
             "{}{}", terrane_scalar_support::scalar_text(&started),
             terrane_scalar_support::scalar_text(&outcome.cancelled)
         );
-        println!("{}", terrane_scalar_support::scalar_text(&outcome.error.is_some()));
+        println!("{}", terrane_scalar_support::scalar_text(&(&outcome.error).is_some()));
     });
 }

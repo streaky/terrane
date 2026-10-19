@@ -684,74 +684,6 @@ impl<Arguments, Output> Clone for TerraneMutableCallable<Arguments, Output> {
         }
     }
 }
-struct TerraneAsyncInvocationGate {
-    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
-}
-impl TerraneAsyncInvocationGate {
-    fn new() -> Self {
-        Self {
-            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
-        }
-    }
-    fn share(&self) -> Self {
-        Self {
-            invocation: self.invocation.clone(),
-        }
-    }
-    async fn enter(&self) -> tokio::sync::OwnedMutexGuard<()> {
-        self.invocation.clone().lock_owned().await
-    }
-}
-impl Clone for TerraneAsyncInvocationGate {
-    fn clone(&self) -> Self {
-        Self::new()
-    }
-}
-pub struct TerraneAsyncMutableState<Value> {
-    value: std::sync::Arc<std::sync::Mutex<Value>>,
-    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
-}
-impl<Value> TerraneAsyncMutableState<Value> {
-    fn new(value: Value) -> Self {
-        Self {
-            value: std::sync::Arc::new(std::sync::Mutex::new(value)),
-            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
-        }
-    }
-    fn share(&self) -> Self {
-        Self {
-            value: self.value.clone(),
-            invocation: self.invocation.clone(),
-        }
-    }
-    fn replace(&self, value: Value) {
-        *self.value.lock().expect("mutable async callable state lock poisoned") = value;
-    }
-}
-impl<Value: Clone> TerraneAsyncMutableState<Value> {
-    fn snapshot(&self) -> Value {
-        self.value.lock().expect("mutable async callable state lock poisoned").clone()
-    }
-    async fn with_receiver<Output, Operation>(&self, operation: Operation) -> Output
-    where
-        Value: Send,
-        Operation: for<'receiver> FnOnce(
-                &'receiver mut Value,
-            ) -> std::pin::Pin<Box<dyn Future<Output = Output> + Send + 'receiver>>
-            + Send,
-    {
-        let _invocation = self.invocation.lock().await;
-        let mut receiver = self.snapshot();
-        let result = operation(&mut receiver).await;
-        self.replace(receiver);
-        result
-    }
-}
-impl<Value: Clone> Clone for TerraneAsyncMutableState<Value> {
-    fn clone(&self) -> Self {
-        Self::new(self.snapshot())
-    }
-}
 use std::future::Future;
 #[derive(Clone)]
 struct TerraneCancellation {
@@ -1274,37 +1206,40 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-async fn __terrane_cancellable<F: Future>(
+fn __terrane_cancellable<F: Future>(
     future: F,
     cancellation: TerraneCancellation,
     deadline: Option<terrane_int_support::Int>,
-) -> Option<F::Output> {
-    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
-    let context = TerraneCancellationContext {
-        cancellation: cancellation.clone(),
-        deadline: deadline.clone(),
-        finalizers: finalizers.clone(),
-    };
-    TERRANE_CANCELLATION_CONTEXT
-        .scope(
-            context,
-            async {
-                let mut future = std::pin::pin!(future);
-                let output = tokio::select! {
-                    biased; output = future.as_mut() => Some(output), () =
-                    __terrane_cancellation_requested(cancellation, deadline.clone()) => {
-                    finalizers.drain_task_groups(). await; std::future::poll_fn(| cx | {
-                    match Future::poll(future.as_mut(), cx) {
-                    std::task::Poll::Ready(output) =>
-                    std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
-                    finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
-                    std::task::Poll::Pending => std::task::Poll::Pending, } }). await },
-                };
-                finalizers.drain_task_groups().await;
-                output
-            },
-        )
-        .await
+) -> impl Future<Output = Option<F::Output>> {
+    let mut future = Box::pin(future);
+    async move {
+        let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+        let context = TerraneCancellationContext {
+            cancellation: cancellation.clone(),
+            deadline: deadline.clone(),
+            finalizers: finalizers.clone(),
+        };
+        TERRANE_CANCELLATION_CONTEXT
+            .scope(
+                context,
+                async move {
+                    let output = tokio::select! {
+                        biased; output = future.as_mut() => Some(output), () =
+                        __terrane_cancellation_requested(cancellation, deadline.clone())
+                        => { finalizers.drain_task_groups(). await;
+                        std::future::poll_fn(| cx | { match Future::poll(future.as_mut(),
+                        cx) { std::task::Poll::Ready(output) =>
+                        std::task::Poll::Ready(Some(output)), std::task::Poll::Pending if
+                        finalizers.depth() == 0 => { std::task::Poll::Ready(None) }
+                        std::task::Poll::Pending => std::task::Poll::Pending, } }). await
+                        },
+                    };
+                    finalizers.drain_task_groups().await;
+                    output
+                },
+            )
+            .await
+    }
 }
 #[allow(
     dead_code,
@@ -2111,6 +2046,74 @@ fn terrane_platform_thread_local_int_set(
 ) -> TerranePlatformResult {
     let replacement = terrane_platform_i128!(replacement, "thread-local value");
     terrane_platform_support::thread_local_int_set(value, replacement)
+}
+struct TerraneAsyncInvocationGate {
+    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+impl TerraneAsyncInvocationGate {
+    fn new() -> Self {
+        Self {
+            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+    fn share(&self) -> Self {
+        Self {
+            invocation: self.invocation.clone(),
+        }
+    }
+    async fn enter(&self) -> tokio::sync::OwnedMutexGuard<()> {
+        self.invocation.clone().lock_owned().await
+    }
+}
+impl Clone for TerraneAsyncInvocationGate {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
+pub struct TerraneAsyncMutableState<Value> {
+    value: std::sync::Arc<std::sync::Mutex<Value>>,
+    invocation: std::sync::Arc<tokio::sync::Mutex<()>>,
+}
+impl<Value> TerraneAsyncMutableState<Value> {
+    fn new(value: Value) -> Self {
+        Self {
+            value: std::sync::Arc::new(std::sync::Mutex::new(value)),
+            invocation: std::sync::Arc::new(tokio::sync::Mutex::new(())),
+        }
+    }
+    fn share(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            invocation: self.invocation.clone(),
+        }
+    }
+    fn replace(&self, value: Value) {
+        *self.value.lock().expect("mutable async callable state lock poisoned") = value;
+    }
+}
+impl<Value: Clone> TerraneAsyncMutableState<Value> {
+    fn snapshot(&self) -> Value {
+        self.value.lock().expect("mutable async callable state lock poisoned").clone()
+    }
+    async fn with_receiver<Output, Operation>(&self, operation: Operation) -> Output
+    where
+        Value: Send,
+        Operation: for<'receiver> FnOnce(
+                &'receiver mut Value,
+            ) -> std::pin::Pin<Box<dyn Future<Output = Output> + Send + 'receiver>>
+            + Send,
+    {
+        let _invocation = self.invocation.lock().await;
+        let mut receiver = self.snapshot();
+        let result = operation(&mut receiver).await;
+        self.replace(receiver);
+        result
+    }
+}
+impl<Value: Clone> Clone for TerraneAsyncMutableState<Value> {
+    fn clone(&self) -> Self {
+        Self::new(self.snapshot())
+    }
 }
 trait TerraneConsumingCallableBody<Arguments, Output>: Send {
     fn call(self: std::boxed::Box<Self>, arguments: Arguments) -> Output;

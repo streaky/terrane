@@ -100,7 +100,7 @@ fn main() {
         },
         2 /* terrane-site: src/main.trn:8:28-8:43 */,
     );
-    if text_value.is_some() {
+    if (&text_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &text_value { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -158,7 +158,7 @@ fn main() {
         },
         5 /* terrane-site: src/main.trn:13:29-13:48 */,
     );
-    if binary_value.is_some() {
+    if (&binary_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&(match &binary_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") } .len() as
@@ -247,7 +247,7 @@ fn main() {
         },
         9 /* terrane-site: src/main.trn:21:32-21:47 */,
     );
-    if pair_value.is_some() {
+    if (&pair_value).is_some() {
         println!("{}", String::from("pair"));
     }
     named_payload = EventNamed::terrane_construct(42);
@@ -300,7 +300,7 @@ fn main() {
         },
         11 /* terrane-site: src/main.trn:27:34-27:51 */,
     );
-    if named_value.is_some() {
+    if (&named_value).is_some() {
         println!("{}", String::from("named"));
     }
     optional_payload = EventOptional::terrane_construct(42, None::<String>);
@@ -357,7 +357,7 @@ fn main() {
         },
         13 /* terrane-site: src/main.trn:32:40-32:63 */,
     );
-    if optional_value.is_some() {
+    if (&optional_value).is_some() {
         println!("{}", String::from("optional"));
     }
     owned = Some({
@@ -385,7 +385,7 @@ fn main() {
             15 /* terrane-site: src/main.trn:35:27-35:76 */,
         )
     });
-    if owned.is_some() {
+    if (&owned).is_some() {
         payload = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| match owned
@@ -410,7 +410,7 @@ fn main() {
             },
             16 /* terrane-site: src/main.trn:37:36-37:62 */,
         );
-        if payload.is_some() {
+        if (&payload).is_some() {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_raised(consume_payload(payload

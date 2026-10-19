@@ -23,7 +23,7 @@ impl WorkItem {
     pub fn next_estimate(&self) -> Option<terrane_int_support::Int> {
         let current: Option<terrane_int_support::Int>;
         current = self.estimate.clone();
-        if current.is_some() {
+        if (&current).is_some() {
             return Some(
                 match &current {
                     Some(value) => value,
@@ -41,14 +41,14 @@ fn main() {
     let next: Option<terrane_int_support::Int>;
     item = WorkItem::terrane_construct(Some(terrane_int_support::Int::from(4_i128)));
     estimate = item.estimate_units();
-    if estimate.is_some() {
+    if (&estimate).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &estimate { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     next = item.next_estimate();
-    if next.is_some() {
+    if (&next).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &next { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

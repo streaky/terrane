@@ -54,7 +54,7 @@ fn main() {
         },
         1 /* terrane-site: src/main.trn:10:25-10:67 */,
     );
-    if selected.is_some() {
+    if (&selected).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &selected { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })

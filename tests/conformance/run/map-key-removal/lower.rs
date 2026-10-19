@@ -102,7 +102,7 @@ fn main() {
         __terrane_result
     };
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&absent.is_none()),
+        "{}{}", terrane_scalar_support::scalar_text(&(&absent).is_none()),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(ordered
         .length()))
     );

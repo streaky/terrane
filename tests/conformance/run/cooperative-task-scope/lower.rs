@@ -33,7 +33,7 @@ fn main() {
         };
         outcome = __terrane_await(scope.join(child)).await;
         value = outcome.value.clone();
-        if value.is_some() {
+        if (&value).is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
                 terrane_scalar_support::scalar_text(&outcome.cancelled),

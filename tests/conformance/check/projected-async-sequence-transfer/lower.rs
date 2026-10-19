@@ -8,7 +8,7 @@ async fn wait_next(mut sequence: TokioSequence) {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -47,7 +47,7 @@ async fn wait_next(mut sequence: TokioSequence) {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
