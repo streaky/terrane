@@ -159,7 +159,7 @@ fn main() {
         };
         next_outcome = __terrane_await(next_scope.join(next_child)).await;
         next_value = next_outcome.value.clone();
-        if next_value.is_some() {
+        if (&next_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &next_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")

@@ -113,7 +113,7 @@ async fn choose(
                     .take()
                     .expect("selected case owns its ready result");
                 value = received.value;
-                if value.is_some() {
+                if (&value).is_some() {
                     println!(
                         "{}{}", String::from("left"),
                         terrane_scalar_support::scalar_text(&match &value { Some(value)
@@ -126,7 +126,7 @@ async fn choose(
                     .take()
                     .expect("selected case owns its ready result");
                 value = received.value;
-                if value.is_some() {
+                if (&value).is_some() {
                     println!(
                         "{}{}", String::from("right"),
                         terrane_scalar_support::scalar_text(&match &value { Some(value)

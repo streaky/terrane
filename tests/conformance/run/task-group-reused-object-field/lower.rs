@@ -89,7 +89,7 @@ fn main() {
                         terrane_collection_support::IterationStep::End => break,
                     };
                     value = outcome.value.clone();
-                    if value.is_some() {
+                    if (&value).is_some() {
                         total = total.clone()
                             + match &value {
                                 Some(value) => value,

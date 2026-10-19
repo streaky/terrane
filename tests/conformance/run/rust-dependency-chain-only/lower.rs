@@ -44,7 +44,7 @@ fn main() {
                                 },
                             )
                             .fetch_one();
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -74,7 +74,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(

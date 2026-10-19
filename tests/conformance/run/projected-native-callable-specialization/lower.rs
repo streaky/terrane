@@ -171,13 +171,13 @@ fn main() {
             },
             8 /* terrane-site: src/main.trn:19:25-19:61 */,
         );
-        if selected.is_some() {
+        if (&selected).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &selected { Some(value)
                 => value, _ => unreachable!("flow-proven storage refinement") })
             );
         }
-        println!("{}", terrane_scalar_support::scalar_text(&selected.is_some()));
+        println!("{}", terrane_scalar_support::scalar_text(&(&selected).is_some()));
         marker = witness::Marker { 0: 7 };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -484,7 +484,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = witness::make_async::<witness::Marker>();
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -501,7 +501,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -517,7 +517,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = (&factory).create_async(marker);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -534,7 +534,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -602,7 +602,7 @@ fn main() {
             },
             37 /* terrane-site: src/main.trn:51:33-51:68 */,
         );
-        if async_free_value.is_some() {
+        if (&async_free_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &async_free_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")
@@ -650,7 +650,7 @@ fn main() {
             },
             38 /* terrane-site: src/main.trn:54:35-54:72 */,
         );
-        if async_member_value.is_some() {
+        if (&async_member_value).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &async_member_value {
                 Some(value) => value, _ => unreachable!("flow-proven storage refinement")

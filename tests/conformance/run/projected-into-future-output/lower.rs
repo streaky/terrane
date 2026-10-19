@@ -13,7 +13,7 @@ fn main() {
                         let __terrane_call = terrane_into_future_witness::ready_value(
                             String::from("generic-output"),
                         );
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     std::future::IntoFuture::into_future(__terrane_call),
                                 )
@@ -30,7 +30,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(

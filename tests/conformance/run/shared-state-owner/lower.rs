@@ -35,7 +35,7 @@ async fn own_state(
     while running {
         received = __terrane_await(Box::pin(commands.receive())).await;
         command = received.value;
-        if command.is_some() {
+        if (&command).is_some() {
             if match &command {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
@@ -82,7 +82,7 @@ async fn use_state(
     value = received.value;
     commands.close();
     responses.close();
-    if value.is_some() {
+    if (&value).is_some() {
         return match value {
             Some(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
@@ -162,8 +162,8 @@ fn main() {
         client_outcome = __terrane_await(scope.join(client)).await;
         owner_value = owner_outcome.value.clone();
         client_value = client_outcome.value.clone();
-        if owner_value.is_some() {
-            if client_value.is_some() {
+        if (&owner_value).is_some() {
+            if (&client_value).is_some() {
                 println!(
                     "{}{}", terrane_scalar_support::scalar_text(&match &owner_value {
                     Some(value) => value, _ =>

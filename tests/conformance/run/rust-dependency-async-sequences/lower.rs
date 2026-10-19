@@ -12,7 +12,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -49,7 +49,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -62,7 +62,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
         0 /* terrane-site: src/main.trn:6:17-6:31 */,
     );
     first_value = first.value;
-    if first_value.is_some() {
+    if (&first_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &first_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") })
@@ -72,7 +72,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -109,7 +109,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -122,7 +122,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
         1 /* terrane-site: src/main.trn:10:18-10:32 */,
     );
     second_value = second.value;
-    if second_value.is_some() {
+    if (&second_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &second_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") })
@@ -132,7 +132,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -169,7 +169,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -186,7 +186,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = sequence.close();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -212,7 +212,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -235,7 +235,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -274,7 +274,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -287,7 +287,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
         4 /* terrane-site: src/main.trn:19:17-19:31 */,
     );
     first_value = first.value;
-    if first_value.is_some() {
+    if (&first_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &first_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") })
@@ -297,7 +297,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -336,7 +336,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -349,7 +349,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
         5 /* terrane-site: src/main.trn:23:18-23:32 */,
     );
     second_value = second.value;
-    if second_value.is_some() {
+    if (&second_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &second_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") })
@@ -359,7 +359,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -398,7 +398,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -415,7 +415,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = sequence.close();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -441,7 +441,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -464,7 +464,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -501,7 +501,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -514,7 +514,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
         8 /* terrane-site: src/main.trn:32:17-32:31 */,
     );
     first_value = first.value;
-    if first_value.is_some() {
+    if (&first_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &first_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") })
@@ -524,7 +524,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -561,7 +561,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -574,7 +574,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
         9 /* terrane-site: src/main.trn:36:18-36:32 */,
     );
     second_value = second.value;
-    if second_value.is_some() {
+    if (&second_value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &second_value { Some(value)
             => value, _ => unreachable!("flow-proven storage refinement") })
@@ -584,7 +584,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -621,7 +621,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -671,7 +671,7 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -710,7 +710,7 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -730,7 +730,7 @@ async fn wait_pending_queue(mut sequence: QueueSequence) {
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
-                    async move {
+                    Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
                         {
@@ -767,7 +767,7 @@ async fn wait_pending_queue(mut sequence: QueueSequence) {
                                 )
                             }
                         }
-                    }
+                    })
                 };
                 async move {
                     __terrane_raised_err(
@@ -856,7 +856,7 @@ fn main() {
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = failing.as_mut().expect("flow-proven available binding")
-                            .next(); async move { match crate
+                            .next(); Box::pin(async move { match crate
                             ::__terrane_dependency_await_unwind(__terrane_call). await {
                             Ok(Ok(value)) => Ok(match value { Some(item) =>
                             terrane_collection_support::AsyncIterationStep::item(terrane_int_support::Int::from(i128::from(item))),
@@ -866,7 +866,7 @@ fn main() {
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload,
                             "terrane_sequence_witness",
-                            "terrane_sequence_witness::TokioSequence::next")) } } };
+                            "terrane_sequence_witness::TokioSequence::next")) } }) };
                             async move { __terrane_raised_err(__terrane_future. await,
                             18 /* terrane-site: src/main.trn:61:25-61:38 */) } }).
                             await, 18 /* terrane-site: src/main.trn:61:25-61:38 */
@@ -929,8 +929,8 @@ fn main() {
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = failing_queue.as_mut()
-                            .expect("flow-proven available binding").next(); async move {
-                            match crate
+                            .expect("flow-proven available binding").next();
+                            Box::pin(async move { match crate
                             ::__terrane_dependency_await_unwind(__terrane_call). await {
                             Ok(Ok(value)) => Ok(match value { Some(item) =>
                             terrane_collection_support::AsyncIterationStep::item(item),
@@ -940,7 +940,7 @@ fn main() {
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload,
                             "terrane_sequence_witness",
-                            "terrane_sequence_witness::QueueSequence::next")) } } };
+                            "terrane_sequence_witness::QueueSequence::next")) } }) };
                             async move { __terrane_raised_err(__terrane_future. await,
                             20 /* terrane-site: src/main.trn:67:31-67:50 */) } }).
                             await, 20 /* terrane-site: src/main.trn:67:31-67:50 */

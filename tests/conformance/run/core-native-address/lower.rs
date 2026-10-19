@@ -9,7 +9,6 @@ fn make_address() -> NativeSocketAddress {
     );
 }
 fn port(address: &NativeSocketAddress) -> u16 {
-    let _ = &address;
     return address.port();
 }
 fn main() {

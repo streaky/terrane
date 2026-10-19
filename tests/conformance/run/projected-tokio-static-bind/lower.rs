@@ -38,7 +38,7 @@ fn main() {
                         let __terrane_call = tokio::net::TcpListener::bind(
                             chosen.clone(),
                         );
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -66,7 +66,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -85,7 +85,7 @@ fn main() {
                         let __terrane_call = tokio::net::TcpStream::connect(
                             chosen.clone(),
                         );
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -113,7 +113,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -140,14 +140,15 @@ fn main() {
                     .insert(
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
-                            = tokio::net::TcpListener::bind(chosen); async move { match
-                            crate ::__terrane_dependency_await_unwind(__terrane_call).
-                            await { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
-                            Err(crate ::TerraneForeignError(crate
+                            = tokio::net::TcpListener::bind(chosen); Box::pin(async move
+                            { match crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await {
+                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                            ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload, "dependency",
-                            "tokio :: net :: TcpListener :: bind")) } } }; async move {
+                            "tokio :: net :: TcpListener :: bind")) } }) }; async move {
                             __terrane_raised_err(__terrane_future. await,
                             5 /* terrane-site: src/main.trn:15:22-15:47 */) } }).
                             await, 5 /* terrane-site: src/main.trn:15:22-15:47 */

@@ -21,8 +21,8 @@ impl Holder {
         let previous: Option<ByteReader>;
         let present: bool;
         previous = std::mem::take(&mut self.input);
-        present = previous.is_some();
-        if previous.is_some() {
+        present = (&previous).is_some();
+        if (&previous).is_some() {
             previous.expect("semantic optional narrowing").close();
         }
         return present;
@@ -38,8 +38,8 @@ impl Holder {
                 .expect("shared async receiver lock poisoned")
                 .input,
         );
-        present = previous.is_some();
-        if previous.is_some() {
+        present = (&previous).is_some();
+        if (&previous).is_some() {
             previous.expect("semantic optional narrowing").close();
         }
         return present;

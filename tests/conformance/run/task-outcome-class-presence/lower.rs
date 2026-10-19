@@ -52,10 +52,10 @@ fn main() {
         };
         outcome = __terrane_await(scope.join(child)).await;
         value = outcome.value.clone();
-        if value.is_some() {
+        if (&value).is_some() {
             println!("{}", String::from("present"));
         }
-        if value.is_none() {
+        if (&value).is_none() {
             println!("{}", String::from("missing"));
         }
     });

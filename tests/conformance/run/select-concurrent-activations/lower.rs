@@ -308,8 +308,8 @@ fn main() {
         second_outcome = __terrane_await(scope.join(second)).await;
         first_value = first_outcome.value.clone();
         second_value = second_outcome.value.clone();
-        if first_value.is_some() {
-            if second_value.is_some() {
+        if (&first_value).is_some() {
+            if (&second_value).is_some() {
                 println!(
                     "{}{}", terrane_scalar_support::scalar_text(&match &first_value {
                     Some(value) => value, _ =>

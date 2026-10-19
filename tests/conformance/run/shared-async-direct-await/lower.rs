@@ -198,7 +198,7 @@ fn main() {
             .await;
         observation = __terrane_await(scope.join(observer)).await;
         observed_value = observation.value.clone();
-        if observed_value.is_some() {
+        if (&observed_value).is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&result),
                 terrane_scalar_support::scalar_text(&match &observed_value { Some(value)

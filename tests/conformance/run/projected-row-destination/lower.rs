@@ -21,7 +21,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = (&options).connect();
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -49,7 +49,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -67,7 +67,7 @@ fn main() {
                     let __terrane_future = {
                         let __terrane_call = terrane_query_witness::query(&selector)
                             .fetch_one(&mut connection);
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -95,7 +95,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
@@ -271,7 +271,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = connection.close();
-                        async move {
+                        Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
                                 )
@@ -299,7 +299,7 @@ fn main() {
                                     )
                                 }
                             }
-                        }
+                        })
                     };
                     async move {
                         __terrane_raised_err(
