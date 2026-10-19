@@ -505,8 +505,8 @@ mod __terrane_trace {
         { Site { function: 2, file: 0, line: 30, column: 13, end_line: 30, end_column: 24 } },
         /* terrane-site-row: site 4: /task-group-failure-finally::main (case.trn:31:14-31:25) */
         { Site { function: 2, file: 0, line: 31, column: 14, end_line: 31, end_column: 25 } },
-        /* terrane-site-row: site 5: /task-group-failure-finally::main (case.trn:37:13-37:24) */
-        { Site { function: 2, file: 0, line: 37, column: 13, end_line: 37, end_column: 24 } },
+        /* terrane-site-row: site 5: /task-group-failure-finally::main (case.trn:38:13-38:24) */
+        { Site { function: 2, file: 0, line: 38, column: 13, end_line: 38, end_column: 24 } },
         /* terrane-site-row: site 6: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 3, file: 1, line: 62, column: 13, end_line: 62, end_column: 45 } },
         /* terrane-site-row: site 7: /core/time::seconds (core/time.trn:38:13-38:45) */

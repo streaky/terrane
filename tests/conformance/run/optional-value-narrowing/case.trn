@@ -38,3 +38,9 @@ function main;
     if found != none
         if found != none
             print; found.text
+    sharedvalue string|none = 'retained'
+    _observer = shared ref sharedvalue
+    if (sharedvalue) != none
+        print; sharedvalue == none
+    sharedvalue = none
+    print; none == (sharedvalue)

@@ -33,6 +33,7 @@ async function main;
     propagated bool = false
     try
         error = second.error
+        print; error == none
         if error != none
             throw error
     catch worker-error

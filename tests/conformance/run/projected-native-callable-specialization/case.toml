@@ -2,3 +2,4 @@ phase = "run"
 status = "accept"
 entrypoint = "package.toml"
 stdout = "stdout.txt"
+canonical-rust = true

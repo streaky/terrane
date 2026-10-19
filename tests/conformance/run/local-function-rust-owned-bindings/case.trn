@@ -1,0 +1,7 @@
+namespace local-function-rust-owned-bindings
+function main;
+    function helper int; parameter int
+        local = parameter + 1
+        return rust
+            parameter + local
+    print; (helper; 4)

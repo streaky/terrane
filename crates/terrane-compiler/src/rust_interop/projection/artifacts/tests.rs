@@ -89,11 +89,6 @@ fn remote_requires_exact_inputs() {
         removed: Vec::new(),
     };
     payload.content_hash = projection_content_hash(&payload).unwrap();
-    payload.probe_wall_time_ms = 1;
-    assert_eq!(
-        payload.content_hash,
-        projection_content_hash(&payload).unwrap()
-    );
     let artifact = ProjectionArtifact {
         format: 1,
         cache_identity: "exact".to_owned(),

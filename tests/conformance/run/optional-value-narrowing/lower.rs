@@ -1,4 +1,5 @@
 // Generated deterministically by Terrane <version>.
+include!("lower.support.rs");
 // Source: case.trn
 // Namespace: optional-value-narrowing
 fn helper() {
@@ -7,7 +8,7 @@ fn helper() {
     println!("{}", terrane_scalar_support::scalar_text(&found));
 }
 fn show(value: Option<i8>) {
-    if value.is_some() {
+    if (&value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &value { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -27,8 +28,10 @@ fn main() {
     let called: Option<i8>;
     let missingvalue: Option<i8>;
     let found: Option<terrane_string_support::TextRange>;
+    let sharedvalue: std::sync::Arc<TerraneSharedCell<Option<String>>>;
+    let __trn_5f6f62736572766572: std::sync::Arc<TerraneSharedCell<Option<String>>>;
     value = Some(7);
-    if value.is_some() {
+    if (&value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &value { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -36,14 +39,14 @@ fn main() {
         value = None;
         println!("{}", terrane_scalar_support::scalar_text(&true));
     }
-    if value.is_some() {
+    if (&value).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &value { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     other = Some(8);
-    if other.is_some() {
+    if (&other).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &other { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
@@ -52,21 +55,21 @@ fn main() {
     show(Some(9));
     show(None);
     returned = maybe();
-    if returned.is_some() {
+    if (&returned).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &returned { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     called = maybe();
-    if called.is_some() {
+    if (&called).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &called { Some(value) =>
             value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
     missingvalue = None;
-    if missingvalue.is_some() {
+    if (&missingvalue).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match &missingvalue {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") })
@@ -76,14 +79,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&true));
     helper();
     found = terrane_string_support::find(&String::from("banana"), &String::from("ana"));
-    if found.is_some() {
-        if {
-            let _ = &match &found {
-                Some(value) => value,
-                _ => unreachable!("flow-proven storage refinement"),
-            };
-            true
-        } {
+    if (&found).is_some() {
+        if (&found).is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&match &found { Some(value) =>
                 value, _ => unreachable!("flow-proven storage refinement") } .text()
@@ -91,4 +88,20 @@ fn main() {
             );
         }
     }
+    sharedvalue = std::sync::Arc::new(
+        TerraneSharedCell::new(Some(String::from("retained"))),
+    );
+    __trn_5f6f62736572766572 = sharedvalue.clone();
+    let _ = &__trn_5f6f62736572766572;
+    if (&sharedvalue).lock().expect("reference lock poisoned").is_some() {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&(&sharedvalue).lock()
+            .expect("reference lock poisoned").is_none())
+        );
+    }
+    *sharedvalue.lock().expect("reference lock poisoned") = None;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(&sharedvalue).lock()
+        .expect("reference lock poisoned").is_none())
+    );
 }

@@ -713,6 +713,31 @@ pub(super) fn record_declared_binding_writes(
     recorded
 }
 
+fn record_rust_binding_reads(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    events: &mut BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    loops: &[Span],
+    regions: &[ControlRegion],
+) {
+    let identifiers = crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
+    for binding in &unit.typed_bindings {
+        if binding.scope.is_some()
+            && binding.is_visible_at(unit.source.id(), node.span.start)
+            && identifiers.contains(crate::lowering::binding_storage_rust_name(unit, binding))
+        {
+            events
+                .entry(span_key(binding.span))
+                .or_default()
+                .push(BindingEvent::Read {
+                    span: node.span,
+                    loops: loops.to_vec(),
+                    regions: regions.to_vec(),
+                });
+        }
+    }
+}
+
 pub(super) fn collect_binding_events(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -738,25 +763,9 @@ pub(super) fn collect_binding_events(
         node.kind,
         SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
     ) {
-        let identifiers = crate::rust_ir::rust_syntactic_identifiers(node_text(&unit.source, node));
-        for binding in &unit.typed_bindings {
-            if binding.scope.is_some()
-                && binding.is_visible_at(unit.source.id(), node.span.start)
-                && identifiers.contains(crate::lowering::binding_storage_rust_name(unit, binding))
-            {
-                events
-                    .entry(span_key(binding.span))
-                    .or_default()
-                    .push(BindingEvent::Read {
-                        span: node.span,
-                        loops: loops.clone(),
-                        regions: regions.clone(),
-                    });
-            }
-        }
+        record_rust_binding_reads(unit, node, events, loops, regions);
         return;
     }
-
     let declares_binding = node_may_declare_typed_binding(node)
         && declared_bindings_at_node(unit, node).next().is_some();
     let assignment_target = if matches!(

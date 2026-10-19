@@ -322,6 +322,9 @@ fn migration_detects_replay_drift() {
     projection.content_hash = projection_content_hash(&projection).unwrap();
     let error = apply_projection_history(&directory, &mut projection).unwrap_err();
     assert!(error.message.contains("projection cache replay mismatch"));
+    assert!(error.message.contains(&semantic_hash));
+    assert!(error.message.contains(&projection.content_hash));
+    assert!(error.message.contains(&cache_path.display().to_string()));
     assert_eq!(fs::read(&cache_path).unwrap(), stable_bytes);
     fs::remove_dir_all(directory).unwrap();
 }

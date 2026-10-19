@@ -1,0 +1,7 @@
+namespace local-function-rust-capture
+function main;
+    outer = 7
+    function helper int;
+        return rust
+            outer
+    print; (helper;)

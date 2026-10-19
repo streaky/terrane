@@ -1573,6 +1573,40 @@ impl Emitter<'_> {
             _ => None,
         }
     }
+    pub(super) fn optional_presence_check(
+        &mut self,
+        operand: &SyntaxNode,
+        operator: &str,
+    ) -> String {
+        let mut place = operand;
+        while place.kind == SyntaxKind::GroupExpression
+            && let Some(inner) = place.children.first()
+        {
+            place = inner;
+        }
+        let value = if place.kind == SyntaxKind::Name {
+            if let Some(binding) = self
+                .local_typed_binding(place)
+                .filter(|binding| binding.scope.is_some())
+            {
+                let storage = self.available_storage_reference(binding, place, false);
+                if self.reference_backed(binding) {
+                    format!("({storage}).lock().expect(\"reference lock poisoned\")")
+                } else {
+                    storage
+                }
+            } else {
+                self.expression(operand)
+            }
+        } else {
+            self.expression(operand)
+        };
+        if operator == "==" {
+            format!("({value}).is_none()")
+        } else {
+            format!("({value}).is_some()")
+        }
+    }
 
     pub(super) fn optional_none_comparison(
         &mut self,
@@ -1590,18 +1624,11 @@ impl Emitter<'_> {
             || left_type == Some(ValueType::Scalar(ScalarType::None));
         let right_is_none = self.text(right).trim() == "none"
             || right_type == Some(ValueType::Scalar(ScalarType::None));
-        let presence_check = |value: String| {
-            if operator == "==" {
-                format!("({value}).is_none()")
-            } else {
-                format!("({value}).is_some()")
-            }
-        };
         if is_optional(left_type) && right_is_none {
-            return Some(presence_check(self.expression(left)));
+            return Some(self.optional_presence_check(left, operator));
         }
         if left_is_none && is_optional(right_type) {
-            return Some(presence_check(self.expression(right)));
+            return Some(self.optional_presence_check(right, operator));
         }
         let optional_origin = |mut operand: &SyntaxNode| {
             while operand.kind == SyntaxKind::GroupExpression
@@ -1620,12 +1647,7 @@ impl Emitter<'_> {
         } else {
             None
         };
-        refined.map(|operand| {
-            let value = self.expression(operand);
-            let present = self.value_type(operand) != Some(ValueType::Scalar(ScalarType::None));
-            let result = present == (operator == "!=");
-            format!("{{ let _ = &{value}; {result} }}")
-        })
+        refined.map(|operand| self.optional_presence_check(operand, operator))
     }
     pub(super) fn string_comparison_operand(&mut self, node: &SyntaxNode) -> String {
         if node.kind == SyntaxKind::Literal {

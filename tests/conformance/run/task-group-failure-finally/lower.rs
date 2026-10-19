@@ -225,10 +225,13 @@ fn main() {
                 let __terrane_completion_1: TerraneCompletion<()> = (|| {
                     let __terrane_try_1: TerraneCompletion<()> = (|| {
                         let _ = error.insert(second.error);
+                        println!(
+                            "{}", terrane_scalar_support::scalar_text(&error.as_ref()
+                            .expect("flow-proven available binding").is_none())
+                        );
                         if error
                             .as_ref()
                             .expect("flow-proven available binding")
-                            .clone()
                             .is_some()
                         {
                             return TerraneCompletion::Error(
@@ -236,7 +239,7 @@ fn main() {
                                     Some(value) => value,
                                     _ => unreachable!("flow-proven storage refinement"),
                                 }
-                                    .at(5 /* terrane-site: case.trn:37:13-37:24 */),
+                                    .at(5 /* terrane-site: case.trn:38:13-38:24 */),
                             );
                         }
                         TerraneCompletion::Normal
