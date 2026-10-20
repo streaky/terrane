@@ -2763,7 +2763,9 @@ impl Emitter<'_> {
                             .and_then(|index| identity.type_arguments.get(index))
                     });
                     if let Some(value) = value {
-                        replacements.insert(generic, rust_value_type(self.package, value.clone()));
+                        replacements
+                            .entry(generic)
+                            .or_insert_with(|| rust_value_type(self.package, value.clone()));
                     }
                 }
             }

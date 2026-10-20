@@ -82,7 +82,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "(& factory) . create::<witness::Marker>",
+                            "witness::Factory::create",
                         ),
                     )
                 }
@@ -164,7 +164,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "((& marker_cell) . get ()) . map",
+                            "std::option::Option::map",
                         ),
                     )
                 }
@@ -337,7 +337,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "(factory) . unsafe_create::<witness::Marker>",
+                            "witness::Factory::unsafe_create",
                         ),
                     )
                 }
@@ -432,7 +432,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness :: Holder :: < u8 > :: make::<u16>",
+                            "witness::Holder<__TerraneOwner_T__Inner__0>::make",
                         ),
                     )
                 }
@@ -452,7 +452,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness :: Holder :: < u8 > :: with_owner::<u16>",
+                            "witness::Holder<T__Inner>::with_owner",
                         ),
                     )
                 }
@@ -469,7 +469,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness :: Holder :: < u8 > :: make::<String>",
+                            "witness::Holder<__TerraneOwner_T__Inner__0>::make",
                         ),
                     )
                 }
@@ -529,7 +529,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "dependency",
-                                            "(& factory) . create_async",
+                                            "witness::Factory::create_async",
                                         ),
                                     )
                                 }
@@ -595,7 +595,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "((& async_free) . get ()) . map",
+                            "std::option::Option::map",
                         ),
                     )
                 }
@@ -643,7 +643,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "((& async_member) . get ()) . map",
+                            "std::option::Option::map",
                         ),
                     )
                 }
