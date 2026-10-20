@@ -2,13 +2,13 @@
 include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
-async fn drain_network(mut sequence: TcpSequence) -> bool {
+async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> {
     let first: terrane_collection_support::AsyncIterationStep<String>;
     let first_value: Option<String>;
     let second: terrane_collection_support::AsyncIterationStep<String>;
     let second_value: Option<String>;
     let ended: terrane_collection_support::AsyncIterationStep<String>;
-    first = __terrane_traced(
+    first = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -60,7 +60,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
             })
             .await,
         0 /* terrane-site: src/main.trn:6:17-6:31 */,
-    );
+    )?;
     first_value = first.value;
     if (&first_value).is_some() {
         println!(
@@ -68,7 +68,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
             => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    second = __terrane_traced(
+    second = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -120,7 +120,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
             })
             .await,
         1 /* terrane-site: src/main.trn:10:18-10:32 */,
-    );
+    )?;
     second_value = second.value;
     if (&second_value).is_some() {
         println!(
@@ -128,7 +128,7 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
             => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    ended = __terrane_traced(
+    ended = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -180,58 +180,62 @@ async fn drain_network(mut sequence: TcpSequence) -> bool {
             })
             .await,
         2 /* terrane-site: src/main.trn:14:17-14:31 */,
-    );
+    )?;
     println!("{}", terrane_scalar_support::scalar_text(&ended.end));
-    return __terrane_traced(
-        __terrane_await({
-                let __terrane_future = {
-                    let __terrane_call = sequence.close();
-                    Box::pin(async move {
-                        match crate::__terrane_dependency_await_unwind(__terrane_call)
-                            .await
-                        {
-                            Ok(Ok(value)) => Ok(value),
-                            Ok(Err(error)) => {
-                                Err(
-                                    crate::TerraneForeignError(
-                                        crate::TerraneError::custom_raised(
-                                            crate::DescriptorId(2),
-                                            error.to_string(),
-                                            crate::TERRANE_NO_SITE,
+    return Ok(
+        __terrane_traced_err(
+            __terrane_await({
+                    let __terrane_future = {
+                        let __terrane_call = sequence.close();
+                        Box::pin(async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    __terrane_call,
+                                )
+                                .await
+                            {
+                                Ok(Ok(value)) => Ok(value),
+                                Ok(Err(error)) => {
+                                    Err(
+                                        crate::TerraneForeignError(
+                                            crate::TerraneError::custom_raised(
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
+                                                crate::TERRANE_NO_SITE,
+                                            ),
                                         ),
-                                    ),
-                                )
+                                    )
+                                }
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "terrane_sequence_witness",
+                                            "terrane_sequence_witness::TcpSequence::close",
+                                        ),
+                                    )
+                                }
                             }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TcpSequence::close",
-                                    ),
-                                )
-                            }
-                        }
-                    })
-                };
-                async move {
-                    __terrane_raised_err(
-                        __terrane_future.await,
-                        3 /* terrane-site: src/main.trn:16:16-16:31 */,
-                    )
-                }
-            })
-            .await,
-        3 /* terrane-site: src/main.trn:16:16-16:31 */,
+                        })
+                    };
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            3 /* terrane-site: src/main.trn:16:16-16:31 */,
+                        )
+                    }
+                })
+                .await,
+            3 /* terrane-site: src/main.trn:16:16-16:31 */,
+        )?,
     );
 }
-async fn drain_tokio(mut sequence: TokioSequence) -> bool {
+async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> {
     let first: terrane_collection_support::AsyncIterationStep<terrane_int_support::Int>;
     let first_value: Option<terrane_int_support::Int>;
     let second: terrane_collection_support::AsyncIterationStep<terrane_int_support::Int>;
     let second_value: Option<terrane_int_support::Int>;
     let ended: terrane_collection_support::AsyncIterationStep<terrane_int_support::Int>;
-    first = __terrane_traced(
+    first = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -285,7 +289,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
             })
             .await,
         4 /* terrane-site: src/main.trn:19:17-19:31 */,
-    );
+    )?;
     first_value = first.value;
     if (&first_value).is_some() {
         println!(
@@ -293,7 +297,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
             => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    second = __terrane_traced(
+    second = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -347,7 +351,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
             })
             .await,
         5 /* terrane-site: src/main.trn:23:18-23:32 */,
-    );
+    )?;
     second_value = second.value;
     if (&second_value).is_some() {
         println!(
@@ -355,7 +359,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
             => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    ended = __terrane_traced(
+    ended = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -409,58 +413,62 @@ async fn drain_tokio(mut sequence: TokioSequence) -> bool {
             })
             .await,
         6 /* terrane-site: src/main.trn:27:17-27:31 */,
-    );
+    )?;
     println!("{}", terrane_scalar_support::scalar_text(&ended.end));
-    return __terrane_traced(
-        __terrane_await({
-                let __terrane_future = {
-                    let __terrane_call = sequence.close();
-                    Box::pin(async move {
-                        match crate::__terrane_dependency_await_unwind(__terrane_call)
-                            .await
-                        {
-                            Ok(Ok(value)) => Ok(value),
-                            Ok(Err(error)) => {
-                                Err(
-                                    crate::TerraneForeignError(
-                                        crate::TerraneError::custom_raised(
-                                            crate::DescriptorId(2),
-                                            error.to_string(),
-                                            crate::TERRANE_NO_SITE,
+    return Ok(
+        __terrane_traced_err(
+            __terrane_await({
+                    let __terrane_future = {
+                        let __terrane_call = sequence.close();
+                        Box::pin(async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    __terrane_call,
+                                )
+                                .await
+                            {
+                                Ok(Ok(value)) => Ok(value),
+                                Ok(Err(error)) => {
+                                    Err(
+                                        crate::TerraneForeignError(
+                                            crate::TerraneError::custom_raised(
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
+                                                crate::TERRANE_NO_SITE,
+                                            ),
                                         ),
-                                    ),
-                                )
+                                    )
+                                }
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "terrane_sequence_witness",
+                                            "terrane_sequence_witness::TokioSequence::close",
+                                        ),
+                                    )
+                                }
                             }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TokioSequence::close",
-                                    ),
-                                )
-                            }
-                        }
-                    })
-                };
-                async move {
-                    __terrane_raised_err(
-                        __terrane_future.await,
-                        7 /* terrane-site: src/main.trn:29:16-29:31 */,
-                    )
-                }
-            })
-            .await,
-        7 /* terrane-site: src/main.trn:29:16-29:31 */,
+                        })
+                    };
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            7 /* terrane-site: src/main.trn:29:16-29:31 */,
+                        )
+                    }
+                })
+                .await,
+            7 /* terrane-site: src/main.trn:29:16-29:31 */,
+        )?,
     );
 }
-async fn drain_queue(mut sequence: QueueSequence) -> bool {
+async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> {
     let first: terrane_collection_support::AsyncIterationStep<String>;
     let first_value: Option<String>;
     let second: terrane_collection_support::AsyncIterationStep<String>;
     let second_value: Option<String>;
     let ended: terrane_collection_support::AsyncIterationStep<String>;
-    first = __terrane_traced(
+    first = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -512,7 +520,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
             })
             .await,
         8 /* terrane-site: src/main.trn:32:17-32:31 */,
-    );
+    )?;
     first_value = first.value;
     if (&first_value).is_some() {
         println!(
@@ -520,7 +528,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
             => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    second = __terrane_traced(
+    second = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -572,7 +580,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
             })
             .await,
         9 /* terrane-site: src/main.trn:36:18-36:32 */,
-    );
+    )?;
     second_value = second.value;
     if (&second_value).is_some() {
         println!(
@@ -580,7 +588,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
             => value, _ => unreachable!("flow-proven storage refinement") })
         );
     }
-    ended = __terrane_traced(
+    ended = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -632,42 +640,44 @@ async fn drain_queue(mut sequence: QueueSequence) -> bool {
             })
             .await,
         10 /* terrane-site: src/main.trn:40:17-40:31 */,
-    );
+    )?;
     println!("{}", terrane_scalar_support::scalar_text(&ended.end));
-    return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| sequence.close()),
-        ) {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(error)) => {
-                Err(
-                    crate::TerraneForeignError(
-                        crate::TerraneError::custom_raised(
-                            crate::DescriptorId(2),
-                            error.to_string(),
-                            crate::TERRANE_NO_SITE,
+    return Ok(
+        __terrane_raised_err(
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| sequence.close()),
+            ) {
+                Ok(Ok(value)) => Ok(value),
+                Ok(Err(error)) => {
+                    Err(
+                        crate::TerraneForeignError(
+                            crate::TerraneError::custom_raised(
+                                crate::DescriptorId(2),
+                                error.to_string(),
+                                crate::TERRANE_NO_SITE,
+                            ),
                         ),
-                    ),
-                )
-            }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "terrane_sequence_witness",
-                        "terrane_sequence_witness::QueueSequence::close",
-                    ),
-                )
-            }
-        },
-        11 /* terrane-site: src/main.trn:42:10-42:25 */,
+                    )
+                }
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "terrane_sequence_witness",
+                            "terrane_sequence_witness::QueueSequence::close",
+                        ),
+                    )
+                }
+            },
+            11 /* terrane-site: src/main.trn:42:10-42:25 */,
+        )?,
     );
 }
-async fn wait_pending_tokio(mut sequence: TokioSequence) {
+async fn wait_pending_tokio(mut sequence: TokioSequence) -> Result<(), TerraneError> {
     let waiting: terrane_collection_support::AsyncIterationStep<
         terrane_int_support::Int,
     >;
-    waiting = __terrane_traced(
+    waiting = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -721,12 +731,13 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) {
             })
             .await,
         12 /* terrane-site: src/main.trn:45:19-45:33 */,
-    );
+    )?;
     println!("{}", terrane_scalar_support::scalar_text(&waiting.end));
+    Ok(())
 }
-async fn wait_pending_queue(mut sequence: QueueSequence) {
+async fn wait_pending_queue(mut sequence: QueueSequence) -> Result<(), TerraneError> {
     let waiting: terrane_collection_support::AsyncIterationStep<String>;
-    waiting = __terrane_traced(
+    waiting = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -778,8 +789,9 @@ async fn wait_pending_queue(mut sequence: QueueSequence) {
             })
             .await,
         13 /* terrane-site: src/main.trn:49:19-49:33 */,
-    );
+    )?;
     println!("{}", terrane_scalar_support::scalar_text(&waiting.end));
+    Ok(())
 }
 fn main() {
     __terrane_run(async move {
@@ -804,51 +816,60 @@ fn main() {
         let pending_queue: QueueSequence;
         let queue_child: TerraneScopedTask<()>;
         let queue_outcome: TerraneTaskOutcome<()>;
-        network_drained = __terrane_await(
-                drain_network(
-                    __terrane_traced(
-                        __terrane_await({
-                                let __terrane_future = make_tcp_sequence();
-                                async move {
-                                    __terrane_raised_err(
-                                        __terrane_future.await,
-                                        14 /* terrane-site: src/main.trn:53:49-53:67 */,
-                                    )
-                                }
-                            })
-                            .await,
-                        14 /* terrane-site: src/main.trn:53:49-53:67 */,
+        network_drained = __terrane_traced(
+            __terrane_await(
+                    drain_network(
+                        __terrane_traced(
+                            __terrane_await({
+                                    let __terrane_future = make_tcp_sequence();
+                                    async move {
+                                        __terrane_raised_err(
+                                            __terrane_future.await,
+                                            14 /* terrane-site: src/main.trn:53:49-53:67 */,
+                                        )
+                                    }
+                                })
+                                .await,
+                            14 /* terrane-site: src/main.trn:53:49-53:67 */,
+                        ),
                     ),
-                ),
-            )
-            .await;
+                )
+                .await,
+            15 /* terrane-site: src/main.trn:53:27-53:68 */,
+        );
         println!("{}", terrane_scalar_support::scalar_text(&network_drained));
-        tokio_drained = __terrane_await(
-                drain_tokio(
-                    __terrane_raised(
-                        make_tokio_sequence(),
-                        15 /* terrane-site: src/main.trn:55:39-55:59 */,
+        tokio_drained = __terrane_traced(
+            __terrane_await(
+                    drain_tokio(
+                        __terrane_raised(
+                            make_tokio_sequence(),
+                            16 /* terrane-site: src/main.trn:55:39-55:59 */,
+                        ),
                     ),
-                ),
-            )
-            .await;
+                )
+                .await,
+            17 /* terrane-site: src/main.trn:55:25-55:60 */,
+        );
         println!("{}", terrane_scalar_support::scalar_text(&tokio_drained));
-        queue_drained = __terrane_await(
-                drain_queue(
-                    __terrane_raised(
-                        make_queue_sequence(),
-                        16 /* terrane-site: src/main.trn:57:39-57:59 */,
+        queue_drained = __terrane_traced(
+            __terrane_await(
+                    drain_queue(
+                        __terrane_raised(
+                            make_queue_sequence(),
+                            18 /* terrane-site: src/main.trn:57:39-57:59 */,
+                        ),
                     ),
-                ),
-            )
-            .await;
+                )
+                .await,
+            19 /* terrane-site: src/main.trn:57:25-57:60 */,
+        );
         println!("{}", terrane_scalar_support::scalar_text(&queue_drained));
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let _ = failing
                     .insert(
                         __terrane_raised_completion!(
-                            make_failing_tokio_sequence(), 17 /* terrane-site: src/main.trn:60:15-60:43 */
+                            make_failing_tokio_sequence(), 20 /* terrane-site: src/main.trn:60:15-60:43 */
                         ),
                     );
                 let _ = failed_step
@@ -868,8 +889,8 @@ fn main() {
                             "terrane_sequence_witness",
                             "terrane_sequence_witness::TokioSequence::next")) } }) };
                             async move { __terrane_raised_err(__terrane_future. await,
-                            18 /* terrane-site: src/main.trn:61:25-61:38 */) } }).
-                            await, 18 /* terrane-site: src/main.trn:61:25-61:38 */
+                            21 /* terrane-site: src/main.trn:61:25-61:38 */) } }).
+                            await, 21 /* terrane-site: src/main.trn:61:25-61:38 */
                         ),
                     );
                 println!(
@@ -921,7 +942,7 @@ fn main() {
                 let _ = failing_queue
                     .insert(
                         __terrane_raised_completion!(
-                            make_failing_queue_sequence(), 19 /* terrane-site: src/main.trn:66:21-66:49 */
+                            make_failing_queue_sequence(), 22 /* terrane-site: src/main.trn:66:21-66:49 */
                         ),
                     );
                 let _ = failed_queue_step
@@ -942,8 +963,8 @@ fn main() {
                             "terrane_sequence_witness",
                             "terrane_sequence_witness::QueueSequence::next")) } }) };
                             async move { __terrane_raised_err(__terrane_future. await,
-                            20 /* terrane-site: src/main.trn:67:31-67:50 */) } }).
-                            await, 20 /* terrane-site: src/main.trn:67:31-67:50 */
+                            23 /* terrane-site: src/main.trn:67:31-67:50 */) } }).
+                            await, 23 /* terrane-site: src/main.trn:67:31-67:50 */
                         ),
                     );
                 println!(
@@ -993,7 +1014,7 @@ fn main() {
         tokio_scope = TerraneTaskScope::new(None);
         pending = __terrane_raised(
             make_pending_tokio_sequence(),
-            21 /* terrane-site: src/main.trn:72:13-72:41 */,
+            24 /* terrane-site: src/main.trn:72:13-72:41 */,
         );
         tokio_child = {
             let __terrane_scope = tokio_scope.clone();
@@ -1008,7 +1029,8 @@ fn main() {
                     )
                     .await
                 {
-                    Some(value) => TerraneTaskResult::Completed(value),
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => TerraneTaskResult::Failed(error),
                     None => TerraneTaskResult::Cancelled,
                 }
             })
@@ -1019,7 +1041,7 @@ fn main() {
         queue_scope = TerraneTaskScope::new(None);
         pending_queue = __terrane_raised(
             make_pending_queue_sequence(),
-            22 /* terrane-site: src/main.trn:78:19-78:47 */,
+            26 /* terrane-site: src/main.trn:78:19-78:47 */,
         );
         queue_child = {
             let __terrane_scope = queue_scope.clone();
@@ -1034,7 +1056,8 @@ fn main() {
                     )
                     .await
                 {
-                    Some(value) => TerraneTaskResult::Completed(value),
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => TerraneTaskResult::Failed(error),
                     None => TerraneTaskResult::Cancelled,
                 }
             })

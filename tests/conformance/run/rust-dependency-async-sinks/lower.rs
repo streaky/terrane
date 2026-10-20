@@ -19,54 +19,58 @@ async fn consume(incoming: Incoming) -> String {
 }
 async fn send_blocked(
     mut sink: Outgoing,
-) -> terrane_collection_support::AsyncSinkOutcome {
-    return __terrane_traced(
-        __terrane_await({
-                let __terrane_future = {
-                    let __terrane_call = (&mut sink).send(String::from("blocked"));
-                    Box::pin(async move {
-                        match crate::__terrane_dependency_await_unwind(__terrane_call)
-                            .await
-                        {
-                            Ok(Ok(value)) => {
-                                Ok(
-                                    terrane_collection_support::AsyncSinkOutcome::from_accepted(
-                                        value,
-                                    ),
+) -> Result<terrane_collection_support::AsyncSinkOutcome, TerraneError> {
+    return Ok(
+        __terrane_traced_err(
+            __terrane_await({
+                    let __terrane_future = {
+                        let __terrane_call = (&mut sink).send(String::from("blocked"));
+                        Box::pin(async move {
+                            match crate::__terrane_dependency_await_unwind(
+                                    __terrane_call,
                                 )
-                            }
-                            Ok(Err(error)) => {
-                                Err(
-                                    crate::TerraneForeignError(
-                                        crate::TerraneError::custom_raised(
-                                            crate::DescriptorId(2),
-                                            error.to_string(),
-                                            crate::TERRANE_NO_SITE,
+                                .await
+                            {
+                                Ok(Ok(value)) => {
+                                    Ok(
+                                        terrane_collection_support::AsyncSinkOutcome::from_accepted(
+                                            value,
                                         ),
-                                    ),
-                                )
+                                    )
+                                }
+                                Ok(Err(error)) => {
+                                    Err(
+                                        crate::TerraneForeignError(
+                                            crate::TerraneError::custom_raised(
+                                                crate::DescriptorId(2),
+                                                error.to_string(),
+                                                crate::TERRANE_NO_SITE,
+                                            ),
+                                        ),
+                                    )
+                                }
+                                Err(payload) => {
+                                    Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "terrane_sink_witness",
+                                            "terrane_sink_witness::Outgoing::send",
+                                        ),
+                                    )
+                                }
                             }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sink_witness",
-                                        "terrane_sink_witness::Outgoing::send",
-                                    ),
-                                )
-                            }
-                        }
-                    })
-                };
-                async move {
-                    __terrane_raised_err(
-                        __terrane_future.await,
-                        1 /* terrane-site: src/main.trn:8:16-8:36 */,
-                    )
-                }
-            })
-            .await,
-        1 /* terrane-site: src/main.trn:8:16-8:36 */,
+                        })
+                    };
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            1 /* terrane-site: src/main.trn:8:16-8:36 */,
+                        )
+                    }
+                })
+                .await,
+            1 /* terrane-site: src/main.trn:8:16-8:36 */,
+        )?,
     );
 }
 fn main() {
@@ -530,7 +534,8 @@ fn main() {
                     )
                     .await
                 {
-                    Some(value) => TerraneTaskResult::Completed(value),
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => TerraneTaskResult::Failed(error),
                     None => TerraneTaskResult::Cancelled,
                 }
             })
@@ -540,7 +545,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&cancelled.cancelled));
         queue = __terrane_raised(
             queue_sink(),
-            14 /* terrane-site: src/main.trn:38:11-38:22 */,
+            15 /* terrane-site: src/main.trn:38:11-38:22 */,
         );
         queued = __terrane_traced(
             __terrane_await({
@@ -586,12 +591,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            15 /* terrane-site: src/main.trn:39:18-39:41 */,
+                            16 /* terrane-site: src/main.trn:39:18-39:41 */,
                         )
                     }
                 })
                 .await,
-            15 /* terrane-site: src/main.trn:39:18-39:41 */,
+            16 /* terrane-site: src/main.trn:39:18-39:41 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&queued.accepted),
@@ -623,7 +628,7 @@ fn main() {
                     )
                 }
             },
-            16 /* terrane-site: src/main.trn:41:23-41:35 */,
+            17 /* terrane-site: src/main.trn:41:23-41:35 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&queue_flushed));
         queue_closed = __terrane_raised(
@@ -652,7 +657,7 @@ fn main() {
                     )
                 }
             },
-            17 /* terrane-site: src/main.trn:43:25-43:37 */,
+            18 /* terrane-site: src/main.trn:43:25-43:37 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&queue_closed));
     });
