@@ -25,7 +25,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(initial) . rounded",
+                        "terrane_native_bound_witness::Border::rounded",
                     ),
                 )
             }
@@ -43,7 +43,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(first) . rounded",
+                        "terrane_native_bound_witness::Border::rounded",
                     ),
                 )
             }

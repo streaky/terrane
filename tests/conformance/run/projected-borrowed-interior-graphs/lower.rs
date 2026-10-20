@@ -196,7 +196,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(((& request) . extensions ()) . get :: < witness :: Entry > ()) . cloned",
+                        "std::option::Option<&T>::cloned",
                     ),
                 )
             }
@@ -248,7 +248,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(((& request) . extensions ()) . get :: < witness :: Entry > ()) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -393,7 +393,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -421,7 +421,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(headers) . insert",
+                        "http::HeaderMap<T>::insert",
                     ),
                 )
             }
@@ -450,7 +450,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -485,7 +485,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -520,7 +520,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -589,7 +589,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -624,7 +624,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -649,7 +649,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . cloned",
+                        "std::option::Option<&T>::cloned",
                     ),
                 )
             }
@@ -678,7 +678,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -713,7 +713,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -773,7 +773,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -818,7 +818,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -892,7 +892,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -923,7 +923,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"forwarded\"))) . and_then",
+                        "std::option::Option::and_then",
                     ),
                 )
             }
@@ -953,7 +953,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"forwarded\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }

@@ -81,8 +81,10 @@ fn main() {
             . await { Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as
             u128)), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
             ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
-            format!("Rust dependency `terrane_borrowed_future_witness` member `terrane_borrowed_future_witness::Builder::serve` failed: {error}"),
-            crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+            format!("Rust dependency `{}` member `{}` failed: {error}",
+            "terrane_borrowed_future_witness",
+            "terrane_borrowed_future_witness::Builder::serve"), crate
+            ::TERRANE_NO_SITE))), Err(payload) => Err(crate
             ::__terrane_dependency_panic(payload, "terrane_borrowed_future_witness",
             "terrane_borrowed_future_witness::Builder::serve")) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:13:19-13:31 */) } }). await, 3 /* terrane-site: src/main.trn:13:19-13:31 */)),
@@ -94,8 +96,10 @@ fn main() {
             . await { Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as
             u128)), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
             ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
-            format!("Rust dependency `terrane_borrowed_future_witness` member `terrane_borrowed_future_witness::Builder::serve` failed: {error}"),
-            crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+            format!("Rust dependency `{}` member `{}` failed: {error}",
+            "terrane_borrowed_future_witness",
+            "terrane_borrowed_future_witness::Builder::serve"), crate
+            ::TERRANE_NO_SITE))), Err(payload) => Err(crate
             ::__terrane_dependency_panic(payload, "terrane_borrowed_future_witness",
             "terrane_borrowed_future_witness::Builder::serve")) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 4 /* terrane-site: src/main.trn:13:41-13:55 */) } }). await, 4 /* terrane-site: src/main.trn:13:41-13:55 */))

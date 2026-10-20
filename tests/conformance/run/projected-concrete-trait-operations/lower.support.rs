@@ -588,7 +588,8 @@ pub fn terrane_static_trn_546f6b656e_from_str(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `witness` member `witness::Token` failed: {error}"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "witness", "witness::Token"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),

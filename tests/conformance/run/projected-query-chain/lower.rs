@@ -280,7 +280,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "< terrane_query_witness :: Row as terrane_query_contract :: RowAccess > :: try_get",
+                            "<terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get",
                         ),
                     )
                 }
@@ -362,7 +362,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "< terrane_query_witness :: Row as terrane_query_contract :: RowAccess > :: try_get",
+                            "<terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get",
                         ),
                     )
                 }

@@ -21,8 +21,8 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&token)
         .contains(&other))) { Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency", "(& token) . contains")) },
-        2 /* terrane-site: src/main.trn:8:13-8:38 */))
+        ::__terrane_dependency_panic(payload, "dependency", "witness::Token::contains"))
+        }, 2 /* terrane-site: src/main.trn:8:13-8:38 */))
     );
     response = __terrane_raised(
         terrane_static_trn_546f6b656e_create(),
@@ -81,7 +81,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "< witness :: Token as core :: convert :: Into < witness :: Element > > :: into",
+                        "<witness::Token as core::convert::Into<U>>::into",
                     ),
                 )
             }

@@ -143,7 +143,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(headers) . insert",
+                        "http::HeaderMap<T>::insert",
                     ),
                 )
             }
@@ -172,7 +172,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"x-test\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -207,7 +207,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"x-test\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }
@@ -242,7 +242,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((headers) . get_mut (String :: from (\"x-test\"))) . and_then",
+                        "std::option::Option::and_then",
                     ),
                 )
             }
@@ -277,7 +277,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "((& headers) . get (String :: from (\"x-test\"))) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }

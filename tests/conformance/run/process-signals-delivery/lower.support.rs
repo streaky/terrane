@@ -742,6 +742,12 @@ fn __terrane_await_destructor<F>(future: F)
 where
     F: Future<Output = ()> + Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        tokio::task::block_in_place(|| handle.block_on(future));
+        return;
+    }
     std::thread::scope(|scope| {
         scope
             .spawn(|| {

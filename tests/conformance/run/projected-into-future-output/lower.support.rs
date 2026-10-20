@@ -569,6 +569,12 @@ fn __terrane_await_destructor<F>(future: F)
 where
     F: Future<Output = ()> + Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        tokio::task::block_in_place(|| handle.block_on(future));
+        return;
+    }
     std::thread::scope(|scope| {
         scope
             .spawn(|| {
@@ -684,7 +690,9 @@ pub async fn ready_result(
                     crate::TerraneError::custom_raised(
                         crate::TERRANE_DEPENDENCY_ERROR,
                         format!(
-                            "Rust dependency `terrane-into-future-witness` member `terrane_into_future_witness::ready_result` failed: {error}"
+                            "Rust dependency `{}` member `{}` failed: {error}",
+                            "terrane-into-future-witness",
+                            "terrane_into_future_witness::ready_result"
                         ),
                         crate::TERRANE_NO_SITE,
                     ),

@@ -25,7 +25,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "terrane_static_witness :: GenericFactory :: open",
+                            "terrane_static_witness::GenericFactory::open",
                         ),
                     )
                 }
@@ -61,7 +61,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "dependency",
-                                            "tokio :: net :: TcpListener :: bind",
+                                            "tokio::net::TcpListener::bind",
                                         ),
                                     )
                                 }
@@ -108,7 +108,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "dependency",
-                                            "tokio :: net :: TcpStream :: connect",
+                                            "tokio::net::TcpStream::connect",
                                         ),
                                     )
                                 }
@@ -148,7 +148,7 @@ fn main() {
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload, "dependency",
-                            "tokio :: net :: TcpListener :: bind")) } }) }; async move {
+                            "tokio::net::TcpListener::bind")) } }) }; async move {
                             __terrane_raised_err(__terrane_future. await,
                             5 /* terrane-site: src/main.trn:15:22-15:47 */) } }).
                             await, 5 /* terrane-site: src/main.trn:15:22-15:47 */
