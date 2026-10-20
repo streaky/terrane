@@ -1342,13 +1342,19 @@ fn require_ref_argument(
     if matches!(expected, ValueType::Reference(_))
         && !matches!(
             actual,
-            ValueType::Reference(_) | ValueType::InvocationScopedNative { .. }
+            ValueType::Reference(_)
+                | ValueType::SharedReference(_)
+                | ValueType::InvocationScopedNative { .. }
         )
     {
         return Err(failure(
             &unit.source,
-            "T0002",
-            format!("parameter `{parameter}` requires an explicit ordinary reference"),
+            "T0012",
+            format!(
+                "`{parameter}` requires `{}`, found `{}`",
+                diagnostic_value_type(&unit.descriptors, expected),
+                diagnostic_value_type(&unit.descriptors, actual)
+            ),
             value.span,
         ));
     }
