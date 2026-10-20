@@ -12,7 +12,8 @@ const TERRANE_RUNTIME_CLOSING: usize = 1 << (usize::BITS - 1);
 )]
 struct TerraneRuntimeLiveness {
     active: std::sync::atomic::AtomicUsize,
-    changed: tokio::sync::Notify,
+    drain: std::sync::Mutex<()>,
+    changed: std::sync::Condvar,
 }
 
 thread_local! {
@@ -24,13 +25,12 @@ thread_local! {
     dead_code,
     reason = "libraries can use awaited destruction without owning an executor"
 )]
-struct TerraneRuntimeLivenessGuard<'a> {
-    runtime: &'a tokio::runtime::Runtime,
+struct TerraneRuntimeLivenessGuard {
     live: std::sync::Arc<TerraneRuntimeLiveness>,
     previous: Option<(tokio::runtime::Id, std::sync::Arc<TerraneRuntimeLiveness>)>,
 }
 
-impl Drop for TerraneRuntimeLivenessGuard<'_> {
+impl Drop for TerraneRuntimeLivenessGuard {
     fn drop(&mut self) {
         if self
             .live
@@ -40,17 +40,19 @@ impl Drop for TerraneRuntimeLivenessGuard<'_> {
         {
             // A finalizer can enter immediately before main returns. Keep the
             // drivers live until it finishes, including on entrypoint unwind.
-            self.runtime.block_on(async {
-                loop {
-                    let changed = self.live.changed.notified();
-                    if self.live.active.load(std::sync::atomic::Ordering::Acquire)
-                        == TERRANE_RUNTIME_CLOSING
-                    {
-                        break;
-                    }
-                    changed.await;
-                }
-            });
+            let drained = self
+                .live
+                .drain
+                .lock()
+                .expect("destructor drain lock poisoned");
+            let _drained = self
+                .live
+                .changed
+                .wait_while(drained, |()| {
+                    self.live.active.load(std::sync::atomic::Ordering::Acquire)
+                        != TERRANE_RUNTIME_CLOSING
+                })
+                .expect("destructor drain lock poisoned");
         }
         TERRANE_RUNTIME_LIVE.with(|live| *live.borrow_mut() = self.previous.take());
     }
@@ -63,17 +65,13 @@ impl Drop for TerraneRuntimeLivenessGuard<'_> {
 fn __terrane_runtime_liveness_enter(
     runtime: &tokio::runtime::Runtime,
     live: std::sync::Arc<TerraneRuntimeLiveness>,
-) -> TerraneRuntimeLivenessGuard<'_> {
+) -> TerraneRuntimeLivenessGuard {
     let previous = TERRANE_RUNTIME_LIVE.with(|current| {
         current
             .borrow_mut()
             .replace((runtime.handle().id(), live.clone()))
     });
-    TerraneRuntimeLivenessGuard {
-        runtime,
-        live,
-        previous,
-    }
+    TerraneRuntimeLivenessGuard { live, previous }
 }
 
 #[allow(
@@ -90,7 +88,10 @@ impl Drop for TerraneDestructorPermit {
             .fetch_sub(1, std::sync::atomic::Ordering::AcqRel)
             == TERRANE_RUNTIME_CLOSING + 1
         {
-            self.0.changed.notify_waiters();
+            // Lock only for the last shutdown permit, pairing the notification
+            // with the condition check so the root cannot miss a wakeup.
+            let _drained = self.0.drain.lock().expect("destructor drain lock poisoned");
+            self.0.changed.notify_one();
         }
     }
 }

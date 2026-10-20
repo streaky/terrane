@@ -1,7 +1,8 @@
 fn __terrane_run<F: Future>(future: F) -> F::Output {
     let live = std::sync::Arc::new(TerraneRuntimeLiveness {
         active: std::sync::atomic::AtomicUsize::new(0),
-        changed: tokio::sync::Notify::new(),
+        drain: std::sync::Mutex::new(()),
+        changed: std::sync::Condvar::new(),
     });
     let worker_live = live.clone();
     let runtime = tokio::runtime::Builder::new_multi_thread()
