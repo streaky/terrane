@@ -76,6 +76,10 @@ impl std::fmt::Display for Rejection {
 
 impl std::error::Error for Rejection {}
 
+pub fn make_rejection() -> Rejection {
+    Rejection
+}
+
 #[derive(Debug)]
 pub struct UnimportedRejection;
 

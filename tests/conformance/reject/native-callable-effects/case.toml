@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0002"
+contains = "found `async function from Builder|none to none throws UnimportedRejection`"

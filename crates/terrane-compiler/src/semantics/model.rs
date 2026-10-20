@@ -2027,6 +2027,8 @@ pub struct SemanticUnit {
     pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,
     pub(super) comparable_foreign_objects: BTreeSet<ObjectIdentity>,
     pub(super) nonclone_foreign_objects: BTreeSet<ObjectIdentity>,
+    /// Shared native effect/catch identities; raw values do not implement throwable.
+    pub(super) projected_error_objects: std::sync::Arc<BTreeSet<ObjectIdentity>>,
     pub(super) projected_interfaces_requiring_application: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,

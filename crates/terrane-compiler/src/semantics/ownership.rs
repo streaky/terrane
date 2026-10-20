@@ -1,5 +1,60 @@
 use super::prelude::*;
 
+fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
+    fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
+        while node.kind == SyntaxKind::GroupExpression {
+            let Some(child) = node.children.first() else {
+                break;
+            };
+            node = child;
+        }
+        node
+    }
+    let value = ungroup(value);
+    let [receiver, _] = value.children.as_slice() else {
+        return Ok(());
+    };
+    if value.kind != SyntaxKind::MemberExpression {
+        return Ok(());
+    }
+    let mut root = ungroup(receiver);
+    while root.kind == SyntaxKind::MemberExpression {
+        root = ungroup(&root.children[0]);
+    }
+    let borrowed = matches!(
+        infer_value_type(unit, root, &unit.typed_bindings)?,
+        Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+    ) || (root.kind == SyntaxKind::Name
+        && node_text(&unit.source, root) == "this"
+        && unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.owner.is_some()
+                    && function.span.file == value.span.file
+                    && function.span.start <= value.span.start
+                    && value.span.end <= function.span.end
+            })
+            .min_by_key(|function| function.span.end - function.span.start)
+            .is_some_and(|function| function.written_invocation_mode != InvocationMode::Consuming));
+    if borrowed
+        && let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)?
+        && !matches!(
+            value_type,
+            ValueType::Reference(_) | ValueType::SharedReference(_)
+        )
+        && value_type_contains_nonclone_foreign(unit, &value_type)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "move provenance and its control-flow join remain one auditable analysis"
@@ -124,6 +179,50 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         declaration_name: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> Result<(), SemanticFailure> {
+        if matches!(
+            node.kind,
+            SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::ReturnStatement
+        ) && let Some(value) = node.children.last()
+        {
+            validate_field_snapshot(unit, value)?;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && arguments.children.iter().any(|argument| {
+                argument.children.last().is_some_and(|value| {
+                    matches!(
+                        value.kind,
+                        SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
+                    )
+                })
+            })
+        {
+            let projected = super::bindings::projected_function_for_call(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            );
+            if let Some(contract) = function_contract_for_call(package, unit, callee) {
+                for (index, parameter) in contract.parameters.iter().enumerate() {
+                    let borrowed = projected
+                        .and_then(|function| function.parameters.get(index))
+                        .is_some_and(|parameter| parameter.borrowed)
+                        || parameter.element_value_type().is_some_and(|value_type| {
+                            matches!(
+                                value_type,
+                                ValueType::Reference(_) | ValueType::SharedReference(_)
+                            )
+                        });
+                    if !borrowed
+                        && let Some(value) =
+                            argument_for_parameter(unit, arguments, contract, index)
+                    {
+                        validate_field_snapshot(unit, value)?;
+                    }
+                }
+            }
+        }
         if matches!(
             node.kind,
             SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock

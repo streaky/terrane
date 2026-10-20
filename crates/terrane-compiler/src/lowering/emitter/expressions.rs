@@ -1674,8 +1674,8 @@ impl Emitter<'_> {
         if !matches!(operator, "==" | "!=") {
             return None;
         }
-        let left_type = self.value_type(left);
-        let right_type = self.value_type(right);
+        let left_type = self.receiver_value_type(left);
+        let right_type = self.receiver_value_type(right);
         let is_optional = |value_type| matches!(value_type, Some(ValueType::Optional(_)));
         let left_is_none = self.text(left).trim() == "none"
             || left_type == Some(ValueType::Scalar(ScalarType::None));

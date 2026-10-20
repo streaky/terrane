@@ -10,18 +10,25 @@ async function exercise;
     result = await builder.serve;
     print; result
 
+function present bool; value ref (Builder|none)
+    return value != none
+
 class receiver
     private value Builder|none = none
     function construct; value Builder|none
         this.value = move value
+    function available bool;
+        return present; (ref this.value)
     mutable async function receive none;
         value = move this.value
+        print; this.value != none
         if value != none
             await value.reject;
         return none
 
 async function rejected none; value Builder|none
     session = instance receiver; move value
+    print; (session.available;)
     await session.receive;
     return none
 
