@@ -1,0 +1,21 @@
+namespace awaited-destructor-native
+from /core/time import clock, duration
+
+class resource
+    function destruct;
+        await clock::sleep; (duration::milliseconds; 1)
+        print; 'destructed'
+
+async function release;
+    value = instance resource;
+    owner = shared ref value
+    alias = shared ref owner
+    _ = alias
+    print; 'body'
+
+async function main;
+    group = task-group; none
+    group.spawn; (release;)
+    outcomes = await group.drain;
+    print; outcomes[0].completed
+    print; 'after'

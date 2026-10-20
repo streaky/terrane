@@ -31,6 +31,7 @@ mod native_group_drop {
     use super::TerraneError;
     include!("../src/runtime/time_inactive.rs");
     include!("../src/runtime/async_native.rs");
+    include!("../src/runtime/async_destructor.rs");
     include!("../src/runtime/tasks_native_parallel.rs");
     include!("../src/runtime/task_groups_native.rs");
 
@@ -102,8 +103,8 @@ mod native_group_drop {
             .expect("group drop and joined cleanup must make progress");
     }
 }
-
 include!("../src/runtime/async.rs");
+include!("../src/runtime/async_destructor.rs");
 include!("../src/runtime/async_cancellable.rs");
 include!("../src/runtime/tasks_threaded.rs");
 

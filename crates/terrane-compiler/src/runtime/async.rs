@@ -30,36 +30,6 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
 )]
 async fn __terrane_wait_projected_cleanups() {}
 
-// An awaited destructor is complete only after this future completes. The future
-// may borrow the object currently being dropped, so it cannot be queued on a
-// reusable `'static` worker without a different ownership-lowering design.
-fn __terrane_await_destructor<F>(future: F)
-where
-    F: Future<Output = ()> + Send,
-{
-    if let Ok(handle) = tokio::runtime::Handle::try_current()
-        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
-    {
-        tokio::task::block_in_place(|| handle.block_on(future));
-        return;
-    }
-
-    // The sole driver of a current-thread runtime cannot be re-entered.
-    // Preserve synchronous completion there and outside a running runtime.
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Terrane destructor runtime must initialize")
-                    .block_on(future);
-            })
-            .join()
-            .expect("Terrane awaited destructor must not panic");
-    });
-}
-
 #[allow(
     dead_code,
     reason = "async entry support is emitted for libraries without an entrypoint"
