@@ -41,7 +41,17 @@ fn validate_async_field_borrow(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
-    if !is_nonclone_field(unit, value)? {
+    if is_nonclone_field(unit, value)? {
+        validate_async_receiver_field_borrow(unit, value)?;
+    }
+    Ok(())
+}
+
+fn validate_async_receiver_field_borrow(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if ungroup(value).kind != SyntaxKind::MemberExpression {
         return Ok(());
     }
     let mut root = ungroup(value);
@@ -73,10 +83,10 @@ fn validate_async_field_borrow(
             source: unit.source.clone(),
             diagnostics: vec![Diagnostic::error(
                 "T0135",
-                "borrowing a non-Clone field of an async receiver requires an unsupported scoped lender",
+                "borrowing an inline field of an async receiver requires an unsupported scoped lender",
                 ungroup(value).span,
             ).with_help(
-                "observe the field in a synchronous helper invoked through `this`; when mutation is permitted, explicitly take an optional field before using it",
+                "call a synchronous helper through `this`; for copyable fields, bind an owned snapshot before awaiting; when mutation is permitted, explicitly take an optional field before use",
             )],
         });
     }
@@ -245,6 +255,23 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 validate_async_field_borrow(unit, receiver)?;
             }
             if let Some(contract) = function_contract_for_call(package, unit, callee) {
+                if projected.is_none()
+                    && contract.owner.is_some()
+                    && !contract.is_static
+                    && contract.is_async
+                    && matches!(
+                        contract.written_invocation_mode,
+                        InvocationMode::Shared | InvocationMode::Mutable
+                    )
+                    && callee.kind == SyntaxKind::MemberExpression
+                    && let Some(receiver) = callee.children.first()
+                    && matches!(
+                        infer_value_type(unit, receiver, &unit.typed_bindings)?,
+                        Some(ValueType::Object(_))
+                    )
+                {
+                    validate_async_receiver_field_borrow(unit, receiver)?;
+                }
                 for (index, parameter) in contract.parameters.iter().enumerate() {
                     let borrowed = projected
                         .and_then(|function| function.parameters.get(index))

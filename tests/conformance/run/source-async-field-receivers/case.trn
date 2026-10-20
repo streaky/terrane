@@ -1,0 +1,33 @@
+namespace app
+class holder
+    value int = 4
+    async function read int;
+        return this.value
+    mutable async function bump int;
+        this.value = this.value + 1
+        return this.value
+class snapshot-outer
+    inner holder
+    function construct; inner holder
+        this.inner = inner
+    async function run int;
+        snapshot = this.inner
+        return await snapshot.read;
+class shared-outer
+    inner shared ref holder
+    function construct; inner shared ref holder
+        this.inner = inner
+    async function run int;
+        return await this.inner.read;
+    mutable async function update int;
+        return await this.inner.bump;
+async function main;
+    value = instance holder;
+    copied = instance snapshot-outer; value
+    owner = shared ref value
+    shared = instance shared-outer; owner
+    outer-owner = shared ref shared
+    print; (await outer-owner.update;)
+    print; (await outer-owner.run;)
+    print; (await value.read;)
+    print; (await copied.run;)

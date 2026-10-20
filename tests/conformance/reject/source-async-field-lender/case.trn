@@ -1,0 +1,14 @@
+namespace app
+class holder
+    value int = 0
+    async function go int;
+        return this.value
+class outer
+    inner holder
+    function construct; inner holder
+        this.inner = inner
+    async function run int;
+        return await this.inner.go;
+async function main;
+    o = instance outer; (instance holder;)
+    print; (await o.run;)

@@ -1,0 +1,15 @@
+namespace app
+class holder
+    value int = 0
+    mutable async function go int;
+        this.value = this.value + 1
+        return this.value
+class outer
+    inner holder
+    function construct; inner holder
+        this.inner = inner
+    mutable async function run int;
+        return await this.inner.go;
+async function main;
+    o = instance outer; (instance holder;)
+    print; (await o.run;)
