@@ -43,6 +43,7 @@ pub(crate) use bindings::projected_macro_for_call;
 mod diagnostics;
 mod objects;
 mod ownership;
+mod field_moves;
 mod selection;
 mod shared_reentry;
 mod shared_storage;

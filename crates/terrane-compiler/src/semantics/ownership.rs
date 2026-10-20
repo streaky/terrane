@@ -73,10 +73,10 @@ fn validate_async_field_borrow(
             source: unit.source.clone(),
             diagnostics: vec![Diagnostic::error(
                 "T0135",
-                "ordinary reference to a non-Clone field of a shared async receiver requires an unsupported scoped lender",
+                "borrowing a non-Clone field of an async receiver requires an unsupported scoped lender",
                 ungroup(value).span,
             ).with_help(
-                "observe the field in a synchronous helper invoked through `this`, or take an optional field with explicit `move` in a mutable method",
+                "observe the field in a synchronous helper invoked through `this`; when mutation is permitted, explicitly take an optional field before using it",
             )],
         });
     }
@@ -216,14 +216,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
-            && arguments.children.iter().any(|argument| {
-                argument.children.last().is_some_and(|value| {
-                    matches!(
-                        value.kind,
-                        SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
-                    )
-                })
-            })
+            && (callee.kind == SyntaxKind::MemberExpression
+                || arguments.children.iter().any(|argument| {
+                    argument.children.last().is_some_and(|value| {
+                        matches!(
+                            value.kind,
+                            SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
+                        )
+                    })
+                }))
         {
             let projected = super::bindings::projected_function_for_call(
                 package,
@@ -231,6 +232,18 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 callee,
                 crate::syntax::call_is_unsafe(node),
             );
+            if let Some(function) = projected
+                && (function.is_async || function.into_future)
+                && function.receiver.is_some()
+                && !matches!(
+                    function.receiver,
+                    Some(crate::rust_interop::projection::Receiver::Move)
+                )
+                && callee.kind == SyntaxKind::MemberExpression
+                && let Some(receiver) = callee.children.first()
+            {
+                validate_async_field_borrow(unit, receiver)?;
+            }
             if let Some(contract) = function_contract_for_call(package, unit, callee) {
                 for (index, parameter) in contract.parameters.iter().enumerate() {
                     let borrowed = projected
@@ -242,11 +255,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                                 ValueType::Reference(_) | ValueType::SharedReference(_)
                             )
                         });
-                    if !borrowed
-                        && let Some(value) =
-                            argument_for_parameter(unit, arguments, contract, index)
-                    {
-                        validate_field_snapshot(unit, value)?;
+                    if let Some(value) = argument_for_parameter(unit, arguments, contract, index) {
+                        if borrowed {
+                            validate_async_field_borrow(unit, value)?;
+                        } else {
+                            validate_field_snapshot(unit, value)?;
+                        }
                     }
                 }
             }
@@ -977,6 +991,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         Ok(())
     }
 
+    super::field_moves::validate(package)?;
     let resource_objects = package
         .units
         .iter()

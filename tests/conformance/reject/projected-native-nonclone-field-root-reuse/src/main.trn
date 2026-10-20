@@ -1,0 +1,9 @@
+namespace app
+from /deps/witness import make_value
+
+function main;
+    value = make_value;
+    items = move value.n0
+    print; items.length
+    again = value
+    print; again
