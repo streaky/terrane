@@ -61,7 +61,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::make::<witness::Marker>",
+                            "witness::make",
                         ),
                     )
                 }
@@ -99,7 +99,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::make::<witness::Marker>",
+                            "witness::make",
                         ),
                     )
                 }
@@ -310,7 +310,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness::make_unsafe::<witness::Marker>",
+                            "witness::make_unsafe",
                         ),
                     )
                 }
@@ -407,7 +407,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::make::<i64>",
+                            "witness::make",
                         ),
                     )
                 }
@@ -432,7 +432,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness::Holder<__TerraneOwner_T__Inner__0>::make",
+                            "witness::Holder::make",
                         ),
                     )
                 }
@@ -452,7 +452,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness::Holder<T__Inner>::with_owner",
+                            "witness::Holder::with_owner",
                         ),
                     )
                 }
@@ -469,7 +469,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness::Holder<__TerraneOwner_T__Inner__0>::make",
+                            "witness::Holder::make",
                         ),
                     )
                 }
@@ -496,7 +496,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "witness",
-                                            "witness::make_async::<witness::Marker>",
+                                            "witness::make_async",
                                         ),
                                     )
                                 }

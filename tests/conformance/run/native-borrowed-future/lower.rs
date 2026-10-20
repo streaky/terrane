@@ -407,7 +407,7 @@ fn main() {
                     .into_value())) { Ok(value) => Ok(value), Err(payload) => Err(crate
                     ::__terrane_dependency_panic(payload,
                     "terrane_borrowed_future_witness",
-                    "terrane_borrowed_future_witness::Envelope<T>::into_value")) },
+                    "terrane_borrowed_future_witness::Envelope::into_value")) },
                     11 /* terrane-site: src/main.trn:51:13-51:32 */)),
                     terrane_scalar_support::scalar_text(&__terrane_raised(outcomes
                     .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),

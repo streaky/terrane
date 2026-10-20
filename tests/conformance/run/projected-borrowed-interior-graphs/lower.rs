@@ -196,7 +196,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "std::option::Option<&T>::cloned",
+                        "std::option::Option::cloned",
                     ),
                 )
             }
@@ -421,7 +421,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "http::HeaderMap<T>::insert",
+                        "http::HeaderMap::insert",
                     ),
                 )
             }
@@ -649,7 +649,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "std::option::Option<&T>::cloned",
+                        "std::option::Option::cloned",
                     ),
                 )
             }
