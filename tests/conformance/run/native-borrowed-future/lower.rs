@@ -166,6 +166,7 @@ impl Receiver {
     }
     pub async fn receive(&mut self) -> Result<(), TerraneError> {
         let value: Option<Builder>;
+        println!("{}", terrane_scalar_support::scalar_text(&self.available()));
         value = std::mem::take(&mut self.value);
         println!("{}", terrane_scalar_support::scalar_text(&(&self.value).is_some()));
         if (&value).is_some() {
@@ -210,12 +211,12 @@ impl Receiver {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                4 /* terrane-site: src/main.trn:26:19-26:32 */,
+                                4 /* terrane-site: src/main.trn:27:19-27:32 */,
                             )
                         }
                     })
                     .await,
-                4 /* terrane-site: src/main.trn:26:19-26:32 */,
+                4 /* terrane-site: src/main.trn:27:19-27:32 */,
             )?;
         }
         return Ok(());
@@ -224,6 +225,11 @@ impl Receiver {
         __terrane_shared_handle: impl TerraneSharedHandle<Self> + Clone,
     ) -> Result<(), TerraneError> {
         let value: Option<Builder>;
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_call_result =
+            __terrane_shared_handle.lock().expect("shared async receiver lock poisoned")
+            .available(); __terrane_call_result })
+        );
         value = std::mem::take(
             &mut __terrane_shared_handle
                 .lock()
@@ -276,12 +282,12 @@ impl Receiver {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                4 /* terrane-site: src/main.trn:26:19-26:32 */,
+                                4 /* terrane-site: src/main.trn:27:19-27:32 */,
                             )
                         }
                     })
                     .await,
-                4 /* terrane-site: src/main.trn:26:19-26:32 */,
+                4 /* terrane-site: src/main.trn:27:19-27:32 */,
             )?;
         }
         return Ok(());
@@ -290,7 +296,6 @@ impl Receiver {
 async fn rejected(value: Option<Builder>) -> Result<(), TerraneError> {
     let mut session: Receiver;
     session = Receiver::terrane_construct(value);
-    println!("{}", terrane_scalar_support::scalar_text(&session.available()));
     __terrane_traced_err(
         __terrane_await((&mut session).receive()).await,
         5 /* terrane-site: src/main.trn:32:11-32:27 */,
