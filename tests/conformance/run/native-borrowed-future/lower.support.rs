@@ -493,9 +493,11 @@ fn __terrane_dependency_panic(
 }
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = [
+    pub static DESCRIPTORS: [&str; 4] = [
         "/core/errors::dependency-error",
         "/core/errors::dependency-panic",
+        "/deps/terrane-borrowed-future-witness::Rejection",
+        "/deps/terrane-borrowed-future-witness::UnimportedRejection",
     ];
 }
 mod __terrane_trace {
@@ -508,22 +510,45 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 2] = ["/app::exercise", "/app::main"];
-    pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /app::exercise (src/main.trn:5:15-5:28) */
-        { Site { function: 0, file: 0, line: 5, column: 15, end_line: 5, end_column: 28 } },
-        /* terrane-site-row: site 1: /app::exercise (src/main.trn:6:20-6:34) */
-        { Site { function: 0, file: 0, line: 6, column: 20, end_line: 6, end_column: 34 } },
-        /* terrane-site-row: site 2: /app::exercise (src/main.trn:8:5-8:19) */
-        { Site { function: 0, file: 0, line: 8, column: 5, end_line: 8, end_column: 19 } },
-        /* terrane-site-row: site 3: /app::exercise (src/main.trn:9:20-9:34) */
-        { Site { function: 0, file: 0, line: 9, column: 20, end_line: 9, end_column: 34 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:16:32-16:61) */
-        { Site { function: 1, file: 0, line: 16, column: 32, end_line: 16, end_column: 61 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:17:13-17:32) */
-        { Site { function: 1, file: 0, line: 17, column: 13, end_line: 17, end_column: 32 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:17:35-17:46) */
-        { Site { function: 1, file: 0, line: 17, column: 35, end_line: 17, end_column: 46 } },
+    pub static FUNCTIONS: [&str; 6] = [
+        "/app::exercise",
+        "/app::receive",
+        "/app::rejected",
+        "/app::rejected-free",
+        "/app::invoke",
+        "/app::main",
+    ];
+    pub static SITES: [Site; 15] = [
+        /* terrane-site-row: site 0: /app::exercise (src/main.trn:6:15-6:28) */
+        { Site { function: 0, file: 0, line: 6, column: 15, end_line: 6, end_column: 28 } },
+        /* terrane-site-row: site 1: /app::exercise (src/main.trn:7:20-7:34) */
+        { Site { function: 0, file: 0, line: 7, column: 20, end_line: 7, end_column: 34 } },
+        /* terrane-site-row: site 2: /app::exercise (src/main.trn:9:5-9:19) */
+        { Site { function: 0, file: 0, line: 9, column: 5, end_line: 9, end_column: 19 } },
+        /* terrane-site-row: site 3: /app::exercise (src/main.trn:10:20-10:34) */
+        { Site { function: 0, file: 0, line: 10, column: 20, end_line: 10, end_column: 34 } },
+        /* terrane-site-row: site 4: /app::receive (src/main.trn:20:19-20:32) */
+        { Site { function: 1, file: 0, line: 20, column: 19, end_line: 20, end_column: 32 } },
+        /* terrane-site-row: site 5: /app::rejected (src/main.trn:25:11-25:27) */
+        { Site { function: 2, file: 0, line: 25, column: 11, end_line: 25, end_column: 27 } },
+        /* terrane-site-row: site 6: /app::rejected-free (src/main.trn:29:11-29:23) */
+        { Site { function: 3, file: 0, line: 29, column: 11, end_line: 29, end_column: 23 } },
+        /* terrane-site-row: site 7: /app::invoke (src/main.trn:33:21-33:34) */
+        { Site { function: 4, file: 0, line: 33, column: 21, end_line: 33, end_column: 34 } },
+        /* terrane-site-row: site 8: /app::invoke (src/main.trn:33:11-33:35) */
+        { Site { function: 4, file: 0, line: 33, column: 11, end_line: 33, end_column: 35 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:41:19-41:28) */
+        { Site { function: 5, file: 0, line: 41, column: 19, end_line: 41, end_column: 28 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:43:32-43:61) */
+        { Site { function: 5, file: 0, line: 43, column: 32, end_line: 43, end_column: 61 } },
+        /* terrane-site-row: site 11: /app::main (src/main.trn:44:13-44:32) */
+        { Site { function: 5, file: 0, line: 44, column: 13, end_line: 44, end_column: 32 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:44:35-44:46) */
+        { Site { function: 5, file: 0, line: 44, column: 35, end_line: 44, end_column: 46 } },
+        /* terrane-site-row: site 13: /app::main (src/main.trn:47:15-47:30) */
+        { Site { function: 5, file: 0, line: 47, column: 15, end_line: 47, end_column: 30 } },
+        /* terrane-site-row: site 14: /app::main (src/main.trn:52:15-52:36) */
+        { Site { function: 5, file: 0, line: 52, column: 15, end_line: 52, end_column: 36 } },
     ];
     #[cold]
     #[inline(never)]
@@ -1541,6 +1566,17 @@ fn terrane_time_deadline_expired(_target: &terrane_int_support::Int) -> bool {
 async fn terrane_time_sleep_until(_target: terrane_int_support::Int) {
     std::future::pending::<()>().await;
 }
+fn __terrane_uninitialized_binding(
+    name: &str,
+    path: &str,
+    line: usize,
+    column: usize,
+) -> ! {
+    eprintln!(
+        "{path}:{line}:{column}: error[T0007]: `{name}` may be read before it is assigned"
+    );
+    std::process::exit(1);
+}
 // Source: <terrane>/projected/deps/terrane-borrowed-future-witness.trn
 // Namespace: deps/terrane-borrowed-future-witness
 pub use terrane_borrowed_future_witness::Builder;
@@ -1580,6 +1616,35 @@ pub fn terrane_static_trn_456e76656c6f7065_new<T>(
                     payload,
                     "terrane-borrowed-future-witness",
                     "terrane_borrowed_future_witness::Envelope<T>",
+                ),
+            )
+        }
+    }
+}
+pub async fn reject_free() -> Result<(), crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(
+            terrane_borrowed_future_witness::reject_free(),
+        )
+        .await
+    {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => {
+            Err(
+                crate::TerraneForeignError(
+                    crate::TerraneError::custom_raised(
+                        crate::DescriptorId(3),
+                        error.to_string(),
+                        crate::TERRANE_NO_SITE,
+                    ),
+                ),
+            )
+        }
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-borrowed-future-witness",
+                    "terrane_borrowed_future_witness::reject_free",
                 ),
             )
         }

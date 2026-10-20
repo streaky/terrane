@@ -24,6 +24,10 @@ impl Builder {
             padding: [0; 64 * 1024],
         }
     }
+
+    pub async fn reject(&self) -> Result<(), Rejection> {
+        Err(Rejection)
+    }
 }
 
 pub struct Connection<'a, T> {
@@ -59,4 +63,30 @@ impl<T> Envelope<T> {
     pub fn into_value(self) -> T {
         self.value
     }
+}
+
+#[derive(Debug)]
+pub struct Rejection;
+
+impl std::fmt::Display for Rejection {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("native rejection")
+    }
+}
+
+impl std::error::Error for Rejection {}
+
+#[derive(Debug)]
+pub struct UnimportedRejection;
+
+impl std::fmt::Display for UnimportedRejection {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("unimported native rejection")
+    }
+}
+
+impl std::error::Error for UnimportedRejection {}
+
+pub async fn reject_free() -> Result<(), UnimportedRejection> {
+    Err(UnimportedRejection)
 }

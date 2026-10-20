@@ -1231,6 +1231,16 @@ fn callable_effects_compatible(
     expected: &CallableEffects,
     actual: &CallableEffects,
 ) -> bool {
+    // Every inferred escaping identity is a throwable, even when an opaque native
+    // error has not been imported as a value type into this unit.
+    if matches!(
+        expected.upper_bound.as_deref(),
+        Some(ValueType::Object(identity))
+            if identity.namespace == "/core/errors" && identity.name == "throwable"
+    ) || expected.escaping.contains("/core/errors::throwable")
+    {
+        return true;
+    }
     let accepts = |actual: &ValueType| {
         expected
             .upper_bound

@@ -1483,6 +1483,67 @@ pub(super) fn escaping_throwables(
     );
     errors
 }
+fn projected_contract_errors(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    contract: &FunctionContract,
+) -> Option<BTreeSet<String>> {
+    if !unit.namespace.starts_with("/deps/") {
+        return None;
+    }
+    let projection = &package.projection;
+    let function = if let Some(owner) = contract.owner.as_deref() {
+        let name = unit
+            .descriptors
+            .iter()
+            .find(|object| object.identity.name == owner)
+            .map_or(owner, |object| object.name.as_str());
+        projection
+            .method(&unit.namespace, name, &contract.name, contract.is_static)
+            .or_else(|| {
+                projection
+                    .interface_method(&unit.namespace, name, &contract.name)
+                    .map(|method| &method.function)
+            })
+    } else {
+        projection
+            .item(&unit.namespace, &contract.name)
+            .and_then(|item| match &item.kind {
+                crate::rust_interop::projection::ProjectedKind::Function(function) => {
+                    Some(function)
+                }
+                _ => None,
+            })
+    };
+    Some(function.map_or_else(
+        || {
+            contract
+                .thrown_types
+                .iter()
+                .filter_map(|value| match value {
+                    ValueType::Object(identity) => Some(identity.qualified_base()),
+                    _ => None,
+                })
+                .collect()
+        },
+        |function| {
+            function
+                .error
+                .as_deref()
+                .map(|error| {
+                    projection
+                        .projected_identity_for_rust_path(error)
+                        .map_or_else(
+                            || "/core/errors::dependency-error".to_owned(),
+                            |(namespace, name)| format!("{namespace}::{name}"),
+                        )
+                })
+                .into_iter()
+                .collect()
+        },
+    ))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the fixed-point call graph and its local traversals form one auditable effect analysis"
@@ -1496,6 +1557,12 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             .iter()
             .filter(|contract| contract.span.file == unit.source.id())
         {
+            // Native declarations are opaque boundaries, not empty source bodies.
+            // Keep their errors fixed while propagating through source callers.
+            if let Some(errors) = projected_contract_errors(package, unit, contract) {
+                inferred_throwables.insert(key(contract.span), errors);
+                continue;
+            }
             if contract.owner_identity.as_ref().is_some_and(|owner| {
                 unit.descriptors.iter().any(|descriptor| {
                     descriptor.identity == *owner && descriptor.kind == ObjectKind::Interface
@@ -1550,6 +1617,10 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         }
     }
     for unit in &package.units {
+        if unit.namespace.starts_with("/deps/") {
+            // Generated signatures use a fallback bound; projection owns the exact error.
+            continue;
+        }
         for contract in unit
             .functions
             .iter()

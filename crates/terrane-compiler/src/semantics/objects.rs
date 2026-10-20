@@ -1446,6 +1446,14 @@ pub(super) fn validate_object_conformance(
                     ));
                 }
                 if resolved_interface.identity == "/core/errors::throwable" {
+                    if package
+                        .projection
+                        .is_projected_error_type(&object.identity.namespace, &object.identity.name)
+                    {
+                        // Native errors receive message/render through their runtime
+                        // throwable envelope, not authored fields and methods.
+                        continue;
+                    }
                     let has_message =
                         effective_object_fields(package, object)
                             .into_iter()
@@ -2694,6 +2702,15 @@ pub(super) fn prepare_type_declarations(
                 .foreign_owns_resource(&object.identity.namespace, &object.identity.name)
             {
                 object.resource_owning = true;
+            }
+            if package
+                .projection
+                .is_projected_error_type(&object.identity.namespace, &object.identity.name)
+            {
+                let throwable = ObjectIdentity::new("/core/errors", "throwable");
+                if !object.interfaces.contains(&throwable) {
+                    object.interfaces.push(throwable);
+                }
             }
         }
     }

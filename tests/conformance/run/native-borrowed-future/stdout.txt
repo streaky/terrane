@@ -1,3 +1,6 @@
 1
 7
 truetrue
+caught method error
+native rejection
+caught function error
