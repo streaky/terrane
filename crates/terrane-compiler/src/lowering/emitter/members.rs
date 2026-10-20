@@ -493,10 +493,7 @@ impl Emitter<'_> {
             let suffix = if mutable { "_mut" } else { "" };
             let borrow = if mutable { "as_mut" } else { "as_ref" };
             let value = match (wrapped, required) {
-                (true, true) => format!(
-                    "({holder_value}).terrane_field_{field}_slot{suffix}().{borrow}().expect(\"required field initialized\")"
-                ),
-                (true, false) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
+                (true, _) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
                 (false, true) => format!(
                     "({holder_value}).{field}.{borrow}().expect(\"required field initialized\")"
                 ),

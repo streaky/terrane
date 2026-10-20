@@ -1,0 +1,22 @@
+namespace required-field-reference
+class holder
+    value int = 4
+    function peek int;
+        return this.value
+class outer
+    inner holder
+    function construct; inner holder
+        this.inner = inner
+    function peek int;
+        alias = ref this.inner
+        return alias.peek;
+class derived-outer extends outer
+    function construct; inner holder
+        this.inner = inner
+function main;
+    o = instance outer; (instance holder;)
+    alias = ref o.inner
+    print; (alias.peek;), (o.peek;)
+    d = instance derived-outer; (instance holder;)
+    derived-alias = ref d.inner
+    print; (derived-alias.peek;), (d.peek;)

@@ -1571,6 +1571,15 @@ fn record_reference_provenance(
         && unary_operator_text(unit, node).as_deref() == Some("ref")
     {
         validate_async_field_borrow(unit, operand)?;
+        if let Some(ValueType::Object(identity)) =
+            infer_value_type(unit, operand, &unit.typed_bindings)?
+            && package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none()
+        {
+            validate_async_receiver_field_borrow(unit, operand)?;
+        }
         let Some(provenance) = borrow_origin(package, unit, operand, proven, return_lenders) else {
             return Err(failure(
                 &unit.source,

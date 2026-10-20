@@ -350,9 +350,7 @@ fn main() {
         __terrane_owner
             .lock()
             .expect("reference lock poisoned")
-            .terrane_field_required_slot_mut()
-            .as_mut()
-            .expect("required field initialized")
+            .terrane_field_required_mut()
             .value = __terrane_value;
     }
     {

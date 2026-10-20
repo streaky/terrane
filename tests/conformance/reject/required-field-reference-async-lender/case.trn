@@ -1,0 +1,15 @@
+namespace required-field-reference-async-lender
+class holder
+    value int = 4
+    function peek int;
+        return this.value
+class outer
+    inner holder
+    function construct; inner holder
+        this.inner = inner
+    async function peek int;
+        alias = ref this.inner
+        return alias.peek;
+async function main;
+    o = instance outer; (instance holder;)
+    print; (await o.peek;)
