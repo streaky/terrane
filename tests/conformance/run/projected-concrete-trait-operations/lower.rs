@@ -116,7 +116,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "witness",
-                        "witness::destination::<witness::Selected>",
+                        "witness::destination",
                     ),
                 )
             }

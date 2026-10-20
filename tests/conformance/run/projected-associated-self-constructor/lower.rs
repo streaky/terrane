@@ -33,7 +33,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&defaulted).label()))
         { Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_owner_witness",
-        "terrane_owner_witness::DefaultOwner<T>::label")) }, 5 /* terrane-site: src/main.trn:11:27-11:43 */)), terrane_scalar_support::scalar_text(&<
+        "terrane_owner_witness::DefaultOwner::label")) }, 5 /* terrane-site: src/main.trn:11:27-11:43 */)), terrane_scalar_support::scalar_text(&<
         terrane_owner_witness::DefaultOwner < std::string::String > > ::CODE),
         terrane_scalar_support::scalar_text(&html)
     );

@@ -30,7 +30,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Envelope::<witness::Address>::terrane_construct",
+                        "Envelope::terrane_construct",
                     ),
                 )
             }
@@ -64,7 +64,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Envelope::<String>::terrane_construct",
+                        "Envelope::terrane_construct",
                     ),
                 )
             }
@@ -87,7 +87,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Frame::<witness::Address>::terrane_construct",
+                        "Frame::terrane_construct",
                     ),
                 )
             }
@@ -116,7 +116,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Pair::<String, witness::Address>::terrane_construct",
+                        "Pair::terrane_construct",
                     ),
                 )
             }
@@ -140,7 +140,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Maybe::<witness::Address>::terrane_construct",
+                        "Maybe::terrane_construct",
                     ),
                 )
             }
@@ -163,7 +163,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Printable::<String>::terrane_construct",
+                        "Printable::terrane_construct",
                     ),
                 )
             }
@@ -185,7 +185,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "witness",
-                        "witness::Envelope<T>::into_payload",
+                        "witness::Envelope::into_payload",
                     ),
                 )
             }
@@ -218,7 +218,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Envelope::<i64>::terrane_construct",
+                        "Envelope::terrane_construct",
                     ),
                 )
             }
@@ -264,7 +264,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Envelope::<bool>::terrane_construct",
+                        "Envelope::terrane_construct",
                     ),
                 )
             }
@@ -330,7 +330,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Envelope::<witness::Address>::terrane_construct",
+                        "Envelope::terrane_construct",
                     ),
                 )
             }
@@ -354,7 +354,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Frame::<witness::Address>::terrane_construct",
+                        "Frame::terrane_construct",
                     ),
                 )
             }

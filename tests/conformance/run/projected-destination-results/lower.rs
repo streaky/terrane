@@ -70,7 +70,7 @@ fn make_number() -> i64 {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::default_value::<i64>",
+                        "factory::default_value",
                     ),
                 )
             }
@@ -105,7 +105,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_value::<Option<i64>>",
+                        "factory::sample_value",
                     ),
                 )
             }
@@ -122,7 +122,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_value::<Vec<u8>>",
+                        "factory::sample_value",
                     ),
                 )
             }
@@ -141,7 +141,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_value::<std::vec::Vec<i64>>",
+                        "factory::sample_value",
                     ),
                 )
             }
@@ -172,7 +172,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_value::<std::collections::BTreeMap<String, i64>>",
+                        "factory::sample_value",
                     ),
                 )
             }
@@ -197,7 +197,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_value::<std::collections::BTreeSet<String>>",
+                        "factory::sample_value",
                     ),
                 )
             }
@@ -226,7 +226,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_rows::<i64>",
+                        "factory::sample_rows",
                     ),
                 )
             }
@@ -255,7 +255,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::sample_numeric_rows::<i64>",
+                        "factory::sample_numeric_rows",
                     ),
                 )
             }
@@ -272,7 +272,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "factory",
-                        "factory::renamed_bound_value::<String>",
+                        "factory::renamed_bound_value",
                     ),
                 )
             }

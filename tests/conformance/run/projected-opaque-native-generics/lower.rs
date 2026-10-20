@@ -13,7 +13,7 @@ fn present(value: witness::Opaque<String>) -> bool {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::Opaque<T>::into_value",
+                            "witness::Opaque::into_value",
                         ),
                     )
                 }
@@ -49,8 +49,8 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | flag.into_value())) {
         Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "witness",
-        "witness::Opaque<T>::into_value")) }, 4 /* terrane-site: src/main.trn:13:13-13:29 */))
+        ::__terrane_dependency_panic(payload, "witness", "witness::Opaque::into_value"))
+        }, 4 /* terrane-site: src/main.trn:13:13-13:29 */))
     );
     nested = __terrane_raised(
         make_nested(),
@@ -100,7 +100,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "witness",
-                        "witness::Opaque<T>::into_value",
+                        "witness::Opaque::into_value",
                     ),
                 )
             }
@@ -111,14 +111,14 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | inner.into_value())) {
         Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "witness",
-        "witness::Opaque<T>::into_value")) }, 15 /* terrane-site: src/main.trn:24:13-24:30 */))
+        ::__terrane_dependency_panic(payload, "witness", "witness::Opaque::into_value"))
+        }, 15 /* terrane-site: src/main.trn:24:13-24:30 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | defaulted
         .into_value())) { Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "witness",
-        "witness::Opaque<T>::into_value")) }, 16 /* terrane-site: src/main.trn:25:13-25:34 */))
+        ::__terrane_dependency_panic(payload, "witness", "witness::Opaque::into_value"))
+        }, 16 /* terrane-site: src/main.trn:25:13-25:34 */))
     );
 }

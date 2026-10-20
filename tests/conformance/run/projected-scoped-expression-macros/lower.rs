@@ -50,7 +50,7 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                     .map(Into::into).collect:: < Vec < _ > > ()))) { Ok(value)
                                     => Ok(value), Err(payload) => Err(crate
                                     ::__terrane_dependency_panic(payload, "witness",
-                                    "witness::row::<_>")) }, 2 /* terrane-site: src/main.trn:9:156-9:178 */)
+                                    "witness::row")) }, 2 /* terrane-site: src/main.trn:9:156-9:178 */)
                                 )
                             }),
                         ) {
@@ -84,7 +84,7 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                             crate::__terrane_dependency_panic(
                                 payload,
                                 "witness",
-                                "witness::container::<_>",
+                                "witness::container",
                             ),
                         )
                     }

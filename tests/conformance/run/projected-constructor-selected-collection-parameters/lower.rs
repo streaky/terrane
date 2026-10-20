@@ -46,7 +46,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "Batch::<i64>::terrane_construct",
+                        "Batch::terrane_construct",
                     ),
                 )
             }

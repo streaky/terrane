@@ -143,7 +143,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "http::HeaderMap<T>::insert",
+                        "http::HeaderMap::insert",
                     ),
                 )
             }
