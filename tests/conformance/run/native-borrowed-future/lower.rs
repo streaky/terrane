@@ -143,6 +143,9 @@ async fn exercise() -> Result<(), TerraneError> {
     println!("{}", terrane_scalar_support::scalar_text(&result));
     Ok(())
 }
+fn present(value: &Option<Builder>) -> bool {
+    return (&value).is_some();
+}
 pub struct Receiver {
     pub value: Option<Builder>,
 }
@@ -158,9 +161,13 @@ impl Receiver {
             self.value = __terrane_value;
         }
     }
+    pub fn available(&self) -> bool {
+        return present(&self.value);
+    }
     pub async fn receive(&mut self) -> Result<(), TerraneError> {
         let value: Option<Builder>;
         value = std::mem::take(&mut self.value);
+        println!("{}", terrane_scalar_support::scalar_text(&(&self.value).is_some()));
         if (&value).is_some() {
             __terrane_traced_err(
                 __terrane_await({
@@ -203,12 +210,12 @@ impl Receiver {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                4 /* terrane-site: src/main.trn:20:19-20:32 */,
+                                4 /* terrane-site: src/main.trn:26:19-26:32 */,
                             )
                         }
                     })
                     .await,
-                4 /* terrane-site: src/main.trn:20:19-20:32 */,
+                4 /* terrane-site: src/main.trn:26:19-26:32 */,
             )?;
         }
         return Ok(());
@@ -222,6 +229,10 @@ impl Receiver {
                 .lock()
                 .expect("shared async receiver lock poisoned")
                 .value,
+        );
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&(&__terrane_shared_handle.lock()
+            .expect("shared async receiver lock poisoned").value).is_some())
         );
         if (&value).is_some() {
             __terrane_traced_err(
@@ -265,12 +276,12 @@ impl Receiver {
                         async move {
                             __terrane_raised_err(
                                 __terrane_future.await,
-                                4 /* terrane-site: src/main.trn:20:19-20:32 */,
+                                4 /* terrane-site: src/main.trn:26:19-26:32 */,
                             )
                         }
                     })
                     .await,
-                4 /* terrane-site: src/main.trn:20:19-20:32 */,
+                4 /* terrane-site: src/main.trn:26:19-26:32 */,
             )?;
         }
         return Ok(());
@@ -279,9 +290,10 @@ impl Receiver {
 async fn rejected(value: Option<Builder>) -> Result<(), TerraneError> {
     let mut session: Receiver;
     session = Receiver::terrane_construct(value);
+    println!("{}", terrane_scalar_support::scalar_text(&session.available()));
     __terrane_traced_err(
         __terrane_await((&mut session).receive()).await,
-        5 /* terrane-site: src/main.trn:25:11-25:27 */,
+        5 /* terrane-site: src/main.trn:32:11-32:27 */,
     )?;
     return Ok(());
 }
@@ -293,12 +305,12 @@ async fn rejected_free(__trn_5f76616c7565: Option<Builder>) -> Result<(), Terran
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        6 /* terrane-site: src/main.trn:29:11-29:23 */,
+                        6 /* terrane-site: src/main.trn:36:11-36:23 */,
                     )
                 }
             })
             .await,
-        6 /* terrane-site: src/main.trn:29:11-29:23 */,
+        6 /* terrane-site: src/main.trn:36:11-36:23 */,
     )?;
     return Ok(());
 }
@@ -317,13 +329,13 @@ async fn invoke(
                     Some(
                         __terrane_raised_err(
                             terrane_static_trn_4275696c646572_new(),
-                            7 /* terrane-site: src/main.trn:33:21-33:34 */,
+                            7 /* terrane-site: src/main.trn:40:21-40:34 */,
                         )?,
                     ),
                 ),
             )
             .await,
-        8 /* terrane-site: src/main.trn:33:11-33:35 */,
+        8 /* terrane-site: src/main.trn:40:11-40:35 */,
     )?;
     return Ok(());
 }
@@ -374,7 +386,7 @@ fn main() {
                     .await;
                 wrapped = __terrane_raised(
                     terrane_static_trn_456e76656c6f7065_new::<bool>(true),
-                    10 /* terrane-site: src/main.trn:43:32-43:61 */,
+                    10 /* terrane-site: src/main.trn:50:32-50:61 */,
                 );
                 println!(
                     "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -383,11 +395,11 @@ fn main() {
                     ::__terrane_dependency_panic(payload,
                     "terrane_borrowed_future_witness",
                     "terrane_borrowed_future_witness::Envelope<T>::into_value")) },
-                    11 /* terrane-site: src/main.trn:44:13-44:32 */)),
+                    11 /* terrane-site: src/main.trn:51:13-51:32 */)),
                     terrane_scalar_support::scalar_text(&__terrane_raised(outcomes
                     .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                    12 /* terrane-site: src/main.trn:44:35-44:46 */)),
-                    12 /* terrane-site: src/main.trn:44:35-44:46 */).completed)
+                    12 /* terrane-site: src/main.trn:51:35-51:46 */)),
+                    12 /* terrane-site: src/main.trn:51:35-51:46 */).completed)
                 );
                 handler = std::sync::Arc::new(move |
                     argument_0: Option<Builder>,
@@ -398,7 +410,7 @@ fn main() {
                     let __terrane_try_0: TerraneCompletion<()> = async {
                         __terrane_traced_completion!(
                             __terrane_await(invoke(handler.clone())). await,
-                            13 /* terrane-site: src/main.trn:47:15-47:30 */
+                            13 /* terrane-site: src/main.trn:54:15-54:30 */
                         );
                         TerraneCompletion::Normal
                     }
@@ -446,7 +458,7 @@ fn main() {
                             __terrane_await(invoke(std::sync::Arc::new(move | argument_0
                             : Option < Builder >| -> std::pin::Pin < Box < dyn Future <
                             Output = _ > + Send >> { Box::pin(rejected_free(argument_0))
-                            }))). await, 14 /* terrane-site: src/main.trn:52:15-52:36 */
+                            }))). await, 14 /* terrane-site: src/main.trn:59:15-59:36 */
                         );
                         TerraneCompletion::Normal
                     }
