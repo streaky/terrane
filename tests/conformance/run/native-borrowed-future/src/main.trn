@@ -59,3 +59,17 @@ async function main;
         await invoke; rejected-free
     catch throwable
         print; 'caught function error'
+    discarded = Builder::new;
+    _ = await discarded.advance;
+    advanced = await discarded.serve;
+    print; advanced
+    try
+        _ = await discarded.reject_value;
+    catch Rejection
+        print; 'discard rejected'
+    try
+        local = Builder::new;
+        local-result = await local.serve;
+        print; local-result
+    catch throwable
+        print; 'unexpected local failure'

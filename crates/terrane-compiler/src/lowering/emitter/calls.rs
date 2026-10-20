@@ -2673,7 +2673,7 @@ impl Emitter<'_> {
                         self.mutable_receiver_expression(receiver)
                     }
                     Some(crate::rust_interop::projection::Receiver::Borrow) => {
-                        format!("&{receiver_expression}")
+                        format!("&{}", self.native_receiver_expression(receiver, false))
                     }
                     Some(crate::rust_interop::projection::Receiver::Move) => receiver_expression,
                     _ if contract.written_invocation_mode == InvocationMode::Mutable => {
@@ -2722,17 +2722,52 @@ impl Emitter<'_> {
             })
             .map(crate::rust_ir::rust_type_parameter_names)
             .unwrap_or_default();
-        let name = if let Some(specialization) = specialization
-            && !native_path_generics.is_empty()
-        {
-            let replacements = specialization
-                .substitutions
-                .iter()
-                .map(|(name, projected)| (name.clone(), projected.rust_type()))
-                .collect();
-            crate::rust_ir::instantiate_rust_generics(&name, &replacements)
-        } else {
+        let name = if native_path_generics.is_empty() {
             name
+        } else {
+            let mut replacements = specialization
+                .map(|specialization| {
+                    specialization
+                        .substitutions
+                        .iter()
+                        .map(|(name, projected)| (name.clone(), projected.rust_type()))
+                        .collect::<BTreeMap<_, _>>()
+                })
+                .unwrap_or_default();
+            // The receiver's instantiated identity is the canonical source of owner
+            // substitutions for trait-qualified calls whose method has no own generics.
+            if let Some(projected) = projected_function.as_ref()
+                && let Some(owner) = projected.native_owner.as_deref()
+                && let [receiver, _member] = callee.children.as_slice()
+                && let Some(identity) = self
+                    .class_designator(receiver)
+                    .map(|object| object.identity.clone())
+                    .or_else(|| match self.value_type(receiver)? {
+                        ValueType::Object(identity) => Some(identity),
+                        ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                            let ValueType::Object(identity) = item.value_type() else {
+                                return None;
+                            };
+                            Some(identity.clone())
+                        }
+                        ValueType::InvocationScopedNative { family, .. } => Some(family),
+                        _ => None,
+                    })
+            {
+                for generic in crate::rust_ir::rust_type_parameter_names(owner) {
+                    let value = identity.native_arguments.get(&generic).or_else(|| {
+                        identity
+                            .native_parameters
+                            .iter()
+                            .position(|parameter| parameter == &generic)
+                            .and_then(|index| identity.type_arguments.get(index))
+                    });
+                    if let Some(value) = value {
+                        replacements.insert(generic, rust_value_type(self.package, value.clone()));
+                    }
+                }
+            }
+            crate::rust_ir::instantiate_rust_generics(&name, &replacements)
         };
         // Projected specialization records attach only to free/static paths or projected
         // member access. Each branch above ends in a callable Rust path/member segment, so an
@@ -3171,7 +3206,13 @@ impl Emitter<'_> {
                     .and_then(|namespace| namespace.split('/').next())
                     .unwrap_or("dependency")
                     .to_owned();
-                (dependency, name.clone())
+                let member = method.native_path.clone().unwrap_or_else(|| {
+                    method
+                        .native_owner
+                        .as_deref()
+                        .map_or_else(|| name.clone(), |owner| format!("{owner}::{}", method.name))
+                });
+                (dependency, member)
             } else {
                 let [receiver, _member] = callee.children.as_slice() else {
                     unreachable!("projected methods have a receiver")
@@ -3260,7 +3301,7 @@ impl Emitter<'_> {
                     (
                         "TERRANE_DEPENDENCY_ERROR".to_owned(),
                         format!(
-                            "format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\")"
+                            "format!(\"Rust dependency `{{}}` member `{{}}` failed: {{error}}\", {dependency:?}, {member:?})"
                         ),
                     )
                 },

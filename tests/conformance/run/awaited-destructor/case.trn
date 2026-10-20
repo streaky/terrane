@@ -1,12 +1,23 @@
 namespace awaited-destructor
 
+from /core/time import clock, duration
+
 async function close-native;
+    await clock::sleep; (duration::milliseconds; 1)
     print; 'closed'
 
 class resource
     function destruct;
         await close-native;
+        print; 'destructed'
+
+function release;
+    value = instance resource;
+    owner = shared ref value
+    alias = shared ref owner
+    _ = alias
+    print; 'body'
 
 async function main;
-    value = instance resource;
-    print; 'body'
+    release;
+    print; 'after'

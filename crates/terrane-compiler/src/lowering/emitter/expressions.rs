@@ -840,10 +840,10 @@ impl Emitter<'_> {
             && scalar != ScalarType::Int
             && scalar.is_integer()
             && node.kind == SyntaxKind::UnaryExpression
+            && self.unary_operator(node).as_deref() == Some("-")
             && let Some(operand) = node.children.last()
         {
-            let operator = self.unary_operator(node).unwrap_or_default();
-            return format!("{operator}{}", self.expression(operand));
+            return format!("-{}", self.expression(operand));
         }
         if self
             .native_field_type(node)

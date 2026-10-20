@@ -518,7 +518,7 @@ mod __terrane_trace {
         "/app::invoke",
         "/app::main",
     ];
-    pub static SITES: [Site; 15] = [
+    pub static SITES: [Site; 21] = [
         /* terrane-site-row: site 0: /app::exercise (src/main.trn:6:15-6:28) */
         { Site { function: 0, file: 0, line: 6, column: 15, end_line: 6, end_column: 28 } },
         /* terrane-site-row: site 1: /app::exercise (src/main.trn:7:20-7:34) */
@@ -549,6 +549,18 @@ mod __terrane_trace {
         { Site { function: 5, file: 0, line: 54, column: 15, end_line: 54, end_column: 30 } },
         /* terrane-site-row: site 14: /app::main (src/main.trn:59:15-59:36) */
         { Site { function: 5, file: 0, line: 59, column: 15, end_line: 59, end_column: 36 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:62:17-62:30) */
+        { Site { function: 5, file: 0, line: 62, column: 17, end_line: 62, end_column: 30 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:63:15-63:33) */
+        { Site { function: 5, file: 0, line: 63, column: 15, end_line: 63, end_column: 33 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:64:22-64:38) */
+        { Site { function: 5, file: 0, line: 64, column: 22, end_line: 64, end_column: 38 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:67:19-67:42) */
+        { Site { function: 5, file: 0, line: 67, column: 19, end_line: 67, end_column: 42 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:71:17-71:30) */
+        { Site { function: 5, file: 0, line: 71, column: 17, end_line: 71, end_column: 30 } },
+        /* terrane-site-row: site 20: /app::main (src/main.trn:72:30-72:42) */
+        { Site { function: 5, file: 0, line: 72, column: 30, end_line: 72, end_column: 42 } },
     ];
     #[cold]
     #[inline(never)]
@@ -993,6 +1005,12 @@ fn __terrane_await_destructor<F>(future: F)
 where
     F: Future<Output = ()> + Send,
 {
+    if let Ok(handle) = tokio::runtime::Handle::try_current()
+        && handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread
+    {
+        tokio::task::block_in_place(|| handle.block_on(future));
+        return;
+    }
     std::thread::scope(|scope| {
         scope
             .spawn(|| {

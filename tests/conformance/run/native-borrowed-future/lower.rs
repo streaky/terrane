@@ -28,7 +28,9 @@ async fn exercise() -> Result<(), TerraneError> {
                                         crate::TerraneError::custom_raised(
                                             crate::TERRANE_DEPENDENCY_ERROR,
                                             format!(
-                                                "Rust dependency `terrane_borrowed_future_witness` member `terrane_borrowed_future_witness::Builder::serve` failed: {error}"
+                                                "Rust dependency `{}` member `{}` failed: {error}",
+                                                "terrane_borrowed_future_witness",
+                                                "terrane_borrowed_future_witness::Builder::serve"
                                             ),
                                             crate::TERRANE_NO_SITE,
                                         ),
@@ -111,7 +113,9 @@ async fn exercise() -> Result<(), TerraneError> {
                                         crate::TerraneError::custom_raised(
                                             crate::TERRANE_DEPENDENCY_ERROR,
                                             format!(
-                                                "Rust dependency `terrane_borrowed_future_witness` member `terrane_borrowed_future_witness::Builder::serve` failed: {error}"
+                                                "Rust dependency `{}` member `{}` failed: {error}",
+                                                "terrane_borrowed_future_witness",
+                                                "terrane_borrowed_future_witness::Builder::serve"
                                             ),
                                             crate::TERRANE_NO_SITE,
                                         ),
@@ -361,6 +365,10 @@ fn main() {
                         > + Send + Sync,
                 >;
                 let mut error: Option<TerraneError> = None;
+                let mut discarded: Builder;
+                let advanced: terrane_int_support::Int;
+                let mut local: Option<Builder> = None;
+                let mut local_result: Option<terrane_int_support::Int> = None;
                 group = TerraneTaskGroup::<()>::new();
                 {
                     let __terrane_child = {
@@ -490,6 +498,224 @@ fn main() {
                 }
                     .await;
                 match __terrane_completion_1 {
+                    TerraneCompletion::Normal => {}
+                    TerraneCompletion::Return(value) => return value,
+                    TerraneCompletion::Error(error) => __terrane_uncaught(error),
+                    TerraneCompletion::Break | TerraneCompletion::Continue => {
+                        __terrane_generated_defect("loop control escaped a non-loop try")
+                    }
+                }
+                discarded = __terrane_raised(
+                    terrane_static_trn_4275696c646572_new(),
+                    15 /* terrane-site: src/main.trn:62:17-62:30 */,
+                );
+                {
+                    let _: terrane_int_support::Int = __terrane_traced(
+                        __terrane_await({
+                                let __terrane_future = {
+                                    let __terrane_call = (&mut discarded).advance();
+                                    Box::pin(async move {
+                                        match crate::__terrane_dependency_await_unwind(
+                                                __terrane_call,
+                                            )
+                                            .await
+                                        {
+                                            Ok(value) => {
+                                                Ok(terrane_int_support::Int::from_u128(value as u128))
+                                            }
+                                            Err(payload) => {
+                                                Err(
+                                                    crate::__terrane_dependency_panic(
+                                                        payload,
+                                                        "terrane_borrowed_future_witness",
+                                                        "terrane_borrowed_future_witness::Builder::advance",
+                                                    ),
+                                                )
+                                            }
+                                        }
+                                    })
+                                };
+                                async move {
+                                    __terrane_raised_err(
+                                        __terrane_future.await,
+                                        16 /* terrane-site: src/main.trn:63:15-63:33 */,
+                                    )
+                                }
+                            })
+                            .await,
+                        16 /* terrane-site: src/main.trn:63:15-63:33 */,
+                    );
+                }
+                advanced = __terrane_traced(
+                    __terrane_await({
+                            let __terrane_future = {
+                                let __terrane_call = (&discarded).serve();
+                                Box::pin(async move {
+                                    match crate::__terrane_dependency_await_unwind(
+                                            std::future::IntoFuture::into_future(__terrane_call),
+                                        )
+                                        .await
+                                    {
+                                        Ok(Ok(value)) => {
+                                            Ok(terrane_int_support::Int::from_u128(value as u128))
+                                        }
+                                        Ok(Err(error)) => {
+                                            Err(
+                                                crate::TerraneForeignError(
+                                                    crate::TerraneError::custom_raised(
+                                                        crate::TERRANE_DEPENDENCY_ERROR,
+                                                        format!(
+                                                            "Rust dependency `{}` member `{}` failed: {error}",
+                                                            "terrane_borrowed_future_witness",
+                                                            "terrane_borrowed_future_witness::Builder::serve"
+                                                        ),
+                                                        crate::TERRANE_NO_SITE,
+                                                    ),
+                                                ),
+                                            )
+                                        }
+                                        Err(payload) => {
+                                            Err(
+                                                crate::__terrane_dependency_panic(
+                                                    payload,
+                                                    "terrane_borrowed_future_witness",
+                                                    "terrane_borrowed_future_witness::Builder::serve",
+                                                ),
+                                            )
+                                        }
+                                    }
+                                })
+                            };
+                            async move {
+                                __terrane_raised_err(
+                                    __terrane_future.await,
+                                    17 /* terrane-site: src/main.trn:64:22-64:38 */,
+                                )
+                            }
+                        })
+                        .await,
+                    17 /* terrane-site: src/main.trn:64:22-64:38 */,
+                );
+                println!("{}", terrane_scalar_support::scalar_text(&advanced));
+                let __terrane_completion_2: TerraneCompletion<()> = async {
+                    let __terrane_try_2: TerraneCompletion<()> = async {
+                        {
+                            let _: terrane_int_support::Int = __terrane_traced_completion!(
+                                __terrane_await({ let __terrane_future = { let
+                                __terrane_call = (&discarded).reject_value(); Box::pin(async
+                                move { match crate
+                                ::__terrane_dependency_await_unwind(__terrane_call). await {
+                                Ok(Ok(value)) =>
+                                Ok(terrane_int_support::Int::from_u128(value as u128)),
+                                Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
+                                ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                                Err(crate ::__terrane_dependency_panic(payload,
+                                "terrane_borrowed_future_witness",
+                                "terrane_borrowed_future_witness::Builder::reject_value")) }
+                                }) }; async move { __terrane_raised_err(__terrane_future.
+                                await, 18 /* terrane-site: src/main.trn:67:19-67:42 */) }
+                                }). await, 18 /* terrane-site: src/main.trn:67:19-67:42 */
+                            );
+                        }
+                        TerraneCompletion::Normal
+                    }
+                        .await;
+                    match __terrane_try_2 {
+                        TerraneCompletion::Return(value) => {
+                            return TerraneCompletion::Return(value);
+                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                        TerraneCompletion::Normal => {}
+                        TerraneCompletion::Error(__terrane_error_2) => {
+                            let mut __terrane_handled_2 = false;
+                            if !__terrane_handled_2
+                                && __terrane_error_2.kind
+                                    == TerraneErrorKind::Custom(DescriptorId(2))
+                            {
+                                __terrane_handled_2 = true;
+                                println!("{}", String::from("discard rejected"));
+                            }
+                            if !__terrane_handled_2 {
+                                return TerraneCompletion::Error(__terrane_error_2);
+                            }
+                        }
+                    }
+                    TerraneCompletion::Normal
+                }
+                    .await;
+                match __terrane_completion_2 {
+                    TerraneCompletion::Normal => {}
+                    TerraneCompletion::Return(value) => return value,
+                    TerraneCompletion::Error(error) => __terrane_uncaught(error),
+                    TerraneCompletion::Break | TerraneCompletion::Continue => {
+                        __terrane_generated_defect("loop control escaped a non-loop try")
+                    }
+                }
+                let __terrane_completion_3: TerraneCompletion<()> = async {
+                    let __terrane_try_3: TerraneCompletion<()> = async {
+                        let _ = local
+                            .insert(
+                                __terrane_raised_completion!(
+                                    terrane_static_trn_4275696c646572_new(),
+                                    19 /* terrane-site: src/main.trn:71:17-71:30 */
+                                ),
+                            );
+                        let _ = local_result
+                            .insert(
+                                __terrane_traced_completion!(
+                                    __terrane_await({ let __terrane_future = { let
+                                    __terrane_call = (&local.as_ref()
+                                    .expect("flow-proven available binding")).serve();
+                                    Box::pin(async move { match crate
+                                    ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
+                                    . await { Ok(Ok(value)) =>
+                                    Ok(terrane_int_support::Int::from_u128(value as u128)),
+                                    Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
+                                    ::TerraneError::custom_raised(crate
+                                    ::TERRANE_DEPENDENCY_ERROR,
+                                    format!("Rust dependency `{}` member `{}` failed: {error}",
+                                    "terrane_borrowed_future_witness",
+                                    "terrane_borrowed_future_witness::Builder::serve"), crate
+                                    ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+                                    ::__terrane_dependency_panic(payload,
+                                    "terrane_borrowed_future_witness",
+                                    "terrane_borrowed_future_witness::Builder::serve")) } }) };
+                                    async move { __terrane_raised_err(__terrane_future. await,
+                                    20 /* terrane-site: src/main.trn:72:30-72:42 */) } }).
+                                    await, 20 /* terrane-site: src/main.trn:72:30-72:42 */
+                                ),
+                            );
+                        println!(
+                            "{}", terrane_scalar_support::scalar_text(&local_result
+                            .as_ref().expect("flow-proven available binding"))
+                        );
+                        TerraneCompletion::Normal
+                    }
+                        .await;
+                    match __terrane_try_3 {
+                        TerraneCompletion::Return(value) => {
+                            return TerraneCompletion::Return(value);
+                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                        TerraneCompletion::Normal => {}
+                        TerraneCompletion::Error(__terrane_error_3) => {
+                            let mut __terrane_handled_3 = false;
+                            if !__terrane_handled_3 {
+                                __terrane_handled_3 = true;
+                                println!("{}", String::from("unexpected local failure"));
+                            }
+                            if !__terrane_handled_3 {
+                                return TerraneCompletion::Error(__terrane_error_3);
+                            }
+                        }
+                    }
+                    TerraneCompletion::Normal
+                }
+                    .await;
+                match __terrane_completion_3 {
                     TerraneCompletion::Normal => {}
                     TerraneCompletion::Return(value) => return value,
                     TerraneCompletion::Error(error) => __terrane_uncaught(error),
