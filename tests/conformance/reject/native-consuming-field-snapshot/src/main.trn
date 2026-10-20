@@ -1,0 +1,13 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import Builder
+class holder
+    value Builder|none = none
+    function construct; value Builder|none
+        this.value = move value
+    consuming function take bool;
+        first = this.value
+        second = this.value
+        return first != none or second != none
+function main;
+    h = instance holder; (Builder::new;)
+    print; (h.take;)

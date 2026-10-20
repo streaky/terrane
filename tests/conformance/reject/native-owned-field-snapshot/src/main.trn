@@ -1,0 +1,12 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import Builder
+class holder
+    value Builder|none = none
+    function construct; value Builder|none
+        this.value = move value
+    function check int;
+        return 1
+function main;
+    h = instance holder; (Builder::new;)
+    value = h.value
+    print; value != none, (h.check;)

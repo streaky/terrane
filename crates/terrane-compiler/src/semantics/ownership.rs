@@ -1,30 +1,57 @@
 use super::prelude::*;
 
-fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
-    fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
-        while node.kind == SyntaxKind::GroupExpression {
-            let Some(child) = node.children.first() else {
-                break;
-            };
-            node = child;
-        }
-        node
+fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
+    while node.kind == SyntaxKind::GroupExpression {
+        let Some(child) = node.children.first() else {
+            break;
+        };
+        node = child;
     }
+    node
+}
+
+fn is_nonclone_field(unit: &SemanticUnit, value: &SyntaxNode) -> Result<bool, SemanticFailure> {
     let value = ungroup(value);
-    let [receiver, _] = value.children.as_slice() else {
-        return Ok(());
-    };
     if value.kind != SyntaxKind::MemberExpression {
+        return Ok(false);
+    }
+    Ok(
+        infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
+            !matches!(
+                value_type,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            ) && value_type_contains_nonclone_foreign(unit, &value_type)
+        }),
+    )
+}
+
+fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
+    if is_nonclone_field(unit, value)? {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver",
+            ungroup(value).span,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_async_field_borrow(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if !is_nonclone_field(unit, value)? {
         return Ok(());
     }
-    let mut root = ungroup(receiver);
-    while root.kind == SyntaxKind::MemberExpression {
+    let mut root = ungroup(value);
+    while matches!(
+        root.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
         root = ungroup(&root.children[0]);
     }
-    let borrowed = matches!(
-        infer_value_type(unit, root, &unit.typed_bindings)?,
-        Some(ValueType::Reference(_) | ValueType::SharedReference(_))
-    ) || (root.kind == SyntaxKind::Name
+    if root.kind == SyntaxKind::Name
         && node_text(&unit.source, root) == "this"
         && unit
             .functions
@@ -36,21 +63,22 @@ fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<()
                     && value.span.end <= function.span.end
             })
             .min_by_key(|function| function.span.end - function.span.start)
-            .is_some_and(|function| function.written_invocation_mode != InvocationMode::Consuming));
-    if borrowed
-        && let Some(value_type) = infer_value_type(unit, value, &unit.typed_bindings)?
-        && !matches!(
-            value_type,
-            ValueType::Reference(_) | ValueType::SharedReference(_)
-        )
-        && value_type_contains_nonclone_foreign(unit, &value_type)
+            .is_some_and(|function| {
+                function.is_async
+                    && !function.is_static
+                    && function.written_invocation_mode != InvocationMode::Consuming
+            })
     {
-        return Err(failure(
-            &unit.source,
-            "T0135",
-            "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver",
-            value.span,
-        ));
+        return Err(SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "T0135",
+                "ordinary reference to a non-Clone field of a shared async receiver requires an unsupported scoped lender",
+                ungroup(value).span,
+            ).with_help(
+                "observe the field in a synchronous helper invoked through `this`, or take an optional field with explicit `move` in a mutable method",
+            )],
+        });
     }
     Ok(())
 }
@@ -1500,6 +1528,7 @@ fn record_reference_provenance(
         && let Some(operand) = node.children.last()
         && unary_operator_text(unit, node).as_deref() == Some("ref")
     {
+        validate_async_field_borrow(unit, operand)?;
         let Some(provenance) = borrow_origin(package, unit, operand, proven, return_lenders) else {
             return Err(failure(
                 &unit.source,

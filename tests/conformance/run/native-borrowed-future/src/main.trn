@@ -20,6 +20,7 @@ class receiver
     function available bool;
         return present; (ref this.value)
     mutable async function receive none;
+        print; (this.available;)
         value = move this.value
         print; this.value != none
         if value != none
@@ -28,7 +29,6 @@ class receiver
 
 async function rejected none; value Builder|none
     session = instance receiver; move value
-    print; (session.available;)
     await session.receive;
     return none
 
