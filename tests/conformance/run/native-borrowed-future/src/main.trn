@@ -1,5 +1,6 @@
 namespace app
-from /deps/terrane-borrowed-future-witness import Builder, Envelope
+from /deps/terrane-borrowed-future-witness import Builder, Envelope, Rejection, reject_free as reject-free
+from /core/errors import throwable
 
 async function exercise;
     builder = Builder::new;
@@ -9,9 +10,52 @@ async function exercise;
     result = await builder.serve;
     print; result
 
+function present bool; value ref (Builder|none)
+    return value != none
+
+class receiver
+    private value Builder|none = none
+    function construct; value Builder|none
+        this.value = move value
+    function available bool;
+        return present; (ref this.value)
+    mutable async function receive none;
+        print; (this.available;)
+        value = move this.value
+        print; this.value != none
+        if value != none
+            await value.reject;
+        return none
+
+async function rejected none; value Builder|none
+    session = instance receiver; move value
+    await session.receive;
+    return none
+
+async function rejected-free none; _value Builder|none
+    await reject-free;
+    return none
+
+async function invoke none; handler async function from (Builder|none) to none throws throwable
+    await handler; (Builder::new;)
+    return none
+
+function describe string; value throwable
+    return value.message
+
 async function main;
     group = task-group; none
     group.spawn; (exercise;)
     outcomes = await group.drain;
     wrapped Envelope of bool = (Envelope of bool)::new; true
     print; (wrapped.into_value;), outcomes[0].completed
+    handler async function from (Builder|none) to none throws Rejection = rejected
+    try
+        await invoke; handler
+    catch Rejection as error
+        print; 'caught method error'
+        print; (describe; error)
+    try
+        await invoke; rejected-free
+    catch throwable
+        print; 'caught function error'

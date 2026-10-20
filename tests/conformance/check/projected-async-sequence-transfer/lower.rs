@@ -2,9 +2,9 @@
 include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
-async fn wait_next(mut sequence: TokioSequence) {
+async fn wait_next(mut sequence: TokioSequence) -> Result<(), TerraneError> {
     let step: terrane_collection_support::AsyncIterationStep<terrane_int_support::Int>;
-    step = __terrane_traced(
+    step = __terrane_traced_err(
         __terrane_await({
                 let __terrane_future = {
                     let __terrane_call = (&mut sequence).next();
@@ -58,8 +58,9 @@ async fn wait_next(mut sequence: TokioSequence) {
             })
             .await,
         0 /* terrane-site: src/main.trn:4:16-4:30 */,
-    );
+    )?;
     let _ = &step;
+    Ok(())
 }
 fn main() {
     __terrane_run(async move {
@@ -85,7 +86,8 @@ fn main() {
                     )
                     .await
                 {
-                    Some(value) => TerraneTaskResult::Completed(value),
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => TerraneTaskResult::Failed(error),
                     None => TerraneTaskResult::Cancelled,
                 }
             })

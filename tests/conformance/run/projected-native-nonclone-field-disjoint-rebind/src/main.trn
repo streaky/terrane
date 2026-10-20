@@ -1,0 +1,10 @@
+namespace app
+from /deps/witness import make_value
+
+function main;
+    value = make_value;
+    first = move value.n0
+    second = move value.n1
+    value = make_value;
+    again = move value.n0
+    print; first.length, second.length, again.length

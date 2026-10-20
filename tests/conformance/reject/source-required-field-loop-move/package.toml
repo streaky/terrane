@@ -1,0 +1,8 @@
+package = "source-required-field-loop-move"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-borrowed-future-witness]
+version = "=0.1.0"
+effects = ["build"]

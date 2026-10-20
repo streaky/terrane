@@ -356,6 +356,7 @@ pub(super) fn parse_unit(
         builtin_descriptors: builtin_descriptor_contracts(),
         comparable_foreign_objects: BTreeSet::new(),
         nonclone_foreign_objects: BTreeSet::new(),
+        projected_error_objects: std::sync::Arc::default(),
         projected_interfaces_requiring_application: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
         function_contracts_by_span: BTreeMap::new(),
@@ -933,7 +934,14 @@ fn analyze_parsed_with_projection(
         "resolving namespaces, declarations, and imports",
         package.root.display(),
     );
+    let projected_error_objects = std::sync::Arc::new(
+        projection
+            .error_type_identities()
+            .map(|(namespace, name)| ObjectIdentity::new(namespace, name))
+            .collect(),
+    );
     for unit in &mut units {
+        unit.projected_error_objects = std::sync::Arc::clone(&projected_error_objects);
         unit.comparable_foreign_objects = projection
             .dependencies
             .iter()
@@ -1493,9 +1501,9 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                         || (symbol.kind == SymbolKind::Interface
                             && symbol.identity == "/core/errors::throwable")
                         || (symbol.kind == SymbolKind::Class
-                            && package
-                                .projection
-                                .is_projected_error_type(&symbol.namespace, &symbol.name))
+                            && unit
+                                .projected_error_objects
+                                .contains(&ObjectIdentity::new(&symbol.namespace, &symbol.name)))
                         || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
                             && identity_implements(
                                 package,

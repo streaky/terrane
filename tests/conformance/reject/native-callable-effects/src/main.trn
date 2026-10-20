@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import Builder, Rejection, reject_free as reject-free
+async function rejected none; _value Builder|none
+    await reject-free;
+    return none
+async function main;
+    handler async function from (Builder|none) to none throws Rejection = rejected
+    await handler; none

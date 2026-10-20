@@ -4,5 +4,5 @@ from /deps/witness import make_value
 
 function main;
     value = make_value;
-    items = value.n0
+    items = move value.n0
     print; items.length

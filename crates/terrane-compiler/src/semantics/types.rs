@@ -542,7 +542,12 @@ pub(super) fn declared_value_type_with_visible_objects(
         };
         if let Some(bound) = &upper_bound {
             let throwable = ValueType::Object(ObjectIdentity::new("/core/errors", "throwable"));
-            if !value_types_compatible(&unit.descriptors, &throwable, bound) {
+            let native_error = matches!(
+                bound,
+                ValueType::Object(identity)
+                    if unit.projected_error_objects.contains(&identity.base())
+            );
+            if !native_error && !value_types_compatible(&unit.descriptors, &throwable, bound) {
                 return Err(failure(
                     &unit.source,
                     "T0027",
@@ -1181,12 +1186,27 @@ pub(super) fn diagnostic_value_type(
             } else {
                 format!(" from {parameters}")
             };
-            let throws = effects
-                .upper_bound
-                .as_deref()
-                .map_or_else(String::new, |bound| {
-                    format!(" throws {}", diagnostic_value_type(objects, bound))
-                });
+            let throws = effects.upper_bound.as_deref().map_or_else(
+                || {
+                    if effects.escaping.is_empty() {
+                        String::new()
+                    } else {
+                        let identities = effects
+                            .escaping
+                            .iter()
+                            .map(|identity| {
+                                throwable_identity_type(identity).map_or_else(
+                                    || identity.clone(),
+                                    |identity| diagnostic_value_type(objects, &identity),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" | ");
+                        format!(" throws {identities}")
+                    }
+                },
+                |bound| format!(" throws {}", diagnostic_value_type(objects, bound)),
+            );
             format!("{prefix}{from} to {}{throws}", nested(result))
         }
         ValueType::Task(result, _) => format!("task of {}", nested(result)),
@@ -1231,6 +1251,16 @@ fn callable_effects_compatible(
     expected: &CallableEffects,
     actual: &CallableEffects,
 ) -> bool {
+    // Every inferred escaping identity is a throwable, even when an opaque native
+    // error has not been imported as a value type into this unit.
+    if matches!(
+        expected.upper_bound.as_deref(),
+        Some(ValueType::Object(identity))
+            if identity.namespace == "/core/errors" && identity.name == "throwable"
+    ) || expected.escaping.contains("/core/errors::throwable")
+    {
+        return true;
+    }
     let accepts = |actual: &ValueType| {
         expected
             .upper_bound

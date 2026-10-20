@@ -1188,8 +1188,21 @@ impl<'unit> Emitter<'unit> {
         if operand.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = operand.children.as_slice()
         {
-            let receiver = self.expression(receiver);
-            return format!("&({receiver}).{}", rust_name(self.text(member)));
+            let projected_borrow = self.wrapped_object_field(receiver, self.text(member))
+                || self.receiver_value_type(receiver).is_some_and(|value| {
+                    matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
+                });
+            let (setup, place) = self.borrowed_receiver_parts(operand);
+            let address = if projected_borrow {
+                place
+            } else {
+                format!("&({place})")
+            };
+            return if setup.is_empty() {
+                address
+            } else {
+                format!("{{ {setup}{address} }}")
+            };
         }
         if operand.kind == SyntaxKind::IndexExpression
             && let [receiver, index] = operand.children.as_slice()

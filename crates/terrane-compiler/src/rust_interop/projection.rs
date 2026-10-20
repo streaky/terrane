@@ -2309,20 +2309,20 @@ impl Projection {
             .map(|item| (item.namespace.as_str(), item.name.as_str()))
     }
 
-    pub fn is_projected_error_type(&self, namespace: &str, name: &str) -> bool {
-        let Some(error_item) = self
+    /// Native error identities are effect/catch descriptors, not value conformance.
+    pub(crate) fn error_type_identities(&self) -> impl Iterator<Item = (&str, &str)> {
+        let paths = self
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|item| item.namespace == namespace && item.name == name)
-        else {
-            return false;
-        };
+            .flat_map(projected_item_functions)
+            .filter_map(|function| function.error.as_deref())
+            .collect::<BTreeSet<_>>();
         self.dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .flat_map(projected_item_functions)
-            .any(|function| function.error.as_deref() == Some(error_item.rust_path.as_str()))
+            .filter(move |item| paths.contains(item.rust_path.as_str()))
+            .map(|item| (item.namespace.as_str(), item.name.as_str()))
     }
     #[must_use]
     pub(crate) fn interface_method(

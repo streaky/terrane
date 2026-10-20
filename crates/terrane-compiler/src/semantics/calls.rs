@@ -1332,6 +1332,35 @@ fn reject_shared_weak_observer_argument(
     Ok(())
 }
 
+fn require_ref_argument(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    expected: &ValueType,
+    actual: &ValueType,
+    parameter: &str,
+) -> Result<(), SemanticFailure> {
+    if matches!(expected, ValueType::Reference(_))
+        && !matches!(
+            actual,
+            ValueType::Reference(_)
+                | ValueType::SharedReference(_)
+                | ValueType::InvocationScopedNative { .. }
+        )
+    {
+        return Err(failure(
+            &unit.source,
+            "T0012",
+            format!(
+                "`{parameter}` requires `{}`, found `{}`",
+                diagnostic_value_type(&unit.descriptors, expected),
+                diagnostic_value_type(&unit.descriptors, actual)
+            ),
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn validate_call_arguments(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1402,6 +1431,9 @@ pub(super) fn validate_call_arguments(
                 }
                 bind_projected_generics(&expected, &actual, &mut generic_bindings)
                     .map_err(generic_failure)?;
+                if !native_callback {
+                    require_ref_argument(unit, value, &expected, &actual, &parameter.name)?;
+                }
                 let validation_expected = match (&expected, &actual) {
                     (
                         ValueType::Reference(_) | ValueType::SharedReference(_),

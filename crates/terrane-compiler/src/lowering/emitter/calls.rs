@@ -1928,32 +1928,34 @@ impl Emitter<'_> {
         let shared_async_receiver = if shared_async_method
             && let [receiver, _] = callee.children.as_slice()
         {
-            let setup = if self.shared_async_receiver && self.text(receiver) == "this" {
-                "let __terrane_shared_call_handle = __terrane_shared_handle.clone(); ".to_owned()
+            if self.shared_async_receiver && self.text(receiver) == "this" {
+                Some(
+                    "let __terrane_shared_call_handle = __terrane_shared_handle.clone(); "
+                        .to_owned(),
+                )
             } else if let Some(storage) = self.static_storage_name(receiver) {
-                format!("let __terrane_shared_call_handle = {storage}; ")
+                Some(format!("let __terrane_shared_call_handle = {storage}; "))
             } else {
                 match self.value_type(receiver) {
-                    Some(ValueType::SharedReference(_)) => format!(
+                    Some(ValueType::SharedReference(_)) => Some(format!(
                         "let __terrane_shared_call_handle = ({}).clone(); ",
                         self.expression(receiver)
-                    ),
+                    )),
                     Some(ValueType::Reference(_))
                         if self.reference_uses_shared_storage(receiver) =>
                     {
-                        format!(
+                        Some(format!(
                             "let __terrane_shared_call_handle = ({}).upgrade().expect(\"reference expired\"); ",
                             self.expression(receiver)
-                        )
+                        ))
                     }
-                    _ if self.reference_backed_name(receiver).is_some() => format!(
+                    _ if self.reference_backed_name(receiver).is_some() => Some(format!(
                         "let __terrane_shared_call_handle = {}.clone(); ",
                         self.raw_storage_name(receiver)
-                    ),
-                    _ => String::new(),
+                    )),
+                    _ => None,
                 }
-            };
-            Some(setup)
+            }
         } else {
             None
         };
@@ -2590,7 +2592,7 @@ impl Emitter<'_> {
                 receiver
             };
             format!("({receiver}).{}", projected.name)
-        } else if shared_async_method
+        } else if shared_async_receiver.is_some()
             && let Some(contract) = &contract
             && let [receiver, _member] = callee.children.as_slice()
         {

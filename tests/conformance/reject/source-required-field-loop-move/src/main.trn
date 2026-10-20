@@ -1,0 +1,12 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import Builder
+class holder
+    value Builder
+    function construct; value Builder
+        this.value = move value
+function main;
+    h = instance holder; (Builder::new;)
+    while true
+        if true
+            first = move h.value
+            continue

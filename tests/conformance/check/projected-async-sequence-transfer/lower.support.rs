@@ -510,11 +510,13 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::wait-next", "/app::main"];
-    pub static SITES: [Site; 2] = [
+    pub static SITES: [Site; 3] = [
         /* terrane-site-row: site 0: /app::wait-next (src/main.trn:4:16-4:30) */
         { Site { function: 0, file: 0, line: 4, column: 16, end_line: 4, end_column: 30 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:7:14-7:42) */
         { Site { function: 1, file: 0, line: 7, column: 14, end_line: 7, end_column: 42 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:8:25-8:44) */
+        { Site { function: 1, file: 0, line: 8, column: 25, end_line: 8, end_column: 44 } },
     ];
     #[cold]
     #[inline(never)]

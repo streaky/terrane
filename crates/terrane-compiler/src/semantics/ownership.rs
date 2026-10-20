@@ -1,5 +1,98 @@
 use super::prelude::*;
 
+fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
+    while node.kind == SyntaxKind::GroupExpression {
+        let Some(child) = node.children.first() else {
+            break;
+        };
+        node = child;
+    }
+    node
+}
+
+fn is_nonclone_field(unit: &SemanticUnit, value: &SyntaxNode) -> Result<bool, SemanticFailure> {
+    let value = ungroup(value);
+    if value.kind != SyntaxKind::MemberExpression {
+        return Ok(false);
+    }
+    Ok(
+        infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
+            !matches!(
+                value_type,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            ) && value_type_contains_nonclone_foreign(unit, &value_type)
+        }),
+    )
+}
+
+fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<(), SemanticFailure> {
+    if is_nonclone_field(unit, value)? {
+        return Err(failure(
+            &unit.source,
+            "T0135",
+            "field snapshot cannot copy a non-Clone projected foreign value; borrow the field or use explicit `move` through a mutable receiver",
+            ungroup(value).span,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_async_field_borrow(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if is_nonclone_field(unit, value)? {
+        validate_async_receiver_field_borrow(unit, value)?;
+    }
+    Ok(())
+}
+
+fn validate_async_receiver_field_borrow(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if ungroup(value).kind != SyntaxKind::MemberExpression {
+        return Ok(());
+    }
+    let mut root = ungroup(value);
+    while matches!(
+        root.kind,
+        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+    ) {
+        root = ungroup(&root.children[0]);
+    }
+    if root.kind == SyntaxKind::Name
+        && node_text(&unit.source, root) == "this"
+        && unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.owner.is_some()
+                    && function.span.file == value.span.file
+                    && function.span.start <= value.span.start
+                    && value.span.end <= function.span.end
+            })
+            .min_by_key(|function| function.span.end - function.span.start)
+            .is_some_and(|function| {
+                function.is_async
+                    && !function.is_static
+                    && function.written_invocation_mode != InvocationMode::Consuming
+            })
+    {
+        return Err(SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "T0135",
+                "borrowing an inline field of an async receiver requires an unsupported scoped lender",
+                ungroup(value).span,
+            ).with_help(
+                "call a synchronous helper through `this`; for copyable fields, bind an owned snapshot before awaiting; when mutation is permitted, explicitly take an optional field before use",
+            )],
+        });
+    }
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "move provenance and its control-flow join remain one auditable analysis"
@@ -124,6 +217,81 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         declaration_name: bool,
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> Result<(), SemanticFailure> {
+        if matches!(
+            node.kind,
+            SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::ReturnStatement
+        ) && let Some(value) = node.children.last()
+        {
+            validate_field_snapshot(unit, value)?;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && (callee.kind == SyntaxKind::MemberExpression
+                || arguments.children.iter().any(|argument| {
+                    argument.children.last().is_some_and(|value| {
+                        matches!(
+                            value.kind,
+                            SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
+                        )
+                    })
+                }))
+        {
+            let projected = super::bindings::projected_function_for_call(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            );
+            if let Some(function) = projected
+                && (function.is_async || function.into_future)
+                && function.receiver.is_some()
+                && !matches!(
+                    function.receiver,
+                    Some(crate::rust_interop::projection::Receiver::Move)
+                )
+                && callee.kind == SyntaxKind::MemberExpression
+                && let Some(receiver) = callee.children.first()
+            {
+                validate_async_field_borrow(unit, receiver)?;
+            }
+            if let Some(contract) = function_contract_for_call(package, unit, callee) {
+                if projected.is_none()
+                    && contract.owner.is_some()
+                    && !contract.is_static
+                    && contract.is_async
+                    && matches!(
+                        contract.written_invocation_mode,
+                        InvocationMode::Shared | InvocationMode::Mutable
+                    )
+                    && callee.kind == SyntaxKind::MemberExpression
+                    && let Some(receiver) = callee.children.first()
+                    && matches!(
+                        infer_value_type(unit, receiver, &unit.typed_bindings)?,
+                        Some(ValueType::Object(_))
+                    )
+                {
+                    validate_async_receiver_field_borrow(unit, receiver)?;
+                }
+                for (index, parameter) in contract.parameters.iter().enumerate() {
+                    let borrowed = projected
+                        .and_then(|function| function.parameters.get(index))
+                        .is_some_and(|parameter| parameter.borrowed)
+                        || parameter.element_value_type().is_some_and(|value_type| {
+                            matches!(
+                                value_type,
+                                ValueType::Reference(_) | ValueType::SharedReference(_)
+                            )
+                        });
+                    if let Some(value) = argument_for_parameter(unit, arguments, contract, index) {
+                        if borrowed {
+                            validate_async_field_borrow(unit, value)?;
+                        } else {
+                            validate_field_snapshot(unit, value)?;
+                        }
+                    }
+                }
+            }
+        }
         if matches!(
             node.kind,
             SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
@@ -850,6 +1018,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         Ok(())
     }
 
+    super::field_moves::validate(package)?;
     let resource_objects = package
         .units
         .iter()
@@ -1401,6 +1570,16 @@ fn record_reference_provenance(
         && let Some(operand) = node.children.last()
         && unary_operator_text(unit, node).as_deref() == Some("ref")
     {
+        validate_async_field_borrow(unit, operand)?;
+        if let Some(ValueType::Object(identity)) =
+            infer_value_type(unit, operand, &unit.typed_bindings)?
+            && package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_none()
+        {
+            validate_async_receiver_field_borrow(unit, operand)?;
+        }
         let Some(provenance) = borrow_origin(package, unit, operand, proven, return_lenders) else {
             return Err(failure(
                 &unit.source,

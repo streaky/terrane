@@ -1,0 +1,12 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import Builder
+class holder
+    value Builder
+    function construct; value Builder
+        this.value = move value
+    async function check;
+        result = await this.value.serve;
+        print; result
+async function main;
+    h = instance holder; (Builder::new;)
+    await h.check;

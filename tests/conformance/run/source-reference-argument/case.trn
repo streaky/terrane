@@ -1,0 +1,15 @@
+namespace source-reference-argument
+class holder
+    value int = 7
+
+function read int; item ref holder
+    return item.value
+
+function forward int; item ref holder
+    return read; item
+
+function main;
+    item = instance holder;
+    print; (read; ref item)
+    observer = ref item
+    print; (forward; observer)

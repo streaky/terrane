@@ -855,6 +855,7 @@ fn every_manifest_drives_a_conformance_case() {
         timing.pass();
     }
     compile_and_run_deferred_cases(&mut deferred_generated_cases, &build);
+    assert_fixture_manifests(&corpus());
 }
 
 fn stage_generated_binary(
@@ -1445,6 +1446,26 @@ fn missing_fixture_manifests(files: &[PathBuf]) -> BTreeSet<PathBuf> {
     fixtures.difference(&registered).cloned().collect()
 }
 
+fn untracked_fixture_locks(root: &Path, output: &[u8]) -> BTreeSet<PathBuf> {
+    let inventory = std::str::from_utf8(output).expect("fixture paths must be UTF-8");
+    inventory
+        .split('\0')
+        .filter(|path| !path.is_empty())
+        .map(PathBuf::from)
+        .filter(|path| {
+            let mut parts = path.components();
+            matches!(
+                parts.next().and_then(|part| part.as_os_str().to_str()),
+                Some("run" | "check" | "reject" | "compile")
+            ) && parts.next().is_some()
+                && parts
+                    .next()
+                    .is_some_and(|part| part.as_os_str() == "terrane-dependencies.lock")
+                && parts.next().is_none()
+                && root.join(path).is_file()
+        })
+        .collect()
+}
 fn assert_fixture_manifests(root: &Path) {
     if !root
         .ancestors()
@@ -1456,6 +1477,38 @@ fn assert_fixture_manifests(root: &Path) {
         );
         return;
     }
+    let untracked = Command::new("git")
+        .current_dir(root)
+        .args([
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            ":(glob)run/*/terrane-dependencies.lock",
+            ":(glob)check/*/terrane-dependencies.lock",
+            ":(glob)reject/*/terrane-dependencies.lock",
+            ":(glob)compile/*/terrane-dependencies.lock",
+        ])
+        .output();
+    let untracked = match untracked {
+        Ok(output) => output,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("notice: skipping fixture-inventory hygiene because Git is unavailable");
+            return;
+        }
+        Err(error) => panic!("cannot inventory conformance fixture sources: {error}"),
+    };
+    assert!(
+        untracked.status.success(),
+        "cannot inventory untracked conformance fixtures: {}",
+        String::from_utf8_lossy(&untracked.stderr)
+    );
+    let root_locks = untracked_fixture_locks(root, &untracked.stdout);
+    assert!(
+        root_locks.is_empty(),
+        "untracked root fixture dependency locks are not allowed: {root_locks:?}; stage intentionally retained locks, or use disposable CLI copies under target"
+    );
     // Git's inventory excludes ignored generated-only scratch directories, but includes
     // newly authored fixtures before staging. Validate before applying a corpus filter.
     let output = Command::new("git")
@@ -1560,6 +1613,61 @@ fn fixture_inventory_requires_a_root_manifest_even_for_nested_sources_or_locks()
             .into_iter()
             .collect()
     );
+}
+
+#[test]
+fn fixture_inventory_rejects_untracked_root_locks_only() {
+    let build = ConformanceBuild::new();
+    let root = build.root.join("fixture-lock-inventory");
+    fs::create_dir_all(&root).unwrap();
+    let init = Command::new("git")
+        .current_dir(&root)
+        .args(["init", "-q"])
+        .status()
+        .expect("run git init");
+    assert!(init.success());
+
+    fs::write(root.join(".gitignore"), "check/ignored/\n").unwrap();
+    let ignored_lock = root.join("check/ignored/terrane-dependencies.lock");
+    let root_lock = root.join("run/retained/terrane-dependencies.lock");
+    let nested_lock = root.join("run/retained/fixture-registry/witness/terrane-dependencies.lock");
+    let unrelated_lock = root.join("notes/terrane-dependencies.lock");
+    for path in [&root_lock, &nested_lock, &unrelated_lock, &ignored_lock] {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "").unwrap();
+    }
+    let output = Command::new("git")
+        .current_dir(&root)
+        .args([
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+            "-z",
+            "--",
+            ".",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        untracked_fixture_locks(&root, &output.stdout),
+        [PathBuf::from("run/retained/terrane-dependencies.lock")]
+            .into_iter()
+            .collect()
+    );
+
+    fs::write(root.join("run/retained/case.toml"), "phase = \"run\"\n").unwrap();
+    let rejected = std::panic::catch_unwind(|| assert_fixture_manifests(&root));
+    assert!(rejected.is_err());
+
+    assert!(
+        Command::new("git")
+            .current_dir(&root)
+            .args(["add", "run/retained/terrane-dependencies.lock"])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert_fixture_manifests(&root);
 }
 
 #[test]

@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-borrowed-future-witness import make_rejection as make-rejection
+from /core/errors import throwable
+function describe string; value throwable
+    return value.message
+function main;
+    print; (describe; (make-rejection;))
