@@ -51,6 +51,22 @@ fn intrinsic_arguments<'a>(
 }
 
 impl Emitter<'_> {
+    fn projected_receiver_identity(&self, receiver: &SyntaxNode) -> Option<ObjectIdentity> {
+        self.class_designator(receiver)
+            .map(|object| object.identity.clone())
+            .or_else(|| match self.value_type(receiver)? {
+                ValueType::Object(identity) => Some(identity),
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    let ValueType::Object(identity) = item.value_type() else {
+                        return None;
+                    };
+                    Some(identity.clone())
+                }
+                ValueType::InvocationScopedNative { family, .. } => Some(family),
+                _ => None,
+            })
+    }
+
     fn native_macro_expression(&mut self, node: &SyntaxNode) -> String {
         use crate::rust_interop::projection::ProjectedType;
         let mut node = node;
@@ -2739,20 +2755,7 @@ impl Emitter<'_> {
             if let Some(projected) = projected_function.as_ref()
                 && let Some(owner) = projected.native_owner.as_deref()
                 && let [receiver, _member] = callee.children.as_slice()
-                && let Some(identity) = self
-                    .class_designator(receiver)
-                    .map(|object| object.identity.clone())
-                    .or_else(|| match self.value_type(receiver)? {
-                        ValueType::Object(identity) => Some(identity),
-                        ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                            let ValueType::Object(identity) = item.value_type() else {
-                                return None;
-                            };
-                            Some(identity.clone())
-                        }
-                        ValueType::InvocationScopedNative { family, .. } => Some(family),
-                        _ => None,
-                    })
+                && let Some(identity) = self.projected_receiver_identity(receiver)
             {
                 for generic in crate::rust_ir::rust_type_parameter_names(owner) {
                     let value = identity.native_arguments.get(&generic).or_else(|| {
@@ -3220,19 +3223,7 @@ impl Emitter<'_> {
                     unreachable!("projected methods have a receiver")
                 };
                 let identity = self
-                    .class_designator(receiver)
-                    .map(|object| object.identity.clone())
-                    .or_else(|| match self.value_type(receiver)? {
-                        ValueType::Object(identity) => Some(identity),
-                        ValueType::InvocationScopedNative { family, .. } => Some(family),
-                        ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                            let ValueType::Object(identity) = item.value_type() else {
-                                return None;
-                            };
-                            Some(identity.clone())
-                        }
-                        _ => None,
-                    })
+                    .projected_receiver_identity(receiver)
                     .expect("projected method receiver has an object type");
                 let type_path = self
                     .package
@@ -3248,6 +3239,7 @@ impl Emitter<'_> {
                     format!("{type_path}::{}", method.name),
                 )
             };
+            let member = crate::rust_ir::rust_type_constructor(&member).unwrap_or(member);
             let call = if method.is_unsafe {
                 format!("unsafe {{ {call} }}")
             } else {

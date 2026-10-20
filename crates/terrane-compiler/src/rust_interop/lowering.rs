@@ -1470,7 +1470,9 @@ pub(super) fn emit_dependency_unit(
                         "TERRANE_DEPENDENCY_ERROR".to_owned(),
                         format!(
                             "format!(\"Rust dependency `{{}}` member `{{}}` failed: {{error}}\", {dependency_name:?}, {:?})",
-                            item.rust_path,
+                            crate::rust_ir::rust_type_constructor(&item.rust_path)
+                                .as_deref()
+                                .unwrap_or(&item.rust_path),
                         ),
                     )
                 },

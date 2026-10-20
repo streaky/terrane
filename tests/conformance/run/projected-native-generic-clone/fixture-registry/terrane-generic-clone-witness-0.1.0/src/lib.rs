@@ -11,6 +11,10 @@ impl<T: Copy> CloneBox<T> {
     pub fn read<U>(&self, _input: U) -> Read<'_, T> {
         Read { source: self }
     }
+
+    pub fn reject<U>(&self, _input: U) -> Result<(), std::io::Error> {
+        Err(std::io::Error::other("rejected"))
+    }
 }
 
 pub struct Read<'a, T> {

@@ -1,4 +1,5 @@
 namespace app
+from /core/errors import dependency-error
 
 from /deps/witness import CloneBox, make
 
@@ -15,3 +16,8 @@ async function main;
         print; await (local.read of bool); true
     catch
         print; 'unexpected native failure'
+    try
+        (original.reject of bool); true
+    catch dependency-error as failure
+        print; (failure.message.contains; 'CloneBox::reject')
+        print; (failure.message.contains; '<')
