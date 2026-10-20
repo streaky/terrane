@@ -737,6 +737,7 @@ unsafe_conformance: "`implements unsafe Interface` selects an unsafe interface; 
 interface_transfer: authored interface dispatch values are Send and Sync by contract and satisfy containing-field obligations compositionally; every implementing class, including a subclass inheriting the interface, separately proves both obligations from its complete effective instance-field set; projected interfaces retain separately proven native Send/Sync capabilities
 unsafe_function_values: unsafe-only declarations cannot become first-class function values; bare references select a coexisting safe declaration or are rejected
 unsafe_boundary: typed unsafe declarations, concrete adapters, and `unsafe rust`; never an untyped generic unsafe block
+inline_rust_destination: value-producing rust/unsafe rust binding declarations require an explicit destination type; inferred names and untyped _ discards reject with T0006; standalone statement blocks and declared return destinations remain supported
 derived_facts: suspension points, exact receiver/capture authority, unsafe declarations or `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not interchangeable contracts
 foreign_boundary: expressed by a concrete runtime/import/adapter/ABI construct; never transitive to ordinary callers
 purity: no `pure` qualifier; a future contract requires independently defined observable guarantees

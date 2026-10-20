@@ -302,6 +302,14 @@ pub(super) fn analyze_binding_node(
         })
         .transpose()?
         .flatten();
+    if declared_value.is_none() && inferred == Some(ValueType::InlineRust) {
+        return Err(failure(
+            &unit.source,
+            "T0006",
+            "inline Rust values require a declared destination type; write `name T = rust`",
+            initializer.expect("inferred value has an initializer").span,
+        ));
+    }
     let value_type =
         if let (Some(type_node), Some(declared_type)) = (declared, declared_value.clone()) {
             let value_type = if let (ValueType::Object(declared), Some(ValueType::Object(actual))) =
