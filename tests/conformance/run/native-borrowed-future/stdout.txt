@@ -6,3 +6,6 @@ false
 caught method error
 native rejection
 caught function error
+2
+discard rejected
+1

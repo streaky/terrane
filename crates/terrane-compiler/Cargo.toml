@@ -37,4 +37,4 @@ parking_lot = "0.12"
 terrane-collection-support = { path = "../terrane-collection-support" }
 terrane-int-support = { path = "../terrane-int-support" }
 terrane-string-support = { path = "../terrane-string-support" }
-tokio = { version = "1.48", features = ["rt", "time", "sync", "macros"] }
+tokio = { version = "1.48", features = ["rt-multi-thread", "time", "sync", "macros"] }

@@ -207,14 +207,14 @@ static TERRANE_PROJECTED_CLEANUPS_CHANGED: tokio::sync::Notify = tokio::sync::No
     dead_code,
     reason = "projected asynchronous entry support is shared by asynchronous packages"
 )]
-struct TerraneProjectedEntryGuard {
+struct TerraneProjectedEntryGuard<T: Send + 'static> {
     cancellation: TerraneCancellation,
     finalizers: std::sync::Arc<TerraneFinalizerState>,
-    abort: Option<tokio::task::AbortHandle>,
+    task: Option<tokio::task::JoinHandle<T>>,
     armed: bool,
 }
 
-impl Drop for TerraneProjectedEntryGuard {
+impl<T: Send + 'static> Drop for TerraneProjectedEntryGuard<T> {
     fn drop(&mut self) {
         if !self.armed {
             return;
@@ -222,13 +222,16 @@ impl Drop for TerraneProjectedEntryGuard {
         TERRANE_PROJECTED_CLEANUPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.cancellation.cancel();
         let finalizers = self.finalizers.clone();
-        let abort = self
-            .abort
+        let task = self
+            .task
             .take()
-            .expect("armed projected entry guard must own its abort handle");
+            .expect("armed projected entry guard must own its task");
         tokio::spawn(async move {
             finalizers.reaches(0).await;
-            abort.abort();
+            task.abort();
+            // The caller abandoned the output; joining waits for the future's
+            // destructors, not just the cancellation request, before shutdown.
+            let _ = task.await;
             if TERRANE_PROJECTED_CLEANUPS.fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 1 {
                 TERRANE_PROJECTED_CLEANUPS_CHANGED.notify_waiters();
             }
@@ -262,10 +265,13 @@ where
     let mut guard = TerraneProjectedEntryGuard {
         cancellation,
         finalizers,
-        abort: Some(task.abort_handle()),
+        task: Some(task),
         armed: true,
     };
-    let output = task
+    let output = guard
+        .task
+        .as_mut()
+        .expect("projected entry guard owns its task")
         .await
         .expect("projected asynchronous dependency entry task failed");
     guard.armed = false;
@@ -284,28 +290,6 @@ async fn __terrane_wait_projected_cleanups() {
         }
         changed.await;
     }
-}
-
-// An awaited destructor is complete only after this future completes. The future
-// may borrow the object currently being dropped, so it cannot be queued on a
-// reusable `'static` worker without a different ownership-lowering design.
-// Execute it on a scoped thread and join it to preserve destruction-point ordering.
-fn __terrane_await_destructor<F>(future: F)
-where
-    F: Future<Output = ()> + Send,
-{
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Terrane destructor runtime must initialize")
-                    .block_on(future);
-            })
-            .join()
-            .expect("Terrane awaited destructor must not panic");
-    });
 }
 
 #[allow(

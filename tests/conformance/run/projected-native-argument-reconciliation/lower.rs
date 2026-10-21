@@ -13,7 +13,7 @@ fn consume_generic<TerraneType54>(value: Boxed<TerraneType54>) -> TerraneType54 
                     crate::__terrane_dependency_panic(
                         payload,
                         "witness",
-                        "witness::Boxed<T>::into_value",
+                        "witness::Boxed::into_value",
                     ),
                 )
             }

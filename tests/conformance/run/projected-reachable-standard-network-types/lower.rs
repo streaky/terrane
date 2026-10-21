@@ -61,7 +61,7 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&network)
         .contains(&payload))) { Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency", "(& network) . contains")) },
+        ::__terrane_dependency_panic(payload, "dependency", "ipnet::IpNet::contains")) },
         5 /* terrane-site: src/main.trn:15:13-15:42 */))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {

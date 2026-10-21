@@ -47,7 +47,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "dependency",
-                        "(((& holder) . values ()) . get ()) . map",
+                        "std::option::Option::map",
                     ),
                 )
             }

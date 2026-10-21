@@ -518,7 +518,7 @@ mod __terrane_trace {
         "/app::invoke",
         "/app::main",
     ];
-    pub static SITES: [Site; 15] = [
+    pub static SITES: [Site; 21] = [
         /* terrane-site-row: site 0: /app::exercise (src/main.trn:6:15-6:28) */
         { Site { function: 0, file: 0, line: 6, column: 15, end_line: 6, end_column: 28 } },
         /* terrane-site-row: site 1: /app::exercise (src/main.trn:7:20-7:34) */
@@ -549,6 +549,18 @@ mod __terrane_trace {
         { Site { function: 5, file: 0, line: 54, column: 15, end_line: 54, end_column: 30 } },
         /* terrane-site-row: site 14: /app::main (src/main.trn:59:15-59:36) */
         { Site { function: 5, file: 0, line: 59, column: 15, end_line: 59, end_column: 36 } },
+        /* terrane-site-row: site 15: /app::main (src/main.trn:62:17-62:30) */
+        { Site { function: 5, file: 0, line: 62, column: 17, end_line: 62, end_column: 30 } },
+        /* terrane-site-row: site 16: /app::main (src/main.trn:63:15-63:33) */
+        { Site { function: 5, file: 0, line: 63, column: 15, end_line: 63, end_column: 33 } },
+        /* terrane-site-row: site 17: /app::main (src/main.trn:64:22-64:38) */
+        { Site { function: 5, file: 0, line: 64, column: 22, end_line: 64, end_column: 38 } },
+        /* terrane-site-row: site 18: /app::main (src/main.trn:67:19-67:42) */
+        { Site { function: 5, file: 0, line: 67, column: 19, end_line: 67, end_column: 42 } },
+        /* terrane-site-row: site 19: /app::main (src/main.trn:71:17-71:30) */
+        { Site { function: 5, file: 0, line: 71, column: 17, end_line: 71, end_column: 30 } },
+        /* terrane-site-row: site 20: /app::main (src/main.trn:72:30-72:42) */
+        { Site { function: 5, file: 0, line: 72, column: 30, end_line: 72, end_column: 42 } },
     ];
     #[cold]
     #[inline(never)]
@@ -910,13 +922,13 @@ static TERRANE_PROJECTED_CLEANUPS_CHANGED: tokio::sync::Notify = tokio::sync::No
     dead_code,
     reason = "projected asynchronous entry support is shared by asynchronous packages"
 )]
-struct TerraneProjectedEntryGuard {
+struct TerraneProjectedEntryGuard<T: Send + 'static> {
     cancellation: TerraneCancellation,
     finalizers: std::sync::Arc<TerraneFinalizerState>,
-    abort: Option<tokio::task::AbortHandle>,
+    task: Option<tokio::task::JoinHandle<T>>,
     armed: bool,
 }
-impl Drop for TerraneProjectedEntryGuard {
+impl<T: Send + 'static> Drop for TerraneProjectedEntryGuard<T> {
     fn drop(&mut self) {
         if !self.armed {
             return;
@@ -924,13 +936,14 @@ impl Drop for TerraneProjectedEntryGuard {
         TERRANE_PROJECTED_CLEANUPS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.cancellation.cancel();
         let finalizers = self.finalizers.clone();
-        let abort = self
-            .abort
+        let task = self
+            .task
             .take()
-            .expect("armed projected entry guard must own its abort handle");
+            .expect("armed projected entry guard must own its task");
         tokio::spawn(async move {
             finalizers.reaches(0).await;
-            abort.abort();
+            task.abort();
+            let _ = task.await;
             if TERRANE_PROJECTED_CLEANUPS
                 .fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 1
             {
@@ -967,10 +980,13 @@ where
     let mut guard = TerraneProjectedEntryGuard {
         cancellation,
         finalizers,
-        abort: Some(task.abort_handle()),
+        task: Some(task),
         armed: true,
     };
-    let output = task
+    let output = guard
+        .task
+        .as_mut()
+        .expect("projected entry guard owns its task")
         .await
         .expect("projected asynchronous dependency entry task failed");
     guard.armed = false;
@@ -988,23 +1004,6 @@ async fn __terrane_wait_projected_cleanups() {
         }
         changed.await;
     }
-}
-fn __terrane_await_destructor<F>(future: F)
-where
-    F: Future<Output = ()> + Send,
-{
-    std::thread::scope(|scope| {
-        scope
-            .spawn(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Terrane destructor runtime must initialize")
-                    .block_on(future);
-            })
-            .join()
-            .expect("Terrane awaited destructor must not panic");
-    });
 }
 #[allow(
     dead_code,
@@ -1302,11 +1301,160 @@ async fn __terrane_async_entry<F: Future>(future: F) -> F::Output {
         )
         .await
 }
+#[allow(
+    dead_code,
+    reason = "shared async support also serves packages without awaited destructors"
+)]
+const TERRANE_RUNTIME_CLOSING: usize = 1 << usize::BITS - 1;
+#[allow(
+    dead_code,
+    reason = "libraries can use async support without owning an executor"
+)]
+struct TerraneRuntimeLiveness {
+    active: std::sync::atomic::AtomicUsize,
+    drain: std::sync::Mutex<()>,
+    changed: std::sync::Condvar,
+}
+thread_local! {
+    static TERRANE_RUNTIME_LIVE : std::cell::RefCell < Option < (tokio::runtime::Id,
+    std::sync::Arc < TerraneRuntimeLiveness >) >> = const { std::cell::RefCell::new(None)
+    };
+}
+#[allow(
+    dead_code,
+    reason = "libraries can use awaited destruction without owning an executor"
+)]
+struct TerraneRuntimeLivenessGuard {
+    live: std::sync::Arc<TerraneRuntimeLiveness>,
+    previous: Option<(tokio::runtime::Id, std::sync::Arc<TerraneRuntimeLiveness>)>,
+}
+impl Drop for TerraneRuntimeLivenessGuard {
+    fn drop(&mut self) {
+        if self
+            .live
+            .active
+            .fetch_or(TERRANE_RUNTIME_CLOSING, std::sync::atomic::Ordering::AcqRel) != 0
+        {
+            let drained = self
+                .live
+                .drain
+                .lock()
+                .expect("destructor drain lock poisoned");
+            let _drained = self
+                .live
+                .changed
+                .wait_while(
+                    drained,
+                    |()| {
+                        self.live.active.load(std::sync::atomic::Ordering::Acquire)
+                            != TERRANE_RUNTIME_CLOSING
+                    },
+                )
+                .expect("destructor drain lock poisoned");
+        }
+        TERRANE_RUNTIME_LIVE.with(|live| *live.borrow_mut() = self.previous.take());
+    }
+}
+#[allow(
+    dead_code,
+    reason = "libraries can use awaited destruction without owning an executor"
+)]
+fn __terrane_runtime_liveness_enter(
+    runtime: &tokio::runtime::Runtime,
+    live: std::sync::Arc<TerraneRuntimeLiveness>,
+) -> TerraneRuntimeLivenessGuard {
+    let previous = TERRANE_RUNTIME_LIVE
+        .with(|current| {
+            current.borrow_mut().replace((runtime.handle().id(), live.clone()))
+        });
+    TerraneRuntimeLivenessGuard {
+        live,
+        previous,
+    }
+}
+#[allow(
+    dead_code,
+    reason = "shared async support also serves packages without awaited destructors"
+)]
+struct TerraneDestructorPermit(std::sync::Arc<TerraneRuntimeLiveness>);
+impl Drop for TerraneDestructorPermit {
+    fn drop(&mut self) {
+        if self.0.active.fetch_sub(1, std::sync::atomic::Ordering::AcqRel)
+            == TERRANE_RUNTIME_CLOSING + 1
+        {
+            let _drained = self.0.drain.lock().expect("destructor drain lock poisoned");
+            self.0.changed.notify_one();
+        }
+    }
+}
+fn __terrane_await_destructor<F>(future: F)
+where
+    F: Future<Output = ()> + Send,
+{
+    let permit = tokio::runtime::Handle::try_current()
+        .ok()
+        .and_then(|handle| {
+            if handle.runtime_flavor() != tokio::runtime::RuntimeFlavor::MultiThread {
+                return None;
+            }
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    let current = current.borrow();
+                    let (id, live) = current.as_ref()?;
+                    if *id != handle.id() {
+                        return None;
+                    }
+                    live.active
+                        .try_update(
+                            std::sync::atomic::Ordering::AcqRel,
+                            std::sync::atomic::Ordering::Acquire,
+                            |active| {
+                                (active < TERRANE_RUNTIME_CLOSING - 1).then(|| active + 1)
+                            },
+                        )
+                        .ok()?;
+                    Some((handle, TerraneDestructorPermit(live.clone())))
+                })
+        });
+    if let Some((handle, _permit)) = permit {
+        tokio::task::block_in_place(|| handle.block_on(future));
+        return;
+    }
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Terrane destructor runtime must initialize")
+                    .block_on(future);
+            })
+            .join()
+            .expect("Terrane awaited destructor must not panic");
+    });
+}
 fn __terrane_run<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread()
+    let live = std::sync::Arc::new(TerraneRuntimeLiveness {
+        active: std::sync::atomic::AtomicUsize::new(0),
+        drain: std::sync::Mutex::new(()),
+        changed: std::sync::Condvar::new(),
+    });
+    let worker_live = live.clone();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .on_thread_start(move || {
+            TERRANE_RUNTIME_LIVE
+                .with(|current| {
+                    *current.borrow_mut() = Some((
+                        tokio::runtime::Handle::current().id(),
+                        worker_live.clone(),
+                    ));
+                });
+        })
         .enable_all()
         .build()
-        .expect("Terrane async runtime must initialize")
+        .expect("Terrane async runtime must initialize");
+    let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    runtime
         .block_on(async move {
             let output = __terrane_async_entry(future).await;
             __terrane_wait_projected_cleanups().await;

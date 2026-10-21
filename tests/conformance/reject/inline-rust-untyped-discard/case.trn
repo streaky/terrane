@@ -1,0 +1,4 @@
+namespace app
+function main;
+  _ = rust
+    1 + 1

@@ -16,6 +16,15 @@ impl Builder {
         self.value = value;
     }
 
+    pub async fn advance(&mut self) -> u8 {
+        self.value += 1;
+        self.value
+    }
+
+    pub async fn reject_value(&self) -> Result<u8, Rejection> {
+        Err(Rejection)
+    }
+
     pub fn serve(&self) -> Connection<'_, u8> {
         Connection {
             lender: self,

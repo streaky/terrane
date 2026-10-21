@@ -1,0 +1,4 @@
+body
+destructed
+true
+after

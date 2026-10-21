@@ -511,6 +511,8 @@ fn lower_with_tests(
             source_files.push("async.rs");
             include_str!("../../runtime/async.rs").to_owned()
         };
+        support.push_str(include_str!("../../runtime/async_destructor.rs"));
+        source_files.push("async_destructor.rs");
         if has_select && !native_cancellation {
             support.push_str(include_str!("../../runtime/async_select.rs"));
             source_files.push("async_select.rs");

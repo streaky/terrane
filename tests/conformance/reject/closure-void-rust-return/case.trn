@@ -1,0 +1,5 @@
+namespace app
+function main;
+  callback = function;
+    return rust
+      1 + 1

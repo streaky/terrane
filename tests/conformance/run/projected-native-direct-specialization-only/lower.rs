@@ -15,7 +15,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::make::<i64>",
+                            "witness::make",
                         ),
                     )
                 }

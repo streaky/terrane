@@ -17,7 +17,7 @@ fn main() {
         std::panic::panic_any(error) })).value())) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane_opaque_result_witness",
-        "terrane_opaque_result_witness::Wrapper<_>::value")) }, 0 /* terrane-site: src/main.trn:8:13-8:30 */))
+        "terrane_opaque_result_witness::Wrapper::value")) }, 0 /* terrane-site: src/main.trn:8:13-8:30 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =

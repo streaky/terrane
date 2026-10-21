@@ -1,0 +1,23 @@
+namespace app
+from /core/errors import dependency-error
+
+from /deps/witness import CloneBox, make
+
+function copy CloneBox of uint8; source ref (CloneBox of uint8)
+    return source.clone;
+
+async function main;
+    value uint8 = 42
+    original CloneBox of uint8 = (make of uint8); value
+    copied = copy; ref original
+    print; copied.value
+    try
+        local CloneBox of uint8 = (make of uint8); value
+        print; await (local.read of bool); true
+    catch
+        print; 'unexpected native failure'
+    try
+        (original.reject of bool); true
+    catch dependency-error as failure
+        print; (failure.message.contains; 'CloneBox::reject')
+        print; (failure.message.contains; '<')

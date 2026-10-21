@@ -27,7 +27,7 @@ fn main() {
                     crate::__terrane_dependency_panic(
                         payload,
                         "serde-json",
-                        "serde_json::from_str::<i64>",
+                        "serde_json::from_str",
                     ),
                 )
             }

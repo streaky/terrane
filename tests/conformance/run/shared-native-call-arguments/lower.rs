@@ -34,7 +34,7 @@ fn inspect(
                                             crate::__terrane_dependency_panic(
                                                 payload,
                                                 "http",
-                                                "http::HeaderMap<T>::len",
+                                                "http::HeaderMap::len",
                                             ),
                                         )
                                     }
@@ -69,7 +69,7 @@ fn inspect(
                         crate::__terrane_dependency_panic(
                             payload,
                             "http",
-                            "http::HeaderMap<T>::reserve",
+                            "http::HeaderMap::reserve",
                         ),
                     )
                 }
@@ -84,7 +84,7 @@ fn inspect(
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner.lock()
         .expect("shared reference lock poisoned").len())) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "http", "http::HeaderMap<T>::len")) },
+        ::__terrane_dependency_panic(payload, "http", "http::HeaderMap::len")) },
         2 /* terrane-site: src/main.trn:6:13-6:23 */); __terrane_call_result })
     );
 }
@@ -130,7 +130,7 @@ fn main() {
                                             crate::__terrane_dependency_panic(
                                                 payload,
                                                 "http",
-                                                "http::HeaderMap<T>::len",
+                                                "http::HeaderMap::len",
                                             ),
                                         )
                                     }
@@ -165,7 +165,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "http",
-                            "http::HeaderMap<T>::reserve",
+                            "http::HeaderMap::reserve",
                         ),
                     )
                 }
@@ -204,7 +204,7 @@ fn main() {
                                             crate::__terrane_dependency_panic(
                                                 payload,
                                                 "http",
-                                                "http::HeaderMap<T>::len",
+                                                "http::HeaderMap::len",
                                             ),
                                         )
                                     }
@@ -239,7 +239,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "http",
-                            "http::HeaderMap<T>::reserve",
+                            "http::HeaderMap::reserve",
                         ),
                     )
                 }
@@ -278,7 +278,7 @@ fn main() {
                                             crate::__terrane_dependency_panic(
                                                 payload,
                                                 "http",
-                                                "http::HeaderMap<T>::len",
+                                                "http::HeaderMap::len",
                                             ),
                                         )
                                     }
@@ -313,7 +313,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "http",
-                            "http::HeaderMap<T>::reserve",
+                            "http::HeaderMap::reserve",
                         ),
                     )
                 }
@@ -340,7 +340,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "http",
-                            "http::HeaderMap<T>::clear",
+                            "http::HeaderMap::clear",
                         ),
                     )
                 }
@@ -355,7 +355,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner.lock()
         .expect("shared reference lock poisoned").len())) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "http", "http::HeaderMap<T>::len")) },
+        ::__terrane_dependency_panic(payload, "http", "http::HeaderMap::len")) },
         10 /* terrane-site: src/main.trn:21:13-21:22 */); __terrane_call_result })
     );
 }

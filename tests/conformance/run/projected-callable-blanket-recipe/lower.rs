@@ -200,7 +200,7 @@ fn main() {
         std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "terrane-callable-recipe-witness",
-        "terrane_callable_recipe_witness::render::<i64>")) }, 8 /* terrane-site: src/main.trn:41:13-41:34 */))
+        "terrane_callable_recipe_witness::render")) }, 8 /* terrane-site: src/main.trn:41:13-41:34 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =

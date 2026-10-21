@@ -1,0 +1,5 @@
+package = "awaited-destructor-native"
+executor = "threaded"
+
+[namespaces]
+awaited-destructor-native = "."

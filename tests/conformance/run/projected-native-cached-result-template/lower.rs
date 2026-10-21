@@ -51,7 +51,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::make_lane::<_, ()>",
+                            "witness::make_lane",
                         ),
                     )
                 }
@@ -70,7 +70,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "witness",
-                            "witness::Builder<S>::attach",
+                            "witness::Builder::attach",
                         ),
                     )
                 }
@@ -83,7 +83,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&attached).value())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Builder<S>::value")) }, 3 /* terrane-site: src/main.trn:11:13-11:28 */))
+        "witness::Builder::value")) }, 3 /* terrane-site: src/main.trn:11:13-11:28 */))
     );
     concrete = __terrane_raised(
         terrane_static_trn_44656661756c744f6e6c79_new(),
@@ -94,6 +94,6 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&concrete).value())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::DefaultOnly<T>::value")) }, 5 /* terrane-site: src/main.trn:13:13-13:28 */))
+        "witness::DefaultOnly::value")) }, 5 /* terrane-site: src/main.trn:13:13-13:28 */))
     );
 }
