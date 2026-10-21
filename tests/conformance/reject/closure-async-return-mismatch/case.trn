@@ -1,0 +1,4 @@
+namespace app
+function main;
+  callback = async function int;
+    return 'text'

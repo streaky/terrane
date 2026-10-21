@@ -1,0 +1,6 @@
+namespace app
+function main;
+  callback = function int;
+    inner = function string;
+      return 1
+    return 2

@@ -1,0 +1,18 @@
+namespace app
+function main;
+  callback = function string; value int
+    function named bool;
+      return true
+    inner = function int; flag bool
+      if flag
+        return value
+      else
+        return 0
+    print; (inner; (named;))
+    text = 'typed'
+    return rust
+      text
+  print; (callback; 7)
+  empty = function;
+    return
+  empty;

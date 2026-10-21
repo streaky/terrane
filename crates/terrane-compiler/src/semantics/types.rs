@@ -180,6 +180,14 @@ pub(super) fn analyze_binding_node(
     {
         if previous.destination_arms.is_empty() {
             if let ValueType::Scalar(expected) = previous.value_type.clone() {
+                if actual == ValueType::InlineRust {
+                    return Err(failure(
+                        &unit.source,
+                        "T0002",
+                        "inline Rust cannot reassign a scalar binding; declare a new typed binding instead",
+                        initializer.span,
+                    ));
+                }
                 validate_numeric_destination(
                     &unit.source,
                     &name,

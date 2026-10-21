@@ -381,9 +381,8 @@ pub(super) fn validate_control_flow(
     package: &SemanticPackage,
 ) -> Result<Vec<Vec<Span>>, SemanticFailure> {
     fn function_declarations<'a>(node: &'a SyntaxNode, declarations: &mut Vec<&'a SyntaxNode>) {
-        if node.kind == SyntaxKind::FunctionDeclaration {
+        if is_function_node(node) {
             declarations.push(node);
-            return;
         }
         for child in &node.children {
             function_declarations(child, declarations);
