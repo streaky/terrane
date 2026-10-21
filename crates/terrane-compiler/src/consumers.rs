@@ -1308,7 +1308,7 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
-    fn editor_generated_sources_do_not_publish_or_retire_build_inventory() {
+    fn editor_sources_preserve_build_inventory() {
         let (mut package, root) = temporary_package();
         let existing = root.join(".trn/generated/codec/build.trn");
         std::fs::create_dir_all(existing.parent().unwrap()).unwrap();
