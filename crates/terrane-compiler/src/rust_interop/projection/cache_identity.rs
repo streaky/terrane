@@ -64,6 +64,9 @@ pub(super) fn selected_target(
     workspace: &Path,
     rustc_verbose_version: &str,
 ) -> Result<String, ProjectionError> {
+    if let Some(target) = terrane_rust_analysis::cargo_target_override() {
+        return Ok(target);
+    }
     if let Some(target) = std::env::var("CARGO_BUILD_TARGET")
         .ok()
         .filter(|target| !target.is_empty())

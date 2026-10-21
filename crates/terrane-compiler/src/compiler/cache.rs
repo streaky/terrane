@@ -91,9 +91,8 @@ pub(super) fn current(package: &Package) -> Option<Inputs> {
         hash.file(manifest)?;
     }
     for consumer in &package.consumer_configs {
-        hash.file(&consumer.executable)?;
         for interface in &consumer.interfaces {
-            hash.file(interface)?;
+            hash.file(&package.root.join(interface))?;
         }
     }
     for name in [

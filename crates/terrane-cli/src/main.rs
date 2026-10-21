@@ -9,11 +9,19 @@ mod test_command;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::fs;
 use std::io::{BufRead as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
+use terrane_compiler::native_build::{
+    GeneratedCrateOptions, GeneratedCrateRole, UnsafeCodePolicy, write_generated_crate,
+};
+
+impl From<terrane_compiler::native_build::NativeBuildError> for CliFailure {
+    fn from(error: terrane_compiler::native_build::NativeBuildError) -> Self {
+        Self::backend(error.to_string())
+    }
+}
 
 #[derive(Debug)]
 struct CliFailure {
@@ -1049,7 +1057,6 @@ fn write_rust(
 
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "Cargo process policy, containment, diagnostics, and artifact caching form one operation"
 )]
 fn run_cargo(
@@ -1063,72 +1070,12 @@ fn run_cargo(
     profile: CargoProfile,
 ) -> Result<(), CliFailure> {
     let rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
-    let contained = has_rust_dependencies
-        && containment == terrane_compiler::rust_interop::projection::Containment::Enforced;
-    if has_rust_dependencies {
-        let mut fetch = Command::new("cargo");
-        terrane_compiler::rust_interop::configure_cargo_command(&mut fetch);
-        configure_generated_toolchain(&mut fetch, crate_dir);
-        let fetch = fetch
-            .args(["fetch", "--manifest-path"])
-            .arg(crate_dir.join("Cargo.toml"))
-            .current_dir(crate_dir)
-            .output()
-            .map_err(|error| {
-                CliFailure::backend(format!("failed to fetch generated dependencies: {error}"))
-            })?;
-        if !fetch.status.success() {
-            return Err(CliFailure::backend(format!(
-                "Cargo dependency fetch failed: {}",
-                String::from_utf8_lossy(&fetch.stderr).trim()
-            )));
-        }
-        if !contained {
-            eprintln!(
-                "warning: generated dependency build containment is unavailable; using declared host tier"
-            );
-        }
-    }
-    fs::create_dir_all(target_dir).map_err(|error| {
-        CliFailure::backend(format!("cannot create Cargo target directory: {error}"))
-    })?;
-    let canonical_crate = crate_dir.canonicalize().map_err(|error| {
-        CliFailure::backend(format!("cannot canonicalize generated crate: {error}"))
-    })?;
-    let canonical_target = target_dir.canonicalize().map_err(|error| {
-        CliFailure::backend(format!(
-            "cannot canonicalize Cargo target directory: {error}"
-        ))
-    })?;
-    let mut cargo = if contained {
-        let mut cargo = Command::new("bwrap");
-        cargo.args([
-            "--die-with-parent",
-            "--unshare-all",
-            "--ro-bind",
-            "/",
-            "/",
-            "--dev",
-            "/dev",
-            "--proc",
-            "/proc",
-            "--tmpfs",
-            "/tmp",
-            "--bind",
-        ]);
-        cargo
-            .arg(&canonical_crate)
-            .arg(&canonical_crate)
-            .args(["--bind"])
-            .arg(&canonical_target)
-            .arg(&canonical_target)
-            .args(["--", "cargo"]);
-        cargo
-    } else {
-        Command::new("cargo")
-    };
-    terrane_compiler::rust_interop::configure_cargo_command(&mut cargo);
-    configure_generated_toolchain(&mut cargo, crate_dir);
+    let mut cargo = terrane_compiler::native_build::prepare_cargo_command(
+        crate_dir,
+        target_dir,
+        has_rust_dependencies,
+        containment,
+    )?;
     cargo.args([
         command,
         "--quiet",
@@ -1140,13 +1087,15 @@ fn run_cargo(
     if has_rust_dependencies {
         cargo.args(["--offline", "--frozen"]);
     }
+    let flags = coverage_rustflags(
+        rustflags,
+        cargo
+            .get_current_dir()
+            .expect("prepared Cargo command owns a workspace"),
+        profile,
+    );
     let output = cargo
-        .current_dir(&canonical_crate)
-        .env("CARGO_TARGET_DIR", &canonical_target)
-        .env(
-            "RUSTFLAGS",
-            coverage_rustflags(rustflags, &canonical_crate, profile),
-        )
+        .env("RUSTFLAGS", flags)
         .output()
         .map_err(|error| CliFailure::backend(format!("failed to start Cargo: {error}")))?;
     if output.status.success() {
@@ -1217,20 +1166,6 @@ fn run_cargo(
         4,
     ))
 }
-fn configure_generated_toolchain(command: &mut Command, crate_dir: &Path) {
-    let Ok(metadata) = fs::read_to_string(crate_dir.join("terrane-build.toml")) else {
-        return;
-    };
-    let Some(toolchain) = metadata.lines().find_map(|line| {
-        line.strip_prefix("rust-toolchain = ")
-            .map(|value| value.trim_matches('"'))
-    }) else {
-        return;
-    };
-    if toolchain != "system" {
-        command.arg(format!("+{toolchain}"));
-    }
-}
 
 fn generated_crate_path(
     package_root: &Path,
@@ -1277,341 +1212,8 @@ fn profile_with_panic(
     profile
 }
 
-#[derive(Clone, Copy)]
-enum UnsafeCodePolicy {
-    Forbid,
-    MaintainedModules,
-}
-
-impl UnsafeCodePolicy {
-    const fn lint_level(self) -> &'static str {
-        match self {
-            Self::Forbid => "forbid",
-            Self::MaintainedModules => "deny",
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum GeneratedCrateRole {
-    Application,
-    Inspection,
-    UnitTest,
-    IntegrationTest,
-    EndToEndTest,
-}
-
-impl GeneratedCrateRole {
-    const fn directory(self) -> &'static str {
-        match self {
-            Self::Application => "application",
-            Self::Inspection => "application-debug",
-            Self::UnitTest => "test-unit",
-            Self::IntegrationTest => "test-integration",
-            Self::EndToEndTest => "test-end-to-end",
-        }
-    }
-
-    const fn cargo_name(self) -> &'static str {
-        match self {
-            Self::Application => "terrane_program_application",
-            Self::Inspection => "terrane_program_application_debug",
-            Self::UnitTest => "terrane_program_test_unit",
-            Self::IntegrationTest => "terrane_program_test_integration",
-            Self::EndToEndTest => "terrane_program_test_end_to_end",
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "Generated Cargo features are independent additive requirements, not mutually exclusive runtime states"
-)]
-struct GeneratedCrateOptions {
-    role: GeneratedCrateRole,
-    panic: terrane_compiler::PanicProfile,
-    uses_platform_support: bool,
-    uses_async_runtime: bool,
-    uses_tokio_blocking: bool,
-    uses_tokio_sync: bool,
-    build_toolchain: terrane_compiler::BuildToolchain,
-    unsafe_code: UnsafeCodePolicy,
-    artifact: terrane_compiler::ArtifactKind,
-}
-
-fn base_generated_manifest(unsafe_code: UnsafeCodePolicy, role: GeneratedCrateRole) -> String {
-    format!(
-        "[package]\nname = {:?}\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
-         [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
-         [lints.rust]\nunsafe_code = {:?}\n\n\
-         [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
-         terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
-         terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
-         terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\
-         terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
-         terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
-        role.cargo_name(),
-        terrane_compiler::BUILD_TOOLCHAIN,
-        terrane_compiler::UNICODE_DATA_VERSION,
-        unsafe_code.lint_level()
-    )
-}
-
-fn append_build_profiles(manifest: &mut String, panic: terrane_compiler::PanicProfile) {
-    if panic == terrane_compiler::PanicProfile::Abort {
-        manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
-    }
-    for (name, parent, profile) in [
-        (
-            "terrane-debug",
-            "dev",
-            terrane_compiler::debugging::DEBUG_ARTIFACT_PROFILE,
-        ),
-        (
-            "terrane-profile",
-            "release",
-            terrane_compiler::profiling::CPU_ARTIFACT_PROFILE,
-        ),
-    ] {
-        writeln!(manifest, "\n[profile.{name}]\ninherits = {parent:?}")
-            .expect("writing to a string cannot fail");
-        writeln!(manifest, "opt-level = {}", profile.optimization)
-            .expect("writing to a string cannot fail");
-        writeln!(manifest, "debug = {}", profile.cargo_debug)
-            .expect("writing to a string cannot fail");
-        writeln!(manifest, "strip = {:?}", profile.stripping)
-            .expect("writing to a string cannot fail");
-        writeln!(manifest, "lto = {:?}", profile.lto).expect("writing to a string cannot fail");
-        writeln!(manifest, "codegen-units = {}", profile.codegen_units)
-            .expect("writing to a string cannot fail");
-        if panic == terrane_compiler::PanicProfile::Abort {
-            manifest.push_str("panic = \"abort\"\n");
-        }
-    }
-    manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
-}
-
-fn remove_obsolete_generated_sources(
-    root: &Path,
-    files: &[terrane_compiler::rust_ir::RenderedFile],
-) -> std::io::Result<()> {
-    for entry in fs::read_dir(root.join("src"))? {
-        let entry = entry?;
-        let path = entry.path();
-        let relative = path
-            .strip_prefix(root)
-            .expect("generated source entry belongs to its crate");
-        if path.extension().is_some_and(|extension| extension == "rs")
-            && entry.file_type()?.is_file()
-            && !files.iter().any(|file| Path::new(&file.path) == relative)
-        {
-            fs::remove_file(path)?;
-        }
-    }
-    Ok(())
-}
-
-fn write_generated_crate(
-    directory: &Path,
-    rust_files: &[terrane_compiler::rust_ir::RenderedFile],
-    units: &[terrane_compiler::SourceUnit],
-    rust_dependencies: &[terrane_compiler::RustDependency],
-    options: GeneratedCrateOptions,
-) -> Result<(), CliFailure> {
-    fs::create_dir_all(directory.join("src"))
-        .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    remove_obsolete_generated_sources(directory, rust_files)
-        .map_err(|error| CliFailure::backend(format!("cannot remove obsolete source: {error}")))?;
-    if !options.uses_platform_support {
-        for name in ["terrane-platform-support", "terrane-signal-support"] {
-            let obsolete = directory.join("support").join(name);
-            if obsolete.is_dir() {
-                fs::remove_dir_all(obsolete).map_err(|error| {
-                    CliFailure::backend(format!(
-                        "cannot remove obsolete generated support: {error}"
-                    ))
-                })?;
-            }
-        }
-    }
-    let mut manifest = base_generated_manifest(options.unsafe_code, options.role);
-    if options.uses_platform_support {
-        manifest.push_str(
-            "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
-        );
-    }
-    write_runtime_dependencies(&mut manifest, rust_dependencies, options);
-    let target_tables = rust_dependencies
-        .iter()
-        .map(terrane_compiler::RustDependency::cargo_manifest_table)
-        .filter(|table| table != "dependencies")
-        .collect::<BTreeSet<_>>();
-    for table in target_tables {
-        writeln!(manifest, "\n[{table}]").expect("writing to a string cannot fail");
-        for dependency in rust_dependencies
-            .iter()
-            .filter(|dependency| dependency.cargo_manifest_table() == table)
-        {
-            write_rust_dependency(&mut manifest, dependency);
-        }
-    }
-    if options.artifact == terrane_compiler::ArtifactKind::DynamicLibrary {
-        manifest.push_str("\n[lib]\ncrate-type = [\"cdylib\"]\n");
-    }
-    append_build_profiles(&mut manifest, options.panic);
-    manifest.push_str("\n[workspace]\n");
-    write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
-        CliFailure::backend(format!("cannot write generated manifest: {error}"))
-    })?;
-    let toolchain_path = directory.join("rust-toolchain.toml");
-    if options.build_toolchain == terrane_compiler::BuildToolchain::Pinned {
-        let toolchain = format!(
-            "[toolchain]\nchannel = {:?}\nprofile = \"minimal\"\n",
-            terrane_compiler::BUILD_TOOLCHAIN
-        );
-        write_if_changed(&toolchain_path, toolchain.as_bytes()).map_err(|error| {
-            CliFailure::backend(format!("cannot write generated toolchain pin: {error}"))
-        })?;
-    } else if toolchain_path.exists() {
-        fs::remove_file(&toolchain_path).map_err(|error| {
-            CliFailure::backend(format!("cannot remove generated toolchain pin: {error}"))
-        })?;
-    }
-    write_generated_support(directory, options.uses_platform_support).map_err(|error| {
-        CliFailure::backend(format!("cannot write generated runtime support: {error}"))
-    })?;
-    for rust_file in rust_files {
-        let path = directory.join(&rust_file.path);
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| {
-                CliFailure::backend(format!("cannot create generated source directory: {error}"))
-            })?;
-        }
-        write_if_changed(&path, rust_file.contents.as_bytes()).map_err(|error| {
-            CliFailure::backend(format!("cannot write generated Rust: {error}"))
-        })?;
-    }
-    let mut sources = String::from("version = 1\n\n");
-    for unit in units {
-        write!(
-            sources,
-            "[[sources]]\npath = {:?}\n",
-            unit.relative_path.to_string_lossy()
-        )
-        .expect("writing to a String cannot fail");
-    }
-    writeln!(
-        sources,
-        "rust-toolchain = {:?}",
-        match options.build_toolchain {
-            terrane_compiler::BuildToolchain::Pinned => terrane_compiler::BUILD_TOOLCHAIN,
-            terrane_compiler::BuildToolchain::System => "system",
-        }
-    )
-    .expect("writing to a String cannot fail");
-    write_if_changed(&directory.join("terrane-build.toml"), sources.as_bytes())
-        .map_err(|error| CliFailure::backend(format!("cannot write build metadata: {error}")))?;
-    Ok(())
-}
-
-fn write_runtime_dependencies(
-    manifest: &mut String,
-    rust_dependencies: &[terrane_compiler::RustDependency],
-    options: GeneratedCrateOptions,
-) {
-    let dependencies =
-        if options.uses_async_runtime || options.uses_tokio_blocking || options.uses_tokio_sync {
-            let mut required_features = vec!["rt"];
-            if options.uses_async_runtime {
-                required_features.extend(["macros", "rt-multi-thread", "time"]);
-            }
-            if options.uses_tokio_sync {
-                required_features.push("sync");
-            }
-            terrane_compiler::with_tokio_runtime(rust_dependencies, &required_features)
-        } else {
-            rust_dependencies.to_vec()
-        };
-    for dependency in dependencies
-        .iter()
-        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
-    {
-        write_rust_dependency(manifest, dependency);
-    }
-}
-
-fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::RustDependency) {
-    manifest.push_str(&dependency.cargo_dependency_spec());
-}
-
-fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
-    let int = directory.join("support/terrane-int-support");
-    let collection = directory.join("support/terrane-collection-support");
-    let scalar = directory.join("support/terrane-scalar-support");
-    let string = directory.join("support/terrane-string-support");
-    let document = directory.join("support/terrane-document-support");
-    let stream = directory.join("support/terrane-stream-abi");
-    fs::create_dir_all(int.join("src"))?;
-    fs::create_dir_all(collection.join("src"))?;
-    fs::create_dir_all(scalar.join("src"))?;
-    fs::create_dir_all(string.join("src"))?;
-    fs::create_dir_all(document.join("src"))?;
-    fs::create_dir_all(stream.join("src"))?;
-    write_if_changed(
-        &int.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nnum-bigint = {{ version = \"0.4\", features = [\"std\"] }}\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
-    )?;
-    write_if_changed(
-        &collection.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nunicode-segmentation = \"=1.12.0\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
-    )?;
-    write_if_changed(
-        &collection.join("src/lib.rs"),
-        include_bytes!("../../terrane-collection-support/src/lib.rs"),
-    )?;
-    write_if_changed(
-        &int.join("src/lib.rs"),
-        include_bytes!("../../terrane-int-support/src/lib.rs"),
-    )?;
-    write_if_changed(
-        &scalar.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-scalar-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
-    )?;
-    write_if_changed(
-        &scalar.join("src/lib.rs"),
-        include_bytes!("../../terrane-scalar-support/src/lib.rs"),
-    )?;
-    write_if_changed(
-        &string.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\n# Unicode 16.0 profile: case folding, normalization, and segmentation move together.\ncaseless = \"=0.2.2\"\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = {{ version = \"=1.12.0\", features = [\"std\"] }}\nunicode-normalization = \"=0.1.24\"\nunicode-segmentation = \"=1.12.0\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
-    )?;
-    write_if_changed(
-        &string.join("src/lib.rs"),
-        include_bytes!("../../terrane-string-support/src/lib.rs"),
-    )?;
-    write_if_changed(
-        &document.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
-    )?;
-    write_if_changed(
-        &document.join("src/lib.rs"),
-        include_bytes!("../../terrane-document-support/src/lib.rs"),
-    )?;
-    write_if_changed(
-        &stream.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nlibc = \"0.2\"\nrustix = {{ version = \"1\", features = [\"fs\"] }}\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
-    )?;
-    write_if_changed(
-        &stream.join("src/lib.rs"),
-        include_bytes!("../../terrane-stream-abi/src/lib.rs"),
-    )?;
-    if uses_platform_support {
-        terrane_compiler::write_platform_support(&directory.join("support"))?;
-    }
-    Ok(())
-}
-
+// Keep publication local to the CLI; sharing this tiny helper would expand the
+// compiler's public API for an otherwise independent filesystem boundary.
 fn write_if_changed(path: &Path, content: &[u8]) -> std::io::Result<()> {
     if fs::read(path).is_ok_and(|existing| existing == content) {
         return Ok(());

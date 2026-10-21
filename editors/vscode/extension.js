@@ -34,6 +34,9 @@ async function activate(context) {
     'Terrane Language Server',
     { command },
     {
+      initializationOptions: () => ({
+        allowConsumerExecution: vscode.workspace.isTrusted,
+      }),
       documentSelector: [
         { scheme: 'file', language: 'terrane' },
         { scheme: 'untitled', language: 'terrane' },
@@ -45,6 +48,9 @@ async function activate(context) {
   );
   await client.start();
   context.subscriptions.push(client);
+  context.subscriptions.push(vscode.workspace.onDidGrantWorkspaceTrust(async () => {
+    await client.restart();
+  }));
 }
 
 async function deactivate() {

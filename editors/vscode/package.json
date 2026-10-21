@@ -2,7 +2,7 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
@@ -19,6 +19,13 @@
   "categories": [
     "Programming Languages"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Compile-time consumer execution is disabled until workspace trust is granted.",
+      "restrictedConfigurations": ["terrane.server.path"]
+    }
+  },
   "contributes": {
     "languages": [
       {

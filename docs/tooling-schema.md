@@ -57,6 +57,7 @@ than guessed. Compiler spans are zero-based, half-open UTF-8 byte ranges:
   "options": {
     "semantic": false,
     "generated": false,
+    "allow_consumer_execution": false,
     "target": "host",
     "profile": "development",
     "capabilities": [],
@@ -81,6 +82,12 @@ result contains:
 
 Snapshots are immutable. The service retains at most 32 snapshots and 64 MiB of source text by
 default, evicting oldest snapshots first. Reopening identical inputs and options reuses the same ID.
+
+Consumer execution is disabled by default. A semantic snapshot for a package with configured
+consumers reports `S2060` without permission and retains syntax tooling, but semantic facts are
+unavailable for the whole package, including authored declarations. Omitting generated declarations
+could change resolution and types; trust does not silently substitute an incomplete semantic graph.
+Edit previews retain their snapshot's execution permission.
 
 ### `close-snapshot`
 
@@ -142,15 +149,19 @@ Package manifests may explicitly configure trusted compile-time metadata consume
 
 ```toml
 [consumers.cli]
-command = ".trn/consumers/cli"
+tool = "example/generator::cli"
 args = []
 declarations = ["/example::run", "/example::run::name"]
 interfaces = ["metadata/library-interface.json"]
 ```
 
-`command` is one executable path; `args`, `declarations`, and optional `interfaces` are arrays of strings. Every configured consumer selects explicit canonical declaration identities. Interface paths add exported declaration metadata whose dependency bodies or source text need not be loaded. The executable runs synchronously in the package directory; this is an explicit trusted-tool boundary, not a sandbox.
+`tool` selects a named `[consumer-tools]` export from a resolved Terrane dependency; the exporting library maps that name to a package-relative executable manifest. Terrane builds the executable for the host and recursively prepares any consumers needed to build it. Real tool-build action cycles diagnose. Alternatively, `command` selects an existing executable path or command name; exactly one of `tool` and `command` is required. Both forms accept string-array `args`, `declarations`, and optional `interfaces`. Every configured consumer selects explicit canonical declaration identities. Interface paths add exported declaration metadata whose dependency bodies or source text need not be loaded. The executable runs synchronously in the caller's package directory; this is an explicit trusted-tool boundary, not a sandbox.
 
 The compiler sends one UTF-8 JSON request on stdin with protocol `format: 1`, the package identity, and selected declarations. A declaration record contains `identity`, `span`, `origin`, `visibility`, `kind`, nullable `documentation`, ordered `annotations`, and signature, fields, and contracts snapshots. Annotation records contain canonical `identity`, their own `span`, and a tagged immutable `payload` (`kind` plus `value` where applicable). Metadata spans use source-file IDs, paths, and half-open byte offsets. Consumer tools should use canonical identities and spans, not infer declaration origins from names.
+
+The request also carries `preparation.state_directory` and `preparation.tool_identity` (an executable-content identity). Every preparation consults the consumer, which owns freshness checks and any cached generated sources. Consumers must account for their arguments, metadata, executable identity, and external generation inputs. Fresh consumers still return their complete source inventory. Returning an empty inventory removes outputs; it is not an unchanged-result marker. The optional `terrane/consumer-cache` helper in `tools/annotation-consumers/cache` stores exact caller-supplied input identities and source with bounded reads and atomic writes.
+
+The cache helper always includes executable identity and arguments, but its optional `metadata` constructor argument is explicitly selected by the consumer. A template generator may omit caller metadata it does not use; a metadata-driven HTTP generator can include the request. File input identities and metadata are separate structured key components, not an ambiguous concatenation.
 
 The Rust `DeclarationInterface` format 1 API provides `to_json` and `from_json`, validating the metadata fingerprint and source/span mappings. Its JSON contains package identity, fingerprint, file-ID-to-path `sources`, and declaration records; it contains no source bodies. Export omits bundled roots and private descendants/fields and redacts defaults for non-public or secret fields. The source map retains only files referenced by exported records. Fingerprints include origin byte spans, deliberately invalidating on whitespace changes that move source locations. Defaults requiring runtime evaluation have tagged `kind: "unsupported"` instead of silently appearing absent. Annotation schemas require public data fields. Annotation payloads use tagged immutable values: `none`, `boolean`, `integer`, `float`, `string`, `bytes`, `tuple`, `list`, `map`, `set`, `descriptor`, and `kind`.
 
@@ -160,11 +171,25 @@ Successful consumer preparation reconciles the persisted generated `.trn` files 
 
 Consumer input, stdout and stderr, and imported declaration-interface files are capped at 16 MiB. Generated sources are added after declaration preparation and before ordinary whole-package checking, including test discovery, then parsed and checked with authored source through the normal pipeline. Consumer execution itself is synchronous, with no wall-clock timeout in the current contract.
 
-Editor and language-server snapshots do not execute trusted consumer programs. Generated
-namespaces may therefore be unresolved in a snapshot even when package `check`, `build`,
-`run`, and `test` succeed; do not interpret this editor-only limitation as a package error.
-Build the native reference consumers after the compiler with
-`sh tools/annotation-consumers/build.sh`.
+Editor and language-server snapshots do not execute trusted consumer programs by default. The
+tooling option `allow_consumer_execution` (the LSP initialization option
+`allowConsumerExecution`) opts in explicitly; it is false when omitted. When enabled, editor
+preparation analyzes declarations first, executes configured consumers, and includes their generated
+Terrane sources in the ordinary snapshot semantic analysis. Consumer execution failures and
+untrusted-consumer configurations are reported as diagnostics. Editor-generated sources are stored
+under content-addressed `.trn/editor-generated/<session>/<source-hash>/` paths, separate from the build
+inventory under `.trn/generated`; this makes generated declarations navigable as ordinary files
+without letting editor snapshots modify build outputs. Consumer outputs participate in snapshot
+identity, so reopening unchanged authored text after a consumer output changes creates a distinct
+snapshot. The language server reuses a document's prepared snapshot for up to one second;
+the first semantic request after that interval refreshes external inputs, even without a source
+edit. Authored document changes prepare immediately. Preparation runs on a blocking worker and
+superseded document versions are discarded. Each engine owns its output session and collects
+unchanged generated files when no retained snapshot needs them or on normal shutdown, preserving
+modified/untracked files and other sessions. Crashes and failed deletion may leave residue.
+Edit previews do not publish generated files. The VS Code client
+supplies permission from workspace trust and restarts the server when trust is granted. Build the
+native reference consumers after the compiler with `sh tools/annotation-consumers/build.sh`.
 
 ### `locate`, `definition`, `references`, and `implementations`
 
