@@ -76,7 +76,7 @@ pub(crate) fn executable_for(
         ));
     };
     let package_manifest = root.join(crate::MANIFEST_FILE_NAME);
-    let tool_package = crate::Package::load(&package_manifest).map_err(|errors| {
+    let exports = crate::package::consumer_tool_exports(&package_manifest).map_err(|errors| {
         failure(
             owner,
             format!(
@@ -89,13 +89,13 @@ pub(crate) fn executable_for(
             ),
         )
     })?;
-    let Some(relative_manifest) = tool_package.consumer_tools.get(tool) else {
+    let Some(relative_manifest) = exports.get(tool) else {
         return Err(failure(
             owner,
             format!("dependency `{dependency}` does not export consumer tool `{tool}`"),
         ));
     };
-    let tool_manifest = tool_package.root.join(relative_manifest);
+    let tool_manifest = root.join(relative_manifest);
     if !tool_manifest.is_file() {
         return Err(failure(
             owner,
@@ -141,13 +141,10 @@ fn resolve_command(owner: &Package, executable: &Path) -> Result<PathBuf, Compil
         } else {
             owner.root.join(executable)
         };
-        return path.canonicalize().map_err(|error| {
+        return path.is_file().then_some(path).ok_or_else(|| {
             failure(
                 owner,
-                format!(
-                    "cannot locate consumer command `{}`: {error}",
-                    executable.display()
-                ),
+                format!("cannot locate consumer command `{}`", executable.display()),
             )
         });
     }
@@ -160,18 +157,42 @@ fn resolve_command(owner: &Package, executable: &Path) -> Result<PathBuf, Compil
             ),
         ));
     };
+    #[cfg(windows)]
+    let names = {
+        let has_extension = executable.extension().is_some();
+        let extensions = if has_extension {
+            vec![std::ffi::OsString::new()]
+        } else {
+            std::env::var_os("PATHEXT")
+                .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into())
+                .to_string_lossy()
+                .split(';')
+                .filter(|extension| !extension.is_empty())
+                .map(std::ffi::OsString::from)
+                .collect()
+        };
+        extensions
+            .into_iter()
+            .map(|extension| {
+                let mut name = executable.as_os_str().to_os_string();
+                name.push(extension);
+                name
+            })
+            .collect::<Vec<_>>()
+    };
+    #[cfg(not(windows))]
+    let names = vec![executable.as_os_str().to_os_string()];
     for directory in std::env::split_paths(&paths) {
-        let candidate = directory.join(executable);
-        if candidate.is_file() {
-            return candidate.canonicalize().map_err(|error| {
-                failure(
-                    owner,
-                    format!(
-                        "cannot locate consumer command `{}`: {error}",
-                        executable.display()
-                    ),
-                )
-            });
+        let directory = if directory.is_absolute() {
+            directory
+        } else {
+            owner.root.join(directory)
+        };
+        for name in &names {
+            let candidate = directory.join(name);
+            if is_executable_file(&candidate) {
+                return Ok(candidate);
+            }
         }
     }
     Err(failure(
@@ -181,6 +202,18 @@ fn resolve_command(owner: &Package, executable: &Path) -> Result<PathBuf, Compil
             executable.display()
         ),
     ))
+}
+
+#[cfg(unix)]
+fn is_executable_file(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    fs::metadata(path)
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn is_executable_file(path: &Path) -> bool {
+    path.is_file()
 }
 
 fn build_host_executable(
@@ -417,4 +450,49 @@ fn write_host_workspace(
         )?;
     }
     Ok(crate_root)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::{PermissionsExt, symlink};
+
+    #[test]
+    fn command_preserves_symlink_launcher_identity() {
+        let root =
+            std::env::temp_dir().join(format!("terrane-command-launcher-{}", std::process::id()));
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::create_dir_all(root.join("bin")).unwrap();
+        fs::write(
+            root.join("package.toml"),
+            "package = 'launcher'\n[namespaces]\nlauncher = 'src'\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/main.trn"),
+            "namespace launcher\nfunction main;\n",
+        )
+        .unwrap();
+        let script = root.join("bin/real");
+        fs::write(&script, "#!/bin/sh\nprintf '%s' \"$0\"\n").unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        let launcher = root.join("bin/link");
+        symlink(&script, &launcher).unwrap();
+        let package = Package::load(root.join("package.toml")).unwrap();
+        for configured in [Path::new("bin/link"), launcher.as_path()] {
+            let resolved = resolve_command(&package, configured).unwrap();
+            let output = Command::new(resolved)
+                .current_dir(&package.root)
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            assert_eq!(
+                String::from_utf8(output.stdout).unwrap(),
+                launcher.to_str().unwrap()
+            );
+        }
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(!is_executable_file(&script));
+        fs::remove_dir_all(root).unwrap();
+    }
 }

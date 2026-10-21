@@ -83,6 +83,12 @@ result contains:
 Snapshots are immutable. The service retains at most 32 snapshots and 64 MiB of source text by
 default, evicting oldest snapshots first. Reopening identical inputs and options reuses the same ID.
 
+Consumer execution is disabled by default. A semantic snapshot for a package with configured
+consumers reports `S2060` without permission and retains syntax tooling, but semantic facts are
+unavailable for the whole package, including authored declarations. Omitting generated declarations
+could change resolution and types; trust does not silently substitute an incomplete semantic graph.
+Edit previews retain their snapshot's execution permission.
+
 ### `close-snapshot`
 
 ```json
@@ -171,13 +177,17 @@ tooling option `allow_consumer_execution` (the LSP initialization option
 preparation analyzes declarations first, executes configured consumers, and includes their generated
 Terrane sources in the ordinary snapshot semantic analysis. Consumer execution failures and
 untrusted-consumer configurations are reported as diagnostics. Editor-generated sources are stored
-under content-addressed `.trn/editor-generated/<source-hash>/` paths, separate from the build
+under content-addressed `.trn/editor-generated/<session>/<source-hash>/` paths, separate from the build
 inventory under `.trn/generated`; this makes generated declarations navigable as ordinary files
 without letting editor snapshots modify build outputs. Consumer outputs participate in snapshot
 identity, so reopening unchanged authored text after a consumer output changes creates a distinct
-snapshot. The language server refreshes preparation before semantic requests, so a template or
-other external input can change generated navigation without a source-document edit. Preparation
-runs on a blocking worker and superseded document versions are discarded. The VS Code client
+snapshot. The language server reuses a document's prepared snapshot for up to one second;
+the first semantic request after that interval refreshes external inputs, even without a source
+edit. Authored document changes prepare immediately. Preparation runs on a blocking worker and
+superseded document versions are discarded. Each engine owns its output session and collects
+unchanged generated files when no retained snapshot needs them or on normal shutdown, preserving
+modified/untracked files and other sessions. Crashes and failed deletion may leave residue.
+Edit previews do not publish generated files. The VS Code client
 supplies permission from workspace trust and restarts the server when trust is granted. Build the
 native reference consumers after the compiler with `sh tools/annotation-consumers/build.sh`.
 

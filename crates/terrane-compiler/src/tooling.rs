@@ -456,6 +456,7 @@ struct Snapshot {
     semantic: Option<crate::SemanticPackage>,
     semantic_invalid: bool,
     generated: Option<GeneratedSnapshot>,
+    allow_consumer_execution: bool,
     bytes: usize,
 }
 
@@ -490,6 +491,7 @@ pub struct ToolingEngine {
     canceled: BTreeSet<String>,
     canceled_order: VecDeque<String>,
     nonce: u64,
+    editor_outputs: consumer_preparation::PublishedSources,
 }
 
 impl Default for ToolingEngine {
@@ -513,6 +515,7 @@ impl ToolingEngine {
             canceled: BTreeSet::new(),
             canceled_order: VecDeque::new(),
             nonce: 0,
+            editor_outputs: consumer_preparation::PublishedSources::new(),
         }
     }
 
@@ -764,8 +767,11 @@ impl ToolingEngine {
         consumer_preparation::synchronize_documents(&mut authored_package, &mut documents);
         let mut preparation_failed = false;
         let mut package = if options.semantic && !syntax_invalid {
-            match consumer_preparation::prepare(&authored_package, options.allow_consumer_execution)
-            {
+            match consumer_preparation::prepare(
+                &authored_package,
+                options.allow_consumer_execution,
+                Some(&mut self.editor_outputs),
+            ) {
                 Ok(package) => package,
                 Err(failure) => {
                     consumer_preparation::record_failure(
@@ -908,6 +914,7 @@ impl ToolingEngine {
                 semantic,
                 semantic_invalid,
                 generated,
+                allow_consumer_execution: options.allow_consumer_execution,
                 bytes,
             },
         );
@@ -929,15 +936,20 @@ impl ToolingEngine {
     /// an unrelated implicit single-file program.
     #[must_use]
     pub fn generated_source_snapshot(&self, uri: &str, text: &str) -> Option<SnapshotMetadata> {
+        let path = uri_path(uri)?;
+        let canonical = canonical_path(&path);
         self.snapshot_order.iter().rev().find_map(|id| {
             let snapshot = self.snapshots.get(id)?;
-            let document = snapshot.documents.get(uri)?;
+            let document = snapshot.documents.values().find(|document| {
+                uri_path(&document.identity.uri)
+                    .is_some_and(|document_path| canonical_path(&document_path) == canonical)
+            })?;
             (document.source.text() == text
                 && !snapshot
                     .package
                     .units
                     .iter()
-                    .any(|unit| unit.source.path() == document.source.path()))
+                    .any(|unit| canonical_path(unit.source.path()) == canonical))
             .then(|| snapshot.metadata.clone())
         })
     }
@@ -960,6 +972,7 @@ impl ToolingEngine {
             .retain(|token| self.continuations.contains_key(token));
         self.proposals
             .retain(|_, proposal| proposal.snapshot_id != snapshot_id);
+        self.collect_editor_outputs();
         Ok(())
     }
 
@@ -1651,6 +1664,17 @@ impl ToolingEngine {
             self.proposals
                 .retain(|_, proposal| proposal.snapshot_id != id);
         }
+        self.collect_editor_outputs();
+    }
+
+    fn collect_editor_outputs(&mut self) {
+        let retained = self
+            .snapshots
+            .values()
+            .flat_map(|snapshot| snapshot.documents.values())
+            .map(|document| document.source.path().to_path_buf())
+            .collect();
+        self.editor_outputs.collect(&retained);
     }
 
     fn success_response(
@@ -1712,9 +1736,17 @@ impl ToolingEngine {
 
 impl Snapshot {
     fn document(&self, uri: &str) -> Result<&ParsedDocument, ProtocolError> {
-        self.documents.get(uri).ok_or_else(|| {
-            ProtocolError::new("unknown-source", "source URI is not in the snapshot")
-        })
+        self.documents
+            .get(uri)
+            .or_else(|| {
+                let canonical = canonical_path(&uri_path(uri)?);
+                self.documents
+                    .values()
+                    .find(|document| canonical_path(document.source.path()) == canonical)
+            })
+            .ok_or_else(|| {
+                ProtocolError::new("unknown-source", "source URI is not in the snapshot")
+            })
     }
 
     fn uri_for_file(&self, file: u32) -> Option<&str> {
@@ -1735,6 +1767,20 @@ fn snapshot_package(
         let path = uri_path(&manifest.uri).ok_or_else(|| {
             ProtocolError::new("invalid-manifest", "manifest input must use a file URI")
         })?;
+        // Compose by filesystem identity, then synchronize back to client URIs.
+        // Manifest and overlay spellings may use different symlink aliases.
+        let path = canonical_path(&path);
+        let units = units
+            .into_iter()
+            .map(|mut unit| {
+                let path = canonical_path(unit.source.path());
+                if path != unit.source.path() {
+                    unit.source =
+                        SourceFile::new(unit.source.id(), path, unit.source.text().to_owned());
+                }
+                unit
+            })
+            .collect();
         return Package::from_tooling_sources(&path, &manifest.text, units).map_err(|errors| {
             ProtocolError::new(
                 "invalid-manifest",
@@ -3040,11 +3086,12 @@ fn validate_replacements(
     let mut previous: Option<&Replacement> = None;
     for replacement in replacements.iter() {
         let document = snapshot.document(&replacement.uri)?;
+        let document_path = canonical_path(document.source.path());
         if !snapshot
             .package
             .units
             .iter()
-            .any(|unit| unit.source.path() == document.source.path())
+            .any(|unit| canonical_path(unit.source.path()) == document_path)
         {
             return Err(ProtocolError::new(
                 "generated-source-readonly",
@@ -3085,11 +3132,12 @@ fn candidate_sources(
     let mut diagnostics = Vec::new();
     let mut units = Vec::new();
     for (uri, document) in &snapshot.documents {
+        let document_path = canonical_path(document.source.path());
         let Some(original) = snapshot
             .package
             .units
             .iter()
-            .find(|unit| unit.source.path() == document.source.path())
+            .find(|unit| canonical_path(unit.source.path()) == document_path)
         else {
             continue;
         };
@@ -3117,7 +3165,8 @@ fn candidate_sources(
     let semantic_reanalysis = if diagnostics.is_empty() && snapshot.semantic.is_some() {
         let mut package = snapshot.package.clone();
         package.units = units;
-        let prepared = consumer_preparation::prepare(&package, true);
+        let prepared =
+            consumer_preparation::prepare(&package, snapshot.allow_consumer_execution, None);
         match prepared.and_then(|package| {
             crate::semantics::analyze(&package).map_err(|failure| crate::CompilationFailure {
                 source: failure.source,
@@ -3447,8 +3496,50 @@ fn serialization_error(error: serde_json::Error) -> ProtocolError {
     ProtocolError::new("internal-serialization", error.to_string())
 }
 
+fn canonical_path(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
 fn uri_path(uri: &str) -> Option<PathBuf> {
-    uri.strip_prefix("file://").map(PathBuf::from)
+    let encoded = uri.strip_prefix("file://")?;
+    let bytes = encoded.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            let high = *bytes.get(index + 1)?;
+            let low = *bytes.get(index + 2)?;
+            decoded.push((hex_value(high)? << 4) | hex_value(low)?);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).ok().map(PathBuf::from)
+}
+
+fn hex_value(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn path_uri(path: &Path) -> String {
+    let path = path.to_string_lossy();
+    let mut uri = String::from("file://");
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || b"/-._~:".contains(&byte) {
+            uri.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            write!(uri, "%{byte:02X}").expect("writing to string cannot fail");
+        }
+    }
+    uri
 }
 
 fn expired_snapshot() -> ProtocolError {

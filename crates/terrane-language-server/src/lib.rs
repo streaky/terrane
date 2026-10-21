@@ -47,12 +47,14 @@ const TOKEN_TYPES: [SemanticTokenType; 11] = [
     SemanticTokenType::PROPERTY,
     SemanticTokenType::VARIABLE,
 ];
+const SEMANTIC_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(1);
 
 #[derive(Clone, Debug)]
 struct Document {
     text: String,
     version: i32,
     snapshot_id: String,
+    prepared_at: Option<std::time::Instant>,
 }
 
 #[derive(Debug)]
@@ -139,6 +141,7 @@ impl Backend {
                     text: text.clone(),
                     version,
                     snapshot_id,
+                    prepared_at: None,
                 },
             );
         }
@@ -156,15 +159,15 @@ impl Backend {
         self.install_analysis(uri, text, version, analysis).await;
     }
 
-    /// External consumer inputs can change without a text-document notification.
-    /// Consult preparation before semantic requests, and discard superseded views.
+    /// Consumer-owned inputs can change without a document notification. Reprepare at
+    /// a bounded interval rather than loading the package on every semantic request.
     async fn semantic_document(&self, uri: &Uri) -> Option<Document> {
         let _preparation = self.preparation.lock().await;
-        loop {
-            let document = {
-                let documents = self.documents.read().await;
-                documents.get(uri)?.clone()
-            };
+        let document = self.documents.read().await.get(uri)?.clone();
+        let stale = document
+            .prepared_at
+            .is_none_or(|last| last.elapsed() >= SEMANTIC_REFRESH_INTERVAL);
+        if stale {
             let analysis = self.analyze(uri, &document.text).await;
             self.install_analysis(
                 uri.clone(),
@@ -173,12 +176,11 @@ impl Backend {
                 analysis,
             )
             .await;
-            let documents = self.documents.read().await;
-            let current = documents.get(uri)?;
-            if current.version == document.version && current.text == document.text {
-                return Some(current.clone());
-            }
         }
+        let documents = self.documents.read().await;
+        let current = documents.get(uri)?;
+        (current.version == document.version && current.text == document.text)
+            .then(|| current.clone())
     }
 
     async fn install_analysis(&self, uri: Uri, text: String, version: i32, analysis: Analysis) {
@@ -222,6 +224,7 @@ impl Backend {
                 .is_some_and(|analyzed| analyzed == &document.text)
             {
                 document.snapshot_id.clone_from(&analysis.snapshot_id);
+                document.prepared_at = Some(std::time::Instant::now());
             }
         }
         documents.insert(
@@ -230,6 +233,7 @@ impl Backend {
                 text,
                 version,
                 snapshot_id: analysis.snapshot_id.clone(),
+                prepared_at: Some(std::time::Instant::now()),
             },
         );
         let retained = documents
@@ -759,7 +763,7 @@ impl LanguageServer for Backend {
             let (text, version) = if let Some(open) = documents.get(&edit_uri) {
                 (open.text.clone(), Some(open.version))
             } else {
-                let Some(path) = uri_text.strip_prefix("file://") else {
+                let Some(path) = edit_uri.to_file_path() else {
                     return Ok(None);
                 };
                 let Ok(text) = std::fs::read_to_string(path) else {
@@ -1006,37 +1010,47 @@ fn package_snapshot_inputs(
     current_text: &str,
     overlays: &HashMap<String, String>,
 ) -> Option<SnapshotInputs> {
-    let current_path = std::fs::canonicalize(PathBuf::from(
-        current_uri.to_string().strip_prefix("file://")?,
-    ))
-    .ok()?;
+    let current_path = std::fs::canonicalize(current_uri.to_file_path()?).ok()?;
     let manifest_path = current_path
         .parent()?
         .ancestors()
         .map(|directory| directory.join(terrane_compiler::package::MANIFEST_FILE_NAME))
         .find(|candidate| candidate.is_file())?;
     let package = terrane_compiler::Package::load(&manifest_path).ok()?;
-    let mut sources = Vec::with_capacity(package.units.len());
-    for unit in package.units {
+    let overlays_by_path = overlays
+        .iter()
+        .filter_map(|(uri, text)| {
+            let parsed = uri.parse::<Uri>().ok()?;
+            let path = std::fs::canonicalize(parsed.to_file_path()?).ok()?;
+            Some((path, (uri, text)))
+        })
+        .collect::<HashMap<_, _>>();
+    let source_input = |unit: &terrane_compiler::SourceUnit| {
         let path = std::fs::canonicalize(unit.source.path()).ok()?;
-        let uri = format!("file://{}", path.display());
-        let text = if path == current_path {
-            current_text.to_owned()
+        let (uri, text) = if path == current_path {
+            (current_uri.to_string(), current_text.to_owned())
+        } else if let Some((uri, text)) = overlays_by_path.get(&path) {
+            ((*uri).clone(), (*text).clone())
         } else {
-            overlays
-                .get(&uri)
-                .cloned()
-                .unwrap_or_else(|| unit.source.text().to_owned())
+            (
+                Uri::from_file_path(path)?.to_string(),
+                unit.source.text().to_owned(),
+            )
         };
-        sources.push(terrane_compiler::tooling::SourceInput { uri, text });
-    }
+        Some(terrane_compiler::tooling::SourceInput { uri, text })
+    };
+    let sources = package
+        .units
+        .iter()
+        .map(&source_input)
+        .collect::<Option<Vec<_>>>()?;
     if sources
         .iter()
         .any(|source| source.uri == current_uri.to_string())
     {
         let manifest_path = std::fs::canonicalize(manifest_path).ok()?;
         let manifest = terrane_compiler::tooling::SourceInput {
-            uri: format!("file://{}", manifest_path.display()),
+            uri: Uri::from_file_path(&manifest_path)?.to_string(),
             text: std::fs::read_to_string(manifest_path).ok()?,
         };
         return Some((sources, Some(manifest), false));
@@ -1047,20 +1061,11 @@ fn package_snapshot_inputs(
             std::fs::canonicalize(unit.source.path()).is_ok_and(|path| path == current_path)
         })
     })?;
-    let mut sources = Vec::with_capacity(package.units.len());
-    for unit in package.units {
-        let path = std::fs::canonicalize(unit.source.path()).ok()?;
-        let uri = format!("file://{}", path.display());
-        let text = if path == current_path {
-            current_text.to_owned()
-        } else {
-            overlays
-                .get(&uri)
-                .cloned()
-                .unwrap_or_else(|| unit.source.text().to_owned())
-        };
-        sources.push(terrane_compiler::tooling::SourceInput { uri, text });
-    }
+    let sources = package
+        .units
+        .iter()
+        .map(source_input)
+        .collect::<Option<Vec<_>>>()?;
     Some((sources, None, true))
 }
 
@@ -1138,7 +1143,7 @@ async fn lsp_location(
     let text = if let Some(document) = documents.read().await.get(&uri) {
         document.text.clone()
     } else {
-        std::fs::read_to_string(location.uri.strip_prefix("file://")?).ok()?
+        std::fs::read_to_string(uri.to_file_path()?).ok()?
     };
     Some(LspLocation {
         uri,
@@ -1939,5 +1944,71 @@ mod tests {
                 },
             )
             .expect("semantic library snapshot");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn package_inputs_keep_encoded_alias_overlays() {
+        let root = std::env::temp_dir().join(format!("terrane-lsp-alias-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("real/src")).unwrap();
+        std::fs::write(
+            root.join("real/package.toml"),
+            "package = 'alias-app'\n[namespaces]\nalias-app = 'src'\n",
+        )
+        .unwrap();
+        let main_text = "namespace alias-app\nfunction main;\n    print; (answer;)\n";
+        let disk_value = "namespace alias-app\nfunction answer int;\n    return 1\n";
+        let overlay_value = "namespace alias-app\nfunction answer string;\n    return 'overlay'\n";
+        std::fs::write(root.join("real/src/main.trn"), main_text).unwrap();
+        std::fs::write(root.join("real/src/value.trn"), disk_value).unwrap();
+        std::os::unix::fs::symlink(root.join("real"), root.join("alias space #")).unwrap();
+        let main_uri = Uri::from_file_path(root.join("alias space #/src/main.trn")).unwrap();
+        let value_uri = Uri::from_file_path(root.join("alias space #/src/value.trn")).unwrap();
+        let overlays = HashMap::from([(value_uri.to_string(), overlay_value.to_owned())]);
+        let (sources, manifest, _) =
+            package_snapshot_inputs(&main_uri, main_text, &overlays).unwrap();
+        let mut engine = terrane_compiler::tooling::ToolingEngine::default();
+        let snapshot = engine
+            .open_snapshot(
+                sources,
+                manifest,
+                None,
+                terrane_compiler::tooling::SnapshotOptions {
+                    semantic: true,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let proposal = engine
+            .propose_rename(
+                &snapshot.snapshot_id,
+                main_uri.as_str(),
+                main_text.find("answer").unwrap() + 1,
+                "renamed",
+            )
+            .unwrap();
+        assert!(
+            proposal.preview_diagnostics.is_empty(),
+            "{:?}",
+            proposal.preview_diagnostics
+        );
+        assert_eq!(proposal.replacements.len(), 2);
+        assert!(
+            proposal
+                .replacements
+                .iter()
+                .any(|edit| edit.uri == main_uri.as_str())
+        );
+        assert!(
+            proposal
+                .replacements
+                .iter()
+                .any(|edit| edit.uri == value_uri.as_str())
+        );
+        let syntax = engine
+            .syntax(&snapshot.snapshot_id, value_uri.as_str(), None)
+            .unwrap();
+        assert!(syntax.diagnostics.is_empty(), "{:?}", syntax.diagnostics);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

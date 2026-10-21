@@ -14,21 +14,18 @@ pub(super) fn snapshot(
     trusted: bool,
 ) -> Analysis {
     let uri_text = uri.to_string();
-    let existing = tooling
-        .lock()
-        .expect("tooling engine lock")
-        .generated_source_snapshot(&uri_text, text);
-    if let Some(metadata) = existing {
-        let syntax = tooling
-            .lock()
-            .expect("tooling engine lock")
-            .syntax(&metadata.snapshot_id, &uri_text, None)
-            .expect("retained generated source");
-        return Analysis {
-            snapshot_id: metadata.snapshot_id,
-            source_texts: HashMap::from([(uri_text, text.to_owned())]),
-            diagnostics: syntax.diagnostics,
-        };
+    {
+        let tooling = tooling.lock().expect("tooling engine lock");
+        if let Some(metadata) = tooling.generated_source_snapshot(&uri_text, text) {
+            let syntax = tooling
+                .syntax(&metadata.snapshot_id, &uri_text, None)
+                .expect("retained generated source");
+            return Analysis {
+                snapshot_id: metadata.snapshot_id,
+                source_texts: HashMap::from([(uri_text, text.to_owned())]),
+                diagnostics: syntax.diagnostics,
+            };
+        }
     }
     let (sources, manifest, testing) = snapshot_inputs(uri, text, overlays);
     let source_texts = sources

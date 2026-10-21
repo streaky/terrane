@@ -524,6 +524,20 @@ fn compose_package_dependencies(
     )
 }
 
+/// Read current tool exports without recomposing an already resolved dependency.
+/// Tool packages themselves still load their complete current source graph.
+pub(crate) fn consumer_tool_exports(
+    manifest_path: &Path,
+) -> Result<BTreeMap<String, PathBuf>, Vec<PackageLoadError>> {
+    let text = fs::read_to_string(manifest_path).map_err(|error| {
+        vec![PackageLoadError::unreadable(
+            manifest_path.to_path_buf(),
+            format!("cannot read package manifest: {error}"),
+        )]
+    })?;
+    Ok(parse_manifest(manifest_path, &text)?.consumer_tools)
+}
+
 fn load_package_unit(manifest_path: &Path) -> Result<Package, Vec<PackageLoadError>> {
     let root = manifest_path
         .parent()

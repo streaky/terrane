@@ -1,6 +1,6 @@
 namespace terrane/consumer-cache
 
-from /terrane/annotation-consumer-protocol import get, text, consumer-error
+from /terrane/annotation-consumer-protocol import get, text
 from /core/collections import list
 from /core/documents import document-value, document-map-entries, make-document-string, make-document-list, make-document-map, make-document-none
 from /core/documents/json import parse-json, default-json-options
@@ -60,7 +60,7 @@ public class source-cache
             return none
         return none
 
-    public function store throws consumer-error; source string
+    public function store; source string
         if this.target == ''
             return
         entries = instance document-map-entries;
@@ -72,6 +72,5 @@ public class source-cache
         if data.length > 16777216
             return
         authority = filesystem-capability;
-        saved = filesystem-write-atomic; authority, (instance path; this.target), data
-        if saved.failed
-            throw (instance consumer-error; (make-document-none;), saved.message)
+        # Cache persistence is best-effort; valid generated source remains usable.
+        _ = filesystem-write-atomic; authority, (instance path; this.target), data

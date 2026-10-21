@@ -557,21 +557,24 @@ pub fn prepare_package_for_tooling(
         return Ok(None);
     }
     if !trusted {
-        let source = package.units.first().map_or_else(
-            || {
-                SourceFile::new(
-                    0,
-                    package.root.join(crate::MANIFEST_FILE_NAME),
-                    String::new(),
-                )
-            },
-            |unit| unit.source.clone(),
+        let source = SourceFile::new(
+            0,
+            package.root.join(crate::MANIFEST_FILE_NAME),
+            String::new(),
         );
+        let consumers = package
+            .consumer_configs
+            .iter()
+            .map(|consumer| format!("`{}`", consumer.name))
+            .collect::<Vec<_>>()
+            .join(", ");
         return Err(CompilationFailure {
-            diagnostics: vec![Diagnostic::error(
+            diagnostics: vec![Diagnostic::unlocated_error(
                 "S2060",
-                "package configures compile-time consumers; enable trusted consumer execution in editor tooling to run them",
-                Span::new(source.id(), 0, 0),
+                format!(
+                    "manifest `{}` configures compile-time consumers {consumers}; enable trusted consumer execution in editor tooling to run them",
+                    source.path().display()
+                ),
             )],
             source,
         });

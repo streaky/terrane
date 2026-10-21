@@ -281,6 +281,12 @@ fn editor_consumers_track_overlays_and_external_inputs_without_build_writes() {
             .iter()
             .any(|diagnostic| diagnostic.code == "S2060")
     );
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "S2060"
+            && diagnostic.span.is_none()
+            && diagnostic.message.contains("package.toml")
+            && diagnostic.message.contains("generate")
+    }));
     assert!(!fixture.0.join("provider/consumer/.trn").exists());
 
     let accepted = open(&mut engine, original, true, false);
@@ -383,5 +389,157 @@ fn editor_reports_consumer_build_errors_at_their_real_origin() {
                 && diagnostic.message.contains(&tool_path)
                 && diagnostic.span.as_ref().is_some_and(|span| span.start == 0)),
         "{diagnostics:?}"
+    );
+}
+
+fn editor_files(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(root).unwrap() {
+        let entry = entry.unwrap();
+        if entry.file_type().unwrap().is_dir() {
+            files.extend(editor_files(&entry.path()));
+        } else if entry.file_type().unwrap().is_file() {
+            files.push((entry.path(), fs::read(entry.path()).unwrap()));
+        }
+    }
+    files.sort();
+    files
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_encoded_workspace_keeps_authored_rename_identity() {
+    use terrane_compiler::tooling::{SnapshotOptions, SourceInput, ToolingEngine};
+    let fixture = Fixture::new();
+    let text = "namespace alias-app\nfunction answer int;\n    return 42\nfunction main;\n    print; (answer;)\n";
+    fixture.write(
+        "real/package.toml",
+        "package = 'alias-app'\n[namespaces]\nalias-app = 'src'\n",
+    );
+    fixture.write("real/src/main.trn", text);
+    std::os::unix::fs::symlink(fixture.0.join("real"), fixture.0.join("alias space #")).unwrap();
+    let uri = format!(
+        "file://{}",
+        fixture.0.join("alias space #/src/main.trn").display()
+    )
+    .replace(' ', "%20")
+    .replace('#', "%23");
+    let manifest_uri = format!(
+        "file://{}",
+        fixture.0.join("alias space #/package.toml").display()
+    )
+    .replace(' ', "%20")
+    .replace('#', "%23");
+    let mut engine = ToolingEngine::default();
+    let snapshot = engine
+        .open_snapshot(
+            vec![SourceInput {
+                uri: uri.clone(),
+                text: text.to_owned(),
+            }],
+            Some(SourceInput {
+                uri: manifest_uri,
+                text: fs::read_to_string(fixture.0.join("real/package.toml")).unwrap(),
+            }),
+            None,
+            SnapshotOptions {
+                semantic: true,
+                ..SnapshotOptions::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot
+            .sources
+            .iter()
+            .filter(|source| source.uri.ends_with("/src/main.trn"))
+            .count(),
+        1
+    );
+    let proposal = engine
+        .propose_rename(
+            &snapshot.snapshot_id,
+            &uri,
+            text.find("answer").unwrap() + 1,
+            "renamed",
+        )
+        .unwrap();
+    assert!(
+        proposal.preview_diagnostics.is_empty(),
+        "{:?}",
+        proposal.preview_diagnostics
+    );
+    assert_eq!(proposal.replacements.len(), 2);
+    assert!(
+        proposal
+            .replacements
+            .iter()
+            .all(|replacement| replacement.uri == uri)
+    );
+}
+
+#[test]
+fn editor_collection_preserves_live_engines_and_untracked_files() {
+    use terrane_compiler::tooling::{Availability, ToolingEngine};
+    let (fixture, original) = editor_fixture();
+    let uri = format!("file://{}", fixture.0.join("app/src/main.trn").display());
+    let mut first = ToolingEngine::default();
+    let mut second = ToolingEngine::default();
+    let first_snapshot = open_editor_snapshot(&mut first, &fixture, original, true, false);
+    let second_snapshot = open_editor_snapshot(&mut second, &fixture, original, true, false);
+    let definition_path = |engine: &ToolingEngine, snapshot: &str| {
+        let Availability::Known(definition) = engine
+            .definition(snapshot, &uri, original.rfind("answer").unwrap() + 1)
+            .unwrap()
+        else {
+            panic!("generated definition resolves");
+        };
+        PathBuf::from(definition.uri.strip_prefix("file://").unwrap())
+    };
+    let first_path = definition_path(&first, &first_snapshot.snapshot_id);
+    let second_path = definition_path(&second, &second_snapshot.snapshot_id);
+    assert_ne!(first_path, second_path);
+    let user_file = first_path.with_file_name("user.txt");
+    fs::write(&user_file, "preserve me").unwrap();
+    first.close_snapshot(&first_snapshot.snapshot_id).unwrap();
+    assert!(!first_path.exists());
+    assert_eq!(fs::read_to_string(&user_file).unwrap(), "preserve me");
+    assert!(second_path.is_file());
+    drop(second);
+    assert!(!second_path.exists());
+    assert_eq!(fs::read_to_string(&user_file).unwrap(), "preserve me");
+}
+
+#[test]
+fn editor_previews_validate_generated_types_without_publishing() {
+    use terrane_compiler::tooling::ToolingEngine;
+    let (fixture, original) = editor_fixture();
+    let app_uri = format!("file://{}", fixture.0.join("app/src/main.trn").display());
+    let mut engine = ToolingEngine::default();
+    let accepted = open_editor_snapshot(&mut engine, &fixture, original, true, false);
+    let before_preview = editor_files(&fixture.0.join("app/.trn/editor-generated"));
+    let metadata_start = original.find("/// integer").unwrap();
+    let preview = engine
+        .propose_edits(
+            &accepted.snapshot_id,
+            vec![terrane_compiler::tooling::Replacement {
+                uri: app_uri.clone(),
+                span: terrane_compiler::tooling::PublicSpan {
+                    start: metadata_start,
+                    end: metadata_start + "/// integer".len(),
+                },
+                text: "/// text".to_owned(),
+            }],
+        )
+        .unwrap();
+    assert!(
+        preview
+            .preview_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "T0012")
+    );
+    assert_eq!(
+        editor_files(&fixture.0.join("app/.trn/editor-generated")),
+        before_preview
     );
 }

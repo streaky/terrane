@@ -1212,6 +1212,8 @@ fn profile_with_panic(
     profile
 }
 
+// Keep publication local to the CLI; sharing this tiny helper would expand the
+// compiler's public API for an otherwise independent filesystem boundary.
 fn write_if_changed(path: &Path, content: &[u8]) -> std::io::Result<()> {
     if fs::read(path).is_ok_and(|existing| existing == content) {
         return Ok(());

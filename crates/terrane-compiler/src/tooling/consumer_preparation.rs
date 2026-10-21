@@ -3,12 +3,117 @@ use super::{
     project_diagnostic,
 };
 use crate::{CompilationFailure, Diagnostic, Package, SourceFile, Span};
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
+
+/// Each engine owns a separate namespace, so collection cannot invalidate a
+/// different editor process using the same package and generated content.
+#[derive(Debug)]
+pub(super) struct PublishedSources {
+    session: String,
+    roots: BTreeSet<PathBuf>,
+    files: BTreeMap<PathBuf, String>,
+}
+
+impl PublishedSources {
+    pub(super) fn new() -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        Self {
+            session: format!(
+                "session-{}-{timestamp}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            ),
+            roots: BTreeSet::new(),
+            files: BTreeMap::new(),
+        }
+    }
+
+    fn publish(
+        &mut self,
+        package: &Package,
+        target: &Path,
+        text: &str,
+    ) -> Result<(), CompilationFailure> {
+        let root = package
+            .root
+            .join(".trn/editor-generated")
+            .join(&self.session);
+        if !self.roots.contains(&root) {
+            ensure_parent(package, &root)?;
+            // Reserve a new namespace, never adopt somebody else's directory.
+            std::fs::create_dir(&root).map_err(|error| {
+                failure(
+                    package,
+                    format!("cannot reserve editor output session: {error}"),
+                )
+            })?;
+            self.roots.insert(root);
+        }
+        publish(package, target, text)?;
+        self.files.insert(target.to_path_buf(), hash_text(text));
+        Ok(())
+    }
+
+    pub(super) fn collect(&mut self, retained: &BTreeSet<PathBuf>) {
+        self.files.retain(|path, expected_hash| {
+            if retained.contains(path) {
+                return true;
+            }
+            let Some(root) = self.roots.iter().find(|root| path.starts_with(root)) else {
+                return false;
+            };
+            // Never traverse replaced ancestors, unlink modified user contents,
+            // or recursively remove untracked files.
+            if path.ancestors().any(|ancestor| {
+                std::fs::symlink_metadata(ancestor)
+                    .is_ok_and(|metadata| metadata.file_type().is_symlink())
+            }) {
+                return false;
+            }
+            if std::fs::read_to_string(path).is_ok_and(|text| hash_text(&text) == *expected_hash) {
+                let _ = std::fs::remove_file(path);
+            }
+            let mut parent = path.parent();
+            while let Some(directory) = parent {
+                if !directory.starts_with(root) || std::fs::remove_dir(directory).is_err() {
+                    break;
+                }
+                parent = directory.parent();
+            }
+            false
+        });
+        self.roots.retain(|root| {
+            if root.ancestors().any(|ancestor| {
+                std::fs::symlink_metadata(ancestor)
+                    .is_ok_and(|metadata| metadata.file_type().is_symlink())
+            }) {
+                return false;
+            }
+            // Only remove empty directories, never other processes' sessions.
+            let _ = std::fs::remove_dir(root);
+            root.exists()
+        });
+    }
+}
+
+impl Drop for PublishedSources {
+    fn drop(&mut self) {
+        self.collect(&BTreeSet::new());
+    }
+}
 
 /// Prepare against overlay declarations, with an isolated, content-addressed
 /// source location that ordinary editors can open without a virtual-file plugin.
-pub(super) fn prepare(package: &Package, trusted: bool) -> Result<Package, CompilationFailure> {
+pub(super) fn prepare(
+    package: &Package,
+    trusted: bool,
+    mut published: Option<&mut PublishedSources>,
+) -> Result<Package, CompilationFailure> {
     let Some(mut expanded) = crate::compiler::prepare_package_for_tooling(package, trusted)? else {
         return Ok(package.clone());
     };
@@ -22,23 +127,32 @@ pub(super) fn prepare(package: &Package, trusted: bool) -> Result<Package, Compi
             .expect("generated prefix");
         let digest = hash_text(unit.source.text());
         let relative = Path::new(".trn/editor-generated")
+            .join(
+                published
+                    .as_ref()
+                    .map_or("preview", |state| state.session.as_str()),
+            )
             .join(&digest[7..])
             .join(suffix);
         let absolute = package.root.join(&relative);
-        publish(package, &absolute, unit.source.text())?;
-        let absolute = absolute.canonicalize().map_err(|error| {
-            failure(
-                package,
-                format!("cannot resolve editor-generated source: {error}"),
-            )
-        })?;
+        let absolute = if let Some(state) = published.as_mut() {
+            state.publish(package, &absolute, unit.source.text())?;
+            absolute.canonicalize().map_err(|error| {
+                failure(
+                    package,
+                    format!("cannot resolve editor-generated source: {error}"),
+                )
+            })?
+        } else {
+            absolute
+        };
         unit.source = SourceFile::new(unit.source.id(), absolute, unit.source.text().to_owned());
         unit.relative_path = relative;
     }
     Ok(expanded)
 }
 
-fn publish(package: &Package, target: &Path, text: &str) -> Result<(), CompilationFailure> {
+fn ensure_parent(package: &Package, target: &Path) -> Result<(), CompilationFailure> {
     let relative = target
         .strip_prefix(&package.root)
         .expect("editor output belongs to package");
@@ -76,6 +190,11 @@ fn publish(package: &Package, target: &Path, text: &str) -> Result<(), Compilati
             }
         }
     }
+    Ok(())
+}
+
+fn publish(package: &Package, target: &Path, text: &str) -> Result<(), CompilationFailure> {
+    ensure_parent(package, target)?;
     if std::fs::symlink_metadata(target).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
         return Err(failure(
             package,
@@ -124,16 +243,31 @@ pub(super) fn synchronize_documents(
             .path()
             .canonicalize()
             .unwrap_or_else(|_| unit.source.path().to_path_buf());
+        if let Some(document) = documents.values_mut().find(|document| {
+            super::uri_path(&document.identity.uri)
+                .is_some_and(|path| super::canonical_path(&path) == canonical)
+                && document.source.text() == unit.source.text()
+        }) {
+            unit.source = SourceFile::new(
+                unit.source.id(),
+                document.source.path().to_path_buf(),
+                unit.source.text().to_owned(),
+            );
+            if document.source.id() != unit.source.id() {
+                let lexed = crate::lexer::lex_recovering(&unit.source);
+                let parsed = crate::parser::parse(&unit.source, lexed.lexed);
+                document.tree = parsed.tree;
+                document.diagnostics = lexed.diagnostics;
+                document.diagnostics.extend(parsed.diagnostics);
+                document.source = unit.source.clone();
+            }
+            continue;
+        }
         if canonical != unit.source.path() {
             unit.source =
                 SourceFile::new(unit.source.id(), canonical, unit.source.text().to_owned());
         }
-        let uri = format!("file://{}", unit.source.path().display());
-        if documents.get(&uri).is_some_and(|document| {
-            document.source.id() == unit.source.id() && document.source.text() == unit.source.text()
-        }) {
-            continue;
-        }
+        let uri = super::path_uri(unit.source.path());
         let source = unit.source.clone();
         let lexed = crate::lexer::lex_recovering(&source);
         let mut diagnostics = lexed.diagnostics;
@@ -166,13 +300,13 @@ pub(super) fn record_failure(
         .path()
         .canonicalize()
         .unwrap_or_else(|_| failure.source.path().to_path_buf());
-    let source_uri = documents
-        .iter()
-        .find_map(|(uri, document)| (document.source.path() == origin).then(|| uri.clone()));
+    let source_uri = documents.iter().find_map(|(uri, document)| {
+        (super::canonical_path(document.source.path()) == origin).then(|| uri.clone())
+    });
     let fallback = package
         .units
         .first()
-        .map(|unit| format!("file://{}", unit.source.path().display()))
+        .map(|unit| super::path_uri(unit.source.path()))
         .filter(|uri| documents.contains_key(uri))
         .or_else(|| documents.keys().next().cloned());
     for mut diagnostic in failure.diagnostics {
@@ -191,7 +325,7 @@ pub(super) fn record_failure(
             .or_else(|| fallback.clone());
         let Some(uri) = uri else { continue };
         let document = documents.get_mut(&uri).expect("selected snapshot document");
-        if source_uri.is_none() {
+        if source_uri.is_none() && diagnostic.code != "S2060" {
             diagnostic.message = format!("in `{}`: {}", origin.display(), diagnostic.message);
             diagnostic.primary = Some(Span::new(document.source.id(), 0, 0));
         } else if diagnostic
