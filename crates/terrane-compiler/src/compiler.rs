@@ -544,6 +544,51 @@ fn semantic_requires_unsafe_code(semantic: &crate::SemanticPackage) -> bool {
     })
 }
 
+/// Prepares trusted consumers for editor tooling without publishing generated files.
+///
+/// # Errors
+///
+/// Returns declaration-analysis or consumer diagnostics.
+pub fn prepare_package_for_tooling(
+    package: &Package,
+    trusted: bool,
+) -> Result<Option<Package>, CompilationFailure> {
+    if package.consumer_configs.is_empty() {
+        return Ok(None);
+    }
+    if !trusted {
+        let source = package.units.first().map_or_else(
+            || {
+                SourceFile::new(
+                    0,
+                    package.root.join(crate::MANIFEST_FILE_NAME),
+                    String::new(),
+                )
+            },
+            |unit| unit.source.clone(),
+        );
+        return Err(CompilationFailure {
+            diagnostics: vec![Diagnostic::error(
+                "S2060",
+                "package configures compile-time consumers; enable trusted consumer execution in editor tooling to run them",
+                Span::new(source.id(), 0, 0),
+            )],
+            source,
+        });
+    }
+    let semantic =
+        semantics::analyze_declarations(package).map_err(|failure| CompilationFailure {
+            source: failure.source,
+            diagnostics: failure.diagnostics,
+        })?;
+    let declarations = semantic.declarations().cloned().collect::<Vec<_>>();
+    let context = crate::consumers::PreparationContext { persist: false };
+    let generated = crate::consumers::run(package, &declarations, context)?;
+    let mut expanded = package.clone();
+    crate::consumers::add_generated_sources(&mut expanded, generated, context)?;
+    Ok(Some(expanded))
+}
+
 /// Prepares consumers and analyzes declarations shared by compilation and test discovery.
 fn prepare_package_for_analysis(
     package: &Package,
@@ -578,9 +623,10 @@ fn prepare_package_for_analysis(
         declarations
     };
     // Execute arbitrary consumers every time and key compilation on their actual output.
-    let generated = crate::consumers::run(package, &declarations)?;
+    let context = crate::consumers::PreparationContext { persist: true };
+    let generated = crate::consumers::run(package, &declarations, context)?;
     let mut expanded = package.clone();
-    crate::consumers::add_generated_sources(&mut expanded, generated)?;
+    crate::consumers::add_generated_sources(&mut expanded, generated, context)?;
     let inputs_unchanged = inputs
         .zip(cache::current(package).as_ref())
         .is_some_and(|(before, after)| before == after);
@@ -667,7 +713,7 @@ fn compile_package_without_consumers(
     compile_analyzed_package(package, &semantic, options)
 }
 
-fn compile_analyzed_package(
+pub(crate) fn compile_analyzed_package(
     package: &Package,
     semantic: &semantics::SemanticPackage,
     options: CompilerOptions,

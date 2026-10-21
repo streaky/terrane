@@ -1,6 +1,31 @@
+use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+thread_local! {
+    static TARGET_OVERRIDE: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+/// Run native queries and Cargo subprocesses for an explicit target without
+/// mutating the process environment shared with other compiler/editor requests.
+pub fn with_cargo_target<T>(target: &str, operation: impl FnOnce() -> T) -> T {
+    struct Restore(Option<String>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TARGET_OVERRIDE.with(|current| *current.borrow_mut() = self.0.take());
+        }
+    }
+    let _restore =
+        Restore(TARGET_OVERRIDE.with(|current| current.replace(Some(target.to_owned()))));
+    operation()
+}
+
+/// The explicit target selected by the current native-query operation.
+#[must_use]
+pub fn cargo_target_override() -> Option<String> {
+    TARGET_OVERRIDE.with(|target| target.borrow().clone())
+}
 
 /// Makes Cargo use `sccache` only when `TERRANE_SCCACHE=1` explicitly opts in.
 ///
@@ -10,6 +35,9 @@ pub fn configure_cargo_command(command: &mut Command) {
         .then(|| std::env::var_os("PATH"))
         .flatten();
     configure_cargo_command_from_path(command, path.as_deref());
+    if let Some(target) = cargo_target_override() {
+        command.env("CARGO_BUILD_TARGET", target);
+    }
 }
 
 pub fn configure_projection_cargo_command(command: &mut Command) {

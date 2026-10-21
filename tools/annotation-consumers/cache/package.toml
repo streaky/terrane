@@ -1,0 +1,11 @@
+package = "terrane/consumer-cache"
+artifact = "library"
+
+[namespaces]
+"terrane/consumer-cache" = "src"
+
+[profile]
+capabilities = ["filesystem", "process"]
+
+[terrane-dependencies.terrane.annotation-consumer-protocol]
+path = "../protocol"

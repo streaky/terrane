@@ -9,11 +9,25 @@ const MAX_INPUT: usize = 16 * 1024 * 1024;
 type DeclarationMap = std::collections::BTreeMap<String, crate::semantics::DeclarationMetadata>;
 type ExternalSources = std::collections::BTreeMap<u32, (std::path::PathBuf, usize)>;
 
+#[derive(Clone, Copy)]
+pub(crate) struct PreparationContext {
+    /// Build preparation publishes source files; editor preparation only attaches units.
+    pub persist: bool,
+}
+
 #[derive(serde::Serialize)]
 struct ConsumerInput<'a> {
     format: u32,
     package: &'a str,
     declarations: Vec<&'a crate::semantics::DeclarationMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    preparation: Option<ConsumerPreparation>,
+}
+
+#[derive(serde::Serialize)]
+struct ConsumerPreparation {
+    state_directory: std::path::PathBuf,
+    tool_identity: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -41,6 +55,7 @@ struct ConsumerDiagnostic {
 pub(crate) fn run(
     package: &Package,
     declarations: &[crate::semantics::DeclarationMetadata],
+    context: PreparationContext,
 ) -> Result<Vec<(String, String)>, crate::CompilationFailure> {
     let fallback = fallback_span(package);
     let mut generated = Vec::new();
@@ -58,12 +73,12 @@ pub(crate) fn run(
         }
         let (available, external_sources) =
             prepare_declarations(package, declarations, config, fallback)?;
-        let input = consumer_input(package, config, &available, fallback)?;
-        let progress = crate::compilation_progress::start(
-            "running declaration consumer",
-            config.executable.display(),
-        );
-        let response = execute_consumer(package, config, &input, fallback)?;
+        let executable = crate::consumer_tools::executable_for(package, config)?;
+        let preparation = preparation_context(package, config, &executable, context)?;
+        let input = consumer_input(package, config, &available, fallback, Some(preparation))?;
+        let progress =
+            crate::compilation_progress::start("preparing declaration consumer", &config.name);
+        let response = execute_consumer(package, config, &executable, &input, fallback)?;
         if !response.diagnostics.is_empty() {
             return Err(consumer_diagnostics_failure(
                 package,
@@ -107,6 +122,7 @@ fn consumer_input(
     config: &crate::package::ConsumerConfig,
     available: &std::collections::BTreeMap<String, crate::semantics::DeclarationMetadata>,
     fallback: Span,
+    preparation: Option<ConsumerPreparation>,
 ) -> Result<Vec<u8>, crate::CompilationFailure> {
     let mut selected = std::collections::BTreeSet::new();
     let declarations = config
@@ -139,6 +155,7 @@ fn consumer_input(
         format: 1,
         package: &package.identity,
         declarations,
+        preparation,
     })
     .expect("consumer input is serializable");
     if input.len() > MAX_INPUT {
@@ -150,14 +167,109 @@ fn consumer_input(
     }
     Ok(input)
 }
+/// The protocol supplies storage and tool identity, never a generator-specific
+/// freshness decision. Consumers may reuse their own cached source response.
+fn preparation_context(
+    package: &Package,
+    config: &crate::package::ConsumerConfig,
+    executable: &std::path::Path,
+    context: PreparationContext,
+) -> Result<ConsumerPreparation, crate::CompilationFailure> {
+    use sha2::{Digest as _, Sha256};
+    let fallback = fallback_span(package);
+    let state = package
+        .root
+        .join(".trn/consumer-state")
+        .join(if context.persist { "build" } else { "editor" })
+        .join(&config.name);
+    // Validate every component before permitting consumer-owned state writes.
+    let mut directory = package.root.clone();
+    for component in [
+        ".trn",
+        "consumer-state",
+        if context.persist { "build" } else { "editor" },
+        &config.name,
+    ] {
+        directory.push(component);
+        match std::fs::symlink_metadata(&directory) {
+            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {}
+            Ok(_) => {
+                return Err(failure(
+                    package,
+                    fallback,
+                    format!(
+                        "consumer state path `{}` is not an owned directory",
+                        directory.display()
+                    ),
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                std::fs::create_dir(&directory).map_err(|error| {
+                    failure(
+                        package,
+                        fallback,
+                        format!("cannot create consumer state directory: {error}"),
+                    )
+                })?;
+            }
+            Err(error) => {
+                return Err(failure(
+                    package,
+                    fallback,
+                    format!("cannot inspect consumer state directory: {error}"),
+                ));
+            }
+        }
+    }
+    let state = std::fs::canonicalize(state).map_err(|error| {
+        failure(
+            package,
+            fallback,
+            format!("cannot resolve consumer state directory: {error}"),
+        )
+    })?;
+    let identity = (|| -> std::io::Result<_> {
+        let mut binary = std::fs::File::open(executable)?;
+        let mut hash = Sha256::new();
+        let mut buffer = [0_u8; 16 * 1024];
+        loop {
+            let count = binary.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            hash.update(&buffer[..count]);
+        }
+        Ok(hash.finalize())
+    })()
+    .map_err(|error| {
+        failure(
+            package,
+            fallback,
+            format!(
+                "cannot identify consumer executable `{}`: {error}",
+                executable.display()
+            ),
+        )
+    })?;
+    Ok(ConsumerPreparation {
+        state_directory: state,
+        tool_identity: format!("{identity:x}"),
+    })
+}
+
 fn execute_consumer(
     package: &Package,
     config: &crate::package::ConsumerConfig,
+    executable: &std::path::Path,
     input: &[u8],
     fallback: Span,
 ) -> Result<ConsumerOutput, crate::CompilationFailure> {
-    let output = Command::new(&config.executable)
-        .args(&config.arguments)
+    let arguments = match &config.executable {
+        crate::package::ConsumerExecutable::Command { arguments, .. }
+        | crate::package::ConsumerExecutable::Buildable { arguments, .. } => arguments,
+    };
+    let output = Command::new(executable)
+        .args(arguments)
         .current_dir(&package.root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -735,8 +847,13 @@ pub(crate) fn reconcile_generated_sources(
 pub(crate) fn add_generated_sources(
     package: &mut Package,
     sources: Vec<(String, String)>,
+    context: PreparationContext,
 ) -> Result<(), crate::CompilationFailure> {
-    let canonical_root = prepare_generated_root(package)?;
+    let canonical_root = if context.persist {
+        Some(prepare_generated_root(package)?)
+    } else {
+        None
+    };
     let mut expected = std::collections::BTreeSet::new();
     for (identity, text) in sources {
         let Some((consumer, source_identity)) = identity.split_once("::") else {
@@ -758,61 +875,65 @@ pub(crate) fn add_generated_sources(
             .join(format!("{source_identity}.trn"));
         expected.insert(relative_path.clone());
         let absolute_path = package.root.join(&relative_path);
-        let parent = absolute_path
-            .parent()
-            .expect("generated source has a parent");
-        std::fs::create_dir_all(parent).map_err(|error| {
-            failure(
-                package,
-                fallback_span(package),
-                format!(
-                    "cannot create generated source directory `{}`: {error}",
-                    parent.display()
-                ),
-            )
-        })?;
-        let canonical_parent = std::fs::canonicalize(parent).map_err(|error| {
-            failure(
-                package,
-                fallback_span(package),
-                format!(
-                    "cannot resolve generated source directory `{}`: {error}",
-                    parent.display()
-                ),
-            )
-        })?;
-        if !canonical_parent.starts_with(&canonical_root) {
-            return Err(failure(
-                package,
-                fallback_span(package),
-                format!(
-                    "generated source path `{}` escapes `.trn/generated`",
-                    absolute_path.display()
-                ),
-            ));
+        if let Some(canonical_root) = &canonical_root {
+            let parent = absolute_path
+                .parent()
+                .expect("generated source has a parent");
+            std::fs::create_dir_all(parent).map_err(|error| {
+                failure(
+                    package,
+                    fallback_span(package),
+                    format!(
+                        "cannot create generated source directory `{}`: {error}",
+                        parent.display()
+                    ),
+                )
+            })?;
+            let canonical_parent = std::fs::canonicalize(parent).map_err(|error| {
+                failure(
+                    package,
+                    fallback_span(package),
+                    format!(
+                        "cannot resolve generated source directory `{}`: {error}",
+                        parent.display()
+                    ),
+                )
+            })?;
+            if !canonical_parent.starts_with(canonical_root) {
+                return Err(failure(
+                    package,
+                    fallback_span(package),
+                    format!(
+                        "generated source path `{}` escapes `.trn/generated`",
+                        absolute_path.display()
+                    ),
+                ));
+            }
+            if std::fs::symlink_metadata(&absolute_path)
+                .is_ok_and(|metadata| metadata.file_type().is_symlink())
+            {
+                return Err(failure(
+                    package,
+                    fallback_span(package),
+                    format!(
+                        "generated source path `{}` is a symbolic link",
+                        absolute_path.display()
+                    ),
+                ));
+            }
+            if std::fs::read_to_string(&absolute_path).ok().as_deref() != Some(text.as_str()) {
+                std::fs::write(&absolute_path, &text).map_err(|error| {
+                    failure(
+                        package,
+                        fallback_span(package),
+                        format!(
+                            "cannot persist generated source `{}`: {error}",
+                            absolute_path.display()
+                        ),
+                    )
+                })?;
+            }
         }
-        if std::fs::symlink_metadata(&absolute_path)
-            .is_ok_and(|metadata| metadata.file_type().is_symlink())
-        {
-            return Err(failure(
-                package,
-                fallback_span(package),
-                format!(
-                    "generated source path `{}` is a symbolic link",
-                    absolute_path.display()
-                ),
-            ));
-        }
-        std::fs::write(&absolute_path, &text).map_err(|error| {
-            failure(
-                package,
-                fallback_span(package),
-                format!(
-                    "cannot persist generated source `{}`: {error}",
-                    absolute_path.display()
-                ),
-            )
-        })?;
         let id = package.next_source_id();
         package.units.push(crate::SourceUnit {
             relative_path,
@@ -822,7 +943,9 @@ pub(crate) fn add_generated_sources(
             role: SourceRole::Production,
         });
     }
-    remove_stale_generated_sources(package, &canonical_root, &expected)?;
+    if let Some(canonical_root) = canonical_root {
+        remove_stale_generated_sources(package, &canonical_root, &expected)?;
+    }
     Ok(())
 }
 
@@ -1013,8 +1136,10 @@ mod tests {
         let declarations: Vec<_> = semantic.declarations().cloned().collect();
         let mut config = crate::package::ConsumerConfig {
             name: "selection".to_owned(),
-            executable: "unused".into(),
-            arguments: Vec::new(),
+            executable: crate::package::ConsumerExecutable::Command {
+                executable: "unused".into(),
+                arguments: Vec::new(),
+            },
             declarations: vec!["/consumer-selection::main".to_owned()],
             interfaces: Vec::new(),
         };
@@ -1022,7 +1147,7 @@ mod tests {
             prepare_declarations(&package, &declarations, &config, fallback_span(&package))
                 .expect("unselected identity collisions do not enter the request");
         let request: serde_json::Value = serde_json::from_slice(
-            &consumer_input(&package, &config, &available, fallback_span(&package)).unwrap(),
+            &consumer_input(&package, &config, &available, fallback_span(&package), None).unwrap(),
         )
         .unwrap();
         assert_eq!(
@@ -1099,14 +1224,22 @@ mod tests {
         let (package, root) = temporary_package();
         let config = crate::package::ConsumerConfig {
             name: "failing".to_owned(),
-            executable: "sh".into(),
-            arguments: vec!["-c".to_owned(), "exit 47".to_owned()],
+            executable: crate::package::ConsumerExecutable::Command {
+                executable: "sh".into(),
+                arguments: vec!["-c".to_owned(), "exit 47".to_owned()],
+            },
             declarations: Vec::new(),
             interfaces: Vec::new(),
         };
-        let error = execute_consumer(&package, &config, b"", fallback_span(&package))
-            .err()
-            .expect("the consumer exits unsuccessfully");
+        let error = execute_consumer(
+            &package,
+            &config,
+            std::path::Path::new("sh"),
+            b"",
+            fallback_span(&package),
+        )
+        .err()
+        .expect("the consumer exits unsuccessfully");
         assert_eq!(error.diagnostics[0].code.as_ref(), "S2060");
         assert!(error.diagnostics[0].message.contains("47"));
         std::fs::remove_dir_all(root).unwrap();
@@ -1120,7 +1253,7 @@ mod tests {
             ("codec::typed-codec-b2".to_owned(), "source b".to_owned()),
         ];
         sources.reverse();
-        add_generated_sources(&mut package, sources).unwrap();
+        add_generated_sources(&mut package, sources, PreparationContext { persist: true }).unwrap();
         let first = root.join(".trn/generated/codec/typed-codec-a1.trn");
         let second = root.join(".trn/generated/codec/typed-codec-b2.trn");
         assert_eq!(std::fs::read_to_string(&first).unwrap(), "source a");
@@ -1130,6 +1263,7 @@ mod tests {
         let traversal = add_generated_sources(
             &mut package,
             vec![("../outside::source".to_owned(), "unsafe".to_owned())],
+            PreparationContext { persist: true },
         );
         assert!(traversal.is_err());
         assert!(!root.parent().unwrap().join("outside/source.trn").exists());
@@ -1151,6 +1285,7 @@ mod tests {
         add_generated_sources(
             &mut package,
             vec![("codec::renamed-now".to_owned(), "new".to_owned())],
+            PreparationContext { persist: true },
         )
         .unwrap();
         assert!(!generated.join("codec/renamed.trn").exists());
@@ -1159,7 +1294,12 @@ mod tests {
             std::fs::read_to_string(outside.join("keep.trn")).unwrap(),
             "outside"
         );
-        add_generated_sources(&mut package, Vec::new()).unwrap();
+        add_generated_sources(
+            &mut package,
+            Vec::new(),
+            PreparationContext { persist: true },
+        )
+        .unwrap();
         assert!(!generated.join("codec/renamed-now.trn").exists());
         assert_eq!(
             std::fs::read_to_string(outside.join("keep.trn")).unwrap(),
@@ -1167,6 +1307,38 @@ mod tests {
         );
         std::fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn editor_generated_sources_do_not_publish_or_retire_build_inventory() {
+        let (mut package, root) = temporary_package();
+        let existing = root.join(".trn/generated/codec/build.trn");
+        std::fs::create_dir_all(existing.parent().unwrap()).unwrap();
+        std::fs::write(&existing, "build output").unwrap();
+        add_generated_sources(
+            &mut package,
+            vec![("codec::overlay".to_owned(), "editor output".to_owned())],
+            PreparationContext { persist: false },
+        )
+        .unwrap();
+        assert_eq!(std::fs::read_to_string(&existing).unwrap(), "build output");
+        assert!(!root.join(".trn/generated/codec/overlay.trn").exists());
+        let overlay = package
+            .units
+            .iter()
+            .find(|unit| {
+                unit.relative_path == std::path::Path::new(".trn/generated/codec/overlay.trn")
+            })
+            .unwrap();
+        assert_eq!(overlay.source.text(), "editor output");
+        add_generated_sources(
+            &mut package,
+            Vec::new(),
+            PreparationContext { persist: false },
+        )
+        .unwrap();
+        assert_eq!(std::fs::read_to_string(existing).unwrap(), "build output");
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn response_protocol_rejects_unknown_fields_and_missing_payloads() {
         assert!(

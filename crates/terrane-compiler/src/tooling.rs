@@ -14,6 +14,7 @@ use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
 use crate::tokens::{TokenKind, TriviaKind};
 use crate::{Diagnostic, SourceFile, Span};
 
+mod consumer_preparation;
 mod import_rename;
 mod rename;
 
@@ -55,11 +56,17 @@ pub struct SourceInput {
     pub text: String,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent protocol options include explicit execution permission, not lifecycle states"
+)]
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SnapshotOptions {
     #[serde(default)]
     pub semantic: bool,
+    #[serde(default)]
+    pub allow_consumer_execution: bool,
     #[serde(default)]
     pub generated: bool,
     #[serde(default)]
@@ -90,6 +97,7 @@ impl Default for SnapshotOptions {
     fn default() -> Self {
         Self {
             semantic: false,
+            allow_consumer_execution: false,
             generated: false,
             target: default_target(),
             testing: false,
@@ -711,17 +719,16 @@ impl ToolingEngine {
                 "snapshot source URIs must be unique",
             ));
         }
-        let snapshot_id = snapshot_hash(&sources, manifest.as_ref(), lock.as_ref(), &options);
-        if let Some(snapshot) = self.snapshots.get(&snapshot_id) {
+        let mut snapshot_id = snapshot_hash(&sources, manifest.as_ref(), lock.as_ref(), &options);
+        if manifest.is_none()
+            && let Some(snapshot) = self.snapshots.get(&snapshot_id)
+        {
             return Ok(snapshot.metadata.clone());
         }
         let mut documents = BTreeMap::new();
         let mut units = Vec::with_capacity(sources.len());
-        let mut identities = Vec::with_capacity(sources.len());
         let mut syntax_invalid = false;
-        let mut bytes = 0;
         for (index, input) in sources.into_iter().enumerate() {
-            bytes += input.text.len();
             let file_id = u32::try_from(index)
                 .map_err(|_| ProtocolError::new("snapshot-too-large", "too many source files"))?;
             let path = uri_path(&input.uri).unwrap_or_else(|| PathBuf::from(&input.uri));
@@ -735,7 +742,6 @@ impl ToolingEngine {
                 uri: input.uri.clone(),
                 content_hash: hash_text(source.text()),
             };
-            identities.push(identity.clone());
             units.push(SourceUnit {
                 relative_path: PathBuf::from(format!("snapshot/{file_id}.trn")),
                 source: source.clone(),
@@ -753,25 +759,74 @@ impl ToolingEngine {
                 },
             );
         }
-        let package = snapshot_package(snapshot_id.clone(), units, &options, manifest.as_ref())?;
-        let (semantic, semantic_invalid) = if options.semantic && !syntax_invalid {
-            match crate::semantics::analyze(&package) {
-                Ok(semantic) => (Some(semantic), false),
+        let mut authored_package =
+            snapshot_package(snapshot_id.clone(), units, &options, manifest.as_ref())?;
+        consumer_preparation::synchronize_documents(&mut authored_package, &mut documents);
+        let mut preparation_failed = false;
+        let mut package = if options.semantic && !syntax_invalid {
+            match consumer_preparation::prepare(&authored_package, options.allow_consumer_execution)
+            {
+                Ok(package) => package,
                 Err(failure) => {
-                    if let Some(document) = documents
-                        .values_mut()
-                        .find(|document| document.source.id() == failure.source.id())
-                    {
-                        document.diagnostics.extend(failure.diagnostics);
-                    }
-                    (None, true)
+                    consumer_preparation::record_failure(
+                        &mut documents,
+                        &authored_package,
+                        failure,
+                    );
+                    preparation_failed = true;
+                    authored_package.clone()
                 }
             }
         } else {
-            (None, options.semantic && syntax_invalid)
+            authored_package.clone()
         };
-        let generated = if options.generated && semantic.is_some() {
-            crate::compile_package(&package)
+        consumer_preparation::synchronize_documents(&mut package, &mut documents);
+        syntax_invalid |= documents
+            .values()
+            .any(|document| !document.diagnostics.is_empty());
+        let identities = documents
+            .values()
+            .map(|document| document.identity.clone())
+            .collect();
+        let bytes = documents
+            .values()
+            .map(|document| document.source.text().len())
+            .sum();
+        if manifest.is_some() {
+            snapshot_id = consumer_preparation::snapshot_identity(&snapshot_id, &documents)?;
+            if let Some(snapshot) = self.snapshots.get(&snapshot_id) {
+                return Ok(snapshot.metadata.clone());
+            }
+        }
+        let (semantic, semantic_invalid) =
+            if options.semantic && !syntax_invalid && !preparation_failed {
+                match crate::semantics::analyze(&package) {
+                    Ok(semantic) => (Some(semantic), false),
+                    Err(failure) => {
+                        consumer_preparation::record_failure(
+                            &mut documents,
+                            &package,
+                            crate::CompilationFailure {
+                                source: failure.source,
+                                diagnostics: failure.diagnostics,
+                            },
+                        );
+                        (None, true)
+                    }
+                }
+            } else {
+                (
+                    None,
+                    options.semantic && (syntax_invalid || preparation_failed),
+                )
+            };
+        let generated = if options.generated {
+            semantic.as_ref().and_then(|semantic| {
+                crate::compiler::compile_analyzed_package(
+                    &package,
+                    semantic,
+                    crate::CompilerOptions::default(),
+                )
                 .ok()
                 .and_then(|compilation| {
                     compilation
@@ -782,6 +837,7 @@ impl ToolingEngine {
                             GeneratedSnapshot { build_id, files }
                         })
                 })
+            })
         } else {
             None
         };
@@ -848,7 +904,7 @@ impl ToolingEngine {
             Snapshot {
                 metadata: metadata.clone(),
                 documents,
-                package: package.clone(),
+                package: authored_package,
                 semantic,
                 semantic_invalid,
                 generated,
@@ -866,6 +922,24 @@ impl ToolingEngine {
     /// Returns a stale-snapshot error when the snapshot is no longer retained.
     pub fn metadata(&self, snapshot_id: &str) -> Result<SnapshotMetadata, ProtocolError> {
         Ok(self.snapshot(snapshot_id)?.metadata.clone())
+    }
+
+    /// Find the immutable package snapshot owning an inspectable generated source.
+    /// Opening that file must retain the authored graph rather than analyze it as
+    /// an unrelated implicit single-file program.
+    #[must_use]
+    pub fn generated_source_snapshot(&self, uri: &str, text: &str) -> Option<SnapshotMetadata> {
+        self.snapshot_order.iter().rev().find_map(|id| {
+            let snapshot = self.snapshots.get(id)?;
+            let document = snapshot.documents.get(uri)?;
+            (document.source.text() == text
+                && !snapshot
+                    .package
+                    .units
+                    .iter()
+                    .any(|unit| unit.source.path() == document.source.path()))
+            .then(|| snapshot.metadata.clone())
+        })
     }
 
     /// Closes a snapshot and invalidates its continuations.
@@ -1697,6 +1771,8 @@ fn snapshot_package(
         units,
         rust_dependencies: Vec::new(),
         authored_rust_modules: Vec::new(),
+        consumer_tools: std::collections::BTreeMap::new(),
+        dependency_roots: std::collections::BTreeMap::new(),
         consumer_configs: Vec::new(),
         terrane_dependencies: Vec::new(),
         dependency_manifests: Vec::new(),
@@ -2964,6 +3040,17 @@ fn validate_replacements(
     let mut previous: Option<&Replacement> = None;
     for replacement in replacements.iter() {
         let document = snapshot.document(&replacement.uri)?;
+        if !snapshot
+            .package
+            .units
+            .iter()
+            .any(|unit| unit.source.path() == document.source.path())
+        {
+            return Err(ProtocolError::new(
+                "generated-source-readonly",
+                "consumer-generated source must be changed through its owning inputs",
+            ));
+        }
         let text = document.source.text();
         if replacement.span.start > replacement.span.end
             || replacement.span.end > text.len()
@@ -2997,41 +3084,46 @@ fn candidate_sources(
     let mut candidate = BTreeMap::new();
     let mut diagnostics = Vec::new();
     let mut units = Vec::new();
-    for (index, (uri, document)) in snapshot.documents.iter().enumerate() {
+    for (uri, document) in &snapshot.documents {
+        let Some(original) = snapshot
+            .package
+            .units
+            .iter()
+            .find(|unit| unit.source.path() == document.source.path())
+        else {
+            continue;
+        };
         let edits = replacements
             .iter()
             .filter(|replacement| replacement.uri == *uri)
             .cloned()
             .collect::<Vec<_>>();
         let text = apply_replacements(document.source.text(), &edits)?;
-        let file_id = u32::try_from(index)
-            .map_err(|_| ProtocolError::new("snapshot-too-large", "too many source files"))?;
+        let file_id = original.source.id();
         let source = SourceFile::new(file_id, document.source.path().to_path_buf(), text.clone());
         let lexed = crate::lexer::lex_recovering(&source);
         diagnostics.extend(lexed.diagnostics.iter().map(project_diagnostic));
         let parsed = crate::parser::parse(&source, lexed.lexed);
         diagnostics.extend(parsed.diagnostics.iter().map(project_diagnostic));
-        let original = snapshot
-            .package
-            .units
-            .iter()
-            .find(|unit| unit.source.path() == document.source.path());
         units.push(SourceUnit {
-            relative_path: original.map_or_else(
-                || PathBuf::from(format!("snapshot/{file_id}.trn")),
-                |unit| unit.relative_path.clone(),
-            ),
+            relative_path: original.relative_path.clone(),
             source,
-            expected_namespace: original.and_then(|unit| unit.expected_namespace.clone()),
-            prelude: original.is_none_or(|unit| unit.prelude),
-            role: original.map_or(crate::SourceRole::Production, |unit| unit.role),
+            expected_namespace: original.expected_namespace.clone(),
+            prelude: original.prelude,
+            role: original.role,
         });
         candidate.insert(uri.clone(), text);
     }
     let semantic_reanalysis = if diagnostics.is_empty() && snapshot.semantic.is_some() {
         let mut package = snapshot.package.clone();
         package.units = units;
-        match crate::semantics::analyze(&package) {
+        let prepared = consumer_preparation::prepare(&package, true);
+        match prepared.and_then(|package| {
+            crate::semantics::analyze(&package).map_err(|failure| crate::CompilationFailure {
+                source: failure.source,
+                diagnostics: failure.diagnostics,
+            })
+        }) {
             Ok(_) => true,
             Err(failure) => {
                 diagnostics.extend(failure.diagnostics.iter().map(project_diagnostic));
@@ -4587,7 +4679,7 @@ mod tests {
     }
 
     #[test]
-    fn unsaved_dependencies_and_units_drive_tooling_snapshots() {
+    fn unsaved_library_graph_resolves_authored_references() {
         let directory = TemporaryDirectory::new("terrane-library-overlay");
         let app = directory.path().join("app");
         let library = directory.path().join("library");
@@ -4609,7 +4701,7 @@ mod tests {
         )
         .unwrap();
         let manifest = "package = \"example.app\"\nprelude = false\n[namespaces]\napp = \"src\"\n[terrane-dependencies.example]\nlib.path = \"../library\"\n";
-        let main = "namespace app\nfrom /example/lib import answer\nfunction main;\n  answer\n";
+        let main = "namespace app\nfrom /example/lib import answer\nfunction main;\n    _ = answer\n    _ = unsaved\n";
         let extra = "namespace app\nconstant unsaved = 1\n";
         let mut engine = ToolingEngine::default();
         let snapshot = engine
@@ -4635,6 +4727,42 @@ mod tests {
                 },
             )
             .expect("snapshot uses unsaved package inputs");
-        assert_eq!(snapshot.sources.len(), 2);
+        let diagnostics = engine
+            .syntax(
+                &snapshot.snapshot_id,
+                &format!("file://{}", app.join("src/main.trn").display()),
+                None,
+            )
+            .unwrap()
+            .diagnostics;
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let Availability::Known(answer) = engine
+            .definition(
+                &snapshot.snapshot_id,
+                &format!("file://{}", app.join("src/main.trn").display()),
+                main.rfind("answer").unwrap() + 1,
+            )
+            .unwrap()
+        else {
+            panic!("library declaration resolves through the unsaved manifest");
+        };
+        assert_eq!(
+            answer.uri,
+            format!("file://{}", library.join("src/library.trn").display())
+        );
+        let Availability::Known(unsaved) = engine
+            .definition(
+                &snapshot.snapshot_id,
+                &format!("file://{}", app.join("src/main.trn").display()),
+                main.rfind("unsaved").unwrap() + 1,
+            )
+            .unwrap()
+        else {
+            panic!("unsaved source declaration resolves");
+        };
+        assert_eq!(
+            unsaved.uri,
+            format!("file://{}", app.join("src/unsaved.trn").display())
+        );
     }
 }

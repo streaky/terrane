@@ -22,6 +22,8 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         ),
         build_toolchain: BuildToolchain::Pinned,
         consumer_configs: Vec::new(),
+        consumer_tools: std::collections::BTreeMap::new(),
+        dependency_roots: std::collections::BTreeMap::new(),
         units: sources
             .iter()
             .enumerate()

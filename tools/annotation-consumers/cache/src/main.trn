@@ -1,0 +1,77 @@
+namespace terrane/consumer-cache
+
+from /terrane/annotation-consumer-protocol import get, text, consumer-error
+from /core/collections import list
+from /core/documents import document-value, document-map-entries, make-document-string, make-document-list, make-document-map, make-document-none
+from /core/documents/json import parse-json, default-json-options
+from /core/encodings import utf8
+from /core/errors import decode-error
+from /core/filesystem import filesystem-capability, filesystem-read-bounded, filesystem-write-atomic
+from /core/filesystem/paths import path
+from /core/process import arguments
+
+# Callers choose file inputs and optional metadata. Tool identity and arguments
+# are always included; the helper never infers generator-specific dependencies.
+public class source-cache
+    private key string = ''
+    private target string = ''
+
+    public function construct; request document-value, inputs list of string, metadata document-value|none = none
+        preparation = get; request, 'preparation'
+        directory = get; preparation, 'state_directory'
+        tool = get; preparation, 'tool_identity'
+        if directory.kind == 'string' and tool.kind == 'string'
+            this.target = (text; directory) + '/source.json'
+            argument-values list of document-value = list;
+            for argument in (arguments;)
+                argument-values.append; (make-document-string; argument.text)
+            input-values list of document-value = list;
+            for input in inputs
+                input-values.append; (make-document-string; input)
+            values list of document-value = list; tool
+            argument-list = make-document-list; argument-values
+            input-list = make-document-list; input-values
+            values.append; argument-list.value
+            values.append; input-list.value
+            if metadata != none
+                values.append; metadata
+            else
+                values.append; (make-document-none;)
+            encoded = make-document-list; values
+            this.key = encoded.value.encoded
+
+    public function load string|none;
+        if this.target == ''
+            return none
+        authority = filesystem-capability;
+        loaded = filesystem-read-bounded; authority, (instance path; this.target), 16777217
+        if loaded.failed or loaded.completed > 16777216
+            return none
+        try
+            content = loaded.data.decode; utf8
+            parsed = parse-json; content, (default-json-options;)
+            if parsed.failed
+                return none
+            key = get; parsed.value, 'key'
+            source = get; parsed.value, 'source'
+            if key.kind == 'string' and source.kind == 'string' and (text; key) == this.key
+                return text; source
+        catch decode-error
+            return none
+        return none
+
+    public function store throws consumer-error; source string
+        if this.target == ''
+            return
+        entries = instance document-map-entries;
+        entries.append; 'key', (make-document-string; this.key)
+        entries.append; 'source', (make-document-string; source)
+        encoded = make-document-map; entries
+        data = encoded.value.encoded.encode; utf8
+        # Oversized caches are optional; generation still returns ordinary source.
+        if data.length > 16777216
+            return
+        authority = filesystem-capability;
+        saved = filesystem-write-atomic; authority, (instance path; this.target), data
+        if saved.failed
+            throw (instance consumer-error; (make-document-none;), saved.message)

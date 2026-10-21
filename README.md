@@ -127,6 +127,8 @@ Debug/profile artifacts carry exact-build identity. Authored source snapshots an
 
 The [VS Code extension](editors/vscode/) uses `terrane-language-server` and compiler-owned snapshots for diagnostics, semantic highlighting, navigation, completion, and formatting. The shared source-intelligence protocol is documented in [`docs/tooling-schema.md`](docs/tooling-schema.md).
 
+Packages can export buildable declaration consumers through `[consumer-tools]` and select them with `[consumers.<id>].tool`. Normal compilation builds their host executables automatically; consumers own generation freshness. Trusted editor workspaces use the same preparation with source overlays and separate inspectable generated files—no manual consumer bootstrap is required.
+
 ## What's still unfinished?
 
 The major remaining work is:

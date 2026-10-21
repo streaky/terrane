@@ -6,6 +6,7 @@ mod cache_identity;
 mod cache_io;
 mod compilation_progress;
 mod compiler;
+mod consumer_tools;
 mod consumers;
 pub mod debugging;
 pub mod diagnostic;
@@ -14,6 +15,7 @@ pub mod highlight;
 mod invocation;
 pub mod lexer;
 mod lowering;
+pub mod native_build;
 pub mod package;
 pub mod parser;
 mod platform_support;
@@ -36,17 +38,17 @@ pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, DebugBuild, RustArtifactError, compile,
     compile_discovered_test_tier, compile_package, compile_package_with_options,
     compile_test_package, compile_test_package_tiers, compile_with_options, declaration_interface,
-    discover_test_package,
+    discover_test_package, prepare_package_for_tooling,
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use invocation::InvocationMode;
 pub use package::{
-    ArtifactKind, AuthoredRustModule, BuildToolchain, CapabilityProfile, ExecutorProfile,
-    IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError, PackagePurpose,
-    PanicProfile, ReflectionProfile, RustDependency, SourceRole, SourceUnit, TerraneDependency,
-    TerraneDependencySource, archive_library_metadata, archive_source_tree_hash,
-    dependency_identity_parts, git_library_metadata, git_source_tree_hash, source_tree_hash,
-    with_tokio_runtime,
+    ArtifactKind, AuthoredRustModule, BuildToolchain, CapabilityProfile, ConsumerConfig,
+    ConsumerExecutable, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package,
+    PackageLoadError, PackagePurpose, PanicProfile, ReflectionProfile, RustDependency, SourceRole,
+    SourceUnit, TerraneDependency, TerraneDependencySource, archive_library_metadata,
+    archive_source_tree_hash, dependency_identity_parts, git_library_metadata,
+    git_source_tree_hash, source_tree_hash, with_tokio_runtime,
 };
 pub use semantics::{
     AnnotationTarget, BOOTSTRAP_VERSION, BoundMethod, CallableParameterType, CompileTimeValue,
