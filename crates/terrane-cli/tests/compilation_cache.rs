@@ -47,6 +47,21 @@ impl Package {
     fn source(&self, text: &str) {
         fs::write(self.0.join("src/main.trn"), text).unwrap();
     }
+    fn cache_stamp(&self, name: &str) -> std::time::SystemTime {
+        fs::metadata(self.0.join(format!(".trn/cache/{name}.json")))
+            .unwrap()
+            .modified()
+            .unwrap()
+    }
+    fn mark_cache(&self, name: &str) -> std::time::SystemTime {
+        fs::OpenOptions::new()
+            .write(true)
+            .open(self.0.join(format!(".trn/cache/{name}.json")))
+            .unwrap()
+            .set_modified(std::time::UNIX_EPOCH)
+            .unwrap();
+        self.cache_stamp(name)
+    }
 }
 impl Drop for Package {
     fn drop(&mut self) {
@@ -61,13 +76,14 @@ fn warm_compilation_tracks_content_and_source_membership_and_recovers_corruption
         .source("namespace app\nfrom /core/output import print\nfunction main;\n  print; 'one'\n");
     assert_eq!(package.output(), "one\n");
     assert_eq!(package.output(), "one\n");
+    let compilation_stamp = package.mark_cache("compilation");
     let warm = package.build();
     assert!(
         warm.status.success(),
         "{}",
         String::from_utf8_lossy(&warm.stderr)
     );
-    assert!(String::from_utf8_lossy(&warm.stderr).contains("reusing unchanged compilation"));
+    assert_eq!(package.cache_stamp("compilation"), compilation_stamp);
     // Same-size content edits must not depend on timestamps or file sizes.
     package
         .source("namespace app\nfrom /core/output import print\nfunction main;\n  print; 'two'\n");
@@ -165,13 +181,14 @@ fn local_native_dependency_edits_invalidate_cached_projection_and_compilation() 
     let expected = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
     assert_eq!(package.output(), expected);
     assert_eq!(package.output(), expected);
+    let compilation_stamp = package.mark_cache("compilation");
     let warm = package.build();
     assert!(
         warm.status.success(),
         "{}",
         String::from_utf8_lossy(&warm.stderr)
     );
-    assert!(String::from_utf8_lossy(&warm.stderr).contains("reusing unchanged compilation"));
+    assert_eq!(package.cache_stamp("compilation"), compilation_stamp);
     let main = package.0.join("src/main.trn");
     let authored = fs::read_to_string(&main).unwrap();
     fs::write(
@@ -232,27 +249,23 @@ json.dump({"format": 1, "generated_sources": [{"identity": "value", "source": so
     )).unwrap();
     package.source("namespace app\nfrom /core/output import print\nfrom /generated/cache import value\npublic function seed int;\n  return 1\nfunction main;\n  print; (value;)\n");
     assert_eq!(package.output(), "7\n");
+    let declaration_stamp = package.mark_cache("declarations");
+    let compilation_stamp = package.mark_cache("compilation");
     let warm = package.build();
     assert!(
         warm.status.success(),
         "{}",
         String::from_utf8_lossy(&warm.stderr)
     );
-    let progress = String::from_utf8_lossy(&warm.stderr);
-    assert!(
-        progress.contains("reusing declaration metadata"),
-        "{progress}"
-    );
-    assert!(
-        progress.contains("reusing unchanged compilation"),
-        "{progress}"
-    );
+    assert_eq!(package.cache_stamp("declarations"), declaration_stamp);
+    assert_eq!(package.cache_stamp("compilation"), compilation_stamp);
     assert_eq!(
         fs::read_to_string(package.0.join("executions")).unwrap(),
         "2"
     );
     fs::write(package.0.join("value"), "9").unwrap();
     assert_eq!(package.output(), "9\n");
+    assert_eq!(package.cache_stamp("declarations"), declaration_stamp);
     assert_eq!(
         fs::read_to_string(package.0.join("executions")).unwrap(),
         "3"
@@ -262,4 +275,99 @@ json.dump({"format": 1, "generated_sources": [{"identity": "value", "source": so
     let failed = package.build();
     assert!(!failed.status.success());
     assert_eq!(failed.stdout, b"");
+}
+
+#[cfg(unix)]
+fn rejecting_consumer(package: &Package, mutate_inputs: bool) {
+    let manifest = package.0.join("package.toml");
+    let mut text = fs::read_to_string(&manifest).unwrap();
+    text.push_str("\n[consumers.generate]\ncommand = '/bin/sh'\nargs = ['consumer.sh']\ndeclarations = ['/app::main']\n");
+    fs::write(manifest, text).unwrap();
+    let mutation = if mutate_inputs {
+        "printf 'changed compiler input' > .trn/projection-cache.json\n"
+    } else {
+        ""
+    };
+    fs::write(
+        package.0.join("consumer.sh"),
+        format!("cat > /dev/null\n{mutation}cat response.json\n"),
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("response.json"),
+        serde_json::json!({
+            "format": 1, "generated_sources": [],
+            "diagnostics": [{"declaration": null, "message": "input rejected"}]
+        })
+        .to_string(),
+    )
+    .unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn rejected_consumers_reuse_metadata_but_still_refresh_output() {
+    let package = Package::new();
+    package.source("namespace app\nfrom /core/output import print\nfrom /generated/answer import answer\nfunction main;\n    print; (answer;)\n");
+    rejecting_consumer(&package, false);
+    let rejected = package.build();
+    assert!(!rejected.status.success());
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("error[S2061]: input rejected"));
+    let cache = package.0.join(".trn/cache/declarations.json");
+    assert!(
+        cache.is_file(),
+        "successful declaration analysis survives consumer rejection"
+    );
+    let cache_stamp = package.mark_cache("declarations");
+    // A second rejection must consult the consumer but retain the loaded metadata
+    // file, rather than deterministically recomputing and replacing its envelope.
+    fs::write(
+        package.0.join("response.json"),
+        serde_json::json!({
+            "format": 1, "generated_sources": [],
+            "diagnostics": [{"declaration": null, "message": "second rejection"}]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let rejected_again = package.build();
+    assert!(!rejected_again.status.success());
+    let diagnostic = String::from_utf8_lossy(&rejected_again.stderr);
+    assert!(diagnostic.contains("S2061") && diagnostic.contains("second rejection"));
+    assert_eq!(package.cache_stamp("declarations"), cache_stamp);
+    for value in [42, 43] {
+        fs::write(
+            package.0.join("response.json"),
+            serde_json::json!({
+                "format": 1,
+                "generated_sources": [{"identity": "answer", "source": format!(
+                    "namespace generated/answer\npublic function answer int;\n    return {value}\n"
+                )}],
+                "diagnostics": [],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert_eq!(package.output(), format!("{value}\n"));
+        assert_eq!(package.cache_stamp("declarations"), cache_stamp);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn rejected_consumer_input_mutations_do_not_publish_metadata() {
+    let package = Package::new();
+    package.source("namespace app\nfunction main int;\n    return 0\n");
+    rejecting_consumer(&package, true);
+    let rejected = package.build();
+    assert!(!rejected.status.success());
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("error[S2061]: input rejected"));
+    assert_eq!(
+        fs::read_to_string(package.0.join(".trn/projection-cache.json")).unwrap(),
+        "changed compiler input"
+    );
+    assert!(
+        !package.0.join(".trn/cache/declarations.json").exists(),
+        "consumer mutation invalidates the bracketed compiler inputs"
+    );
 }

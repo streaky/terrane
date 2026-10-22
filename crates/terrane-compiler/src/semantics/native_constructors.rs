@@ -3,7 +3,7 @@ use super::native_cache as cache;
 use super::model::{ObjectIdentity, SemanticPackage, ValueType};
 use super::objects::closed_projected_value_type;
 use crate::Span;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 fn projected_contract<'a>(
     projection: &'a crate::rust_interop::projection::Projection,
@@ -146,38 +146,48 @@ pub(super) fn normalize_contracts(
     let mut native_cache = cache::NativeCache::load(&package.root, context);
     let selection_gathering =
         crate::compilation_progress::start("native selection gathering", &target);
-    let mut selections = package
+    // Projected runtime descriptors are copied into every semantic unit. These
+    // lookups depend only on canonical identity and immutable projection facts,
+    // not on the descriptor's unit, so resolve each identity once per pass.
+    let identities = package
         .units
         .iter()
         .flat_map(|unit| &unit.descriptors)
-        .filter_map(|descriptor| {
-            let identity = &descriptor.identity;
-            if source_abi_nominal(package, identity) {
-                return None;
-            }
-            let projected = package
+        .map(|descriptor| &descriptor.identity)
+        .collect::<BTreeSet<_>>();
+    let mut selections = BTreeMap::new();
+    for identity in identities {
+        if source_abi_nominal(package, identity) {
+            continue;
+        }
+        let Some(projected) = package
+            .projection
+            .projected_type(&identity.namespace, &identity.name)
+        else {
+            continue;
+        };
+        let Some((namespace, name)) = package.projection.owner_for_projected_type(&projected)
+        else {
+            continue;
+        };
+        if package
+            .projection
+            .projected_constructor(&namespace, &name)
+            .is_none()
+            && package
                 .projection
-                .projected_type(&identity.namespace, &identity.name)?;
-            let (namespace, name) = package.projection.owner_for_projected_type(&projected)?;
-            if package
-                .projection
-                .projected_constructor(&namespace, &name)
+                .canonical_native_alias(&projected)
                 .is_none()
-                && package
-                    .projection
-                    .canonical_native_alias(&projected)
-                    .is_none()
-            {
-                return None;
-            }
-            let ValueType::Object(selected) =
-                cached_closed_projected_value_type(&mut native_cache, package, &projected)?
-            else {
-                return None;
-            };
-            Some((identity.clone(), selected))
-        })
-        .collect::<BTreeMap<_, _>>();
+        {
+            continue;
+        }
+        let Some(ValueType::Object(selected)) =
+            cached_closed_projected_value_type(&mut native_cache, package, &projected)
+        else {
+            continue;
+        };
+        selections.insert(identity.clone(), selected);
+    }
     let mut sites = Vec::new();
     let mut written_types = Vec::new();
     for (unit_index, unit) in package.units.iter().enumerate() {

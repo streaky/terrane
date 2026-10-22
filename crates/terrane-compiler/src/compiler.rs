@@ -608,6 +608,7 @@ fn prepare_package_for_analysis(
     let cached: Option<Vec<semantics::DeclarationMetadata>> = declaration_key
         .as_deref()
         .and_then(|key| cache::load(&package.root, "declarations", key));
+    let reused_declarations = cached.is_some();
     let declarations = if let Some(declarations) = cached {
         crate::compilation_progress::note("reusing declaration metadata", &package.identity);
         declarations
@@ -625,17 +626,25 @@ fn prepare_package_for_analysis(
         progress.finish();
         declarations
     };
-    // Execute arbitrary consumers every time and key compilation on their actual output.
+    // Publish successful declaration analysis after every consumer outcome, but only
+    // when the external inputs remain bracketed by the original snapshot.
     let context = crate::consumers::PreparationContext { persist: true };
-    let generated = crate::consumers::run(package, &declarations, context)?;
-    let mut expanded = package.clone();
-    crate::consumers::add_generated_sources(&mut expanded, generated, context)?;
+    let result = (|| {
+        let generated = crate::consumers::run(package, &declarations, context)?;
+        let mut expanded = package.clone();
+        crate::consumers::add_generated_sources(&mut expanded, generated, context)?;
+        Ok(expanded)
+    })();
     let inputs_unchanged = inputs
         .zip(cache::current(package).as_ref())
         .is_some_and(|(before, after)| before == after);
-    if inputs_unchanged && let Some(key) = declaration_key.as_deref() {
+    if !reused_declarations
+        && inputs_unchanged
+        && let Some(key) = declaration_key.as_deref()
+    {
         cache::store(&package.root, "declarations", key, &declarations);
     }
+    let expanded = result?;
     if expanded.units.len() == package.units.len() {
         return Ok((None, inputs_unchanged));
     }
