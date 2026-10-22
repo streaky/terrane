@@ -263,3 +263,82 @@ json.dump({"format": 1, "generated_sources": [{"identity": "value", "source": so
     assert!(!failed.status.success());
     assert_eq!(failed.stdout, b"");
 }
+
+#[cfg(unix)]
+fn rejecting_consumer(package: &Package, mutate_inputs: bool) {
+    let manifest = package.0.join("package.toml");
+    let mut text = fs::read_to_string(&manifest).unwrap();
+    text.push_str("\n[consumers.generate]\ncommand = '/bin/sh'\nargs = ['consumer.sh']\ndeclarations = ['/app::main']\n");
+    fs::write(manifest, text).unwrap();
+    let mutation = if mutate_inputs {
+        "printf 'changed compiler input' > .trn/projection-cache.json\n"
+    } else {
+        ""
+    };
+    fs::write(
+        package.0.join("consumer.sh"),
+        format!("cat > /dev/null\n{mutation}cat response.json\n"),
+    )
+    .unwrap();
+    fs::write(
+        package.0.join("response.json"),
+        serde_json::json!({
+            "format": 1, "generated_sources": [],
+            "diagnostics": [{"declaration": null, "message": "input rejected"}]
+        })
+        .to_string(),
+    )
+    .unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn rejected_consumers_reuse_metadata_but_still_refresh_output() {
+    let package = Package::new();
+    package.source("namespace app\nfrom /core/output import print\nfrom /generated/answer import answer\nfunction main;\n    print; (answer;)\n");
+    rejecting_consumer(&package, false);
+    let rejected = package.build();
+    assert!(!rejected.status.success());
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("error[S2061]: input rejected"));
+    let cache = package.0.join(".trn/cache/declarations.json");
+    assert!(
+        cache.is_file(),
+        "successful declaration analysis survives consumer rejection"
+    );
+    let metadata = fs::read(&cache).unwrap();
+    for value in [42, 43] {
+        fs::write(
+            package.0.join("response.json"),
+            serde_json::json!({
+                "format": 1,
+                "generated_sources": [{"identity": "answer", "source": format!(
+                    "namespace generated/answer\npublic function answer int;\n    return {value}\n"
+                )}],
+                "diagnostics": [],
+            })
+            .to_string(),
+        )
+        .unwrap();
+        assert_eq!(package.output(), format!("{value}\n"));
+        assert_eq!(fs::read(&cache).unwrap(), metadata);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn rejected_consumer_input_mutations_do_not_publish_metadata() {
+    let package = Package::new();
+    package.source("namespace app\nfunction main int;\n    return 0\n");
+    rejecting_consumer(&package, true);
+    let rejected = package.build();
+    assert!(!rejected.status.success());
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("error[S2061]: input rejected"));
+    assert_eq!(
+        fs::read_to_string(package.0.join(".trn/projection-cache.json")).unwrap(),
+        "changed compiler input"
+    );
+    assert!(
+        !package.0.join(".trn/cache/declarations.json").exists(),
+        "consumer mutation invalidates the bracketed compiler inputs"
+    );
+}
