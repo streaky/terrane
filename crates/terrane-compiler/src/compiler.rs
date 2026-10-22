@@ -608,6 +608,7 @@ fn prepare_package_for_analysis(
     let cached: Option<Vec<semantics::DeclarationMetadata>> = declaration_key
         .as_deref()
         .and_then(|key| cache::load(&package.root, "declarations", key));
+    let reused_declarations = cached.is_some();
     let declarations = if let Some(declarations) = cached {
         crate::compilation_progress::note("reusing declaration metadata", &package.identity);
         declarations
@@ -637,7 +638,10 @@ fn prepare_package_for_analysis(
     let inputs_unchanged = inputs
         .zip(cache::current(package).as_ref())
         .is_some_and(|(before, after)| before == after);
-    if inputs_unchanged && let Some(key) = declaration_key.as_deref() {
+    if !reused_declarations
+        && inputs_unchanged
+        && let Some(key) = declaration_key.as_deref()
+    {
         cache::store(&package.root, "declarations", key, &declarations);
     }
     let expanded = result?;
