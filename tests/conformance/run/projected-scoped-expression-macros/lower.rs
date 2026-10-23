@@ -43,14 +43,14 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                                     witness::text(__terrane_native_input_0))) { Ok(value) =>
                                     Ok(value), Err(payload) => Err(crate
-                                    ::__terrane_dependency_panic(payload, "dependency",
-                                    "dependency::ForeignType::text")) }, 1 /* terrane-site: src/main.trn:9:118-9:151 */) }), __terrane_raised(match
+                                    ::__terrane_dependency_panic(payload, "witness",
+                                    "witness::text")) }, 1 /* terrane-site: src/main.trn:9:118-9:151 */) }), __terrane_raised(match
                                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                                     witness::row:: < _ > (children.into_unique_vec().into_iter()
                                     .map(Into::into).collect:: < Vec < _ > > ()))) { Ok(value)
                                     => Ok(value), Err(payload) => Err(crate
-                                    ::__terrane_dependency_panic(payload, "dependency",
-                                    "dependency::ForeignType::row")) }, 2 /* terrane-site: src/main.trn:9:156-9:178 */)
+                                    ::__terrane_dependency_panic(payload, "witness",
+                                    "witness::row")) }, 2 /* terrane-site: src/main.trn:9:156-9:178 */)
                                 )
                             }),
                         ) {
@@ -59,8 +59,8 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                 Err(
                                     crate::__terrane_dependency_panic(
                                         payload,
-                                        "dependency",
-                                        "dependency::ForeignType::column",
+                                        "witness",
+                                        "witness::column",
                                     ),
                                 )
                             }
@@ -83,8 +83,8 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                         Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "dependency",
-                                "dependency::ForeignType::container",
+                                "witness",
+                                "witness::container",
                             ),
                         )
                     }

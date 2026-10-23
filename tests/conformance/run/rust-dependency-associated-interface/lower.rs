@@ -452,8 +452,8 @@ fn main() {
         ::TerraneForeignError > { Ok(Ints::terrane_construct()) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::sequence_total")) }, 0 /* terrane-site: src/main.trn:47:13-47:45 */))
+        ::__terrane_dependency_panic(payload, "terrane-associated-witness",
+        "terrane_associated_witness::sequence_total")) }, 0 /* terrane-site: src/main.trn:47:13-47:45 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -462,8 +462,8 @@ fn main() {
         ::TerraneForeignError > { Ok(NestedValues::terrane_construct()) } () { Ok(value)
         => value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::nested_total")) }, 1 /* terrane-site: src/main.trn:48:13-48:52 */))
+        ::__terrane_dependency_panic(payload, "terrane-associated-witness",
+        "terrane_associated_witness::nested_total")) }, 1 /* terrane-site: src/main.trn:48:13-48:52 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -472,8 +472,8 @@ fn main() {
         ::TerraneForeignError > { Ok(NamedInts::terrane_construct()) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::named_total")) }, 2 /* terrane-site: src/main.trn:49:13-49:48 */))
+        ::__terrane_dependency_panic(payload, "terrane-associated-witness",
+        "terrane_associated_witness::named_total")) }, 2 /* terrane-site: src/main.trn:49:13-49:48 */))
     );
     println!(
         "{}",
@@ -528,8 +528,8 @@ fn main() {
         ::TerraneForeignError > { Ok(MoreInts::terrane_construct()) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::sequence_total")) }, 7 /* terrane-site: src/main.trn:62:13-62:50 */))
+        ::__terrane_dependency_panic(payload, "terrane-associated-witness",
+        "terrane_associated_witness::sequence_total")) }, 7 /* terrane-site: src/main.trn:62:13-62:50 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -538,7 +538,7 @@ fn main() {
         ::TerraneForeignError > { Ok(Lists::terrane_construct()) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::list_total")) }, 8 /* terrane-site: src/main.trn:63:13-63:42 */))
+        ::__terrane_dependency_panic(payload, "terrane-associated-witness",
+        "terrane_associated_witness::list_total")) }, 8 /* terrane-site: src/main.trn:63:13-63:42 */))
     );
 }

@@ -24,8 +24,8 @@ fn main() {
                                     Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "dependency",
-                                            "dependency::ForeignType::ready_value",
+                                            "terrane-into-future-witness",
+                                            "terrane_into_future_witness::ready_value",
                                         ),
                                     )
                                 }

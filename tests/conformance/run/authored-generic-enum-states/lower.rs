@@ -18,7 +18,7 @@ fn report(state: OperationState<String>) -> String {
         }
         OperationState::Running(__terrane_pattern_307_progress) => {
             progress = __terrane_pattern_307_progress;
-            println!("{}", terrane_scalar_support::scalar_text(&* * progress));
+            println!("{}", terrane_scalar_support::scalar_text(&* progress));
             return String::from("running");
         }
         OperationState::Completed(__terrane_pattern_412_result) => {

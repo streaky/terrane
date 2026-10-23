@@ -289,8 +289,8 @@ fn main() {
         ::TerraneForeignError > { Ok(Values::terrane_construct()) } () { Ok(value) =>
         value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::child_total")) }, 0 /* terrane-site: src/main.trn:23:13-23:44 */))
+        ::__terrane_dependency_panic(payload, "terrane-supertrait-witness",
+        "terrane_supertrait_witness::child_total")) }, 0 /* terrane-site: src/main.trn:23:13-23:44 */))
     );
     println!(
         "{}",
@@ -304,7 +304,7 @@ fn main() {
         ::TerraneForeignError > { Ok(DiamondValues::terrane_construct()) } () { Ok(value)
         => value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "dependency",
-        "dependency::ForeignType::diamond_total")) }, 2 /* terrane-site: src/main.trn:25:13-25:54 */))
+        ::__terrane_dependency_panic(payload, "terrane-supertrait-witness",
+        "terrane_supertrait_witness::diamond_total")) }, 2 /* terrane-site: src/main.trn:25:13-25:54 */))
     );
 }

@@ -50,8 +50,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
-                            "dependency::ForeignType::make_lane",
+                            "witness",
+                            "witness::make_lane",
                         ),
                     )
                 }

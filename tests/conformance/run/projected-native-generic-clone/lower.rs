@@ -40,8 +40,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
-                            "dependency::ForeignType::make",
+                            "witness",
+                            "witness::make",
                         ),
                     )
                 }
@@ -58,9 +58,8 @@ fn main() {
                             match
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
                             witness::make(value))) { Ok(value) => Ok(value), Err(payload)
-                            => Err(crate ::__terrane_dependency_panic(payload,
-                            "dependency", "dependency::ForeignType::make")) },
-                            2 /* terrane-site: src/main.trn:15:35-15:57 */
+                            => Err(crate ::__terrane_dependency_panic(payload, "witness",
+                            "witness::make")) }, 2 /* terrane-site: src/main.trn:15:35-15:57 */
                         ),
                     );
                 println!(

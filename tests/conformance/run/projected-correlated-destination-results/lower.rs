@@ -45,8 +45,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::correlated_values",
+                        "witness",
+                        "witness::correlated_values",
                     ),
                 )
             }

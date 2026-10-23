@@ -115,8 +115,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::destination",
+                        "witness",
+                        "witness::destination",
                     ),
                 )
             }

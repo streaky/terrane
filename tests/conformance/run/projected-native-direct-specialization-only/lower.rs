@@ -14,8 +14,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
-                            "dependency::ForeignType::make",
+                            "witness",
+                            "witness::make",
                         ),
                     )
                 }
@@ -26,8 +26,8 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(native_int))) { Ok(value) => Ok(value), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::consume")) }, 1 /* terrane-site: src/main.trn:7:13-7:32 */))
+            Err(crate ::__terrane_dependency_panic(payload, "witness",
+            "witness::consume")) }, 1 /* terrane-site: src/main.trn:7:13-7:32 */))
         );
     });
 }

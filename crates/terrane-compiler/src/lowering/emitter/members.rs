@@ -317,7 +317,7 @@ impl Emitter<'_> {
             return self.available_storage_reference(binding, receiver, true);
         }
         if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
-            return format!("&mut *{}", self.receiver_expression(receiver));
+            return format!("&mut {}", self.native_receiver_expression(receiver, true));
         }
         format!("&mut {}", self.receiver_expression(receiver))
     }

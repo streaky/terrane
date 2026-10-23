@@ -26,7 +26,7 @@ fn mark(header: &mut HeaderValue) {
 fn forward(header: &mut HeaderValue) {
     let operation: std::sync::Arc<dyn Fn(&mut HeaderValue) -> () + Send + Sync>;
     operation = std::sync::Arc::new(mark);
-    operation(&mut **header);
+    operation(&mut *header);
 }
 fn change(header: &mut HeaderValue) -> bool {
     forward(&mut *header);

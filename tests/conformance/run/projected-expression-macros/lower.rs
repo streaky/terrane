@@ -15,11 +15,7 @@ fn contextual() -> terrane_int_support::Int {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => {
                 Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "dependency",
-                        "dependency::ForeignType::sum",
-                    ),
+                    crate::__terrane_dependency_panic(payload, "witness", "witness::sum"),
                 )
             }
         },
@@ -51,11 +47,7 @@ fn main() {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => {
                 Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "dependency",
-                        "dependency::ForeignType::sum",
-                    ),
+                    crate::__terrane_dependency_panic(payload, "witness", "witness::sum"),
                 )
             }
         },
@@ -74,11 +66,7 @@ fn main() {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => {
                 Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "dependency",
-                        "dependency::ForeignType::sum",
-                    ),
+                    crate::__terrane_dependency_panic(payload, "witness", "witness::sum"),
                 )
             }
         },
@@ -97,11 +85,7 @@ fn main() {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => {
                 Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "dependency",
-                        "dependency::ForeignType::sum",
-                    ),
+                    crate::__terrane_dependency_panic(payload, "witness", "witness::sum"),
                 )
             }
         },
@@ -127,8 +111,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::packet",
+                        "witness",
+                        "witness::packet",
                     ),
                 )
             }
@@ -151,8 +135,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::disable",
+                        "witness",
+                        "witness::disable",
                     ),
                 )
             }
@@ -175,8 +159,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::message",
+                        "witness",
+                        "witness::message",
                     ),
                 )
             }
@@ -207,8 +191,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::values",
+                        "witness",
+                        "witness::values",
                     ),
                 )
             }
@@ -247,8 +231,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::twice",
+                        "witness",
+                        "witness::twice",
                     ),
                 )
             }
@@ -281,8 +265,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::selected",
+                        "witness",
+                        "witness::selected",
                     ),
                 )
             }
@@ -309,8 +293,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::combine",
+                        "witness",
+                        "witness::layout::combine",
                     ),
                 )
             }
@@ -341,8 +325,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "dependency::ForeignType::values",
+                        "witness",
+                        "witness::values",
                     ),
                 )
             }

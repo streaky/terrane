@@ -1359,16 +1359,16 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             terrane_render_witness::render_value(&message, String::from("interface")))) {
             Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::render_value")) }, 23 /* terrane-site: src/main.trn:124:13-124:47 */))
+            ::__terrane_dependency_panic(payload, "terrane-render-witness",
+            "terrane_render_witness::render_value")) }, 23 /* terrane-site: src/main.trn:124:13-124:47 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             terrane_render_witness::render_decorated(&message, String::from("default"))))
             { Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::render_decorated")) }, 24 /* terrane-site: src/main.trn:125:13-125:49 */))
+            ::__terrane_dependency_panic(payload, "terrane-render-witness",
+            "terrane_render_witness::render_decorated")) }, 24 /* terrane-site: src/main.trn:125:13-125:49 */))
         );
         interface_message = <Renderable>::from(message);
         println!(
@@ -1390,8 +1390,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             terrane_render_witness::render_impl(&impl_message, String::from("opaque"))))
             { Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::render_impl")) }, 26 /* terrane-site: src/main.trn:131:13-131:48 */))
+            ::__terrane_dependency_panic(payload, "terrane-render-witness",
+            "terrane_render_witness::render_impl")) }, 26 /* terrane-site: src/main.trn:131:13-131:48 */))
         );
         counter = ProjectedCounter::terrane_construct();
         println!(
@@ -1404,8 +1404,8 @@ fn main() {
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error) }))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::adjust_value")) }, 27 /* terrane-site: src/main.trn:133:13-133:37 */))
+            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::adjust_value")) }, 27 /* terrane-site: src/main.trn:133:13-133:37 */))
         );
         holder = ProjectedCounterHolder::terrane_construct();
         println!(
@@ -1418,8 +1418,8 @@ fn main() {
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error) }))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::adjust_value")) }, 28 /* terrane-site: src/main.trn:135:13-135:42 */))
+            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::adjust_value")) }, 28 /* terrane-site: src/main.trn:135:13-135:42 */))
         );
         retained_counter = __terrane_raised(
             match std::panic::catch_unwind(
@@ -1435,8 +1435,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
-                            "dependency::ForeignType::retain_adjustable",
+                            "terrane-callback-witness",
+                            "terrane_callback_witness::retain_adjustable",
                         ),
                     )
                 }
@@ -1532,8 +1532,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
-                            "dependency::ForeignType::retain_local_adjustable",
+                            "terrane-callback-witness",
+                            "terrane_callback_witness::retain_local_adjustable",
                         ),
                     )
                 }
@@ -1568,8 +1568,8 @@ fn main() {
             ::TerraneForeignError > { Ok(DropAwareValue::terrane_construct()) } () {
             Ok(value) => value, Err(error) => std::panic::panic_any(error) }))) {
             Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "dependency",
-            "dependency::ForeignType::consume_drop")) }, 41 /* terrane-site: src/main.trn:146:13-146:55 */))
+            ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::consume_drop")) }, 41 /* terrane-site: src/main.trn:146:13-146:55 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
@@ -1580,8 +1580,10 @@ fn main() {
             Box::pin(async move { match crate
             ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(value) =>
             Ok(value), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "dependency", "dependency::ForeignType::cancel_async_entry")) } }) }; async
-            move { __terrane_raised_err(__terrane_future. await, 42 /* terrane-site: src/main.trn:147:19-147:72 */) } }). await, 42 /* terrane-site: src/main.trn:147:19-147:72 */))
+            "terrane-callback-witness", "terrane_callback_witness::cancel_async_entry"))
+            } }) }; async move { __terrane_raised_err(__terrane_future. await,
+            42 /* terrane-site: src/main.trn:147:19-147:72 */) } }). await,
+            42 /* terrane-site: src/main.trn:147:19-147:72 */))
         );
     });
 }
