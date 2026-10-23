@@ -161,7 +161,7 @@ async fn cancelled_winner() {
         }
     }
 }
-async fn deadline_winner() {
+async fn deadline_winner() -> Result<(), TerraneError> {
     let child_pair: TerraneChannelPair<terrane_int_support::Int>;
     let spare_pair: TerraneChannelPair<terrane_int_support::Int>;
     let scope: TerraneTaskScope;
@@ -186,12 +186,12 @@ async fn deadline_winner() {
     scope = TerraneTaskScope::new(
         Some(
             Clock::terrane_static_deadline(
-                    __terrane_traced(
+                    __terrane_traced_err(
                         Duration::terrane_static_nanoseconds(
                             terrane_int_support::Int::from(0_i128),
                         ),
                         0 /* terrane-site: case.trn:24:42-24:66 */,
-                    ),
+                    )?,
                 )
                 .expires_at
                 .elapsed_nanoseconds
@@ -327,13 +327,17 @@ async fn deadline_winner() {
             _ => unreachable!("selected winner is within the case count"),
         }
     }
+    Ok(())
 }
 fn main() {
     __terrane_run(async move {
         let cancelled: ();
         let deadline_result: ();
         cancelled = __terrane_await(cancelled_winner()).await;
-        deadline_result = __terrane_await(deadline_winner()).await;
+        deadline_result = __terrane_traced(
+            __terrane_await(deadline_winner()).await,
+            2 /* terrane-site: case.trn:34:27-34:45 */,
+        );
         if cancelled == () && deadline_result == () {}
     });
 }

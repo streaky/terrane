@@ -171,6 +171,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .enable_all()
         .build()
         .expect("Terrane async runtime must initialize");
+    let future = Box::pin(future);
     tokio::task::LocalSet::new()
         .block_on(
             &runtime,

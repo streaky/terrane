@@ -30,8 +30,8 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_opaque_result_witness::consume(__terrane_native_input_0))) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
-        "terrane_opaque_result_witness::consume")) }, 1 /* terrane-site: src/main.trn:9:13-9:32 */) })
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::consume")) }, 1 /* terrane-site: src/main.trn:9:13-9:32 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
@@ -46,12 +46,12 @@ fn main() {
         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error) =>
         std::panic::panic_any(error) }))) { Ok(value) => Ok(value), Err(payload) =>
-        Err(crate ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
-        "terrane_opaque_result_witness::choose")) }, 2 /* terrane-site: src/main.trn:10:21-10:37 */); __terrane_raised(match
+        Err(crate ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::choose")) }, 2 /* terrane-site: src/main.trn:10:21-10:37 */); __terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         terrane_opaque_result_witness::serve(__terrane_native_input_0))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "terrane-opaque-result-witness",
-        "terrane_opaque_result_witness::serve")) }, 3 /* terrane-site: src/main.trn:10:13-10:38 */) })
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::serve")) }, 3 /* terrane-site: src/main.trn:10:13-10:38 */) })
     );
 }

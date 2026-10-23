@@ -645,7 +645,6 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/http.trn
 // Namespace: deps/http
-pub use std::option::Option as BorrowedOption;
 pub use witness::Canvas;
 pub use witness::Entry;
 pub use witness::Extensions;

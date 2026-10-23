@@ -16,11 +16,11 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&seen
         .clone()) as i128))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&* seen));
+    println!("{}", terrane_scalar_support::scalar_text(&* * seen));
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
         String::with_capacity(1); terrane_scalar_support::ScalarDisplay::write_scalar(&*
-        seen, &mut __terrane_text); __terrane_text.push_str("!"); __terrane_text })
+        * seen, &mut __terrane_text); __terrane_text.push_str("!"); __terrane_text })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_separator = &seen
@@ -42,7 +42,7 @@ fn main() {
     observed = std::sync::Arc::downgrade(&number.clone());
     println!(
         "{}", { let __terrane_owner = observed.upgrade().expect("reference expired");
-        terrane_scalar_support::scalar_text(&* __terrane_owner.lock()
+        terrane_scalar_support::scalar_text(&* * __terrane_owner.lock()
         .expect("reference lock poisoned")) }
     );
     println!(

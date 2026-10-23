@@ -88,12 +88,12 @@ fn describe_text(value: &String) -> String {
         let mut __terrane_text = String::with_capacity(5);
         __terrane_text.push_str("ref:");
         terrane_scalar_support::ScalarDisplay::write_scalar(
-            &*value,
+            &**value,
             &mut __terrane_text,
         );
         __terrane_text.push_str("|");
         terrane_scalar_support::ScalarDisplay::write_scalar(
-            &terrane_scalar_support::scalar_text(&*value),
+            &terrane_scalar_support::scalar_text(&**value),
             &mut __terrane_text,
         );
         __terrane_text

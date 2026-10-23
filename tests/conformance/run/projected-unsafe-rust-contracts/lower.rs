@@ -22,7 +22,7 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
         witness::render_unsafe(&state, view))) { Ok(value) =>
         Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "witness", "witness::render_unsafe")) },
-        2 /* terrane-site: src/main.trn:11:13-11:39 */))
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::render_unsafe")) }, 2 /* terrane-site: src/main.trn:11:13-11:39 */))
     );
 }

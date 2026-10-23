@@ -89,11 +89,8 @@ fn main() {
                         TerraneCompletion::Error(error) => {
                             return TerraneCompletion::Error(error);
                         }
-                        TerraneCompletion::Break | TerraneCompletion::Continue => {
-                            __terrane_generated_defect(
-                                "loop control escaped a non-loop try",
-                            )
-                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
                     }
                 }
                 if !__terrane_handled_0 {

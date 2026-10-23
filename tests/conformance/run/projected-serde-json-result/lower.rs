@@ -26,8 +26,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "serde-json",
-                        "serde_json::from_str",
+                        "dependency",
+                        "dependency::ForeignType::from_str",
                     ),
                 )
             }

@@ -501,8 +501,8 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 16, column: 5, end_line: 16, end_column: 33 } },
         /* terrane-site-row: site 1: /task-group-implicit-finally::child (case.trn:21:34-21:55) */
         { Site { function: 1, file: 0, line: 21, column: 34, end_line: 21, end_column: 55 } },
-        /* terrane-site-row: site 2: /task-group-implicit-finally::worker (case.trn:31:34-31:64) */
-        { Site { function: 2, file: 0, line: 31, column: 34, end_line: 31, end_column: 64 } },
+        /* terrane-site-row: site 2: /task-group-implicit-finally::worker (case.trn:32:38-32:68) */
+        { Site { function: 2, file: 0, line: 32, column: 38, end_line: 32, end_column: 68 } },
         /* terrane-site-row: site 3: /task-group-implicit-finally::worker (case.trn:33:20-33:26) */
         { Site { function: 2, file: 0, line: 33, column: 20, end_line: 33, end_column: 26 } },
         /* terrane-site-row: site 4: /task-group-implicit-finally::worker (case.trn:33:19-33:27) */

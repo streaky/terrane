@@ -170,34 +170,32 @@ async fn worker(
                 };
                 group.spawn(__terrane_child);
             };
-            while !{
-                let __terrane_snapshot = observer
-                    .lock()
-                    .expect("shared reference lock poisoned")
-                    .child_started;
-                __terrane_snapshot
-            } {
-                {
-                    let _: () = __terrane_await(
-                            terrane_time_sleep_after(
-                                __terrane_traced_err(
-                                        Duration::terrane_static_nanoseconds(
-                                            terrane_int_support::Int::from(1000000_i128),
-                                        ),
-                                        2 /* terrane-site: case.trn:31:34-31:64 */,
-                                    )?
-                                    .total_nanoseconds
-                                    .clone(),
-                            ),
-                        )
-                        .await;
-                }
-            }
             let mut __terrane_finally_guard_1 = __terrane_finally_guard();
             let __terrane_maybe_completion_1: Option<TerraneCompletion<()>> = __terrane_cancel_operation(
                     &__terrane_finally_guard_1,
                     async {
                         let __terrane_try_1: TerraneCompletion<()> = async {
+                            while !{
+                                let __terrane_snapshot = observer
+                                    .lock()
+                                    .expect("shared reference lock poisoned")
+                                    .child_started;
+                                __terrane_snapshot
+                            } {
+                                {
+                                    let _: () = __terrane_await(
+                                            terrane_time_sleep_after(
+                                                __terrane_traced_completion!(
+                                                    Duration::terrane_static_nanoseconds(terrane_int_support::Int::from(1000000_i128)),
+                                                    2 /* terrane-site: case.trn:32:38-32:68 */
+                                                )
+                                                    .total_nanoseconds
+                                                    .clone(),
+                                            ),
+                                        )
+                                        .await;
+                                }
+                            }
                             let _ = pending.insert(risky());
                             let _ = other
                                 .insert(pending.take().expect("flow-proven availability"));

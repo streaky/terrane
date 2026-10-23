@@ -863,6 +863,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .enable_all()
         .build()
         .expect("Terrane async runtime must initialize");
+    let future = Box::pin(future);
     tokio::task::LocalSet::new()
         .block_on(
             &runtime,
@@ -891,8 +892,6 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Source: <terrane>/projected/deps/terrane-chain-witness.trn
 // Namespace: deps/terrane-chain-witness
 pub use terrane_chain_witness::Database;
-pub use terrane_chain_witness::LineBuilder;
-pub use terrane_chain_witness::ScalarLookup;
 pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             terrane_chain_witness::memory_database(),

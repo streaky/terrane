@@ -30,8 +30,8 @@ fn main() {
             std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error)
             => std::panic::panic_any(error) }))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
-            "terrane_callback_witness::open_callback")) }, 0 /* terrane-site: src/main.trn:9:13-9:39 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::open_callback")) }, 0 /* terrane-site: src/main.trn:9:13-9:39 */))
         );
         values = terrane_collection_support::List::<
             terrane_int_support::Int,
@@ -51,9 +51,8 @@ fn main() {
             ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) }).collect:: <
             Result < std::vec::Vec < i64 >, _ > > () ?) } () { Ok(value) => value,
             Err(error) => std::panic::panic_any(error) }))) { Ok(value) => Ok(value),
-            Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "terrane-callback-witness", "terrane_callback_witness::render_many")) },
-            1 /* terrane-site: src/main.trn:11:13-11:32 */))
+            Err(payload) => Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::render_many")) }, 1 /* terrane-site: src/main.trn:11:13-11:32 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
@@ -79,8 +78,8 @@ fn main() {
             Box::pin(async move { match crate
             ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
-            "terrane_callback_witness::open_async")) } }) }; async move {
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::open_async")) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 2 /* terrane-site: src/main.trn:13:19-13:48 */) } }). await, 3 /* terrane-site: src/main.trn:13:18-13:49 */))
         );
     });

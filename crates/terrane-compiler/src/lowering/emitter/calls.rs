@@ -3240,7 +3240,7 @@ impl Emitter<'_> {
                         )
                     }));
         let call = if let Some(method) = foreign_method {
-            let (dependency, member) = if direct_projected_call {
+            let (dependency, member) = if direct_projected_call && callee.kind != SyntaxKind::Name {
                 let method = foreign_method.expect("direct projected call has projected method");
                 let receiver = callee.children.first();
                 let identity = receiver.and_then(|receiver| {

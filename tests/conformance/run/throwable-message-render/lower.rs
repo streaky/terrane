@@ -154,9 +154,8 @@ fn main() {
                     return TerraneCompletion::Return(value);
                 }
                 TerraneCompletion::Error(error) => return TerraneCompletion::Error(error),
-                TerraneCompletion::Break | TerraneCompletion::Continue => {
-                    __terrane_generated_defect("loop control escaped a non-loop try")
-                }
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
             }
             TerraneCompletion::Normal
         })();
@@ -255,9 +254,8 @@ fn main() {
                     return TerraneCompletion::Return(value);
                 }
                 TerraneCompletion::Error(error) => return TerraneCompletion::Error(error),
-                TerraneCompletion::Break | TerraneCompletion::Continue => {
-                    __terrane_generated_defect("loop control escaped a non-loop try")
-                }
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
             }
             TerraneCompletion::Normal
         })();
@@ -359,9 +357,8 @@ fn main() {
                     return TerraneCompletion::Return(value);
                 }
                 TerraneCompletion::Error(error) => return TerraneCompletion::Error(error),
-                TerraneCompletion::Break | TerraneCompletion::Continue => {
-                    __terrane_generated_defect("loop control escaped a non-loop try")
-                }
+                TerraneCompletion::Break => return TerraneCompletion::Break,
+                TerraneCompletion::Continue => return TerraneCompletion::Continue,
             }
             TerraneCompletion::Normal
         })();

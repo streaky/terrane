@@ -40,8 +40,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "terrane-deferred-callback-witness",
-                        "terrane_deferred_callback_witness::produce",
+                        "dependency",
+                        "dependency::ForeignType::produce",
                     ),
                 )
             }
@@ -81,8 +81,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "terrane-deferred-callback-witness",
-                        "terrane_deferred_callback_witness::transform",
+                        "dependency",
+                        "dependency::ForeignType::transform",
                     ),
                 )
             }

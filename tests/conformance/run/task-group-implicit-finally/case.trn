@@ -27,9 +27,9 @@ async function child int; observer shared ref state
 async function worker none; observer shared ref state
     group = task-group; int
     group.spawn; (child; observer)
-    while not observer.child-started
-        _ = await clock::sleep; (duration::nanoseconds; 1000000)
     try
+        while not observer.child-started
+            _ = await clock::sleep; (duration::nanoseconds; 1000000)
         _ = await (risky;)
     finally
         group.cancel;

@@ -39,8 +39,8 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "witness",
-                        "witness::consume_native",
+                        "dependency",
+                        "dependency::ForeignType::consume_native",
                     ),
                 )
             }

@@ -73,9 +73,9 @@ fn main() {
     };
     returned = pass(element);
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&* field),
-        terrane_scalar_support::scalar_text(&* element),
-        terrane_scalar_support::scalar_text(&* returned)
+        "{}{}{}", terrane_scalar_support::scalar_text(&* * field),
+        terrane_scalar_support::scalar_text(&* * element),
+        terrane_scalar_support::scalar_text(&* * returned)
     );
     borrowed = &values;
     let __terrane_iterable_0 = borrowed;
@@ -85,6 +85,6 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&* item));
+        println!("{}", terrane_scalar_support::scalar_text(&* * item));
     }
 }

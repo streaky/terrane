@@ -494,36 +494,38 @@ mod __terrane_trace {
         "/core/time::sleep-until",
         "/core/time::interval",
     ];
-    pub static SITES: [Site; 15] = [
+    pub static SITES: [Site; 16] = [
         /* terrane-site-row: site 0: /task-group-failure-finally::wait (case.trn:15:17-15:38) */
         { Site { function: 0, file: 0, line: 15, column: 17, end_line: 15, end_column: 38 } },
         /* terrane-site-row: site 1: /task-group-failure-finally::fail (case.trn:22:5-22:33) */
         { Site { function: 1, file: 0, line: 22, column: 5, end_line: 22, end_column: 33 } },
-        /* terrane-site-row: site 2: /task-group-failure-finally::main (case.trn:28:19-28:24) */
+        /* terrane-site-row: site 2: /task-group-failure-finally::main (case.trn:27:19-27:33) */
+        { Site { function: 2, file: 0, line: 27, column: 19, end_line: 27, end_column: 33 } },
+        /* terrane-site-row: site 3: /task-group-failure-finally::main (case.trn:28:19-28:24) */
         { Site { function: 2, file: 0, line: 28, column: 19, end_line: 28, end_column: 24 } },
-        /* terrane-site-row: site 3: /task-group-failure-finally::main (case.trn:30:13-30:24) */
+        /* terrane-site-row: site 4: /task-group-failure-finally::main (case.trn:30:13-30:24) */
         { Site { function: 2, file: 0, line: 30, column: 13, end_line: 30, end_column: 24 } },
-        /* terrane-site-row: site 4: /task-group-failure-finally::main (case.trn:31:14-31:25) */
+        /* terrane-site-row: site 5: /task-group-failure-finally::main (case.trn:31:14-31:25) */
         { Site { function: 2, file: 0, line: 31, column: 14, end_line: 31, end_column: 25 } },
-        /* terrane-site-row: site 5: /task-group-failure-finally::main (case.trn:38:13-38:24) */
+        /* terrane-site-row: site 6: /task-group-failure-finally::main (case.trn:38:13-38:24) */
         { Site { function: 2, file: 0, line: 38, column: 13, end_line: 38, end_column: 24 } },
-        /* terrane-site-row: site 6: /core/time::multiply (core/time.trn:62:13-62:45) */
+        /* terrane-site-row: site 7: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 3, file: 1, line: 62, column: 13, end_line: 62, end_column: 45 } },
-        /* terrane-site-row: site 7: /core/time::seconds (core/time.trn:38:13-38:45) */
+        /* terrane-site-row: site 8: /core/time::seconds (core/time.trn:38:13-38:45) */
         { Site { function: 4, file: 1, line: 38, column: 13, end_line: 38, end_column: 45 } },
-        /* terrane-site-row: site 8: /core/time::milliseconds (core/time.trn:43:13-43:45) */
+        /* terrane-site-row: site 9: /core/time::milliseconds (core/time.trn:43:13-43:45) */
         { Site { function: 5, file: 1, line: 43, column: 13, end_line: 43, end_column: 45 } },
-        /* terrane-site-row: site 9: /core/time::microseconds (core/time.trn:48:13-48:45) */
+        /* terrane-site-row: site 10: /core/time::microseconds (core/time.trn:48:13-48:45) */
         { Site { function: 6, file: 1, line: 48, column: 13, end_line: 48, end_column: 45 } },
-        /* terrane-site-row: site 10: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
+        /* terrane-site-row: site 11: /core/time::nanoseconds (core/time.trn:53:13-53:45) */
         { Site { function: 7, file: 1, line: 53, column: 13, end_line: 53, end_column: 45 } },
-        /* terrane-site-row: site 11: /core/time::duration-until (core/time.trn:76:13-76:45) */
+        /* terrane-site-row: site 12: /core/time::duration-until (core/time.trn:76:13-76:45) */
         { Site { function: 8, file: 1, line: 76, column: 13, end_line: 76, end_column: 45 } },
-        /* terrane-site-row: site 12: /core/time::at (core/time.trn:105:13-105:45) */
+        /* terrane-site-row: site 13: /core/time::at (core/time.trn:105:13-105:45) */
         { Site { function: 9, file: 1, line: 105, column: 13, end_line: 105, end_column: 45 } },
-        /* terrane-site-row: site 13: /core/time::sleep-until (core/time.trn:161:13-161:45) */
+        /* terrane-site-row: site 14: /core/time::sleep-until (core/time.trn:161:13-161:45) */
         { Site { function: 10, file: 1, line: 161, column: 13, end_line: 161, end_column: 45 } },
-        /* terrane-site-row: site 14: /core/time::interval (core/time.trn:172:13-172:45) */
+        /* terrane-site-row: site 15: /core/time::interval (core/time.trn:172:13-172:45) */
         { Site { function: 11, file: 1, line: 172, column: 13, end_line: 172, end_column: 45 } },
     ];
     #[cold]
@@ -1944,7 +1946,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    6 /* terrane-site: core/time.trn:62:13-62:45 */,
+                    7 /* terrane-site: core/time.trn:62:13-62:45 */,
                 )
             });
         }
@@ -1973,7 +1975,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    7 /* terrane-site: core/time.trn:38:13-38:45 */,
+                    8 /* terrane-site: core/time.trn:38:13-38:45 */,
                 )
             });
         }
@@ -2001,7 +2003,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    8 /* terrane-site: core/time.trn:43:13-43:45 */,
+                    9 /* terrane-site: core/time.trn:43:13-43:45 */,
                 )
             });
         }
@@ -2030,7 +2032,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    9 /* terrane-site: core/time.trn:48:13-48:45 */,
+                    10 /* terrane-site: core/time.trn:48:13-48:45 */,
                 )
             });
         }
@@ -2059,7 +2061,7 @@ impl Duration {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    10 /* terrane-site: core/time.trn:53:13-53:45 */,
+                    11 /* terrane-site: core/time.trn:53:13-53:45 */,
                 )
             });
         }
@@ -2130,7 +2132,7 @@ impl MonotonicInstant {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    11 /* terrane-site: core/time.trn:76:13-76:45 */,
+                    12 /* terrane-site: core/time.trn:76:13-76:45 */,
                 )
             });
         }
@@ -2236,7 +2238,7 @@ impl Deadline {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    12 /* terrane-site: core/time.trn:105:13-105:45 */,
+                    13 /* terrane-site: core/time.trn:105:13-105:45 */,
                 )
             });
         }
@@ -2538,7 +2540,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    13 /* terrane-site: core/time.trn:161:13-161:45 */,
+                    14 /* terrane-site: core/time.trn:161:13-161:45 */,
                 )
             });
         }
@@ -2574,7 +2576,7 @@ impl Clock {
                     TerraneErrorKind::Custom(DescriptorId(1)),
                     message,
                     rendered,
-                    14 /* terrane-site: core/time.trn:172:13-172:45 */,
+                    15 /* terrane-site: core/time.trn:172:13-172:45 */,
                 )
             });
         }

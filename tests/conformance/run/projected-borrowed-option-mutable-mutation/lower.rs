@@ -6,7 +6,7 @@ fn mark(header: &mut HeaderValue) {
     __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
-                let _ = header.set_sensitive(true);
+                let _ = (*header).set_sensitive(true);
             }),
         ) {
             Ok(()) => Ok(()),
@@ -26,7 +26,7 @@ fn mark(header: &mut HeaderValue) {
 fn forward(header: &mut HeaderValue) {
     let operation: std::sync::Arc<dyn Fn(&mut HeaderValue) -> () + Send + Sync>;
     operation = std::sync::Arc::new(mark);
-    operation(&mut *header);
+    operation(&mut **header);
 }
 fn change(header: &mut HeaderValue) -> bool {
     forward(&mut *header);
@@ -36,7 +36,7 @@ fn clear(header: &mut HeaderValue) -> Option<bool> {
     __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
-                let _ = header.set_sensitive(false);
+                let _ = (*header).set_sensitive(false);
             }),
         ) {
             Ok(()) => Ok(()),
@@ -57,7 +57,7 @@ fn clear(header: &mut HeaderValue) -> Option<bool> {
 fn read(header: &HeaderValue) -> bool {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&header).is_sensitive()),
+            std::panic::AssertUnwindSafe(|| (&*header).is_sensitive()),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -142,7 +142,7 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "http",
                         "http::HeaderMap::insert",
                     ),
                 )
@@ -171,7 +171,7 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "std",
                         "std::option::Option::map",
                     ),
                 )
@@ -206,7 +206,7 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "std",
                         "std::option::Option::map",
                     ),
                 )
@@ -241,7 +241,7 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "std",
                         "std::option::Option::and_then",
                     ),
                 )
@@ -276,7 +276,7 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "std",
                         "std::option::Option::map",
                     ),
                 )

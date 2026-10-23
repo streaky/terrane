@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn marker_value(value: &Marker) -> terrane_int_support::Int {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&value).value()),
+            std::panic::AssertUnwindSafe(|| (&*value).value()),
         ) {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => {
@@ -60,8 +60,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
-                            "witness::make",
+                            "dependency",
+                            "dependency::ForeignType::make",
                         ),
                     )
                 }
@@ -81,7 +81,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Factory::create",
                         ),
                     )
@@ -98,8 +98,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
-                            "witness::make",
+                            "dependency",
+                            "dependency::ForeignType::make",
                         ),
                     )
                 }
@@ -111,24 +111,24 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&marker_cell))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 5 /* terrane-site: src/main.trn:16:13-16:33 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 5 /* terrane-site: src/main.trn:16:13-16:33 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&method_cell))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 6 /* terrane-site: src/main.trn:17:13-17:33 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 6 /* terrane-site: src/main.trn:17:13-17:33 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&defaulted))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 7 /* terrane-site: src/main.trn:18:13-18:31 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 7 /* terrane-site: src/main.trn:18:13-18:31 */))
         );
         selected = __terrane_raised(
             match std::panic::catch_unwind(
@@ -163,7 +163,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "std",
                             "std::option::Option::map",
                         ),
                     )
@@ -184,8 +184,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::ordered(marker.clone(), true))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::ordered")) }, 9 /* terrane-site: src/main.trn:24:13-24:54 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::ordered")) }, 9 /* terrane-site: src/main.trn:24:13-24:54 */))
         );
         mixed_cell = __terrane_raised(
             match std::panic::catch_unwind(
@@ -196,8 +196,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
-                            "witness::mixed",
+                            "dependency",
+                            "dependency::ForeignType::mixed",
                         ),
                     )
                 }
@@ -209,8 +209,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&mixed_cell))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 11 /* terrane-site: src/main.trn:26:13-26:32 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 11 /* terrane-site: src/main.trn:26:13-26:32 */))
         );
         inline_byte = {
             let __terrane_native_input_0 = match || -> Result<
@@ -245,8 +245,8 @@ fn main() {
                         Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "witness",
-                                "witness::echo",
+                                "dependency",
+                                "dependency::ForeignType::echo",
                             ),
                         )
                     }
@@ -259,8 +259,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&inline_byte))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 14 /* terrane-site: src/main.trn:28:13-28:33 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 14 /* terrane-site: src/main.trn:28:13-28:33 */))
         );
         retained_byte = __terrane_raised(
             terrane_int_support::coerce::<
@@ -282,8 +282,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
-                            "witness::echo",
+                            "dependency",
+                            "dependency::ForeignType::echo",
                         ),
                     )
                 }
@@ -295,8 +295,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&stored_byte))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 17 /* terrane-site: src/main.trn:31:13-31:33 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 17 /* terrane-site: src/main.trn:31:13-31:33 */))
         );
         unsafe_cell = __terrane_raised(
             match std::panic::catch_unwind(
@@ -310,7 +310,7 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "dependency",
-                            "witness::make_unsafe",
+                            "dependency::ForeignType::make_unsafe",
                         ),
                     )
                 }
@@ -322,8 +322,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&unsafe_cell))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 19 /* terrane-site: src/main.trn:33:13-33:33 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 19 /* terrane-site: src/main.trn:33:13-33:33 */))
         );
         unsafe_method_cell = __terrane_raised(
             match std::panic::catch_unwind(
@@ -336,7 +336,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Factory::unsafe_create",
                         ),
                     )
@@ -349,8 +349,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&unsafe_method_cell))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 21 /* terrane-site: src/main.trn:35:13-35:40 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 21 /* terrane-site: src/main.trn:35:13-35:40 */))
         );
         left = __terrane_raised(
             cycle(),
@@ -406,8 +406,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "witness",
-                            "witness::make",
+                            "dependency",
+                            "dependency::ForeignType::make",
                         ),
                     )
                 }
@@ -419,8 +419,8 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&native_int))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 27 /* terrane-site: src/main.trn:41:13-41:32 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 27 /* terrane-site: src/main.trn:41:13-41:32 */))
         );
         static_default = __terrane_raised(
             match std::panic::catch_unwind(
@@ -431,7 +431,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Holder::make",
                         ),
                     )
@@ -451,7 +451,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Holder::with_owner",
                         ),
                     )
@@ -468,7 +468,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Holder::make",
                         ),
                     )
@@ -495,8 +495,8 @@ fn main() {
                                     Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "witness",
-                                            "witness::make_async",
+                                            "dependency",
+                                            "dependency::ForeignType::make_async",
                                         ),
                                     )
                                 }
@@ -528,7 +528,7 @@ fn main() {
                                     Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "dependency",
+                                            "witness",
                                             "witness::Factory::create_async",
                                         ),
                                     )
@@ -551,15 +551,14 @@ fn main() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&async_free))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 35 /* terrane-site: src/main.trn:50:13-50:32 */)),
-            String::from(" "),
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 35 /* terrane-site: src/main.trn:50:13-50:32 */)), String::from(" "),
             terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::consume(&async_member))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::consume")) }, 36 /* terrane-site: src/main.trn:50:41-50:62 */))
+            Err(crate ::__terrane_dependency_panic(payload, "dependency",
+            "dependency::ForeignType::consume")) }, 36 /* terrane-site: src/main.trn:50:41-50:62 */))
         );
         async_free_value = __terrane_raised(
             match std::panic::catch_unwind(
@@ -594,7 +593,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "std",
                             "std::option::Option::map",
                         ),
                     )
@@ -642,7 +641,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "std",
                             "std::option::Option::map",
                         ),
                     )
