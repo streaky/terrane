@@ -1123,6 +1123,7 @@ pub(super) fn project_rustdoc(
             &right.rust_path,
         ))
     });
+    projected_associated_items.dedup();
     let mut associated_index = 0;
     while associated_index < projected_associated_items.len() {
         let first = associated_index;

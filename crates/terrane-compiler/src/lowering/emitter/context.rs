@@ -290,7 +290,10 @@ impl<'unit> Emitter<'unit> {
                             .is_some_and(|method| {
                                 matches!(
                                     method.receiver,
-                                    Some(crate::rust_interop::projection::Receiver::Move)
+                                    Some(
+                                        crate::rust_interop::projection::Receiver::Move
+                                            | crate::rust_interop::projection::Receiver::BoxedMove
+                                    )
                                 )
                             })
                     }))

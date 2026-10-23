@@ -390,6 +390,9 @@ pub(super) fn canonicalize_projected_type_names(projected: &mut [ProjectedDepend
             .or_insert_with(|| Some(item.rust_path.clone()));
     }
     let canonicalize_function = |function: &mut ProjectedFunction| {
+        if let Some(path) = &mut function.native_path {
+            canonicalize_qualified_call_owner(path, &error_paths);
+        }
         for ty in function
             .parameters
             .iter_mut()
@@ -707,10 +710,7 @@ pub(super) fn projected_bound_dependencies(
         })
         .filter(|root| {
             !declared.contains(root)
-                && !matches!(
-                    root.as_str(),
-                    "std" | "core" | "alloc" | "self" | "crate" | "Self"
-                )
+                && !matches!(root.as_str(), "std" | "core" | "alloc" | "self" | "crate")
         })
         .collect::<BTreeSet<_>>();
     resolved_projected_dependencies(required, workspace, false)
@@ -816,10 +816,12 @@ pub(super) fn rewrite_rust_bound_root(
     while let Some(relative_start) = bound[cursor..].find(package_root) {
         let start = cursor + relative_start;
         let end = start + package_root.len();
-        let boundary_before = bound[..start].chars().next_back().is_none_or(|character| {
+        let before = &bound[..start];
+        let boundary_before = before.chars().next_back().is_none_or(|character| {
             !(character.is_alphanumeric() || matches!(character, '_' | ':'))
-        });
-        let path_root = bound[end..].starts_with("::") || (start == 0 && end == bound.len());
+        }) && !before.trim_end().ends_with("::");
+        let path_root =
+            bound[end..].trim_start().starts_with("::") || (start == 0 && end == bound.len());
         rendered.push_str(&bound[cursor..start]);
         if boundary_before && path_root {
             rendered.push_str(dependency_root);
@@ -830,6 +832,46 @@ pub(super) fn rewrite_rust_bound_root(
     }
     rendered.push_str(&bound[cursor..]);
     rendered
+}
+
+fn canonicalize_qualified_call_owner(path: &mut String, aliases: &BTreeMap<String, String>) {
+    let Ok(mut expression) = syn::parse_str::<syn::ExprPath>(path) else {
+        return;
+    };
+    let Some(qualified) = expression.qself.as_mut() else {
+        return;
+    };
+    let syn::Type::Path(owner) = qualified.ty.as_mut() else {
+        return;
+    };
+    if owner.qself.is_some() {
+        return;
+    }
+    let constructor = owner
+        .path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect::<Vec<_>>()
+        .join("::");
+    let Some(canonical) = aliases
+        .get(&constructor)
+        .filter(|canonical| **canonical != constructor)
+    else {
+        return;
+    };
+    let Ok(mut replacement) = syn::parse_str::<syn::Path>(canonical) else {
+        return;
+    };
+    if let (Some(original), Some(selected)) = (
+        owner.path.segments.last_mut(),
+        replacement.segments.last_mut(),
+    ) && !matches!(original.arguments, syn::PathArguments::None)
+    {
+        selected.arguments = std::mem::take(&mut original.arguments);
+    }
+    owner.path = replacement;
+    *path = quote::quote!(#expression).to_string();
 }
 
 fn item_undeclared_owner<'a>(

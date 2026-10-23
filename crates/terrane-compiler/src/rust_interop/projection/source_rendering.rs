@@ -1106,7 +1106,7 @@ fn render_interface_method(
     let function = &method.function;
     let mode = match function.receiver {
         Some(Receiver::MutableBorrow) => "mutable ",
-        Some(Receiver::Move) => "consuming ",
+        Some(Receiver::Move | Receiver::BoxedMove) => "consuming ",
         _ => "",
     };
     let asynchronous = if function.is_async { "async " } else { "" };

@@ -1141,16 +1141,13 @@ pub(super) fn generic_monomorphisations(
             }
             continue;
         }
-        let immediate_projectable = mentioned_inputs.len() == 1
-            && immediate_generic_input(&mentioned_inputs[0].1, &parameter.name)
-            && projectable_interface_bound(&generic_bounds(parameter, function), index, paths)
-                .is_ok();
-        if !immediate_projectable {
-            result.insert(
-                parameter.name.clone(),
-                ProjectedType::Generic(parameter.name.clone()),
-            );
-        }
+        // Preserve the actual native argument ABI until the call site. A
+        // projectable trait does not make its native implementors source objects;
+        // source-interface adapter evidence is retained separately on parameters.
+        result.insert(
+            parameter.name.clone(),
+            ProjectedType::Generic(parameter.name.clone()),
+        );
     }
     // Resolve callable parameters before unrelated generic parameters. A callback whose
     // signature mentions an open `T` must decline; it must not inherit a guessed closed

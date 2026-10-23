@@ -229,6 +229,94 @@ pub(super) fn project_invocation_scoped_type(
     })
 }
 
+fn concrete_associated_type(
+    owner: &ProjectedType,
+    trait_: Option<&RustdocPath>,
+    name: &str,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<ProjectedType>, String> {
+    let ProjectedType::Foreign {
+        base_rust_path,
+        arguments,
+        ..
+    } = owner
+    else {
+        return Ok(None);
+    };
+    let Some((id, _)) = paths
+        .iter()
+        .find(|(_, summary)| summary.path.join("::") == *base_rust_path)
+    else {
+        return Ok(None);
+    };
+    let Some(item) = index.get(id) else {
+        return Ok(None);
+    };
+    let (parameters, implementations) = match &item.inner {
+        ItemEnum::Struct(declaration) => (&declaration.generics.params, &declaration.impls),
+        ItemEnum::Enum(declaration) => (&declaration.generics.params, &declaration.impls),
+        _ => return Ok(None),
+    };
+    let mut concrete = generics.clone();
+    concrete.insert("Self".to_owned(), owner.clone());
+    for (parameter, argument) in parameters
+        .iter()
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+        .zip(arguments)
+    {
+        concrete.insert(parameter.name.clone(), argument.clone());
+    }
+    let mut result = None;
+    for implementation in implementations {
+        let Some(Item {
+            inner: ItemEnum::Impl(implementation),
+            ..
+        }) = index.get(implementation)
+        else {
+            continue;
+        };
+        if implementation.is_negative
+            || implementation.is_synthetic
+            || trait_.is_some_and(|trait_| {
+                implementation
+                    .trait_
+                    .as_ref()
+                    .is_none_or(|candidate| candidate.id != trait_.id)
+            })
+            || project_type(&implementation.for_, index, paths, &concrete)
+                .ok()
+                .as_ref()
+                != Some(owner)
+        {
+            continue;
+        }
+        for associated in &implementation.items {
+            let Some(Item {
+                name: Some(candidate),
+                inner:
+                    ItemEnum::AssocType {
+                        type_: Some(value), ..
+                    },
+                ..
+            }) = index.get(associated)
+            else {
+                continue;
+            };
+            if candidate != name {
+                continue;
+            }
+            let value = project_type(value, index, paths, &concrete)?;
+            if result.as_ref().is_some_and(|previous| previous != &value) {
+                return Err(format!("ambiguous concrete associated type `{name}`"));
+            }
+            result = Some(value);
+        }
+    }
+    Ok(result)
+}
+
 pub(super) fn project_type(
     ty: &Type,
     index: &HashMap<Id, Item>,
@@ -288,14 +376,34 @@ pub(super) fn project_type(
             name,
             args,
             self_type,
-            ..
+            trait_,
         } if args.is_none()
             && matches!(self_type.as_ref(), Type::Generic(owner) if generics.contains_key(owner)) =>
         {
             let Type::Generic(owner) = self_type.as_ref() else {
                 unreachable!("qualified generic owner was matched above");
             };
+            if let Some(associated) = generics.get(&format!("{owner}::{name}")) {
+                return Ok(associated.clone());
+            }
+            let concrete = generics.get(owner).expect("matched generic owner");
+            if let Some(associated) =
+                concrete_associated_type(concrete, trait_.as_ref(), name, index, paths, generics)?
+            {
+                return Ok(associated);
+            }
             Ok(ProjectedType::Associated(format!("{owner}::{name}")))
+        }
+        Type::QualifiedPath {
+            name,
+            args: None,
+            self_type,
+            trait_,
+            ..
+        } => {
+            let owner = project_type(self_type, index, paths, generics)?;
+            concrete_associated_type(&owner, trait_.as_ref(), name, index, paths, generics)?
+                .ok_or_else(|| format!("unresolved concrete associated type `{name}`"))
         }
         Type::ImplTrait(bounds) => Ok(ProjectedType::Opaque {
             anonymous_chain: bounds.iter().any(|bound| {
@@ -639,6 +747,14 @@ fn resolved_error_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<St
         return None;
     };
     let resolved = resolved_path_name(path, paths);
+    // The ID-linked Rustdoc path is authoritative over a module-relative spelling
+    // retained in an expanded Result alias.
+    if paths
+        .get(&path.id)
+        .is_some_and(|summary| summary.path.len() > 1)
+    {
+        return Some(resolved);
+    }
     let written = path.path.replace("crate::", "");
     Some(
         [resolved, written]
@@ -712,4 +828,34 @@ pub(super) fn type_arguments(ty: &Type) -> Vec<&Type> {
             _ => None,
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustdoc_types::{ItemKind, Path};
+
+    #[test]
+    fn result_error_prefers_rustdoc_identity() {
+        let id = Id(1);
+        let error = Type::ResolvedPath(Path {
+            path: "errors::Error".to_owned(),
+            id,
+            args: None,
+        });
+        for owner in ["consumer", "external"] {
+            let paths = HashMap::from([(
+                id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec![owner.to_owned(), "Error".to_owned()],
+                    kind: ItemKind::Struct,
+                },
+            )]);
+            assert_eq!(
+                resolved_error_name(&error, &paths),
+                Some(format!("{owner}::Error")),
+            );
+        }
+    }
 }

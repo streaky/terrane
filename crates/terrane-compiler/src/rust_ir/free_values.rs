@@ -21,10 +21,30 @@ pub(crate) fn rust_free_value_identifiers(rust: &str) -> BTreeSet<String> {
     values.free
 }
 
+/// Explicit mutable borrows of free Rust values, respecting Rust lexical shadowing.
+/// Method-call mutability still belongs to Rust; callers must spell `&mut` when
+/// lending a source value mutably through an opaque Rust block.
+pub(crate) fn rust_mutably_borrowed_value_identifiers(rust: &str) -> BTreeSet<String> {
+    let body = rust.split_once('\n').map_or(rust, |(header, body)| {
+        if matches!(header.trim(), "rust" | "unsafe rust") {
+            body
+        } else {
+            rust
+        }
+    });
+    let Ok(statements) = syn::Block::parse_within.parse_str(body) else {
+        return BTreeSet::new();
+    };
+    let mut values = FreeValues::default();
+    values.block(&statements);
+    values.mutably_borrowed
+}
+
 #[derive(Default)]
 struct FreeValues {
     scopes: Vec<BTreeSet<String>>,
     free: BTreeSet<String>,
+    mutably_borrowed: BTreeSet<String>,
 }
 
 impl FreeValues {
@@ -136,6 +156,37 @@ impl FreeValues {
 }
 
 impl<'ast> syn::visit::Visit<'ast> for FreeValues {
+    fn visit_expr_reference(&mut self, expression: &'ast syn::ExprReference) {
+        fn root(expression: &syn::Expr) -> Option<&syn::Ident> {
+            match expression {
+                syn::Expr::Path(path)
+                    if path.qself.is_none()
+                        && path.path.leading_colon.is_none()
+                        && path.path.segments.len() == 1 =>
+                {
+                    Some(&path.path.segments[0].ident)
+                }
+                syn::Expr::Paren(value) => root(&value.expr),
+                syn::Expr::Group(value) => root(&value.expr),
+                syn::Expr::Field(value) => root(&value.base),
+                syn::Expr::Index(value) => root(&value.expr),
+                syn::Expr::Unary(value) if matches!(value.op, syn::UnOp::Deref(_)) => {
+                    root(&value.expr)
+                }
+                _ => None,
+            }
+        }
+        if expression.mutability.is_some()
+            && let Some(name) = root(&expression.expr)
+        {
+            let name = name.to_string();
+            if !self.scopes.iter().rev().any(|scope| scope.contains(&name)) {
+                self.mutably_borrowed.insert(name);
+            }
+        }
+        syn::visit::visit_expr_reference(self, expression);
+    }
+
     fn visit_expr_path(&mut self, expression: &'ast syn::ExprPath) {
         if expression.qself.is_none()
             && expression.path.leading_colon.is_none()

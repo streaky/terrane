@@ -198,7 +198,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             .is_some_and(|method| {
                 matches!(
                     method.receiver,
-                    Some(crate::rust_interop::projection::Receiver::Move)
+                    Some(
+                        crate::rust_interop::projection::Receiver::Move
+                            | crate::rust_interop::projection::Receiver::BoxedMove
+                    )
                 )
             })
             || method_contract(package, object_identity, method_name, false)
@@ -247,7 +250,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 && function.receiver.is_some()
                 && !matches!(
                     function.receiver,
-                    Some(crate::rust_interop::projection::Receiver::Move)
+                    Some(
+                        crate::rust_interop::projection::Receiver::Move
+                            | crate::rust_interop::projection::Receiver::BoxedMove
+                    )
                 )
                 && callee.kind == SyntaxKind::MemberExpression
                 && let Some(receiver) = callee.children.first()
@@ -1116,7 +1122,12 @@ fn first_owner_lifetime_end(
         {
             node.children.last()
         }
-        SyntaxKind::CallExpression => mutating_call_receiver(package, unit, node),
+        // A lender parameter is itself a live reference, not a dependent
+        // observer invalidated by mutation through that same reference.
+        // Observers created later still end at a mutable receiver call.
+        SyntaxKind::CallExpression if after != owner.start => {
+            mutating_call_receiver(package, unit, node)
+        }
         _ => None,
     };
     if node.span.start > after

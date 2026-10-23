@@ -1,0 +1,12 @@
+package = "cross-crate-native-default-methods"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "native-default-witness"
+version = "=0.1.0"
+
+[rust-dependencies.provider]
+package = "native-default-provider"
+version = "=0.1.0"

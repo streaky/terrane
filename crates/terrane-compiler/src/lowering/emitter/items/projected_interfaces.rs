@@ -138,6 +138,13 @@ impl Emitter<'_> {
                         InvocationMode::Mutable,
                     ) => "mut self",
                     (Some(crate::rust_interop::projection::Receiver::Move), _) => "self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::BoxedMove),
+                        InvocationMode::Mutable,
+                    ) => "mut self: Box<Self>",
+                    (Some(crate::rust_interop::projection::Receiver::BoxedMove), _) => {
+                        "self: Box<Self>"
+                    }
                     (Some(crate::rust_interop::projection::Receiver::MutableBorrow), _) => {
                         "&mut self"
                     }
@@ -190,6 +197,18 @@ impl Emitter<'_> {
                         Some(crate::rust_interop::projection::Receiver::Move),
                         InvocationMode::Consuming,
                     ) => "self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::BoxedMove),
+                        InvocationMode::Shared,
+                    ) => "&*self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::BoxedMove),
+                        InvocationMode::Mutable,
+                    ) => "&mut *self",
+                    (
+                        Some(crate::rust_interop::projection::Receiver::BoxedMove),
+                        InvocationMode::Consuming,
+                    ) => "*self",
                     (_, InvocationMode::Shared) => "&*self",
                     (_, InvocationMode::Mutable) => "&mut *self",
                     (_, InvocationMode::Consuming) => {
@@ -217,7 +236,10 @@ impl Emitter<'_> {
                             "{{ let mut __terrane_receiver = {callback_receiver}; let (__terrane_output, __terrane_receiver) = __terrane_projected_async_entry(async move {{ let __terrane_output = <{class_type}>::{}(&mut __terrane_receiver, {arguments}).await; (__terrane_output, __terrane_receiver) }}).await; *self = __terrane_receiver; __terrane_output }}",
                             rust_name(&method.name)
                         ),
-                        Some(crate::rust_interop::projection::Receiver::Move) => format!(
+                        Some(
+                            crate::rust_interop::projection::Receiver::Move
+                            | crate::rust_interop::projection::Receiver::BoxedMove,
+                        ) => format!(
                             "__terrane_projected_async_entry(async move {{ {terrane_call} }}).await"
                         ),
                         None => terrane_call,

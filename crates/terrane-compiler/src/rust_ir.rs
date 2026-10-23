@@ -7,7 +7,9 @@ use syn::parse::Parser as _;
 use crate::Span;
 
 mod free_values;
-pub(crate) use free_values::rust_free_value_identifiers;
+pub(crate) use free_values::{
+    rust_free_value_identifiers, rust_mutably_borrowed_value_identifiers,
+};
 
 /// Collects every identifier token from a Rust fragment without performing Rust name resolution.
 ///
@@ -237,6 +239,13 @@ pub(crate) fn instantiate_rust_generics(
     struct Substitutions<'a>(&'a std::collections::BTreeMap<String, String>);
 
     impl syn::fold::Fold for Substitutions<'_> {
+        fn fold_lifetime(&mut self, lifetime: syn::Lifetime) -> syn::Lifetime {
+            self.0
+                .get(&lifetime.to_string())
+                .and_then(|replacement| syn::parse_str(replacement).ok())
+                .unwrap_or(lifetime)
+        }
+
         fn fold_type(&mut self, ty: syn::Type) -> syn::Type {
             if let syn::Type::Path(path) = &ty
                 && path.qself.is_none()

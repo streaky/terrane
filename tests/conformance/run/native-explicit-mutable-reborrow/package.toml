@@ -1,0 +1,8 @@
+package = "native-explicit-mutable-reborrow"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "native-mutable-witness"
+version = "=0.1.0"

@@ -309,6 +309,15 @@ pub(super) fn rebind_method_owner(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) {
+    if method.receiver == Some(super::Receiver::Move)
+        && let Type::BorrowedRef { is_mutable, .. } = &implementation.for_
+    {
+        method.receiver = Some(if *is_mutable {
+            super::Receiver::MutableBorrow
+        } else {
+            super::Receiver::Borrow
+        });
+    }
     let Some(facade) = generics.get("Self") else {
         return;
     };

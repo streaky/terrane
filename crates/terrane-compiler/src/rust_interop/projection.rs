@@ -148,7 +148,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "261";
+const PROJECTION_SCHEMA: &str = "284";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -622,6 +622,7 @@ pub enum Receiver {
     Borrow,
     MutableBorrow,
     Move,
+    BoxedMove,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2354,7 +2355,7 @@ impl Projection {
                 } if !cloneable
                     && methods.iter().any(|method| {
                         method.is_async
-                            || (matches!(method.receiver, Some(Receiver::Move))
+                            || (matches!(method.receiver, Some(Receiver::Move | Receiver::BoxedMove))
                                 && method.native_path.is_none())
                     })
             )

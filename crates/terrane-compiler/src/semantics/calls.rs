@@ -563,6 +563,18 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         };
+        if matches!(
+            parameter.ty,
+            crate::rust_interop::projection::ProjectedType::Generic(_)
+        ) && package
+            .projection
+            .foreign_rust_path(&identity.namespace, &identity.name)
+            .is_some()
+        {
+            // Native implementors are checked by the runtime-ABI bound proof;
+            // this pass validates source classes and their interface adapters.
+            continue;
+        }
         let Some((_, implementor)) = package.units.iter().find_map(|owner| {
             owner
                 .descriptors
@@ -581,6 +593,10 @@ fn validate_projected_generic_arguments(
             crate::rust_interop::projection::ProjectedType::BoxedInterface {
                 trait_path, ..
             } => trait_path.clone(),
+            crate::rust_interop::projection::ProjectedType::Generic(_) => parameter
+                .generic_interface
+                .clone()
+                .expect("selected interface bound"),
             _ => parameter.ty.rust_type(),
         };
         let expected_base = expected_rust_path

@@ -285,7 +285,7 @@ fn main() {
                     )
                 }
             },
-            6 /* terrane-site: src/main.trn:18:16-18:41 */,
+            6 /* terrane-site: src/main.trn:18:16-18:35 */,
         );
         println!(
             "{}",
@@ -367,7 +367,7 @@ fn main() {
                     )
                 }
             },
-            9 /* terrane-site: src/main.trn:21:23-21:55 */,
+            9 /* terrane-site: src/main.trn:21:23-21:49 */,
         );
         println!(
             "{}",

@@ -726,7 +726,7 @@ impl<'a> Emitter<'a> {
                         else {
                             continue;
                         };
-                        if borrowed {
+                        {
                             let selected_identity = match &value_type {
                                 Some(ValueType::Object(identity)) => Some(identity),
                                 Some(ValueType::Optional(inner)) => match inner.as_ref() {
@@ -756,21 +756,27 @@ impl<'a> Emitter<'a> {
                                 }
                                 let projected =
                                     substitute_projected_generic(&field.ty, &selected_types);
-                                // Fixed-width payloads retain their native borrowed
-                                // representation. Unbounded integers require a value conversion.
+                                // Adaptive integer payloads need their native-to-source
+                                // conversion for both borrowed and consuming matches.
                                 if matches!(
                                     projected,
                                     crate::rust_interop::projection::ProjectedType::Int
+                                        | crate::rust_interop::projection::ProjectedType::RustInt(
+                                            _
+                                        )
                                 ) {
                                     let name = format!(
                                         "__terrane_pattern_{}_{}",
                                         case.span.start,
                                         rust_name(binding)
                                     );
-                                    let converted = projected_result_expression(
-                                        &format!("*{name}"),
-                                        &projected,
-                                    );
+                                    let native = if borrowed {
+                                        format!("*{name}")
+                                    } else {
+                                        name.clone()
+                                    };
+                                    let converted =
+                                        projected_result_expression(&native, &projected);
                                     native_payload_conversions
                                         .push(format!("let {name} = {converted};"));
                                 }

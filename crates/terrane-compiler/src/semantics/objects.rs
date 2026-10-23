@@ -1402,8 +1402,8 @@ pub(super) fn validate_object_conformance(
                                 projected,
                             ) => projected.methods.iter().find(|method| {
                                 method.function.is_async
-                                    && method.function.receiver
-                                        != Some(crate::rust_interop::projection::Receiver::Move)
+                                    && !matches!(method.function.receiver,
+                                        Some(crate::rust_interop::projection::Receiver::Move | crate::rust_interop::projection::Receiver::BoxedMove))
                             }),
                             _ => None,
                         })

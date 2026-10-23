@@ -12,7 +12,6 @@ use super::{
     ProjectedInterfaceMethod, ProjectedItem, ProjectedKind, ProjectedParameter,
     ProjectedSupertrait, ProjectedType, Receiver, RustDependency, project_function_with_generics,
     project_type, render_generic_bound, render_resolved_path, type_contains_borrowed_ref,
-    type_mentions_generic,
 };
 
 pub(super) fn project_interface(
@@ -333,6 +332,7 @@ pub(super) fn projected_interface_impl_question(
                 Some(Receiver::Borrow) => "&self",
                 Some(Receiver::MutableBorrow) => "&mut self",
                 Some(Receiver::Move) => "self",
+                Some(Receiver::BoxedMove) => "self: Box<Self>",
                 None => "",
             });
             for parameter in &function.parameters {
@@ -525,7 +525,7 @@ pub(super) fn merge_projected_trait_operations(
                     generic_interface: None,
                     generic_bounds: Vec::new(),
                     associated_type: None,
-                    borrowed: receiver != Receiver::Move,
+                    borrowed: !matches!(receiver, Receiver::Move | Receiver::BoxedMove),
                     mutable_borrow: receiver == Receiver::MutableBorrow,
                 },
             );
@@ -570,8 +570,9 @@ pub(super) fn project_external_provided_trait_methods(
     projected: &mut [ProjectedDependency],
     rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
     canonical_public_paths: &[BTreeMap<String, String>],
+    include_defaults: bool,
 ) {
-    for (dependency_index, (_, document, _)) in rustdocs.iter().enumerate() {
+    for (dependency_index, (dependency, document, _)) in rustdocs.iter().enumerate() {
         let mut paths = document.paths.clone();
         for summary in paths.values_mut() {
             if let Some(public_path) =
@@ -591,13 +592,31 @@ pub(super) fn project_external_provided_trait_methods(
             let Some(trait_summary) = document.paths.get(&trait_reference.id) else {
                 continue;
             };
-            if trait_summary.crate_id == 0 || implementation.provided_trait_methods.is_empty() {
+            let explicit_method_names = implementation
+                .items
+                .iter()
+                .filter_map(|id| document.index.get(id))
+                .filter_map(|item| {
+                    matches!(item.inner, ItemEnum::Function(_))
+                        .then(|| item.name.clone())
+                        .flatten()
+                })
+                .collect::<BTreeSet<_>>();
+            if trait_summary.crate_id == 0
+                || implementation.provided_trait_methods.is_empty()
+                    && explicit_method_names.is_empty()
+            {
                 continue;
             }
             let trait_path = trait_summary.path.join("::");
-            let Some((trait_id, trait_document, trait_public_paths, trait_declaration)) = rustdocs
-                .iter()
-                .find_map(|(_, trait_document, trait_public_paths)| {
+            let Some((
+                trait_dependency_index,
+                trait_id,
+                trait_document,
+                trait_public_paths,
+                trait_declaration,
+            )) = rustdocs.iter().enumerate().find_map(
+                |(trait_dependency_index, (_, trait_document, trait_public_paths))| {
                     trait_document.index.iter().find_map(|(id, item)| {
                         let ItemEnum::Trait(declaration) = &item.inner else {
                             return None;
@@ -612,70 +631,84 @@ pub(super) fn project_external_provided_trait_methods(
                             .cloned()
                             .unwrap_or_else(|| source_path.clone());
                         (public_path == trait_path || source_path == trait_path).then_some((
+                            trait_dependency_index,
                             id,
                             trait_document,
                             trait_public_paths,
                             declaration,
                         ))
                     })
-                })
+                },
+            )
             else {
                 continue;
             };
-            if !trait_declaration
-                .bounds
-                .iter()
-                .any(|bound| matches!(bound, GenericBound::Outlives(_)))
-            {
-                continue;
-            }
-            if project_interface_inner(
-                trait_declaration,
-                &trait_document.index,
-                &trait_document.paths,
-                &trait_path,
-            )
-            .is_ok()
-            {
-                continue;
+            let mut implementation_generics = BTreeMap::new();
+            for parameter in &implementation.generics.params {
+                if matches!(parameter.kind, GenericParamDefKind::Type { .. }) {
+                    implementation_generics.insert(
+                        parameter.name.clone(),
+                        ProjectedType::Generic(parameter.name.clone()),
+                    );
+                }
             }
             let Ok(mut owner) = project_type(
                 &implementation.for_,
                 &document.index,
                 &paths,
-                &BTreeMap::new(),
+                &implementation_generics,
             ) else {
                 continue;
             };
-            let ProjectedType::Foreign {
-                rust_path: owner_rust_path,
-                ..
-            } = &owner
-            else {
+            let ProjectedType::Foreign { rust_path, .. } = &owner else {
                 continue;
             };
-            let owner_rust_path = owner_rust_path.clone();
-            let Some(owner_item) = projected[dependency_index]
-                .items
-                .iter()
-                .find(|item| item.rust_path == owner_rust_path)
-            else {
+            let owner_constructor = crate::rust_ir::rust_type_constructor(rust_path)
+                .unwrap_or_else(|| rust_path.clone());
+            let owner_constructor = super::extern_rust_path(dependency, &owner_constructor);
+            let Some(owner_item) = projected[dependency_index].items.iter().find(|item| {
+                crate::rust_ir::rust_type_constructor(&item.rust_path)
+                    .as_deref()
+                    .is_some_and(|constructor| constructor == owner_constructor)
+            }) else {
                 continue;
             };
             if let ProjectedType::Foreign {
                 name,
+                rust_path,
                 base_rust_path,
                 ..
             } = &mut owner
             {
                 name.clone_from(&owner_item.name);
-                *base_rust_path = owner_item
-                    .rust_path
-                    .split_once('<')
-                    .map_or_else(|| owner_item.rust_path.clone(), |(base, _)| base.to_owned());
+                let base = crate::rust_ir::rust_type_constructor(&owner_item.rust_path)
+                    .unwrap_or_else(|| owner_item.rust_path.clone());
+                let arguments = rust_path.find('<').map_or("", |start| &rust_path[start..]);
+                *base_rust_path = base.clone();
+                *rust_path = format!("{base}{arguments}");
             }
+            let ProjectedType::Foreign { rust_path, .. } = &owner else {
+                unreachable!("native impl owner remains a foreign type");
+            };
+            let owner_rust_path = rust_path.clone();
             let owner_namespace = owner_trait_namespace(&owner_item.namespace, &owner_item.name);
-            let mut supplied = BTreeMap::from([("Self".to_owned(), owner.clone())]);
+            let mut supplied = implementation_generics.clone();
+            supplied.insert("Self".to_owned(), owner.clone());
+            for (parameter, argument) in trait_declaration
+                .generics
+                .params
+                .iter()
+                .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+                .zip(super::callable::resolved_path_type_arguments(
+                    trait_reference,
+                ))
+            {
+                if let Ok(projected_type) =
+                    project_type(argument, &document.index, &paths, &supplied)
+                {
+                    supplied.insert(parameter.name.clone(), projected_type);
+                }
+            }
             for associated_id in &implementation.items {
                 let Some(Item {
                     name: Some(name),
@@ -698,22 +731,68 @@ pub(super) fn project_external_provided_trait_methods(
                 ProjectedType::None,
             );
             let namespace = owner_namespace;
-            let public_trait_path = trait_public_paths
-                .get(trait_id)
-                .cloned()
-                .unwrap_or_else(|| trait_path.clone())
-                .replace('-', "_");
+            let rendered_trait =
+                render_resolved_path(trait_reference, &document.index, &paths, &supplied).ok();
+            let trait_arguments = rendered_trait
+                .as_deref()
+                .and_then(|path| path.find('<').map(|start| &path[start..]))
+                .unwrap_or_default();
+            let public_trait_path = format!(
+                "{}{trait_arguments}",
+                trait_public_paths
+                    .get(trait_id)
+                    .unwrap_or(&trait_path)
+                    .replace('-', "_")
+            );
             let mut trait_paths = trait_document.paths.clone();
             for summary in trait_paths.values_mut() {
                 if let Some(public_path) =
-                    canonical_public_paths[dependency_index].get(&summary.path.join("::"))
+                    canonical_public_paths[trait_dependency_index].get(&summary.path.join("::"))
                 {
                     summary.path = public_path.split("::").map(str::to_owned).collect();
                 }
             }
-            for method_name in &implementation.provided_trait_methods {
+            let mut trait_signature_public_paths = trait_public_paths.clone();
+            for (id, public_path) in &mut trait_signature_public_paths {
+                if let Some(source_path) = trait_document
+                    .paths
+                    .get(id)
+                    .map(|summary| summary.path.join("::"))
+                    && let Some(canonical_path) =
+                        canonical_public_paths[trait_dependency_index].get(&source_path)
+                {
+                    public_path.clone_from(canonical_path);
+                }
+            }
+            let mut method_candidates = implementation
+                .provided_trait_methods
+                .iter()
+                .filter(|_| include_defaults)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            method_candidates.extend(explicit_method_names.iter().cloned());
+            for method_name in method_candidates {
+                let is_explicit = explicit_method_names.contains(&method_name);
                 let method_rust_path =
                     format!("<{owner_rust_path} as {public_trait_path}>::{method_name}");
+                if is_explicit
+                    && projected[dependency_index]
+                        .items
+                        .iter()
+                        .any(|item| item.rust_path == method_rust_path)
+                {
+                    continue;
+                }
+                if is_explicit {
+                    let failed_item_path = format!("{}::{method_name}", owner_item.rust_path);
+                    if !projected[dependency_index]
+                        .declined
+                        .iter()
+                        .any(|declined| declined.rust_path == failed_item_path)
+                    {
+                        continue;
+                    }
+                }
 
                 let Some(Item {
                     inner: ItemEnum::Function(function),
@@ -723,90 +802,76 @@ pub(super) fn project_external_provided_trait_methods(
                     trait_document
                         .index
                         .get(method_id)
-                        .filter(|method| method.name.as_deref() == Some(method_name))
+                        .filter(|method| method.name.as_deref() == Some(method_name.as_str()))
                 })
                 else {
-                    projected[dependency_index].declined.push(DeclinedItem {
-                        rust_path: method_rust_path,
-                        reason: "provided trait method declaration is unavailable".to_owned(),
-                    });
+                    if !is_explicit {
+                        projected[dependency_index].declined.push(DeclinedItem {
+                            rust_path: method_rust_path,
+                            reason: "provided trait method declaration is unavailable".to_owned(),
+                        });
+                    }
                     continue;
                 };
-                let mut generic_type_parameters =
-                    function.generics.params.iter().filter_map(|generic| {
-                        matches!(generic.kind, GenericParamDefKind::Type { .. })
-                            .then_some(generic.name.as_str())
-                    });
-                let has_input_selected = generic_type_parameters.clone().any(|generic| {
-                    function
-                        .sig
-                        .inputs
+                let mut enriched_function = function.clone();
+                for parameter in &implementation.generics.params {
+                    if !enriched_function
+                        .generics
+                        .params
                         .iter()
-                        .any(|(_, ty)| type_mentions_generic(ty, generic))
-                });
-                let has_destination_selected = generic_type_parameters.any(|generic| {
-                    function
-                        .sig
-                        .output
-                        .as_ref()
-                        .is_some_and(|output| type_mentions_generic(output, generic))
-                        && !function
-                            .sig
-                            .inputs
-                            .iter()
-                            .any(|(_, ty)| type_mentions_generic(ty, generic))
-                });
-                if !has_input_selected || !has_destination_selected {
-                    projected[dependency_index].declined.push(DeclinedItem {
-                        rust_path: method_rust_path,
-                        reason: "provided external trait method requires both input- and destination-selected generic parameters".to_owned(),
-                    });
-                    continue;
+                        .any(|candidate| candidate.name == parameter.name)
+                    {
+                        enriched_function.generics.params.push(parameter.clone());
+                    }
                 }
+                enriched_function
+                    .generics
+                    .where_predicates
+                    .extend(implementation.generics.where_predicates.iter().cloned());
                 let mut method = match project_function_with_generics(
-                    function,
+                    &enriched_function,
                     &trait_document.index,
                     &trait_paths,
-                    &BTreeMap::new(),
-                    Some(method_name),
+                    &trait_signature_public_paths,
+                    Some(&method_name),
                     &supplied,
                     false,
                 ) {
                     Ok(method) => method,
                     Err(reason) => {
-                        projected[dependency_index].declined.push(DeclinedItem {
-                            rust_path: method_rust_path,
-                            reason,
-                        });
+                        if !is_explicit {
+                            projected[dependency_index].declined.push(DeclinedItem {
+                                rust_path: method_rust_path,
+                                reason,
+                            });
+                        }
                         continue;
                     }
                 };
-                if method.destination_result.is_none()
-                    || !method
-                        .generic_parameters
-                        .iter()
-                        .any(|generic| generic.input_selected)
-                {
-                    projected[dependency_index].declined.push(DeclinedItem {
-                        rust_path: method_rust_path,
-                        reason: "provided external trait method did not retain both input- and destination-selected generic parameters".to_owned(),
-                    });
-                    continue;
-                }
-                if let Some(receiver) = method.receiver.take() {
-                    method.parameters.insert(
-                        0,
-                        ProjectedParameter {
-                            name: "receiver".to_owned(),
-                            ty: owner.clone(),
-                            generic_parameter: None,
-                            generic_interface: None,
-                            generic_bounds: Vec::new(),
-                            associated_type: None,
-                            borrowed: receiver != Receiver::Move,
-                            mutable_borrow: receiver == Receiver::MutableBorrow,
-                        },
-                    );
+                let native_generics = function
+                    .generics
+                    .params
+                    .iter()
+                    .filter(|parameter| {
+                        matches!(
+                            parameter.kind,
+                            GenericParamDefKind::Type {
+                                is_synthetic: false,
+                                ..
+                            }
+                        )
+                    })
+                    .map(|parameter| parameter.name.as_str())
+                    .collect::<BTreeSet<_>>();
+                method.rust_generic_arguments.retain(|argument| {
+                    !matches!(argument, ProjectedType::Generic(name) if !native_generics.contains(name.as_str()))
+                });
+                method.native_owner = Some(owner_rust_path.clone());
+                if is_explicit {
+                    let failed_item_path = format!("{}::{method_name}", owner_item.rust_path);
+                    projected[dependency_index]
+                        .declined
+                        .retain(|declined| declined.rust_path != failed_item_path);
                 }
                 additions.push(ProjectedTraitOperation {
                     fallback_namespace: trait_fallback_namespace(&namespace, &trait_path),

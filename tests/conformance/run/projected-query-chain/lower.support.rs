@@ -523,14 +523,14 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 15, column: 28, end_line: 15, end_column: 71 } },
         /* terrane-site-row: site 5: /app::main (src/main.trn:17:19-17:62) */
         { Site { function: 0, file: 0, line: 17, column: 19, end_line: 17, end_column: 62 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:18:16-18:41) */
-        { Site { function: 0, file: 0, line: 18, column: 16, end_line: 18, end_column: 41 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:18:16-18:35) */
+        { Site { function: 0, file: 0, line: 18, column: 16, end_line: 18, end_column: 35 } },
         /* terrane-site-row: site 7: /app::main (src/main.trn:19:10-19:17) */
         { Site { function: 0, file: 0, line: 19, column: 10, end_line: 19, end_column: 17 } },
         /* terrane-site-row: site 8: /app::main (src/main.trn:20:26-20:70) */
         { Site { function: 0, file: 0, line: 20, column: 26, end_line: 20, end_column: 70 } },
-        /* terrane-site-row: site 9: /app::main (src/main.trn:21:23-21:55) */
-        { Site { function: 0, file: 0, line: 21, column: 23, end_line: 21, end_column: 55 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:21:23-21:49) */
+        { Site { function: 0, file: 0, line: 21, column: 23, end_line: 21, end_column: 49 } },
         /* terrane-site-row: site 10: /app::main (src/main.trn:22:10-22:24) */
         { Site { function: 0, file: 0, line: 22, column: 10, end_line: 22, end_column: 24 } },
         /* terrane-site-row: site 11: /app::main (src/main.trn:24:11-24:54) */
@@ -928,7 +928,6 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Connection;
 pub use terrane_query_witness::ConnectionOptions;
-pub use terrane_query_witness::Query;
 pub use terrane_query_witness::Row;
 pub fn terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new() -> Result<
     ConnectionOptions,

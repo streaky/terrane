@@ -321,12 +321,17 @@ pub fn resolve(
             normalize_projected_items(&mut dependency.items, &mut dependency.declined);
         }
     }
-    project_external_provided_trait_methods(&mut projected, &rustdocs, &canonical_public_paths);
     let native_owner_aliases = foreign_impls::project_foreign_owner_impls(
         &mut projected,
         &rustdocs,
         &canonical_public_paths,
         &reexport_rustdocs,
+    );
+    project_external_provided_trait_methods(
+        &mut projected,
+        &rustdocs,
+        &canonical_public_paths,
+        true,
     );
     aliases::project_closed_alias_members(
         &mut projected,
@@ -370,6 +375,38 @@ pub fn resolve(
         &bound_dependencies,
         &workspace,
         true,
+    )?;
+    decline_unrepresentable_error_types(&mut projected);
+    // An impl signature can reference an external alias whose error shape was
+    // unavailable until validation. Retry its exact trait contract using the
+    // defining document's indexed aliases, never an alias-name heuristic.
+    project_external_provided_trait_methods(
+        &mut projected,
+        &rustdocs,
+        &canonical_public_paths,
+        false,
+    );
+    for dependency in dependencies {
+        rewrite_projected_owner_root(
+            &mut projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name.replace('-', "_"),
+        );
+    }
+    for dependency in &bound_dependencies {
+        rewrite_projected_owner_root(
+            &mut projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name,
+        );
+    }
+    canonicalize_projected_type_names(&mut projected);
+    enforce_transitive_reachability(
+        &mut projected,
+        dependencies,
+        &bound_dependencies,
+        &workspace,
+        false,
     )?;
     decline_unrepresentable_error_types(&mut projected);
     owners.finish();

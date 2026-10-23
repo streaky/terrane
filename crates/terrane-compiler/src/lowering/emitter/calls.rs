@@ -2081,18 +2081,32 @@ impl Emitter<'_> {
                 } else if value.kind == SyntaxKind::Name
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.borrowed
-                            && matches!(
+                            && (matches!(
                                 parameter.ty,
                                 crate::rust_interop::projection::ProjectedType::String
                                     | crate::rust_interop::projection::ProjectedType::Bytes
-                            )
+                            ) || matches!(
+                                &parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                                    if item.has_identity_representation()
+                            ))
                     })
                     && (specialization
                         .is_some_and(|specialization| specialization.direct_projected_call)
                         || projected_chain_role.is_some()
                         || callee.kind == SyntaxKind::MemberExpression)
                 {
-                    self.raw_storage_name(value)
+                    if let Some(binding) = self.local_typed_binding(value)
+                        && self.binding_may_be_unassigned(binding)
+                        && !self.reference_backed(binding)
+                    {
+                        format!(
+                            "*({})",
+                            self.available_storage_reference(binding, value, false)
+                        )
+                    } else {
+                        self.raw_storage_name(value)
+                    }
                 } else if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
                         && (parameter.mutable_borrow || explicit_reference.is_some())
@@ -2212,7 +2226,9 @@ impl Emitter<'_> {
                             } else {
                                 "into_vec"
                             };
-                            Some(if convert_items {
+                            Some(if projected.borrowed && !convert_items {
+                                format!("({expression}).as_slice()")
+                            } else if convert_items {
                                 format!(
                                     "{expression}.{consume}().into_iter().map(Into::into).collect::<Vec<_>>()"
                                 )
@@ -2256,6 +2272,13 @@ impl Emitter<'_> {
                             {
                                 format!("({expression}).as_slice()")
                             }
+                            (
+                                crate::rust_interop::projection::ProjectedType::Sequence {
+                                    item,
+                                    ..
+                                },
+                                false,
+                            ) if item.has_identity_representation() => expression,
                             (_, true) => format!("&mut {expression}"),
                             _ => format!("&{expression}"),
                         }
@@ -2579,6 +2602,12 @@ impl Emitter<'_> {
                 Some(crate::rust_interop::projection::Receiver::Move) => {
                     self.consuming_native_receiver_expression(receiver)
                 }
+                Some(crate::rust_interop::projection::Receiver::BoxedMove) => {
+                    format!(
+                        "Box::new({})",
+                        self.consuming_native_receiver_expression(receiver)
+                    )
+                }
                 _ => self.receiver_expression(receiver),
             };
             native_member_receiver = Some(receiver);
@@ -2672,10 +2701,21 @@ impl Emitter<'_> {
                         format!("&{native}")
                     }
                 }
-            } else if projected_receiver == Some(crate::rust_interop::projection::Receiver::Move)
-                || contract.written_invocation_mode == InvocationMode::Consuming
+            } else if matches!(
+                projected_receiver,
+                Some(
+                    crate::rust_interop::projection::Receiver::Move
+                        | crate::rust_interop::projection::Receiver::BoxedMove
+                )
+            ) || contract.written_invocation_mode == InvocationMode::Consuming
             {
-                self.consuming_native_receiver_expression(receiver)
+                let owned = self.consuming_native_receiver_expression(receiver);
+                if projected_receiver == Some(crate::rust_interop::projection::Receiver::BoxedMove)
+                {
+                    format!("Box::new({owned})")
+                } else {
+                    owned
+                }
             } else if contract.written_invocation_mode == InvocationMode::Mutable {
                 self.native_receiver_expression(receiver, true)
             } else {
@@ -2691,7 +2731,10 @@ impl Emitter<'_> {
                     Some(crate::rust_interop::projection::Receiver::Borrow) => {
                         format!("&{}", self.native_receiver_expression(receiver, false))
                     }
-                    Some(crate::rust_interop::projection::Receiver::Move) => receiver_expression,
+                    Some(
+                        crate::rust_interop::projection::Receiver::Move
+                        | crate::rust_interop::projection::Receiver::BoxedMove,
+                    ) => receiver_expression,
                     _ if contract.written_invocation_mode == InvocationMode::Mutable => {
                         format!("&mut {receiver_expression}")
                     }
@@ -2811,11 +2854,11 @@ impl Emitter<'_> {
                     {
                         return None;
                     }
+                    // `rust_generic_arguments` is the ordered list of actual native
+                    // function generics; destination-only owner binders are not turbofish args.
                     let parameter_name = match template {
                         Some(ProjectedType::Generic(name)) => Some(name.as_str()),
-                        None => projected
-                            .and_then(|function| function.generic_parameters.get(index))
-                            .map(|parameter| parameter.name.as_str()),
+                        None => return None,
                         _ => None,
                     };
                     if parameter_name.is_some_and(|name| native_path_generics.contains(name)) {

@@ -1,0 +1,52 @@
+namespace app
+
+from /core/collections import list
+from /core/errors import integer-conversion-overflow
+from /deps/witness import Counter as NativeCounter, OpaqueValue, OpaqueRow, rows, checksum, sum as sum-values
+
+function advance int64; counter ref NativeCounter
+    result int64 = rust
+        {
+            let counter = &mut *counter;
+            counter.increment();
+            counter.increment();
+            counter.value()
+        }
+    return result
+
+function shadow-read int64; first ref NativeCounter, second ref NativeCounter
+    result int64 = rust
+        {
+            let initial = first.value();
+            let mut first = 1_i64;
+            let borrowed = &mut first;
+            *borrowed += 1;
+            initial + second.value() + first
+        }
+    return result
+
+function read-row int64; record ref OpaqueRow
+    return record.value;
+
+async function main;
+    counter = NativeCounter::new; 4
+    print; (advance; ref counter)
+    print; (counter.value;)
+    print; (shadow-read; ref counter, ref counter)
+    print; await counter.finish;
+    values list of int = list; 2, 3
+    print; (sum-values; values)
+    empty list of int = list;
+    print; (sum-values; empty)
+    opaque-values list of OpaqueValue = list; (OpaqueValue::new; 3), (OpaqueValue::new; 8)
+    print; await checksum; opaque-values
+    records list of OpaqueRow = rows;
+    total int64 = 0
+    for record in ref records
+        total = total + (read-row; record)
+    print; total
+    wide list of int = list; 2147483648
+    try
+        print; (sum-values; wide)
+    catch integer-conversion-overflow
+        print; 'slice conversion caught'
