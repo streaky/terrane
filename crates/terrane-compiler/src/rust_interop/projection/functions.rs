@@ -442,7 +442,19 @@ pub(super) fn project_function_inner(
             Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
             _ => (false, false),
         };
-        if mutable_borrow && !matches!(projected_type, ProjectedType::Foreign { .. }) {
+        if mutable_borrow
+            && !matches!(projected_type, ProjectedType::Foreign { .. })
+            && !(matches!(projected_type, ProjectedType::Generic(_))
+                && function.generics.params.iter().any(|parameter| {
+                    type_mentions_generic(ty, &parameter.name)
+                        && projectable_interface_bound(
+                            &generic_bounds(parameter, function),
+                            index,
+                            paths,
+                        )
+                        .is_ok()
+                }))
+        {
             return Err("mutable borrowed primitive parameters are not representable".to_owned());
         }
         let boxed_adapter = match &projected_type {
@@ -916,10 +928,9 @@ pub(super) fn project_function_inner(
 }
 
 pub(super) fn promote_async_endpoint_methods(methods: &mut [ProjectedFunction]) {
-    let has_consuming_close = methods.iter().any(|method| {
-        method.name == "close"
-            && matches!(method.receiver, Some(Receiver::Move | Receiver::BoxedMove))
-    });
+    let has_consuming_close = methods
+        .iter()
+        .any(|method| method.name == "close" && method.receiver.is_some_and(Receiver::consumes));
     if !has_consuming_close {
         return;
     }
@@ -1053,7 +1064,7 @@ mod tests {
     }
 
     #[test]
-    fn boxed_dynamic_error_alias_uses_generic_error_channel() {
+    fn boxed_dyn_error_alias_keeps_generic() {
         let alias_id = Id(1);
         let box_id = Id(2);
         let error_id = Id(3);

@@ -344,39 +344,15 @@ pub fn resolve(
     }
     apply_namespace_overlays(&mut projected, &overlays)?;
     resolve_cross_dependency_boundary_conversions(&mut projected);
-    for dependency in dependencies {
-        rewrite_projected_owner_root(
-            &mut projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name.replace('-', "_"),
-        );
-    }
-    let mut bound_dependencies =
-        recursive_owner_dependencies(&projected, dependencies, &workspace, false)?;
-    for dependency in &bound_dependencies {
-        rewrite_projected_owner_root(
-            &mut projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name,
-        );
-    }
-    enforce_transitive_reachability(
+    let mut bound_dependencies = Vec::new();
+    normalize_projected_round(
         &mut projected,
         dependencies,
-        &bound_dependencies,
-        &workspace,
-        false,
-    )?;
-    canonicalize_projected_type_names(&mut projected);
-    bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
-    enforce_transitive_reachability(
-        &mut projected,
-        dependencies,
-        &bound_dependencies,
+        &mut bound_dependencies,
         &workspace,
         true,
+        true,
     )?;
-    decline_unrepresentable_error_types(&mut projected);
     // An impl signature can reference an external alias whose error shape was
     // unavailable until validation. Retry its exact trait contract using the
     // defining document's indexed aliases, never an alias-name heuristic.
@@ -386,29 +362,14 @@ pub fn resolve(
         &canonical_public_paths,
         false,
     );
-    for dependency in dependencies {
-        rewrite_projected_owner_root(
-            &mut projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name.replace('-', "_"),
-        );
-    }
-    for dependency in &bound_dependencies {
-        rewrite_projected_owner_root(
-            &mut projected,
-            &dependency.package.replace('-', "_"),
-            &dependency.name,
-        );
-    }
-    canonicalize_projected_type_names(&mut projected);
-    enforce_transitive_reachability(
+    normalize_projected_round(
         &mut projected,
         dependencies,
-        &bound_dependencies,
+        &mut bound_dependencies,
         &workspace,
         false,
+        false,
     )?;
-    decline_unrepresentable_error_types(&mut projected);
     owners.finish();
     let auto_trait_questions = projected
         .iter()
@@ -535,6 +496,54 @@ pub fn resolve(
     finalization.finish();
     Ok(projection)
 }
+fn normalize_projected_round(
+    projected: &mut [ProjectedDependency],
+    dependencies: &[RustDependency],
+    bound_dependencies: &mut Vec<super::ProjectedBoundDependency>,
+    workspace: &Path,
+    enforce_error_owner_reachability: bool,
+    discover_bound_dependencies: bool,
+) -> Result<(), ProjectionError> {
+    for dependency in dependencies {
+        rewrite_projected_owner_root(
+            projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name.replace('-', "_"),
+        );
+    }
+    if discover_bound_dependencies {
+        *bound_dependencies =
+            recursive_owner_dependencies(projected, dependencies, workspace, false)?;
+    }
+    for dependency in bound_dependencies.iter() {
+        rewrite_projected_owner_root(
+            projected,
+            &dependency.package.replace('-', "_"),
+            &dependency.name,
+        );
+    }
+    enforce_transitive_reachability(
+        projected,
+        dependencies,
+        bound_dependencies,
+        workspace,
+        false,
+    )?;
+    canonicalize_projected_type_names(projected);
+    bound_dependencies.sort_by(|left, right| left.name.cmp(&right.name));
+    if enforce_error_owner_reachability {
+        enforce_transitive_reachability(
+            projected,
+            dependencies,
+            bound_dependencies,
+            workspace,
+            true,
+        )?;
+    }
+    decline_unrepresentable_error_types(projected);
+    Ok(())
+}
+
 fn decline_unproven_projected_interfaces(
     projected: &mut [ProjectedDependency],
     evidence: &[crate::rust_interop::ImplProbeEvidence],

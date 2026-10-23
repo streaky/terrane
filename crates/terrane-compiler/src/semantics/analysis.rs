@@ -726,10 +726,7 @@ pub(super) fn apply_projected_method_contracts(
             };
             contract.throws = method.error.is_some();
             let invocation_mode = match method.receiver {
-                Some(
-                    crate::rust_interop::projection::Receiver::Move
-                    | crate::rust_interop::projection::Receiver::BoxedMove,
-                ) => InvocationMode::Consuming,
+                Some(receiver) if receiver.consumes() => InvocationMode::Consuming,
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
                     InvocationMode::Mutable
                 }

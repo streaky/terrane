@@ -196,13 +196,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 false,
             )
             .is_some_and(|method| {
-                matches!(
-                    method.receiver,
-                    Some(
-                        crate::rust_interop::projection::Receiver::Move
-                            | crate::rust_interop::projection::Receiver::BoxedMove
-                    )
-                )
+                method
+                    .receiver
+                    .is_some_and(crate::rust_interop::projection::Receiver::consumes)
             })
             || method_contract(package, object_identity, method_name, false)
                 .is_some_and(|method| method.written_invocation_mode == InvocationMode::Consuming)
@@ -248,13 +244,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(function) = projected
                 && (function.is_async || function.into_future)
                 && function.receiver.is_some()
-                && !matches!(
-                    function.receiver,
-                    Some(
-                        crate::rust_interop::projection::Receiver::Move
-                            | crate::rust_interop::projection::Receiver::BoxedMove
-                    )
-                )
+                && !function
+                    .receiver
+                    .is_some_and(crate::rust_interop::projection::Receiver::consumes)
                 && callee.kind == SyntaxKind::MemberExpression
                 && let Some(receiver) = callee.children.first()
             {
@@ -1081,6 +1073,7 @@ fn first_owner_lifetime_end(
     node: &SyntaxNode,
     owner: Span,
     after: usize,
+    lender_reference: bool,
 ) -> Option<Span> {
     fn root_name(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
         loop {
@@ -1125,7 +1118,7 @@ fn first_owner_lifetime_end(
         // A lender parameter is itself a live reference, not a dependent
         // observer invalidated by mutation through that same reference.
         // Observers created later still end at a mutable receiver call.
-        SyntaxKind::CallExpression if after != owner.start => {
+        SyntaxKind::CallExpression if !lender_reference => {
             mutating_call_receiver(package, unit, node)
         }
         _ => None,
@@ -1144,9 +1137,9 @@ fn first_owner_lifetime_end(
     {
         return Some(node.span);
     }
-    node.children
-        .iter()
-        .find_map(|child| first_owner_lifetime_end(package, unit, child, owner, after))
+    node.children.iter().find_map(|child| {
+        first_owner_lifetime_end(package, unit, child, owner, after, lender_reference)
+    })
 }
 
 type FunctionKey = (u32, usize, usize);
@@ -1691,13 +1684,17 @@ pub(super) fn analyze_reference_provenance(
                 &mut proven,
                 &return_lenders,
             )?;
-            for (&(created_at, _), provenance) in &mut proven {
+            for (&(created_at, created_end), provenance) in &mut proven {
+                let lender_reference = provenance
+                    .lender_parameter
+                    .is_some_and(|lender| (lender.start, lender.end) == (created_at, created_end));
                 provenance.lifetime_end = first_owner_lifetime_end(
                     package,
                     unit,
                     &unit.tree.root,
                     provenance.owner,
                     created_at,
+                    lender_reference,
                 );
             }
             proven

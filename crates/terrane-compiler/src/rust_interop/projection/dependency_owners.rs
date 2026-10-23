@@ -710,7 +710,10 @@ pub(super) fn projected_bound_dependencies(
         })
         .filter(|root| {
             !declared.contains(root)
-                && !matches!(root.as_str(), "std" | "core" | "alloc" | "self" | "crate")
+                && !matches!(
+                    root.as_str(),
+                    "std" | "core" | "alloc" | "self" | "crate" | "Self"
+                )
         })
         .collect::<BTreeSet<_>>();
     resolved_projected_dependencies(required, workspace, false)

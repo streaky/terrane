@@ -288,12 +288,8 @@ impl<'unit> Emitter<'unit> {
                             .projection
                             .method(&object.namespace, &object.name, self.text(member), false)
                             .is_some_and(|method| {
-                                matches!(
-                                    method.receiver,
-                                    Some(
-                                        crate::rust_interop::projection::Receiver::Move
-                                            | crate::rust_interop::projection::Receiver::BoxedMove
-                                    )
+                                method.receiver.is_some_and(
+                                    crate::rust_interop::projection::Receiver::consumes,
                                 )
                             })
                     }))
@@ -709,14 +705,6 @@ impl<'unit> Emitter<'unit> {
         condition: &SyntaxNode,
         block: &SyntaxNode,
     ) -> Option<IteratorListBuilder> {
-        fn contains_await(emitter: &Emitter<'_>, node: &SyntaxNode) -> bool {
-            (node.kind == SyntaxKind::UnaryExpression
-                && emitter.unary_operator(node).as_deref() == Some("await"))
-                || node
-                    .children
-                    .iter()
-                    .any(|child| contains_await(emitter, child))
-        }
         let (index, index_read, end, index_optional) =
             self.list_append_capacity_hint(condition, None, block)?;
         let [left, right] = condition.children.as_slice() else {
@@ -753,7 +741,7 @@ impl<'unit> Emitter<'unit> {
         let [value] = arguments.children.as_slice() else {
             return None;
         };
-        (!contains_await(self, block)).then_some(())?;
+        (!crate::syntax::contains_await(block, self.unit.source.text())).then_some(())?;
         (!(self.propagate_errors || self.function_errors || self.try_completion)
             || !self.expression_throws_synchronously(block))
         .then_some(())?;

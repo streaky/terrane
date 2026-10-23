@@ -446,19 +446,34 @@ fn main() {
     >;
     let maybe_applied: Option<Sequence<terrane_int_support::Int>>;
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(Ints::terrane_construct()),
-        0 /* terrane-site: src/main.trn:47:13-47:45 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_associated_witness::sequence_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(Ints::terrane_construct()) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::sequence_total")) }, 0 /* terrane-site: src/main.trn:47:13-47:45 */))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(nested_total(NestedValues::terrane_construct()),
-        1 /* terrane-site: src/main.trn:48:13-48:52 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_associated_witness::nested_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(NestedValues::terrane_construct()) } () { Ok(value)
+        => value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::nested_total")) }, 1 /* terrane-site: src/main.trn:48:13-48:52 */))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(named_total(NamedInts::terrane_construct()),
-        2 /* terrane-site: src/main.trn:49:13-49:48 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_associated_witness::named_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(NamedInts::terrane_construct()) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::named_total")) }, 2 /* terrane-site: src/main.trn:49:13-49:48 */))
     );
     println!(
         "{}",
@@ -507,13 +522,23 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&(&maybe_applied).is_some()));
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(sequence_total(MoreInts::terrane_construct()),
-        7 /* terrane-site: src/main.trn:62:13-62:50 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_associated_witness::sequence_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(MoreInts::terrane_construct()) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::sequence_total")) }, 7 /* terrane-site: src/main.trn:62:13-62:50 */))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(list_total(Lists::terrane_construct()),
-        8 /* terrane-site: src/main.trn:63:13-63:42 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_associated_witness::list_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(Lists::terrane_construct()) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::list_total")) }, 8 /* terrane-site: src/main.trn:63:13-63:42 */))
     );
 }

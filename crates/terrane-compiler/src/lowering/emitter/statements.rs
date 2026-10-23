@@ -857,11 +857,7 @@ impl Emitter<'_> {
     }
 
     pub(super) fn contains_await(&self, node: &SyntaxNode) -> bool {
-        (node.kind == SyntaxKind::UnaryExpression
-            && node.children.first().is_some_and(|operator| {
-                self.unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
-            }))
-            || node.children.iter().any(|child| self.contains_await(child))
+        crate::syntax::contains_await(node, self.unit.source.text())
     }
 
     #[expect(
@@ -877,7 +873,8 @@ impl Emitter<'_> {
             .children
             .iter()
             .any(|child| child.kind == SyntaxKind::FinallyClause);
-        let cancellation_aware = asynchronous && has_finally;
+        let cancellation_aware =
+            crate::syntax::try_needs_cancellation_aware_finally(node, self.unit.source.text());
         let closure_start = if asynchronous { "async {" } else { "(|| {" };
         let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;

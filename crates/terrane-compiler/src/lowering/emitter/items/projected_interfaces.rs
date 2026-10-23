@@ -199,14 +199,6 @@ impl Emitter<'_> {
                     ) => "self",
                     (
                         Some(crate::rust_interop::projection::Receiver::BoxedMove),
-                        InvocationMode::Shared,
-                    ) => "&*self",
-                    (
-                        Some(crate::rust_interop::projection::Receiver::BoxedMove),
-                        InvocationMode::Mutable,
-                    ) => "&mut *self",
-                    (
-                        Some(crate::rust_interop::projection::Receiver::BoxedMove),
                         InvocationMode::Consuming,
                     ) => "*self",
                     (_, InvocationMode::Shared) => "&*self",

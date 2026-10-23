@@ -1123,7 +1123,32 @@ pub(super) fn project_rustdoc(
             &right.rust_path,
         ))
     });
-    projected_associated_items.dedup();
+    // Equal display keys need not mean equal metadata. Deduplicate full items
+    // within each sorted key group, in place, without cloning native contracts.
+    let mut retained = 0;
+    let mut group_start = 0;
+    for next in 0..projected_associated_items.len() {
+        if retained > 0
+            && (
+                &projected_associated_items[retained - 1].namespace,
+                &projected_associated_items[retained - 1].name,
+                &projected_associated_items[retained - 1].rust_path,
+            ) != (
+                &projected_associated_items[next].namespace,
+                &projected_associated_items[next].name,
+                &projected_associated_items[next].rust_path,
+            )
+        {
+            group_start = retained;
+        }
+        if !(group_start..retained).any(|previous| {
+            projected_associated_items[previous] == projected_associated_items[next]
+        }) {
+            projected_associated_items.swap(retained, next);
+            retained += 1;
+        }
+    }
+    projected_associated_items.truncate(retained);
     let mut associated_index = 0;
     while associated_index < projected_associated_items.len() {
         let first = associated_index;

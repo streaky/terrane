@@ -568,8 +568,14 @@ fn validate_projected_generic_arguments(
             crate::rust_interop::projection::ProjectedType::Generic(_)
         ) && package
             .projection
-            .foreign_rust_path(&identity.namespace, &identity.name)
-            .is_some()
+            .item(&identity.namespace, &identity.name)
+            .is_some_and(|item| {
+                matches!(
+                    item.kind,
+                    crate::rust_interop::projection::ProjectedKind::ForeignType { .. }
+                        | crate::rust_interop::projection::ProjectedKind::Enum { .. }
+                )
+            })
         {
             // Native implementors are checked by the runtime-ABI bound proof;
             // this pass validates source classes and their interface adapters.

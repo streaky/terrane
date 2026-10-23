@@ -442,10 +442,11 @@ fn attach_unique_trait_operation(
     }) else {
         return false;
     };
-    let candidates = if function.receiver.is_some() {
-        methods
+    let instance = function.receiver.is_some();
+    let candidates = if instance {
+        &mut *methods
     } else {
-        static_methods
+        &mut *static_methods
     };
     if candidates
         .iter()
@@ -457,7 +458,43 @@ fn attach_unique_trait_operation(
     if function.native_path.is_none() {
         function.native_path = Some(operation.item.rust_path.clone());
     }
-    candidates.push(function);
+    // Borrowed trait operations historically also have an explicit-receiver
+    // associated form, e.g. Row::try_get(row, column). Keep both contracts;
+    // neither is an authored-class terrane_static_* shim.
+    if let Some(receiver @ (Receiver::Borrow | Receiver::MutableBorrow)) = function.receiver
+        && !static_methods
+            .iter()
+            .any(|candidate| candidate.name == function.name)
+        && let Some(owner) = function.native_owner.as_deref()
+    {
+        let mut associated = function.clone();
+        associated.receiver = None;
+        let base = owner.split_once('<').map_or(owner, |(base, _)| base);
+        associated.parameters.insert(
+            0,
+            ProjectedParameter {
+                name: "receiver".to_owned(),
+                ty: ProjectedType::Foreign {
+                    rust_path: owner.to_owned(),
+                    base_rust_path: base.to_owned(),
+                    name: base.rsplit("::").next().unwrap_or(base).to_owned(),
+                    arguments: Vec::new(),
+                },
+                borrowed: true,
+                mutable_borrow: receiver == Receiver::MutableBorrow,
+                generic_parameter: None,
+                generic_bounds: Vec::new(),
+                generic_interface: None,
+                associated_type: None,
+            },
+        );
+        static_methods.push(associated);
+    }
+    if instance {
+        methods.push(function);
+    } else {
+        static_methods.push(function);
+    }
     true
 }
 
@@ -525,7 +562,7 @@ pub(super) fn merge_projected_trait_operations(
                     generic_interface: None,
                     generic_bounds: Vec::new(),
                     associated_type: None,
-                    borrowed: !matches!(receiver, Receiver::Move | Receiver::BoxedMove),
+                    borrowed: !receiver.consumes(),
                     mutable_borrow: receiver == Receiver::MutableBorrow,
                 },
             );
@@ -684,7 +721,7 @@ pub(super) fn project_external_provided_trait_methods(
                 let base = crate::rust_ir::rust_type_constructor(&owner_item.rust_path)
                     .unwrap_or_else(|| owner_item.rust_path.clone());
                 let arguments = rust_path.find('<').map_or("", |start| &rust_path[start..]);
-                *base_rust_path = base.clone();
+                base_rust_path.clone_from(&base);
                 *rust_path = format!("{base}{arguments}");
             }
             let ProjectedType::Foreign { rust_path, .. } = &owner else {

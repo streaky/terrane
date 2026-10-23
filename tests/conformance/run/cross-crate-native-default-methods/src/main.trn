@@ -8,6 +8,13 @@ function update-twice uint8; mutator ref Mutator
     print; (mutator.update; 3)
     return mutator.value;
 
+function generic-panic-attributed bool; value Wrapped of uint8
+    try
+        wide uint32 = value.selected;
+        return wide == 0
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `witness`') and (error.message.contains; 'member `witness::Wrapped::selected`') and (error.message.contains; 'generic selector panic')
+
 function main;
     seed uint8 = 9
     value Wrapped of uint8 = instance Wrapped; seed

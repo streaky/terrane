@@ -299,15 +299,6 @@ pub(super) fn project_methods(
             let Some(item) = index.get(method_id) else {
                 continue;
             };
-            let is_default_trait_method = !inherent && !implementation.items.contains(method_id);
-            if is_default_trait_method
-                && !implementation
-                    .provided_trait_methods
-                    .iter()
-                    .any(|method_name| item.name.as_deref() == Some(method_name))
-            {
-                continue;
-            }
             if inherent && item.visibility != Visibility::Public {
                 continue;
             }
@@ -447,17 +438,15 @@ pub(super) fn project_methods(
                             .into_iter()
                             .filter(|lifetime| lifetime != "'static" && lifetime != "'_")
                             .map(|lifetime| (lifetime, "'_".to_owned()))
-                            .collect();
-                        method.native_path = Some(crate::rust_ir::instantiate_rust_generics(
-                            &invocation,
-                            &lifetimes,
-                        ));
+                            .collect::<BTreeMap<_, _>>();
+                        method.native_path = Some(if lifetimes.is_empty() {
+                            invocation
+                        } else {
+                            crate::rust_ir::instantiate_rust_generics(&invocation, &lifetimes)
+                        });
                         if implementation.blanket_impl.is_some()
                             && !(method.destination_result.is_some()
-                                && matches!(
-                                    method.receiver,
-                                    Some(Receiver::Move | Receiver::BoxedMove)
-                                )
+                                && method.receiver.is_some_and(Receiver::consumes)
                                 && method.parameters.is_empty())
                         {
                             continue;

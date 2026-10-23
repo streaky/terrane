@@ -496,13 +496,9 @@ pub(crate) fn member_invocation_mode(
                 .projection
                 .method(&identity.namespace, &identity.name, member_name, false)
                 .is_some_and(|method| {
-                    matches!(
-                        method.receiver,
-                        Some(
-                            crate::rust_interop::projection::Receiver::Move
-                                | crate::rust_interop::projection::Receiver::BoxedMove
-                        )
-                    )
+                    method
+                        .receiver
+                        .is_some_and(crate::rust_interop::projection::Receiver::consumes)
                 })
         {
             return InvocationMode::Consuming;

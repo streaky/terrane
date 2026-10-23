@@ -161,27 +161,11 @@ fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
 
 fn package_has_async_finally(package: &SemanticPackage) -> bool {
     fn contains_cancellation_aware_finally(node: &SyntaxNode, source: &str) -> bool {
-        (node.kind == SyntaxKind::TryStatement
-            && node
-                .children
-                .iter()
-                .any(|child| child.kind == SyntaxKind::FinallyClause)
-            && contains_await(node, source))
+        crate::syntax::try_needs_cancellation_aware_finally(node, source)
             || node
                 .children
                 .iter()
                 .any(|child| contains_cancellation_aware_finally(child, source))
-    }
-
-    fn contains_await(node: &SyntaxNode, source: &str) -> bool {
-        (node.kind == SyntaxKind::UnaryExpression
-            && node.children.first().is_some_and(|operator| {
-                source[operator.span.start..operator.span.end].trim() == "await"
-            }))
-            || node
-                .children
-                .iter()
-                .any(|child| contains_await(child, source))
     }
 
     fn find_span(node: &SyntaxNode, span: crate::source::Span) -> Option<&SyntaxNode> {

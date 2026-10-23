@@ -2701,13 +2701,9 @@ impl Emitter<'_> {
                         format!("&{native}")
                     }
                 }
-            } else if matches!(
-                projected_receiver,
-                Some(
-                    crate::rust_interop::projection::Receiver::Move
-                        | crate::rust_interop::projection::Receiver::BoxedMove
-                )
-            ) || contract.written_invocation_mode == InvocationMode::Consuming
+            } else if projected_receiver
+                .is_some_and(crate::rust_interop::projection::Receiver::consumes)
+                || contract.written_invocation_mode == InvocationMode::Consuming
             {
                 let owned = self.consuming_native_receiver_expression(receiver);
                 if projected_receiver == Some(crate::rust_interop::projection::Receiver::BoxedMove)
@@ -3244,9 +3240,30 @@ impl Emitter<'_> {
                         )
                     }));
         let call = if let Some(method) = foreign_method {
-            let (dependency, member) = if callee.kind == SyntaxKind::Name
-                || specialization.is_some_and(|specialization| specialization.direct_projected_call)
-            {
+            let (dependency, member) = if direct_projected_call {
+                let method = foreign_method.expect("direct projected call has projected method");
+                let receiver = callee.children.first();
+                let identity = receiver.and_then(|receiver| {
+                    self.class_designator(receiver)
+                        .map(|object| object.identity.clone())
+                        .or_else(|| self.projected_receiver_identity(receiver))
+                });
+                let type_path = identity
+                    .as_ref()
+                    .and_then(|identity| {
+                        self.package
+                            .projection
+                            .foreign_rust_path(&identity.namespace, &identity.name)
+                    })
+                    .or(method.native_owner.as_deref())
+                    .unwrap_or("dependency::ForeignType");
+                let dependency = type_path
+                    .split("::")
+                    .next()
+                    .unwrap_or("dependency")
+                    .to_owned();
+                (dependency, format!("{type_path}::{}", method.name))
+            } else if callee.kind == SyntaxKind::Name {
                 let dependency = self
                     .package
                     .resolve_name_at(self.unit, callee.span.start, self.text(callee))

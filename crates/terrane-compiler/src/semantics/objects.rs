@@ -1402,8 +1402,9 @@ pub(super) fn validate_object_conformance(
                                 projected,
                             ) => projected.methods.iter().find(|method| {
                                 method.function.is_async
-                                    && !matches!(method.function.receiver,
-                                        Some(crate::rust_interop::projection::Receiver::Move | crate::rust_interop::projection::Receiver::BoxedMove))
+                                    && !method.function.receiver.is_some_and(
+                                        crate::rust_interop::projection::Receiver::consumes,
+                                    )
                             }),
                             _ => None,
                         })
@@ -5108,6 +5109,38 @@ fn collect_projected_destinations(
             .iter()
             .filter(|generic| generic.input_selected)
         {
+            // A source class (or erased source interface) selects the existing
+            // interface adapter, not a native Rust type in the dependency graph.
+            // Its implementation, associated types, and auto traits are checked
+            // by validate_projected_generic_arguments. Leave the Rust binder for
+            // argument inference instead of probing a bare trait as a type.
+            let source_adapter = function.parameters.iter().any(|parameter| {
+                parameter.generic_parameter.as_deref() == Some(generic.name.as_str())
+                    && parameter.generic_interface.is_some()
+            }) && value_bindings.get(&generic.name).is_some_and(|actual| {
+                let actual = match actual {
+                    ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                        inner.value_type_ref()
+                    }
+                    actual => actual,
+                };
+                let ValueType::Object(identity) = actual else {
+                    return false;
+                };
+                !package
+                    .projection
+                    .item(&identity.namespace, &identity.name)
+                    .is_some_and(|item| {
+                        matches!(
+                            item.kind,
+                            crate::rust_interop::projection::ProjectedKind::ForeignType { .. }
+                                | crate::rust_interop::projection::ProjectedKind::Enum { .. }
+                        )
+                    })
+            });
+            if source_adapter && !explicit_projected.contains_key(&generic.name) {
+                continue;
+            }
             let inferred = native_bindings.get(&generic.name).cloned().or_else(|| {
                 value_bindings.get(&generic.name).and_then(|actual| {
                     let (actual_projection, reference) = match actual {

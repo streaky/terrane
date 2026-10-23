@@ -68,6 +68,80 @@ fn update_twice(mutator: &mut Mutator) -> Result<u8, TerraneError> {
         )?,
     );
 }
+#[allow(dead_code)]
+fn generic_panic_attributed(value: witness::Wrapped<u8>) -> bool {
+    let mut wide: Option<u32> = None;
+    let mut error: Option<TerraneError> = None;
+    let __terrane_completion_0: TerraneCompletion<bool> = (|| {
+        let __terrane_try_0: TerraneCompletion<bool> = (|| {
+            let _ = wide
+                .insert(
+                    __terrane_raised_completion!(
+                        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| <
+                        witness::Wrapped < u8 > as provider::NativeValue > ::selected::<
+                        u32 > (&value))) { Ok(value) => Ok(value), Err(payload) =>
+                        Err(crate ::__terrane_dependency_panic(payload, "witness",
+                        "witness::Wrapped::selected")) }, 3 /* terrane-site: src/main.trn:13:23-13:38 */
+                    ),
+                );
+            return TerraneCompletion::Return(
+                *wide.as_ref().expect("flow-proven available binding") == 0,
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0 {
+                    __terrane_handled_0 = true;
+                    let _ = error.insert(__terrane_error_0.clone());
+                    return TerraneCompletion::Return(
+                        error
+                            .as_ref()
+                            .expect("flow-proven available binding")
+                            .clone()
+                            .message()
+                            .to_owned()
+                            .contains(&String::from("Rust dependency `witness`"))
+                            && error
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .clone()
+                                .message()
+                                .to_owned()
+                                .contains(
+                                    &String::from("member `witness::Wrapped::selected`"),
+                                )
+                            && error
+                                .as_ref()
+                                .expect("flow-proven available binding")
+                                .clone()
+                                .message()
+                                .to_owned()
+                                .contains(&String::from("generic selector panic")),
+                    );
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {
+            __terrane_generated_defect("non-fallthrough try completed normally")
+        }
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
 fn main() {
     let seed: u8;
     let value: witness::Wrapped<u8>;
@@ -88,13 +162,13 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "Wrapped::terrane_construct",
+                        "witness",
+                        "witness::Wrapped::construct",
                     ),
                 )
             }
         },
-        3 /* terrane-site: src/main.trn:13:30-13:52 */,
+        4 /* terrane-site: src/main.trn:20:30-20:52 */,
     );
     owner = __terrane_raised(
         match std::panic::catch_unwind(
@@ -113,7 +187,7 @@ fn main() {
                 )
             }
         },
-        4 /* terrane-site: src/main.trn:14:19-14:37 */,
+        5 /* terrane-site: src/main.trn:21:19-21:37 */,
     );
     selected = __terrane_raised(
         match std::panic::catch_unwind(
@@ -126,13 +200,13 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "< witness :: Wrapped < T > as provider :: NativeValue > :: selected",
+                        "witness",
+                        "witness::Wrapped::selected",
                     ),
                 )
             }
         },
-        5 /* terrane-site: src/main.trn:15:23-15:38 */,
+        6 /* terrane-site: src/main.trn:22:23-22:38 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
@@ -145,11 +219,11 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | < witness::Wrapped < u8
         > as provider::NativeValue > ::label(&value))) { Ok(value) => Ok(value
         .to_owned()), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::Wrapped::label")) }, 6 /* terrane-site: src/main.trn:16:49-16:61 */), &mut __terrane_text); __terrane_text })
+        "witness", "witness::Wrapped::label")) }, 7 /* terrane-site: src/main.trn:23:49-23:61 */), &mut __terrane_text); __terrane_text })
     );
     overridden = __terrane_raised(
         terrane_static_trn_4f76657272696464656e_new(),
-        7 /* terrane-site: src/main.trn:18:18-18:34 */,
+        8 /* terrane-site: src/main.trn:25:18-25:34 */,
     );
     explicit_owner = __terrane_raised(
         terrane_int_support::coerce::<
@@ -172,10 +246,10 @@ fn main() {
                         )
                     }
                 },
-                8 /* terrane-site: src/main.trn:19:28-19:51 */,
+                9 /* terrane-site: src/main.trn:26:28-26:51 */,
             ),
         ),
-        8 /* terrane-site: src/main.trn:19:28-19:51 */,
+        9 /* terrane-site: src/main.trn:26:28-26:51 */,
     );
     explicit_selected = __terrane_raised(
         match std::panic::catch_unwind(
@@ -188,13 +262,13 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
-                        "<witness::Overridden as provider::NativeValue>::selected",
+                        "witness",
+                        "witness::Overridden::selected",
                     ),
                 )
             }
         },
-        9 /* terrane-site: src/main.trn:20:32-20:52 */,
+        10 /* terrane-site: src/main.trn:27:32-27:52 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let mut __terrane_text =
@@ -207,18 +281,18 @@ fn main() {
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | < witness::Overridden
         as provider::NativeValue > ::label(&overridden))) { Ok(value) => Ok(value
         .to_owned()), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-        "witness", "witness::Overridden::label")) }, 10 /* terrane-site: src/main.trn:21:67-21:84 */), &mut __terrane_text); __terrane_text })
+        "witness", "witness::Overridden::label")) }, 11 /* terrane-site: src/main.trn:28:67-28:84 */), &mut __terrane_text); __terrane_text })
     );
     mutator = __terrane_raised(
         terrane_static_trn_4d757461746f72_new(terrane_int_support::Int::from(10_i128)),
-        11 /* terrane-site: src/main.trn:23:15-23:31 */,
+        12 /* terrane-site: src/main.trn:30:15-30:31 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(update_twice(&mut
-        mutator), 12 /* terrane-site: src/main.trn:24:13-24:38 */))
+        mutator), 13 /* terrane-site: src/main.trn:31:13-31:38 */))
     );
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
+    let __terrane_completion_1: TerraneCompletion<()> = (|| {
+        let __terrane_try_1: TerraneCompletion<()> = (|| {
             __terrane_raised_completion!(
                 match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | <
                 witness::Mutator as provider::MutableValue > ::update(&mut mutator, match
@@ -234,20 +308,20 @@ fn main() {
                 format!("Rust dependency `{}` member `{}` failed: {error}", "witness",
                 "witness::Mutator::update"), crate ::TERRANE_NO_SITE))), Err(payload) =>
                 Err(crate ::__terrane_dependency_panic(payload, "witness",
-                "witness::Mutator::update")) }, 13 /* terrane-site: src/main.trn:26:9-26:26 */
+                "witness::Mutator::update")) }, 14 /* terrane-site: src/main.trn:33:9-33:26 */
             );
             TerraneCompletion::Normal
         })();
-        match __terrane_try_0 {
+        match __terrane_try_1 {
             TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
             TerraneCompletion::Break => return TerraneCompletion::Break,
             TerraneCompletion::Continue => return TerraneCompletion::Continue,
             TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 {
-                    __terrane_handled_0 = true;
-                    let _ = error.insert(__terrane_error_0.clone());
+            TerraneCompletion::Error(__terrane_error_1) => {
+                let mut __terrane_handled_1 = false;
+                if !__terrane_handled_1 {
+                    __terrane_handled_1 = true;
+                    let _ = error.insert(__terrane_error_1.clone());
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&{ let mut
                         __terrane_text = String::with_capacity(21); __terrane_text
@@ -259,14 +333,14 @@ fn main() {
                         __terrane_text); __terrane_text })
                     );
                 }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
+                if !__terrane_handled_1 {
+                    return TerraneCompletion::Error(__terrane_error_1);
                 }
             }
         }
         TerraneCompletion::Normal
     })();
-    match __terrane_completion_0 {
+    match __terrane_completion_1 {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),

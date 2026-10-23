@@ -6,6 +6,7 @@ pub trait NativeValue {
     }
 
     fn selected<U: From<u8>>(&self) -> U {
+        assert!(std::mem::size_of::<U>() <= 2, "generic selector panic");
         U::from(7)
     }
 

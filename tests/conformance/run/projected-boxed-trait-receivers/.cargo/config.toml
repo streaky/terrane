@@ -1,0 +1,2 @@
+[patch.crates-io]
+projected-boxed-trait-witness = { path = "fixture-registry/projected-boxed-trait-witness-0.1.0" }

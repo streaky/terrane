@@ -231,6 +231,7 @@ pub(super) fn project_invocation_scoped_type(
 
 fn concrete_associated_type(
     owner: &ProjectedType,
+    owner_id: Option<&Id>,
     trait_: Option<&RustdocPath>,
     name: &str,
     index: &HashMap<Id, Item>,
@@ -245,15 +246,30 @@ fn concrete_associated_type(
     else {
         return Ok(None);
     };
-    let Some((id, _)) = paths
-        .iter()
-        .find(|(_, summary)| summary.path.join("::") == *base_rust_path)
-    else {
+    let item = if let Some(id) = owner_id {
+        index.get(id)
+    } else {
+        // Generic substitution carries the canonical rendered owner but not its Rustdoc Id.
+        // Require a unique segment-wise path match; never select an arbitrary HashMap entry.
+        let mut matches = paths.iter().filter(|(_, summary)| {
+            summary
+                .path
+                .iter()
+                .map(String::as_str)
+                .eq(base_rust_path.split("::"))
+        });
+        let Some((id, _)) = matches.next() else {
+            return Ok(None);
+        };
+        if matches.next().is_some() {
+            return Ok(None);
+        }
+        index.get(id)
+    };
+    let Some(item) = item else {
         return Ok(None);
     };
-    let Some(item) = index.get(id) else {
-        return Ok(None);
-    };
+
     let (parameters, implementations) = match &item.inner {
         ItemEnum::Struct(declaration) => (&declaration.generics.params, &declaration.impls),
         ItemEnum::Enum(declaration) => (&declaration.generics.params, &declaration.impls),
@@ -317,6 +333,34 @@ fn concrete_associated_type(
     Ok(result)
 }
 
+fn project_associated_owner(
+    self_type: &Type,
+    name: &str,
+    trait_: Option<&RustdocPath>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    if let Type::Generic(owner) = self_type
+        && let Some(concrete) = generics.get(owner)
+    {
+        if let Some(associated) = generics.get(&format!("{owner}::{name}")) {
+            return Ok(associated.clone());
+        }
+        return Ok(
+            concrete_associated_type(concrete, None, trait_, name, index, paths, generics)?
+                .unwrap_or_else(|| ProjectedType::Associated(format!("{owner}::{name}"))),
+        );
+    }
+    let owner_id = match self_type {
+        Type::ResolvedPath(owner) => Some(&owner.id),
+        _ => None,
+    };
+    let owner = project_type(self_type, index, paths, generics)?;
+    concrete_associated_type(&owner, owner_id, trait_, name, index, paths, generics)?
+        .ok_or_else(|| format!("concrete associated type `{name}` could not be resolved"))
+}
+
 pub(super) fn project_type(
     ty: &Type,
     index: &HashMap<Id, Item>,
@@ -374,37 +418,11 @@ pub(super) fn project_type(
         }
         Type::QualifiedPath {
             name,
-            args,
-            self_type,
-            trait_,
-        } if args.is_none()
-            && matches!(self_type.as_ref(), Type::Generic(owner) if generics.contains_key(owner)) =>
-        {
-            let Type::Generic(owner) = self_type.as_ref() else {
-                unreachable!("qualified generic owner was matched above");
-            };
-            if let Some(associated) = generics.get(&format!("{owner}::{name}")) {
-                return Ok(associated.clone());
-            }
-            let concrete = generics.get(owner).expect("matched generic owner");
-            if let Some(associated) =
-                concrete_associated_type(concrete, trait_.as_ref(), name, index, paths, generics)?
-            {
-                return Ok(associated);
-            }
-            Ok(ProjectedType::Associated(format!("{owner}::{name}")))
-        }
-        Type::QualifiedPath {
-            name,
             args: None,
             self_type,
             trait_,
             ..
-        } => {
-            let owner = project_type(self_type, index, paths, generics)?;
-            concrete_associated_type(&owner, trait_.as_ref(), name, index, paths, generics)?
-                .ok_or_else(|| format!("unresolved concrete associated type `{name}`"))
-        }
+        } => project_associated_owner(self_type, name, trait_.as_ref(), index, paths, generics),
         Type::ImplTrait(bounds) => Ok(ProjectedType::Opaque {
             anonymous_chain: bounds.iter().any(|bound| {
                 trait_bound_name(bound).is_some_and(|(path, _)| {

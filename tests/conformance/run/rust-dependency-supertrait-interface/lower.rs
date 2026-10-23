@@ -283,9 +283,14 @@ impl terrane_supertrait_witness::Right for DiamondValues {
 }
 fn main() {
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(child_total(Values::terrane_construct()),
-        0 /* terrane-site: src/main.trn:23:13-23:44 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_supertrait_witness::child_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(Values::terrane_construct()) } () { Ok(value) =>
+        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::child_total")) }, 0 /* terrane-site: src/main.trn:23:13-23:44 */))
     );
     println!(
         "{}",
@@ -293,8 +298,13 @@ fn main() {
         1 /* terrane-site: src/main.trn:24:13-24:51 */))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(diamond_total(DiamondValues::terrane_construct()),
-        2 /* terrane-site: src/main.trn:25:13-25:54 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+        terrane_supertrait_witness::diamond_total(match | | -> Result < _, crate
+        ::TerraneForeignError > { Ok(DiamondValues::terrane_construct()) } () { Ok(value)
+        => value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
+        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "dependency",
+        "dependency::ForeignType::diamond_total")) }, 2 /* terrane-site: src/main.trn:25:13-25:54 */))
     );
 }

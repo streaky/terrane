@@ -1095,9 +1095,8 @@ pub(super) fn generic_monomorphisations(
     let mut destination_parameters = Vec::new();
     let mut destination_bound_roots = BTreeSet::new();
     let mut adapter_result_bounds = BTreeMap::new();
-    // Keep input-selected value generics open until a Terrane call site supplies concrete
-    // argument and callback types. Immediate projectable interface inputs retain their
-    // established source-class adapter contract.
+    // Keep native inputs generic for the concrete Rust ABI. Source-interface inputs
+    // carry their adapter contract on each projected parameter.
     for parameter in &function.generics.params {
         if result.contains_key(&parameter.name)
             || is_callback_future_parameter(&parameter.name, function)

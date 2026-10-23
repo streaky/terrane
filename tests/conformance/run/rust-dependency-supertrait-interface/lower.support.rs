@@ -807,44 +807,6 @@ impl terrane_supertrait_witness::Right for Right {
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
     }
 }
-pub fn child_total<T: terrane_supertrait_witness::Child>(
-    value: T,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = value;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_supertrait_witness::child_total(value)),
-    ) {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-supertrait-witness",
-                    "terrane_supertrait_witness::child_total",
-                ),
-            )
-        }
-    }
-}
-pub fn diamond_total<T: terrane_supertrait_witness::Diamond>(
-    value: T,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let value = value;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_supertrait_witness::diamond_total(value)),
-    ) {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-supertrait-witness",
-                    "terrane_supertrait_witness::diamond_total",
-                ),
-            )
-        }
-    }
-}
 pub fn erased_child_total<
     TerraneBoxed0: terrane_supertrait_witness::Child + core::marker::Send
         + core::marker::Sync + 'static,
