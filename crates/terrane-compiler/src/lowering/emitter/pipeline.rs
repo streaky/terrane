@@ -160,20 +160,45 @@ fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
 }
 
 fn package_has_async_finally(package: &SemanticPackage) -> bool {
-    fn contains_finally(node: &SyntaxNode) -> bool {
-        node.kind == SyntaxKind::FinallyClause || node.children.iter().any(contains_finally)
+    fn contains_cancellation_aware_finally(node: &SyntaxNode, source: &str) -> bool {
+        (node.kind == SyntaxKind::TryStatement
+            && node
+                .children
+                .iter()
+                .any(|child| child.kind == SyntaxKind::FinallyClause)
+            && contains_await(node, source))
+            || node
+                .children
+                .iter()
+                .any(|child| contains_cancellation_aware_finally(child, source))
+    }
+
+    fn contains_await(node: &SyntaxNode, source: &str) -> bool {
+        (node.kind == SyntaxKind::UnaryExpression
+            && node.children.first().is_some_and(|operator| {
+                source[operator.span.start..operator.span.end].trim() == "await"
+            }))
+            || node
+                .children
+                .iter()
+                .any(|child| contains_await(child, source))
+    }
+
+    fn find_span(node: &SyntaxNode, span: crate::source::Span) -> Option<&SyntaxNode> {
+        if node.span == span {
+            return Some(node);
+        }
+        node.children
+            .iter()
+            .find_map(|child| find_span(child, span))
     }
 
     package.units.iter().any(|unit| {
         unit.functions.iter().any(|function| {
             function.is_async
-                && unit
-                    .tree
-                    .root
-                    .children
-                    .iter()
-                    .find(|node| node.span == function.span)
-                    .is_some_and(contains_finally)
+                && find_span(&unit.tree.root, function.span).is_some_and(|node| {
+                    contains_cancellation_aware_finally(node, unit.source.text())
+                })
         })
     })
 }
