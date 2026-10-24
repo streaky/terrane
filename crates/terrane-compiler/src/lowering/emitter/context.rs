@@ -1329,17 +1329,18 @@ impl<'unit> Emitter<'unit> {
 
     pub(super) fn rust_block_clone_prelude(&self, node: &SyntaxNode) -> String {
         let identifiers = crate::rust_ir::rust_free_value_identifiers(&self.rust_block_body(node));
+        // Keep snapshot creation in declaration order, but never snapshot a
+        // shadowed enclosing binding on behalf of the selected native value.
         self.unit
             .typed_bindings
             .iter()
             .filter(|binding| {
-                binding.scope.is_some()
-                    && binding.is_visible_at(self.unit.source.id(), node.span.start)
-                    && !matches!(binding.value_type, ValueType::Reference(_))
+                let name = crate::lowering::binding_storage_rust_name(self.unit, binding);
+                !matches!(binding.value_type, ValueType::Reference(_))
                     && !rust_value_is_copy(&binding.value_type)
-                    && identifiers.contains(crate::lowering::binding_storage_rust_name(
-                        self.unit, binding,
-                    ))
+                    && identifiers.contains(name)
+                    && crate::lowering::rust_value_binding_at(self.unit, node.span.start, name)
+                        .is_some_and(|(_, selected)| selected.span == binding.span)
                     && self.rust_block_needs_snapshot(binding, node)
             })
             .map(|binding| {

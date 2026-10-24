@@ -1,0 +1,9 @@
+namespace inline-rust-owned-capture
+
+from /core/filesystem import file-handle
+
+function inspect; handle file-handle
+    capture = function;
+        rust
+            drop(handle);
+    capture;

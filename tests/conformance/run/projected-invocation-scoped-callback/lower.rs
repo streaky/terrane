@@ -750,12 +750,12 @@ fn main() {
     offset = 2;
     captured = {
         let offset = offset.clone();
-        std::sync::Arc::new(move |state_2: &i64| -> Label {
+        std::sync::Arc::new(move |state: &i64| -> Label {
             return __terrane_raised(
                 label(
                     terrane_int_support::Int::from(
                         __terrane_raised(
-                            terrane_int_support::fixed_addition(state_2.clone(), offset),
+                            terrane_int_support::fixed_addition(state.clone(), offset),
                             71 /* terrane-site: src/main.trn:169:23-169:37 */,
                         ) as i128,
                     ),

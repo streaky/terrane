@@ -52,6 +52,12 @@ function native-input int; input string
     print; input
     return length
 
+function nested-parameter-collision;
+    source-value int = 10
+    combine = function int; source_value int
+        return source-value + source_value
+    print; (combine; 5)
+
 function main;
     collisions; 10, 20, 30
     parameter-carrier; 5, 8, true
@@ -59,3 +65,4 @@ function main;
     versions;
     builder;
     print; (native-input; 'readable')
+    nested-parameter-collision;

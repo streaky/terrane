@@ -378,9 +378,9 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&redemption.call(())));
         shared = {
             std::sync::Arc::new(move |
-                value_3: terrane_int_support::Int,
+                value: terrane_int_support::Int,
             | -> terrane_int_support::Int {
-                return value_3.clone() + terrane_int_support::Int::from(1_i128);
+                return value.clone() + terrane_int_support::Int::from(1_i128);
             })
         };
         adapted = {

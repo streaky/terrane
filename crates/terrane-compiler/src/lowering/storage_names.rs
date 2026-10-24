@@ -26,12 +26,7 @@ impl StorageNames {
                 .copied()
                 .unwrap_or(span)
         };
-        let parameters = unit
-            .functions
-            .iter()
-            .flat_map(|function| &function.parameters)
-            .map(|parameter| parameter.span)
-            .collect::<BTreeSet<_>>();
+        let parameters = parameter_spans(unit);
         let mut scopes = BTreeMap::<Option<Span>, BTreeMap<Span, &TypedBinding>>::new();
         let mut authored_stems = BTreeMap::<Option<Span>, BTreeSet<String>>::new();
         for binding in &unit.typed_bindings {
@@ -89,6 +84,12 @@ impl StorageNames {
             let mut ordinals = BTreeMap::<String, usize>::new();
             for (span, binding) in storage {
                 let stem = super::helpers::rust_name(&binding.name);
+                if parameters.contains(&span)
+                    && !ordinals.contains_key(&stem)
+                    && parameter_shadows_outer(unit, binding, &bindings, &stem)
+                {
+                    used.remove(&stem);
+                }
                 let name = allocate(&stem, &reserved, &mut used, &mut ordinals);
                 if parameters.contains(&span) {
                     inputs.insert(span, name.clone());
@@ -140,6 +141,31 @@ impl StorageNames {
     pub(crate) fn parameter(&self, span: Span) -> Option<&str> {
         self.parameters.get(&span).map(String::as_str)
     }
+}
+
+fn parameter_spans(unit: &SemanticUnit) -> BTreeSet<Span> {
+    unit.functions
+        .iter()
+        .flat_map(|function| &function.parameters)
+        .map(|parameter| parameter.span)
+        .collect()
+}
+
+/// Initialized parameters may shadow same-named enclosing values in native bodies.
+/// Hoisted locals, same-scope collisions, and differently spelled source bindings
+/// still need distinct storage names.
+fn parameter_shadows_outer(
+    unit: &SemanticUnit,
+    binding: &TypedBinding,
+    allocated: &BTreeMap<Span, String>,
+    stem: &str,
+) -> bool {
+    unit.typed_bindings.iter().any(|outer| {
+        outer.name == binding.name
+            && outer.scope != binding.scope
+            && outer.is_visible_at(binding.span.file, binding.span.start)
+            && allocated.get(&outer.span).is_some_and(|name| name == stem)
+    })
 }
 
 fn allocate(

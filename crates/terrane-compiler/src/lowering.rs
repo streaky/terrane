@@ -73,6 +73,25 @@ pub(crate) fn binding_storage_rust_name<'a>(
     StorageNames::for_unit(unit).binding(binding.span)
 }
 
+/// Resolves a native free value to the innermost visible source binding.
+/// Visibility alone includes shadowed enclosing bindings; every native boundary
+/// consumer must select the same binding before applying ownership rules.
+pub(crate) fn rust_value_binding_at<'a>(
+    unit: &'a crate::semantics::SemanticUnit,
+    position: usize,
+    identifier: &str,
+) -> Option<(usize, &'a crate::semantics::TypedBinding)> {
+    unit.typed_bindings
+        .iter()
+        .enumerate()
+        .filter(|(_, binding)| {
+            binding.scope.is_some()
+                && binding.is_visible_at(unit.source.id(), position)
+                && binding_storage_rust_name(unit, binding) == identifier
+        })
+        .max_by_key(|(_, binding)| binding.visible_from)
+}
+
 pub(crate) fn parameter_source_rust_name(
     unit: &crate::semantics::SemanticUnit,
     name: &str,

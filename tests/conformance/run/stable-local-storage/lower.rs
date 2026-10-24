@@ -153,6 +153,26 @@ fn native_input(input: String) -> terrane_int_support::Int {
     println!("{}", terrane_scalar_support::scalar_text(&input));
     return length.clone();
 }
+fn nested_parameter_collision() {
+    let source_value: i64;
+    let combine: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    >;
+    source_value = 10;
+    combine = {
+        let source_value = source_value.clone();
+        std::sync::Arc::new(move |
+            source_value_2: terrane_int_support::Int,
+        | -> terrane_int_support::Int {
+            return terrane_int_support::Int::from(source_value as i128)
+                + source_value_2.clone();
+        })
+    };
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&combine(terrane_int_support::Int::from(5_i128)))
+    );
+}
 fn main() {
     collisions(
         terrane_int_support::Int::from(10_i128),
@@ -175,4 +195,5 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&native_input(String::from("readable")))
     );
+    nested_parameter_collision();
 }

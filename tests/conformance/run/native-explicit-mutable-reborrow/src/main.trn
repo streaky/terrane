@@ -47,12 +47,18 @@ async function main;
     print; (optional-counter-value; ref optional-counter)
     forward-optional; ref optional-counter
     print; (optional-counter-value; ref optional-counter)
-    bump = function; candidate ref (NativeCounter|none)
+    bump = function; counter ref (NativeCounter|none)
         rust
-            let candidate = &mut *candidate;
-            candidate.as_mut().unwrap().increment();
+            let counter = &mut *counter;
+            counter.as_mut().unwrap().increment();
     bump; ref optional-counter
     print; (optional-counter-value; ref optional-counter)
+    bump-native = function; counter ref NativeCounter
+        rust
+            let counter = &mut *counter;
+            counter.increment();
+    bump-native; ref counter
+    print; (counter.value;)
     print; (advance; ref counter)
     print; (counter.value;)
     print; (shadow-read; ref counter, ref counter)
