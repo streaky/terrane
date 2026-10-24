@@ -10,13 +10,13 @@ fn main() {
     let mut outer: String;
     let mut inner: String;
     value = 1;
-    let _ = &mut value;
+    let _ = &value;
     value = 2;
     println!("{}", terrane_scalar_support::scalar_text(&value));
     stale = 3;
-    let _ = &mut stale;
+    let _ = &stale;
     stale = 4;
-    let _ = &mut stale;
+    let _ = &stale;
     let __terrane_iterable_0 = String::from("ab");
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
         &__terrane_iterable_0,

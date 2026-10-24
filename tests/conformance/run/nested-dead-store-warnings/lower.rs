@@ -6,12 +6,12 @@ fn main() {
     let mut top: i8;
     if 1 == 1 {
         nested = 1;
-        let _ = &mut nested;
+        let _ = &nested;
         nested = 2;
         println!("{}", terrane_scalar_support::scalar_text(&nested));
     }
     top = 3;
-    let _ = &mut top;
+    let _ = &top;
     top = 4;
     println!("{}", terrane_scalar_support::scalar_text(&top));
 }

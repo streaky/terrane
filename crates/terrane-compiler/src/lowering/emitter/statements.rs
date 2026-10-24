@@ -407,7 +407,7 @@ impl Emitter<'_> {
             && !reference_backed
             && !binding_store_value_is_read(self.package, binding.span, node.span)
         {
-            self.line(&format!("let _ = &mut {target};"));
+            self.line(&format!("let _ = &{target};"));
         }
     }
 
@@ -1344,7 +1344,7 @@ impl Emitter<'_> {
             && initializer.is_some()
             && !binding_store_value_is_read(self.package, node.span, node.span)
         {
-            let borrow = if mutable { "&mut " } else { "&" };
+            let borrow = if mutable && !deferred { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));
         }
         if binding.is_some_and(|binding| matches!(binding.value_type, ValueType::List(_)))
