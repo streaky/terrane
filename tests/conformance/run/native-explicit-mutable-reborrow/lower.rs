@@ -2,6 +2,12 @@
 include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
+fn advance_optional(counter: &mut Option<Counter>) {
+    {
+        let counter = &mut *counter;
+        counter.as_mut().unwrap().increment();
+    }
+}
 fn advance(counter: &mut Counter) -> i64 {
     let result: i64;
     result = {
@@ -11,6 +17,9 @@ fn advance(counter: &mut Counter) -> i64 {
         counter.value()
     };
     return result;
+}
+fn optional_counter_value(counter: &Option<Counter>) -> i64 {
+    return counter.as_ref().unwrap().value();
 }
 fn shadow_read(first: &Counter, second: &Counter) -> i64 {
     let result: i64;
@@ -46,16 +55,17 @@ fn read_row(record: &OpaqueRow) -> Result<i64, TerraneError> {
                             )
                         }
                     },
-                    0 /* terrane-site: src/main.trn:29:12-29:25 */,
+                    0 /* terrane-site: src/main.trn:38:12-38:25 */,
                 )?,
             ),
-            0 /* terrane-site: src/main.trn:29:12-29:25 */,
+            0 /* terrane-site: src/main.trn:38:12-38:25 */,
         )?,
     );
 }
 fn main() {
     __terrane_run(async move {
         let mut counter: Counter;
+        let mut optional_counter_2: Option<Counter>;
         let values: terrane_collection_support::List<terrane_int_support::Int>;
         let empty: terrane_collection_support::List<terrane_int_support::Int>;
         let opaque_values: terrane_collection_support::List<OpaqueValue>;
@@ -67,7 +77,16 @@ fn main() {
             terrane_static_trn_436f756e746572_new(
                 terrane_int_support::Int::from(4_i128),
             ),
-            1 /* terrane-site: src/main.trn:32:15-32:36 */,
+            1 /* terrane-site: src/main.trn:41:15-41:36 */,
+        );
+        optional_counter_2 = __terrane_raised(
+            optional_counter(),
+            2 /* terrane-site: src/main.trn:42:24-42:41 */,
+        );
+        advance_optional(&mut optional_counter_2);
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&optional_counter_value(&optional_counter_2))
         );
         println!("{}", terrane_scalar_support::scalar_text(&advance(&mut counter)));
         println!(
@@ -76,7 +95,7 @@ fn main() {
             .value())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::Counter::value")) }, 2 /* terrane-site: src/main.trn:34:13-34:27 */))
+            "witness::Counter::value")) }, 3 /* terrane-site: src/main.trn:46:13-46:27 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&shadow_read(&counter, &counter))
@@ -89,7 +108,7 @@ fn main() {
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "witness",
             "witness::Counter::finish")) } }) }; async move {
-            __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:36:18-36:33 */) } }). await, 3 /* terrane-site: src/main.trn:36:18-36:33 */))
+            __terrane_raised_err(__terrane_future. await, 4 /* terrane-site: src/main.trn:48:18-48:33 */) } }). await, 4 /* terrane-site: src/main.trn:48:18-48:33 */))
         );
         values = terrane_collection_support::List::<
             terrane_int_support::Int,
@@ -101,33 +120,33 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(sum(values),
-            4 /* terrane-site: src/main.trn:38:13-38:31 */))
+            5 /* terrane-site: src/main.trn:50:13-50:31 */))
         );
         empty = terrane_collection_support::List::<
             terrane_int_support::Int,
         >::new(vec![]);
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(sum(empty),
-            5 /* terrane-site: src/main.trn:40:13-40:30 */))
+            6 /* terrane-site: src/main.trn:52:13-52:30 */))
         );
         opaque_values = terrane_collection_support::List::<
             OpaqueValue,
         >::new(
             vec![
                 __terrane_raised(terrane_static_trn_4f706171756556616c7565_new(terrane_int_support::Int::from(3_i128)),
-                6 /* terrane-site: src/main.trn:41:48-41:67 */),
+                7 /* terrane-site: src/main.trn:53:48-53:67 */),
                 __terrane_raised(terrane_static_trn_4f706171756556616c7565_new(terrane_int_support::Int::from(8_i128)),
-                7 /* terrane-site: src/main.trn:41:71-41:90 */)
+                8 /* terrane-site: src/main.trn:53:71-53:90 */)
             ],
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
             let __terrane_future = checksum(opaque_values); async move {
-            __terrane_raised_err(__terrane_future. await, 8 /* terrane-site: src/main.trn:42:18-42:41 */) } }). await, 8 /* terrane-site: src/main.trn:42:18-42:41 */))
+            __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:54:18-54:41 */) } }). await, 9 /* terrane-site: src/main.trn:54:18-54:41 */))
         );
         records = __terrane_raised(
             rows(),
-            9 /* terrane-site: src/main.trn:43:33-43:38 */,
+            10 /* terrane-site: src/main.trn:55:33-55:38 */,
         );
         total = 0;
         let __terrane_iterable_0 = &records;
@@ -142,10 +161,10 @@ fn main() {
                     total,
                     __terrane_traced(
                         read_row(record),
-                        10 /* terrane-site: src/main.trn:46:26-46:42 */,
+                        11 /* terrane-site: src/main.trn:58:26-58:42 */,
                     ),
                 ),
-                11 /* terrane-site: src/main.trn:46:17-46:43 */,
+                12 /* terrane-site: src/main.trn:58:17-58:43 */,
             );
         }
         println!("{}", terrane_scalar_support::scalar_text(&total));
@@ -157,7 +176,7 @@ fn main() {
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_raised_completion!(sum(wide),
-                    12 /* terrane-site: src/main.trn:50:17-50:33 */))
+                    13 /* terrane-site: src/main.trn:62:17-62:33 */))
                 );
                 TerraneCompletion::Normal
             })();

@@ -506,25 +506,8 @@ impl Emitter<'_> {
                 self.output.push_str(", ");
             }
             let binding_type = parameter.binding_value_type();
-            let native_mutable_reference = self
-                .registry
-                .mutable_native_callback_parameters
-                .borrow()
-                .contains(&(
-                    (contract.span.file, contract.span.start, contract.span.end),
-                    index,
-                ))
-                || parameter.mutable
-                    && matches!(
-                        &binding_type,
-                        Some(ValueType::Reference(item))
-                            if matches!(
-                                item.value_type(),
-                                ValueType::Object(identity)
-                                    if identity.native_projection.is_some()
-                                        || self.package.projection.item(&identity.namespace, &identity.name).is_some()
-                            )
-                    );
+            let native_mutable_reference =
+                self.mutable_native_reference_parameter(contract, index, binding_type.as_ref());
             let mutable_storage = parameter.mutable
                 && !self.parameter_needs_shared_storage(parameter)
                 && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
@@ -811,16 +794,27 @@ impl Emitter<'_> {
         index: usize,
         binding_type: Option<&ValueType>,
     ) -> bool {
+        fn is_native_reference_target(
+            package: &crate::SemanticPackage,
+            value_type: &ValueType,
+        ) -> bool {
+            match value_type {
+                ValueType::Object(identity) => {
+                    identity.native_projection.is_some()
+                        || package
+                            .projection
+                            .item(&identity.namespace, &identity.name)
+                            .is_some()
+                }
+                ValueType::Optional(inner) => is_native_reference_target(package, inner),
+                _ => false,
+            }
+        }
         (contract.parameters[index].mutable
             && matches!(
                 binding_type,
                 Some(ValueType::Reference(item))
-                    if matches!(
-                        item.value_type_ref(),
-                        ValueType::Object(identity)
-                            if identity.native_projection.is_some()
-                                || self.package.projection.item(&identity.namespace, &identity.name).is_some()
-                    )
+                    if is_native_reference_target(self.package, item.value_type_ref())
             ))
             || self
                 .registry

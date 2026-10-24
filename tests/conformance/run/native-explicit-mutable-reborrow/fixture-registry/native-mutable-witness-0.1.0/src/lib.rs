@@ -66,3 +66,7 @@ pub fn rows() -> Vec<OpaqueRow> {
 pub fn sum(values: &[i32]) -> i64 {
     values.iter().map(|&value| i64::from(value)).sum()
 }
+
+pub fn optional_counter() -> Option<Counter> {
+    Some(Counter::new(30))
+}
