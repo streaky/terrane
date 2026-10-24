@@ -1759,11 +1759,15 @@ impl ParameterContract {
         })
     }
 
+    pub(crate) fn requires_mutable_native_reference(&self) -> bool {
+        self.mutable
+            && matches!(&self.value_type, Some(ValueType::Reference(inner))
+                if inner.value_type_ref().is_mutable_native_reference_target())
+    }
+
     pub(crate) fn callable_type(&self) -> Option<CallableParameterType> {
         self.value_type.clone().map(|value_type| {
-            let requires_mutable_reference = self.mutable
-                && matches!(&value_type, ValueType::Reference(inner)
-                    if inner.value_type_ref().is_mutable_native_reference_target());
+            let requires_mutable_reference = self.requires_mutable_native_reference();
             let element = ElementType::new(value_type);
             let mut parameter = if self.variadic {
                 CallableParameterType::variadic(element)

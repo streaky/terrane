@@ -1196,13 +1196,9 @@ impl Emitter<'_> {
                             .flat_map(|unit| &unit.functions)
                             .find(|contract| contract.span == alias.span)
                             .is_none_or(|contract| {
-                                !contract.parameters.iter().any(|parameter| {
-                            parameter.mutable && matches!(
-                                parameter.binding_value_type(),
-                                Some(ValueType::Reference(item))
-                                    if item.value_type_ref().is_mutable_native_reference_target()
-                            )
-                        })
+                                !contract.parameters.iter().any(
+                                    crate::ParameterContract::requires_mutable_native_reference,
+                                )
                             })
                     })
             })
