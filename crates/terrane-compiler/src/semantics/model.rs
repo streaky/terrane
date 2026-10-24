@@ -920,6 +920,22 @@ pub enum ValueType {
     SharedReference(ElementType),
 }
 
+impl ValueType {
+    /// Classifies the native ABI from canonical semantic identity, not an import alias.
+    /// `/deps/` is compiler-owned (authored declarations are rejected with S2017);
+    /// closed native applications can instead carry their explicit projection identity.
+    /// Keep this usable during inference, before a complete package is available.
+    pub(crate) fn is_mutable_native_reference_target(&self) -> bool {
+        match self {
+            Self::Object(identity) => {
+                identity.native_projection.is_some() || identity.namespace.starts_with("/deps/")
+            }
+            Self::Optional(inner) => inner.is_mutable_native_reference_target(),
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum CanonicalDefault {
     BoolFalse,
@@ -1747,8 +1763,7 @@ impl ParameterContract {
         self.value_type.clone().map(|value_type| {
             let requires_mutable_reference = self.mutable
                 && matches!(&value_type, ValueType::Reference(inner)
-                    if matches!(inner.value_type_ref(), ValueType::Object(identity)
-                        if identity.native_projection.is_some() || identity.namespace.starts_with("/deps/")));
+                    if inner.value_type_ref().is_mutable_native_reference_target());
             let element = ElementType::new(value_type);
             let mut parameter = if self.variadic {
                 CallableParameterType::variadic(element)

@@ -794,27 +794,11 @@ impl Emitter<'_> {
         index: usize,
         binding_type: Option<&ValueType>,
     ) -> bool {
-        fn is_native_reference_target(
-            package: &crate::SemanticPackage,
-            value_type: &ValueType,
-        ) -> bool {
-            match value_type {
-                ValueType::Object(identity) => {
-                    identity.native_projection.is_some()
-                        || package
-                            .projection
-                            .item(&identity.namespace, &identity.name)
-                            .is_some()
-                }
-                ValueType::Optional(inner) => is_native_reference_target(package, inner),
-                _ => false,
-            }
-        }
         (contract.parameters[index].mutable
             && matches!(
                 binding_type,
                 Some(ValueType::Reference(item))
-                    if is_native_reference_target(self.package, item.value_type_ref())
+                    if item.value_type_ref().is_mutable_native_reference_target()
             ))
             || self
                 .registry

@@ -9,6 +9,9 @@ function advance-optional; counter ref (NativeCounter|none)
         let counter = &mut *counter;
         counter.as_mut().unwrap().increment();
 
+function forward-optional; counter ref (NativeCounter|none)
+    advance-optional; ref counter
+
 function advance int64; counter ref NativeCounter
     result int64 = rust
         {
@@ -18,10 +21,10 @@ function advance int64; counter ref NativeCounter
             counter.value()
         }
     return result
+
 function optional-counter-value int64; counter ref (NativeCounter|none)
     return rust
         counter.as_ref().unwrap().value()
-
 
 function shadow-read int64; first ref NativeCounter, second ref NativeCounter
     result int64 = rust
@@ -41,6 +44,14 @@ async function main;
     counter = NativeCounter::new; 4
     optional-counter = optional-counter;
     advance-optional; ref optional-counter
+    print; (optional-counter-value; ref optional-counter)
+    forward-optional; ref optional-counter
+    print; (optional-counter-value; ref optional-counter)
+    bump = function; candidate ref (NativeCounter|none)
+        rust
+            let candidate = &mut *candidate;
+            candidate.as_mut().unwrap().increment();
+    bump; ref optional-counter
     print; (optional-counter-value; ref optional-counter)
     print; (advance; ref counter)
     print; (counter.value;)
