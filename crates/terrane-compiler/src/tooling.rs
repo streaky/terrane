@@ -3966,6 +3966,14 @@ mod tests {
             "        match 1 { 1=>2, _=>0 }\n",
         );
         let snapshot = open(&mut engine, uri, source, SnapshotOptions::default());
+        assert!(
+            engine
+                .syntax(&snapshot.snapshot_id, uri, None)
+                .unwrap()
+                .diagnostics
+                .is_empty(),
+            "raw Rust source must parse without diagnostics"
+        );
         let first = engine.format(&snapshot.snapshot_id, uri).unwrap();
         assert!(first.changed);
         assert!(
