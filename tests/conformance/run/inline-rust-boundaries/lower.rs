@@ -83,6 +83,7 @@ fn main() {
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
     callback = {
+        let value = value.clone();
         std::sync::Arc::new(move || -> String {
             return {
                 let value = value.clone();

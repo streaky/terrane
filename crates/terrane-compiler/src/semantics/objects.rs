@@ -7482,6 +7482,22 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
         captures: &mut BTreeSet<String>,
         declaration_name: bool,
     ) {
+        if matches!(
+            node.kind,
+            SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+        ) {
+            for identifier in
+                crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node))
+            {
+                if let Some((_, binding)) =
+                    crate::lowering::rust_value_binding_at(unit, node.span.start, &identifier)
+                    && !(closure.start <= binding.span.start && binding.span.end <= closure.end)
+                {
+                    captures.insert(binding.name.clone());
+                }
+            }
+            return;
+        }
         if node.kind == SyntaxKind::Name && !declaration_name {
             let name = node_text(&unit.source, node);
             if unit

@@ -1,0 +1,28 @@
+namespace rust-only-closure-captures
+
+function main;
+    text string = 'outside'
+    outer-read = function int64; other int64
+        return rust
+            text.len() as i64 + other
+    print; (outer-read; 1)
+    print; (outer-read; 2)
+    print; text
+    text = 'x'
+    print; (outer-read; 3)
+    print; text
+
+    block-text string = 'abc'
+    block-read = function int64;
+        result int64 = rust
+            block_text.len() as i64
+        return result
+    print; (block-read;)
+    print; block-text
+
+    unsafe-text string = 'unsafe'
+    unsafe-read = function int64;
+        return unsafe rust
+            *unsafe_text.as_bytes().as_ptr() as i64
+    print; (unsafe-read;)
+    print; unsafe-text
