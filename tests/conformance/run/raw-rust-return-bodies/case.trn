@@ -1,0 +1,18 @@
+namespace raw-rust-return-bodies
+
+function ordinary int64;
+  return rust
+    { let text = r#"a=>b == c"#; (text.len()+1) as i64 }
+
+function unsafe-result int64;
+  return unsafe rust
+    { let value = 41_i64; std::ptr::read(&value)+1 }
+
+function main;
+  print; (ordinary;)
+  print; (unsafe-result;)
+  value uint8=7
+  unsafe rust
+    *(&mut value as *mut u8)=8;
+  print; value
+  print; 'ok'

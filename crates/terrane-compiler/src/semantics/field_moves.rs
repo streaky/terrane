@@ -418,12 +418,12 @@ fn check_rust_access(
     let identifiers = crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
     for path in moved {
         let reads_root = match path.root {
-            Root::Binding(span) => unit.typed_bindings.iter().any(|binding| {
-                binding.span == span
-                    && binding.is_visible_at(unit.source.id(), node.span.start)
-                    && identifiers
-                        .contains(crate::lowering::binding_storage_rust_name(unit, binding))
-            }),
+            Root::Binding(span) => identifiers
+                .iter()
+                .filter_map(|identifier| {
+                    crate::lowering::rust_value_binding_at(unit, node.span.start, identifier)
+                })
+                .any(|(_, binding)| binding.span == span),
             Root::This(span) => {
                 span.file == node.span.file
                     && span.start <= node.span.start

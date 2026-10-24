@@ -860,7 +860,7 @@ fn main() {
         24 /* terrane-site: case.trn:200:68-200:93 */)), 24 /* terrane-site: case.trn:200:68-200:93 */))
     );
     reassigned_before_builder = terrane_collection_support::List::<i64>::new(Vec::new());
-    let _ = &mut reassigned_before_builder;
+    let _ = &reassigned_before_builder;
     replacement = terrane_collection_support::List::<i64>::new(vec![8]);
     reassigned_before_builder = replacement;
     reassigned_index = 0;

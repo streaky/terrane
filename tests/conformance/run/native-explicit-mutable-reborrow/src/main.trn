@@ -2,7 +2,15 @@ namespace app
 
 from /core/collections import list
 from /core/errors import integer-conversion-overflow
-from /deps/witness import Counter as NativeCounter, OpaqueValue, OpaqueRow, rows, checksum, sum as sum-values
+from /deps/witness import Counter as NativeCounter, OpaqueValue, OpaqueRow, rows, checksum, sum as sum-values, optional_counter as optional-counter
+
+function advance-optional; counter ref (NativeCounter|none)
+    rust
+        let counter = &mut *counter;
+        counter.as_mut().unwrap().increment();
+
+function forward-optional; counter ref (NativeCounter|none)
+    advance-optional; ref counter
 
 function advance int64; counter ref NativeCounter
     result int64 = rust
@@ -13,6 +21,10 @@ function advance int64; counter ref NativeCounter
             counter.value()
         }
     return result
+
+function optional-counter-value int64; counter ref (NativeCounter|none)
+    return rust
+        counter.as_ref().unwrap().value()
 
 function shadow-read int64; first ref NativeCounter, second ref NativeCounter
     result int64 = rust
@@ -30,6 +42,23 @@ function read-row int64; record ref OpaqueRow
 
 async function main;
     counter = NativeCounter::new; 4
+    optional-counter = optional-counter;
+    advance-optional; ref optional-counter
+    print; (optional-counter-value; ref optional-counter)
+    forward-optional; ref optional-counter
+    print; (optional-counter-value; ref optional-counter)
+    bump = function; counter ref (NativeCounter|none)
+        rust
+            let counter = &mut *counter;
+            counter.as_mut().unwrap().increment();
+    bump; ref optional-counter
+    print; (optional-counter-value; ref optional-counter)
+    bump-native = function; counter ref NativeCounter
+        rust
+            let counter = &mut *counter;
+            counter.increment();
+    bump-native; ref counter
+    print; (counter.value;)
     print; (advance; ref counter)
     print; (counter.value;)
     print; (shadow-read; ref counter, ref counter)

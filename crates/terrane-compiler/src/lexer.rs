@@ -260,10 +260,17 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
 fn is_rust_block_marker(tokens: &[Token]) -> bool {
     match tokens {
         [rust] => rust.text == "rust",
-        [unsafe_keyword, rust] => unsafe_keyword.text == "unsafe" && rust.text == "rust",
+        [qualifier, rust] => {
+            matches!(qualifier.text.as_str(), "unsafe" | "return") && rust.text == "rust"
+        }
         [.., assign, rust] if assign.kind == TokenKind::Assign => rust.text == "rust",
         [.., assign, unsafe_keyword, rust] if assign.kind == TokenKind::Assign => {
             unsafe_keyword.text == "unsafe" && rust.text == "rust"
+        }
+        [return_keyword, unsafe_keyword, rust] => {
+            return_keyword.text == "return"
+                && unsafe_keyword.text == "unsafe"
+                && rust.text == "rust"
         }
         _ => false,
     }

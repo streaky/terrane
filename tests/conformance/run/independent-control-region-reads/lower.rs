@@ -83,7 +83,7 @@ fn main() {
     exclusive = 0;
     if 1 == 1 {
         exclusive = 9;
-        let _ = &mut exclusive;
+        let _ = &exclusive;
     } else {
         println!("{}", terrane_scalar_support::scalar_text(&exclusive));
     }

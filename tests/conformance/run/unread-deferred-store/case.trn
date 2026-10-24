@@ -1,0 +1,11 @@
+namespace unread-deferred-store
+function pick int; kind int
+    if kind == 0
+        value = 1
+    else
+        value = 2
+    return kind
+
+function main;
+    print; (pick; 0)
+    print; (pick; 1)

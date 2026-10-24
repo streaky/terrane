@@ -8,7 +8,7 @@ fn main() {
     >;
     let mut key: String;
     second = terrane_int_support::Int::from(3_i128);
-    let _ = &mut second;
+    let _ = &second;
     entries = terrane_collection_support::List::<
         terrane_collection_support::Entry<String, terrane_int_support::Int>,
     >::new(

@@ -19,10 +19,10 @@ fn main() {
     outer = 10;
     callback = {
         std::sync::Arc::new(move |
-            outer_2: terrane_int_support::Int,
+            outer: terrane_int_support::Int,
         | -> terrane_int_support::Int {
             let local: terrane_int_support::Int;
-            local = outer_2.clone() + terrane_int_support::Int::from(1_i128);
+            local = outer.clone() + terrane_int_support::Int::from(1_i128);
             return local.clone();
         })
     };

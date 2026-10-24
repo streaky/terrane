@@ -108,7 +108,7 @@ fn exact_reassign_helper_then_producer<'view>(
 ) -> witness::BorrowedLabel<'view> {
     let mut value: witness::BorrowedLabel<'_>;
     value = exact_inner_label(state);
-    let _ = &mut value;
+    let _ = &value;
     value = __terrane_raised(
         borrowed_label(state),
         12 /* terrane-site: src/main.trn:52:13-52:34 */,
@@ -121,7 +121,7 @@ fn exact_reassign_reverse<'view>(state: &'view String) -> witness::BorrowedLabel
         borrowed_label(state),
         13 /* terrane-site: src/main.trn:56:13-56:34 */,
     );
-    let _ = &mut value;
+    let _ = &value;
     value = exact_inner_label(state);
     return value;
 }
@@ -149,7 +149,7 @@ fn exact_reassign_alias<'view>(state: &'view String) -> witness::BorrowedLabel<'
         15 /* terrane-site: src/main.trn:67:13-67:34 */,
     );
     alias = value;
-    let _ = &mut alias;
+    let _ = &alias;
     alias = exact_inner_label(state);
     return alias;
 }
@@ -750,12 +750,12 @@ fn main() {
     offset = 2;
     captured = {
         let offset = offset.clone();
-        std::sync::Arc::new(move |state_2: &i64| -> Label {
+        std::sync::Arc::new(move |state: &i64| -> Label {
             return __terrane_raised(
                 label(
                     terrane_int_support::Int::from(
                         __terrane_raised(
-                            terrane_int_support::fixed_addition(state_2.clone(), offset),
+                            terrane_int_support::fixed_addition(state.clone(), offset),
                             71 /* terrane-site: src/main.trn:169:23-169:37 */,
                         ) as i128,
                     ),

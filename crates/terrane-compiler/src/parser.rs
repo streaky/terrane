@@ -217,6 +217,7 @@ impl Parser<'_> {
                 self.parse_unsupported()
             }
             "rust" => self.parse_rust_block(false),
+            "unsafe" if self.peek_text(1) == Some("rust") => self.parse_rust_block(true),
             "yield" | "label" | "goto" | "when" | "use" | "catch" | "finally" | "case" => {
                 self.parse_unsupported()
             }

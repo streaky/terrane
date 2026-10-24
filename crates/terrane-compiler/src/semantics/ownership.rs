@@ -296,17 +296,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         ) {
             let identifiers =
                 crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
-            if let Some((_, binding)) =
-                unit.typed_bindings
-                    .iter()
-                    .enumerate()
-                    .find(|(binding_index, binding)| {
-                        binding.scope.is_some()
-                            && binding.is_visible_at(unit.source.id(), node.span.start)
-                            && identifiers
-                                .contains(crate::lowering::binding_storage_rust_name(unit, binding))
-                            && noncopyable_binding(package, unit, *binding_index)
-                    })
+            if let Some((_, binding)) = identifiers
+                .iter()
+                .filter_map(|identifier| {
+                    crate::lowering::rust_value_binding_at(unit, node.span.start, identifier)
+                })
+                .find(|(binding_index, _)| noncopyable_binding(package, unit, *binding_index))
             {
                 return Err(failure(
                     &unit.source,
@@ -1953,18 +1948,16 @@ fn validate_named_function_rust_capture(
     function: Span,
 ) -> Result<(), SemanticFailure> {
     let identifiers = crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
-    for binding in &unit.typed_bindings {
-        if binding.scope.is_some()
-            && binding.is_visible_at(unit.source.id(), node.span.start)
-            && identifiers.contains(crate::lowering::binding_storage_rust_name(unit, binding))
-            && let Some(symbol) = unit
-                .scopes
-                .iter()
-                .flat_map(|scope| scope.symbols.values().flatten())
-                .find(|symbol| {
-                    symbol.kind == SymbolKind::Binding
-                        && symbol.declaration_span == Some(binding.span)
-                })
+    for (_, binding) in identifiers.iter().filter_map(|identifier| {
+        crate::lowering::rust_value_binding_at(unit, node.span.start, identifier)
+    }) {
+        if let Some(symbol) = unit
+            .scopes
+            .iter()
+            .flat_map(|scope| scope.symbols.values().flatten())
+            .find(|symbol| {
+                symbol.kind == SymbolKind::Binding && symbol.declaration_span == Some(binding.span)
+            })
         {
             validate_named_function_capture_symbol(unit, node, function, symbol)?;
         }

@@ -5,7 +5,7 @@ fn main() {
     let mut nested_value: i8;
     let mut escaping: i8;
     nested_value = 0;
-    let _ = &mut nested_value;
+    let _ = &nested_value;
     if 1 == 1 {
         nested_value = 1;
         if 1 == 1 {

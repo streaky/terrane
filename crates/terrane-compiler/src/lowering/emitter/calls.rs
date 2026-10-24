@@ -2138,17 +2138,11 @@ impl Emitter<'_> {
                         )
                 }) {
                     self.expression(value)
-                } else if parameter.mutable
-                    && matches!(
-                        parameter.binding_value_type(),
-                        Some(ValueType::Reference(item))
-                            if matches!(
-                                item.value_type(),
-                                ValueType::Object(identity)
-                                    if identity.native_projection.is_some()
-                                        || self.package.projection.item(&identity.namespace, &identity.name).is_some()
-                            )
-                    )
+                } else if self.mutable_native_reference_parameter(
+                    contract,
+                    index,
+                    parameter.binding_value_type().as_ref(),
+                )
                 {
                     if let Some(operand) = explicit_reference {
                         if let Some(reference) = self.narrowed_storage_name(operand, false, true) {

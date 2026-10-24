@@ -407,7 +407,7 @@ impl Emitter<'_> {
             && !reference_backed
             && !binding_store_value_is_read(self.package, binding.span, node.span)
         {
-            self.line(&format!("let _ = &mut {target};"));
+            self.line(&format!("let _ = &{target};"));
         }
     }
 
@@ -1182,28 +1182,38 @@ impl Emitter<'_> {
             .filter(|binding| {
                 // Preserve the defining callable's inferred native borrowing ABI.
                 // The surface callable type's `ref` does not encode `&mut`.
-                !matches!(binding.value_type, ValueType::Function(..) | ValueType::AsyncFunction(..)) || initializer.and_then(|value| crate::semantics::callback_contract(self.package, self.unit, value)).is_none_or(|alias| {
-                    self.package.units.iter().flat_map(|unit| &unit.functions)
-                        .find(|contract| contract.span == alias.span)
-                        .is_none_or(|contract| !contract.parameters.iter().any(|parameter| {
-                            parameter.mutable && matches!(
-                                parameter.binding_value_type(),
-                                Some(ValueType::Reference(item)) if matches!(
-                                    item.value_type(),
-                                    ValueType::Object(identity)
-                                        if identity.native_projection.is_some()
-                                            || self.package.projection.item(&identity.namespace, &identity.name).is_some()
+                !matches!(
+                    binding.value_type,
+                    ValueType::Function(..) | ValueType::AsyncFunction(..)
+                ) || initializer
+                    .and_then(|value| {
+                        crate::semantics::callback_contract(self.package, self.unit, value)
+                    })
+                    .is_none_or(|alias| {
+                        self.package
+                            .units
+                            .iter()
+                            .flat_map(|unit| &unit.functions)
+                            .find(|contract| contract.span == alias.span)
+                            .is_none_or(|contract| {
+                                !contract.parameters.iter().any(
+                                    crate::ParameterContract::requires_mutable_native_reference,
                                 )
-                            )
-                        }))
-                })
+                            })
+                    })
             })
             .filter(|_| {
                 initializer.is_none_or(|initializer| {
                     !self.anonymous_function_captures_borrowed_reference(initializer)
                 })
             })
-            .map(|_| self.binding_rust_type(storage_binding.expect("binding storage"), storage_type, reference_backed));
+            .map(|_| {
+                self.binding_rust_type(
+                    storage_binding.expect("binding storage"),
+                    storage_type,
+                    reference_backed,
+                )
+            });
         assert!(
             initializer.is_some() || !self.text(node).contains('='),
             "analyzed initialized value binding must have a selected initializer"
@@ -1344,7 +1354,7 @@ impl Emitter<'_> {
             && initializer.is_some()
             && !binding_store_value_is_read(self.package, node.span, node.span)
         {
-            let borrow = if mutable { "&mut " } else { "&" };
+            let borrow = if mutable && !deferred { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));
         }
         if binding.is_some_and(|binding| matches!(binding.value_type, ValueType::List(_)))

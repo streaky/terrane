@@ -721,20 +721,17 @@ fn record_rust_binding_reads(
     regions: &[ControlRegion],
 ) {
     let identifiers = crate::rust_ir::rust_free_value_identifiers(node_text(&unit.source, node));
-    for binding in &unit.typed_bindings {
-        if binding.scope.is_some()
-            && binding.is_visible_at(unit.source.id(), node.span.start)
-            && identifiers.contains(crate::lowering::binding_storage_rust_name(unit, binding))
-        {
-            events
-                .entry(span_key(binding.span))
-                .or_default()
-                .push(BindingEvent::Read {
-                    span: node.span,
-                    loops: loops.to_vec(),
-                    regions: regions.to_vec(),
-                });
-        }
+    for (_, binding) in identifiers.iter().filter_map(|identifier| {
+        crate::lowering::rust_value_binding_at(unit, node.span.start, identifier)
+    }) {
+        events
+            .entry(span_key(binding.span))
+            .or_default()
+            .push(BindingEvent::Read {
+                span: node.span,
+                loops: loops.to_vec(),
+                regions: regions.to_vec(),
+            });
     }
 }
 
