@@ -3228,6 +3228,11 @@ fn format_source(document: &ParsedDocument) -> String {
                 .map(|trivia| trivia.span),
         )
         .collect::<Vec<_>>();
+    collect_raw_rust_spans(
+        &document.tree.root,
+        &document.tree.lexed.tokens,
+        &mut protected,
+    );
     protected.extend(document.diagnostics.iter().filter_map(|diagnostic| {
         diagnostic
             .primary
@@ -3271,6 +3276,29 @@ fn format_source(document: &ParsedDocument) -> String {
         output.replace_range(start..end, replacement);
     }
     output
+}
+
+fn collect_raw_rust_spans(
+    node: &SyntaxNode,
+    tokens: &[crate::tokens::Token],
+    protected: &mut Vec<Span>,
+) {
+    if matches!(
+        node.kind,
+        SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+    ) && let Some(newline) = tokens
+        .get(node.token_range.clone())
+        .and_then(|tokens| tokens.iter().find(|token| token.kind == TokenKind::Newline))
+    {
+        protected.push(Span {
+            file: node.span.file,
+            start: newline.span.end,
+            end: node.span.end,
+        });
+    }
+    for child in &node.children {
+        collect_raw_rust_spans(child, tokens, protected);
+    }
 }
 
 fn collect_operator_spacing(
@@ -3917,6 +3945,46 @@ mod tests {
             formatted.text,
             "/**\n * A paragraph with a hard break.  \n *\n *     indented example  \n */\nfunction main;\n    value int = 1\n"
         );
+    }
+    #[test]
+    fn formatter_preserves_raw_rust_bodies() {
+        let mut engine = ToolingEngine::default();
+        let uri = "file:///workspace/raw-rust-format.trn";
+        let source = concat!(
+            "function main;   \n",
+            "    value int=1\n",
+            "    return rust\n",
+            "        match value {\n",
+            "            Some(value)=>value==1, // preserve => and ==\n",
+            "            None=>0,\n",
+            "        }\n",
+            "    result int=rust\n",
+            "        { let text = r#\"a=>b == c\"#; text.len() }\n",
+            "    rust\n",
+            "        let same = 1==1;\n",
+            "    unsafe rust\n",
+            "        match 1 { 1=>2, _=>0 }\n",
+        );
+        let snapshot = open(&mut engine, uri, source, SnapshotOptions::default());
+        let first = engine.format(&snapshot.snapshot_id, uri).unwrap();
+        assert!(first.changed);
+        assert!(
+            first
+                .text
+                .starts_with("function main;\n    value int = 1\n")
+        );
+        for native in [
+            "Some(value)=>value==1, // preserve => and ==\n            None=>0,\n",
+            "{ let text = r#\"a=>b == c\"#; text.len() }\n",
+            "let same = 1==1;\n",
+            "match 1 { 1=>2, _=>0 }\n",
+        ] {
+            assert!(first.text.contains(native), "raw Rust changed: {native:?}");
+        }
+        let second_snapshot = open(&mut engine, uri, &first.text, SnapshotOptions::default());
+        let second = engine.format(&second_snapshot.snapshot_id, uri).unwrap();
+        assert!(!second.changed);
+        assert_eq!(second.text, first.text);
     }
 
     #[test]
