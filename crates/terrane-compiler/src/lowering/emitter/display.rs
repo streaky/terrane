@@ -31,6 +31,9 @@ impl Emitter<'_> {
         {
             return self.available_storage_reference(binding, node, false);
         }
+        if matches!(self.value_type(node), Some(ValueType::Reference(_))) {
+            return self.receiver_guard_expression(node);
+        }
         if matches!(self.receiver_value_type(node), Some(ValueType::Scalar(_))) {
             self.native_receiver_expression(node, false)
         } else {

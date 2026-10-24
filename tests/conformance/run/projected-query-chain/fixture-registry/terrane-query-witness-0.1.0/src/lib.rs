@@ -125,9 +125,16 @@ pub struct Row {
 impl RowAccess for Row {
     type Database = Store;
     fn raw(&self, column: &str) -> Result<ValueRef<'_>, QueryError> {
+        if column == "panic" {
+            panic!("row accessor panic");
+        }
         match column {
             "body" => Ok(ValueRef::Bytes(&self.body)),
             _ => Err(QueryError::MissingColumn(column.to_owned())),
         }
     }
+}
+
+pub fn panic_row() -> Row {
+    Row { body: Vec::new() }
 }

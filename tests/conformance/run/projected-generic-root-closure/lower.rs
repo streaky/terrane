@@ -46,7 +46,7 @@ fn main() {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "std",
                         "std::option::Option::map",
                     ),
                 )

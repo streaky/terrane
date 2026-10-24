@@ -16,8 +16,9 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .build()
         .expect("Terrane async runtime must initialize");
     // Declared after runtime so both normal return and unwinding mark it dead
-    // before Runtime::drop cancels remaining tasks and shuts down its drivers.
+    // before Runtime::drop cancels tasks and shuts down its drivers.
     let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    let future = Box::pin(future);
     runtime.block_on(async move {
         let output = __terrane_async_entry(future).await;
         __terrane_wait_projected_cleanups().await;

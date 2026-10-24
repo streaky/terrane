@@ -19,16 +19,20 @@ fn only_plain_self_receivers() {
         is_mutable,
         type_: Box::new(Type::Generic("Self".to_owned())),
     };
+    let paths = HashMap::new();
     assert_eq!(
-        receiver_kind(&borrowed(true)).unwrap(),
+        receiver_kind(&borrowed(true), &paths).unwrap(),
         Receiver::MutableBorrow
     );
-    assert_eq!(receiver_kind(&borrowed(false)).unwrap(), Receiver::Borrow);
     assert_eq!(
-        receiver_kind(&Type::Generic("Self".to_owned())).unwrap(),
+        receiver_kind(&borrowed(false), &paths).unwrap(),
+        Receiver::Borrow
+    );
+    assert_eq!(
+        receiver_kind(&Type::Generic("Self".to_owned()), &paths).unwrap(),
         Receiver::Move
     );
-    assert!(receiver_kind(&Type::Primitive("str".to_owned())).is_err());
+    assert!(receiver_kind(&Type::Primitive("str".to_owned()), &paths).is_err());
 }
 #[test]
 fn schema_mismatch_is_explicit() {

@@ -1215,39 +1215,41 @@ fn __terrane_cancellation_is_requested() -> bool {
     dead_code,
     reason = "native scope support is shared by packages without asynchronous finally"
 )]
-async fn __terrane_cancel_operation<F: Future>(
-    guard: &TerraneFinallyGuard,
+fn __terrane_cancel_operation<'a, F: Future + 'a>(
+    guard: &'a TerraneFinallyGuard,
     future: F,
-) -> Option<F::Output> {
-    let cancellation = TERRANE_CANCELLATION_CONTEXT
-        .try_with(|context| {
-            guard
-                .state
-                .as_ref()
-                .map(|state| {
-                    (
-                        context.cancellation.clone(),
-                        context.deadline.clone(),
-                        state.clone(),
-                    )
-                })
-        })
-        .ok()
-        .flatten();
-    if let Some((cancellation, deadline, finalizers)) = cancellation {
-        let mut future = std::pin::pin!(future);
-        tokio::select! {
-            biased; output = future.as_mut() => Some(output), () =
-            __terrane_cancellation_requested(cancellation, deadline) => { let output =
-            std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
-            std::task::Poll::Ready(output) => std::task::Poll::Ready(Some(output)),
-            std::task::Poll::Pending if finalizers.depth() == guard.depth => {
-            std::task::Poll::Ready(None) } std::task::Poll::Pending =>
-            std::task::Poll::Pending, } }). await; if output.is_none() { finalizers
-            .drain_task_groups(). await; } output },
+) -> impl Future<Output = Option<F::Output>> + 'a {
+    let mut future = Box::pin(future);
+    async move {
+        let cancellation = TERRANE_CANCELLATION_CONTEXT
+            .try_with(|context| {
+                guard
+                    .state
+                    .as_ref()
+                    .map(|state| {
+                        (
+                            context.cancellation.clone(),
+                            context.deadline.clone(),
+                            state.clone(),
+                        )
+                    })
+            })
+            .ok()
+            .flatten();
+        if let Some((cancellation, deadline, finalizers)) = cancellation {
+            tokio::select! {
+                biased; output = future.as_mut() => Some(output), () =
+                __terrane_cancellation_requested(cancellation, deadline) => { let output
+                = std::future::poll_fn(| cx | { match Future::poll(future.as_mut(), cx) {
+                std::task::Poll::Ready(output) => std::task::Poll::Ready(Some(output)),
+                std::task::Poll::Pending if finalizers.depth() == guard.depth => {
+                std::task::Poll::Ready(None) } std::task::Poll::Pending =>
+                std::task::Poll::Pending, } }). await; if output.is_none() { finalizers
+                .drain_task_groups(). await; } output },
+            }
+        } else {
+            Some(future.await)
         }
-    } else {
-        Some(future.await)
     }
 }
 #[allow(
@@ -1482,6 +1484,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .enable_all()
         .build()
         .expect("Terrane async runtime must initialize");
+    let future = Box::pin(future);
     tokio::task::LocalSet::new()
         .block_on(
             &runtime,
@@ -2086,32 +2089,6 @@ pub fn active_retained_invocations() -> Result<
         }
     }
 }
-pub fn adjust_value<T: terrane_callback_witness::Adjustable>(
-    value: &mut T,
-    delta: terrane_int_support::Int,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let delta = terrane_int_support::coerce::<i64>(&delta)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_callback_witness::adjust_value(
-            value,
-            delta,
-        )),
-    ) {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-callback-witness",
-                    "terrane_callback_witness::adjust_value",
-                ),
-            )
-        }
-    }
-}
 pub async fn apply_async(
     value: String,
     callback: std::sync::Arc<
@@ -2365,46 +2342,6 @@ pub fn async_entry_cleanup_count() -> Result<
         }
     }
 }
-pub async fn cancel_async_entry<T: 'static + terrane_callback_witness::AsyncEntry>(
-    value: T,
-) -> Result<bool, crate::TerraneForeignError> {
-    let value = value;
-    match crate::__terrane_dependency_await_unwind(
-            terrane_callback_witness::cancel_async_entry(value),
-        )
-        .await
-    {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-callback-witness",
-                    "terrane_callback_witness::cancel_async_entry",
-                ),
-            )
-        }
-    }
-}
-pub fn consume_drop<T: 'static + terrane_callback_witness::DropAware>(
-    value: T,
-) -> Result<String, crate::TerraneForeignError> {
-    let value = value;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_callback_witness::consume_drop(value)),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-callback-witness",
-                    "terrane_callback_witness::consume_drop",
-                ),
-            )
-        }
-    }
-}
 pub fn drop_token() -> Result<DropToken, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_callback_witness::drop_token()),
@@ -2531,27 +2468,6 @@ pub fn registrar() -> Result<Registrar, crate::TerraneForeignError> {
         }
     }
 }
-pub fn retain_adjustable<T: 'static + terrane_callback_witness::Adjustable>(
-    value: T,
-) -> Result<AdjustableOwner, crate::TerraneForeignError> {
-    let value = value;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_callback_witness::retain_adjustable(
-            value,
-        )),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-callback-witness",
-                    "terrane_callback_witness::retain_adjustable",
-                ),
-            )
-        }
-    }
-}
 pub fn retain_boxed_adjustable<
     TerraneBoxed0: terrane_callback_witness::Adjustable + core::marker::Send
         + core::marker::Sync + 'static,
@@ -2569,27 +2485,6 @@ pub fn retain_boxed_adjustable<
                     payload,
                     "terrane-callback-witness",
                     "terrane_callback_witness::retain_boxed_adjustable",
-                ),
-            )
-        }
-    }
-}
-pub fn retain_local_adjustable<T: 'static + terrane_callback_witness::LocalAdjustable>(
-    value: T,
-) -> Result<LocalAdjustableOwner, crate::TerraneForeignError> {
-    let value = value;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_callback_witness::retain_local_adjustable(
-            value,
-        )),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-callback-witness",
-                    "terrane_callback_witness::retain_local_adjustable",
                 ),
             )
         }
@@ -2701,74 +2596,5 @@ impl terrane_render_witness::Renderable for Renderable {
             Ok(__terrane_value)
         })();
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
-    }
-}
-pub fn render_decorated<T: terrane_render_witness::Renderable>(
-    value: &T,
-    label_: String,
-) -> Result<String, crate::TerraneForeignError> {
-    let label_ = label_;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_render_witness::render_decorated(
-            value,
-            label_,
-        )),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-render-witness",
-                    "terrane_render_witness::render_decorated",
-                ),
-            )
-        }
-    }
-}
-pub fn render_impl<TerraneImpl0: terrane_render_witness::Renderable>(
-    value: &TerraneImpl0,
-    label_: String,
-) -> Result<String, crate::TerraneForeignError> {
-    let label_ = label_;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_render_witness::render_impl(
-            value,
-            label_,
-        )),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-render-witness",
-                    "terrane_render_witness::render_impl",
-                ),
-            )
-        }
-    }
-}
-pub fn render_value<T: terrane_render_witness::Renderable>(
-    value: &T,
-    label_: String,
-) -> Result<String, crate::TerraneForeignError> {
-    let label_ = label_;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_render_witness::render_value(
-            value,
-            label_,
-        )),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "terrane-render-witness",
-                    "terrane_render_witness::render_value",
-                ),
-            )
-        }
     }
 }

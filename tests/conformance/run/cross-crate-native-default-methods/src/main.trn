@@ -1,0 +1,35 @@
+namespace app
+
+from /deps/witness import Overridden, Wrapped, Mutator
+from /core/errors import throwable
+
+function update-twice uint8; mutator ref Mutator
+    print; (mutator.update; 2)
+    print; (mutator.update; 3)
+    return mutator.value;
+
+function generic-panic-attributed bool; value Wrapped of uint8
+    try
+        wide uint32 = value.selected;
+        return wide == 0
+    catch throwable as error
+        return (error.message.contains; 'Rust dependency `witness`') and (error.message.contains; 'member `witness::Wrapped::selected`') and (error.message.contains; 'generic selector panic')
+
+function main;
+    seed uint8 = 9
+    value Wrapped of uint8 = instance Wrapped; seed
+    owner uint8 = value.owner_value;
+    selected uint16 = value.selected;
+    print; '' + owner + ':' + selected + ':' + (value.label;)
+
+    overridden = Overridden::new;
+    explicit-owner uint8 = overridden.owner_value;
+    explicit-selected uint16 = overridden.selected;
+    print; '' + explicit-owner + ':' + explicit-selected + ':' + (overridden.label;)
+
+    mutator = Mutator::new; 10
+    print; (update-twice; ref mutator)
+    try
+        mutator.update; 0
+    catch throwable as error
+        print; 'native error caught: ' + (error.message.contains; 'zero update rejected')

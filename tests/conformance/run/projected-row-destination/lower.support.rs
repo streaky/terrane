@@ -891,6 +891,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .build()
         .expect("Terrane async runtime must initialize");
     let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    let future = Box::pin(future);
     runtime
         .block_on(async move {
             let output = __terrane_async_entry(future).await;
@@ -930,7 +931,6 @@ fn __terrane_uninitialized_binding(
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Connection;
 pub use terrane_query_witness::ConnectionOptions;
-pub use terrane_query_witness::Query;
 pub use terrane_query_witness::Row;
 pub fn terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new() -> Result<
     ConnectionOptions,

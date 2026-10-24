@@ -26,7 +26,7 @@ impl Record {
                         Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "dependency",
+                                "terrane_generic_row_witness",
                                 "terrane_generic_row_witness::Row::decoded",
                             ),
                         )
@@ -50,7 +50,7 @@ fn decoded_value() -> String {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "dependency",
+                        "terrane_generic_row_witness",
                         "terrane_generic_row_witness::Row::decoded",
                     ),
                 )
@@ -290,7 +290,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "terrane_generic_row_witness",
                             "terrane_generic_row_witness::Row::decoded",
                         ),
                     )

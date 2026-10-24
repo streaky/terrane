@@ -27,7 +27,7 @@ impl WorkerError {
 }
 async fn wait(
     observer: std::sync::Arc<TerraneSharedCell<State>>,
-) -> terrane_int_support::Int {
+) -> Result<terrane_int_support::Int, TerraneError> {
     let mut pause: Option<Duration> = None;
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<
@@ -104,8 +104,8 @@ async fn wait(
         TerraneCompletion::Normal => {
             __terrane_generated_defect("non-fallthrough try completed normally")
         }
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Return(value) => return Ok(value),
+        TerraneCompletion::Error(error) => return Err(error),
         TerraneCompletion::Break | TerraneCompletion::Continue => {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
@@ -159,7 +159,11 @@ fn main() {
                                 )
                                 .await
                             {
-                                Some(value) => TerraneTaskResult::Completed(value),
+                                Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                                Some(Err(error)) => {
+                                    __terrane_scope.cancel();
+                                    TerraneTaskResult::Failed(error)
+                                }
                                 None => TerraneTaskResult::Cancelled,
                             }
                         })
@@ -200,10 +204,10 @@ fn main() {
                                 terrane_collection_support::index_from_int(
                                     &terrane_int_support::Int::from(0_i128),
                                 ),
-                                3 /* terrane-site: case.trn:30:13-30:24 */,
+                                4 /* terrane-site: case.trn:30:13-30:24 */,
                             ),
                         ),
-                    3 /* terrane-site: case.trn:30:13-30:24 */,
+                    4 /* terrane-site: case.trn:30:13-30:24 */,
                 );
                 second = __terrane_raised(
                     outcomes
@@ -212,10 +216,10 @@ fn main() {
                                 terrane_collection_support::index_from_int(
                                     &terrane_int_support::Int::from(1_i128),
                                 ),
-                                4 /* terrane-site: case.trn:31:14-31:25 */,
+                                5 /* terrane-site: case.trn:31:14-31:25 */,
                             ),
                         ),
-                    4 /* terrane-site: case.trn:31:14-31:25 */,
+                    5 /* terrane-site: case.trn:31:14-31:25 */,
                 );
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&(first.cancelled &&! first
@@ -239,7 +243,7 @@ fn main() {
                                     Some(value) => value,
                                     _ => unreachable!("flow-proven storage refinement"),
                                 }
-                                    .at(5 /* terrane-site: case.trn:38:13-38:24 */),
+                                    .at(6 /* terrane-site: case.trn:38:13-38:24 */),
                             );
                         }
                         TerraneCompletion::Normal

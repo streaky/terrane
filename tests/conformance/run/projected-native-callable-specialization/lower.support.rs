@@ -950,6 +950,7 @@ fn __terrane_run<F: Future>(future: F) -> F::Output {
         .build()
         .expect("Terrane async runtime must initialize");
     let _liveness = __terrane_runtime_liveness_enter(&runtime, live);
+    let future = Box::pin(future);
     runtime
         .block_on(async move {
             let output = __terrane_async_entry(future).await;
@@ -974,7 +975,6 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 }
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
-pub use std::option::Option as BorrowedOption;
 pub use witness::Cell;
 pub use witness::Factory;
 pub use witness::Holder;

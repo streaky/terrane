@@ -113,6 +113,7 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
     assert!(entrypoint.contains("// Namespace: app"));
     fs::remove_dir_all(staged).unwrap();
 }
+
 #[test]
 fn split_lowering_uses_the_requested_entrypoint_name() {
     let compilation =

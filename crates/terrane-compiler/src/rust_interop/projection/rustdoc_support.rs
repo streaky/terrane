@@ -24,7 +24,10 @@ pub(super) fn descriptive_rust_identity(identity: &str) -> String {
     result
 }
 
-pub(super) fn receiver_kind(ty: &Type) -> Result<Receiver, String> {
+pub(super) fn receiver_kind(
+    ty: &Type,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<Receiver, String> {
     match ty {
         Type::Generic(name) if name == "Self" => Ok(Receiver::Move),
         Type::BorrowedRef {
@@ -36,7 +39,23 @@ pub(super) fn receiver_kind(ty: &Type) -> Result<Receiver, String> {
                 Receiver::Borrow
             })
         }
-        _ => Err("receiver is not plain `self`, `&self`, or `&mut self`".to_owned()),
+        Type::ResolvedPath(path)
+            if paths.get(&path.id).is_some_and(|item| {
+                matches!(
+                    item.path.join("::").as_str(),
+                    "alloc::boxed::Box" | "std::boxed::Box"
+                )
+            }) && matches!(
+                path.args.as_deref(),
+                Some(GenericArgs::AngleBracketed { args, .. })
+                    if matches!(args.as_slice(), [GenericArg::Type(Type::Generic(name))] if name == "Self")
+            ) =>
+        {
+            Ok(Receiver::BoxedMove)
+        }
+        _ => Err(
+            "receiver is not plain `self`, `&self`, `&mut self`, or `self: Box<Self>`".to_owned(),
+        ),
     }
 }
 

@@ -1331,6 +1331,29 @@ pub(super) fn escaping_throwables(
     }
     if node.kind == SyntaxKind::CallExpression
         && let Some(callee) = node.children.first()
+        && callee.kind == SyntaxKind::StaticMemberExpression
+        && let Some(contract) = super::namespaces::function_contract_for_call_with_safety(
+            package,
+            unit,
+            callee,
+            crate::syntax::call_is_unsafe(node),
+        )
+    {
+        let mut errors = inferred
+            .get(&key(contract.span))
+            .cloned()
+            .unwrap_or_default();
+        errors.extend(local_errors);
+        errors.extend(
+            node.children
+                .iter()
+                .skip(1)
+                .flat_map(|argument| escaping_throwables(package, unit, argument, inferred)),
+        );
+        return errors;
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
         && callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
     {

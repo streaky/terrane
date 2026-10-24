@@ -163,8 +163,17 @@ pub(super) fn index_dependency_import_owners(
         if !unit.bundled || !unit.namespace.starts_with("/deps/") {
             continue;
         }
+        // Chain-only owners have no storable source representation. Their Rust
+        // binders (including lifetimes) remain inferred in the native expression.
         for object in &unit.descriptors {
             if object.kind == ObjectKind::Interface {
+                continue;
+            }
+            if package.projection.item(&object.identity.namespace, &object.identity.name)
+                .is_some_and(|item| matches!(&item.kind,
+                    crate::rust_interop::projection::ProjectedKind::ForeignType { methods, .. }
+                        if !methods.is_empty() && methods.iter().all(|method| method.chain_role.is_some())))
+            {
                 continue;
             }
             if object.identity.namespace != unit.namespace
@@ -320,6 +329,13 @@ pub(super) fn index_dependency_import_owners(
     {
         if identity.native_projection.is_some()
             && specialized_nominals.contains(&(identity.namespace.clone(), identity.name.clone()))
+        {
+            continue;
+        }
+        if package.projection.item(&identity.namespace, &identity.name)
+            .is_some_and(|item| matches!(&item.kind,
+                crate::rust_interop::projection::ProjectedKind::ForeignType { methods, .. }
+                    if !methods.is_empty() && methods.iter().all(|method| method.chain_role.is_some())))
         {
             continue;
         }

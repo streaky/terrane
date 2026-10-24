@@ -314,13 +314,21 @@ pub(crate) fn value_type_contains_nonclone_foreign(
     }
 }
 
+pub(super) fn iterable_item_type(
+    unit: &SemanticUnit,
+    value_type: ValueType,
+) -> Result<ValueType, (&'static str, &'static str, Option<Span>)> {
+    iterable_item_type_in_mode(unit, value_type, false)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "One closed iterable inventory maps source types to item types and diagnostics"
 )]
-pub(super) fn iterable_item_type(
+fn iterable_item_type_in_mode(
     unit: &SemanticUnit,
     value_type: ValueType,
+    borrowed_items: bool,
 ) -> Result<ValueType, (&'static str, &'static str, Option<Span>)> {
     if !matches!(
         value_type,
@@ -337,7 +345,7 @@ pub(super) fn iterable_item_type(
         ValueType::Union(arms) => {
             let mut items = arms
                 .into_iter()
-                .map(|arm| iterable_item_type(unit, arm))
+                .map(|arm| iterable_item_type_in_mode(unit, arm, borrowed_items))
                 .collect::<Result<Vec<_>, _>>()?;
             items.sort_by_key(|item| format!("{item:?}"));
             items.dedup();
@@ -357,7 +365,8 @@ pub(super) fn iterable_item_type(
             Ok(ValueType::Scalar(ScalarType::Uint8))
         }
         ValueType::List(item)
-            if value_type_contains_nonclone_foreign(unit, item.value_type_ref()) =>
+            if !borrowed_items
+                && value_type_contains_nonclone_foreign(unit, item.value_type_ref()) =>
         {
             Err((
                 "T0135",
@@ -374,7 +383,7 @@ pub(super) fn iterable_item_type(
             Ok(ValueType::Entry(key, value))
         }
         ValueType::Range => Ok(ValueType::Scalar(ScalarType::Int)),
-        ValueType::Reference(item) => iterable_item_type(unit, item.value_type())
+        ValueType::Reference(item) => iterable_item_type_in_mode(unit, item.value_type(), true)
             .map(|item| ValueType::Reference(ElementType::new(item))),
         ValueType::Object(identity) => {
             let iterator =

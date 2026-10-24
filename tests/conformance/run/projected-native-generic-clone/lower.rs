@@ -7,7 +7,7 @@ fn copy(source: &witness::CloneBox<u8>) -> witness::CloneBox<u8> {
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| <witness::CloneBox<
                 u8,
-            > as core::clone::Clone>::clone(&source)),
+            > as core::clone::Clone>::clone(&*source)),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -73,9 +73,9 @@ fn main() {
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
                     ::TERRANE_DEPENDENCY_ERROR,
                     format!("Rust dependency `{}` member `{}` failed: {error}",
-                    "dependency", "witness::CloneBox::read"), crate ::TERRANE_NO_SITE))),
+                    "witness", "witness::CloneBox::read"), crate ::TERRANE_NO_SITE))),
                     Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-                    "dependency", "witness::CloneBox::read")) } }) }; async move {
+                    "witness", "witness::CloneBox::read")) } }) }; async move {
                     __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:16:22-16:48 */) } }). await, 3 /* terrane-site: src/main.trn:16:22-16:48 */))
                 );
                 TerraneCompletion::Normal
@@ -118,10 +118,9 @@ fn main() {
                     Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
                     ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
                     format!("Rust dependency `{}` member `{}` failed: {error}",
-                    "dependency", "witness::CloneBox::reject"), crate
-                    ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-                    ::__terrane_dependency_panic(payload, "dependency",
-                    "witness::CloneBox::reject")) }, 4 /* terrane-site: src/main.trn:20:9-20:40 */
+                    "witness", "witness::CloneBox::reject"), crate ::TERRANE_NO_SITE))),
+                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                    "witness", "witness::CloneBox::reject")) }, 4 /* terrane-site: src/main.trn:20:9-20:40 */
                 );
                 TerraneCompletion::Normal
             })();

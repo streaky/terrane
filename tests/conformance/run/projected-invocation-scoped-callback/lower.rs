@@ -536,7 +536,7 @@ fn update(state: &mut MutableState, message: terrane_int_support::Int) {
         __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| {
-                    let _ = state.mark();
+                    let _ = (*state).mark();
                 }),
             ) {
                 Ok(()) => Ok(()),

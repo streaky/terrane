@@ -110,7 +110,7 @@ impl Emitter<'_> {
             }
             SyntaxKind::ThrowStatement => self.throw_statement(node),
             SyntaxKind::TryStatement => self.try_statement(node),
-            SyntaxKind::BreakStatement if self.try_completion => {
+            SyntaxKind::BreakStatement if self.try_completion && !self.in_loop => {
                 self.line("return TerraneCompletion::Break;");
             }
             SyntaxKind::BreakStatement => {
@@ -120,7 +120,7 @@ impl Emitter<'_> {
                     self.line("break;");
                 }
             }
-            SyntaxKind::ContinueStatement if self.try_completion => {
+            SyntaxKind::ContinueStatement if self.try_completion && !self.in_loop => {
                 self.line("return TerraneCompletion::Continue;");
             }
             SyntaxKind::ContinueStatement => {
@@ -857,11 +857,7 @@ impl Emitter<'_> {
     }
 
     pub(super) fn contains_await(&self, node: &SyntaxNode) -> bool {
-        (node.kind == SyntaxKind::UnaryExpression
-            && node.children.first().is_some_and(|operator| {
-                self.unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
-            }))
-            || node.children.iter().any(|child| self.contains_await(child))
+        crate::syntax::contains_await(node, self.unit.source.text())
     }
 
     #[expect(
@@ -877,7 +873,8 @@ impl Emitter<'_> {
             .children
             .iter()
             .any(|child| child.kind == SyntaxKind::FinallyClause);
-        let cancellation_aware = asynchronous && has_finally;
+        let cancellation_aware =
+            crate::syntax::try_needs_cancellation_aware_finally(node, self.unit.source.text());
         let closure_start = if asynchronous { "async {" } else { "(|| {" };
         let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;
@@ -904,6 +901,9 @@ impl Emitter<'_> {
             "let __terrane_try_{index}: TerraneCompletion<{result}> = {closure_start}"
         ));
         self.indent += 1;
+        let outer_loop = std::mem::replace(&mut self.in_loop, false);
+        let outer_break = self.break_label.take();
+        let outer_continue = self.continue_label.take();
         let outer_completion = std::mem::replace(&mut self.try_completion, true);
         let outer_propagation = std::mem::replace(&mut self.propagate_errors, true);
         let outer_function_errors = std::mem::replace(&mut self.function_errors, false);
@@ -990,6 +990,9 @@ impl Emitter<'_> {
             self.line("}");
         }
         self.try_completion = outer_completion;
+        self.in_loop = outer_loop;
+        self.break_label = outer_break;
+        self.continue_label = outer_continue;
         self.line(&format!("if !__terrane_handled_{index} {{"));
         self.indent += 1;
         self.line(&format!(
@@ -1030,6 +1033,9 @@ impl Emitter<'_> {
                 "let __terrane_finally_{index}: TerraneCompletion<{result}> = {finally_start}"
             ));
             self.indent += 1;
+            let outer_loop = std::mem::replace(&mut self.in_loop, false);
+            let outer_break = self.break_label.take();
+            let outer_continue = self.continue_label.take();
             let outer_completion = std::mem::replace(&mut self.try_completion, true);
             let outer_propagation = std::mem::replace(&mut self.propagate_errors, true);
             let outer_function_errors = std::mem::replace(&mut self.function_errors, false);
@@ -1037,6 +1043,9 @@ impl Emitter<'_> {
             if block_may_fall_through(finally) {
                 self.line("TerraneCompletion::Normal");
             }
+            self.in_loop = outer_loop;
+            self.break_label = outer_break;
+            self.continue_label = outer_continue;
             self.function_errors = outer_function_errors;
             self.propagate_errors = outer_propagation;
             self.try_completion = outer_completion;
@@ -1090,6 +1099,9 @@ impl Emitter<'_> {
             } else {
                 self.line("TerraneCompletion::Continue => continue,");
             }
+        } else if self.try_completion {
+            self.line("TerraneCompletion::Break => return TerraneCompletion::Break,");
+            self.line("TerraneCompletion::Continue => return TerraneCompletion::Continue,");
         } else {
             self.line("TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect(\"loop control escaped a non-loop try\"),");
         }

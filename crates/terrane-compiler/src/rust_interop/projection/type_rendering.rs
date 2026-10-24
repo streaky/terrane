@@ -223,14 +223,23 @@ pub(super) fn render_rust_type(
             name,
             args,
             self_type,
-            ..
+            trait_,
         } if args.is_none()
             && matches!(self_type.as_ref(), Type::Generic(owner) if generics.contains_key(owner)) =>
         {
             let Type::Generic(owner) = self_type.as_ref() else {
                 unreachable!("qualified generic owner was matched above");
             };
-            Ok(format!("{owner}::{name}"))
+            if let Some(associated) = generics.get(&format!("{owner}::{name}")) {
+                return Ok(associated.rust_type());
+            }
+            let concrete = render_rust_type(self_type, index, paths, generics)?;
+            if let Some(trait_) = trait_ {
+                let owner_trait = render_resolved_path(trait_, index, paths, generics)?;
+                Ok(format!("<{concrete} as {owner_trait}>::{name}"))
+            } else {
+                Ok(format!("{concrete}::{name}"))
+            }
         }
         _ => Err("generic argument has no stable Rust type spelling".to_owned()),
     }

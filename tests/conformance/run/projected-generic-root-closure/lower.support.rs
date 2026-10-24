@@ -529,7 +529,6 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
-pub use std::option::Option as BorrowedOption;
 pub use witness::Holder;
 pub use witness::Map;
 pub use witness::Payload;

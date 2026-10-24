@@ -1,0 +1,90 @@
+namespace try-loop-completion
+
+from /core/errors import coercion-error
+
+async function cleanup;
+    return
+
+class worker
+    async function run;
+        index = 0
+        while index < 4
+            try
+                index = index + 1
+                if index == 1
+                    print; 'loop-continue'
+                    continue
+                if index == 3
+                    print; 'loop-break'
+                    break
+                print; 'loop-body'
+            finally
+                await cleanup;
+                print; 'loop-finally'
+
+        try
+            index = 0
+            while true
+                try
+                    print; 'try-in-loop'
+                    index = index + 1
+                    if index == 1
+                        continue
+                    break
+                finally
+                    await cleanup;
+        finally
+            await cleanup;
+            print; 'outer-finally'
+
+        index = 0
+        while index < 3
+            index = index + 1
+            try
+                try
+                    while true
+                        print; 'nested-loop'
+                        break
+                finally
+                    await cleanup;
+                    print; 'nested-finally'
+                if index == 1
+                    continue
+                break
+            finally
+                await cleanup;
+                print; 'nested-outer-finally'
+
+    async function caught int;
+        index = 0
+        while index < 3
+            index = index + 1
+            try
+                throw coercion-error
+            catch coercion-error
+                if index == 1
+                    continue
+                break
+            finally
+                await cleanup;
+                print; 'catch-finally'
+        return 42
+
+    async function returning int;
+        try
+            while true
+                try
+                    return 7
+                finally
+                    await cleanup;
+                    print; 'return-inner'
+        finally
+            await cleanup;
+            print; 'return-outer'
+        return 0
+
+async function main;
+    item = instance worker;
+    await item.run;
+    print; (await item.caught;)
+    print; (await item.returning;)

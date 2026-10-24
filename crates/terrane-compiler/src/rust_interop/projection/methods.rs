@@ -226,16 +226,58 @@ pub(super) fn project_methods(
             render_rust_type(&implementation.for_, index, paths, &implementation_generics)
                 .unwrap_or_else(|_| owner_rust_path.to_owned())
         };
-        if inherent
-            && let Ok(owner) =
-                project_type(&implementation.for_, index, paths, &implementation_generics)
-        {
+        let self_type = match &implementation.for_ {
+            Type::BorrowedRef {
+                is_mutable: true,
+                type_,
+                ..
+            } if !inherent => type_.as_ref(),
+            _ => &implementation.for_,
+        };
+        if let Ok(owner) = project_type(self_type, index, paths, &implementation_generics) {
             implementation_generics.insert("Self".to_owned(), owner);
         }
         if let Some(Type::Generic(generic)) = &implementation.blanket_impl
             && let Some(owner) = owner_generics.get("Self")
         {
             implementation_generics.insert(generic.clone(), owner.clone());
+        }
+        let mut method_ids = implementation.items.clone();
+        if !inherent
+            && let (Some(trait_reference), Some(public_trait_path)) = (
+                implementation.trait_.as_ref(),
+                implementation
+                    .trait_
+                    .as_ref()
+                    .and_then(|trait_| public_paths.get(&trait_.id)),
+            )
+            && paths.contains_key(&trait_reference.id)
+            && !public_trait_path.is_empty()
+            && let Some(Item {
+                inner: ItemEnum::Trait(trait_declaration),
+                ..
+            }) = index.get(&trait_reference.id)
+        {
+            for method_name in &implementation.provided_trait_methods {
+                if implementation.items.iter().any(|id| {
+                    index
+                        .get(id)
+                        .is_some_and(|item| item.name.as_deref() == Some(method_name))
+                }) {
+                    continue;
+                }
+                let Some((method_id, _)) = trait_declaration.items.iter().find_map(|method_id| {
+                    let item = index.get(method_id)?;
+                    (item.name.as_deref() == Some(method_name)
+                        && matches!(&item.inner, ItemEnum::Function(function) if function.has_body))
+                    .then_some((*method_id, item))
+                }) else {
+                    continue;
+                };
+                if !implementation.items.contains(&method_id) && !method_ids.contains(&method_id) {
+                    method_ids.push(method_id);
+                }
+            }
         }
         for item_id in &implementation.items {
             let Some(Item {
@@ -253,7 +295,7 @@ pub(super) fn project_methods(
                 implementation_generics.insert(format!("Self::{name}"), projected);
             }
         }
-        for method_id in &implementation.items {
+        for method_id in &method_ids {
             let Some(item) = index.get(method_id) else {
                 continue;
             };
@@ -391,11 +433,20 @@ pub(super) fn project_methods(
                             trait_implementation_path.replace('-', "_")
                         };
                         let trait_rust_path = canonicalize_rust_path(&trait_rust_path);
-                        method.native_path =
-                            Some(format!("<{owner_rust_path} as {trait_rust_path}>::{name}"));
+                        let invocation = format!("<{native_owner} as {trait_rust_path}>::{name}");
+                        let lifetimes = crate::rust_ir::rust_lifetimes(&invocation)
+                            .into_iter()
+                            .filter(|lifetime| lifetime != "'static" && lifetime != "'_")
+                            .map(|lifetime| (lifetime, "'_".to_owned()))
+                            .collect::<BTreeMap<_, _>>();
+                        method.native_path = Some(if lifetimes.is_empty() {
+                            invocation
+                        } else {
+                            crate::rust_ir::instantiate_rust_generics(&invocation, &lifetimes)
+                        });
                         if implementation.blanket_impl.is_some()
                             && !(method.destination_result.is_some()
-                                && method.receiver == Some(Receiver::Move)
+                                && method.receiver.is_some_and(Receiver::consumes)
                                 && method.parameters.is_empty())
                         {
                             continue;
@@ -510,7 +561,7 @@ fn is_internal_rust_protocol_method(trait_path: &str, method: &str) -> bool {
 }
 #[expect(
     clippy::too_many_arguments,
-    reason = "chain-owner projection needs the resolved dependency and all Rustdoc path contexts"
+    reason = "shared Rustdoc projection context"
 )]
 pub(super) fn project_chain_owner(
     dependency: &RustDependency,
@@ -523,6 +574,32 @@ pub(super) fn project_chain_owner(
     source_constants: &mut SourceConstantCache,
 ) -> Option<ProjectedItem> {
     let output = function.sig.output.as_ref()?;
+    project_chain_owner_item(
+        dependency,
+        output,
+        result,
+        invocation_scoped,
+        index,
+        paths,
+        public_paths,
+        source_constants,
+    )
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "chain-owner projection needs the resolved dependency and all Rustdoc path contexts"
+)]
+fn project_chain_owner_item(
+    dependency: &RustDependency,
+    output: &Type,
+    result: &ProjectedType,
+    invocation_scoped: bool,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+    source_constants: &mut SourceConstantCache,
+) -> Option<ProjectedItem> {
     let Type::ResolvedPath(path) = output else {
         return None;
     };
@@ -542,7 +619,8 @@ pub(super) fn project_chain_owner(
     else {
         return None;
     };
-    if !result.contains_opaque()
+    if !invocation_scoped
+        && !result.contains_opaque()
         && !structure
             .generics
             .params

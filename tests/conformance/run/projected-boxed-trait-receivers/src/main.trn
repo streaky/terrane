@@ -1,0 +1,29 @@
+namespace app
+
+from /deps/witness import BoxedCounter
+
+class counter implements BoxedCounter
+    value int = 17
+
+    function read int;
+        return this.value
+
+    mutable function increment int;
+        this.value = this.value + 5
+        return this.value
+
+function rust-read int64; value counter
+    result int64 = rust
+        witness::read_boxed(Box::new(value))
+    return result
+
+function rust-increment int64; value counter
+    result int64 = rust
+        witness::increment_boxed(Box::new(value))
+    return result
+
+function main;
+    read-value counter = instance counter;
+    increment-value counter = instance counter;
+    print; (rust-read; read-value)
+    print; (rust-increment; increment-value)

@@ -1,0 +1,8 @@
+package = "projected-local-cleanup"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "witness"
+version = "=0.1.0"

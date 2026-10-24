@@ -496,10 +496,9 @@ pub(crate) fn member_invocation_mode(
                 .projection
                 .method(&identity.namespace, &identity.name, member_name, false)
                 .is_some_and(|method| {
-                    matches!(
-                        method.receiver,
-                        Some(crate::rust_interop::projection::Receiver::Move)
-                    )
+                    method
+                        .receiver
+                        .is_some_and(crate::rust_interop::projection::Receiver::consumes)
                 })
         {
             return InvocationMode::Consuming;
@@ -734,6 +733,21 @@ fn binding_mutation_count(
 ) -> usize {
     if closure_writes == ClosureWrites::Exclude && node.kind == SyntaxKind::AnonymousFunction {
         return 0;
+    }
+    if matches!(
+        node.kind,
+        SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+    ) {
+        return usize::from(
+            crate::rust_ir::rust_mutably_borrowed_value_identifiers(node_text(&unit.source, node))
+                .iter()
+                .any(|name| {
+                    !package.is_lexical_replacement(unit, node.span, name)
+                        && package
+                            .resolve_name_at(unit, node.span.start, name)
+                            .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+                }),
+        );
     }
     let resolves_to_binding = |target: &SyntaxNode| {
         object_mutation_root(unit, target).is_some_and(|root| {

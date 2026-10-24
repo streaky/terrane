@@ -442,10 +442,9 @@ impl ProjectedAsyncEntry {
                             TerraneCompletion::Error(error) => {
                                 return TerraneCompletion::Error(error);
                             }
-                            TerraneCompletion::Break | TerraneCompletion::Continue => {
-                                __terrane_generated_defect(
-                                    "loop control escaped a non-loop try",
-                                )
+                            TerraneCompletion::Break => return TerraneCompletion::Break,
+                            TerraneCompletion::Continue => {
+                                return TerraneCompletion::Continue;
                             }
                         }
                     }
@@ -585,10 +584,9 @@ impl ProjectedAsyncEntry {
                             TerraneCompletion::Error(error) => {
                                 return TerraneCompletion::Error(error);
                             }
-                            TerraneCompletion::Break | TerraneCompletion::Continue => {
-                                __terrane_generated_defect(
-                                    "loop control escaped a non-loop try",
-                                )
+                            TerraneCompletion::Break => return TerraneCompletion::Break,
+                            TerraneCompletion::Continue => {
+                                return TerraneCompletion::Continue;
                             }
                         }
                     }
@@ -726,10 +724,9 @@ impl ProjectedAsyncEntry {
                             TerraneCompletion::Error(error) => {
                                 return TerraneCompletion::Error(error);
                             }
-                            TerraneCompletion::Break | TerraneCompletion::Continue => {
-                                __terrane_generated_defect(
-                                    "loop control escaped a non-loop try",
-                                )
+                            TerraneCompletion::Break => return TerraneCompletion::Break,
+                            TerraneCompletion::Continue => {
+                                return TerraneCompletion::Continue;
                             }
                         }
                     }
@@ -869,10 +866,9 @@ impl ProjectedAsyncEntry {
                             TerraneCompletion::Error(error) => {
                                 return TerraneCompletion::Error(error);
                             }
-                            TerraneCompletion::Break | TerraneCompletion::Continue => {
-                                __terrane_generated_defect(
-                                    "loop control escaped a non-loop try",
-                                )
+                            TerraneCompletion::Break => return TerraneCompletion::Break,
+                            TerraneCompletion::Continue => {
+                                return TerraneCompletion::Continue;
                             }
                         }
                     }
@@ -1012,10 +1008,9 @@ impl ProjectedAsyncEntry {
                             TerraneCompletion::Error(error) => {
                                 return TerraneCompletion::Error(error);
                             }
-                            TerraneCompletion::Break | TerraneCompletion::Continue => {
-                                __terrane_generated_defect(
-                                    "loop control escaped a non-loop try",
-                                )
+                            TerraneCompletion::Break => return TerraneCompletion::Break,
+                            TerraneCompletion::Continue => {
+                                return TerraneCompletion::Continue;
                             }
                         }
                     }
@@ -1360,14 +1355,20 @@ fn main() {
         );
         message = ProjectedMessage::terrane_construct();
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(render_value(&message,
-            String::from("interface")), 23 /* terrane-site: src/main.trn:124:13-124:47 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_render_witness::render_value(&message, String::from("interface")))) {
+            Ok(value) => Ok(value), Err(payload) => Err(crate
+            ::__terrane_dependency_panic(payload, "terrane-render-witness",
+            "terrane_render_witness::render_value")) }, 23 /* terrane-site: src/main.trn:124:13-124:47 */))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(render_decorated(&message,
-            String::from("default")), 24 /* terrane-site: src/main.trn:125:13-125:49 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_render_witness::render_decorated(&message, String::from("default"))))
+            { Ok(value) => Ok(value), Err(payload) => Err(crate
+            ::__terrane_dependency_panic(payload, "terrane-render-witness",
+            "terrane_render_witness::render_decorated")) }, 24 /* terrane-site: src/main.trn:125:13-125:49 */))
         );
         interface_message = <Renderable>::from(message);
         println!(
@@ -1385,22 +1386,61 @@ fn main() {
         );
         impl_message = ProjectedMessage::terrane_construct();
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(render_impl(&impl_message,
-            String::from("opaque")), 26 /* terrane-site: src/main.trn:131:13-131:48 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_render_witness::render_impl(&impl_message, String::from("opaque"))))
+            { Ok(value) => Ok(value), Err(payload) => Err(crate
+            ::__terrane_dependency_panic(payload, "terrane-render-witness",
+            "terrane_render_witness::render_impl")) }, 26 /* terrane-site: src/main.trn:131:13-131:48 */))
         );
         counter = ProjectedCounter::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(adjust_value(&mut
-            counter, terrane_int_support::Int::from(7_i128)), 27 /* terrane-site: src/main.trn:133:13-133:37 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_callback_witness::adjust_value(&mut counter, match | | -> Result < _,
+            crate ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            (&terrane_int_support::Int::from(7_i128)).map_err(| error | crate
+            ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+            ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+            std::panic::panic_any(error) }))) { Ok(value) =>
+            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
+            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::adjust_value")) }, 27 /* terrane-site: src/main.trn:133:13-133:37 */))
         );
         holder = ProjectedCounterHolder::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(adjust_value(&mut
-            holder.inner, terrane_int_support::Int::from(9_i128)), 28 /* terrane-site: src/main.trn:135:13-135:42 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_callback_witness::adjust_value(&mut holder.inner, match | | -> Result
+            < _, crate ::TerraneForeignError > { Ok(terrane_int_support::coerce:: < i64 >
+            (&terrane_int_support::Int::from(9_i128)).map_err(| error | crate
+            ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+            ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+            std::panic::panic_any(error) }))) { Ok(value) =>
+            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
+            Err(crate ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::adjust_value")) }, 28 /* terrane-site: src/main.trn:135:13-135:42 */))
         );
         retained_counter = __terrane_raised(
-            retain_adjustable(counter),
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| terrane_callback_witness::retain_adjustable(
+                    match || -> Result<_, crate::TerraneForeignError> { Ok(counter) }() {
+                        Ok(value) => value,
+                        Err(error) => std::panic::panic_any(error),
+                    },
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "terrane-callback-witness",
+                            "terrane_callback_witness::retain_adjustable",
+                        ),
+                    )
+                }
+            },
             29 /* terrane-site: src/main.trn:136:24-136:50 */,
         );
         println!(
@@ -1477,7 +1517,27 @@ fn main() {
             37 /* terrane-site: src/main.trn:143:39-143:60 */))
         );
         local_owner = __terrane_raised(
-            retain_local_adjustable(ProjectedLocalCounter::terrane_construct()),
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| terrane_callback_witness::retain_local_adjustable(
+                    match || -> Result<_, crate::TerraneForeignError> {
+                        Ok(ProjectedLocalCounter::terrane_construct())
+                    }() {
+                        Ok(value) => value,
+                        Err(error) => std::panic::panic_any(error),
+                    },
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "terrane-callback-witness",
+                            "terrane_callback_witness::retain_local_adjustable",
+                        ),
+                    )
+                }
+            },
             38 /* terrane-site: src/main.trn:144:19-144:79 */,
         );
         println!(
@@ -1502,15 +1562,28 @@ fn main() {
             40 /* terrane-site: src/main.trn:145:38-145:58 */))
         );
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(consume_drop(DropAwareValue::terrane_construct()),
-            41 /* terrane-site: src/main.trn:146:13-146:55 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+            terrane_callback_witness::consume_drop(match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok(DropAwareValue::terrane_construct()) } () {
+            Ok(value) => value, Err(error) => std::panic::panic_any(error) }))) {
+            Ok(value) => Ok(value), Err(payload) => Err(crate
+            ::__terrane_dependency_panic(payload, "terrane-callback-witness",
+            "terrane_callback_witness::consume_drop")) }, 41 /* terrane-site: src/main.trn:146:13-146:55 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
-            let __terrane_future =
-            cancel_async_entry(ProjectedAsyncEntry::terrane_construct()); async move {
-            __terrane_raised_err(__terrane_future. await, 42 /* terrane-site: src/main.trn:147:19-147:72 */) } }). await, 42 /* terrane-site: src/main.trn:147:19-147:72 */))
+            let __terrane_future = { let __terrane_call =
+            terrane_callback_witness::cancel_async_entry(match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok(ProjectedAsyncEntry::terrane_construct()) } () {
+            Ok(value) => value, Err(error) => std::panic::panic_any(error) });
+            Box::pin(async move { match crate
+            ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(value) =>
+            Ok(value), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+            "terrane-callback-witness", "terrane_callback_witness::cancel_async_entry"))
+            } }) }; async move { __terrane_raised_err(__terrane_future. await,
+            42 /* terrane-site: src/main.trn:147:19-147:72 */) } }). await,
+            42 /* terrane-site: src/main.trn:147:19-147:72 */))
         );
     });
 }

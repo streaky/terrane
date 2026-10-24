@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn marker_value(value: &Marker) -> terrane_int_support::Int {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&value).value()),
+            std::panic::AssertUnwindSafe(|| (&*value).value()),
         ) {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => {
@@ -81,7 +81,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Factory::create",
                         ),
                     )
@@ -163,7 +163,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "std",
                             "std::option::Option::map",
                         ),
                     )
@@ -336,7 +336,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Factory::unsafe_create",
                         ),
                     )
@@ -431,7 +431,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Holder::make",
                         ),
                     )
@@ -451,7 +451,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Holder::with_owner",
                         ),
                     )
@@ -468,7 +468,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "witness",
                             "witness::Holder::make",
                         ),
                     )
@@ -528,7 +528,7 @@ fn main() {
                                     Err(
                                         crate::__terrane_dependency_panic(
                                             payload,
-                                            "dependency",
+                                            "witness",
                                             "witness::Factory::create_async",
                                         ),
                                     )
@@ -594,7 +594,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "std",
                             "std::option::Option::map",
                         ),
                     )
@@ -642,7 +642,7 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
+                            "std",
                             "std::option::Option::map",
                         ),
                     )

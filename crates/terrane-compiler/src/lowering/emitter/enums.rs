@@ -726,54 +726,55 @@ impl<'a> Emitter<'a> {
                         else {
                             continue;
                         };
-                        if borrowed {
-                            let selected_identity = match &value_type {
-                                Some(ValueType::Object(identity)) => Some(identity),
-                                Some(ValueType::Optional(inner)) => match inner.as_ref() {
-                                    ValueType::Object(identity) => Some(identity),
-                                    _ => None,
-                                },
+                        let selected_identity = match &value_type {
+                            Some(ValueType::Object(identity)) => Some(identity),
+                            Some(ValueType::Optional(inner)) => match inner.as_ref() {
+                                ValueType::Object(identity) => Some(identity),
                                 _ => None,
-                            };
-                            let mut selected_types = BTreeMap::new();
-                            if let Some(identity) = selected_identity {
-                                for parameter in generic_parameters {
-                                    if let Some(argument) =
-                                        identity.native_arguments.get(&parameter.name)
-                                        && let Ok(projected) =
-                                            crate::semantics::destination_projected_type(
-                                                self.package,
-                                                argument,
-                                            )
-                                    {
-                                        selected_types.insert(parameter.name.clone(), projected);
-                                    }
+                            },
+                            _ => None,
+                        };
+                        let mut selected_types = BTreeMap::new();
+                        if let Some(identity) = selected_identity {
+                            for parameter in generic_parameters {
+                                if let Some(argument) =
+                                    identity.native_arguments.get(&parameter.name)
+                                    && let Ok(projected) =
+                                        crate::semantics::destination_projected_type(
+                                            self.package,
+                                            argument,
+                                        )
+                                {
+                                    selected_types.insert(parameter.name.clone(), projected);
                                 }
                             }
-                            for (field, binding) in variant.fields.iter().zip(&bindings) {
-                                if *binding == "_" {
-                                    continue;
-                                }
-                                let projected =
-                                    substitute_projected_generic(&field.ty, &selected_types);
-                                // Fixed-width payloads retain their native borrowed
-                                // representation. Unbounded integers require a value conversion.
-                                if matches!(
-                                    projected,
-                                    crate::rust_interop::projection::ProjectedType::Int
-                                ) {
-                                    let name = format!(
-                                        "__terrane_pattern_{}_{}",
-                                        case.span.start,
-                                        rust_name(binding)
-                                    );
-                                    let converted = projected_result_expression(
-                                        &format!("*{name}"),
-                                        &projected,
-                                    );
-                                    native_payload_conversions
-                                        .push(format!("let {name} = {converted};"));
-                                }
+                        }
+                        for (field, binding) in variant.fields.iter().zip(&bindings) {
+                            if *binding == "_" {
+                                continue;
+                            }
+                            let projected =
+                                substitute_projected_generic(&field.ty, &selected_types);
+                            // Adaptive integer payloads need their native-to-source
+                            // conversion for both borrowed and consuming matches.
+                            if matches!(
+                                projected,
+                                crate::rust_interop::projection::ProjectedType::Int
+                                    | crate::rust_interop::projection::ProjectedType::RustInt(_)
+                            ) {
+                                let name = format!(
+                                    "__terrane_pattern_{}_{}",
+                                    case.span.start,
+                                    rust_name(binding)
+                                );
+                                let native = if borrowed {
+                                    format!("*{name}")
+                                } else {
+                                    name.clone()
+                                };
+                                let converted = projected_result_expression(&native, &projected);
+                                native_payload_conversions
+                                    .push(format!("let {name} = {converted};"));
                             }
                         }
                         let base_path = item

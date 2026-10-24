@@ -558,7 +558,6 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/http.trn
 // Namespace: deps/http
-pub use std::option::Option as BorrowedOption;
 pub use http::HeaderMap;
 pub use http::HeaderName;
 pub use http::HeaderValue;

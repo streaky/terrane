@@ -2,6 +2,13 @@ namespace app
 
 from /deps/terrane-query-witness import ConnectionOptions, Row, query
 from /deps/terrane-query-contract import QueryError
+from /core/errors import throwable
+
+function trigger-static-panic bytes throws throwable; record Row
+  return Row::try_get; record, 'panic'
+
+function trigger-instance-panic bytes throws throwable; record Row
+  return record.try_get; 'panic'
 
 async function main;
   options = ConnectionOptions::new;
@@ -18,7 +25,7 @@ async function main;
   body bytes = Row::try_get; row, 'body'
   print; body[0]
   second_row Row = await (query; second_op).fetch_one; ref connection
-  second_body bytes = Row::try_get; second_row, 'body'
+  second_body bytes = second_row.try_get; 'body'
   print; second_body[0]
   try
     await (query; invalid_op).execute; ref connection

@@ -1,0 +1,35 @@
+namespace static-call-throw-inference
+from /core/time import duration, invalid-duration
+
+function make int; value int
+    d = duration::seconds; value
+    return d.total-nanoseconds
+
+class maker
+    static function build int; value int
+        d = duration::seconds; value
+        return d.total-nanoseconds
+
+    static function accept int; value int
+        return value
+
+function argument int;
+    return make; -1
+
+function forward-argument int;
+    return maker::accept; (argument;)
+
+function main;
+    try
+        print; (make; -1)
+    catch invalid-duration
+        print; 'caught-free'
+    try
+        print; (maker::build; -1)
+    catch invalid-duration
+        print; 'caught-static'
+    try
+        print; (forward-argument;)
+    catch invalid-duration
+        print; 'caught-argument'
+    print; (maker::build; 2)

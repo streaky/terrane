@@ -1,0 +1,55 @@
+namespace app
+
+from /deps/witness import Native, Value, signed_value, unsigned_value, text_value
+
+class application
+    function values;
+        signed = signed_value;
+        unsigned = unsigned_value;
+        text = text_value;
+        match ref signed
+            case Value::Integer; value
+                print; value
+            case else
+                print; 0
+        match ref unsigned
+            case Value::Unsigned; value
+                print; value
+            case else
+                print; 0
+        match move text
+            case Value::Text; value
+                print; value
+            case else
+                print; 'wrong variant'
+        match move signed
+            case Value::Integer; value
+                print; value
+            case else
+                print; 0
+        match move unsigned
+            case Value::Unsigned; value
+                print; value
+            case else
+                print; 0
+
+    async function inspect;
+        native = Native::new;
+        try
+            text string = 'local-text'
+            data = b'ABCD'
+            checksum = await native.inspect; text, data
+            print; checksum
+        finally
+            await cleanup;
+
+async function cleanup;
+    print; 'cleanup'
+
+async function main;
+    app = instance application;
+    await app.inspect;
+    app.values;
+    shared = shared ref app
+    await shared.inspect;
+    shared.values;

@@ -1,0 +1,8 @@
+package = "projected-boxed-trait-receivers"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "projected-boxed-trait-witness"
+version = "=0.1.0"

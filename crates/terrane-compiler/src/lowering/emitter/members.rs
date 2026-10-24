@@ -283,6 +283,9 @@ impl Emitter<'_> {
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
+        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+            return format!("*({})", self.receiver_guard_expression(receiver));
+        }
         if matches!(self.value_type(receiver), Some(ValueType::Object(_)))
             && let Some(narrowed) = self.narrowed_storage_name(receiver, false, mutable)
         {
@@ -312,6 +315,9 @@ impl Emitter<'_> {
             && !self.reference_backed(binding)
         {
             return self.available_storage_reference(binding, receiver, true);
+        }
+        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+            return format!("&mut {}", self.native_receiver_expression(receiver, true));
         }
         format!("&mut {}", self.receiver_expression(receiver))
     }

@@ -29,7 +29,7 @@ fn vector_length(x: f32, y: f32) -> f32 {
 fn generated_position(node: &Node2D) -> Vector2 {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&node).get_position()),
+            std::panic::AssertUnwindSafe(|| (&*node).get_position()),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {

@@ -34,8 +34,8 @@ fn render<'view>(state: &'view State) -> witness::Element<'view, ()> {
                                     __terrane_native_input_0 = match | | -> Result < _, crate
                                     ::TerraneForeignError > { Ok(__terrane_raised(match
                                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                    (&state).get_label())) { Ok(value) => Ok(value.to_owned()),
-                                    Err(payload) => Err(crate
+                                    (&* state).get_label())) { Ok(value) => Ok(value
+                                    .to_owned()), Err(payload) => Err(crate
                                     ::__terrane_dependency_panic(payload, "witness",
                                     "witness::State::get_label")) }, 0 /* terrane-site: src/main.trn:9:134-9:150 */)) } () { Ok(value) => value,
                                     Err(error) => std::panic::panic_any(error) };

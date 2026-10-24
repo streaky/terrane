@@ -2164,10 +2164,12 @@ pub fn test_arguments() -> terrane_collection_support::List<NativeString> {
     }
     return controlled;
 }
-pub fn test_deadline() -> Duration {
-    return __terrane_traced(
-        Duration::terrane_static_nanoseconds(terrane_test_deadline_nanoseconds()),
-        43 /* terrane-site: core/testing.trn:215:12-215:68 */,
+pub fn test_deadline() -> Result<Duration, TerraneError> {
+    return Ok(
+        __terrane_traced_err(
+            Duration::terrane_static_nanoseconds(terrane_test_deadline_nanoseconds()),
+            43 /* terrane-site: core/testing.trn:215:12-215:68 */,
+        )?,
     );
 }
 pub fn temporary_directory() -> Option<String> {

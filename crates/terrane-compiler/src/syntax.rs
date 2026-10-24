@@ -241,6 +241,30 @@ impl SyntaxKind {
     }
 }
 
+/// Whether this subtree contains an explicit unary `await`.
+#[must_use]
+pub(crate) fn contains_await(node: &SyntaxNode, source: &str) -> bool {
+    (node.kind == SyntaxKind::UnaryExpression
+        && node.children.first().is_some_and(|operator| {
+            source[operator.span.start..operator.span.end].trim() == "await"
+        }))
+        || node
+            .children
+            .iter()
+            .any(|child| contains_await(child, source))
+}
+
+/// The shared support-selection and lowering boundary for awaited finalization.
+#[must_use]
+pub(crate) fn try_needs_cancellation_aware_finally(node: &SyntaxNode, source: &str) -> bool {
+    node.kind == SyntaxKind::TryStatement
+        && node
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::FinallyClause)
+        && contains_await(node, source)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SyntaxNode {
     pub kind: SyntaxKind,

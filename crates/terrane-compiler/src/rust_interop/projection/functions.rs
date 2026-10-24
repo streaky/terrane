@@ -1,18 +1,99 @@
 //! Admits projected Rust function signatures and invocation-scoped results.
 use super::types::{invocation_scoped_sequence_impl_trait_input, structural_impl_trait_input};
 use super::{
-    BTreeMap, BTreeSet, ChainRole, Function, GenericBound, GenericMonomorphisations,
-    GenericParamDefKind, HashMap, Id, Item, ItemEnum, ItemSummary, ProjectedExecutionRequirements,
-    ProjectedFunction, ProjectedGenericParameter, ProjectedParameter, ProjectedType, Receiver,
-    RequirementKnowledge, Type, concrete_into_future_output, default_generic_instantiation,
-    generic_bounds, generic_monomorphisations, impl_trait_bounds, instantiated_nominal_name,
+    AssocItemConstraintKind, BTreeMap, BTreeSet, ChainRole, Function, GenericArgs, GenericBound,
+    GenericMonomorphisations, GenericParamDefKind, HashMap, Id, Item, ItemEnum, ItemSummary,
+    ProjectedExecutionRequirements, ProjectedFunction, ProjectedGenericParameter,
+    ProjectedParameter, ProjectedType, Receiver, RequirementKnowledge, Term, Type,
+    concrete_into_future_output, default_generic_instantiation, generic_bounds,
+    generic_monomorphisations, impl_trait_bounds, instantiated_nominal_name,
     project_associated_binding, project_borrowed_graph_type, project_callable_adapter_bounds,
     project_interface, project_invocation_scoped_type, project_struct_fields, project_type,
     projectable_interface_bound, receiver_kind, render_generic_bound, render_generic_bounds,
-    render_resolved_path, resolved_name, resolved_path_name, type_contains_borrowed_ref,
-    type_contains_lifetime_argument,
+    resolved_name, resolved_path_name, type_contains_borrowed_ref, type_contains_lifetime_argument,
 };
 use super::{expand_output_alias, projected_error_name, type_arguments, type_mentions_generic};
+
+fn direct_future_output(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<Type> {
+    let Type::ImplTrait(bounds) = ty else {
+        return None;
+    };
+    bounds.iter().find_map(|bound| {
+        let GenericBound::TraitBound {
+            trait_,
+            generic_params,
+            ..
+        } = bound
+        else {
+            return None;
+        };
+        if !generic_params.is_empty()
+            || resolved_path_name(trait_, paths) != "core::future::future::Future"
+        {
+            return None;
+        }
+        let GenericArgs::AngleBracketed { constraints, .. } = trait_.args.as_deref()? else {
+            return None;
+        };
+        constraints.iter().find_map(|constraint| {
+            if constraint.name != "Output" {
+                return None;
+            }
+            match &constraint.binding {
+                AssocItemConstraintKind::Equality(Term::Type(output)) => Some(output.clone()),
+                _ => None,
+            }
+        })
+    })
+}
+
+fn projected_error_identity(
+    error: &Type,
+    result: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Option<String> {
+    if let Ok((expanded, _)) = expand_output_alias(error.clone(), index, paths, generics.clone()) {
+        // A boxed dynamic error has no single named native error item to project. Keep the
+        // established generic error channel instead of mistaking the public alias for a type.
+        if is_boxed_dynamic_error(&expanded, paths) {
+            return None;
+        }
+        if let Some(identity) = projected_error_name(&expanded, result, paths)
+            && super::rust_path_owner(&identity)
+                .is_some_and(|owner| matches!(owner, "std" | "core" | "alloc"))
+        {
+            return Some(identity);
+        }
+    }
+    projected_error_name(error, result, paths)
+}
+
+fn is_boxed_dynamic_error(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> bool {
+    let Type::ResolvedPath(path) = ty else {
+        return false;
+    };
+    if !matches!(
+        resolved_path_name(path, paths).as_str(),
+        "alloc::boxed::Box" | "std::boxed::Box"
+    ) {
+        return false;
+    }
+    type_arguments(ty).first().is_some_and(|inner| {
+        let Type::DynTrait(dynamic) = inner else {
+            return false;
+        };
+        dynamic.traits.iter().any(|bound| {
+            paths.get(&bound.trait_.id).is_some_and(|summary| {
+                matches!(
+                    summary.path.join("::").as_str(),
+                    "core::error::Error" | "std::error::Error"
+                )
+            })
+        })
+    })
+}
 
 pub(super) fn project_function_with_generics(
     function: &Function,
@@ -69,36 +150,28 @@ fn open_chain_generics(
     if !matches!(output, Type::ResolvedPath(_)) || !type_contains_lifetime_argument(output) {
         return None;
     }
-    if !type_arguments(output).into_iter().any(|argument| {
-        matches!(
-            argument,
-            Type::QualifiedPath { self_type, .. }
-                if matches!(self_type.as_ref(), Type::Generic(_))
-        )
-    }) {
-        return None;
-    }
     let has_terminal_associated_shape = function.generics.params.iter().any(|parameter| {
-        generic_bounds(parameter, function).iter().any(|bound| {
-            let GenericBound::TraitBound { trait_, .. } = bound else {
-                return false;
-            };
-            let Some(Item {
-                inner: ItemEnum::Trait(declaration),
-                ..
-            }) = index.get(&trait_.id)
-            else {
-                return false;
-            };
-            let associated = declaration
-                .items
-                .iter()
-                .filter_map(|id| index.get(id).and_then(|item| item.name.as_deref()))
-                .collect::<BTreeSet<_>>();
-            ["Arguments", "QueryResult", "Row"]
-                .into_iter()
-                .all(|name| associated.contains(name))
-        })
+        type_mentions_generic(output, &parameter.name)
+            && generic_bounds(parameter, function).iter().any(|bound| {
+                let GenericBound::TraitBound { trait_, .. } = bound else {
+                    return false;
+                };
+                let Some(Item {
+                    inner: ItemEnum::Trait(declaration),
+                    ..
+                }) = index.get(&trait_.id)
+                else {
+                    return false;
+                };
+                let associated = declaration
+                    .items
+                    .iter()
+                    .filter_map(|id| index.get(id).and_then(|item| item.name.as_deref()))
+                    .collect::<BTreeSet<_>>();
+                ["Arguments", "QueryResult", "Row"]
+                    .into_iter()
+                    .all(|name| associated.contains(name))
+            })
     });
     if !has_terminal_associated_shape {
         return None;
@@ -278,7 +351,7 @@ pub(super) fn project_function_inner(
             ));
         }
         if name == "self" {
-            receiver = Some(receiver_kind(ty)?);
+            receiver = Some(receiver_kind(ty, paths)?);
             continue;
         }
         if !matches!(ty, Type::BorrowedRef { .. }) && type_contains_borrowed_ref(ty) {
@@ -300,75 +373,88 @@ pub(super) fn project_function_inner(
                     .to_owned(),
             );
         }
-        let (projected_type, impl_trait_parameter, inline_adapter_bounds) = if let Some(bounds) =
-            impl_trait_bounds(ty)
-        {
-            let generic = format!("TerraneImpl{parameter_index}");
-            if let Some((callback, result_bounds, _)) =
-                project_callable_adapter_bounds(&generic, bounds, index, paths, &generic_types)?
-            {
-                (callback, Some(generic), Some(result_bounds))
-            } else if let Some(projected) = invocation_scoped_sequence_impl_trait_input(
-                bounds,
-                index,
-                paths,
-                public_paths,
-                &generic_types,
-            )? {
-                (projected, None, None)
-            } else if let Some(projected) = structural_impl_trait_input(bounds, paths) {
-                (projected, Some(generic), None)
-            } else if let Ok(projectable) = projectable_interface_bound(bounds, index, paths) {
-                let Some(Item {
-                    inner: ItemEnum::Trait(declaration),
-                    ..
-                }) = index.get(&projectable.id)
-                else {
-                    return Err("`impl Trait` input has an unresolved trait bound".to_owned());
-                };
-                if project_interface(declaration, index, paths, &projectable.path).is_err() {
-                    return Err(
-                        "`impl Trait` input bound is not a projectable interface".to_owned()
-                    );
+        let (projected_type, impl_trait_parameter, inline_adapter_bounds) =
+            if let Some(bounds) = impl_trait_bounds(ty) {
+                let generic = format!("TerraneImpl{parameter_index}");
+                if let Some((callback, result_bounds, _)) =
+                    project_callable_adapter_bounds(&generic, bounds, index, paths, &generic_types)?
+                {
+                    (callback, Some(generic), Some(result_bounds))
+                } else if let Some(projected) = invocation_scoped_sequence_impl_trait_input(
+                    bounds,
+                    index,
+                    paths,
+                    public_paths,
+                    &generic_types,
+                )? {
+                    (projected, None, None)
+                } else if let Some(projected) = structural_impl_trait_input(bounds, paths) {
+                    (projected, Some(generic), None)
+                } else if let Ok(projectable) = projectable_interface_bound(bounds, index, paths) {
+                    let Some(Item {
+                        inner: ItemEnum::Trait(declaration),
+                        ..
+                    }) = index.get(&projectable.id)
+                    else {
+                        return Err("`impl Trait` input has an unresolved trait bound".to_owned());
+                    };
+                    if project_interface(declaration, index, paths, &projectable.path).is_err() {
+                        return Err(
+                            "`impl Trait` input bound is not a projectable interface".to_owned()
+                        );
+                    }
+                    (ProjectedType::Generic(generic.clone()), Some(generic), None)
+                } else {
+                    (ProjectedType::Generic(generic.clone()), Some(generic), None)
                 }
-                let rust_path = render_resolved_path(projectable, index, paths, &generic_types)?;
+            } else if let Type::BorrowedRef {
+                type_,
+                is_mutable: false,
+                ..
+            } = ty
+                && let Type::Slice(element) = type_.as_ref()
+            {
+                let item = project_type(element, index, paths, &generic_types)
+                    .map_err(|reason| format!("parameter `{name}` slice element: {reason}"))?;
                 (
-                    ProjectedType::Foreign {
-                        name: projectable
-                            .path
-                            .rsplit("::")
-                            .next()
-                            .unwrap_or(&projectable.path)
-                            .to_owned(),
-                        base_rust_path: rust_path.clone(),
-                        rust_path,
-                        arguments: Vec::new(),
+                    ProjectedType::Sequence {
+                        rust_path: format!("std::vec::Vec<{}>", item.rust_type()),
+                        item: Box::new(item),
                     },
-                    Some(generic),
+                    None,
+                    None,
+                )
+            } else if invocation_scoped_input {
+                (
+                    project_invocation_scoped_type(ty, index, paths, &generic_types)?,
+                    None,
                     None,
                 )
             } else {
-                (ProjectedType::Generic(generic.clone()), Some(generic), None)
-            }
-        } else if invocation_scoped_input {
-            (
-                project_invocation_scoped_type(ty, index, paths, &generic_types)?,
-                None,
-                None,
-            )
-        } else {
-            (
-                project_type(ty, index, paths, &generic_types)
-                    .map_err(|reason| format!("parameter `{name}`: {reason}"))?,
-                None,
-                None,
-            )
-        };
+                (
+                    project_type(ty, index, paths, &generic_types)
+                        .map_err(|reason| format!("parameter `{name}`: {reason}"))?,
+                    None,
+                    None,
+                )
+            };
         let (borrowed, mutable_borrow) = match ty {
             Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
             _ => (false, false),
         };
-        if mutable_borrow && !matches!(projected_type, ProjectedType::Foreign { .. }) {
+        if mutable_borrow
+            && !matches!(projected_type, ProjectedType::Foreign { .. })
+            && !(matches!(projected_type, ProjectedType::Generic(_))
+                && function.generics.params.iter().any(|parameter| {
+                    type_mentions_generic(ty, &parameter.name)
+                        && projectable_interface_bound(
+                            &generic_bounds(parameter, function),
+                            index,
+                            paths,
+                        )
+                        .is_ok()
+                }))
+        {
             return Err("mutable borrowed primitive parameters are not representable".to_owned());
         }
         let boxed_adapter = match &projected_type {
@@ -573,13 +659,18 @@ pub(super) fn project_function_inner(
                     generic_types.clone(),
                 )
             }
-            Some(output) => match concrete_into_future_output(output, index, paths, &generic_types)
-            {
-                Some((into_future_output, into_future_generics)) => {
-                    (Some(into_future_output), true, true, into_future_generics)
+            Some(output) => {
+                if let Some(future_output) = direct_future_output(output, paths) {
+                    (Some(future_output), true, false, generic_types.clone())
+                } else {
+                    match concrete_into_future_output(output, index, paths, &generic_types) {
+                        Some((into_future_output, into_future_generics)) => {
+                            (Some(into_future_output), true, true, into_future_generics)
+                        }
+                        None => (Some(output.clone()), false, false, generic_types.clone()),
+                    }
                 }
-                None => (Some(output.clone()), false, false, generic_types.clone()),
-            },
+            }
             None => (None, false, false, generic_types.clone()),
         };
     let (effective_output, output_generic_types) = match effective_output {
@@ -632,7 +723,9 @@ pub(super) fn project_function_inner(
             }
             error = arguments
                 .get(1)
-                .and_then(|ty| projected_error_name(ty, output, paths))
+                .and_then(|ty| {
+                    projected_error_identity(ty, output, index, paths, &output_generic_types)
+                })
                 .or_else(|| Some("Error".to_owned()));
             projected
         } else if type_contains_borrowed_ref(output) {
@@ -661,7 +754,9 @@ pub(super) fn project_function_inner(
                 }
                 error = arguments
                     .get(1)
-                    .and_then(|ty| projected_error_name(ty, value, paths))
+                    .and_then(|ty| {
+                        projected_error_identity(ty, value, index, paths, &output_generic_types)
+                    })
                     .or_else(|| Some("Error".to_owned()));
                 error_optional_depth = 1;
                 ProjectedType::Optional(Box::new(projected))
@@ -835,7 +930,7 @@ pub(super) fn project_function_inner(
 pub(super) fn promote_async_endpoint_methods(methods: &mut [ProjectedFunction]) {
     let has_consuming_close = methods
         .iter()
-        .any(|method| method.name == "close" && method.receiver == Some(Receiver::Move));
+        .any(|method| method.name == "close" && method.receiver.is_some_and(Receiver::consumes));
     if !has_consuming_close {
         return;
     }
@@ -966,5 +1061,97 @@ mod tests {
         );
         assert_eq!(fixed.result, ProjectedType::RustInt("i32".to_owned()));
         assert!(fixed.is_unsafe);
+    }
+
+    #[test]
+    fn boxed_dyn_error_alias_keeps_generic() {
+        let alias_id = Id(1);
+        let box_id = Id(2);
+        let error_id = Id(3);
+        let boxed_dynamic_error = Type::ResolvedPath(rustdoc_types::Path {
+            path: "alloc::boxed::Box".to_owned(),
+            id: box_id,
+            args: Some(Box::new(rustdoc_types::GenericArgs::AngleBracketed {
+                args: vec![rustdoc_types::GenericArg::Type(Type::DynTrait(
+                    rustdoc_types::DynTrait {
+                        traits: vec![rustdoc_types::PolyTrait {
+                            trait_: rustdoc_types::Path {
+                                path: "core::error::Error".to_owned(),
+                                id: error_id,
+                                args: None,
+                            },
+                            generic_params: Vec::new(),
+                        }],
+                        lifetime: Some("'static".to_owned()),
+                    },
+                ))],
+                constraints: Vec::new(),
+            })),
+        });
+        let alias = Item {
+            id: alias_id,
+            crate_id: 0,
+            name: Some("BoxDynError".to_owned()),
+            span: None,
+            visibility: rustdoc_types::Visibility::Public,
+            docs: None,
+            links: HashMap::new(),
+            attrs: Vec::new(),
+            deprecation: None,
+            stability: None,
+            const_stability: None,
+            inner: ItemEnum::TypeAlias(rustdoc_types::TypeAlias {
+                type_: boxed_dynamic_error,
+                generics: rustdoc_types::Generics {
+                    params: Vec::new(),
+                    where_predicates: Vec::new(),
+                },
+            }),
+        };
+        let error = Type::ResolvedPath(rustdoc_types::Path {
+            path: "sqlx_core::error::BoxDynError".to_owned(),
+            id: alias_id,
+            args: None,
+        });
+        let paths = HashMap::from([
+            (
+                alias_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec![
+                        "sqlx_core".to_owned(),
+                        "error".to_owned(),
+                        "BoxDynError".to_owned(),
+                    ],
+                    kind: rustdoc_types::ItemKind::TypeAlias,
+                },
+            ),
+            (
+                box_id,
+                ItemSummary {
+                    crate_id: 1,
+                    path: vec!["alloc".to_owned(), "boxed".to_owned(), "Box".to_owned()],
+                    kind: rustdoc_types::ItemKind::Struct,
+                },
+            ),
+            (
+                error_id,
+                ItemSummary {
+                    crate_id: 2,
+                    path: vec!["core".to_owned(), "error".to_owned(), "Error".to_owned()],
+                    kind: rustdoc_types::ItemKind::Trait,
+                },
+            ),
+        ]);
+        assert_eq!(
+            projected_error_identity(
+                &error,
+                &Type::Primitive("()".to_owned()),
+                &HashMap::from([(alias_id, alias)]),
+                &paths,
+                &BTreeMap::new(),
+            ),
+            None
+        );
     }
 }

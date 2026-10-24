@@ -91,11 +91,8 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                         TerraneCompletion::Error(error) => {
                             return TerraneCompletion::Error(error);
                         }
-                        TerraneCompletion::Break | TerraneCompletion::Continue => {
-                            __terrane_generated_defect(
-                                "loop control escaped a non-loop try",
-                            )
-                        }
+                        TerraneCompletion::Break => return TerraneCompletion::Break,
+                        TerraneCompletion::Continue => return TerraneCompletion::Continue,
                     }
                 }
                 if !__terrane_handled_0 {
@@ -119,7 +116,7 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
 fn sensitive(header: &HeaderValue) -> bool {
     return __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&header).is_sensitive()),
+            std::panic::AssertUnwindSafe(|| (&*header).is_sensitive()),
         ) {
             Ok(value) => Ok(value),
             Err(payload) => {
@@ -139,7 +136,7 @@ fn mark_sensitive(header: &mut HeaderValue) {
     __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
-                let _ = header.set_sensitive(true);
+                let _ = (*header).set_sensitive(true);
             }),
         ) {
             Ok(()) => Ok(()),

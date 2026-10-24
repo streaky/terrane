@@ -130,8 +130,8 @@ fn main() {
                     Err(
                         crate::__terrane_dependency_panic(
                             payload,
-                            "dependency",
-                            "<terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get",
+                            "terrane_query_witness",
+                            "terrane_query_witness::Row::try_get",
                         ),
                     )
                 }
@@ -160,9 +160,10 @@ fn main() {
                             ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload, "dependency",
-                            "<terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get"))
-                            }, 6 /* terrane-site: src/main.trn:14:21-14:49 */
+                            Err(crate ::__terrane_dependency_panic(payload,
+                            "terrane_query_witness",
+                            "terrane_query_witness::Row::try_get")) },
+                            6 /* terrane-site: src/main.trn:14:21-14:49 */
                         ),
                     );
                 println!(
@@ -220,9 +221,10 @@ fn main() {
                             ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload, "dependency",
-                            "<terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get"))
-                            }, 7 /* terrane-site: src/main.trn:19:26-19:52 */
+                            Err(crate ::__terrane_dependency_panic(payload,
+                            "terrane_query_witness",
+                            "terrane_query_witness::Row::try_get")) },
+                            7 /* terrane-site: src/main.trn:19:26-19:52 */
                         ),
                     );
                 println!(
