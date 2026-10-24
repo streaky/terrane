@@ -1,0 +1,6 @@
+namespace synchronous-duration
+from /core/time import duration
+
+function main;
+    d = duration::seconds; 2
+    print; d.total-nanoseconds

@@ -1033,7 +1033,10 @@ fn lower_with_tests(
     Ok(Program {
         version: crate::VERSION,
         requires_platform_support,
+        // Async support includes Tokio-typed destructor machinery even when the
+        // entrypoint is synchronous (for example, a duration-only program).
         requires_async_runtime: has_async_entry
+            || has_async
             || projected_async_entry
             || has_async_finally
             || has_task_groups,
