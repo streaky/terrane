@@ -7717,7 +7717,7 @@ mod tests {
         );
     }
     #[test]
-    fn generic_argument_strips_reference_only_for_borrowed_formal() {
+    fn generic_argument_respects_formal_borrow() {
         let reference = ProjectedType::Reference {
             inner: Box::new(ProjectedType::Generic("Connection".to_owned())),
             mutable: true,
