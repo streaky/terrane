@@ -3580,6 +3580,24 @@ fn specialize_projected_result_batch(
                 })
             };
             if candidate_works(false) {
+                // Only a successful native bound proves this candidate's ABI;
+                // a syntactic source `ref` alone is not evidence of mutation.
+                if let Some(generic) = &generic {
+                    for parameter in &mut specialization.projected_parameters {
+                        if !parameter.borrowed
+                            && parameter.generic_parameter.as_ref() == Some(generic)
+                            && matches!(
+                                parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::Reference {
+                                    mutable: true,
+                                    ..
+                                }
+                            )
+                        {
+                            parameter.mutable_borrow = true;
+                        }
+                    }
+                }
                 continue;
             }
             if generic.is_some() && candidate_works(true) {
@@ -3662,15 +3680,8 @@ fn specialize_projected_result_batch(
             }
         }
         for parameter in &mut specialization.projected_parameters {
-            if !parameter.borrowed {
-                if matches!(
-                    &parameter.ty,
-                    crate::rust_interop::projection::ProjectedType::Reference { mutable: true, .. }
-                ) {
-                    parameter.mutable_borrow = true;
-                } else {
-                    parameter.generic_parameter = None;
-                }
+            if !parameter.borrowed && !parameter.mutable_borrow {
+                parameter.generic_parameter = None;
             }
         }
         canonicalize_native_value_type(package, &mut specialization.value_type);

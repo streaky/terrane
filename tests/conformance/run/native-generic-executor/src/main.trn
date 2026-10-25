@@ -45,6 +45,13 @@ function execute-enum int64; stage ref Stage
 function observe-native int64; connection ref Connection
     return observed; connection
 
+function observe-captured int64;
+    connection = Connection::new;
+    reader = function int64;
+        return observed; ref connection
+    first = reader;
+    return first + (reader;)
+
 async function main;
     print; (execute-local;)
     connection = Connection::new;
@@ -73,3 +80,4 @@ async function main;
             print; 9
         case Stage::Idle
             print; 0
+    print; (observe-captured;)

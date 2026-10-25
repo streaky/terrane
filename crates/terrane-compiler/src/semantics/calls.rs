@@ -544,20 +544,28 @@ fn validate_projected_generic_arguments(
     else {
         return Ok(());
     };
-    let parameters = unit
+    // Specialization selects the native ABI, not a replacement source contract:
+    // its closed parameters can erase generic bounds and interface obligations.
+    let specialized_parameters = unit
         .projected_call_specializations
         .get(&(node.span.file, node.span.start, node.span.end))
-        .map_or(projected.parameters.as_slice(), |specialization| {
-            specialization.projected_parameters.as_slice()
-        });
-    for (index, (argument, parameter)) in arguments.children.iter().zip(parameters).enumerate() {
+        .map(|specialization| specialization.projected_parameters.as_slice());
+    for (index, (argument, parameter)) in arguments
+        .children
+        .iter()
+        .zip(&projected.parameters)
+        .enumerate()
+    {
+        let native_parameter = specialized_parameters
+            .and_then(|parameters| parameters.get(index))
+            .unwrap_or(parameter);
+        let boxed_interface = matches!(
+            parameter.ty,
+            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
+        );
+        let source_interface = parameter.generic_interface.is_some() || boxed_interface;
         if parameter.generic_parameter.is_none()
-            || (parameter.generic_interface.is_none()
-                && !parameter.mutable_borrow
-                && !matches!(
-                    parameter.ty,
-                    crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
-                ))
+            || (!source_interface && !native_parameter.requires_mutable_reference(true))
         {
             continue;
         }
@@ -574,11 +582,8 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         };
-        if projected
-            .parameters
-            .get(index)
-            .is_some_and(|template| !template.borrowed)
-            && parameter.mutable_borrow
+        if !parameter.borrowed
+            && native_parameter.requires_mutable_reference(true)
             && matches!(
                 &actual,
                 ValueType::Reference(_) | ValueType::SharedReference(_)
@@ -591,6 +596,9 @@ fn validate_projected_generic_arguments(
                 "native mutable generic reference arguments require an explicit `ref`",
                 value.span,
             ));
+        }
+        if !source_interface {
+            continue;
         }
         let identity = match &actual {
             ValueType::Object(identity) => identity,
@@ -675,10 +683,6 @@ fn validate_projected_generic_arguments(
                     )
             });
         let required = required_item.map(|item| ObjectIdentity::new(&item.namespace, &item.name));
-        let boxed_interface = matches!(
-            parameter.ty,
-            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
-        );
         let interface_matches_required = required.as_ref().is_some_and(|required| {
             boxed_interface
                 && implementor.kind == ObjectKind::Interface

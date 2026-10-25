@@ -1,4 +1,4 @@
-package = "projected-result-unknown-bound"
+package = "projected-result-associated-bound"
 
 [namespaces]
 app = "src"

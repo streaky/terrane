@@ -617,6 +617,15 @@ pub struct ProjectedParameter {
     pub associated_type: Option<ProjectedAssociatedBinding>,
 }
 
+impl ProjectedParameter {
+    pub(crate) fn requires_mutable_reference(&self, explicit_reference: bool) -> bool {
+        // `ref` requests a live loan for an unclosed by-value generic. A
+        // declared or selected borrowed ABI instead decides its mutability.
+        self.mutable_borrow
+            || self.generic_parameter.is_some() && !self.borrowed && explicit_reference
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Receiver {
     Borrow,

@@ -582,13 +582,14 @@ fn projected_call_mutates_binding(
                 child.kind == SyntaxKind::UnaryExpression
                     && unary_operator_text(unit, child).as_deref() == Some("ref")
             });
-        projected_parameters.get(index).is_some_and(|parameter| {
-            parameter.mutable_borrow || parameter.generic_parameter.is_some() && explicit_reference
-        }) && root_name(argument).is_some_and(|root| {
-            package
-                .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
-                .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
-        })
+        projected_parameters
+            .get(index)
+            .is_some_and(|parameter| parameter.requires_mutable_reference(explicit_reference))
+            && root_name(argument).is_some_and(|root| {
+                package
+                    .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                    .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+            })
     })
 }
 

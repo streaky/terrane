@@ -2109,9 +2109,9 @@ impl Emitter<'_> {
                         self.raw_storage_name(value)
                     }
                 } else if projected_parameter.is_some_and(|parameter| {
-                    parameter.mutable_borrow
-                        || parameter.generic_parameter.is_some() && explicit_reference.is_some()
-                }) || self.mutable_native_reference_parameter(
+                    parameter.requires_mutable_reference(explicit_reference.is_some())
+                })
+                    || self.mutable_native_reference_parameter(
                     contract,
                     index,
                     parameter.binding_value_type().as_ref(),
