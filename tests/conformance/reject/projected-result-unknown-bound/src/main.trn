@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import value
+
+function main;
+  result int64 = value;
