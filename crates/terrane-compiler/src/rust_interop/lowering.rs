@@ -1334,6 +1334,10 @@ pub(super) fn emit_dependency_unit(
                     && matches!(
                         projected.ty,
                         crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                    )
+                    && !matches!(
+                        parameter.value_type.as_ref(),
+                        Some(ValueType::Reference(_) | ValueType::SharedReference(_))
                     );
                 format!(
                     "{}: {}{value_type}",

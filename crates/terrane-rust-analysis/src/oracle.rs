@@ -148,19 +148,7 @@ impl<'a> ProjectionOracle<'a> {
         for (index, question) in questions.iter().enumerate() {
             let name = format!("terrane_probe_{index}");
             names.insert(name.clone(), index);
-            let source = if question.inferred_parameters.is_empty() {
-                format!(
-                    "fn assert_bound<Value>() where Value: {} {{}}\nfn main() {{ assert_bound::<{}>(); }}\n",
-                    question.rust_bound, question.rust_type
-                )
-            } else {
-                format!(
-                    "fn assert_bound<{}>() where {}: {} {{}}\nfn main() {{}}\n",
-                    question.inferred_parameters.join(", "),
-                    question.rust_type,
-                    question.rust_bound
-                )
-            };
+            let source = bound_probe_source(question);
             write_if_changed(&bin_directory.join(format!("{name}.rs")), source.as_bytes())?;
         }
 
@@ -339,6 +327,22 @@ impl<'a> ProjectionOracle<'a> {
     }
 }
 
+fn bound_probe_source(question: &BoundQuestion) -> String {
+    if question.inferred_parameters.is_empty() {
+        format!(
+            "fn assert_bound<Value>() where Value: {} {{}}\nfn main() {{ assert_bound::<{}>(); }}\n",
+            question.rust_bound, question.rust_type
+        )
+    } else {
+        format!(
+            "fn assert_bound<{}>() where {}: {} {{}}\nfn main() {{}}\n",
+            question.inferred_parameters.join(", "),
+            question.rust_type,
+            question.rust_bound
+        )
+    }
+}
+
 fn classify_probe_answers(
     output: &std::process::Output,
     names: &BTreeMap<String, usize>,
@@ -388,7 +392,7 @@ fn classify_probe_answers(
             let Some(index) = names.get(stem).copied() else {
                 continue;
             };
-            answers[index] = if code == Some("E0277") {
+            answers[index] = if matches!(code, Some("E0277" | "E0271")) {
                 ProbeAnswer::No
             } else {
                 ProbeAnswer::Unknown {
@@ -835,6 +839,75 @@ mod tests {
             .unwrap();
         assert_eq!(second.evidence[0].answer, ProbeAnswer::Yes);
         assert_eq!(fs::read_dir(workspace.join("src/bin")).unwrap().count(), 1);
+        fs::remove_dir_all(workspace).unwrap();
+    }
+    #[test]
+    fn bound_probe_handles_higher_ranked_associated_type_equality() {
+        let workspace = workspace("higher-ranked-associated-equality");
+        fs::write(
+            workspace.join("src/lib.rs"),
+            r"
+pub struct Database;
+pub struct OtherDatabase;
+pub struct Connection;
+pub trait Executor<'connection> {
+    type Database;
+}
+impl<'connection, 'borrow> Executor<'connection> for &'borrow mut Connection {
+    type Database = Database;
+}
+",
+        )
+        .unwrap();
+        let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
+        let rust_type = "&mut terrane_dependency_projection::Connection".to_owned();
+        let bound = "for<'connection> terrane_dependency_projection::Executor<'connection, Database = terrane_dependency_projection::Database>";
+        let report = oracle
+            .prove_bounds(&[
+                BoundQuestion {
+                    rust_type: rust_type.clone(),
+                    rust_bound: bound.to_owned(),
+                    inferred_parameters: Vec::new(),
+                },
+                BoundQuestion {
+                    rust_type: "&'probe mut terrane_dependency_projection::Connection"
+                        .to_owned(),
+                    rust_bound: bound.to_owned(),
+                    inferred_parameters: vec!["'probe".to_owned()],
+                },
+                BoundQuestion {
+                    rust_type,
+                    rust_bound: "for<'connection> terrane_dependency_projection::Executor<'connection, Database = terrane_dependency_projection::OtherDatabase>".to_owned(),
+                    inferred_parameters: Vec::new(),
+                },
+            ])
+            .unwrap();
+
+        assert_eq!(
+            report
+                .evidence
+                .iter()
+                .find(|item| item.question.inferred_parameters.is_empty()
+                    && item.question.rust_bound == bound)
+                .map(|item| &item.answer),
+            Some(&ProbeAnswer::Yes)
+        );
+        assert_eq!(
+            report
+                .evidence
+                .iter()
+                .find(|item| item.question.inferred_parameters == ["'probe"])
+                .map(|item| &item.answer),
+            Some(&ProbeAnswer::Yes)
+        );
+        assert_eq!(
+            report
+                .evidence
+                .iter()
+                .find(|item| item.question.rust_bound.contains("OtherDatabase"))
+                .map(|item| &item.answer),
+            Some(&ProbeAnswer::No)
+        );
         fs::remove_dir_all(workspace).unwrap();
     }
 

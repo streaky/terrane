@@ -964,7 +964,7 @@ pub fn launch<
     }
 }
 pub fn mutable_state_label<'view>(
-    state: &&'view MutableState,
+    state: &'view MutableState,
 ) -> Result<witness::BorrowedLabel<'view>, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| witness::mutable_state_label(state)),

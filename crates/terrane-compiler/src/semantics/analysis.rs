@@ -1339,6 +1339,7 @@ fn analyze_parsed_with_projection(
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
+    super::ownership::validate_native_captures(&semantic)?;
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;

@@ -1,0 +1,11 @@
+namespace app
+
+from /deps/witness import Connection, query
+
+function execute-implicitly int64; connection ref Connection
+    bound = query; 'update'
+    return bound.fetch; connection
+
+async function main;
+    connection = Connection::new;
+    print; (execute-implicitly; ref connection)

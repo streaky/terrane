@@ -1,5 +1,5 @@
 namespace app
-from /deps/witness import hidden_value
+from /deps/witness import value
 
 function main;
-  value int64 = hidden_value;
+  result int64 = value;

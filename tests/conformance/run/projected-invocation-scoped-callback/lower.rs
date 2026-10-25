@@ -556,7 +556,7 @@ fn update(state: &mut MutableState, message: terrane_int_support::Int) {
 }
 fn application_view<'view>(state: &'view MutableState) -> witness::BorrowedLabel<'view> {
     return __terrane_raised(
-        mutable_state_label(&state),
+        mutable_state_label(&*state),
         51 /* terrane-site: src/main.trn:140:12-140:38 */,
     );
 }

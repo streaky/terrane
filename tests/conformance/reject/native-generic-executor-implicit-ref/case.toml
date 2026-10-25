@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0129"
+contains = "native mutable generic reference arguments require an explicit `ref`"

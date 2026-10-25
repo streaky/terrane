@@ -1,0 +1,19 @@
+package = "native-deferred-executor"
+executor = "threaded"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.sqlx]
+version = "=0.9.0"
+default-features = false
+features = ["runtime-tokio", "sqlite"]
+
+[rust-dependencies.sqlx-core]
+version = "=0.9.0"
+default-features = false
+
+[rust-dependencies.sqlx-sqlite]
+version = "=0.9.0"
+default-features = false
+features = ["bundled"]

@@ -3253,6 +3253,18 @@ struct PendingProjectedBound {
     inferred_parameters: Vec<String>,
 }
 
+fn is_deferred_outlives_bound(bound: &str) -> bool {
+    let lifetime = bound.trim();
+    let Some(name) = lifetime.strip_prefix('\'') else {
+        return false;
+    };
+    let mut characters = name.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_alphabetic() || character == '_')
+        && characters.all(|character| character.is_alphanumeric() || character == '_')
+}
+
 #[derive(Clone)]
 struct PendingProjectedSpecialization {
     unit: usize,
@@ -3266,6 +3278,24 @@ struct PendingProjectedSpecialization {
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
     bounds: Vec<PendingProjectedBound>,
+}
+
+fn projected_associated_binding_label(left: &str, right: &str) -> bool {
+    if !(right.starts_with('=') || right.starts_with(':') && !right.starts_with("::"))
+        || !(left.ends_with('<') || left.ends_with(','))
+    {
+        return false;
+    }
+    let mut closed = 0;
+    for (index, byte) in left.bytes().enumerate().rev() {
+        match byte {
+            b'>' if index == 0 || left.as_bytes()[index - 1] != b'-' => closed += 1,
+            b'<' if closed == 0 => return true,
+            b'<' => closed -= 1,
+            _ => {}
+        }
+    }
+    false
 }
 
 pub(super) fn qualify_projected_rust_names(
@@ -3283,6 +3313,7 @@ pub(super) fn qualify_projected_rust_names(
                 let right = rust[end..].trim_start();
                 if left.ends_with("::")
                     || right.starts_with("::")
+                    || projected_associated_binding_label(left, right)
                     || left
                         .chars()
                         .next_back()
@@ -3370,6 +3401,13 @@ fn specialize_projected_result_batch(
             }
             return Err(error);
         }
+    }
+    // Region predicates require the complete emitted borrow graph. They remain
+    // in native signatures, but are not type proofs or evidence for an ABI.
+    for specialization in &mut pending {
+        specialization
+            .bounds
+            .retain(|bound| !is_deferred_outlives_bound(&bound.rust_bound));
     }
     let Some(first_pending) = pending.first() else {
         return Ok(None);
@@ -3579,6 +3617,24 @@ fn specialize_projected_result_batch(
                 })
             };
             if candidate_works(false) {
+                // Only a successful native bound proves this candidate's ABI;
+                // a syntactic source `ref` alone is not evidence of mutation.
+                if let Some(generic) = &generic {
+                    for parameter in &mut specialization.projected_parameters {
+                        if !parameter.borrowed
+                            && parameter.generic_parameter.as_ref() == Some(generic)
+                            && matches!(
+                                parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::Reference {
+                                    mutable: true,
+                                    ..
+                                }
+                            )
+                        {
+                            parameter.mutable_borrow = true;
+                        }
+                    }
+                }
                 continue;
             }
             if generic.is_some() && candidate_works(true) {
@@ -3661,7 +3717,7 @@ fn specialize_projected_result_batch(
             }
         }
         for parameter in &mut specialization.projected_parameters {
-            if !parameter.borrowed {
+            if !parameter.borrowed && !parameter.mutable_borrow {
                 parameter.generic_parameter = None;
             }
         }
@@ -4416,6 +4472,18 @@ fn substitute_native_type_parameters(
     *rust_type = crate::rust_ir::instantiate_rust_generics(rust_type, &replacements);
 }
 
+fn native_generic_argument(
+    projected: &crate::rust_interop::projection::ProjectedType,
+    formal_borrowed: bool,
+) -> crate::rust_interop::projection::ProjectedType {
+    if formal_borrowed
+        && let crate::rust_interop::projection::ProjectedType::Reference { inner, .. } = projected
+    {
+        return inner.as_ref().clone();
+    }
+    projected.clone()
+}
+
 fn bind_projected_native_generics(
     expected: &crate::rust_interop::projection::ProjectedType,
     actual: &crate::rust_interop::projection::ProjectedType,
@@ -4826,10 +4894,11 @@ fn collect_projected_destinations(
             let value = argument.children.last().unwrap_or(argument);
             let actual_projected = projected_call_result(package, unit, value);
             if let Some(actual_projected) = actual_projected.as_ref() {
-                native_projected_parameters.insert(parameter_index, actual_projected.clone());
+                let binding_actual =
+                    native_generic_argument(actual_projected, projected_parameter.borrowed);
                 bind_projected_native_generics(
                     &projected_parameter.ty,
-                    actual_projected,
+                    &binding_actual,
                     &mut native_bindings,
                 )
                 .map_err(|generic| {
@@ -4842,6 +4911,7 @@ fn collect_projected_destinations(
                         value.span,
                     )
                 })?;
+                native_projected_parameters.insert(parameter_index, actual_projected.clone());
             }
             let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
                 continue;
@@ -5141,6 +5211,13 @@ fn collect_projected_destinations(
             if source_adapter && !explicit_projected.contains_key(&generic.name) {
                 continue;
             }
+            let mut native_generic_parameters = function.parameters.iter().filter(|parameter| {
+                parameter.generic_parameter.as_deref() == Some(generic.name.as_str())
+            });
+            let generic_is_native_borrowed =
+                native_generic_parameters.next().is_some_and(|first| {
+                    first.borrowed && native_generic_parameters.all(|parameter| parameter.borrowed)
+                });
             let inferred = native_bindings.get(&generic.name).cloned().or_else(|| {
                 value_bindings.get(&generic.name).and_then(|actual| {
                     let (actual_projection, reference) = match actual {
@@ -5151,9 +5228,13 @@ fn collect_projected_destinations(
                     destination_projected_type(package, actual_projection)
                         .ok()
                         .map(|projected| {
-                            reference.map_or(projected.clone(), |mutable| {
-                                projected_reference_type(projected, mutable)
-                            })
+                            if generic_is_native_borrowed {
+                                projected
+                            } else {
+                                reference.map_or(projected.clone(), |mutable| {
+                                    projected_reference_type(projected, mutable)
+                                })
+                            }
                         })
                 })
             });
@@ -7654,4 +7735,73 @@ pub(super) fn validate_descriptor_value_node(
         validate_descriptor_value_node(package, unit, child, child_is_descriptor_context)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{native_generic_argument, qualify_projected_rust_names};
+    use crate::rust_interop::projection::ProjectedType;
+
+    #[test]
+    fn qualification_preserves_associated_type_equality_keys() {
+        let names = BTreeMap::from([("Database".to_owned(), "witness::Database".to_owned())]);
+
+        assert_eq!(
+            qualify_projected_rust_names(
+                "for<'connection> witness::Executor<'connection, Database = Database>",
+                &names,
+            ),
+            "for<'connection> witness::Executor<'connection, Database = witness::Database>"
+        );
+        let names = BTreeMap::from([
+            ("Item".to_owned(), "witness::Item".to_owned()),
+            ("View".to_owned(), "witness::View".to_owned()),
+        ]);
+        assert_eq!(
+            qualify_projected_rust_names("witness::Container<Item: View>", &names),
+            "witness::Container<Item: witness::View>"
+        );
+        let names = BTreeMap::from([
+            ("Local".to_owned(), "witness::Local".to_owned()),
+            ("Item".to_owned(), "witness::Item".to_owned()),
+            ("View".to_owned(), "witness::View".to_owned()),
+        ]);
+        for (input, expected) in [
+            ("Local: Send", "witness::Local: Send"),
+            (
+                "where Other: Send, Local: Send",
+                "where Other: Send, witness::Local: Send",
+            ),
+            (
+                "witness::Container<Item: View<Local>>",
+                "witness::Container<Item: witness::View<witness::Local>>",
+            ),
+            (
+                "witness::Container<View<Local>, Item: View>",
+                "witness::Container<witness::View<witness::Local>, Item: witness::View>",
+            ),
+            (
+                "witness::Container<fn() -> Local, Item = Local>",
+                "witness::Container<fn() -> witness::Local, Item = witness::Local>",
+            ),
+        ] {
+            assert_eq!(qualify_projected_rust_names(input, &names), expected);
+        }
+    }
+    #[test]
+    fn generic_argument_respects_formal_borrow() {
+        let reference = ProjectedType::Reference {
+            inner: Box::new(ProjectedType::Generic("Connection".to_owned())),
+            mutable: true,
+            lifetime: None,
+        };
+
+        assert_eq!(
+            native_generic_argument(&reference, true),
+            ProjectedType::Generic("Connection".to_owned())
+        );
+        assert_eq!(native_generic_argument(&reference, false), reference);
+    }
 }

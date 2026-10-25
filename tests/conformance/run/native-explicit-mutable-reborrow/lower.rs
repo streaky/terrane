@@ -65,12 +65,16 @@ fn read_row(record: &OpaqueRow) -> Result<i64, TerraneError> {
         )?,
     );
 }
+async fn forward_async(native: &mut Counter) {
+    __terrane_await(increment_async(&mut *native)).await;
+}
 fn main() {
     __terrane_run(async move {
         let mut counter: Counter;
         let mut optional_counter_2: Option<Counter>;
         let bump: std::sync::Arc<dyn Fn(&mut Option<Counter>) -> () + Send + Sync>;
         let bump_native: std::sync::Arc<dyn Fn(&mut Counter) -> () + Send + Sync>;
+        let mut forwarded: Counter;
         let values: terrane_collection_support::List<terrane_int_support::Int>;
         let empty: terrane_collection_support::List<terrane_int_support::Int>;
         let opaque_values: terrane_collection_support::List<OpaqueValue>;
@@ -82,11 +86,11 @@ fn main() {
             terrane_static_trn_436f756e746572_new(
                 terrane_int_support::Int::from(4_i128),
             ),
-            1 /* terrane-site: src/main.trn:44:15-44:36 */,
+            1 /* terrane-site: src/main.trn:47:15-47:36 */,
         );
         optional_counter_2 = __terrane_raised(
             optional_counter(),
-            2 /* terrane-site: src/main.trn:45:24-45:41 */,
+            2 /* terrane-site: src/main.trn:48:24-48:41 */,
         );
         advance_optional(&mut optional_counter_2);
         println!(
@@ -128,7 +132,7 @@ fn main() {
             .value())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::Counter::value")) }, 3 /* terrane-site: src/main.trn:61:13-61:27 */))
+            "witness::Counter::value")) }, 3 /* terrane-site: src/main.trn:64:13-64:27 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&advance(&mut counter)));
         println!(
@@ -137,7 +141,7 @@ fn main() {
             .value())) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::Counter::value")) }, 4 /* terrane-site: src/main.trn:63:13-63:27 */))
+            "witness::Counter::value")) }, 4 /* terrane-site: src/main.trn:66:13-66:27 */))
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&shadow_read(&counter, &counter))
@@ -150,7 +154,22 @@ fn main() {
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
             Err(crate ::__terrane_dependency_panic(payload, "witness",
             "witness::Counter::finish")) } }) }; async move {
-            __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:65:18-65:33 */) } }). await, 5 /* terrane-site: src/main.trn:65:18-65:33 */))
+            __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:68:18-68:33 */) } }). await, 5 /* terrane-site: src/main.trn:68:18-68:33 */))
+        );
+        forwarded = __terrane_raised(
+            terrane_static_trn_436f756e746572_new(
+                terrane_int_support::Int::from(80_i128),
+            ),
+            6 /* terrane-site: src/main.trn:69:17-69:39 */,
+        );
+        __terrane_await(forward_async(&mut forwarded)).await;
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&forwarded)
+            .value())) { Ok(value) =>
+            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
+            Err(crate ::__terrane_dependency_panic(payload, "witness",
+            "witness::Counter::value")) }, 7 /* terrane-site: src/main.trn:71:13-71:29 */))
         );
         values = terrane_collection_support::List::<
             terrane_int_support::Int,
@@ -162,33 +181,33 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(sum(values),
-            6 /* terrane-site: src/main.trn:67:13-67:31 */))
+            8 /* terrane-site: src/main.trn:73:13-73:31 */))
         );
         empty = terrane_collection_support::List::<
             terrane_int_support::Int,
         >::new(vec![]);
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(sum(empty),
-            7 /* terrane-site: src/main.trn:69:13-69:30 */))
+            9 /* terrane-site: src/main.trn:75:13-75:30 */))
         );
         opaque_values = terrane_collection_support::List::<
             OpaqueValue,
         >::new(
             vec![
                 __terrane_raised(terrane_static_trn_4f706171756556616c7565_new(terrane_int_support::Int::from(3_i128)),
-                8 /* terrane-site: src/main.trn:70:48-70:67 */),
+                10 /* terrane-site: src/main.trn:76:48-76:67 */),
                 __terrane_raised(terrane_static_trn_4f706171756556616c7565_new(terrane_int_support::Int::from(8_i128)),
-                9 /* terrane-site: src/main.trn:70:71-70:90 */)
+                11 /* terrane-site: src/main.trn:76:71-76:90 */)
             ],
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
             let __terrane_future = checksum(opaque_values); async move {
-            __terrane_raised_err(__terrane_future. await, 10 /* terrane-site: src/main.trn:71:18-71:41 */) } }). await, 10 /* terrane-site: src/main.trn:71:18-71:41 */))
+            __terrane_raised_err(__terrane_future. await, 12 /* terrane-site: src/main.trn:77:18-77:41 */) } }). await, 12 /* terrane-site: src/main.trn:77:18-77:41 */))
         );
         records = __terrane_raised(
             rows(),
-            11 /* terrane-site: src/main.trn:72:33-72:38 */,
+            13 /* terrane-site: src/main.trn:78:33-78:38 */,
         );
         total = 0;
         let __terrane_iterable_0 = &records;
@@ -203,10 +222,10 @@ fn main() {
                     total,
                     __terrane_traced(
                         read_row(record),
-                        12 /* terrane-site: src/main.trn:75:26-75:42 */,
+                        14 /* terrane-site: src/main.trn:81:26-81:42 */,
                     ),
                 ),
-                13 /* terrane-site: src/main.trn:75:17-75:43 */,
+                15 /* terrane-site: src/main.trn:81:17-81:43 */,
             );
         }
         println!("{}", terrane_scalar_support::scalar_text(&total));
@@ -218,7 +237,7 @@ fn main() {
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_raised_completion!(sum(wide),
-                    14 /* terrane-site: src/main.trn:79:17-79:33 */))
+                    16 /* terrane-site: src/main.trn:85:17-85:33 */))
                 );
                 TerraneCompletion::Normal
             })();
@@ -254,4 +273,12 @@ fn main() {
             }
         }
     });
+}
+// Source: src/native-forward.trn
+// Namespace: app
+async fn increment_async(native: &mut Counter) {
+    {
+        let native = &mut *native;
+        native.increment();
+    }
 }

@@ -2116,6 +2116,71 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
     }
     Ok(())
 }
+fn capture_is_mutably_lent(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    closure: &SyntaxNode,
+    capture_span: Span,
+) -> bool {
+    binding_span_is_mutated_in(
+        package,
+        unit,
+        closure,
+        capture_span,
+        true,
+        ClosureWrites::Include,
+    )
+}
+
+pub(super) fn validate_native_captures(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        for contract in &unit.functions {
+            if contract.captures.is_empty()
+                || contract.written_invocation_mode == InvocationMode::Consuming
+            {
+                continue;
+            }
+            let Some(closure) = find_node_by_span(&unit.tree.root, contract.span) else {
+                continue;
+            };
+            for capture in &contract.captures {
+                let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+                    binding.name == *capture
+                        && binding.is_visible_at(unit.source.id(), contract.span.start)
+                }) else {
+                    continue;
+                };
+                if !value_type_contains_nonclone_foreign(unit, &binding.value_type) {
+                    continue;
+                }
+                let mutably_lent = capture_is_mutably_lent(package, unit, closure, binding.span);
+                let mutable_environment =
+                    contract.written_invocation_mode == InvocationMode::Mutable;
+                if !mutably_lent && !contract.is_async && !mutable_environment {
+                    continue;
+                }
+                let operation = if mutably_lent {
+                    "mutably lend captured native binding"
+                } else if contract.is_async {
+                    "snapshot non-Clone native binding for repeatable async invocation"
+                } else {
+                    "separate a mutable environment containing non-Clone native binding"
+                };
+                return Err(failure(
+                    &unit.source,
+                    "T0144",
+                    format!(
+                        "callable `{}` cannot {operation} `{capture}`; pass it as a reference parameter or use an explicit consuming callable when ownership permits",
+                        contract.name
+                    ),
+                    contract.span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn namespace_variable_reference_failure(
     source: &SourceFile,
     name: &str,

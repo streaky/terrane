@@ -1,5 +1,6 @@
 use super::super::prelude::*;
 use crate::Symbol;
+use std::fmt::Write as _;
 
 fn compiler_singleton_rust_name(symbol: Option<&Symbol>) -> Option<String> {
     let symbol = symbol?;
@@ -384,6 +385,100 @@ impl<'unit> Emitter<'unit> {
             format!("{storage}.{access}().unwrap_or_else(|| {failure})")
         } else {
             format!("{storage}.{access}().expect(\"flow-proven available binding\")")
+        }
+    }
+
+    fn native_argument_reference_parts(
+        &mut self,
+        operand: &SyntaxNode,
+        mutable: bool,
+    ) -> (String, String) {
+        if operand.kind == SyntaxKind::GroupExpression
+            && let [inner] = operand.children.as_slice()
+        {
+            return self.native_argument_reference_parts(inner, mutable);
+        }
+        let prefix = if mutable { "&mut " } else { "&" };
+        if operand.kind == SyntaxKind::MemberExpression
+            && let [holder, member] = operand.children.as_slice()
+        {
+            let borrowed = matches!(
+                self.value_type(operand),
+                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            ) || self.wrapped_object_field(holder, self.text(member))
+                || self.receiver_value_type(holder).is_some_and(|value| {
+                    matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
+                });
+            let (setup, place) = if mutable {
+                self.live_receiver_parts(operand)
+            } else {
+                self.borrowed_receiver_parts(operand)
+            };
+            let dereference = if borrowed { "*" } else { "" };
+            return (setup, format!("{prefix}{dereference}({place})"));
+        }
+        let reference = if let Some(reference) = self.narrowed_storage_name(operand, false, mutable)
+        {
+            reference
+        } else if let Some(binding) = self.local_typed_binding(operand)
+            && self.active_function_bindings.contains(&binding.span)
+            && self.binding_may_be_unassigned(binding)
+        {
+            self.available_storage_reference(binding, operand, mutable)
+        } else if self.narrowed_optional_name(operand).is_some() {
+            let borrow = if mutable { "as_mut" } else { "as_ref" };
+            format!(
+                "{prefix}*{}.{borrow}().expect(\"semantic optional narrowing\")",
+                self.raw_storage_name(operand)
+            )
+        } else if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
+            format!(
+                "{prefix}{}",
+                self.native_receiver_expression(operand, mutable)
+            )
+        } else if operand.kind == SyntaxKind::Name {
+            format!("{prefix}{}", self.raw_storage_name(operand))
+        } else {
+            format!("{prefix}{}", self.expression(operand))
+        };
+        (String::new(), reference)
+    }
+
+    pub(super) fn staged_native_argument_reference(
+        &mut self,
+        operand: &SyntaxNode,
+        mutable: bool,
+        setup: &mut String,
+        index: &mut usize,
+    ) -> String {
+        let (owner_setup, reference) = self.native_argument_reference_parts(operand, mutable);
+        if owner_setup.is_empty() {
+            return reference;
+        }
+        let name = format!("__terrane_native_reference_{index}");
+        *index += 1;
+        write!(setup, "{owner_setup}let {name} = {reference}; ")
+            .expect("writing to a String cannot fail");
+        name
+    }
+
+    pub(super) fn owned_native_argument(&mut self, node: &SyntaxNode) -> String {
+        if node.kind == SyntaxKind::Name
+            && let Some(binding) = self.local_typed_binding(node)
+            && self.active_function_bindings.contains(&binding.span)
+            && self.binding_may_be_unassigned(binding)
+            && !self.reference_backed(binding)
+            && !self.binding_value_is_reused(node)
+            && !self.non_consuming_capture_read(node)
+            && !self.value_type_owns_resource(&self.flow_binding_type(binding))
+            && !matches!(
+                self.value_type(node),
+                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            )
+        {
+            self.moved_name(node)
+        } else {
+            self.expression(node)
         }
     }
 

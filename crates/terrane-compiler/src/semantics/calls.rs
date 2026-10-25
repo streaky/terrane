@@ -544,24 +544,83 @@ fn validate_projected_generic_arguments(
     else {
         return Ok(());
     };
-    for (argument, parameter) in arguments.children.iter().zip(&projected.parameters) {
+    // Specialization selects the native ABI, not a replacement source contract:
+    // its closed parameters can erase generic bounds and interface obligations.
+    let specialized_parameters = unit
+        .projected_call_specializations
+        .get(&(node.span.file, node.span.start, node.span.end))
+        .map(|specialization| specialization.projected_parameters.as_slice());
+    for (index, (argument, parameter)) in arguments
+        .children
+        .iter()
+        .zip(&projected.parameters)
+        .enumerate()
+    {
+        let native_parameter = specialized_parameters
+            .and_then(|parameters| parameters.get(index))
+            .unwrap_or(parameter);
+        let boxed_interface = matches!(
+            parameter.ty,
+            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
+        );
+        let source_interface = parameter.generic_interface.is_some() || boxed_interface;
         if parameter.generic_parameter.is_none()
-            || (parameter.generic_interface.is_none()
-                && !matches!(
-                    parameter.ty,
-                    crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
-                ))
+            || (!source_interface && !native_parameter.requires_mutable_reference(true))
         {
             continue;
         }
         let value = argument.children.last().unwrap_or(argument);
-        let Some(ValueType::Object(identity)) = infer_value_type(unit, value, bindings)? else {
+        let has_explicit_reference = [argument, value].into_iter().any(|candidate| {
+            candidate.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, candidate).as_deref() == Some("ref")
+        });
+        let Some(actual) = infer_value_type(unit, value, bindings)? else {
             return Err(failure(
                 &unit.source,
                 "T0121",
-                "immediate projected generic bounds require a concrete source class argument",
+                "immediate projected generic bounds require a concrete native or source object argument",
                 value.span,
             ));
+        };
+        if !parameter.borrowed
+            && native_parameter.requires_mutable_reference(true)
+            && matches!(
+                &actual,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            )
+            && !has_explicit_reference
+        {
+            return Err(failure(
+                &unit.source,
+                "T0129",
+                "native mutable generic reference arguments require an explicit `ref`",
+                value.span,
+            ));
+        }
+        if !source_interface {
+            continue;
+        }
+        let identity = match &actual {
+            ValueType::Object(identity) => identity,
+            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                let ValueType::Object(identity) = inner.value_type_ref() else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0121",
+                        "immediate projected generic bounds require a concrete native or source object argument",
+                        value.span,
+                    ));
+                };
+                identity
+            }
+            _ => {
+                return Err(failure(
+                    &unit.source,
+                    "T0121",
+                    "immediate projected generic bounds require a concrete native or source object argument",
+                    value.span,
+                ));
+            }
         };
         if matches!(
             parameter.ty,
@@ -585,7 +644,7 @@ fn validate_projected_generic_arguments(
             owner
                 .descriptors
                 .iter()
-                .find(|descriptor| descriptor.identity == identity)
+                .find(|descriptor| &descriptor.identity == identity)
                 .map(|descriptor| (owner, descriptor))
         }) else {
             return Err(failure(
@@ -621,10 +680,6 @@ fn validate_projected_generic_arguments(
                     )
             });
         let required = required_item.map(|item| ObjectIdentity::new(&item.namespace, &item.name));
-        let boxed_interface = matches!(
-            parameter.ty,
-            crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
-        );
         let interface_matches_required = required.as_ref().is_some_and(|required| {
             boxed_interface
                 && implementor.kind == ObjectKind::Interface

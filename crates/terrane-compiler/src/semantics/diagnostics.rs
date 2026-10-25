@@ -582,13 +582,14 @@ fn projected_call_mutates_binding(
                 child.kind == SyntaxKind::UnaryExpression
                     && unary_operator_text(unit, child).as_deref() == Some("ref")
             });
-        projected_parameters.get(index).is_some_and(|parameter| {
-            parameter.mutable_borrow || parameter.generic_parameter.is_some() && explicit_reference
-        }) && root_name(argument).is_some_and(|root| {
-            package
-                .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
-                .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
-        })
+        projected_parameters
+            .get(index)
+            .is_some_and(|parameter| parameter.requires_mutable_reference(explicit_reference))
+            && root_name(argument).is_some_and(|root| {
+                package
+                    .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                    .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+            })
     })
 }
 
@@ -618,6 +619,7 @@ fn source_call_mutates_binding(
     let contract = package
         .units
         .iter()
+        .filter(|owner| owner.source.id() == declaration.file)
         .flat_map(|unit| &unit.functions)
         .find(|function| function.span == declaration)
         .unwrap_or(contract);
@@ -685,6 +687,24 @@ pub(crate) fn binding_span_is_mutated(
     initially_assigned: bool,
     closure_writes: ClosureWrites,
 ) -> bool {
+    binding_span_is_mutated_in(
+        package,
+        unit,
+        &unit.tree.root,
+        declaration_span,
+        initially_assigned,
+        closure_writes,
+    )
+}
+
+pub(crate) fn binding_span_is_mutated_in(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    scope: &SyntaxNode,
+    declaration_span: Span,
+    initially_assigned: bool,
+    closure_writes: ClosureWrites,
+) -> bool {
     let iterator_binding = unit.typed_bindings.iter().any(|binding| {
         binding.span == declaration_span && matches!(binding.value_type, ValueType::Iterator(_))
     });
@@ -695,7 +715,7 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding,
         closure_writes,
         false,
-        &unit.tree.root,
+        scope,
     ) > usize::from(!initially_assigned)
 }
 

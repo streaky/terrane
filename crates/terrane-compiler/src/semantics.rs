@@ -106,7 +106,9 @@ pub(crate) use contracts::{
 pub(crate) use descriptors::{
     descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
 };
-pub(crate) use diagnostics::{ClosureWrites, binding_span_is_mutated, warnings};
+pub(crate) use diagnostics::{
+    ClosureWrites, binding_span_is_mutated, binding_span_is_mutated_in, warnings,
+};
 pub(crate) use display::display_method;
 pub(crate) use enums::projected_enum_payload_type;
 pub(crate) use generics::{bind_generic_type, substitute_value_type};
