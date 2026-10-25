@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Connection, query, advance, Advance, Stage, observed
+from /deps/witness import Connection, query, advance, Advance, Stage, observed, outlives
 
 class source-counter implements Advance
     count int = 40
@@ -52,6 +52,20 @@ function observe-captured int64;
     first = reader;
     return first + (reader;)
 
+function execute-outlives int64;
+    connection = Connection::new;
+    bound = query; 'region-bound'
+    first = bound.fetch_outlives; ref connection
+    second = (query; 'region-direct').fetch_outlives; ref connection
+    return first + second
+
+function observe-outlives int64;
+    connection = Connection::new;
+    reader = function int64;
+        return outlives; ref connection
+    first = reader;
+    return first + (reader;)
+
 async function main;
     print; (execute-local;)
     connection = Connection::new;
@@ -81,3 +95,5 @@ async function main;
         case Stage::Idle
             print; 0
     print; (observe-captured;)
+    print; (execute-outlives;)
+    print; (observe-outlives;)

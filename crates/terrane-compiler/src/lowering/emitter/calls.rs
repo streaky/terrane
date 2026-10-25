@@ -2372,15 +2372,26 @@ impl Emitter<'_> {
             )
         });
         let mut native_member_receiver = None;
-        // Source argument evaluation belongs to the caller's error/async context,
-        // not inside the native call's synchronous panic-catching closure.
+        // Source receiver/argument evaluation belongs to the caller's error/async
+        // context, not inside the native call's synchronous panic catcher.
         let stage_native_inputs = native_macro_path.is_none()
             && projected_function.as_ref().is_some_and(|function| {
                 !function.is_async && !function.into_future && function.chain_role.is_none()
             })
-            && arguments.children.iter().any(|argument| {
+            && (arguments.children.iter().any(|argument| {
                 self.contains_await(argument) || self.expression_throws_synchronously(argument)
-            });
+            }) || (callee.kind == SyntaxKind::MemberExpression
+                && callee.children.first().is_some_and(|receiver| {
+                    // Keep temporary-owner borrow graphs in one expression.
+                    !matches!(
+                        self.value_type(receiver),
+                        Some(ValueType::InvocationScopedNative {
+                            expression_scoped: true,
+                            ..
+                        })
+                    ) && (self.contains_await(receiver)
+                        || self.expression_throws_synchronously(receiver))
+                })));
         let mut native_input_setup = String::new();
         let mut native_input_index = 0;
         let mut stage_native_input = |value: String| {

@@ -623,11 +623,8 @@ fn validate_projected_generic_arguments(
             }
         };
         if matches!(
-            projected
-                .parameters
-                .get(index)
-                .map(|parameter| &parameter.ty),
-            Some(crate::rust_interop::projection::ProjectedType::Generic(_))
+            parameter.ty,
+            crate::rust_interop::projection::ProjectedType::Generic(_)
         ) && package
             .projection
             .item(&identity.namespace, &identity.name)

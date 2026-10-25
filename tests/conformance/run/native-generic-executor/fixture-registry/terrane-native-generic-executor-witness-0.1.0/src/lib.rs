@@ -42,6 +42,13 @@ impl Query {
     {
         executor.execute()
     }
+
+    pub fn fetch_outlives<'executor, 'connection: 'executor, E>(self, executor: E) -> i64
+    where
+        E: 'executor + Executor<'connection, Database = Database>,
+    {
+        executor.execute()
+    }
 }
 
 pub trait Advance {
@@ -84,4 +91,8 @@ impl View for Connection {
 
 pub fn observed<T: View>(connection: &T) -> i64 {
     connection.read()
+}
+
+pub fn outlives<'region, T: 'region>(_value: T) -> i64 {
+    0
 }

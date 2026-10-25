@@ -3253,6 +3253,18 @@ struct PendingProjectedBound {
     inferred_parameters: Vec<String>,
 }
 
+fn is_deferred_outlives_bound(bound: &str) -> bool {
+    let lifetime = bound.trim();
+    let Some(name) = lifetime.strip_prefix('\'') else {
+        return false;
+    };
+    let mut characters = name.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_alphabetic() || character == '_')
+        && characters.all(|character| character.is_alphanumeric() || character == '_')
+}
+
 #[derive(Clone)]
 struct PendingProjectedSpecialization {
     unit: usize,
@@ -3266,6 +3278,24 @@ struct PendingProjectedSpecialization {
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
     bounds: Vec<PendingProjectedBound>,
+}
+
+fn projected_associated_binding_label(left: &str, right: &str) -> bool {
+    if !(right.starts_with('=') || right.starts_with(':') && !right.starts_with("::"))
+        || !(left.ends_with('<') || left.ends_with(','))
+    {
+        return false;
+    }
+    let mut closed = 0;
+    for (index, byte) in left.bytes().enumerate().rev() {
+        match byte {
+            b'>' if index == 0 || left.as_bytes()[index - 1] != b'-' => closed += 1,
+            b'<' if closed == 0 => return true,
+            b'<' => closed -= 1,
+            _ => {}
+        }
+    }
+    false
 }
 
 pub(super) fn qualify_projected_rust_names(
@@ -3282,8 +3312,8 @@ pub(super) fn qualify_projected_rust_names(
                 let left = rust[..start].trim_end();
                 let right = rust[end..].trim_start();
                 if left.ends_with("::")
-                    || right.starts_with(':')
-                    || right.starts_with('=')
+                    || right.starts_with("::")
+                    || projected_associated_binding_label(left, right)
                     || left
                         .chars()
                         .next_back()
@@ -3371,6 +3401,13 @@ fn specialize_projected_result_batch(
             }
             return Err(error);
         }
+    }
+    // Region predicates require the complete emitted borrow graph. They remain
+    // in native signatures, but are not type proofs or evidence for an ABI.
+    for specialization in &mut pending {
+        specialization
+            .bounds
+            .retain(|bound| !is_deferred_outlives_bound(&bound.rust_bound));
     }
     let Some(first_pending) = pending.first() else {
         return Ok(None);
@@ -7726,6 +7763,32 @@ mod tests {
             qualify_projected_rust_names("witness::Container<Item: View>", &names),
             "witness::Container<Item: witness::View>"
         );
+        let names = BTreeMap::from([
+            ("Local".to_owned(), "witness::Local".to_owned()),
+            ("Item".to_owned(), "witness::Item".to_owned()),
+            ("View".to_owned(), "witness::View".to_owned()),
+        ]);
+        for (input, expected) in [
+            ("Local: Send", "witness::Local: Send"),
+            (
+                "where Other: Send, Local: Send",
+                "where Other: Send, witness::Local: Send",
+            ),
+            (
+                "witness::Container<Item: View<Local>>",
+                "witness::Container<Item: witness::View<witness::Local>>",
+            ),
+            (
+                "witness::Container<View<Local>, Item: View>",
+                "witness::Container<witness::View<witness::Local>, Item: witness::View>",
+            ),
+            (
+                "witness::Container<fn() -> Local, Item = Local>",
+                "witness::Container<fn() -> witness::Local, Item = witness::Local>",
+            ),
+        ] {
+            assert_eq!(qualify_projected_rust_names(input, &names), expected);
+        }
     }
     #[test]
     fn generic_argument_respects_formal_borrow() {
