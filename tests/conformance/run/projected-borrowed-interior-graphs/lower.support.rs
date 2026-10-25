@@ -776,7 +776,7 @@ pub fn consume(
     }
 }
 pub fn make_view<'view>(
-    entry: &&'view Entry,
+    entry: &'view Entry,
 ) -> Result<witness::View<'view>, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| witness::make_view(entry)),

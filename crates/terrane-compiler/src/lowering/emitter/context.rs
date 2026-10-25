@@ -436,8 +436,10 @@ impl<'unit> Emitter<'unit> {
                 "{prefix}{}",
                 self.native_receiver_expression(operand, mutable)
             )
-        } else {
+        } else if operand.kind == SyntaxKind::Name {
             format!("{prefix}{}", self.raw_storage_name(operand))
+        } else {
+            format!("{prefix}{}", self.expression(operand))
         };
         (String::new(), reference)
     }
