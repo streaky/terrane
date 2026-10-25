@@ -471,7 +471,11 @@ impl<'a> Emitter<'a> {
                     format!("{path} {{ {fields} }}")
                 }
             };
-            return Some(format!("{{ {} {construction} }}", setup.join(" ")));
+            return Some(if setup.is_empty() {
+                construction
+            } else {
+                format!("{{ {} {construction} }}", setup.join(" "))
+            });
         };
         self.source_enum_variant_construction(descriptor, contract, variant_name, arguments, result)
     }

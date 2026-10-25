@@ -148,7 +148,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "285";
+const PROJECTION_SCHEMA: &str = "286";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -611,7 +611,7 @@ pub struct ProjectedParameter {
     pub generic_parameter: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generic_bounds: Vec<String>,
-    #[serde(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generic_interface: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub associated_type: Option<ProjectedAssociatedBinding>,

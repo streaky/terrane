@@ -165,6 +165,85 @@ fn copy_fixture(source: &std::path::Path, destination: &std::path::Path) {
 }
 
 #[test]
+fn native_generic_contracts_survive_projection_cache_reloads() {
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let package = Package(workspace.join("target").join(format!(
+        "native-generic-cache-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )));
+    copy_fixture(
+        &workspace.join("tests/conformance/run/native-generic-executor"),
+        &package.0,
+    );
+    let accepted = fs::read_to_string(package.0.join("src/main.trn")).unwrap();
+    let expected_output = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
+    let implicit_reference = r"namespace app
+from /deps/witness import Connection, query
+function implicit int64; connection ref Connection
+    bound = query; 'implicit'
+    return bound.fetch; connection
+function main;
+    connection = Connection::new;
+    print; (implicit; ref connection)
+";
+    let missing_interface = r"namespace app
+from /deps/witness import advance
+class unrelated
+    value int = 0
+function main;
+    value = instance unrelated;
+    print; (advance; ref value)
+";
+    for (source, expected_error) in [
+        (accepted.as_str(), None),
+        (implicit_reference, Some("T0129")),
+        (missing_interface, Some("T0121")),
+    ] {
+        package.source(source);
+        let projection = package.0.join(".trn/dependencies/projection.json");
+        if projection.exists() {
+            fs::remove_file(&projection).unwrap();
+        }
+        let mut cold_diagnostics = None;
+        for _ in 0..2 {
+            // Force semantic reanalysis while retaining the projection on the second pass.
+            let snapshots = package.0.join(".trn/cache");
+            if snapshots.exists() {
+                fs::remove_dir_all(snapshots).unwrap();
+            }
+            let checked = Command::new(env!("CARGO_BIN_EXE_terrane"))
+                .arg("check")
+                .arg(&package.0)
+                .output()
+                .unwrap();
+            let stderr = String::from_utf8(checked.stderr).unwrap();
+            let diagnostics = stderr
+                .lines()
+                .filter(|line| line.contains("error["))
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            if let Some(code) = expected_error {
+                assert!(!checked.status.success(), "{stderr}");
+                assert!(stderr.contains(&format!("error[{code}]")), "{stderr}");
+                assert!(!stderr.contains("S9003"), "{stderr}");
+            } else {
+                assert!(checked.status.success(), "{stderr}");
+            }
+            assert!(projection.is_file(), "the warm pass must load a projection");
+            if let Some(cold) = &cold_diagnostics {
+                assert_eq!(&diagnostics, cold, "{stderr}");
+            } else {
+                cold_diagnostics = Some(diagnostics);
+            }
+        }
+        if expected_error.is_none() {
+            assert_eq!(package.output(), expected_output);
+        }
+    }
+}
+
+#[test]
 fn local_native_dependency_edits_invalidate_cached_projection_and_compilation() {
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     // Rustdoc sandbox fixtures must live below the workspace bind, not its private /tmp.

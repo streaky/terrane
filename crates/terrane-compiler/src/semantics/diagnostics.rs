@@ -686,6 +686,24 @@ pub(crate) fn binding_span_is_mutated(
     initially_assigned: bool,
     closure_writes: ClosureWrites,
 ) -> bool {
+    binding_span_is_mutated_in(
+        package,
+        unit,
+        &unit.tree.root,
+        declaration_span,
+        initially_assigned,
+        closure_writes,
+    )
+}
+
+pub(crate) fn binding_span_is_mutated_in(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    scope: &SyntaxNode,
+    declaration_span: Span,
+    initially_assigned: bool,
+    closure_writes: ClosureWrites,
+) -> bool {
     let iterator_binding = unit.typed_bindings.iter().any(|binding| {
         binding.span == declaration_span && matches!(binding.value_type, ValueType::Iterator(_))
     });
@@ -696,7 +714,7 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding,
         closure_writes,
         false,
-        &unit.tree.root,
+        scope,
     ) > usize::from(!initially_assigned)
 }
 

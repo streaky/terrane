@@ -3282,7 +3282,8 @@ pub(super) fn qualify_projected_rust_names(
                 let left = rust[..start].trim_end();
                 let right = rust[end..].trim_start();
                 if left.ends_with("::")
-                    || right.starts_with("::")
+                    || right.starts_with(':')
+                    || right.starts_with('=')
                     || left
                         .chars()
                         .next_back()
@@ -3662,7 +3663,14 @@ fn specialize_projected_result_batch(
         }
         for parameter in &mut specialization.projected_parameters {
             if !parameter.borrowed {
-                parameter.generic_parameter = None;
+                if matches!(
+                    &parameter.ty,
+                    crate::rust_interop::projection::ProjectedType::Reference { mutable: true, .. }
+                ) {
+                    parameter.mutable_borrow = true;
+                } else {
+                    parameter.generic_parameter = None;
+                }
             }
         }
         canonicalize_native_value_type(package, &mut specialization.value_type);
@@ -4416,6 +4424,18 @@ fn substitute_native_type_parameters(
     *rust_type = crate::rust_ir::instantiate_rust_generics(rust_type, &replacements);
 }
 
+fn native_generic_argument(
+    projected: &crate::rust_interop::projection::ProjectedType,
+    formal_borrowed: bool,
+) -> crate::rust_interop::projection::ProjectedType {
+    if formal_borrowed
+        && let crate::rust_interop::projection::ProjectedType::Reference { inner, .. } = projected
+    {
+        return inner.as_ref().clone();
+    }
+    projected.clone()
+}
+
 fn bind_projected_native_generics(
     expected: &crate::rust_interop::projection::ProjectedType,
     actual: &crate::rust_interop::projection::ProjectedType,
@@ -4826,10 +4846,11 @@ fn collect_projected_destinations(
             let value = argument.children.last().unwrap_or(argument);
             let actual_projected = projected_call_result(package, unit, value);
             if let Some(actual_projected) = actual_projected.as_ref() {
-                native_projected_parameters.insert(parameter_index, actual_projected.clone());
+                let binding_actual =
+                    native_generic_argument(actual_projected, projected_parameter.borrowed);
                 bind_projected_native_generics(
                     &projected_parameter.ty,
-                    actual_projected,
+                    &binding_actual,
                     &mut native_bindings,
                 )
                 .map_err(|generic| {
@@ -4842,6 +4863,7 @@ fn collect_projected_destinations(
                         value.span,
                     )
                 })?;
+                native_projected_parameters.insert(parameter_index, actual_projected.clone());
             }
             let Some(actual) = infer_value_type(unit, value, &unit.typed_bindings)? else {
                 continue;
@@ -5141,6 +5163,13 @@ fn collect_projected_destinations(
             if source_adapter && !explicit_projected.contains_key(&generic.name) {
                 continue;
             }
+            let mut native_generic_parameters = function.parameters.iter().filter(|parameter| {
+                parameter.generic_parameter.as_deref() == Some(generic.name.as_str())
+            });
+            let generic_is_native_borrowed =
+                native_generic_parameters.next().is_some_and(|first| {
+                    first.borrowed && native_generic_parameters.all(|parameter| parameter.borrowed)
+                });
             let inferred = native_bindings.get(&generic.name).cloned().or_else(|| {
                 value_bindings.get(&generic.name).and_then(|actual| {
                     let (actual_projection, reference) = match actual {
@@ -5151,9 +5180,13 @@ fn collect_projected_destinations(
                     destination_projected_type(package, actual_projection)
                         .ok()
                         .map(|projected| {
-                            reference.map_or(projected.clone(), |mutable| {
-                                projected_reference_type(projected, mutable)
-                            })
+                            if generic_is_native_borrowed {
+                                projected
+                            } else {
+                                reference.map_or(projected.clone(), |mutable| {
+                                    projected_reference_type(projected, mutable)
+                                })
+                            }
                         })
                 })
             });
@@ -7654,4 +7687,47 @@ pub(super) fn validate_descriptor_value_node(
         validate_descriptor_value_node(package, unit, child, child_is_descriptor_context)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{native_generic_argument, qualify_projected_rust_names};
+    use crate::rust_interop::projection::ProjectedType;
+
+    #[test]
+    fn qualification_preserves_associated_type_equality_keys() {
+        let names = BTreeMap::from([("Database".to_owned(), "witness::Database".to_owned())]);
+
+        assert_eq!(
+            qualify_projected_rust_names(
+                "for<'connection> witness::Executor<'connection, Database = Database>",
+                &names,
+            ),
+            "for<'connection> witness::Executor<'connection, Database = witness::Database>"
+        );
+        let names = BTreeMap::from([
+            ("Item".to_owned(), "witness::Item".to_owned()),
+            ("View".to_owned(), "witness::View".to_owned()),
+        ]);
+        assert_eq!(
+            qualify_projected_rust_names("witness::Container<Item: View>", &names),
+            "witness::Container<Item: witness::View>"
+        );
+    }
+    #[test]
+    fn generic_argument_strips_reference_only_for_borrowed_formal() {
+        let reference = ProjectedType::Reference {
+            inner: Box::new(ProjectedType::Generic("Connection".to_owned())),
+            mutable: true,
+            lifetime: None,
+        };
+
+        assert_eq!(
+            native_generic_argument(&reference, true),
+            ProjectedType::Generic("Connection".to_owned())
+        );
+        assert_eq!(native_generic_argument(&reference, false), reference);
+    }
 }

@@ -544,9 +544,16 @@ fn validate_projected_generic_arguments(
     else {
         return Ok(());
     };
-    for (argument, parameter) in arguments.children.iter().zip(&projected.parameters) {
+    let parameters = unit
+        .projected_call_specializations
+        .get(&(node.span.file, node.span.start, node.span.end))
+        .map_or(projected.parameters.as_slice(), |specialization| {
+            specialization.projected_parameters.as_slice()
+        });
+    for (index, (argument, parameter)) in arguments.children.iter().zip(parameters).enumerate() {
         if parameter.generic_parameter.is_none()
             || (parameter.generic_interface.is_none()
+                && !parameter.mutable_borrow
                 && !matches!(
                     parameter.ty,
                     crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
@@ -555,17 +562,64 @@ fn validate_projected_generic_arguments(
             continue;
         }
         let value = argument.children.last().unwrap_or(argument);
-        let Some(ValueType::Object(identity)) = infer_value_type(unit, value, bindings)? else {
+        let has_explicit_reference = [argument, value].into_iter().any(|candidate| {
+            candidate.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, candidate).as_deref() == Some("ref")
+        });
+        let Some(actual) = infer_value_type(unit, value, bindings)? else {
             return Err(failure(
                 &unit.source,
                 "T0121",
-                "immediate projected generic bounds require a concrete source class argument",
+                "immediate projected generic bounds require a concrete native or source object argument",
                 value.span,
             ));
         };
+        if projected
+            .parameters
+            .get(index)
+            .is_some_and(|template| !template.borrowed)
+            && parameter.mutable_borrow
+            && matches!(
+                &actual,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            )
+            && !has_explicit_reference
+        {
+            return Err(failure(
+                &unit.source,
+                "T0129",
+                "native mutable generic reference arguments require an explicit `ref`",
+                value.span,
+            ));
+        }
+        let identity = match &actual {
+            ValueType::Object(identity) => identity,
+            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                let ValueType::Object(identity) = inner.value_type_ref() else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0121",
+                        "immediate projected generic bounds require a concrete native or source object argument",
+                        value.span,
+                    ));
+                };
+                identity
+            }
+            _ => {
+                return Err(failure(
+                    &unit.source,
+                    "T0121",
+                    "immediate projected generic bounds require a concrete native or source object argument",
+                    value.span,
+                ));
+            }
+        };
         if matches!(
-            parameter.ty,
-            crate::rust_interop::projection::ProjectedType::Generic(_)
+            projected
+                .parameters
+                .get(index)
+                .map(|parameter| &parameter.ty),
+            Some(crate::rust_interop::projection::ProjectedType::Generic(_))
         ) && package
             .projection
             .item(&identity.namespace, &identity.name)
@@ -585,7 +639,7 @@ fn validate_projected_generic_arguments(
             owner
                 .descriptors
                 .iter()
-                .find(|descriptor| descriptor.identity == identity)
+                .find(|descriptor| &descriptor.identity == identity)
                 .map(|descriptor| (owner, descriptor))
         }) else {
             return Err(failure(

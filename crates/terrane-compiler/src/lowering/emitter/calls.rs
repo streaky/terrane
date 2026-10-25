@@ -2109,32 +2109,19 @@ impl Emitter<'_> {
                         self.raw_storage_name(value)
                     }
                 } else if projected_parameter.is_some_and(|parameter| {
-                    parameter.generic_parameter.is_some()
-                        && (parameter.mutable_borrow || explicit_reference.is_some())
-                }) {
-                    if let Some(operand) = explicit_reference {
-                        if let Some(binding) = self.local_typed_binding(operand)
-                            && self.active_function_bindings.contains(&binding.span)
-                            && self.binding_may_be_unassigned(binding)
-                        {
-                            self.available_storage_reference(binding, operand, true)
-                        } else if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
-                            format!("&mut *{}", self.raw_storage_name(operand))
-                        } else if self.narrowed_optional_name(operand).is_some() {
-                            format!(
-                                "&mut *{}.as_mut().expect(\"semantic optional narrowing\")",
-                                self.raw_storage_name(operand)
-                            )
-                        } else {
-                            format!("&mut {}", self.raw_storage_name(operand))
-                        }
-                    } else if matches!(self.value_type(value), Some(ValueType::Reference(_))) {
-                        format!("&mut *{}", self.expression(value))
-                    } else {
-                        format!("&mut {}", self.expression(value))
-                    }
-                } else if projected_parameter.is_some_and(|parameter| parameter.mutable_borrow) {
-                    format!("&mut {}", self.expression(value))
+                    parameter.mutable_borrow
+                        || parameter.generic_parameter.is_some() && explicit_reference.is_some()
+                }) || self.mutable_native_reference_parameter(
+                    contract,
+                    index,
+                    parameter.binding_value_type().as_ref(),
+                ) {
+                    self.staged_native_argument_reference(
+                        explicit_reference.unwrap_or(value),
+                        true,
+                        &mut shared_argument_setup,
+                        &mut shared_argument_index,
+                    )
                 } else if projected_parameter.is_some_and(|parameter| {
                     parameter.generic_parameter.is_some()
                         || parameter.borrowed
@@ -2147,33 +2134,10 @@ impl Emitter<'_> {
                             crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
                         )
                 }) {
-                    self.expression(value)
-                } else if self.mutable_native_reference_parameter(
-                    contract,
-                    index,
-                    parameter.binding_value_type().as_ref(),
-                )
-                {
-                    if let Some(operand) = explicit_reference {
-                        if let Some(reference) = self.narrowed_storage_name(operand, false, true) {
-                            reference
-                        } else if let Some(binding) = self.local_typed_binding(operand)
-                            && self.binding_may_be_unassigned(binding)
-                        {
-                            self.available_storage_reference(binding, operand, true)
-                        } else if self.narrowed_optional_name(operand).is_some() {
-                            format!(
-                                "&mut *{}.as_mut().expect(\"semantic optional narrowing\")",
-                                self.raw_storage_name(operand)
-                            )
-                        } else if matches!(self.value_type(operand), Some(ValueType::Reference(_)))
-                        {
-                            format!("&mut {}", self.native_receiver_expression(operand, true))
-                        } else {
-                            format!("&mut {}", self.raw_storage_name(operand))
-                        }
+                    if projected_parameter.is_some_and(|parameter| !parameter.borrowed) {
+                        self.owned_native_argument(value)
                     } else {
-                        format!("&mut *{}", self.expression(value))
+                        self.expression(value)
                     }
                 } else if let Some(ty) = semantic_parameter.as_ref() {
                     self.expression_as(value, ty.clone())
@@ -2283,6 +2247,15 @@ impl Emitter<'_> {
                                 },
                                 false,
                             ) if item.has_identity_representation() => expression,
+                            (
+                                crate::rust_interop::projection::ProjectedType::Foreign { .. },
+                                false,
+                            ) => self.staged_native_argument_reference(
+                                explicit_reference.unwrap_or(value),
+                                false,
+                                &mut shared_argument_setup,
+                                &mut shared_argument_index,
+                            ),
                             (_, true) => format!("&mut {expression}"),
                             _ => format!("&{expression}"),
                         }
@@ -3500,7 +3473,7 @@ impl Emitter<'_> {
             format!(
                 "{{ {setup}{shared_argument_setup}{native_input_setup}let __terrane_call_result = {result}; __terrane_call_result }}"
             )
-        } else if shared_async_receiver.is_some() {
+        } else if shared_async_receiver.is_some() || !shared_argument_setup.is_empty() {
             format!("{{ {shared_argument_setup}{native_input_setup}{result} }}")
         } else if native_input_setup.is_empty() {
             result

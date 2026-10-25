@@ -1,0 +1,75 @@
+namespace app
+
+from /deps/witness import Connection, query, advance, Advance, Stage, observed
+
+class source-counter implements Advance
+    count int = 40
+
+    mutable function advance int;
+        this.count = this.count + 1
+        return this.count
+
+class enum-holder
+    stage Stage = instance Stage::Idle;
+
+function execute-local int64;
+    connection = Connection::new;
+    bound = query; 'bound-local'
+    return bound.fetch; ref connection
+
+function execute-reference int64; connection ref Connection
+    bound = query; 'bound-reference'
+    return bound.fetch; ref connection
+
+function execute-formal-reference int64; connection ref Connection
+    return advance; connection
+
+function execute-optional int64; flag bool
+    maybe (Connection|none) = none
+    if flag
+        maybe = Connection::new;
+    if maybe != none
+        bound = query; 'narrowed'
+        return bound.fetch; ref maybe
+    return 0
+
+function execute-deferred int64; flag bool
+    if flag
+        late Connection = Connection::new;
+    bound = query; 'deferred'
+    return bound.fetch; ref late
+
+function execute-enum int64; stage ref Stage
+    return advance; stage
+
+function observe-native int64; connection ref Connection
+    return observed; connection
+
+async function main;
+    print; (execute-local;)
+    connection = Connection::new;
+    print; (execute-reference; ref connection)
+    print; ((query; 'direct').fetch; ref connection)
+    print; (execute-formal-reference; ref connection)
+    print; (connection.executions;)
+    print; (execute-optional; true)
+    print; (execute-optional; false)
+    print; (execute-deferred; true)
+    source = instance source-counter;
+    print; (advance; ref source)
+    print; source.count
+    stage = instance Stage::Idle;
+    print; (execute-enum; ref stage)
+    match ref stage
+        case Stage::Done
+            print; 8
+        case Stage::Idle
+            print; 0
+    print; (observe-native; ref connection)
+    holder = instance enum-holder;
+    print; (advance; ref holder.stage)
+    match holder.stage
+        case Stage::Done
+            print; 9
+        case Stage::Idle
+            print; 0

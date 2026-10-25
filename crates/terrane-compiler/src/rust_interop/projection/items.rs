@@ -1181,32 +1181,6 @@ pub(super) fn project_rustdoc(
         }
     }
     merge_projected_trait_operations(&mut items, &mut declined, projected_trait_items);
-    let projected_interfaces = items
-        .iter()
-        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
-        .map(|item| item.rust_path.clone())
-        .collect::<BTreeSet<_>>();
-    let mut retained_items = Vec::with_capacity(items.len());
-    for item in items {
-        let declined_bound = match &item.kind {
-            ProjectedKind::Function(function) => function
-                .parameters
-                .iter()
-                .filter_map(|parameter| parameter.generic_interface.as_ref())
-                .find(|bound| !projected_interfaces.contains(*bound))
-                .cloned(),
-            _ => None,
-        };
-        if let Some(bound) = declined_bound {
-            declined.push(DeclinedItem {
-                rust_path: item.rust_path,
-                reason: format!("generic input references declined interface `{bound}`"),
-            });
-        } else {
-            retained_items.push(item);
-        }
-    }
-    let mut items = retained_items;
     let package_root = dependency.package.replace('-', "_");
     let dependency_root = dependency.name.replace('-', "_");
     let normalize = |function: &mut ProjectedFunction| {
@@ -1288,6 +1262,32 @@ pub(super) fn project_rustdoc(
             }
         }
     }
+    let projected_interfaces = items
+        .iter()
+        .filter(|item| matches!(item.kind, ProjectedKind::Interface(_)))
+        .map(|item| item.rust_path.clone())
+        .collect::<BTreeSet<_>>();
+    let mut retained_items = Vec::with_capacity(items.len());
+    for item in items {
+        let declined_bound = match &item.kind {
+            ProjectedKind::Function(function) | ProjectedKind::Macro(function) => function
+                .parameters
+                .iter()
+                .filter_map(|parameter| parameter.generic_interface.as_ref())
+                .find(|bound| !projected_interfaces.contains(*bound))
+                .cloned(),
+            _ => None,
+        };
+        if let Some(bound) = declined_bound {
+            declined.push(DeclinedItem {
+                rust_path: item.rust_path,
+                reason: format!("generic input references declined interface `{bound}`"),
+            });
+        } else {
+            retained_items.push(item);
+        }
+    }
+    let mut items = retained_items;
     normalize_projected_items(&mut items, &mut declined);
     ProjectedDependency {
         name: dependency.name.clone(),

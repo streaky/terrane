@@ -137,9 +137,9 @@ fn main() {
                                             .insert(
                                                 __terrane_traced_completion!(
                                                     __terrane_await({ let __terrane_future = { let
-                                                    __terrane_call = sqlx_core::query::query_with(sql.as_ref()
-                                                    .expect("flow-proven available binding").clone(), arguments
-                                                    .take().expect("flow-proven availability")).fetch_one(native
+                                                    __terrane_call = sqlx_core::query::query_with(sql.take()
+                                                    .expect("flow-proven availability"), arguments.take()
+                                                    .expect("flow-proven availability")).fetch_one(native
                                                     .as_mut().expect("flow-proven available binding"));
                                                     Box::pin(async move { match crate
                                                     ::__terrane_dependency_await_unwind(__terrane_call). await {
