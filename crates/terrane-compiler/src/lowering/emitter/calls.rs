@@ -1909,6 +1909,7 @@ impl Emitter<'_> {
                 .package
                 .units
                 .iter()
+                .filter(|owner| owner.source.id() == contract.span.file)
                 .flat_map(|unit| &unit.functions)
                 .find(|function| function.span == contract.span)
             {
@@ -2112,7 +2113,14 @@ impl Emitter<'_> {
                         && (parameter.mutable_borrow || explicit_reference.is_some())
                 }) {
                     if let Some(operand) = explicit_reference {
-                        if self.narrowed_optional_name(operand).is_some() {
+                        if let Some(binding) = self.local_typed_binding(operand)
+                            && self.active_function_bindings.contains(&binding.span)
+                            && self.binding_may_be_unassigned(binding)
+                        {
+                            self.available_storage_reference(binding, operand, true)
+                        } else if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
+                            format!("&mut *{}", self.raw_storage_name(operand))
+                        } else if self.narrowed_optional_name(operand).is_some() {
                             format!(
                                 "&mut *{}.as_mut().expect(\"semantic optional narrowing\")",
                                 self.raw_storage_name(operand)
@@ -2120,6 +2128,8 @@ impl Emitter<'_> {
                         } else {
                             format!("&mut {}", self.raw_storage_name(operand))
                         }
+                    } else if matches!(self.value_type(value), Some(ValueType::Reference(_))) {
+                        format!("&mut *{}", self.expression(value))
                     } else {
                         format!("&mut {}", self.expression(value))
                     }

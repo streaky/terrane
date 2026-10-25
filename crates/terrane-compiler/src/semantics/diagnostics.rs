@@ -618,6 +618,7 @@ fn source_call_mutates_binding(
     let contract = package
         .units
         .iter()
+        .filter(|owner| owner.source.id() == declaration.file)
         .flat_map(|unit| &unit.functions)
         .find(|function| function.span == declaration)
         .unwrap_or(contract);

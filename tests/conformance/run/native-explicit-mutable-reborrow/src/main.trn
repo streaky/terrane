@@ -40,6 +40,9 @@ function shadow-read int64; first ref NativeCounter, second ref NativeCounter
 function read-row int64; record ref OpaqueRow
     return record.value;
 
+async function forward-async; native ref NativeCounter
+    await increment-async; ref native
+
 async function main;
     counter = NativeCounter::new; 4
     optional-counter = optional-counter;
@@ -63,6 +66,9 @@ async function main;
     print; (counter.value;)
     print; (shadow-read; ref counter, ref counter)
     print; await counter.finish;
+    forwarded = NativeCounter::new; 80
+    await forward-async; ref forwarded
+    print; (forwarded.value;)
     values list of int = list; 2, 3
     print; (sum-values; values)
     empty list of int = list;

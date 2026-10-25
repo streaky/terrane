@@ -1,0 +1,35 @@
+namespace app
+
+from /deps/sqlx-core/query import query_with as native-query
+from /deps/sqlx-core/sql-str import SqlStr as native-sql
+from /deps/sqlx-sqlite import SqliteConnectOptions as native-options, SqliteConnection as native-connection, SqliteArguments as native-arguments, SqliteRow as native-row
+
+function query-text native-sql;
+    return rust
+        ::sqlx::SqlSafeStr::into_sql_str(::sqlx::AssertSqlSafe("SELECT 77"))
+
+function row-value int64; record ref native-row
+    return rust
+        ::sqlx::Row::try_get::<i64, _>(record, 0_usize).expect("SELECT 77 has one integer column")
+
+async function read-borrowed int64; native ref native-connection
+    arguments = native-arguments::default;
+    sql = query-text;
+    record native-row = await (native-query; sql, move arguments).fetch_one; ref native
+    return row-value; ref record
+
+async function main;
+    options = native-options::new;
+    options = options.filename; ':memory:'
+    try
+        native native-connection = await options.connect;
+        try
+            arguments = native-arguments::default;
+            sql = query-text;
+            record native-row = await (native-query; sql, move arguments).fetch_one; ref native
+            print; (row-value; ref record)
+            print; await read-borrowed; ref native
+        finally
+            await native.close;
+    finally
+        print; 'closed'
