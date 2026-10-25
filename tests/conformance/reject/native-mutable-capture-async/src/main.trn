@@ -1,0 +1,13 @@
+namespace app
+from /deps/witness import Counter as NativeCounter
+
+async function increment; native ref NativeCounter
+    rust
+        let native = &mut *native;
+        native.increment();
+
+async function main;
+    counter = NativeCounter::new; 0
+    callback = async function;
+        await increment; ref counter
+    await callback;

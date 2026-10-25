@@ -29,6 +29,10 @@ impl OpaqueValue {
     pub fn new(value: i64) -> Self {
         Self { value }
     }
+
+    pub fn value(&self) -> i64 {
+        self.value
+    }
 }
 
 pub async fn checksum(values: &[OpaqueValue]) -> i64 {

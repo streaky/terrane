@@ -1,0 +1,46 @@
+namespace app
+from /deps/witness import Counter as NativeCounter, OpaqueValue, checksum
+from /core/collections import list
+
+class source-holder
+    value int64 = 0
+    mutable function bump;
+        this.value = this.value + 1
+
+function increment; counter ref NativeCounter
+    rust
+        let counter = &mut *counter;
+        counter.increment();
+
+async function main;
+    read-counter = NativeCounter::new; 11
+    read-only = function int64;
+        return (read-counter.value;)
+    print; (read-only;)
+    print; (read-only;)
+
+    async-values list of OpaqueValue = list; (OpaqueValue::new; 23)
+    async-read-only = async function int64;
+        return await checksum; async-values
+    async-value = await async-read-only;
+    print; async-value
+
+    mixed-counter = OpaqueValue::new; 17
+    holder = instance source-holder;
+    mixed = mutable function int64;
+        holder.bump;
+        return holder.value + (mixed-counter.value;)
+    print; (mixed;)
+    print; (mixed;)
+
+    callback-counter = NativeCounter::new; 20
+    callback = function; value ref NativeCounter
+        increment; ref value
+    callback; ref callback-counter
+    print; (callback-counter.value;)
+
+    owned = NativeCounter::new; 40
+    consume = consuming function int64;
+        increment; ref owned
+        return (owned.value;)
+    print; (consume;)

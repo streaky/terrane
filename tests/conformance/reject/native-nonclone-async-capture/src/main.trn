@@ -1,0 +1,8 @@
+namespace app
+from /deps/witness import Counter
+
+async function main;
+    counter = Counter::new; 23
+    reader = async function int64;
+        return (counter.value;)
+    print; await reader;

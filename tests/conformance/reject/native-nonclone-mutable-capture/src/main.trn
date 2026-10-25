@@ -1,0 +1,15 @@
+namespace app
+from /deps/witness import Counter
+
+class holder
+    value int = 0
+    mutable function bump;
+        this.value = this.value + 1
+
+function main;
+    counter = Counter::new; 17
+    state = instance holder;
+    reader = mutable function int64;
+        state.bump;
+        return (counter.value;)
+    print; (reader;)

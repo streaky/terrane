@@ -1034,7 +1034,17 @@ impl Emitter<'_> {
                 || rust_name(capture),
                 |binding| self.binding_storage_name(binding).to_owned(),
             );
-            let mutable = if contract.written_invocation_mode == InvocationMode::Mutable {
+            let mutable = if contract.written_invocation_mode != InvocationMode::Shared
+                && binding.is_some_and(|binding| {
+                    crate::semantics::binding_span_is_mutated_in(
+                        self.package,
+                        self.unit,
+                        node,
+                        binding.span,
+                        true,
+                        crate::semantics::ClosureWrites::Include,
+                    )
+                }) {
                 "mut "
             } else {
                 ""
