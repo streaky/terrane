@@ -556,9 +556,10 @@ pub(in crate::semantics) fn validate_suspension_ownership(
     for unit in &package.units {
         let mut awaits = Vec::new();
         collect_suspension_points(unit, &unit.tree.root, &mut awaits);
-        for contract in unit.functions.iter().filter(|contract| contract.is_async) {
+        for contract in unit.local_functions().filter(|contract| contract.is_async) {
             for binding in unit.typed_bindings.iter().filter(|binding| {
                 matches!(binding.value_type, ValueType::Reference(_))
+                    && binding.span.file == contract.span.file
                     && binding.span.start >= contract.span.start
                     && binding.span.end <= contract.span.end
             }) {

@@ -1,0 +1,4 @@
+package = "enum-return-cross-file"
+
+[namespaces]
+enum-return-cross-file = "src"

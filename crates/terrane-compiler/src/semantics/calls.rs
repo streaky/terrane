@@ -1554,15 +1554,7 @@ pub(super) fn call_site_bindings(
         .typed_bindings
         .iter()
         .filter(|binding| {
-            let owner = unit
-                .functions
-                .iter()
-                .filter(|function| {
-                    function.span.file == binding.span.file
-                        && function.span.start <= binding.span.start
-                        && binding.span.end <= function.span.end
-                })
-                .min_by_key(|function| function.span.end - function.span.start);
+            let owner = unit.containing_function(binding.span);
             owner
                 .is_none_or(|owner| active_function.is_some_and(|active| active.span == owner.span))
         })

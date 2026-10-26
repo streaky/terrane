@@ -64,14 +64,8 @@ fn validate_async_receiver_field_borrow(
     if root.kind == SyntaxKind::Name
         && node_text(&unit.source, root) == "this"
         && unit
-            .functions
-            .iter()
-            .filter(|function| {
-                function.owner.is_some()
-                    && function.span.file == value.span.file
-                    && function.span.start <= value.span.start
-                    && value.span.end <= function.span.end
-            })
+            .functions_containing(value.span)
+            .filter(|function| function.owner.is_some())
             .min_by_key(|function| function.span.end - function.span.start)
             .is_some_and(|function| {
                 function.is_async
@@ -1310,9 +1304,8 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
     loop {
         let mut changed = false;
         for unit in &package.units {
-            for contract in &unit.functions {
-                if contract.span.file != unit.source.id()
-                    || !matches!(contract.return_type, Some(ValueType::Reference(_)))
+            for contract in unit.local_functions() {
+                if !matches!(contract.return_type, Some(ValueType::Reference(_)))
                     || known.contains_key(&contract_key(contract))
                 {
                     continue;
@@ -1348,14 +1341,7 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
 }
 
 fn owner_is_external_lender(unit: &SemanticUnit, position: usize, owner: Span) -> bool {
-    unit.functions
-        .iter()
-        .filter(|contract| {
-            contract.span.file == unit.source.id()
-                && contract.span.start <= position
-                && contract.span.end >= position
-        })
-        .min_by_key(|contract| contract.span.end - contract.span.start)
+    unit.containing_function(Span::new(unit.source.id(), position, position))
         .is_some_and(|contract| owner.start < contract.span.start || owner.end > contract.span.end)
 }
 
@@ -1475,15 +1461,7 @@ fn validate_reference_return(
     ) {
         return Ok(());
     }
-    let contract = unit
-        .functions
-        .iter()
-        .filter(|contract| {
-            contract.span.file == value.span.file
-                && contract.span.start <= value.span.start
-                && contract.span.end >= value.span.end
-        })
-        .min_by_key(|contract| contract.span.end - contract.span.start);
+    let contract = unit.containing_function(value.span);
     if let Some(expected @ ValueType::Scalar(_)) =
         contract.and_then(|contract| contract.return_type.as_ref())
         && let Some(ValueType::Reference(inner) | ValueType::SharedReference(inner)) =

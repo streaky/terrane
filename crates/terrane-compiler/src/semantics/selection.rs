@@ -192,11 +192,9 @@ pub(super) fn analyze_selections(package: &mut SemanticPackage) -> Result<(), Se
         selections: &mut Vec<SemanticSelection>,
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::SelectStatement {
-            let async_function = unit.functions.iter().any(|function| {
-                function.is_async
-                    && function.span.start <= node.span.start
-                    && node.span.end <= function.span.end
-            });
+            let async_function = unit
+                .containing_function(node.span)
+                .is_some_and(|function| function.is_async);
             if !async_function {
                 return Err(failure(
                     &unit.source,

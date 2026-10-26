@@ -1987,6 +1987,70 @@ fn optional_object_member_diagnostic_explains_stable_narrowing() {
     );
 }
 
+fn reference_closure_package(body: &str) -> Package {
+    let source = format!(
+        "namespace ref-closure\nfunction main;\n    value = 'captured'\n    borrowed = ref value\n    callback = function ref string; flag bool\n{body}\n"
+    );
+    let returned = source.find("return ").unwrap();
+    let namespace = "namespace ref-closure\n";
+    // The foreign contract contains the captured owner's offsets and the first
+    // return, but is shorter than the anonymous function's two-branch body.
+    let foreign_start = source.find("value =").unwrap() - 4;
+    let foreign_prefix = format!(
+        "{namespace}#{}\nfunction f int;\n",
+        ".".repeat(foreign_start - namespace.len() - 2)
+    );
+    let sibling = format!(
+        "{foreign_prefix}#{}\n    return 0\n",
+        ".".repeat(returned + 20 - foreign_prefix.len())
+    );
+    package(true, &[("main.trn", &source), ("sibling.trn", &sibling)])
+}
+
+#[test]
+fn cross_file_ref_closure_retains_captured_owner() {
+    let body = format!(
+        "        if flag\n            alias = borrowed\n            return alias\n        else\n            #{}\n            return borrowed",
+        ".".repeat(200)
+    );
+    let package = reference_closure_package(&body);
+    let analyzed = analyze(&package).unwrap();
+    let unit = analyzed
+        .units
+        .iter()
+        .find(|unit| unit.source_path.ends_with("main.trn"))
+        .unwrap();
+    let owner = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.name == "value")
+        .unwrap();
+    let alias = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.name == "alias")
+        .unwrap();
+    let provenance = unit
+        .reference_provenance
+        .get(&(alias.span.start, alias.span.end))
+        .unwrap();
+    assert_eq!(provenance.owner, owner.span);
+    assert!(provenance.external_lender);
+    assert_eq!(provenance.lifetime_end, None);
+}
+
+#[test]
+fn cross_file_ref_closure_rejects_own_local() {
+    let body = format!(
+        "        if flag\n            local = 'temporary'\n            return ref local\n        else\n            #{}\n            return borrowed",
+        ".".repeat(200)
+    );
+    let package = reference_closure_package(&body);
+    let failure = analyze(&package).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0068");
+    assert_eq!(failure.diagnostics[0].primary.unwrap().file, 0);
+}
+
 fn contains_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bool {
     node.kind == kind || node.children.iter().any(|child| contains_kind(child, kind))
 }
