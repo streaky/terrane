@@ -7,6 +7,9 @@ from /deps/witness/layout/macros import combine
 function contextual int;
     return sum; 20, 22
 
+function disable-record int; record ref Packet
+    return disable; record
+
 function main;
     empty int = sum;
     print; empty
@@ -18,7 +21,7 @@ function main;
     record Packet = packet; 7, true
     print; record.value
     print; record.enabled
-    observed int = disable; ref record
+    observed int = disable-record; record
     print; observed
     print; record.enabled
     text string = message; '{}:{}', 7, true

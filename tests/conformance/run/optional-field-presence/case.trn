@@ -32,9 +32,9 @@ function main;
     plain.value = none
     print; (plain.value) == none
     base = instance base-box;
-    inspect; ref base
+    inspect; base
     derived base-box = instance derived-box;
-    inspect; ref derived
+    inspect; derived
     shared-owner base-box = instance derived-box;
     shared = shared ref shared-owner
     inspect-shared; shared

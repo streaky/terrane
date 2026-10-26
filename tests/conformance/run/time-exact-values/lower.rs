@@ -84,12 +84,12 @@ fn main() {
         terrane_int_support::Int::from(1000000000_i128))),
         terrane_scalar_support::scalar_text(&(before <= after)),
         terrane_scalar_support::scalar_text(&(__terrane_traced(before
-        .duration_until(&after), 7 /* terrane-site: case.trn:24:84-24:116 */)
+        .duration_until(&after), 7 /* terrane-site: case.trn:24:84-24:112 */)
         .total_nanoseconds.clone() >= terrane_int_support::Int::from(0_i128)))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(timeout.expires_at
-        .duration_until(&timeout.expires_at), 8 /* terrane-site: case.trn:25:13-25:70 */).total_nanoseconds)
+        .duration_until(&timeout.expires_at), 8 /* terrane-site: case.trn:25:13-25:66 */).total_nanoseconds)
     );
     println!("{}", terrane_scalar_support::scalar_text(&timeout.expired()));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {

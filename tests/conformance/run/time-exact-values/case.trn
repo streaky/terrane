@@ -21,8 +21,8 @@ function main;
         print; sum.seconds, sum.nanoseconds, reduced.total-nanoseconds, scaled.total-nanoseconds
     print; huge-scaled.total-nanoseconds == 30000000000000000000000000000000000000000
     dynamic-negative = wall.unix-seconds - wall.unix-seconds - 1
-    print; wall.nanoseconds >= 0, wall.nanoseconds < 1000000000, before <= after, (before.duration-until; ref after).total-nanoseconds >= 0
-    print; (timeout.expires-at.duration-until; ref timeout.expires-at).total-nanoseconds
+    print; wall.nanoseconds >= 0, wall.nanoseconds < 1000000000, before <= after, (before.duration-until; after).total-nanoseconds >= 0
+    print; (timeout.expires-at.duration-until; timeout.expires-at).total-nanoseconds
     print; (timeout.expired;)
     try
         print; (duration::nanoseconds; dynamic-negative).nanoseconds

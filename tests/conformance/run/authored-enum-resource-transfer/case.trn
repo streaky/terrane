@@ -29,6 +29,6 @@ function release; value connection|none
 
 function main;
     acquired = instance acquired-connection::available; value = (instance connection;)
-    print; (inspect; ref acquired)
+    print; (inspect; acquired)
     result connection|none = extract; move acquired
     release; move result

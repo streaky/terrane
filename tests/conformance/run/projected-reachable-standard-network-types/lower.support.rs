@@ -521,10 +521,10 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 13, column: 21, end_line: 13, end_column: 53 } },
         /* terrane-site-row: site 4: /app::main (src/main.trn:14:22-14:32) */
         { Site { function: 0, file: 0, line: 14, column: 22, end_line: 14, end_column: 32 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:15:13-15:42) */
-        { Site { function: 0, file: 0, line: 15, column: 13, end_line: 15, end_column: 42 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:17:20-17:54) */
-        { Site { function: 0, file: 0, line: 17, column: 20, end_line: 17, end_column: 54 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:16:13-16:47) */
+        { Site { function: 0, file: 0, line: 16, column: 13, end_line: 16, end_column: 47 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:18:20-18:54) */
+        { Site { function: 0, file: 0, line: 18, column: 20, end_line: 18, end_column: 54 } },
     ];
     #[cold]
     #[inline(never)]

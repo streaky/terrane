@@ -61,11 +61,11 @@ function main;
     first = instance plain;
     print; (first.parse;)
     print; (first.radix; 2, 3)
-    ordinary-plain; ref first
+    ordinary-plain; first
     second base = instance derived;
     print; (second.parse;)
     print; (second.radix; 2, 3)
-    ordinary-base; ref second
+    ordinary-base; second
     third = instance plain;
     shared-plain; shared ref third
     fourth base = instance derived;

@@ -504,10 +504,10 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 12, column: 19, end_line: 12, end_column: 35 } },
         /* terrane-site-row: site 6: /time-exact-values::main (case.trn:14:14-14:33) */
         { Site { function: 0, file: 0, line: 14, column: 14, end_line: 14, end_column: 33 } },
-        /* terrane-site-row: site 7: /time-exact-values::main (case.trn:24:84-24:116) */
-        { Site { function: 0, file: 0, line: 24, column: 84, end_line: 24, end_column: 116 } },
-        /* terrane-site-row: site 8: /time-exact-values::main (case.trn:25:13-25:70) */
-        { Site { function: 0, file: 0, line: 25, column: 13, end_line: 25, end_column: 70 } },
+        /* terrane-site-row: site 7: /time-exact-values::main (case.trn:24:84-24:112) */
+        { Site { function: 0, file: 0, line: 24, column: 84, end_line: 24, end_column: 112 } },
+        /* terrane-site-row: site 8: /time-exact-values::main (case.trn:25:13-25:66) */
+        { Site { function: 0, file: 0, line: 25, column: 13, end_line: 25, end_column: 66 } },
         /* terrane-site-row: site 9: /time-exact-values::main (case.trn:28:17-28:56) */
         { Site { function: 0, file: 0, line: 28, column: 17, end_line: 28, end_column: 56 } },
         /* terrane-site-row: site 10: /core/time::multiply (core/time.trn:62:13-62:45) */

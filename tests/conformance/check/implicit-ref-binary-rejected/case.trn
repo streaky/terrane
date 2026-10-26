@@ -1,0 +1,4 @@
+namespace implicit-ref-binary-rejected
+function consume; value ref int
+function main;
+  consume; 1 + 2

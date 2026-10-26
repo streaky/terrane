@@ -18,7 +18,7 @@ class receiver
     function construct; value Builder|none
         this.value = move value
     function available bool;
-        return present; (ref this.value)
+        return present; (this.value)
     mutable async function receive none;
         print; (this.available;)
         value = move this.value

@@ -185,7 +185,7 @@ function implicit int64; connection ref Connection
     return bound.fetch; connection
 function main;
     connection = Connection::new;
-    print; (implicit; ref connection)
+    print; (implicit; connection)
 ";
     let missing_interface = r"namespace app
 from /deps/witness import advance
@@ -193,12 +193,12 @@ class unrelated
     value int = 0
 function main;
     value = instance unrelated;
-    print; (advance; ref value)
+    print; (advance; value)
 ";
-    for (source, expected_error) in [
-        (accepted.as_str(), None),
-        (implicit_reference, Some("T0129")),
-        (missing_interface, Some("T0121")),
+    for (source, expected_error, expected_output) in [
+        (accepted.as_str(), None, expected_output.as_str()),
+        (implicit_reference, None, "1\n"),
+        (missing_interface, Some("T0121"), ""),
     ] {
         package.source(source);
         let projection = package.0.join(".trn/dependencies/projection.json");

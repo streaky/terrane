@@ -1,0 +1,6 @@
+namespace implicit-ref-call-result-rejected
+function consume; value ref int
+function make int;
+  return 1
+function main;
+  consume; (make;)

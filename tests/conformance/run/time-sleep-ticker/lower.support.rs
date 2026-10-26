@@ -494,24 +494,24 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 6, column: 13, end_line: 6, end_column: 38 } },
         /* terrane-site-row: site 1: /time-sleep-ticker::main (case.trn:7:12-7:32) */
         { Site { function: 0, file: 0, line: 7, column: 12, end_line: 7, end_column: 32 } },
-        /* terrane-site-row: site 2: /time-sleep-ticker::main (case.trn:11:13-11:46) */
-        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 46 } },
+        /* terrane-site-row: site 2: /time-sleep-ticker::main (case.trn:11:13-11:42) */
+        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 42 } },
         /* terrane-site-row: site 3: /time-sleep-ticker::main (case.trn:13:31-13:57) */
         { Site { function: 0, file: 0, line: 13, column: 31, end_line: 13, end_column: 57 } },
         /* terrane-site-row: site 4: /time-sleep-ticker::main (case.trn:14:34-14:61) */
         { Site { function: 0, file: 0, line: 14, column: 34, end_line: 14, end_column: 61 } },
-        /* terrane-site-row: site 5: /time-sleep-ticker::main (case.trn:18:13-18:50) */
-        { Site { function: 0, file: 0, line: 18, column: 13, end_line: 18, end_column: 50 } },
+        /* terrane-site-row: site 5: /time-sleep-ticker::main (case.trn:18:13-18:46) */
+        { Site { function: 0, file: 0, line: 18, column: 13, end_line: 18, end_column: 46 } },
         /* terrane-site-row: site 6: /time-sleep-ticker::main (case.trn:20:38-20:63) */
         { Site { function: 0, file: 0, line: 20, column: 38, end_line: 20, end_column: 63 } },
         /* terrane-site-row: site 7: /time-sleep-ticker::main (case.trn:20:20-20:64) */
         { Site { function: 0, file: 0, line: 20, column: 20, end_line: 20, end_column: 64 } },
         /* terrane-site-row: site 8: /time-sleep-ticker::main (case.trn:22:36-22:61) */
         { Site { function: 0, file: 0, line: 22, column: 36, end_line: 22, end_column: 61 } },
-        /* terrane-site-row: site 9: /time-sleep-ticker::main (case.trn:25:13-25:65) */
-        { Site { function: 0, file: 0, line: 25, column: 13, end_line: 25, end_column: 65 } },
-        /* terrane-site-row: site 10: /time-sleep-ticker::main (case.trn:35:13-35:56) */
-        { Site { function: 0, file: 0, line: 35, column: 13, end_line: 35, end_column: 56 } },
+        /* terrane-site-row: site 9: /time-sleep-ticker::main (case.trn:25:13-25:61) */
+        { Site { function: 0, file: 0, line: 25, column: 13, end_line: 25, end_column: 61 } },
+        /* terrane-site-row: site 10: /time-sleep-ticker::main (case.trn:35:13-35:52) */
+        { Site { function: 0, file: 0, line: 35, column: 13, end_line: 35, end_column: 52 } },
         /* terrane-site-row: site 11: /core/time::multiply (core/time.trn:62:13-62:45) */
         { Site { function: 1, file: 1, line: 62, column: 13, end_line: 62, end_column: 45 } },
         /* terrane-site-row: site 12: /core/time::seconds (core/time.trn:38:13-38:45) */

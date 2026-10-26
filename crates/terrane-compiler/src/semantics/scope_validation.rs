@@ -995,6 +995,12 @@ pub(super) fn validate_return(
             };
             let actual =
                 post_if_initialized_member_type(unit, value, &actual, bindings)?.unwrap_or(actual);
+            let expected = match &expected {
+                ValueType::Reference(inner) if inner.value_type_ref() == &actual => {
+                    inner.value_type()
+                }
+                _ => expected,
+            };
             validate_value_destination(
                 &unit.source,
                 &unit.descriptors,

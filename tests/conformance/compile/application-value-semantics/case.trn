@@ -8,7 +8,7 @@ function close-or-read; authority filesystem, handle file-handle, should-close b
   if should-close
     outcome = file-close; authority, handle
     return
-  read = file-read; authority, ref handle, 1
+  read = file-read; authority, handle, 1
 
 function main;
   authority = filesystem-capability;

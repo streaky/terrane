@@ -7,7 +7,7 @@ function inner host-invocation-scoped-native; value ref string
 
 function invalid host-invocation-scoped-native; state ref string
     local string = 'local'
-    return inner; ref local
+    return inner; local
 
 function main;
     state string = 'state'

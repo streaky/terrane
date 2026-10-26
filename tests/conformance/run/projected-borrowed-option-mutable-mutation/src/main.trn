@@ -6,10 +6,10 @@ function mark; header ref HeaderValue
 
 function forward; header ref HeaderValue
     operation = mark
-    operation; ref header
+    operation; header
 
 function change bool; header ref HeaderValue
-    forward; ref header
+    forward; header
     return true
 
 function clear bool|none; header ref HeaderValue
@@ -21,20 +21,20 @@ function read bool; header ref HeaderValue
 
 function walk-left; header ref HeaderValue, count int
     if count > 0
-        walk-right; ref header, count - 1
+        walk-right; header, count - 1
     else
-        mark; ref header
+        mark; header
 
 function walk-right; header ref HeaderValue, count int
-    walk-left; ref header, count
+    walk-left; header, count
 
 function main;
     plain = HeaderValue::from_str; 'plain'
-    forward; ref plain
-    print; (read; ref plain)
+    forward; plain
+    print; (read; plain)
     plain.set_sensitive; false
-    walk-left; ref plain, 2
-    print; (read; ref plain)
+    walk-left; plain, 2
+    print; (read; plain)
     headers = HeaderMap::new;
     name = HeaderName::from_str; 'x-test'
     value = HeaderValue::from_str; 'value'

@@ -1,2 +1,0 @@
-[patch.crates-io]
-terrane-native-generic-executor-reject-witness = { path = "fixture-registry/terrane-native-generic-executor-reject-witness-0.1.0" }

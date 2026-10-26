@@ -5,7 +5,8 @@ from /deps/witness import Basket, Element, Response, Selected, Token, destinatio
 function main throws dependency-error;
     token Token = Token::from_str; 'good'
     other Token = Token::from_str; 'good'
-    print; (token.contains; ref other)
+    borrowed-other = ref other
+    print; (token.contains; borrowed-other)
 
     response Response = Token::create;
     print; (response.value;)

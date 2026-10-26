@@ -15,8 +15,8 @@ function row-value int64; record ref native-row
 async function read-borrowed int64; native ref native-connection
     arguments = native-arguments::default;
     sql = query-text;
-    record native-row = await (native-query; sql, move arguments).fetch_one; ref native
-    return row-value; ref record
+    record native-row = await (native-query; sql, move arguments).fetch_one; native
+    return row-value; record
 
 async function main;
     options = native-options::new;
@@ -26,9 +26,9 @@ async function main;
         try
             arguments = native-arguments::default;
             sql = query-text;
-            record native-row = await (native-query; sql, move arguments).fetch_one; ref native
-            print; (row-value; ref record)
-            print; await read-borrowed; ref native
+            record native-row = await (native-query; sql, move arguments).fetch_one; native
+            print; (row-value; record)
+            print; await read-borrowed; native
         finally
             await native.close;
     finally

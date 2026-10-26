@@ -3249,6 +3249,8 @@ struct PendingProjectedBound {
     generic: Option<String>,
     direct_rust_type: String,
     borrowed_rust_type: Option<String>,
+    mutable_borrowed_rust_type: Option<String>,
+    borrowed_mutable: bool,
     rust_bound: String,
     inferred_parameters: Vec<String>,
 }
@@ -3419,6 +3421,7 @@ fn specialize_projected_result_batch(
         .flat_map(|bound| {
             std::iter::once(&bound.direct_rust_type)
                 .chain(bound.borrowed_rust_type.as_ref())
+                .chain(bound.mutable_borrowed_rust_type.as_ref())
                 .chain(std::iter::once(&bound.rust_bound))
         })
         .flat_map(|rust| {
@@ -3440,6 +3443,7 @@ fn specialize_projected_result_batch(
         .flat_map(|bound| {
             std::iter::once(&bound.direct_rust_type)
                 .chain(bound.borrowed_rust_type.as_ref())
+                .chain(bound.mutable_borrowed_rust_type.as_ref())
                 .map(|rust_type| crate::rust_interop::BoundQuestion {
                     rust_type: normalize_projected_rust_names(rust_type),
                     rust_bound: normalize_projected_rust_names(&bound.rust_bound),
@@ -3599,15 +3603,15 @@ fn specialize_projected_result_batch(
                 .iter()
                 .filter(|bound| bound.generic == generic)
                 .collect::<Vec<_>>();
-            let candidate_works = |borrowed: bool| {
+            let candidate_works = |borrow_mode: u8| {
                 bounds.iter().all(|bound| {
-                    let rust_type = if borrowed {
-                        let Some(rust_type) = &bound.borrowed_rust_type else {
-                            return false;
-                        };
-                        rust_type
-                    } else {
-                        &bound.direct_rust_type
+                    let rust_type = match borrow_mode {
+                        1 => bound.borrowed_rust_type.as_ref(),
+                        2 => bound.mutable_borrowed_rust_type.as_ref(),
+                        _ => Some(&bound.direct_rust_type),
+                    };
+                    let Some(rust_type) = rust_type else {
+                        return false;
                     };
                     answers.get(&crate::rust_interop::BoundQuestion {
                         rust_type: normalize_projected_rust_names(rust_type),
@@ -3616,7 +3620,7 @@ fn specialize_projected_result_batch(
                     }) == Some(&crate::rust_interop::ProbeAnswer::Yes)
                 })
             };
-            if candidate_works(false) {
+            if candidate_works(0) {
                 // Only a successful native bound proves this candidate's ABI;
                 // a syntactic source `ref` alone is not evidence of mutation.
                 if let Some(generic) = &generic {
@@ -3637,16 +3641,21 @@ fn specialize_projected_result_batch(
                 }
                 continue;
             }
-            if generic.is_some() && candidate_works(true) {
+            if generic.is_some() && candidate_works(1) {
                 for parameter in &mut specialization.projected_parameters {
                     if parameter.generic_parameter.as_ref() == generic.as_ref() {
                         parameter.borrowed = true;
-                        parameter.mutable_borrow = bounds.iter().any(|bound| {
-                            bound
-                                .borrowed_rust_type
-                                .as_deref()
-                                .is_some_and(|rust_type| rust_type.starts_with("&mut "))
-                        });
+                        parameter.mutable_borrow =
+                            bounds.iter().any(|bound| bound.borrowed_mutable);
+                    }
+                }
+                continue;
+            }
+            if generic.is_some() && candidate_works(2) {
+                for parameter in &mut specialization.projected_parameters {
+                    if parameter.generic_parameter.as_ref() == generic.as_ref() {
+                        parameter.borrowed = true;
+                        parameter.mutable_borrow = true;
                     }
                 }
                 continue;
@@ -4785,6 +4794,18 @@ fn collect_projected_destinations(
                         parameter.ty,
                         crate::rust_interop::projection::ProjectedType::Callback { .. }
                     )
+            })
+            || arguments.children.iter().any(|argument| {
+                let value = argument.children.last().unwrap_or(argument);
+                infer_value_type(unit, value, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|actual| match actual {
+                        ValueType::Reference(inner) => {
+                            inner.value_type_ref().is_mutable_native_reference_target()
+                        }
+                        actual => actual.is_mutable_native_reference_target(),
+                    })
             }))
         && let Some(contract) = super::namespaces::function_contract_for_call_with_safety(
             package,
@@ -4892,7 +4913,15 @@ fn collect_projected_destinations(
                 continue;
             };
             let value = argument.children.last().unwrap_or(argument);
-            let actual_projected = projected_call_result(package, unit, value);
+            let actual_projected =
+                projected_call_result(package, unit, value).filter(|projected| {
+                    // A symbolic native result is not proof of an input ABI. Prefer
+                    // the source binding's closed type when selecting a generic loan;
+                    // the connected native graph still checks deferred owner constraints.
+                    function.chain_role.is_none()
+                        || projected_parameter.generic_parameter.is_none()
+                        || !projected.contains_open_generic()
+                });
             if let Some(actual_projected) = actual_projected.as_ref() {
                 let binding_actual =
                     native_generic_argument(actual_projected, projected_parameter.borrowed);
@@ -5520,51 +5549,79 @@ fn collect_projected_destinations(
                 value_type = destination.clone();
             }
         }
-        let deferred_native_generics = function
-            .parameters
+        let callable_lifetimes = function
+            .generic_parameters
             .iter()
-            .enumerate()
-            .filter_map(|(index, parameter)| {
-                let generic = parameter.generic_parameter.as_ref()?;
-                let projected = native_projected_parameters.get(&index)?;
-                let mut open = BTreeSet::new();
-                collect_projected_generic_names(projected, &mut open);
-                (!open.is_empty()).then(|| generic.clone())
-            })
-            .collect::<BTreeSet<_>>();
+            .filter(|parameter| parameter.name.starts_with('\''))
+            .map(|parameter| parameter.name.clone())
+            .collect();
         let mut bounds = function
             .generic_parameters
             .iter()
             .filter(|generic| generic.input_selected)
-            .filter(|generic| !deferred_native_generics.contains(&generic.name))
             .filter(|generic| projected_bindings.contains_key(&generic.name))
+            .filter(|generic| !function.parameters.iter().enumerate().any(|(index, parameter)| {
+                parameter.generic_parameter.as_ref() == Some(&generic.name)
+                    && native_projected_parameters.get(&index).is_some_and(crate::rust_interop::projection::ProjectedType::contains_open_generic)
+            }))
             .flat_map(|generic| {
                 let projected = &projected_bindings[&generic.name];
-                if matches!(
-                    projected,
-                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-                ) {
+                if matches!(projected, crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }) {
                     return Vec::new();
                 }
                 let rust_type = projected.rust_type();
-                let borrowed_rust_type = match projected {
-                    crate::rust_interop::projection::ProjectedType::String => {
-                        Some("&str".to_owned())
-                    }
-                    crate::rust_interop::projection::ProjectedType::Bytes => {
-                        Some("&[u8]".to_owned())
-                    }
-                    crate::rust_interop::projection::ProjectedType::Foreign { .. } => {
-                        Some(format!("&{rust_type}"))
-                    }
-                    _ => None,
-                };
+                let actual_projected = function
+                    .parameters
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, parameter)| {
+                        parameter.generic_parameter.as_ref() == Some(&generic.name)
+                    })
+                    .find_map(
+                        |(index, _)| match native_projected_parameters.get(&index)? {
+                            crate::rust_interop::projection::ProjectedType::Reference {
+                                inner,
+                                mutable,
+                                ..
+                            } if inner.rust_type() == rust_type => Some((
+                                format!(
+                                    "&{}{}",
+                                    if *mutable { "mut " } else { "" },
+                                    inner.rust_type()
+                                ),
+                                *mutable,
+                            )),
+                            _ => None,
+                        },
+                    );
+                let has_actual_reference = actual_projected.is_some();
+                let (borrowed_rust_type, borrowed_mutable) =
+                    actual_projected.unwrap_or_else(|| {
+                        let borrowed = match projected {
+                            crate::rust_interop::projection::ProjectedType::String => {
+                                Some("&str".to_owned())
+                            }
+                            crate::rust_interop::projection::ProjectedType::Bytes => {
+                                Some("&[u8]".to_owned())
+                            }
+                            crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                            | crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                                ..
+                            } => Some(format!("&{rust_type}")),
+                            _ => None,
+                        };
+                        (borrowed.unwrap_or_default(), false)
+                    });
+                let borrowed_rust_type =
+                    (!borrowed_rust_type.is_empty()).then_some(borrowed_rust_type);
                 generic
                     .rust_bounds
                     .iter()
                     .filter_map(|bound| {
                         let rust_bound =
                             crate::rust_ir::instantiate_rust_generics(bound, &rust_replacements);
+                        let (rust_bound, invocation_lifetimes) =
+                            crate::rust_ir::scope_callable_bound_lifetimes(rust_bound, &callable_lifetimes);
                         if let crate::rust_interop::projection::ProjectedType::Opaque {
                             bounds, ..
                         } = projected
@@ -5577,6 +5634,7 @@ fn collect_projected_destinations(
                         let mut inferred_parameters = function
                             .generic_parameters
                             .iter()
+                            .chain(&function.operation_owner_generics)
                             .filter(|candidate| !rust_replacements.contains_key(&candidate.name))
                             .filter(|candidate| {
                                 rust_bound
@@ -5588,12 +5646,14 @@ fn collect_projected_destinations(
                             .map(|candidate| candidate.name.clone())
                             .collect::<BTreeSet<_>>();
                         collect_projected_generic_names(projected, &mut inferred_parameters);
+                        inferred_parameters.extend(invocation_lifetimes);
                         let inferred_declarations = inferred_parameters
                             .iter()
                             .map(|name| {
                                 let Some(parameter) = function
                                     .generic_parameters
                                     .iter()
+                                    .chain(&function.operation_owner_generics)
                                     .find(|parameter| parameter.name == *name)
                                 else {
                                     return name.clone();
@@ -5620,6 +5680,18 @@ fn collect_projected_destinations(
                             generic: Some(generic.name.clone()),
                             direct_rust_type: rust_type.clone(),
                             borrowed_rust_type: borrowed_rust_type.clone(),
+                            mutable_borrowed_rust_type: if borrowed_mutable {
+                                borrowed_rust_type.clone()
+                            } else if has_actual_reference || matches!(
+                                projected,
+                                crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                                    | crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                            ) {
+                                Some(format!("&mut {rust_type}"))
+                            } else {
+                                None
+                            },
+                            borrowed_mutable,
                             rust_bound,
                             inferred_parameters: inferred_declarations,
                         })
@@ -5640,6 +5712,8 @@ fn collect_projected_destinations(
                             generic: None,
                             direct_rust_type: projected.rust_type(),
                             borrowed_rust_type: None,
+                            mutable_borrowed_rust_type: None,
+                            borrowed_mutable: false,
                             rust_bound: crate::rust_ir::instantiate_rust_generics(
                                 bound,
                                 &rust_replacements,
@@ -5884,6 +5958,8 @@ fn collect_projected_destinations(
                         generic: None,
                         direct_rust_type: projected.rust_type(),
                         borrowed_rust_type: None,
+                        mutable_borrowed_rust_type: None,
+                        borrowed_mutable: false,
                         rust_bound: crate::rust_ir::instantiate_rust_generics(
                             bound,
                             &rust_replacements,

@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+code = "T0146"
+contains = "explicit `ref` is not allowed in a return expression"
+help = "borrowing is determined by the function declaration; remove `ref`"

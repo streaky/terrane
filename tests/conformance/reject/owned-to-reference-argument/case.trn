@@ -1,4 +1,4 @@
-namespace owned-to-reference-argument
+namespace explicit-ref-argument-on-previous-rejection
 class holder
     value int = 1
 
@@ -7,4 +7,4 @@ function read int; item ref holder
 
 function main;
     item = instance holder;
-    print; (read; item)
+    print; (read; item = (ref item))

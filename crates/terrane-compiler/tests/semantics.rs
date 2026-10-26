@@ -2025,7 +2025,7 @@ fn cross_file_ref_closure_rejects_environment_lender() {
 #[test]
 fn cross_file_ref_closure_rejects_own_local() {
     let body = format!(
-        "        local = 'temporary'\n        #{}\n        if flag\n            return ref local\n        else\n            #{}\n            return borrowed",
+        "        local = 'temporary'\n        #{}\n        if flag\n            return local\n        else\n            #{}\n            return borrowed",
         ".".repeat(80),
         ".".repeat(200)
     );

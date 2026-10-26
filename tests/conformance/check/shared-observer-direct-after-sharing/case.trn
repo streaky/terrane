@@ -5,5 +5,5 @@ function read-flag bool; value ref box
   return value.flag
 function main;
   named = instance box;
-  read-flag; ref named
+  read-flag; named
   owner shared ref box = shared ref named

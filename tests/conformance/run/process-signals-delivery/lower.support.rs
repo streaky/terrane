@@ -506,10 +506,10 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 12, column: 19, end_line: 12, end_column: 37 } },
         /* terrane-site-row: site 2: /process-signals-delivery::main (case.trn:13:20-13:38) */
         { Site { function: 0, file: 0, line: 13, column: 20, end_line: 13, end_column: 38 } },
-        /* terrane-site-row: site 3: /process-signals-delivery::main (case.trn:14:65-14:109) */
-        { Site { function: 0, file: 0, line: 14, column: 65, end_line: 14, end_column: 109 } },
-        /* terrane-site-row: site 4: /process-signals-delivery::main (case.trn:15:81-15:137) */
-        { Site { function: 0, file: 0, line: 15, column: 81, end_line: 15, end_column: 137 } },
+        /* terrane-site-row: site 3: /process-signals-delivery::main (case.trn:14:65-14:105) */
+        { Site { function: 0, file: 0, line: 14, column: 65, end_line: 14, end_column: 105 } },
+        /* terrane-site-row: site 4: /process-signals-delivery::main (case.trn:15:81-15:133) */
+        { Site { function: 0, file: 0, line: 15, column: 81, end_line: 15, end_column: 133 } },
         /* terrane-site-row: site 5: /process-signals-delivery::main (case.trn:16:5-16:24) */
         { Site { function: 0, file: 0, line: 16, column: 5, end_line: 16, end_column: 24 } },
         /* terrane-site-row: site 6: /core/process-signals::next (core/process_signals.trn:56:13-56:91) */

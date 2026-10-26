@@ -12,4 +12,4 @@ function port uint16; address ref native-socket-address
 
 function main;
     address = make-address;
-    print; (port; ref address)
+    print; (port; address)

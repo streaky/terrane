@@ -1,3 +1,5 @@
 phase = "check"
 status = "reject"
-code = "T0012"
+code = "T0146"
+contains = "explicit `ref` is not allowed at a call argument"
+help = "borrowing is determined by the selected function declaration; remove `ref`"

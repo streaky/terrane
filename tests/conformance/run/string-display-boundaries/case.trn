@@ -32,9 +32,9 @@ function main;
     value = 99
     print; 'bound:', (render;), '|current:', value
     borrowed = instance label;
-    print; (describe-borrow; ref borrowed)
+    print; (describe-borrow; borrowed)
     text = 'text'
-    print; (describe-text; ref text)
+    print; (describe-text; text)
     shared-text = 'text'
     shared shared ref string = shared ref shared-text
     print; 'shared:' + shared

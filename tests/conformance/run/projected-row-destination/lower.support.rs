@@ -515,8 +515,8 @@ mod __terrane_trace {
         { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 36 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:8:22-8:38) */
         { Site { function: 0, file: 0, line: 8, column: 22, end_line: 8, end_column: 38 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:19-10:62) */
-        { Site { function: 0, file: 0, line: 10, column: 19, end_line: 10, end_column: 62 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:10:19-10:58) */
+        { Site { function: 0, file: 0, line: 10, column: 19, end_line: 10, end_column: 58 } },
         /* terrane-site-row: site 3: /app::main (src/main.trn:11:16-11:41) */
         { Site { function: 0, file: 0, line: 11, column: 16, end_line: 11, end_column: 41 } },
         /* terrane-site-row: site 4: /app::main (src/main.trn:12:23-12:30) */

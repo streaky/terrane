@@ -1,0 +1,6 @@
+namespace reference-argument-numeric-conversion
+function inspect; value ref int64
+    print; value
+function main;
+    value int = 7
+    inspect; value

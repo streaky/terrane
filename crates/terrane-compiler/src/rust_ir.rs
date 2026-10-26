@@ -190,6 +190,47 @@ pub(crate) fn format_rust_bound(rust: &str) -> String {
         .unwrap_or_else(|| rust.to_owned())
 }
 
+/// Callable-owned lifetimes are invocation variables, not higher-ranked
+/// obligations. Keep genuine bound-local lifetimes quantified.
+pub(crate) fn scope_callable_bound_lifetimes(
+    rust: String,
+    callable_lifetimes: &std::collections::BTreeSet<String>,
+) -> (String, Vec<String>) {
+    if callable_lifetimes.is_empty() || !rust.trim_start().starts_with("for") {
+        return (rust, Vec::new());
+    }
+    let Ok(syn::TypeParamBound::Trait(mut bound)) = syn::parse_str(&rust) else {
+        return (rust, Vec::new());
+    };
+    let Some(mut binders) = bound.lifetimes.take() else {
+        return (rust, Vec::new());
+    };
+    let mut inferred = Vec::new();
+    binders.lifetimes = binders
+        .lifetimes
+        .into_iter()
+        .filter(|parameter| {
+            let syn::GenericParam::Lifetime(parameter) = parameter else {
+                return true;
+            };
+            let name = parameter.lifetime.to_token_stream().to_string();
+            if callable_lifetimes.contains(&name) {
+                inferred.push(name);
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+    if inferred.is_empty() {
+        return (rust, inferred);
+    }
+    if !binders.lifetimes.is_empty() {
+        bound.lifetimes = Some(binders);
+    }
+    (bound.to_token_stream().to_string(), inferred)
+}
+
 pub(crate) fn rust_type_arguments(rust: &str) -> Vec<String> {
     let Ok(syn::Type::Path(path)) = syn::parse_str::<syn::Type>(rust) else {
         return Vec::new();

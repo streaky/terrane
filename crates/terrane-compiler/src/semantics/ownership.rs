@@ -37,7 +37,7 @@ fn validate_field_snapshot(unit: &SemanticUnit, value: &SyntaxNode) -> Result<()
     Ok(())
 }
 
-fn validate_async_field_borrow(
+pub(super) fn validate_async_field_borrow(
     unit: &SemanticUnit,
     value: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
@@ -1383,8 +1383,7 @@ fn expression_provenance(
         let contract = package_function_contract(package, unit, node)?;
         let lender = *return_lenders.get(&contract_key(contract))?;
         let argument = argument_for_parameter(unit, node.children.get(1)?, contract, lender)?;
-        let mut provenance =
-            expression_provenance(package, unit, argument, proven, return_lenders)?;
+        let mut provenance = borrow_origin(package, unit, argument, proven, return_lenders)?;
         provenance.path.push(ReferenceProjection::CallResult);
         return Some(provenance);
     }
@@ -1448,6 +1447,109 @@ fn borrow_origin(
     }
 }
 
+pub(super) fn validate_implicit_reference_argument(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    validate_async_field_borrow(unit, value)?;
+    if let Some(ValueType::Object(identity)) = infer_value_type(unit, value, &unit.typed_bindings)?
+        && package
+            .projection
+            .item(&identity.namespace, &identity.name)
+            .is_none()
+    {
+        validate_async_receiver_field_borrow(unit, value)?;
+    }
+    if borrow_origin(
+        package,
+        unit,
+        value,
+        &unit.reference_provenance,
+        &unit.reference_return_lenders,
+    )
+    .is_none()
+    {
+        return Err(failure(
+            &unit.source,
+            "T0064",
+            "borrowing requires a supported owner-proven name, field, or collection element",
+            value.span,
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn validate_explicit_reference_returns(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::ReturnStatement
+            && let Some(value) = node.children.first()
+        {
+            let mut expression = value;
+            while expression.kind == SyntaxKind::GroupExpression {
+                let Some(inner) = expression.children.first() else {
+                    break;
+                };
+                expression = inner;
+            }
+            if expression.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, expression).as_deref() == Some("ref")
+            {
+                return Err(SemanticFailure {
+                    source: unit.source.clone(),
+                    diagnostics: vec![
+                        Diagnostic::error(
+                            "T0146",
+                            "explicit `ref` is not allowed in a return expression",
+                            value.span,
+                        )
+                        .with_help(
+                            "borrowing is determined by the function declaration; remove `ref`",
+                        ),
+                    ],
+                });
+            }
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(arguments) = node.children.get(1)
+        {
+            for argument in &arguments.children {
+                let mut value = argument.children.last().unwrap_or(argument);
+                while value.kind == SyntaxKind::GroupExpression {
+                    let Some(inner) = value.children.first() else {
+                        break;
+                    };
+                    value = inner;
+                }
+                if value.kind == SyntaxKind::UnaryExpression
+                    && unary_operator_text(unit, value).as_deref() == Some("ref")
+                {
+                    return Err(SemanticFailure {
+                        source: unit.source.clone(),
+                        diagnostics: vec![Diagnostic::error(
+                            "T0146",
+                            "explicit `ref` is not allowed at a call argument",
+                            argument.span,
+                        )
+                        .with_help(
+                            "borrowing is determined by the selected function declaration; remove `ref`",
+                        )],
+                    });
+                }
+            }
+        }
+        for child in &node.children {
+            visit(unit, child)?;
+        }
+        Ok(())
+    }
+    for unit in &package.units {
+        visit(unit, &unit.tree.root)?;
+    }
+    Ok(())
+}
 fn validate_reference_return(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1461,13 +1563,17 @@ fn validate_reference_return(
     let Some(value) = node.children.first() else {
         return Ok(());
     };
-    if !matches!(
-        infer_value_type(unit, value, &unit.typed_bindings)?,
-        Some(ValueType::Reference(_))
-    ) {
+    let contract = unit.containing_function(value.span);
+    let reference_return = contract
+        .is_some_and(|contract| matches!(contract.return_type, Some(ValueType::Reference(_))));
+    if !reference_return
+        && !matches!(
+            infer_value_type(unit, value, &unit.typed_bindings)?,
+            Some(ValueType::Reference(_))
+        )
+    {
         return Ok(());
     }
-    let contract = unit.containing_function(value.span);
     if let Some(expected @ ValueType::Scalar(_)) =
         contract.and_then(|contract| contract.return_type.as_ref())
         && let Some(ValueType::Reference(inner) | ValueType::SharedReference(inner)) =
@@ -1491,7 +1597,12 @@ fn validate_reference_return(
             })
         })
         .map(|binding| binding.span);
-    let provenance = expression_provenance(package, unit, value, proven, return_lenders);
+    let provenance =
+        expression_provenance(package, unit, value, proven, return_lenders).or_else(|| {
+            reference_return
+                .then(|| borrow_origin(package, unit, value, proven, return_lenders))
+                .flatten()
+        });
     let parameter_lender = expected_lender.is_some()
         && provenance
             .as_ref()

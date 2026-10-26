@@ -54,12 +54,12 @@ async fn read_borrowed(native: &mut SqliteConnection) -> Result<i64, TerraneErro
                 async move {
                     __terrane_raised_err(
                         __terrane_future.await,
-                        1 /* terrane-site: src/main.trn:18:31-18:88 */,
+                        1 /* terrane-site: src/main.trn:18:31-18:84 */,
                     )
                 }
             })
             .await,
-        1 /* terrane-site: src/main.trn:18:31-18:88 */,
+        1 /* terrane-site: src/main.trn:18:31-18:84 */,
     )?;
     return Ok(row_value(&record));
 }
@@ -137,9 +137,9 @@ fn main() {
                                             .insert(
                                                 __terrane_traced_completion!(
                                                     __terrane_await({ let __terrane_future = { let
-                                                    __terrane_call = sqlx_core::query::query_with(sql.take()
-                                                    .expect("flow-proven availability"), arguments.take()
-                                                    .expect("flow-proven availability")).fetch_one(native
+                                                    __terrane_call = sqlx_core::query::query_with(sql.as_ref()
+                                                    .expect("flow-proven available binding").clone(), arguments
+                                                    .take().expect("flow-proven availability")).fetch_one(native
                                                     .as_mut().expect("flow-proven available binding"));
                                                     Box::pin(async move { match crate
                                                     ::__terrane_dependency_await_unwind(__terrane_call). await {
@@ -150,8 +150,8 @@ fn main() {
                                                     Err(crate ::__terrane_dependency_panic(payload, "sqlx_core",
                                                     "sqlx_core::query::Query::fetch_one")) } }) }; async move {
                                                     __terrane_raised_err(__terrane_future. await,
-                                                    6 /* terrane-site: src/main.trn:29:39-29:96 */) } }).
-                                                    await, 6 /* terrane-site: src/main.trn:29:39-29:96 */
+                                                    6 /* terrane-site: src/main.trn:29:39-29:92 */) } }).
+                                                    await, 6 /* terrane-site: src/main.trn:29:39-29:92 */
                                                 ),
                                             );
                                         println!(
@@ -162,7 +162,7 @@ fn main() {
                                             "{}",
                                             terrane_scalar_support::scalar_text(&__terrane_traced_completion!(__terrane_await(read_borrowed(native
                                             .as_mut().expect("flow-proven available binding"))). await,
-                                            7 /* terrane-site: src/main.trn:31:26-31:51 */))
+                                            7 /* terrane-site: src/main.trn:31:26-31:47 */))
                                         );
                                         TerraneCompletion::Normal
                                     }

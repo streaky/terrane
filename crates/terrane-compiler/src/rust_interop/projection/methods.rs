@@ -29,6 +29,7 @@ fn project_operation_owner_generics(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
+    allow_lifetime_bounds: bool,
 ) -> Result<Vec<ProjectedGenericParameter>, String> {
     let declaration = &implementation.generics;
     let has_owner_lifetimes = declaration
@@ -76,16 +77,21 @@ fn project_operation_owner_generics(
             paths,
             generics,
         )?;
-        if rust_bounds.iter().any(|bound| {
-            (bound.starts_with('\'') && bound != "'static")
-                || (has_owner_lifetimes
-                    && rust_lifetimes(bound).iter().any(|lifetime| {
-                        declaration.params.iter().any(|parameter| {
-                            parameter.name == *lifetime
-                                && matches!(parameter.kind, GenericParamDefKind::Lifetime { .. })
-                        })
-                    }))
-        }) {
+        if !allow_lifetime_bounds
+            && rust_bounds.iter().any(|bound| {
+                (bound.starts_with('\'') && bound != "'static")
+                    || (has_owner_lifetimes
+                        && rust_lifetimes(bound).iter().any(|lifetime| {
+                            declaration.params.iter().any(|parameter| {
+                                parameter.name == *lifetime
+                                    && matches!(
+                                        parameter.kind,
+                                        GenericParamDefKind::Lifetime { .. }
+                                    )
+                            })
+                        }))
+            })
+        {
             return Err(
                 "inherent impl lifetime bound has no stable owner-generic projection".to_owned(),
             );
@@ -507,19 +513,21 @@ pub(super) fn project_methods(
                         &method_generics,
                     );
                     method.native_owner = Some(method_native_owner);
-                    if static_owner_generics {
-                        match project_operation_owner_generics(
-                            implementation,
-                            index,
-                            paths,
-                            &method_generics,
-                        ) {
-                            Ok(owner_generics) => method.operation_owner_generics = owner_generics,
-                            Err(reason) => {
-                                declined.push((name.to_owned(), reason));
-                                continue;
-                            }
+                    match project_operation_owner_generics(
+                        implementation,
+                        index,
+                        paths,
+                        &method_generics,
+                        !static_owner_generics,
+                    ) {
+                        Ok(owner_generics) => method.operation_owner_generics = owner_generics,
+                        Err(reason) if static_owner_generics => {
+                            declined.push((name.to_owned(), reason));
+                            continue;
                         }
+                        // Existing instance methods may retain graph-only owner
+                        // constraints which have no detached generic projection.
+                        Err(_) => {}
                     }
                     candidates.push(method);
                 }

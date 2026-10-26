@@ -100,12 +100,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            2 /* terrane-site: src/main.trn:10:19-10:62 */,
+                            2 /* terrane-site: src/main.trn:10:19-10:58 */,
                         )
                     }
                 })
                 .await,
-            2 /* terrane-site: src/main.trn:10:19-10:62 */,
+            2 /* terrane-site: src/main.trn:10:19-10:58 */,
         );
         body = __terrane_raised(
             match std::panic::catch_unwind(

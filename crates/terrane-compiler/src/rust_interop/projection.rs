@@ -618,11 +618,12 @@ pub struct ProjectedParameter {
 }
 
 impl ProjectedParameter {
-    pub(crate) fn requires_mutable_reference(&self, explicit_reference: bool) -> bool {
-        // `ref` requests a live loan for an unclosed by-value generic. A
-        // declared or selected borrowed ABI instead decides its mutability.
+    pub(crate) fn borrows_argument(&self) -> bool {
+        self.borrowed || matches!(self.ty, ProjectedType::Reference { .. })
+    }
+
+    pub(crate) fn requires_mutable_reference(&self) -> bool {
         self.mutable_borrow
-            || self.generic_parameter.is_some() && !self.borrowed && explicit_reference
     }
 }
 

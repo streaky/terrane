@@ -6,4 +6,4 @@ function make-action function from ref HeaderValue to bool;
 function main;
     action = make-action;
     value = HeaderValue::from_str; 'value'
-    action; ref value
+    action; value

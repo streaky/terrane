@@ -1,6 +1,7 @@
 namespace source-reference-argument
 class holder
     value int = 7
+    other int = 9
 
 function read int; item ref holder
     return item.value
@@ -8,8 +9,22 @@ function read int; item ref holder
 function forward int; item ref holder
     return read; item
 
+function forward-field ref int; item ref holder
+    return field; item
+
+function field ref int; item ref holder
+    return item.value
+
+
 function main;
     item = instance holder;
-    print; (read; ref item)
+    print; (read; item)
     observer = ref item
     print; (forward; observer)
+    selected ref int = forward-field; item
+    print; selected
+    print; (read; item = item)
+    reader = function int; value ref holder
+        return value.value
+    print; (reader; item)
+    print; item.other

@@ -1294,6 +1294,7 @@ fn analyze_parsed_with_projection(
     super::throw_construction::normalize(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
+    super::ownership::validate_explicit_reference_returns(&semantic)?;
     analyze_types(&mut semantic)?;
     stage.finish();
     let references = crate::compilation_progress::start(

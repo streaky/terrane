@@ -5,7 +5,7 @@ function mark; header ref HeaderValue
     header.set_sensitive; true
 
 function change bool|none; header ref HeaderValue
-    mark; ref header
+    mark; header
     return true
 
 function main;

@@ -1,0 +1,5 @@
+namespace explicit-ref-call-argument
+function inspect none; value ref int
+function main;
+    value = 1
+    inspect; ref value

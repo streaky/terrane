@@ -88,23 +88,23 @@ function main;
         print; final
 
     direct = HeaderValue::from_str; 'direct'
-    anonymous-update; ref direct
+    anonymous-update; direct
     print; (direct.is_sensitive;)
-    print; (anonymous-read; ref direct)
-    print; (observe-header; read-sensitive, ref direct)
+    print; (anonymous-read; direct)
+    print; (observe-header; read-sensitive, direct)
     aliased-update = anonymous-update
     aliased = HeaderValue::from_str; 'aliased'
-    aliased-update; ref aliased
+    aliased-update; aliased
     print; (aliased.is_sensitive;)
     named-update = mark-sensitive
     named-target = HeaderValue::from_str; 'named'
-    named-update; ref named-target
+    named-update; named-target
     print; (named-target.is_sensitive;)
     observers = list; (read-sensitive)
     for observer in observers
-        print; (observer; ref named-target)
+        print; (observer; named-target)
     observers.append; read-sensitive
     observers.set; 0, read-sensitive
     observers[0] = read-sensitive
     for observer in observers
-        print; (observer; ref named-target)
+        print; (observer; named-target)

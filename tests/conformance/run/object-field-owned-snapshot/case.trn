@@ -77,7 +77,7 @@ function main;
     print; from-constructor.value
     print; (original.temporary-required-copy;).value
     named = instance plain-holder;
-    from-borrow = (borrow-holder; ref named).value
+    from-borrow = (borrow-holder; named).value
     from-borrow.value = 13
     print; from-borrow.value
     print; named.value.value
@@ -86,7 +86,7 @@ function main;
     from-shared.value = 14
     print; from-shared.value
     print; shared.value.value
-    required-borrow = original.required-from-borrow; ref original
+    required-borrow = original.required-from-borrow; original
     required-borrow.value = 15
     print; required-borrow.value
     print; (original.required-copy;).value
@@ -95,11 +95,11 @@ function main;
     required-shared.value = 16
     print; required-shared.value
     print; (original.required-from-shared; shared-required).value
-    words = (borrow-holder; ref named).words
+    words = (borrow-holder; named).words
     words[0] = 'changed'
     print; words[0]
     print; named.words[0]
-    text = (borrow-holder; ref named).text
+    text = (borrow-holder; named).text
     print; text
     print; named.text
     check-separated;

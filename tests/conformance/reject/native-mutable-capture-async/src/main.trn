@@ -9,5 +9,5 @@ async function increment; native ref NativeCounter
 async function main;
     counter = NativeCounter::new; 0
     callback = async function;
-        await increment; ref counter
+        await increment; counter
     await callback;

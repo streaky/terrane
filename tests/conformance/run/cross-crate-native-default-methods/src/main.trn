@@ -28,7 +28,7 @@ function main;
     print; '' + explicit-owner + ':' + explicit-selected + ':' + (overridden.label;)
 
     mutator = Mutator::new; 10
-    print; (update-twice; ref mutator)
+    print; (update-twice; mutator)
     try
         mutator.update; 0
     catch throwable as error

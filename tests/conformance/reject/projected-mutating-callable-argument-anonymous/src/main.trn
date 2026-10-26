@@ -10,4 +10,4 @@ function main;
         header.set_sensitive; true
         return true
     value = HeaderValue::from_str; 'value'
-    apply-header; update, ref value
+    apply-header; update, value

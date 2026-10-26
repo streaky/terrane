@@ -7,7 +7,7 @@ function main;
             return source
         return source
     value = 'parameter loan'
-    returned = callback; ref value
+    returned = callback; value
     print; returned
     borrowed-value = ref value
     snapshot = function string;

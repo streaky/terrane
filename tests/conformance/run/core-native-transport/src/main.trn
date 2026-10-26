@@ -5,7 +5,7 @@ from /core/networking/native import native-tcp-listener, native-tcp-stream
 from /core/process import exit, make-exit-status
 
 async function serve-one none; listener native-tcp-listener
-    return await serve-borrowed; ref listener
+    return await serve-borrowed; listener
 
 async function serve-borrowed none; listener ref native-tcp-listener
     return rust
@@ -31,7 +31,7 @@ async function main none throws network-error;
             exit; (make-exit-status; 2)
         stream = (move connected).value
         exported = stream.into-native;
-        response = await exchange; ref exported
+        response = await exchange; exported
         print; response
         completed = true
     finally
