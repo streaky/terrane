@@ -384,6 +384,7 @@ fn source_map_application_does_not_select_unrelated_native_map() {
         rust_path: "one::map".to_owned(),
         docs: None,
         kind: ProjectedKind::Function(ProjectedFunction {
+            receiver_bounds: Vec::new(),
             native_owner: None,
             native_path: None,
             name: "map".to_owned(),

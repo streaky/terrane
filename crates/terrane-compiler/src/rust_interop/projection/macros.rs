@@ -6,6 +6,7 @@ use super::{
 
 pub(super) fn project_macro(name: &str) -> ProjectedFunction {
     ProjectedFunction {
+        receiver_bounds: Vec::new(),
         native_owner: None,
         native_path: None,
         name: name.to_owned(),

@@ -525,8 +525,11 @@ pub(super) fn project_methods(
                             declined.push((name.to_owned(), reason));
                             continue;
                         }
-                        // Existing instance methods may retain graph-only owner
-                        // constraints which have no detached generic projection.
+                        // Instance calls retain their concrete native receiver and
+                        // are checked in the complete Rust call graph. Failure to
+                        // detach an impl-owner predicate is not proof of it: leave
+                        // operation_owner_generics empty, rather than fabricating a
+                        // specialization or declining an otherwise valid graph.
                         Err(_) => {}
                     }
                     candidates.push(method);

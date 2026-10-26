@@ -899,7 +899,33 @@ pub(super) fn project_function_inner(
         }
     )
     .then_some(ChainRole::Root);
+    let receiver_bounds = if receiver.is_some() {
+        let receiver_parameter = rustdoc_types::GenericParamDef {
+            name: "Self".to_owned(),
+            kind: GenericParamDefKind::Type {
+                bounds: Vec::new(),
+                default: None,
+                is_synthetic: false,
+            },
+        };
+        render_generic_bounds(&receiver_parameter, function, index, paths, &generic_types)?
+            .into_iter()
+            .filter(|bound| {
+                generic_parameters.iter().any(|parameter| {
+                    parameter.input_selected
+                        && bound
+                            .split(|character: char| {
+                                !character.is_ascii_alphanumeric() && character != '_'
+                            })
+                            .any(|token| token == parameter.name)
+                })
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
     Ok(ProjectedFunction {
+        receiver_bounds,
         operation_owner_generics: Vec::new(),
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,

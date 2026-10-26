@@ -1,0 +1,6 @@
+namespace ordinary-reference-postfix-write
+class holder
+    value int = 0
+function update; item ref holder
+    item.value++
+function main;

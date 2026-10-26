@@ -1,4 +1,4 @@
-namespace explicit-ref-argument-on-previous-rejection
+namespace explicit-ref-call-argument-grouped
 class holder
     value int = 1
 

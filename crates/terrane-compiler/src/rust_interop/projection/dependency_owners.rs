@@ -1269,6 +1269,9 @@ pub(super) fn rewrite_projected_function_root(
             *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
         }
     }
+    for bound in &mut function.receiver_bounds {
+        *bound = rewrite_rust_bound_root(bound, package_root, dependency_root);
+    }
     for argument in &mut function.rust_generic_arguments {
         rewrite_projected_rust_root(argument, package_root, dependency_root);
     }

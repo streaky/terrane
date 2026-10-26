@@ -231,6 +231,39 @@ pub(crate) fn scope_callable_bound_lifetimes(
     (bound.to_token_stream().to_string(), inferred)
 }
 
+/// Name anonymous loans before a native type is substituted into a where-bound.
+pub(crate) fn name_anonymous_reference_lifetimes(rust: String, lifetime: &str) -> (String, bool) {
+    struct NameLoans {
+        lifetime: syn::Lifetime,
+        changed: bool,
+    }
+    impl syn::fold::Fold for NameLoans {
+        fn fold_type_reference(&mut self, mut reference: syn::TypeReference) -> syn::TypeReference {
+            if reference.lifetime.is_none() {
+                reference.lifetime = Some(self.lifetime.clone());
+                self.changed = true;
+            }
+            syn::fold::fold_type_reference(self, reference)
+        }
+    }
+    if !rust.contains('&') {
+        return (rust, false);
+    }
+    let Ok(ty) = syn::parse_str::<syn::Type>(&rust) else {
+        return (rust, false);
+    };
+    let mut visitor = NameLoans {
+        lifetime: syn::Lifetime::new(lifetime, proc_macro2::Span::call_site()),
+        changed: false,
+    };
+    let ty = syn::fold::Fold::fold_type(&mut visitor, ty);
+    if visitor.changed {
+        (ty.to_token_stream().to_string(), true)
+    } else {
+        (rust, false)
+    }
+}
+
 pub(crate) fn rust_type_arguments(rust: &str) -> Vec<String> {
     let Ok(syn::Type::Path(path)) = syn::parse_str::<syn::Type>(rust) else {
         return Vec::new();

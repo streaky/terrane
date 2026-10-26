@@ -1,0 +1,4 @@
+namespace generic-owned-reference-return
+function peek of (T) T; value ref T
+    return value
+function main;

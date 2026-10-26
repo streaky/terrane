@@ -1745,6 +1745,7 @@ mod tests {
             rust_path: "witness::wait".to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                receiver_bounds: Vec::new(),
                 native_owner: None,
                 native_path: None,
                 name: "wait".to_owned(),
@@ -1788,6 +1789,7 @@ mod tests {
             rust_path: "witness::unchecked".to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                receiver_bounds: Vec::new(),
                 native_owner: None,
                 native_path: None,
                 name: "unchecked".to_owned(),
@@ -1827,6 +1829,7 @@ mod tests {
             rust_path: "witness::builder".to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                receiver_bounds: Vec::new(),
                 native_owner: None,
                 native_path: None,
                 name: "builder".to_owned(),

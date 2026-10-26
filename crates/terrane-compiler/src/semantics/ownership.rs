@@ -1167,7 +1167,7 @@ fn package_function_contract<'a>(
     None
 }
 
-fn argument_for_parameter<'a>(
+pub(super) fn argument_for_parameter<'a>(
     unit: &SemanticUnit,
     arguments: &'a SyntaxNode,
     contract: &FunctionContract,
@@ -1351,7 +1351,7 @@ fn owner_is_external_lender(unit: &SemanticUnit, position: usize, owner: Span) -
         .is_some_and(|contract| owner.start < contract.span.start || owner.end > contract.span.end)
 }
 
-fn expression_provenance(
+pub(super) fn expression_provenance(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -1480,7 +1480,7 @@ pub(super) fn validate_implicit_reference_argument(
     Ok(())
 }
 
-pub(super) fn validate_explicit_reference_returns(
+pub(super) fn validate_reference_expression_sites(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
@@ -1550,6 +1550,32 @@ pub(super) fn validate_explicit_reference_returns(
     }
     Ok(())
 }
+
+fn validate_generic_reference_return_type(
+    unit: &SemanticUnit,
+    contract: Option<&FunctionContract>,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if let Some(expected @ ValueType::TypeParameter(_)) =
+        contract.and_then(|contract| contract.return_type.as_ref())
+        && let Some(ValueType::Reference(inner)) =
+            infer_value_type(unit, value, &unit.typed_bindings)?
+        && inner.value_type_ref() == expected
+    {
+        return Err(SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![Diagnostic::error(
+                "T0015",
+                format!("the declared return type `{expected}` is owned, but the returned value is `ref {expected}`"),
+                value.span,
+            ).with_help(format!(
+                "declare the return type as `ref {expected}` to return a borrow, or explicitly create an owned copy before returning"
+            ))],
+        });
+    }
+    Ok(())
+}
+
 fn validate_reference_return(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1564,6 +1590,7 @@ fn validate_reference_return(
         return Ok(());
     };
     let contract = unit.containing_function(value.span);
+    validate_generic_reference_return_type(unit, contract, value)?;
     let reference_return = contract
         .is_some_and(|contract| matches!(contract.return_type, Some(ValueType::Reference(_))));
     if !reference_return
@@ -1770,6 +1797,92 @@ fn record_reference_provenance(
     }
     Ok(())
 }
+fn record_implicit_reference_owners(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
+    return_lenders: &BTreeMap<FunctionKey, usize>,
+    owners: &mut BTreeSet<(usize, usize)>,
+) {
+    if node.kind == SyntaxKind::CallExpression
+        && !node.children.first().is_some_and(|callee| {
+            super::namespaces::function_contract_for_call_with_safety(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            )
+            .is_some_and(|contract| contract.projected_provided)
+        })
+        && let [_, arguments] = node.children.as_slice()
+        && let Some(contract) = super::calls::selected_callable_contract(
+            package,
+            unit,
+            node,
+            crate::syntax::call_is_unsafe(node),
+        )
+        && !contract.projected_provided
+    {
+        let mut named_seen = false;
+        let mut positional = 0usize;
+        for argument in &arguments.children {
+            let named = argument
+                .children
+                .first()
+                .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+            // The ordinary call validator reports invalid argument layouts.
+            let parameter = resolve_call_parameter(
+                unit,
+                argument,
+                named,
+                &contract,
+                &mut positional,
+                &mut named_seen,
+            )
+            .ok();
+            if parameter.is_some_and(|parameter| {
+                matches!(parameter.value_type, Some(ValueType::Reference(_)))
+            }) {
+                let value = argument.children.last().unwrap_or(argument);
+                if let Some(origin) = borrow_origin(package, unit, value, proven, return_lenders) {
+                    owners.insert((origin.owner.start, origin.owner.end));
+                }
+            }
+        }
+    } else if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && function_contract_for_call_with_safety(
+            package,
+            unit,
+            callee,
+            crate::syntax::call_is_unsafe(node),
+        )
+        .is_none()
+        && let Ok(Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        )) = infer_value_type(unit, callee, &unit.typed_bindings)
+    {
+        for (index, argument) in arguments.children.iter().enumerate() {
+            let parameter = parameters.get(index).or_else(|| {
+                parameters
+                    .last()
+                    .filter(|parameter| parameter.is_variadic())
+            });
+            let value = argument.children.last().unwrap_or(argument);
+            if parameter.is_some_and(|parameter| {
+                matches!(parameter.value_type_ref(), ValueType::Reference(_))
+            }) && let Some(origin) = borrow_origin(package, unit, value, proven, return_lenders)
+            {
+                owners.insert((origin.owner.start, origin.owner.end));
+            }
+        }
+    }
+    for child in &node.children {
+        record_implicit_reference_owners(package, unit, child, proven, return_lenders, owners);
+    }
+}
+
 pub(super) fn analyze_reference_provenance(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -1818,9 +1931,19 @@ pub(super) fn analyze_reference_provenance(
                     lender_reference,
                 );
             }
-            proven
+            let mut owners = BTreeSet::new();
+            record_implicit_reference_owners(
+                package,
+                unit,
+                &unit.tree.root,
+                &proven,
+                &return_lenders,
+                &mut owners,
+            );
+            (proven, owners)
         };
-        package.units[index].reference_provenance = proven;
+        package.units[index].reference_provenance = proven.0;
+        package.units[index].reference_owner_spans = proven.1;
     }
     Ok(())
 }
@@ -2258,6 +2381,79 @@ fn capture_is_mutably_lent(
     )
 }
 
+fn captured_native_value_move(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    closure: &SyntaxNode,
+    binding: &TypedBinding,
+) -> Option<Span> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        closure: Span,
+        binding: &TypedBinding,
+    ) -> Option<Span> {
+        if is_function_node(node) && node.span != closure {
+            return None;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && let Some(projected) = super::bindings::projected_function_for_call(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            )
+            && let Some(contract) = function_contract_for_call_with_safety(
+                package,
+                unit,
+                callee,
+                crate::syntax::call_is_unsafe(node),
+            )
+        {
+            let selected = unit.projected_call_specializations.get(&(
+                node.span.file,
+                node.span.start,
+                node.span.end,
+            ));
+            for (index, parameter) in contract.parameters.iter().enumerate() {
+                let native_parameter = selected
+                    .and_then(|selected| selected.projected_parameters.get(index))
+                    .or_else(|| projected.parameters.get(index));
+                if native_parameter.is_some_and(
+                    crate::rust_interop::projection::ProjectedParameter::borrows_argument,
+                ) || parameter.element_value_type().is_some_and(|ty| {
+                    matches!(ty, ValueType::Reference(_) | ValueType::SharedReference(_))
+                }) {
+                    continue;
+                }
+                let Some(mut value) = argument_for_parameter(unit, arguments, contract, index)
+                else {
+                    continue;
+                };
+                while matches!(
+                    value.kind,
+                    SyntaxKind::GroupExpression | SyntaxKind::UnaryExpression
+                ) {
+                    value = value.children.last()?;
+                }
+                if value.kind == SyntaxKind::Name
+                    && package
+                        .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))
+                        .is_some_and(|symbol| symbol.declaration_span == Some(binding.span))
+                {
+                    return Some(value.span);
+                }
+            }
+        }
+        node.children
+            .iter()
+            .find_map(|child| visit(package, unit, child, closure, binding))
+    }
+    visit(package, unit, closure, closure.span, binding)
+}
+
 pub(super) fn validate_native_captures(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     for unit in &package.units {
         for contract in &unit.functions {
@@ -2276,6 +2472,20 @@ pub(super) fn validate_native_captures(package: &SemanticPackage) -> Result<(), 
                 }) else {
                     continue;
                 };
+                if super::objects::application_is_resource_owning(package, &binding.value_type)
+                    && let Some(span) = captured_native_value_move(package, unit, closure, binding)
+                {
+                    return Err(SemanticFailure {
+                        source: unit.source.clone(),
+                        diagnostics: vec![Diagnostic::error(
+                            "T0144",
+                            format!("repeatable callable `{}` cannot move captured owner `{capture}` into a native by-value parameter", contract.name),
+                            span,
+                        ).with_help(
+                            "bind `observer = ref value` outside the callable and pass `observer` when borrowing is intended; otherwise use an explicit consuming callable when ownership permits",
+                        )],
+                    });
+                }
                 if !value_type_contains_nonclone_foreign(unit, &binding.value_type) {
                     continue;
                 }

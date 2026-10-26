@@ -3244,9 +3244,16 @@ fn collect_projected_generic_names(
     }
 }
 
+#[derive(Clone, Copy)]
+enum NativeBorrowMode {
+    ByValue,
+    Shared,
+    Mutable,
+}
 #[derive(Clone)]
 struct PendingProjectedBound {
     generic: Option<String>,
+    receiver_call: Option<crate::rust_interop::CallQuestion>,
     direct_rust_type: String,
     borrowed_rust_type: Option<String>,
     mutable_borrowed_rust_type: Option<String>,
@@ -3280,6 +3287,95 @@ struct PendingProjectedSpecialization {
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
     bounds: Vec<PendingProjectedBound>,
+}
+
+fn receiver_input_bounds(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    function: &crate::rust_interop::projection::ProjectedFunction,
+    replacements: &BTreeMap<String, String>,
+    bindings: &BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
+    callable_lifetimes: &BTreeSet<String>,
+) -> Vec<PendingProjectedBound> {
+    if function.receiver_bounds.is_empty() {
+        return Vec::new();
+    }
+    let Some(receiver) = projected_call_owner_identity(package, unit, callee)
+        .and_then(|owner| destination_projected_type(package, &ValueType::Object(owner)).ok())
+    else {
+        // A graph-only source/native owner has no honest isolated Rust type.
+        return Vec::new();
+    };
+    if receiver.contains_open_generic()
+        || receiver.contains_opaque()
+        || function.generic_parameters.iter().any(|generic| {
+            generic.input_selected
+                && function.receiver_bounds.iter().any(|bound| {
+                    bound
+                        .split(|character: char| {
+                            !character.is_ascii_alphanumeric() && character != '_'
+                        })
+                        .any(|token| token == generic.name)
+                })
+                && bindings.get(&generic.name).is_none_or(|ty| {
+                    ty.contains_open_generic()
+                        || ty.contains_opaque()
+                        || matches!(
+                            ty,
+                            crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                        )
+                })
+        })
+    {
+        // Symbolic/scoped inputs remain obligations of the connected native graph.
+        return Vec::new();
+    }
+    let lifetime = "'__terrane_receiver_loan";
+    let mut names_loan = false;
+    let replacements = replacements
+        .iter()
+        .map(|(name, ty)| {
+            let (ty, named) =
+                crate::rust_ir::name_anonymous_reference_lifetimes(ty.clone(), lifetime);
+            names_loan |= named;
+            (name.clone(), ty)
+        })
+        .collect();
+    let original_bounds = function.receiver_bounds.join(" + ");
+    let generic = function
+        .generic_parameters
+        .iter()
+        .find(|parameter| {
+            parameter.input_selected
+                && original_bounds
+                    .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+                    .any(|token| token == parameter.name)
+        })
+        .map(|parameter| parameter.name.clone());
+    let rust_bound = crate::rust_ir::instantiate_rust_generics(&original_bounds, &replacements);
+    let (rust_bound, mut inferred_parameters) =
+        crate::rust_ir::scope_callable_bound_lifetimes(rust_bound, callable_lifetimes);
+    if names_loan {
+        inferred_parameters.push(lifetime.to_owned());
+    }
+    let receiver_call = super::receiver_bounds::native_receiver_call(
+        function,
+        &receiver,
+        &replacements,
+        callable_lifetimes,
+        names_loan.then_some(lifetime),
+    );
+    vec![PendingProjectedBound {
+        generic,
+        receiver_call: Some(receiver_call),
+        direct_rust_type: receiver.rust_type(),
+        borrowed_rust_type: None,
+        mutable_borrowed_rust_type: None,
+        borrowed_mutable: false,
+        rust_bound,
+        inferred_parameters,
+    }]
 }
 
 fn projected_associated_binding_label(left: &str, right: &str) -> bool {
@@ -3440,6 +3536,7 @@ fn specialize_projected_result_batch(
     let questions = pending
         .iter()
         .flat_map(|specialization| &specialization.bounds)
+        .filter(|bound| bound.receiver_call.is_none())
         .flat_map(|bound| {
             std::iter::once(&bound.direct_rust_type)
                 .chain(bound.borrowed_rust_type.as_ref())
@@ -3472,7 +3569,7 @@ fn specialize_projected_result_batch(
             first.span,
         )
     })?;
-    let answers = report
+    let mut answers = report
         .evidence
         .iter()
         .map(|evidence| (evidence.question.clone(), evidence.answer.clone()))
@@ -3482,6 +3579,56 @@ fn specialize_projected_result_batch(
         .projection
         .probe_wall_time_ms
         .saturating_add(report.wall_time_ms);
+    let receiver_questions = pending
+        .iter()
+        .flat_map(|specialization| &specialization.bounds)
+        .filter_map(|bound| bound.receiver_call.clone())
+        .collect::<Vec<_>>();
+    if !receiver_questions.is_empty() {
+        let report = crate::rust_interop::ProjectionOracle::new(
+            &workspace,
+            &package.projection.cache_identity,
+            package.projection.containment,
+        )
+        .prove_calls(&receiver_questions)
+        .map_err(|error| {
+            failure(
+                &package.units[first_pending_site.0].source,
+                "T0119",
+                format!(
+                    "native receiver call proof could not run: {}",
+                    oracle_diagnostic_summary(&error.message)
+                ),
+                first_pending_site.1,
+            )
+        })?;
+        package.projection.probe_wall_time_ms = package
+            .projection
+            .probe_wall_time_ms
+            .saturating_add(report.wall_time_ms);
+        let receiver_answers = report
+            .evidence
+            .iter()
+            .map(|evidence| (&evidence.question, &evidence.answer))
+            .collect::<BTreeMap<_, _>>();
+        for bound in pending
+            .iter()
+            .flat_map(|specialization| &specialization.bounds)
+        {
+            if let Some(call) = &bound.receiver_call
+                && let Some(answer) = receiver_answers.get(call)
+            {
+                answers.insert(
+                    crate::rust_interop::BoundQuestion {
+                        rust_type: normalize_projected_rust_names(&bound.direct_rust_type),
+                        rust_bound: normalize_projected_rust_names(&bound.rust_bound),
+                        inferred_parameters: bound.inferred_parameters.clone(),
+                    },
+                    (*answer).clone(),
+                );
+            }
+        }
+    }
     let mut macro_questions = Vec::new();
     let mut macro_expansions = Vec::new();
     let mut macro_sites = Vec::new();
@@ -3580,16 +3727,31 @@ fn specialize_projected_result_batch(
                     "the macro expansion could not be checked against the destination type".to_owned(),
                 _ => "native macro proof returned no answer".to_owned(),
             };
-            return Err(failure(
-                &package.units[*unit_index].source,
+            let mut diagnostic = Diagnostic::error(
                 "T0119",
                 format!(
                     "native macro invocation does not satisfy its concrete expression contract: {reason}"
                 ),
                 *span,
-            ));
+            );
+            if matches!(
+                expansion,
+                Some(
+                    crate::rust_interop::ProbeAnswer::No
+                        | crate::rust_interop::ProbeAnswer::Unknown { .. }
+                )
+            ) {
+                diagnostic = diagnostic.with_help(
+                    "native macros have no universal borrowing signature; if a reference input is intended, bind `borrowed = ref value` first and pass `borrowed`; for mutable native input, use a source helper declaring a `ref` parameter",
+                );
+            }
+            return Err(SemanticFailure {
+                source: package.units[*unit_index].source.clone(),
+                diagnostics: vec![diagnostic],
+            });
         }
     }
+
     for mut specialization in pending {
         let mut generic_groups = Vec::new();
         for bound in &specialization.bounds {
@@ -3603,12 +3765,12 @@ fn specialize_projected_result_batch(
                 .iter()
                 .filter(|bound| bound.generic == generic)
                 .collect::<Vec<_>>();
-            let candidate_works = |borrow_mode: u8| {
+            let candidate_works = |borrow_mode: NativeBorrowMode| {
                 bounds.iter().all(|bound| {
                     let rust_type = match borrow_mode {
-                        1 => bound.borrowed_rust_type.as_ref(),
-                        2 => bound.mutable_borrowed_rust_type.as_ref(),
-                        _ => Some(&bound.direct_rust_type),
+                        NativeBorrowMode::ByValue => Some(&bound.direct_rust_type),
+                        NativeBorrowMode::Shared => bound.borrowed_rust_type.as_ref(),
+                        NativeBorrowMode::Mutable => bound.mutable_borrowed_rust_type.as_ref(),
                     };
                     let Some(rust_type) = rust_type else {
                         return false;
@@ -3620,7 +3782,7 @@ fn specialize_projected_result_batch(
                     }) == Some(&crate::rust_interop::ProbeAnswer::Yes)
                 })
             };
-            if candidate_works(0) {
+            if candidate_works(NativeBorrowMode::ByValue) {
                 // Only a successful native bound proves this candidate's ABI;
                 // a syntactic source `ref` alone is not evidence of mutation.
                 if let Some(generic) = &generic {
@@ -3641,7 +3803,7 @@ fn specialize_projected_result_batch(
                 }
                 continue;
             }
-            if generic.is_some() && candidate_works(1) {
+            if generic.is_some() && candidate_works(NativeBorrowMode::Shared) {
                 for parameter in &mut specialization.projected_parameters {
                     if parameter.generic_parameter.as_ref() == generic.as_ref() {
                         parameter.borrowed = true;
@@ -3651,7 +3813,7 @@ fn specialize_projected_result_batch(
                 }
                 continue;
             }
-            if generic.is_some() && candidate_works(2) {
+            if generic.is_some() && candidate_works(NativeBorrowMode::Mutable) {
                 for parameter in &mut specialization.projected_parameters {
                     if parameter.generic_parameter.as_ref() == generic.as_ref() {
                         parameter.borrowed = true;
@@ -3681,49 +3843,37 @@ fn specialize_projected_result_batch(
             let native_name = crate::rust_ir::rust_type_constructor(&bound.direct_rust_type)
                 .and_then(|path| path.rsplit("::").next().map(str::to_owned))
                 .unwrap_or_else(|| bound.direct_rust_type.clone());
-            let subject = generic.as_ref().map_or_else(
-                || format!("projected result destination `{}`", specialization.value_type),
-                |_| {
-                    format!(
-                        "input to projected operation `{call_name}` with native type `{native_name}`"
-                    )
-                },
-            );
+            let subject = if bound.receiver_call.is_some() {
+                format!("native receiver of projected operation `{call_name}`")
+            } else {
+                generic.as_ref().map_or_else(
+                    || format!("projected result destination `{}`", specialization.value_type),
+                    |_| format!("input to projected operation `{call_name}` with native type `{native_name}`"),
+                )
+            };
             let displayed_bound = crate::rust_ir::format_rust_bound(&bound.rust_bound);
-            match answers.get(&question) {
-                Some(crate::rust_interop::ProbeAnswer::Unknown { reason }) => {
-                    return Err(failure(
-                        &unit.source,
-                        "T0119",
-                        format!(
-                            "{subject} could not be proven against `{displayed_bound}`: {}",
-                            oracle_diagnostic_summary(reason)
-                        ),
-                        specialization.span,
-                    ));
-                }
+            let message = match answers.get(&question) {
+                Some(crate::rust_interop::ProbeAnswer::Unknown { reason }) => format!(
+                    "{subject} could not be proven against `{displayed_bound}`: {}",
+                    oracle_diagnostic_summary(reason)
+                ),
                 Some(
                     crate::rust_interop::ProbeAnswer::No | crate::rust_interop::ProbeAnswer::Yes,
-                ) => {
-                    return Err(failure(
-                        &unit.source,
-                        "T0119",
-                        format!("{subject} does not satisfy `{displayed_bound}`"),
-                        specialization.span,
-                    ));
-                }
-                None => {
-                    return Err(failure(
-                        &unit.source,
-                        "T0119",
-                        format!(
-                            "projection oracle returned no answer for {subject} against \
-                             `{displayed_bound}`"
-                        ),
-                        specialization.span,
-                    ));
-                }
+                ) => format!("{subject} does not satisfy `{displayed_bound}`"),
+                None => format!(
+                    "projection oracle returned no answer for {subject} against `{displayed_bound}`"
+                ),
+            };
+            let mut diagnostic = Diagnostic::error("T0119", message, specialization.span);
+            if bound.receiver_call.is_some() {
+                diagnostic = diagnostic.with_help(
+                    "a native by-value generic does not declare borrowing; if a reference implementation is intended, bind `borrowed = ref value` first and pass `borrowed`",
+                );
             }
+            return Err(SemanticFailure {
+                source: unit.source.clone(),
+                diagnostics: vec![diagnostic],
+            });
         }
         for parameter in &mut specialization.projected_parameters {
             if !parameter.borrowed && !parameter.mutable_borrow {
@@ -4787,6 +4937,12 @@ fn collect_projected_destinations(
                     }
                 )
             }))
+        && let Some(contract) = super::namespaces::function_contract_for_call_with_safety(
+            package,
+            unit,
+            callee,
+            crate::syntax::call_is_unsafe(node),
+        )
         && (function.chain_role.is_none()
             || function.parameters.iter().any(|parameter| {
                 parameter.generic_parameter.is_some()
@@ -4795,24 +4951,39 @@ fn collect_projected_destinations(
                         crate::rust_interop::projection::ProjectedType::Callback { .. }
                     )
             })
-            || arguments.children.iter().any(|argument| {
-                let value = argument.children.last().unwrap_or(argument);
-                infer_value_type(unit, value, &unit.typed_bindings)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|actual| match actual {
-                        ValueType::Reference(inner) => {
-                            inner.value_type_ref().is_mutable_native_reference_target()
-                        }
-                        actual => actual.is_mutable_native_reference_target(),
-                    })
-            }))
-        && let Some(contract) = super::namespaces::function_contract_for_call_with_safety(
-            package,
-            unit,
-            callee,
-            crate::syntax::call_is_unsafe(node),
-        )
+            || function
+                .parameters
+                .iter()
+                .enumerate()
+                .any(|(index, parameter)| {
+                    let generic_proof = parameter.generic_parameter.as_ref().is_some_and(|name| {
+                        !function.receiver_bounds.is_empty()
+                            || function.generic_parameters.iter().any(|generic| {
+                                generic.name == *name
+                                    && generic
+                                        .rust_bounds
+                                        .iter()
+                                        .any(|bound| !is_deferred_outlives_bound(bound))
+                            })
+                    });
+                    if !parameter.borrows_argument() && !generic_proof {
+                        return false;
+                    }
+                    let Some(argument) =
+                        super::ownership::argument_for_parameter(unit, arguments, contract, index)
+                    else {
+                        return false;
+                    };
+                    infer_value_type(unit, argument, &unit.typed_bindings)
+                        .ok()
+                        .flatten()
+                        .is_some_and(|actual| match actual {
+                            ValueType::Reference(inner) => {
+                                inner.value_type_ref().is_mutable_native_reference_target()
+                            }
+                            actual => actual.is_mutable_native_reference_target(),
+                        })
+                }))
     {
         let mut function = (*function).clone();
         let owner_substitutions = projected_call_owner_substitutions(package, unit, callee)
@@ -5250,8 +5421,9 @@ fn collect_projected_destinations(
             let inferred = native_bindings.get(&generic.name).cloned().or_else(|| {
                 value_bindings.get(&generic.name).and_then(|actual| {
                     let (actual_projection, reference) = match actual {
-                        ValueType::Reference(inner) => (inner.value_type_ref(), Some(true)),
-                        ValueType::SharedReference(inner) => (inner.value_type_ref(), Some(false)),
+                        ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+                            (inner.value_type_ref(), Some(false))
+                        }
                         actual => (actual, None),
                     };
                     destination_projected_type(package, actual_projection)
@@ -5260,9 +5432,10 @@ fn collect_projected_destinations(
                             if generic_is_native_borrowed {
                                 projected
                             } else {
-                                reference.map_or(projected.clone(), |mutable| {
-                                    projected_reference_type(projected, mutable)
-                                })
+                                match reference {
+                                    Some(mutable) => projected_reference_type(projected, mutable),
+                                    None => projected,
+                                }
                             }
                         })
                 })
@@ -5596,7 +5769,7 @@ fn collect_projected_destinations(
                     );
                 let has_actual_reference = actual_projected.is_some();
                 let (borrowed_rust_type, borrowed_mutable) =
-                    actual_projected.unwrap_or_else(|| {
+                    actual_projected.map_or_else(|| {
                         let borrowed = match projected {
                             crate::rust_interop::projection::ProjectedType::String => {
                                 Some("&str".to_owned())
@@ -5604,16 +5777,16 @@ fn collect_projected_destinations(
                             crate::rust_interop::projection::ProjectedType::Bytes => {
                                 Some("&[u8]".to_owned())
                             }
-                            crate::rust_interop::projection::ProjectedType::Foreign { .. }
-                            | crate::rust_interop::projection::ProjectedType::InvocationScoped {
-                                ..
-                            } => Some(format!("&{rust_type}")),
+                            crate::rust_interop::projection::ProjectedType::Foreign { .. } => {
+                                Some(format!("&{rust_type}"))
+                            }
+                            crate::rust_interop::projection::ProjectedType::Reference { inner, mutable, .. } => {
+                                Some(format!("&{}{}", if *mutable { "mut " } else { "" }, inner.rust_type()))
+                            }
                             _ => None,
                         };
-                        (borrowed.unwrap_or_default(), false)
-                    });
-                let borrowed_rust_type =
-                    (!borrowed_rust_type.is_empty()).then_some(borrowed_rust_type);
+                        (borrowed, false)
+                    }, |(borrowed, mutable)| (Some(borrowed), mutable));
                 generic
                     .rust_bounds
                     .iter()
@@ -5677,15 +5850,17 @@ fn collect_projected_destinations(
                             })
                             .collect();
                         Some(PendingProjectedBound {
+                            receiver_call: None,
                             generic: Some(generic.name.clone()),
                             direct_rust_type: rust_type.clone(),
                             borrowed_rust_type: borrowed_rust_type.clone(),
-                            mutable_borrowed_rust_type: if borrowed_mutable {
+                            mutable_borrowed_rust_type: if let crate::rust_interop::projection::ProjectedType::Reference { inner, .. } = projected {
+                                Some(format!("&mut {}", inner.rust_type()))
+                            } else if borrowed_mutable {
                                 borrowed_rust_type.clone()
                             } else if has_actual_reference || matches!(
                                 projected,
                                 crate::rust_interop::projection::ProjectedType::Foreign { .. }
-                                    | crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
                             ) {
                                 Some(format!("&mut {rust_type}"))
                             } else {
@@ -5699,6 +5874,17 @@ fn collect_projected_destinations(
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        // Receiver predicates validate the submitted value/reference ABI.
+        // A by-value generic is not itself a declaration of borrowing.
+        bounds.extend(receiver_input_bounds(
+            package,
+            unit,
+            callee,
+            &function,
+            &rust_replacements,
+            &projected_bindings,
+            &callable_lifetimes,
+        ));
         if let Some(destination_result) = &function.destination_result {
             for parameter in &destination_result.parameters {
                 let Some(projected) = specialization_substitutions.get(&parameter.name) else {
@@ -5709,6 +5895,7 @@ fn collect_projected_destinations(
                         .rust_bounds
                         .iter()
                         .map(|bound| PendingProjectedBound {
+                            receiver_call: None,
                             generic: None,
                             direct_rust_type: projected.rust_type(),
                             borrowed_rust_type: None,
@@ -5955,6 +6142,7 @@ fn collect_projected_destinations(
                     .rust_bounds
                     .iter()
                     .map(|bound| PendingProjectedBound {
+                        receiver_call: None,
                         generic: None,
                         direct_rust_type: projected.rust_type(),
                         borrowed_rust_type: None,

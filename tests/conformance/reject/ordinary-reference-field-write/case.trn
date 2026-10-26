@@ -1,0 +1,6 @@
+namespace ordinary-reference-field-write
+class holder
+    value int = 0
+function update; item ref holder
+    item.value = 3
+function main;

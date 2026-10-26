@@ -1,0 +1,7 @@
+namespace app
+from /deps/witness import Connection, outlives
+function main;
+    connection = Connection::new;
+    reader = function int64;
+        return outlives; connection
+    print; (reader;)

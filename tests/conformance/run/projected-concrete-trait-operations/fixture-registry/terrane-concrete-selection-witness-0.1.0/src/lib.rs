@@ -26,6 +26,17 @@ impl<'a> Contains<&'a Token> for Token {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum OwnedToken {
+    Good,
+}
+
+impl Contains<OwnedToken> for Token {
+    fn contains(&self, _value: OwnedToken) -> bool {
+        true
+    }
+}
+
 impl Token {
     pub fn contains<T>(&self, value: T) -> bool
     where

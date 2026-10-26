@@ -123,6 +123,7 @@ fn optional_method(
     bounds: Vec<String>,
 ) -> ProjectedFunction {
     ProjectedFunction {
+        receiver_bounds: Vec::new(),
         name: name.to_owned(),
         native_owner: Some("std::option::Option".to_owned()),
         native_path: Some(format!("std::option::Option::<&T>::{name}")),

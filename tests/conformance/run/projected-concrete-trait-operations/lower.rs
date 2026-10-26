@@ -6,6 +6,7 @@ fn main() {
     let mut token: Token;
     let other: Token;
     let borrowed_other: &Token;
+    let owned: OwnedToken;
     let mut response: Response;
     let element: Element;
     let basket: Basket;
@@ -26,20 +27,44 @@ fn main() {
         ::__terrane_dependency_panic(payload, "witness", "witness::Token::contains")) },
         2 /* terrane-site: src/main.trn:9:13-9:43 */))
     );
+    owned = __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| witness::OwnedToken::Good),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "witness",
+                        "witness::OwnedToken::Good",
+                    ),
+                )
+            }
+        },
+        3 /* terrane-site: src/main.trn:10:13-10:30 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&token)
+        .contains(owned))) { Ok(value) => Ok(value), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "witness", "witness::Token::contains")) },
+        4 /* terrane-site: src/main.trn:11:13-11:34 */))
+    );
     response = __terrane_raised(
         terrane_static_trn_546f6b656e_create(),
-        3 /* terrane-site: src/main.trn:11:25-11:39 */,
+        5 /* terrane-site: src/main.trn:13:25-13:39 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&response).value())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Response::value")) }, 4 /* terrane-site: src/main.trn:12:13-12:28 */))
+        "witness::Response::value")) }, 6 /* terrane-site: src/main.trn:14:13-14:28 */))
     );
     token = __terrane_raised(
         terrane_static_trn_546f6b656e_from_str(String::from("good")),
-        5 /* terrane-site: src/main.trn:14:13-14:36 */,
+        7 /* terrane-site: src/main.trn:16:13-16:36 */,
     );
     response = __terrane_raised(
         match std::panic::catch_unwind(
@@ -58,18 +83,18 @@ fn main() {
                 )
             }
         },
-        6 /* terrane-site: src/main.trn:15:16-15:36 */,
+        8 /* terrane-site: src/main.trn:17:16-17:36 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&response).value())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Response::value")) }, 7 /* terrane-site: src/main.trn:16:13-16:28 */))
+        "witness::Response::value")) }, 9 /* terrane-site: src/main.trn:18:13-18:28 */))
     );
     token = __terrane_raised(
         terrane_static_trn_546f6b656e_from_str(String::from("good")),
-        8 /* terrane-site: src/main.trn:18:13-18:36 */,
+        10 /* terrane-site: src/main.trn:20:13-20:36 */,
     );
     element = __terrane_raised(
         match std::panic::catch_unwind(
@@ -88,25 +113,25 @@ fn main() {
                 )
             }
         },
-        9 /* terrane-site: src/main.trn:19:23-19:34 */,
+        11 /* terrane-site: src/main.trn:21:23-21:34 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&element).value())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Element::value")) }, 10 /* terrane-site: src/main.trn:20:13-20:27 */))
+        "witness::Element::value")) }, 12 /* terrane-site: src/main.trn:22:13-22:27 */))
     );
     basket = __terrane_raised(
         terrane_static_trn_4261736b6574_new(),
-        11 /* terrane-site: src/main.trn:22:21-22:33 */,
+        13 /* terrane-site: src/main.trn:24:21-24:33 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&basket).len())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Basket::len")) }, 12 /* terrane-site: src/main.trn:23:13-23:24 */))
+        "witness::Basket::len")) }, 14 /* terrane-site: src/main.trn:25:13-25:24 */))
     );
     selected = __terrane_raised(
         match std::panic::catch_unwind(
@@ -123,13 +148,13 @@ fn main() {
                 )
             }
         },
-        13 /* terrane-site: src/main.trn:25:25-25:37 */,
+        15 /* terrane-site: src/main.trn:27:25-27:37 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&selected).value())) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
         => Err(crate ::__terrane_dependency_panic(payload, "witness",
-        "witness::Selected::value")) }, 14 /* terrane-site: src/main.trn:26:13-26:28 */))
+        "witness::Selected::value")) }, 16 /* terrane-site: src/main.trn:28:13-28:28 */))
     );
 }

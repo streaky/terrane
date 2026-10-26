@@ -148,7 +148,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "286";
+const PROJECTION_SCHEMA: &str = "287";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -537,6 +537,9 @@ pub struct ProjectedFunction {
     pub parameters: Vec<ProjectedParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generic_parameters: Vec<ProjectedGenericParameter>,
+    /// Predicates on the concrete receiver that constrain caller-selected inputs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receiver_bounds: Vec<String>,
     /// Inherent impl bounds, keyed by the selected nominal owner's generic slots.
     /// These do not introduce method-owned generic arguments.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

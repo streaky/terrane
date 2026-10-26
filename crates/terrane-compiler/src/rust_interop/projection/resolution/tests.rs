@@ -54,6 +54,7 @@ fn unproven_bounds_decline_functions() {
                 rust_path: "witness::rejected_total".to_owned(),
                 docs: None,
                 kind: ProjectedKind::Function(ProjectedFunction {
+                    receiver_bounds: Vec::new(),
                     native_owner: None,
                     native_path: None,
                     name: "rejected_total".to_owned(),

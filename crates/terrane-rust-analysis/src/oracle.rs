@@ -439,6 +439,7 @@ fn classify_probe_answers(
             answers[index] = if matches!(code, Some("E0277" | "E0271")) {
                 ProbeAnswer::No
             } else {
+                // Inference ambiguity (notably E0283) is not a negative proof.
                 ProbeAnswer::Unknown {
                     reason: rendered.clone(),
                 }
@@ -977,6 +978,48 @@ impl<'connection, 'borrow> Executor<'connection> for &'borrow mut Connection {
                 .find(|item| item.question.rust_bound.contains("OtherDatabase"))
                 .map(|item| &item.answer),
             Some(&ProbeAnswer::No)
+        );
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn ambiguous_free_generic_bound_is_unknown_not_no() {
+        let workspace = workspace("ambiguous-free-generic-bound");
+        fs::write(
+            workspace.join("src/lib.rs"),
+            r"
+pub struct Postgres;
+pub struct Sqlite;
+pub trait Encode<Database> {}
+impl Encode<Postgres> for i64 {}
+impl Encode<Sqlite> for i64 {}
+pub trait Associated<Database> { type Value; }
+impl Associated<Postgres> for i64 { type Value = i64; }
+impl Associated<Sqlite> for i64 { type Value = i64; }
+",
+        )
+        .unwrap();
+        let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
+        let report = oracle
+            .prove_bounds(&[
+                BoundQuestion {
+                    rust_type: "i64".to_owned(),
+                    rust_bound: "terrane_dependency_projection::Encode<DB>".to_owned(),
+                    inferred_parameters: vec!["DB".to_owned()],
+                },
+                BoundQuestion {
+                    rust_type: "i64".to_owned(),
+                    rust_bound: "terrane_dependency_projection::Associated<DB, Value = i64>"
+                        .to_owned(),
+                    inferred_parameters: vec!["DB".to_owned()],
+                },
+            ])
+            .unwrap();
+        assert!(
+            report
+                .evidence
+                .iter()
+                .all(|evidence| matches!(evidence.answer, ProbeAnswer::Unknown { .. }))
         );
         fs::remove_dir_all(workspace).unwrap();
     }

@@ -29,6 +29,7 @@ pub(super) fn projected_function_item(
         rust_path: rust_path.to_owned(),
         docs: None,
         kind: ProjectedKind::Function(ProjectedFunction {
+            receiver_bounds: Vec::new(),
             native_owner: None,
             native_path: None,
             name: name.to_owned(),
