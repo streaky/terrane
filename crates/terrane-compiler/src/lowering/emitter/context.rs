@@ -122,13 +122,9 @@ impl<'unit> Emitter<'unit> {
         }
         let closure = self
             .unit
-            .functions
-            .iter()
+            .functions_containing(node.span)
             .filter(|function| {
-                function.is_anonymous
-                    && function.span.start <= node.span.start
-                    && node.span.end <= function.span.end
-                    && function.captures.iter().any(|capture| capture == "this")
+                function.is_anonymous && function.captures.iter().any(|capture| capture == "this")
             })
             .min_by_key(|function| function.span.end - function.span.start);
         if let Some(closure) = closure
@@ -1412,11 +1408,8 @@ impl<'unit> Emitter<'unit> {
         }
         // A last lexical read of a captured value can execute on every invocation.
         // Rust identifiers are opaque to source capture inference, so compare owners.
-        self.unit.functions.iter().any(|contract| {
-            contract.span.file == node.span.file
-                && contract.span.start <= node.span.start
-                && node.span.end <= contract.span.end
-                && contract.written_invocation_mode != InvocationMode::Consuming
+        self.unit.functions_containing(node.span).any(|contract| {
+            contract.written_invocation_mode != InvocationMode::Consuming
                 && !(contract.span.start <= binding.span.start
                     && binding.span.end <= contract.span.end)
         })

@@ -324,7 +324,7 @@ fn append_unit_symbols(
                 .parent
                 .map(|parent| scope_id(unit.scopes[parent].span)),
             source: source_span(&unit.source, scope.span),
-            function_id: containing_function_id(unit, scope.span.start),
+            function_id: containing_function_id(unit, scope.span),
         });
     }
     for binding in &unit.typed_bindings {
@@ -360,7 +360,7 @@ fn append_unit_symbols(
             visible_until: binding
                 .scope
                 .map_or(unit.source.text().len(), |scope| scope.end),
-            function_id: containing_function_id(unit, binding.span.start),
+            function_id: containing_function_id(unit, binding.span),
             mutable: binding.mutable,
         });
     }
@@ -495,19 +495,15 @@ fn parse_marker(value: &str) -> Option<(Span, ProvenanceRole)> {
     Some((Span::new(file, start, end), role))
 }
 
-fn containing_function_id(unit: &SemanticUnit, position: usize) -> Option<String> {
-    unit.functions
-        .iter()
-        .filter(|function| function.span.start <= position && function.span.end >= position)
-        .min_by_key(|function| function.span.end - function.span.start)
-        .map(|function| {
-            function_id(
-                unit,
-                function.span,
-                &function.name,
-                function.owner.as_deref(),
-            )
-        })
+fn containing_function_id(unit: &SemanticUnit, span: Span) -> Option<String> {
+    unit.containing_function(span).map(|function| {
+        function_id(
+            unit,
+            function.span,
+            &function.name,
+            function.owner.as_deref(),
+        )
+    })
 }
 
 fn function_id(unit: &SemanticUnit, span: Span, name: &str, owner: Option<&str>) -> String {
@@ -746,6 +742,120 @@ mod tests {
         assert!(debug.functions.iter().any(|function| {
             function.name.ends_with("::helper") && function.source.source_id == 1
         }));
+    }
+
+    #[test]
+    fn debug_binding_ignores_overlapping_foreign_function() {
+        let source = concat!(
+            "namespace overlapping-debug\n",
+            "function main;\n",
+            "    local = 41\n",
+            "    print; local\n",
+            "    # Keep the real function wider than the foreign contract.\n",
+            "    print; local + 1\n",
+        );
+        let namespace = "namespace overlapping-debug\n";
+        let foreign_start = source.find("local =").unwrap() - 2;
+        let sibling = format!(
+            "{namespace}#{}\nfunction helper;\n    print; 0\n",
+            ".".repeat(foreign_start - namespace.len() - 2)
+        );
+        let mut package = Package::implicit("src/main.trn", source.to_owned());
+        package.units.push(SourceUnit {
+            relative_path: PathBuf::from("src/helper.trn"),
+            source: SourceFile::new(1, PathBuf::from("src/helper.trn"), sibling),
+            expected_namespace: None,
+            prelude: true,
+            role: SourceRole::Production,
+        });
+        let debug = compile_package_with_options(
+            &package,
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap()
+        .debug_information(Path::new("src/main.rs"))
+        .unwrap()
+        .unwrap();
+        let main = debug
+            .functions
+            .iter()
+            .find(|function| function.name.ends_with("::main") && function.source.source_id == 0)
+            .unwrap();
+        let local = debug
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "local" && binding.source.source_id == 0)
+            .unwrap();
+        assert_eq!(local.function_id.as_deref(), Some(main.id.as_str()));
+        let scope = debug
+            .scopes
+            .iter()
+            .find(|scope| Some(&scope.id) == local.scope_id.as_ref())
+            .unwrap();
+        assert_eq!(scope.function_id.as_deref(), Some(main.id.as_str()));
+    }
+
+    #[test]
+    fn adjacent_function_scope_at_previous_end_uses_its_own_function() {
+        let source = concat!(
+            "namespace adjacent-debug\n",
+            "function first;\n",
+            "  first_value = 1\n",
+            "function second;\n",
+            "  second_value = 2\n",
+            "  print; second_value\n",
+            "  print; second_value + 1\n",
+            "function main;\n",
+            "  second;\n",
+        );
+        let package = Package::implicit("src/main.trn", source.to_owned());
+        let debug = compile_package_with_options(
+            &package,
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap()
+        .debug_information(Path::new("src/main.rs"))
+        .unwrap()
+        .unwrap();
+
+        let first = debug
+            .functions
+            .iter()
+            .find(|function| function.name.ends_with("::first"))
+            .unwrap();
+        let second = debug
+            .functions
+            .iter()
+            .find(|function| function.name.ends_with("::second"))
+            .unwrap();
+        let second_binding = debug
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "second_value")
+            .unwrap();
+        let second_scope = debug
+            .scopes
+            .iter()
+            .find(|scope| Some(&scope.id) == second_binding.scope_id.as_ref())
+            .unwrap();
+
+        assert!(first.source.end - first.source.start < second.source.end - second.source.start);
+        assert_eq!(second.source.start, first.source.end);
+        assert_eq!(second_scope.source.start, first.source.end);
+        assert_eq!(
+            second_scope.function_id.as_deref(),
+            Some(second.id.as_str())
+        );
+        assert_eq!(
+            second_binding.function_id.as_deref(),
+            Some(second.id.as_str())
+        );
     }
 
     #[test]

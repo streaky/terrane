@@ -29,14 +29,8 @@ fn path_at(unit: &SemanticUnit, node: &SyntaxNode) -> Option<FieldPath> {
     if node.kind == SyntaxKind::Name {
         if node_text(&unit.source, node) == "this" {
             let owner = unit
-                .functions
-                .iter()
-                .filter(|function| {
-                    function.owner.is_some()
-                        && function.span.file == node.span.file
-                        && function.span.start <= node.span.start
-                        && node.span.end <= function.span.end
-                })
+                .functions_containing(node.span)
+                .filter(|function| function.owner.is_some())
                 .min_by_key(|function| function.span.end - function.span.start)?;
             return Some(FieldPath {
                 root: Root::This(owner.span),

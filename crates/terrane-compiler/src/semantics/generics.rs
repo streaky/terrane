@@ -407,12 +407,7 @@ pub(super) fn expected_destination_in_unit(
         && root.span.end >= span.end
     {
         return unit
-            .functions
-            .iter()
-            .filter(|function| {
-                function.span.start <= root.span.start && function.span.end >= root.span.end
-            })
-            .min_by_key(|function| function.span.end - function.span.start)
+            .containing_function(root.span)
             .and_then(|function| function.return_type.clone());
     }
     root.children
@@ -453,12 +448,7 @@ pub(crate) fn expected_type_at(
         && root.span.end >= span.end
     {
         return unit
-            .functions
-            .iter()
-            .filter(|contract| {
-                contract.span.start <= root.span.start && contract.span.end >= root.span.end
-            })
-            .min_by_key(|contract| contract.span.end - contract.span.start)
+            .containing_function(root.span)
             .and_then(|contract| contract.return_type.clone());
     }
     if root.kind == SyntaxKind::CallExpression

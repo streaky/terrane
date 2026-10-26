@@ -2078,6 +2078,31 @@ pub struct SemanticUnit {
 }
 
 impl SemanticUnit {
+    /// Contracts whose bodies belong to this source unit, not its namespace siblings.
+    pub(crate) fn local_functions(&self) -> impl Iterator<Item = &FunctionContract> {
+        self.functions
+            .iter()
+            .filter(|function| function.span.file == self.source.id())
+    }
+
+    /// Namespace-visible contracts that contain the complete file-qualified source span.
+    pub(crate) fn functions_containing(
+        &self,
+        span: Span,
+    ) -> impl Iterator<Item = &FunctionContract> {
+        self.functions.iter().filter(move |function| {
+            function.span.file == span.file
+                && function.span.start <= span.start
+                && span.end <= function.span.end
+        })
+    }
+
+    /// The innermost callable containing this span, never a sibling file's contract.
+    pub(crate) fn containing_function(&self, span: Span) -> Option<&FunctionContract> {
+        self.functions_containing(span)
+            .min_by_key(|function| function.span.end - function.span.start)
+    }
+
     pub(crate) fn type_parameter_at(
         &self,
         position: usize,

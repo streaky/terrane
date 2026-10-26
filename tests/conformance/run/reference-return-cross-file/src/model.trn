@@ -1,0 +1,13 @@
+namespace reference-return-cross-file
+
+class point
+    latitude float64 = 51.5
+
+# Exercise contract selection across overlapping source offsets.
+function describe string; name string
+    return 'Unknown camera catalogue entry: '.concat; name
+
+class lookup-error implements throwable
+    message string = 'unknown point'
+    function render string;
+        return this.message

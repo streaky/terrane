@@ -130,13 +130,8 @@ fn collect(
         && let Some(selected) = super::calls::selected_callable_contract(package, unit, node, false)
     {
         let caller = unit
-            .functions
-            .iter()
-            .filter(|function| {
-                function.span.start <= node.span.start
-                    && node.span.end <= function.span.end
-                    && function_parameters(unit, function).next().is_some()
-            })
+            .functions_containing(node.span)
+            .filter(|function| function_parameters(unit, function).next().is_some())
             .min_by_key(|function| function.span.end - function.span.start);
         let target = package
             .units

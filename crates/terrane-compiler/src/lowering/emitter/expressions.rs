@@ -178,14 +178,8 @@ impl Emitter<'_> {
             return false;
         }
         self.unit
-            .functions
-            .iter()
-            .filter(|contract| {
-                contract.is_anonymous
-                    && contract.span.file == node.span.file
-                    && contract.span.start <= node.span.start
-                    && node.span.end <= contract.span.end
-            })
+            .functions_containing(node.span)
+            .filter(|contract| contract.is_anonymous)
             .min_by_key(|contract| contract.span.end - contract.span.start)
             .is_some_and(|contract| {
                 contract.written_invocation_mode != InvocationMode::Consuming

@@ -1,0 +1,14 @@
+namespace enum-return-cross-file
+
+enum result of (T)
+    success; value T
+
+function make result of string;
+#.................................................................................................................................................................................................................................................
+    return instance result::success; value = 'ready'
+
+function main;
+    item = make;
+    match item
+        case result::success; value
+            print; value

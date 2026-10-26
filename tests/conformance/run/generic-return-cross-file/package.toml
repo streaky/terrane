@@ -1,0 +1,4 @@
+package = "generic-return-cross-file"
+
+[namespaces]
+generic-return-cross-file = "src"

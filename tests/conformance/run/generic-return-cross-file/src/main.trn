@@ -1,0 +1,15 @@
+namespace generic-return-cross-file
+
+class slot of (T)
+    value T|none = none
+
+function make slot of string;
+#..............................................................................................................................................................................................................................................
+    return instance slot;
+
+function main;
+    made = make;
+    made.value = 'ready'
+    value = made.value
+    if value != none
+        print; value

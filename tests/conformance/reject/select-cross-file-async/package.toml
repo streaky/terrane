@@ -1,0 +1,4 @@
+package = "select-cross-file-async"
+
+[namespaces]
+select-cross-file-async = "src"
