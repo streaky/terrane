@@ -96,3 +96,27 @@ pub fn observed<T: View>(connection: &T) -> i64 {
 pub fn outlives<'region, T: 'region>(_value: T) -> i64 {
     0
 }
+
+pub trait DatabaseKind {}
+
+impl DatabaseKind for Database {}
+
+pub struct OwnerQuery<DB: DatabaseKind> {
+    marker: std::marker::PhantomData<DB>,
+}
+
+pub fn owner_query(_sql: &str) -> OwnerQuery<Database> {
+    OwnerQuery { marker: std::marker::PhantomData }
+}
+
+impl<DB: DatabaseKind> OwnerQuery<DB>
+where
+    for<'connection> &'connection mut Connection: Executor<'connection, Database = DB>,
+{
+    pub fn fetch<'connection, E>(self, executor: E) -> i64
+    where
+        E: Executor<'connection, Database = DB>,
+    {
+        executor.execute()
+    }
+}

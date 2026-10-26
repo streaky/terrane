@@ -37,19 +37,21 @@ fn project_operation_owner_generics(
         .iter()
         .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }));
     for predicate in &declaration.where_predicates {
-        if !matches!(
-            predicate,
-            WherePredicate::BoundPredicate {
-                type_: Type::Generic(name),
-                ..
-            } if declaration.params.iter().any(|parameter| {
-                parameter.name == *name
-                    && matches!(
-                        parameter.kind,
-                        GenericParamDefKind::Type { is_synthetic: false, .. }
-                    )
-            })
-        ) {
+        if !allow_lifetime_bounds
+            && !matches!(
+                predicate,
+                WherePredicate::BoundPredicate {
+                    type_: Type::Generic(name),
+                    ..
+                } if declaration.params.iter().any(|parameter| {
+                    parameter.name == *name
+                        && matches!(
+                            parameter.kind,
+                            GenericParamDefKind::Type { is_synthetic: false, .. }
+                        )
+                })
+            )
+        {
             return Err(
                 "inherent impl predicate has no stable owner-generic projection".to_owned(),
             );
@@ -98,23 +100,19 @@ fn project_operation_owner_generics(
         }
         // The self-type substitution maps impl binders to nominal or alias slots.
         // Concrete alias arguments need no helper parameter; Rust checks their bounds.
-        let Some(selected) = generics.get(&parameter.name) else {
-            if rust_bounds.is_empty() {
+        let name = match generics.get(&parameter.name) {
+            Some(ProjectedType::Generic(name)) => name,
+            Some(selected) if !selected.contains_open_generic() || rust_bounds.is_empty() => {
                 continue;
             }
-            return Err(format!(
-                "inherent impl binder `{}` has no selected owner-generic slot",
-                parameter.name
-            ));
-        };
-        let ProjectedType::Generic(name) = selected else {
-            if !selected.contains_open_generic() || rust_bounds.is_empty() {
-                continue;
+            None if allow_lifetime_bounds => &parameter.name,
+            None if rust_bounds.is_empty() => continue,
+            _ => {
+                return Err(format!(
+                    "inherent impl binder `{}` has no stable owner-generic projection",
+                    parameter.name
+                ));
             }
-            return Err(format!(
-                "inherent impl binder `{}` has no stable owner-generic projection",
-                parameter.name
-            ));
         };
         let entry = projected
             .entry(name.clone())
@@ -525,11 +523,10 @@ pub(super) fn project_methods(
                             declined.push((name.to_owned(), reason));
                             continue;
                         }
-                        // Instance calls retain their concrete native receiver and
-                        // are checked in the complete Rust call graph. Failure to
-                        // detach an impl-owner predicate is not proof of it: leave
-                        // operation_owner_generics empty, rather than fabricating a
-                        // specialization or declining an otherwise valid graph.
+                        // Instance calls retain their native receiver and full
+                        // graph obligations. Keep any representable owner binders
+                        // above even when other impl predicates cannot detach;
+                        // only an unrepresentable binder itself defers this plan.
                         Err(_) => {}
                     }
                     candidates.push(method);

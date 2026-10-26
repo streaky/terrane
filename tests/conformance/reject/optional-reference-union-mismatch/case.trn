@@ -1,0 +1,7 @@
+namespace optional-reference-union-mismatch
+class holder
+    value int = 0
+function inspect; item ref holder|none
+function main;
+    item (holder|none) = instance holder;
+    inspect; item

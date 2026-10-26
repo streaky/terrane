@@ -195,10 +195,17 @@ function main;
     value = instance unrelated;
     print; (advance; value)
 ";
+    let wrong_owner_executor = r"namespace app
+from /deps/witness import owner_query
+function main;
+    invalid = 'not an executor'
+    print; ((owner_query; 'wrong-owner').fetch; invalid)
+";
     for (source, expected_error, expected_output) in [
         (accepted.as_str(), None, expected_output.as_str()),
         (implicit_reference, None, "1\n"),
         (missing_interface, Some("T0121"), ""),
+        (wrong_owner_executor, Some("T0119"), ""),
     ] {
         package.source(source);
         let projection = package.0.join(".trn/dependencies/projection.json");
@@ -226,6 +233,9 @@ function main;
             if let Some(code) = expected_error {
                 assert!(!checked.status.success(), "{stderr}");
                 assert!(stderr.contains(&format!("error[{code}]")), "{stderr}");
+                if code == "T0119" {
+                    assert!(stderr.contains("does not satisfy"), "{stderr}");
+                }
                 assert!(!stderr.contains("S9003"), "{stderr}");
             } else {
                 assert!(checked.status.success(), "{stderr}");

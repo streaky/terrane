@@ -307,8 +307,8 @@ pub(super) fn validate_call_nodes<'a>(
                     &unit.source,
                     &unit.descriptors,
                     "callable argument",
-                    expected_type,
-                    actual,
+                    &expected_type,
+                    &actual,
                     value,
                     "T0012",
                 )?;
@@ -922,8 +922,8 @@ pub(super) fn validate_resolved_assignment(
         &unit.source,
         &unit.descriptors,
         name,
-        expected,
-        actual,
+        &expected,
+        &actual,
         initializer,
         "T0002",
     )
@@ -1525,8 +1525,8 @@ pub(super) fn validate_call_arguments(
                     &unit.source,
                     &unit.descriptors,
                     &parameter.name,
-                    validation_expected,
-                    actual,
+                    &validation_expected,
+                    &actual,
                     value,
                     "T0012",
                 )?;

@@ -1762,8 +1762,8 @@ pub(super) fn validate_class_field_initializers(
                     &effective.unit.source,
                     &effective.unit.descriptors,
                     &format!("class field {}", field.name),
-                    field.value_type.clone(),
-                    actual,
+                    &field.value_type,
+                    &actual,
                     initializer,
                     "T0060",
                 )?;
@@ -3328,7 +3328,7 @@ fn receiver_input_bounds(
                 })
         })
     {
-        // Symbolic/scoped inputs remain obligations of the connected native graph.
+        // Symbolic/scoped input selections remain obligations of the connected graph.
         return Vec::new();
     }
     let lifetime = "'__terrane_receiver_loan";

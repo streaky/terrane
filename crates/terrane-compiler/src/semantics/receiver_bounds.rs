@@ -24,19 +24,14 @@ pub(super) fn native_receiver_call(
     let mut source = String::from(
         "#[allow(dead_code, unused_variables, unused_mut)] fn __terrane_receiver_probe",
     );
-    let mut lifetimes = lifetimes
+    let lifetimes = lifetimes
         .iter()
         .map(String::as_str)
         .chain(loan_lifetime)
-        .peekable();
-    if lifetimes.peek().is_some() {
+        .collect::<Vec<_>>();
+    if !lifetimes.is_empty() {
         source.push('<');
-        for (index, lifetime) in lifetimes.enumerate() {
-            if index != 0 {
-                source.push_str(", ");
-            }
-            source.push_str(lifetime);
-        }
+        source.push_str(&lifetimes.join(", "));
         source.push('>');
     }
     write!(

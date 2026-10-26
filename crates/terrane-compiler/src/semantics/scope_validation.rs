@@ -1005,8 +1005,8 @@ pub(super) fn validate_return(
                 &unit.source,
                 &unit.descriptors,
                 &contract.name,
-                expected,
-                actual,
+                &expected,
+                &actual,
                 value,
                 "T0015",
             )
