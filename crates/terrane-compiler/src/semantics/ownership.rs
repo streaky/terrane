@@ -1311,7 +1311,8 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
         let mut changed = false;
         for unit in &package.units {
             for contract in &unit.functions {
-                if !matches!(contract.return_type, Some(ValueType::Reference(_)))
+                if contract.span.file != unit.source.id()
+                    || !matches!(contract.return_type, Some(ValueType::Reference(_)))
                     || known.contains_key(&contract_key(contract))
                 {
                     continue;
@@ -1349,7 +1350,11 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
 fn owner_is_external_lender(unit: &SemanticUnit, position: usize, owner: Span) -> bool {
     unit.functions
         .iter()
-        .filter(|contract| contract.span.start <= position && contract.span.end >= position)
+        .filter(|contract| {
+            contract.span.file == unit.source.id()
+                && contract.span.start <= position
+                && contract.span.end >= position
+        })
         .min_by_key(|contract| contract.span.end - contract.span.start)
         .is_some_and(|contract| owner.start < contract.span.start || owner.end > contract.span.end)
 }
@@ -1474,7 +1479,9 @@ fn validate_reference_return(
         .functions
         .iter()
         .filter(|contract| {
-            contract.span.start <= value.span.start && contract.span.end >= value.span.end
+            contract.span.file == value.span.file
+                && contract.span.start <= value.span.start
+                && contract.span.end >= value.span.end
         })
         .min_by_key(|contract| contract.span.end - contract.span.start);
     if let Some(expected @ ValueType::Scalar(_)) =
