@@ -1,0 +1,27 @@
+namespace select-allowed-nesting
+
+async function work int;
+  return 7
+
+class selector
+  async function choose int;
+    select
+      case value = await (work;)
+        return value
+      case other = await (work;)
+        return other
+
+function make-callback async function to int;
+  callback = async function int;
+    select
+      case value = await (work;)
+        return value
+      case other = await (work;)
+        return other
+  return callback
+
+async function main;
+  callback = make-callback;
+  print; await (callback;)
+  value selector = instance selector;
+  print; await (value.choose;)

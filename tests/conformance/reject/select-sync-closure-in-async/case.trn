@@ -1,0 +1,13 @@
+namespace select-sync-closure-in-async
+
+async function work int;
+  return 1
+
+async function main;
+  callback = function;
+    select
+      case first = await (work;)
+        print; first
+      case second = await (work;)
+        print; second
+  callback;

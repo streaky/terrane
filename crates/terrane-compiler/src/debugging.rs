@@ -799,6 +799,66 @@ mod tests {
     }
 
     #[test]
+    fn adjacent_function_scope_at_previous_end_uses_its_own_function() {
+        let source = concat!(
+            "namespace adjacent-debug\n",
+            "function first;\n",
+            "  first_value = 1\n",
+            "function second;\n",
+            "  second_value = 2\n",
+            "  print; second_value\n",
+            "  print; second_value + 1\n",
+            "function main;\n",
+            "  second;\n",
+        );
+        let package = Package::implicit("src/main.trn", source.to_owned());
+        let debug = compile_package_with_options(
+            &package,
+            CompilerOptions {
+                debug_build: crate::DebugBuild::ExternalSources,
+                ..CompilerOptions::default()
+            },
+        )
+        .unwrap()
+        .debug_information(Path::new("src/main.rs"))
+        .unwrap()
+        .unwrap();
+
+        let first = debug
+            .functions
+            .iter()
+            .find(|function| function.name.ends_with("::first"))
+            .unwrap();
+        let second = debug
+            .functions
+            .iter()
+            .find(|function| function.name.ends_with("::second"))
+            .unwrap();
+        let second_binding = debug
+            .bindings
+            .iter()
+            .find(|binding| binding.name == "second_value")
+            .unwrap();
+        let second_scope = debug
+            .scopes
+            .iter()
+            .find(|scope| Some(&scope.id) == second_binding.scope_id.as_ref())
+            .unwrap();
+
+        assert!(first.source.end - first.source.start < second.source.end - second.source.start);
+        assert_eq!(second.source.start, first.source.end);
+        assert_eq!(second_scope.source.start, first.source.end);
+        assert_eq!(
+            second_scope.function_id.as_deref(),
+            Some(second.id.as_str())
+        );
+        assert_eq!(
+            second_binding.function_id.as_deref(),
+            Some(second.id.as_str())
+        );
+    }
+
+    #[test]
     fn debug_metadata_keeps_optimized_lowering() {
         let source = concat!(
             "namespace optimized-debug\n",
