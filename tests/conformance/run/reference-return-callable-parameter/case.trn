@@ -1,0 +1,15 @@
+namespace reference-return-callable-parameter
+
+function main;
+    flag = true
+    callback = function ref string; source ref string
+        if flag
+            return source
+        return source
+    value = 'parameter loan'
+    returned = callback; ref value
+    print; returned
+    borrowed-value = ref value
+    snapshot = function string;
+        return borrowed-value
+    print; (snapshot;)

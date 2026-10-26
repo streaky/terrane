@@ -1279,23 +1279,29 @@ fn function_return_values<'a>(
     function: Span,
     values: &mut Vec<&'a SyntaxNode>,
 ) {
-    if node.span != function
-        && matches!(
-            node.kind,
-            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
-        )
+    if node.span.file != function.file {
+        return;
+    }
+    let inside = function.start <= node.span.start && node.span.end <= function.end;
+    let enclosing = node.span.start <= function.start && function.end <= node.span.end;
+    if (!inside && !enclosing)
+        || (node.span != function
+            && matches!(
+                node.kind,
+                SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+            )
+            && !enclosing)
     {
         return;
     }
-    if node.kind == SyntaxKind::ReturnStatement
+    if inside
+        && node.kind == SyntaxKind::ReturnStatement
         && let Some(value) = node.children.first()
     {
         values.push(value);
     }
     for child in &node.children {
-        if child.span.start >= function.start && child.span.end <= function.end {
-            function_return_values(child, function, values);
-        }
+        function_return_values(child, function, values);
     }
 }
 
@@ -1486,25 +1492,49 @@ fn validate_reference_return(
         })
         .map(|binding| binding.span);
     let provenance = expression_provenance(package, unit, value, proven, return_lenders);
-    let closure_lender = contract.is_some_and(|contract| contract.is_anonymous)
+    let parameter_lender = expected_lender.is_some()
         && provenance
             .as_ref()
-            .is_some_and(|provenance| provenance.external_lender);
-    if !closure_lender
-        && (expected_lender.is_none()
-            || provenance
-                .as_ref()
-                .and_then(|provenance| provenance.lender_parameter)
-                != expected_lender)
-    {
-        return Err(failure(
-            &unit.source,
-            "T0068",
-            "returned reference is not proven to originate from one declared reference-parameter lender",
-            value.span,
-        ));
+            .and_then(|provenance| provenance.lender_parameter)
+            == expected_lender;
+    if parameter_lender {
+        return Ok(());
     }
-    Ok(())
+    let closure_lender = contract.is_some_and(|contract| {
+        contract.is_anonymous
+            && provenance.as_ref().is_some_and(|provenance| {
+                provenance.external_lender
+                    // A declared reference parameter is external, but not an environment capture.
+                    && !provenance.lender_parameter.is_some_and(|lender| {
+                        contract.parameters.iter().any(|parameter| {
+                            parameter.span.file == lender.file
+                                && parameter.span.start <= lender.start
+                                && lender.end <= parameter.span.end
+                        })
+                    })
+            })
+    });
+    if closure_lender {
+        return Err(SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![
+                Diagnostic::error(
+                    "T0145",
+                    "returning a reference borrowed from a callable's captured environment is not supported",
+                    value.span,
+                )
+                .with_help(
+                    "pass the owner as an explicit reference parameter, or return an owned value",
+                ),
+            ],
+        });
+    }
+    Err(failure(
+        &unit.source,
+        "T0068",
+        "returned reference is not proven to originate from one declared reference-parameter lender",
+        value.span,
+    ))
 }
 
 fn record_reference_assignment(

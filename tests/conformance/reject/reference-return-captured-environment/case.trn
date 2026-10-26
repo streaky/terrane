@@ -1,0 +1,8 @@
+namespace reference-return-captured-environment
+
+function main;
+    value = 'captured'
+    borrowed = ref value
+    callback = function ref string; flag bool
+        return borrowed
+    print; (callback; true)

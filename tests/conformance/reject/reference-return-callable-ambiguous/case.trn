@@ -1,0 +1,10 @@
+namespace reference-return-callable-ambiguous
+
+function main;
+    callback = function ref string; first ref string, second ref string, flag bool
+        if flag
+            return first
+        return second
+    left-value = 'first'
+    right-value = 'second'
+    print; (callback; ref left-value, ref right-value, true)
