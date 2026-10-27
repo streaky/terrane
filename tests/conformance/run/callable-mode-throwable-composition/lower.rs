@@ -16,7 +16,7 @@ impl Accumulator {
         &mut self,
         delta: terrane_int_support::Int,
     ) -> Result<terrane_int_support::Int, TerraneError> {
-        if delta.clone() < terrane_int_support::Int::from(0_i128) {
+        if delta < terrane_int_support::Int::from(0_i128) {
             return Err(
                 TerraneError::raised(
                     TerraneErrorKind::CoercionError,

@@ -14,9 +14,9 @@ fn inferred() {
     let mut previous: Option<terrane_int_support::Int> = None;
     count = terrane_int_support::Int::from(0_i128);
     total = terrane_int_support::Int::from(0_i128);
-    while count.clone() < terrane_int_support::Int::from(3_i128) {
+    while count < terrane_int_support::Int::from(3_i128) {
         count = count.clone() + terrane_int_support::Int::from(1_i128);
-        if count.clone() > terrane_int_support::Int::from(1_i128) {
+        if count > terrane_int_support::Int::from(1_i128) {
             result = previous
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
@@ -66,15 +66,14 @@ fn inferred() {
                 + terrane_int_support::Int::from(1_i128)
                 + terrane_int_support::Int::from(1_i128)
                 + terrane_int_support::Int::from(1_i128);
-            comparison = previous
+            comparison = *previous
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
                     "previous",
                     "case.trn",
                     15,
                     26,
-                ))
-                .clone() > terrane_int_support::Int::from(1_i128);
+                )) > terrane_int_support::Int::from(1_i128);
             total = total.clone() + step.clone();
             println!("{}", terrane_scalar_support::scalar_text(&result));
             println!("{}", terrane_scalar_support::scalar_text(&typed_result));
@@ -92,9 +91,9 @@ fn typed() {
     let mut previous: Option<terrane_int_support::Int> = None;
     total = terrane_int_support::Int::from(0_i128);
     count = terrane_int_support::Int::from(1_i128);
-    '__terrane_break_0: while count.clone() < terrane_int_support::Int::from(4_i128) {
+    '__terrane_break_0: while count < terrane_int_support::Int::from(4_i128) {
         '__terrane_continue_0: {
-            if count.clone() > terrane_int_support::Int::from(1_i128) {
+            if count > terrane_int_support::Int::from(1_i128) {
                 total = total.clone()
                     + previous
                         .as_ref()

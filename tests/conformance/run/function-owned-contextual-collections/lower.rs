@@ -71,9 +71,7 @@ fn main() {
         let _ = &index;
         let _ = state
             .insert(
-                TerraneUnionF0S135::Arm1(
-                    index.clone() == terrane_int_support::Int::from(3_i128),
-                ),
+                TerraneUnionF0S135::Arm1(index == terrane_int_support::Int::from(3_i128)),
             );
         println!(
             "{}", terrane_scalar_support::scalar_text(&* match state.as_ref()

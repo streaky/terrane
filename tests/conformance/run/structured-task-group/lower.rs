@@ -24,7 +24,7 @@ fn main() {
                 >;
                 group = TerraneTaskGroup::<terrane_int_support::Int>::new();
                 index = terrane_int_support::Int::from(1_i128);
-                while index.clone() <= terrane_int_support::Int::from(5_i128) {
+                while index <= terrane_int_support::Int::from(5_i128) {
                     {
                         let __terrane_child = {
                             let __terrane_scope = group.scope();
@@ -71,10 +71,10 @@ fn main() {
                             }
                                 .clone();
                         ordered = ordered
-                            && match value {
+                            && *match &value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
-                            } == expected.clone();
+                            } == expected;
                     }
                     expected = expected.clone() + terrane_int_support::Int::from(1_i128);
                 }

@@ -1499,9 +1499,7 @@ pub fn make_document_list(
     let mut index: terrane_int_support::Int;
     raw = terrane_make_document_list();
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(terrane_int_support::Int::from(values.length()))
-    {
+    while index < terrane_int_support::Int::from(values.length()) {
         raw = terrane_document_list_append(
             &raw,
             &__terrane_raised(
@@ -1543,11 +1541,7 @@ pub fn mapping_required_fields(
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = required.make_unique();
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(fields.length()),
-            )
-        {
+        while index < terrane_int_support::Int::from(fields.length()) {
             field = __terrane_raised(
                 fields
                     .get_or_error(
@@ -1560,10 +1554,8 @@ pub fn mapping_required_fields(
             );
             optional = false;
             optional_index = terrane_int_support::Int::from(0_i128);
-            while optional_index.clone()
-                < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(optional_fields.length()),
-                )
+            while optional_index
+                < terrane_int_support::Int::from(optional_fields.length())
             {
                 if __terrane_raised(
                         optional_fields
@@ -1586,10 +1578,7 @@ pub fn mapping_required_fields(
             }
             defaulted = false;
             default_index = terrane_int_support::Int::from(0_i128);
-            while default_index.clone()
-                < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(default_fields.length()),
-                )
+            while default_index < terrane_int_support::Int::from(default_fields.length())
             {
                 if __terrane_raised(
                         default_fields
@@ -1638,10 +1627,7 @@ pub fn decode_document(
     field_index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_1 = declared_fields.make_unique();
-        while field_index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(mapping.field_names.length()),
-            )
+        while field_index < terrane_int_support::Int::from(mapping.field_names.length())
         {
             if __terrane_raised(
                     mapping
@@ -1681,14 +1667,9 @@ pub fn decode_document(
     default_fields = terrane_collection_support::List::<String>::new(vec![]);
     default_values = terrane_collection_support::List::<String>::new(vec![]);
     default_index = terrane_int_support::Int::from(0_i128);
-    while default_index.clone()
-        < terrane_int_support::Int::from(
-            terrane_int_support::Int::from(mapping.default_fields.length()),
-        )
-        && default_index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(mapping.default_values.length()),
-            )
+    while default_index < terrane_int_support::Int::from(mapping.default_fields.length())
+        && default_index
+            < terrane_int_support::Int::from(mapping.default_values.length())
     {
         if __terrane_raised(
                 mapping

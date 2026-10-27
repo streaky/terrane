@@ -1147,7 +1147,7 @@ impl Duration {
         multiplier: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
         let total: terrane_int_support::Int;
-        if multiplier.clone() < terrane_int_support::Int::from(0_i128) {
+        if multiplier < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -1176,7 +1176,7 @@ impl Duration {
     pub fn terrane_static_seconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -1204,7 +1204,7 @@ impl Duration {
     pub fn terrane_static_milliseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -1233,7 +1233,7 @@ impl Duration {
     pub fn terrane_static_microseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -1262,7 +1262,7 @@ impl Duration {
     pub fn terrane_static_nanoseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -1568,7 +1568,7 @@ impl Ticker {
         elapsed = observed.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
         observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
-        if observed_index.clone() < self.next_index.clone() {
+        if observed_index < self.next_index.clone() {
             observed_index = self.next_index.clone();
         }
         count = observed_index.clone() - self.next_index.clone()
@@ -1641,7 +1641,7 @@ impl Ticker {
                 .elapsed_nanoseconds
                 .clone();
         observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
-        if observed_index.clone()
+        if observed_index
             < {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()

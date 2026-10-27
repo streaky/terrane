@@ -31,9 +31,9 @@ fn main() {
         as i128))
     );
     index = terrane_int_support::Int::from(0_i128);
-    '__terrane_break_1: while index.clone() < terrane_int_support::Int::from(3_i128) {
+    '__terrane_break_1: while index < terrane_int_support::Int::from(3_i128) {
         '__terrane_continue_1: {
-            if index.clone() == terrane_int_support::Int::from(1_i128) {
+            if index == terrane_int_support::Int::from(1_i128) {
                 break '__terrane_continue_1;
             }
             println!("{}", terrane_scalar_support::scalar_text(&index));
@@ -42,7 +42,7 @@ fn main() {
     }
     println!("{}", terrane_scalar_support::scalar_text(&index));
     skipped = terrane_int_support::Int::from(7_i128);
-    '__terrane_break_2: while skipped.clone() < terrane_int_support::Int::from(7_i128) {
+    '__terrane_break_2: while skipped < terrane_int_support::Int::from(7_i128) {
         '__terrane_continue_2: {
             println!("{}", String::from("unreachable"));
         }

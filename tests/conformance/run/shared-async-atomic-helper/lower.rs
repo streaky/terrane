@@ -22,7 +22,7 @@ impl Accumulator {
     pub async fn add_many(&mut self, count: terrane_int_support::Int) {
         let mut i: terrane_int_support::Int;
         i = terrane_int_support::Int::from(0_i128);
-        '__terrane_break_0: while i.clone() < count.clone() {
+        '__terrane_break_0: while i < count {
             '__terrane_continue_0: {
                 self.increment();
             }
@@ -35,7 +35,7 @@ impl Accumulator {
     ) {
         let mut i: terrane_int_support::Int;
         i = terrane_int_support::Int::from(0_i128);
-        '__terrane_break_1: while i.clone() < count.clone() {
+        '__terrane_break_1: while i < count {
             '__terrane_continue_1: {
                 {
                     let __terrane_call_result = __terrane_shared_handle

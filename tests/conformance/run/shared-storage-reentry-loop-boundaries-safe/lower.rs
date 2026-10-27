@@ -106,7 +106,7 @@ fn main() {
     copy = hb.clone();
     total = terrane_int_support::Int::from(0_i128);
     i = terrane_int_support::Int::from(0_i128);
-    '__terrane_break_0: while i.clone() < terrane_int_support::Int::from(0_i128) {
+    '__terrane_break_0: while i < terrane_int_support::Int::from(0_i128) {
         '__terrane_continue_0: {
             copy = ha.clone();
         }
@@ -117,7 +117,7 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&outer(ha.clone(), copy.clone()))
     );
     i = terrane_int_support::Int::from(0_i128);
-    '__terrane_break_1: while i.clone() < terrane_int_support::Int::from(2_i128) {
+    '__terrane_break_1: while i < terrane_int_support::Int::from(2_i128) {
         '__terrane_continue_1: {
             copy = ha.clone();
             total = total.clone()
@@ -237,7 +237,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        if item.clone() == terrane_int_support::Int::from(1_i128) {
+        if item == terrane_int_support::Int::from(1_i128) {
             break;
         }
         copy = ha.clone();

@@ -695,7 +695,7 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = values.make_unique();
-        while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
+        while index < terrane_int_support::Int::from(encoded.len() as i128) {
             {
                 let __terrane_collection_argument_0 = NativeString::terrane_construct(
                     __terrane_raised(
@@ -886,11 +886,7 @@ pub fn parse_command_line(
         let __terrane_list_append_5 = option_names.make_unique();
         let __terrane_list_append_6 = option_values.make_unique();
         let __terrane_list_append_7 = positionals.make_unique();
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(supplied.length()),
-            )
-        {
+        while index < terrane_int_support::Int::from(supplied.length()) {
             argument = __terrane_raised(
                 supplied
                     .get_or_error(
@@ -938,9 +934,7 @@ pub fn parse_command_line(
                     };
                 } else if schema_has(schema.clone(), value_entry) {
                     if index.clone() + terrane_int_support::Int::from(1_i128)
-                        >= terrane_int_support::Int::from(
-                            terrane_int_support::Int::from(supplied.length()),
-                        )
+                        >= terrane_int_support::Int::from(supplied.length())
                     {
                         {
                             let __terrane_collection_argument_0 = index.clone();
@@ -1042,8 +1036,8 @@ impl ExitStatus {
 pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
     let mut result: ExitStatus;
     result = ExitStatus::terrane_construct();
-    if requested.clone() < terrane_int_support::Int::from(0_i128)
-        || requested.clone() > terrane_int_support::Int::from(255_i128)
+    if requested < terrane_int_support::Int::from(0_i128)
+        || requested > terrane_int_support::Int::from(255_i128)
     {
         {
             let __terrane_value = terrane_int_support::Int::from(255_i128);

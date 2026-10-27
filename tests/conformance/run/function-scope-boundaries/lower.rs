@@ -215,14 +215,14 @@ fn finite_unions(choose_first: bool, choose_second: bool) {
 fn loop_union(mut count: terrane_int_support::Int) {
     let mut value: TerraneUnionF0S1273;
     value = TerraneUnionF0S1273::Arm1(terrane_int_support::Int::from(10_i128));
-    while count.clone() < terrane_int_support::Int::from(3_i128) {
-        if count.clone() == terrane_int_support::Int::from(0_i128) {
+    while count < terrane_int_support::Int::from(3_i128) {
+        if count == terrane_int_support::Int::from(0_i128) {
             value = TerraneUnionF0S1273::Arm2(String::from("loop"));
         } else {
             value = TerraneUnionF0S1273::Arm0(true);
         }
         count = count.clone() + terrane_int_support::Int::from(1_i128);
-        if count.clone() == terrane_int_support::Int::from(2_i128) {
+        if count == terrane_int_support::Int::from(2_i128) {
             break;
         }
     }

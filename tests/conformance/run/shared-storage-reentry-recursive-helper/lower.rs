@@ -31,7 +31,7 @@ fn left(
     second: std::sync::Arc<TerraneSharedCell<Base>>,
     depth: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    if depth.clone() > terrane_int_support::Int::from(0_i128) {
+    if depth > terrane_int_support::Int::from(0_i128) {
         return right(
             second.clone(),
             first.clone(),
@@ -54,7 +54,7 @@ fn right(
     second: std::sync::Arc<TerraneSharedCell<Base>>,
     depth: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    if depth.clone() > terrane_int_support::Int::from(0_i128) {
+    if depth > terrane_int_support::Int::from(0_i128) {
         return left(
             first.clone(),
             second.clone(),

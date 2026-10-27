@@ -237,7 +237,7 @@ fn main() {
         let mut finished: Option<()> = None;
         let mut __terrane_select_cursor_508 = 0usize;
         iteration = terrane_int_support::Int::from(0_i128);
-        while iteration.clone() < terrane_int_support::Int::from(2_i128) {
+        while iteration < terrane_int_support::Int::from(2_i128) {
             {
                 let mut __terrane_select_guard_508 = __terrane_finally_guard();
                 let __terrane_select_control_508_0 = __terrane_select_control();

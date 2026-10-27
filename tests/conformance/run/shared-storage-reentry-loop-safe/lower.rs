@@ -192,7 +192,7 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         let _ = &item;
-        if item.clone() == terrane_int_support::Int::from(1_i128) {
+        if item == terrane_int_support::Int::from(1_i128) {
             break;
         }
         copy = ha.clone();
@@ -212,7 +212,7 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         let _ = &item;
-        if item.clone() == terrane_int_support::Int::from(1_i128) {
+        if item == terrane_int_support::Int::from(1_i128) {
             continue;
         }
         copy = ha.clone();

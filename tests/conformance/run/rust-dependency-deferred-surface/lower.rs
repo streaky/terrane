@@ -74,7 +74,7 @@ fn main() {
         4 /* terrane-site: src/main.trn:10:10-10:23 */,
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >
+        "{}", terrane_scalar_support::scalar_text(&(remaining >
         terrane_int_support::Int::from(0_i128)))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(&candidate).is_some()));

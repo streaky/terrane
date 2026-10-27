@@ -50,7 +50,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&value.name));
     println!("{}", String::from("after-if"));
     count = terrane_int_support::Int::from(0_i128);
-    while count.clone() < terrane_int_support::Int::from(2_i128) {
+    while count < terrane_int_support::Int::from(2_i128) {
         value = Marker::terrane_construct(String::from("loop"));
         println!("{}", terrane_scalar_support::scalar_text(&value.name));
         count = count.clone() + terrane_int_support::Int::from(1_i128);

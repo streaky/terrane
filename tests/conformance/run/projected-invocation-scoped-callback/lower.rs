@@ -532,7 +532,7 @@ fn boot() -> MutableState {
     );
 }
 fn update(state: &mut MutableState, message: terrane_int_support::Int) {
-    if message.clone() == terrane_int_support::Int::from(1_i128) {
+    if message == terrane_int_support::Int::from(1_i128) {
         __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| {

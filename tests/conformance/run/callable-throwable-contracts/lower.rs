@@ -37,7 +37,7 @@ impl Formatter {
         &self,
         value: terrane_int_support::Int,
     ) -> Result<String, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err(
                 TerraneError::raised(
                     TerraneErrorKind::CoercionError,
@@ -92,7 +92,7 @@ fn loud_render(value: terrane_int_support::Int) -> String {
     return String::from("loud");
 }
 fn custom_render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
-    if value.clone() < terrane_int_support::Int::from(0_i128) {
+    if value < terrane_int_support::Int::from(0_i128) {
         return Err({
             let value = LocalError::terrane_construct();
             let rendered = value.render();
@@ -139,7 +139,7 @@ impl CallableHolder {
     }
 }
 async fn async_render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
-    if value.clone() < terrane_int_support::Int::from(0_i128) {
+    if value < terrane_int_support::Int::from(0_i128) {
         return Err(
             TerraneError::raised(
                 TerraneErrorKind::CoercionError,
@@ -290,7 +290,7 @@ fn main() {
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> Result<String, TerraneError> {
-                if value.clone() < terrane_int_support::Int::from(0_i128) {
+                if value < terrane_int_support::Int::from(0_i128) {
                     return Err(
                         TerraneError::raised(
                             TerraneErrorKind::CoercionError,
@@ -304,7 +304,7 @@ fn main() {
         broad_closure = {
             let callable = {
                 std::sync::Arc::new(move |value: terrane_int_support::Int| -> String {
-                    if value.clone() < terrane_int_support::Int::from(0_i128) {
+                    if value < terrane_int_support::Int::from(0_i128) {
                         return String::from("negative");
                     }
                     return String::from("wide-closure");
@@ -321,7 +321,7 @@ fn main() {
                     value: terrane_int_support::Int,
                 | -> std::pin::Pin<Box<dyn Future<Output = String> + Send>> {
                     Box::pin(async move {
-                        if value.clone() < terrane_int_support::Int::from(0_i128) {
+                        if value < terrane_int_support::Int::from(0_i128) {
                             return String::from("negative");
                         }
                         return String::from("wide-async");

@@ -1022,9 +1022,7 @@ impl WriteResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        if completed == terrane_int_support::Int::from(data.len() as i128) && !failed {
             {
                 let __terrane_value = Vec::<u8>::from([]);
                 self.data = __terrane_value;
@@ -1100,7 +1098,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -1132,7 +1130,7 @@ impl ByteReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -1157,7 +1155,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -1274,9 +1272,7 @@ impl ByteWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -1457,7 +1453,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -1489,7 +1485,7 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -1523,7 +1519,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < limit.clone() && !end && !failed {
+        while completed < limit && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
@@ -1656,9 +1652,7 @@ impl TextWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,

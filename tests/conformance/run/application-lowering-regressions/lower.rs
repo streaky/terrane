@@ -46,7 +46,7 @@ fn main() {
             println!("{}", terrane_scalar_support::scalar_text(&part));
         }
         counter = terrane_int_support::Int::from(0_i128);
-        while counter.clone() < terrane_int_support::Int::from(2_i128) {
+        while counter < terrane_int_support::Int::from(2_i128) {
             println!("{}", terrane_scalar_support::scalar_text(&counter));
             counter = counter.clone() + terrane_int_support::Int::from(1_i128);
         }

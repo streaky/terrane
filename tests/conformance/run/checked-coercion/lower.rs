@@ -7,7 +7,7 @@ terrane_int_support::Int::from(100_i128));
 fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
     let mut result: i8;
     result = 0;
-    if item.clone() > terrane_int_support::Int::from(0_i128) {
+    if item > terrane_int_support::Int::from(0_i128) {
         result = __terrane_raised_err(
             terrane_int_support::coerce::<i8>(&item),
             0 /* terrane-site: case.trn:9:14-9:18 */,

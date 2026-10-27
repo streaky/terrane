@@ -21,7 +21,7 @@ fn main() {
         let mut text: String;
         let mut __terrane_select_cursor_275 = 0usize;
         count = terrane_int_support::Int::from(0_i128);
-        while count.clone() < terrane_int_support::Int::from(4_i128) {
+        while count < terrane_int_support::Int::from(4_i128) {
             {
                 let mut __terrane_select_guard_275 = __terrane_finally_guard();
                 let __terrane_select_control_275_0 = __terrane_select_control();

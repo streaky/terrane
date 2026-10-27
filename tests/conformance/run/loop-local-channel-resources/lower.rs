@@ -13,7 +13,7 @@ fn main() {
         let mut value: Option<terrane_int_support::Int>;
         let mut remaining: terrane_collection_support::List<terrane_int_support::Int>;
         index = terrane_int_support::Int::from(0_i128);
-        while index.clone() < terrane_int_support::Int::from(2_i128) {
+        while index < terrane_int_support::Int::from(2_i128) {
             pair = TerraneChannelPair::new(
                 terrane_collection_support::index_from_int(
                         &terrane_int_support::Int::from(1_i128),

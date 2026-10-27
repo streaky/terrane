@@ -441,7 +441,7 @@ fn decode_account(document: DocumentValue) -> AccountDecoded {
     }
     key_count = document.length();
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone() < key_count.clone() {
+    while index < key_count {
         key = document.key(index.clone());
         if key.as_str() != "accountId" && key.as_str() != "label"
             && key.as_str() != "active" && key.as_str() != "age"
@@ -847,7 +847,7 @@ fn decode_profile(document: DocumentValue) -> ProfileDecoded {
     }
     key_count = document.length();
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone() < key_count.clone() {
+    while index < key_count {
         key = document.key(index.clone());
         if key.as_str() != "handle" {
             return fail_decoded_terrane_generated_annotation_codec_codec_model_profile({

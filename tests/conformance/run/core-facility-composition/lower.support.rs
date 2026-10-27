@@ -2059,9 +2059,7 @@ impl WriteResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        if completed == terrane_int_support::Int::from(data.len() as i128) && !failed {
             {
                 let __terrane_value = Vec::<u8>::from([]);
                 self.data = __terrane_value;
@@ -2137,7 +2135,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -2169,7 +2167,7 @@ impl ByteReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -2194,7 +2192,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -2311,9 +2309,7 @@ impl ByteWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -2494,7 +2490,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -2526,7 +2522,7 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -2560,7 +2556,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < limit.clone() && !end && !failed {
+        while completed < limit && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
@@ -2693,9 +2689,7 @@ impl TextWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -2847,7 +2841,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = result.make_unique();
-        while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
+        while index < terrane_int_support::Int::from(parts.len() as i128) {
             part = __terrane_raised(
                 {
                     let __terrane_receiver = &parts;
@@ -2892,7 +2886,7 @@ pub fn normalise_path(subject: Path) -> Path {
     kept = terrane_collection_support::List::<String>::new(vec![]);
     count = terrane_int_support::Int::from(0_i128);
     part_index = terrane_int_support::Int::from(0_i128);
-    while part_index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
+    while part_index < terrane_int_support::Int::from(parts.len() as i128) {
         part = __terrane_raised(
             {
                 let __terrane_receiver = &parts;
@@ -2911,7 +2905,7 @@ pub fn normalise_path(subject: Path) -> Path {
         );
         if part.as_str() != "" && part.as_str() != "." {
             if part.as_str() == ".." {
-                if count.clone() > terrane_int_support::Int::from(0_i128)
+                if count > terrane_int_support::Int::from(0_i128)
                     && __terrane_raised(
                             kept
                                 .get_or_error(
@@ -2929,11 +2923,7 @@ pub fn normalise_path(subject: Path) -> Path {
                     count = count.clone() - terrane_int_support::Int::from(1_i128);
                 } else {
                     if !absolute {
-                        if count.clone()
-                            < terrane_int_support::Int::from(
-                                terrane_int_support::Int::from(kept.length()),
-                            )
-                        {
+                        if count < terrane_int_support::Int::from(kept.length()) {
                             {
                                 let __terrane_collection_argument_0 = __terrane_raised(
                                     terrane_collection_support::index_from_int(&count.clone()),
@@ -2959,11 +2949,7 @@ pub fn normalise_path(subject: Path) -> Path {
                     }
                 }
             } else {
-                if count.clone()
-                    < terrane_int_support::Int::from(
-                        terrane_int_support::Int::from(kept.length()),
-                    )
-                {
+                if count < terrane_int_support::Int::from(kept.length()) {
                     {
                         let __terrane_collection_argument_0 = __terrane_raised(
                             terrane_collection_support::index_from_int(&count.clone()),
@@ -2992,7 +2978,7 @@ pub fn normalise_path(subject: Path) -> Path {
     }
     result = String::from("");
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone() < count.clone() {
+    while index < count {
         if result.as_str() != "" {
             result = {
                 let mut __terrane_text = String::with_capacity(1);
@@ -3048,7 +3034,7 @@ pub fn path_name(subject: Path) -> String {
     let parts: terrane_collection_support::List<String>;
     normal = normalise_path(subject);
     parts = path_components(normal);
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
+    if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(0_i128)
     {
         return String::from("");
@@ -3058,9 +3044,8 @@ pub fn path_name(subject: Path) -> String {
             .get_or_error(
                 __terrane_raised(
                     terrane_collection_support::index_from_int(
-                        &(terrane_int_support::Int::from(
-                            terrane_int_support::Int::from(parts.length()),
-                        ) - terrane_int_support::Int::from(1_i128)),
+                        &(terrane_int_support::Int::from(parts.length())
+                            - terrane_int_support::Int::from(1_i128)),
                     ),
                     9 /* terrane-site: core/paths.trn:69:12-69:35 */,
                 ),
@@ -3076,20 +3061,20 @@ pub fn path_parent(subject: Path) -> Path {
     let absolute: bool;
     normal = normalise_path(subject);
     parts = path_components(normal.clone());
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
+    if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(0_i128)
     {
         return normal.clone();
     }
-    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
+    if terrane_int_support::Int::from(parts.length())
         == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
     {
         return Path::terrane_construct(String::from("."));
     }
     result = String::from("");
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
+    while index
+        < terrane_int_support::Int::from(parts.length())
             - terrane_int_support::Int::from(1_i128)
     {
         if result.as_str() != "" {
@@ -3178,11 +3163,11 @@ pub fn path_stem(subject: Path) -> String {
     }
     result = String::from("");
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone()
+    while index
         < terrane_int_support::Int::from(pieces.len() as i128)
             - terrane_int_support::Int::from(1_i128)
     {
-        if index.clone() > terrane_int_support::Int::from(0_i128) {
+        if index > terrane_int_support::Int::from(0_i128) {
             result = {
                 let mut __terrane_text = String::with_capacity(1);
                 terrane_scalar_support::ScalarDisplay::write_scalar(

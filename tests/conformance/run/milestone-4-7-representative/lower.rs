@@ -32,7 +32,7 @@ fn main() {
         terrane_string_support::length(&String::from("a🇺🇳")) as i128,
     );
     converted = terrane_int_support::saturating_coerce::<u8>(&300);
-    if count.clone() == terrane_int_support::Int::from(2_i128) {
+    if count == terrane_int_support::Int::from(2_i128) {
         println!("{}", terrane_scalar_support::scalar_text(&joined));
     }
     println!("{}", terrane_scalar_support::scalar_text(&converted));

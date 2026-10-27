@@ -492,7 +492,7 @@ fn main() {
         stress_tx = stress_pair.sender;
         stress_rx = stress_pair.receiver;
         index = terrane_int_support::Int::from(0_i128);
-        while index.clone() < terrane_int_support::Int::from(10000_i128) {
+        while index < terrane_int_support::Int::from(10000_i128) {
             stress_send = __terrane_await(Box::pin(stress_tx.send(index.clone()))).await;
             index = index.clone() + terrane_int_support::Int::from(1_i128);
             if stress_send.closed {
@@ -501,7 +501,7 @@ fn main() {
         }
         stress_tx.close();
         remaining = terrane_int_support::Int::from(4_i128);
-        while remaining.clone() > terrane_int_support::Int::from(0_i128) {
+        while remaining > terrane_int_support::Int::from(0_i128) {
             stress_received = __terrane_await(Box::pin(stress_rx.receive())).await;
             stress_value = stress_received.value;
             if (&stress_value).is_some() {

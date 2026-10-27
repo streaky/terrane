@@ -24,3 +24,11 @@ function main;
     beyond int = 9223372036854775808
     maximum int64 = 9223372036854775807
     print; beyond > maximum, ',', maximum < beyond
+    large int = 340282366920938463463374607431768211456
+    current int|none = large
+    bound int = large
+    for step in values
+        if current != none
+            print; current >= bound, ',', (bound) == current
+            bound = bound + step
+    print; large
