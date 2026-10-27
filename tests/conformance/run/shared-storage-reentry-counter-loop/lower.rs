@@ -71,7 +71,7 @@ fn main() {
     hb = b.clone();
     copy = hb.clone();
     i = terrane_int_support::Int::from(0_i128);
-    '__terrane_break_0: while i.clone() < terrane_int_support::Int::from(2_i128) {
+    '__terrane_break_0: while i < terrane_int_support::Int::from(2_i128) {
         '__terrane_continue_0: {
             copy = ha.clone();
         }

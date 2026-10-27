@@ -25,11 +25,10 @@ impl WorkItem {
         current = self.estimate.clone();
         if (&current).is_some() {
             return Some(
-                match &current {
+                match current {
                     Some(value) => value,
                     _ => unreachable!("flow-proven storage refinement"),
-                }
-                    .clone() + terrane_int_support::Int::from(1_i128),
+                } + terrane_int_support::Int::from(1_i128),
             );
         }
         return None;

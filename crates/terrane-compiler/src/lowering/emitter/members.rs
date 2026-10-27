@@ -92,6 +92,18 @@ fn float_extreme_call(
 }
 
 impl Emitter<'_> {
+    pub(super) fn length_yields_int(receiver_type: &ValueType) -> bool {
+        matches!(
+            receiver_type,
+            ValueType::List(_)
+                | ValueType::Map(_, _)
+                | ValueType::Set(_)
+                | ValueType::Tuple(_, _)
+                | ValueType::UnorderedMap(_, _)
+                | ValueType::UnorderedSet(_)
+        )
+    }
+
     #[expect(
         clippy::needless_pass_by_value,
         reason = "string-view dispatch matches the optional recursive receiver type as one decision"
@@ -1077,7 +1089,7 @@ impl Emitter<'_> {
                 };
                 format!("({receiver}).{method}() as i128")
             }
-            "length" => match receiver_type {
+            "length" => match &receiver_type {
                 Some(
                     ValueType::StringView(crate::semantics::TextUnit::Bytes)
                     | ValueType::Scalar(ScalarType::Bytes),
@@ -1091,14 +1103,9 @@ impl Emitter<'_> {
                     | ValueType::StringList
                     | ValueType::TextRangeList,
                 ) => format!("({receiver}).len() as i128"),
-                Some(
-                    ValueType::List(_)
-                    | ValueType::Map(_, _)
-                    | ValueType::Set(_)
-                    | ValueType::Tuple(_, _)
-                    | ValueType::UnorderedMap(_, _)
-                    | ValueType::UnorderedSet(_),
-                ) => format!("terrane_int_support::Int::from(({receiver}).length())"),
+                Some(receiver_type) if Self::length_yields_int(receiver_type) => {
+                    format!("terrane_int_support::Int::from(({receiver}).length())")
+                }
                 _ => format!("terrane_string_support::length(&{receiver}) as i128"),
             },
             "key" if matches!(receiver_type, Some(ValueType::Entry(_, _))) => {

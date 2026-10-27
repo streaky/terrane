@@ -33,8 +33,8 @@ fn main() {
     ambient = environment();
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(ambient
-        .length())) > terrane_int_support::Int::from(0_i128)))
+        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(ambient
+        .length()) > terrane_int_support::Int::from(0_i128)))
     );
     schema_entries = terrane_collection_support::List::<
         String,

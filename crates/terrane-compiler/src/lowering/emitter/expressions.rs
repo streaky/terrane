@@ -1479,7 +1479,16 @@ impl Emitter<'_> {
                     .get(1)
                     .is_some_and(|member| self.text(member) == "length") =>
             {
-                format!("terrane_int_support::Int::from({})", self.expression(node))
+                let expression = self.expression(node);
+                if node.children.first().is_some_and(|receiver| {
+                    self.receiver_value_type(receiver)
+                        .as_ref()
+                        .is_some_and(Self::length_yields_int)
+                }) {
+                    expression
+                } else {
+                    format!("terrane_int_support::Int::from({expression})")
+                }
             }
             SyntaxKind::MemberExpression
                 if node.children.first().is_some_and(|receiver| {
@@ -1500,21 +1509,34 @@ impl Emitter<'_> {
         }
     }
 
-    pub(super) fn adaptive_binary(&mut self, node: &SyntaxNode) -> String {
-        let [left, right] = node.children.as_slice() else {
-            return String::new();
-        };
-        let operator = self.source.text()[left.span.end..right.span.start].trim();
-        let left = self.adaptive_expression(left);
-        let right = self.adaptive_expression(right);
-        match operator {
-            "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
-            "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
-            _ => format!("({left} {operator} {right})"),
+    fn adaptive_comparison_operand(&mut self, node: &SyntaxNode) -> String {
+        if node.kind == SyntaxKind::GroupExpression
+            && let [inner] = node.children.as_slice()
+        {
+            return self.adaptive_comparison_operand(inner);
         }
+        // Rust comparison operators borrow places, including dereferenced refinements.
+        // Shared/captured reads still need snapshots before evaluating a sibling operand.
+        if node.kind == SyntaxKind::Name
+            && self.is_adaptive_expression(node)
+            && self.small_int_binding(node).is_none()
+            && !self.async_mutable_captures.contains(self.text(node))
+            && let Some(binding) = self.local_typed_binding(node)
+            && !self.reference_backed(binding)
+        {
+            if let Some(value) = self.narrowed_storage_name(node, false, false) {
+                return format!("*{value}");
+            }
+            if self.binding_may_be_unassigned(binding) {
+                let value = self.available_storage_reference(binding, node, false);
+                return format!("*({value})");
+            }
+            return self.expression(node);
+        }
+        self.expression_as(node, ValueType::Scalar(ScalarType::Int))
     }
 
-    pub(super) fn adaptive_binary_as(&mut self, node: &SyntaxNode) -> String {
+    pub(super) fn adaptive_binary(&mut self, node: &SyntaxNode) -> String {
         let [left, right] = node.children.as_slice() else {
             return String::new();
         };
@@ -1816,13 +1838,16 @@ impl Emitter<'_> {
             };
             return format!("({left} {source_operator} {right})");
         }
-        if self.is_adaptive_expression(left)
-            && matches!(source_operator, "==" | "!=" | "<" | "<=" | ">" | ">=")
+        if comparison
+            && (self.is_adaptive_expression(left)
+                || self.numeric_operation_type(left, right) == Some(ScalarType::Int))
         {
-            return self.adaptive_binary(node);
+            let left = self.adaptive_comparison_operand(left);
+            let right = self.adaptive_comparison_operand(right);
+            return format!("({left} {source_operator} {right})");
         }
         if self.value_type(node) == Some(ValueType::Scalar(ScalarType::Int)) {
-            return self.adaptive_binary_as(node);
+            return self.adaptive_binary(node);
         }
         if let Some(ValueType::Scalar(operation_type)) = self.value_type(node)
             && operation_type.is_integer()

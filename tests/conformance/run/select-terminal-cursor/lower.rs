@@ -37,7 +37,7 @@ fn main() {
         let mut value: Option<TerraneUnionF0S291> = None;
         let mut __terrane_select_cursor_271 = 0usize;
         iteration = terrane_int_support::Int::from(0_i128);
-        while iteration.clone() < terrane_int_support::Int::from(2_i128) {
+        while iteration < terrane_int_support::Int::from(2_i128) {
             let __terrane_completion_0: TerraneCompletion<()> = async {
                 let __terrane_try_0: TerraneCompletion<()> = async {
                     {

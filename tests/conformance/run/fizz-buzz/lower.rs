@@ -5,7 +5,7 @@ include!("lower.support.rs");
 fn main() {
     let mut number: terrane_int_support::Int;
     number = terrane_int_support::Int::from(1_i128);
-    while number.clone() <= terrane_int_support::Int::from(15_i128) {
+    while number <= terrane_int_support::Int::from(15_i128) {
         if __terrane_raised(
             number.clone().modulo(&terrane_int_support::Int::from(15_i128)),
             0 /* terrane-site: case.trn:6:8-6:19 */,

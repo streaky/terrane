@@ -152,9 +152,7 @@ fn main() {
         std::sync::Arc::new(move |
             values: terrane_collection_support::List<terrane_int_support::Int>,
         | -> terrane_int_support::Int {
-            return terrane_int_support::Int::from(
-                terrane_int_support::Int::from(values.length()),
-            );
+            return terrane_int_support::Int::from(values.length());
         })
     };
     println!(

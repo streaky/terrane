@@ -100,13 +100,13 @@ pub(super) fn selected_target(
             .get("build.target")
             .or_else(|| config.get("build").and_then(|build| build.get("target")));
         return match target {
-            Some(serde_json::Value::String(target)) => Ok(target.clone()),
-            Some(serde_json::Value::Array(targets)) if targets.len() == 1 => targets[0]
-                .as_str()
-                .map(str::to_owned)
-                .ok_or_else(|| ProjectionError {
+            Some(serde_json::Value::String(target)) => resolve_configured_target(workspace, target),
+            Some(serde_json::Value::Array(targets)) if targets.len() == 1 => {
+                let target = targets[0].as_str().ok_or_else(|| ProjectionError {
                     message: "Cargo build target configuration is not a string".to_owned(),
-                }),
+                })?;
+                resolve_configured_target(workspace, target)
+            }
             Some(serde_json::Value::Array(_)) => Err(ProjectionError {
                 message: "dependency projection requires exactly one Cargo build target".to_owned(),
             }),
@@ -124,10 +124,74 @@ pub(super) fn selected_target(
             ),
         });
     }
-    Ok(rustc_verbose_version
+    host_target(rustc_verbose_version)
+}
+
+fn host_target(rustc_verbose_version: &str) -> Result<String, ProjectionError> {
+    rustc_verbose_version
         .lines()
         .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
-        .unwrap_or_else(|| "unknown-target".to_owned()))
+        .ok_or_else(|| ProjectionError {
+            message: "cannot determine host target: `rustc -vV` did not report a `host:` line"
+                .to_owned(),
+        })
+}
+
+fn resolve_configured_target(workspace: &Path, target: &str) -> Result<String, ProjectionError> {
+    let path = Path::new(target);
+    if path.is_absolute() || path.extension().is_none_or(|extension| extension != "json") {
+        return Ok(target.to_owned());
+    }
+    let output = Command::new("cargo")
+        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .args([
+            "-Z",
+            "unstable-options",
+            "config",
+            "get",
+            "build.target",
+            "--show-origin",
+        ])
+        .current_dir(workspace)
+        .output()
+        .map_err(|error| ProjectionError {
+            message: format!("cannot inspect Cargo build target origin: {error}"),
+        })?;
+    if !output.status.success() {
+        return Err(ProjectionError {
+            message: format!(
+                "cannot inspect Cargo build target origin: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        });
+    }
+    let output = String::from_utf8_lossy(&output.stdout);
+    let origin = output
+        .lines()
+        .find_map(|line| line.rsplit_once(" # ").map(|(_, origin)| origin.trim()))
+        .ok_or_else(|| ProjectionError {
+            message: "Cargo did not report the origin of its relative JSON build target".to_owned(),
+        })?;
+    let config = Path::new(origin);
+    let config = if config.is_absolute() {
+        config.to_path_buf()
+    } else {
+        workspace.join(config)
+    };
+    let cargo_config_dir = config
+        .parent()
+        .and_then(Path::parent)
+        .unwrap_or_else(|| Path::new("."));
+    let target_path = cargo_config_dir.join(path);
+    target_path
+        .canonicalize()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| ProjectionError {
+            message: format!(
+                "cannot resolve Cargo's relative JSON build target `{target}` from `{}`: {error}",
+                config.display()
+            ),
+        })
 }
 
 fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {

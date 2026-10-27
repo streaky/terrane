@@ -350,15 +350,13 @@ fn main() {
     break_index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_6 = three_clause_break.make_unique();
-        '__terrane_break_3: while break_index.clone()
-            < terrane_int_support::Int::from(10_i128)
-        {
+        '__terrane_break_3: while break_index < terrane_int_support::Int::from(10_i128) {
             '__terrane_continue_3: {
                 {
                     let __terrane_collection_argument_0 = break_index.clone();
                     __terrane_list_append_6.push(__terrane_collection_argument_0);
                 };
-                if break_index.clone() > terrane_int_support::Int::from(2_i128) {
+                if break_index > terrane_int_support::Int::from(2_i128) {
                     break '__terrane_break_3;
                 }
             }
@@ -377,9 +375,7 @@ fn main() {
         terrane_int_support::Int,
     >::new(Vec::new());
     update_index = terrane_int_support::Int::from(0_i128);
-    '__terrane_break_4: while update_index.clone()
-        < terrane_int_support::Int::from(3_i128)
-    {
+    '__terrane_break_4: while update_index < terrane_int_support::Int::from(3_i128) {
         '__terrane_continue_4: {
             {
                 let __terrane_collection_argument_0 = update_index.clone();
@@ -387,12 +383,8 @@ fn main() {
             };
         }
         update_index = update_index.clone() + terrane_int_support::Int::from(1_i128)
-            + terrane_int_support::Int::from(
-                terrane_int_support::Int::from(update_observed.length()),
-            )
-            - terrane_int_support::Int::from(
-                terrane_int_support::Int::from(update_observed.length()),
-            );
+            + terrane_int_support::Int::from(update_observed.length())
+            - terrane_int_support::Int::from(update_observed.length());
     }
     println!(
         "{}",
@@ -403,14 +395,10 @@ fn main() {
         terrane_int_support::Int,
     >::new(Vec::new());
     condition_index = terrane_int_support::Int::from(0_i128);
-    '__terrane_break_5: while condition_index.clone()
+    '__terrane_break_5: while condition_index
         < terrane_int_support::Int::from(4_i128)
-            + terrane_int_support::Int::from(
-                terrane_int_support::Int::from(condition_observed.length()),
-            )
-            - terrane_int_support::Int::from(
-                terrane_int_support::Int::from(condition_observed.length()),
-            )
+            + terrane_int_support::Int::from(condition_observed.length())
+            - terrane_int_support::Int::from(condition_observed.length())
     {
         '__terrane_continue_5: {
             {
@@ -901,9 +889,7 @@ fn main() {
     dynamically_reentered = terrane_collection_support::List::<i64>::new(Vec::new());
     outer_builder_index = 0;
     while outer_builder_index < 3 {
-        observed_length = terrane_int_support::Int::from(
-            terrane_int_support::Int::from(dynamically_reentered.length()),
-        );
+        observed_length = terrane_int_support::Int::from(dynamically_reentered.length());
         let _ = &observed_length;
         inner_builder_index = 0;
         {

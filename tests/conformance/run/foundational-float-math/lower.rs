@@ -66,8 +66,8 @@ fn main() {
     };
     println!(
         "{}{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(pair32
-        .length())) == terrane_int_support::Int::from(2_i128))),
+        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(pair32
+        .length()) == terrane_int_support::Int::from(2_i128))),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:13:30-13:39 */)), 0 /* terrane-site: case.trn:13:30-13:39 */) == 0.0_f32)),
@@ -109,8 +109,8 @@ fn main() {
     };
     println!(
         "{}{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(terrane_int_support::Int::from(pair64
-        .length())) == terrane_int_support::Int::from(2_i128))),
+        terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from(pair64
+        .length()) == terrane_int_support::Int::from(2_i128))),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         2 /* terrane-site: case.trn:24:30-24:39 */)), 2 /* terrane-site: case.trn:24:30-24:39 */) == 0.0)),

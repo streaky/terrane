@@ -127,7 +127,7 @@ async fn choose(depth: terrane_int_support::Int) -> String {
                 let _ = __terrane_select_result_317_0
                     .take()
                     .expect("selected case owns its ready result");
-                if depth.clone() > terrane_int_support::Int::from(0_i128) {
+                if depth > terrane_int_support::Int::from(0_i128) {
                     recurse = recursive_choose();
                     return __terrane_await(
                             recurse(

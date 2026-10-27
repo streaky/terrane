@@ -49,7 +49,7 @@ fn main() {
                 source = Holder::terrane_construct();
                 group = TerraneTaskGroup::<terrane_int_support::Int>::new();
                 index = terrane_int_support::Int::from(1_i128);
-                while index.clone() <= terrane_int_support::Int::from(3_i128) {
+                while index <= terrane_int_support::Int::from(3_i128) {
                     {
                         let __terrane_child = {
                             let __terrane_scope = group.scope();
@@ -99,7 +99,7 @@ fn main() {
                     }
                 }
                 println!(
-                    "{}", terrane_scalar_support::scalar_text(&(total.clone() ==
+                    "{}", terrane_scalar_support::scalar_text(&(total ==
                     terrane_int_support::Int::from(27_i128)))
                 );
                 println!(

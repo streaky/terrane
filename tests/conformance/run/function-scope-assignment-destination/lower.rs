@@ -7,7 +7,7 @@ fn optional_result(choose: bool) -> Option<String> {
     let mut count: terrane_int_support::Int;
     result = None;
     count = terrane_int_support::Int::from(0_i128);
-    while count.clone() < terrane_int_support::Int::from(2_i128) {
+    while count < terrane_int_support::Int::from(2_i128) {
         if choose {
             result = Some(String::from("found"));
         }

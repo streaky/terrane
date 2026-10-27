@@ -597,11 +597,7 @@ impl UrlQuery {
     pub fn get(&self, name: String) -> String {
         let mut index: terrane_int_support::Int;
         index = terrane_int_support::Int::from(0_i128);
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(self.keys.length()),
-            )
-        {
+        while index < terrane_int_support::Int::from(self.keys.length()) {
             if __terrane_raised(
                     self
                         .keys
@@ -638,11 +634,7 @@ impl UrlQuery {
         index = terrane_int_support::Int::from(0_i128);
         {
             let __terrane_list_append_0 = result.make_unique();
-            while index.clone()
-                < terrane_int_support::Int::from(
-                    terrane_int_support::Int::from(self.keys.length()),
-                )
-            {
+            while index < terrane_int_support::Int::from(self.keys.length()) {
                 if __terrane_raised(
                         self
                             .keys
@@ -888,7 +880,7 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
     query = UrlQuery::terrane_construct();
     count = terrane_url_query_length(&raw);
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone() < count.clone() {
+    while index < count {
         query = append_query_entry(
             query,
             terrane_url_query_key(&raw, index.clone()),

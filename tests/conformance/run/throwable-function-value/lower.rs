@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: case.trn
 // Namespace: throwable-function-value
 fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
-    if value.clone() < terrane_int_support::Int::from(0_i128) {
+    if value < terrane_int_support::Int::from(0_i128) {
         return Err(
             TerraneError::raised(
                 TerraneErrorKind::CoercionError,

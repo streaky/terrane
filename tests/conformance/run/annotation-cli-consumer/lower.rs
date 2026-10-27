@@ -13,7 +13,7 @@ fn greet(name: String, limit: terrane_int_support::Int) -> terrane_int_support::
 fn main() {
     let status: terrane_int_support::Int;
     status = run_command();
-    if status.clone() != terrane_int_support::Int::from(0_i128) {
+    if status != terrane_int_support::Int::from(0_i128) {
         __terrane_uncaught(
             TerraneError::raised(
                 TerraneErrorKind::CoercionError,
@@ -75,15 +75,11 @@ fn run_command() -> terrane_int_support::Int {
     };
     schema = CliSchema::terrane_construct(schema_entries);
     parsed = parse_command_line(schema, user_arguments);
-    if terrane_int_support::Int::from(
-        terrane_int_support::Int::from(parsed.diagnostic_messages.length()),
-    ) > terrane_int_support::Int::from(0_i128)
+    if terrane_int_support::Int::from(parsed.diagnostic_messages.length())
+        > terrane_int_support::Int::from(0_i128)
     {
         index = terrane_int_support::Int::from(0_i128);
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(parsed.diagnostic_messages.length()),
-            )
+        while index < terrane_int_support::Int::from(parsed.diagnostic_messages.length())
         {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&__terrane_raised(parsed
@@ -95,9 +91,8 @@ fn run_command() -> terrane_int_support::Int {
         }
         return terrane_int_support::Int::from(2_i128);
     }
-    if terrane_int_support::Int::from(
-        terrane_int_support::Int::from(parsed.flags.length()),
-    ) > terrane_int_support::Int::from(0_i128)
+    if terrane_int_support::Int::from(parsed.flags.length())
+        > terrane_int_support::Int::from(0_i128)
     {
         println!("{}", String::from("Usage: greet [options]"));
         println!("{}", String::from("Configured command summary"));
@@ -110,11 +105,7 @@ fn run_command() -> terrane_int_support::Int {
     seen_name = false;
     limit = terrane_int_support::Int::from(10_i128);
     option_index = terrane_int_support::Int::from(0_i128);
-    while option_index.clone()
-        < terrane_int_support::Int::from(
-            terrane_int_support::Int::from(parsed.option_names.length()),
-        )
-    {
+    while option_index < terrane_int_support::Int::from(parsed.option_names.length()) {
         option_name = __terrane_raised(
             parsed
                 .option_names

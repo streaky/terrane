@@ -74,7 +74,7 @@ fn main() {
         .as_str()))
     );
     index = terrane_int_support::Int::from(0_i128);
-    while index.clone() < terrane_int_support::Int::from(2_i128) {
+    while index < terrane_int_support::Int::from(2_i128) {
         observed = {
             let value = value.clone();
             value

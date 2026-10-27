@@ -41,9 +41,9 @@ fn condition(value: bool, name: String) -> bool {
     return value;
 }
 fn describe(value: terrane_int_support::Int) -> String {
-    if value.clone() == terrane_int_support::Int::from(0_i128) {
+    if value == terrane_int_support::Int::from(0_i128) {
         return String::from("empty");
-    } else if value.clone() < terrane_int_support::Int::from(10_i128) {
+    } else if value < terrane_int_support::Int::from(10_i128) {
         return String::from("small");
     } else {
         return String::from("large");

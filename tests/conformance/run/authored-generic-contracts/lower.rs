@@ -54,7 +54,7 @@ fn apply<TerraneType54, TerraneType55>(
     return transform(value);
 }
 fn label(value: terrane_int_support::Int) -> String {
-    if value.clone() == terrane_int_support::Int::from(41_i128) {
+    if value == terrane_int_support::Int::from(41_i128) {
         return String::from("forty-one");
     }
     return String::from("other");

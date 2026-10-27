@@ -216,6 +216,13 @@ pub fn resolve(
             &package_spec,
             &crate_name,
             &dependency.package,
+            super::reexports::rustdoc_target(
+                &metadata,
+                &package_spec,
+                &crate_name,
+                &dependency.package,
+                &target,
+            ),
             sandbox,
             false,
         )?;

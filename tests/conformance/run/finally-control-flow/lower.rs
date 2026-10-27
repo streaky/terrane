@@ -100,14 +100,14 @@ fn main() {
     caught_value = caught();
     println!("{}", terrane_scalar_support::scalar_text(&caught_value));
     counter = terrane_int_support::Int::from(0_i128);
-    while counter.clone() < terrane_int_support::Int::from(3_i128) {
+    while counter < terrane_int_support::Int::from(3_i128) {
         counter = counter.clone() + terrane_int_support::Int::from(1_i128);
         let mut __terrane_completion_2: TerraneCompletion<()> = (|| {
             let __terrane_try_2: TerraneCompletion<()> = (|| {
-                if counter.clone() == terrane_int_support::Int::from(1_i128) {
+                if counter == terrane_int_support::Int::from(1_i128) {
                     return TerraneCompletion::Continue;
                 }
-                if counter.clone() == terrane_int_support::Int::from(2_i128) {
+                if counter == terrane_int_support::Int::from(2_i128) {
                     return TerraneCompletion::Break;
                 }
                 TerraneCompletion::Normal

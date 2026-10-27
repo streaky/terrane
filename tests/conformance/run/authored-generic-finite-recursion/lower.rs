@@ -5,7 +5,7 @@ fn count_down<TerraneType54>(
     value: TerraneType54,
     count: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    if count.clone() == terrane_int_support::Int::from(0_i128) {
+    if count == terrane_int_support::Int::from(0_i128) {
         return terrane_int_support::Int::from(0_i128);
     }
     return count_down(value, count.clone() - terrane_int_support::Int::from(1_i128));
@@ -36,7 +36,7 @@ impl<
         &self,
         count: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        if count.clone() == terrane_int_support::Int::from(0_i128) {
+        if count == terrane_int_support::Int::from(0_i128) {
             return terrane_int_support::Int::from(0_i128);
         }
         return self.count_down(count.clone() - terrane_int_support::Int::from(1_i128));

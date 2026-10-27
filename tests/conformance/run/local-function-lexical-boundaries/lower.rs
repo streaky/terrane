@@ -17,7 +17,7 @@ fn outer() -> String {
 }
 fn factorial() -> terrane_int_support::Int {
     fn fact(n: terrane_int_support::Int) -> terrane_int_support::Int {
-        if n.clone() <= terrane_int_support::Int::from(1_i128) {
+        if n <= terrane_int_support::Int::from(1_i128) {
             return terrane_int_support::Int::from(1_i128);
         }
         return n.clone() * fact(n.clone() - terrane_int_support::Int::from(1_i128));
@@ -34,13 +34,13 @@ fn forward() -> terrane_int_support::Int {
 }
 fn parity(value: terrane_int_support::Int) -> terrane_int_support::Int {
     fn even(n: terrane_int_support::Int) -> bool {
-        if n.clone() == terrane_int_support::Int::from(0_i128) {
+        if n == terrane_int_support::Int::from(0_i128) {
             return true;
         }
         return odd(n.clone() - terrane_int_support::Int::from(1_i128));
     }
     fn odd(n: terrane_int_support::Int) -> bool {
-        if n.clone() == terrane_int_support::Int::from(0_i128) {
+        if n == terrane_int_support::Int::from(0_i128) {
             return false;
         }
         return even(n.clone() - terrane_int_support::Int::from(1_i128));

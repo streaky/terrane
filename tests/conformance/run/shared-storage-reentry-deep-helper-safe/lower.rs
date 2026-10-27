@@ -95,7 +95,7 @@ fn cycle_left(
     >,
     depth: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    if depth.clone() > terrane_int_support::Int::from(0_i128) {
+    if depth > terrane_int_support::Int::from(0_i128) {
         return cycle_right(
             second.clone(),
             first.clone(),
@@ -132,7 +132,7 @@ fn cycle_right(
     >,
     depth: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    if depth.clone() > terrane_int_support::Int::from(0_i128) {
+    if depth > terrane_int_support::Int::from(0_i128) {
         return cycle_left(
             first.clone(),
             second.clone(),

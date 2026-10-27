@@ -18,11 +18,10 @@ fn main() {
     if (&current).is_some() {
         {
             let __terrane_key = String::from("apple");
-            let __terrane_value = match &current {
+            let __terrane_value = match current {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
-            }
-                .clone() + terrane_int_support::Int::from(1_i128);
+            } + terrane_int_support::Int::from(1_i128);
             counts.set(__terrane_key, __terrane_value);
         }
     }

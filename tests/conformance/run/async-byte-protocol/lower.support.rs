@@ -3131,7 +3131,7 @@ impl TcpStream {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
         let mut part: ReadResult;
-        if count.clone() < terrane_int_support::Int::from(0_i128) {
+        if count < terrane_int_support::Int::from(0_i128) {
             return __terrane_await(self.read_async(count.clone(), options.clone()))
                 .await;
         }
@@ -3177,7 +3177,7 @@ impl TcpStream {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
         let mut part: ReadResult;
-        if count.clone() < terrane_int_support::Int::from(0_i128) {
+        if count < terrane_int_support::Int::from(0_i128) {
             return __terrane_await({
                     let __terrane_shared_call_handle = __terrane_shared_handle.clone();
                     let __terrane_shared_argument_0 = count.clone();
@@ -4360,9 +4360,7 @@ pub async fn lookup_dns(
     index = terrane_int_support::Int::from(0_i128);
     {
         let __terrane_list_append_0 = candidates.make_unique();
-        while index.clone()
-            < terrane_int_support::Int::from(raw_candidates.len() as i128)
-        {
+        while index < terrane_int_support::Int::from(raw_candidates.len() as i128) {
             {
                 let __terrane_collection_argument_0 = __terrane_raised(
                     {
@@ -4837,9 +4835,7 @@ impl WriteResult {
         message: String,
         deadline_exceeded: bool,
     ) {
-        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        if completed == terrane_int_support::Int::from(data.len() as i128) && !failed {
             {
                 let __terrane_value = Vec::<u8>::from([]);
                 self.data = __terrane_value;
@@ -4931,7 +4927,7 @@ impl ExactReadProgress {
             let __terrane_value = message.clone();
             self.message = __terrane_value;
         }
-        if completed.clone() == terrane_int_support::Int::from(0_i128) && !end && !failed
+        if completed == terrane_int_support::Int::from(0_i128) && !end && !failed
             && !deadline_exceeded
         {
             {
@@ -4983,8 +4979,7 @@ impl WriteProgress {
         }
     }
     pub fn pending(&self, count: terrane_int_support::Int) -> bool {
-        return self.completed.clone() < count.clone() && !self.failed
-            && !self.deadline_exceeded;
+        return self.completed.clone() < count && !self.failed && !self.deadline_exceeded;
     }
     pub fn advance(
         &mut self,
@@ -5009,7 +5004,7 @@ impl WriteProgress {
             let __terrane_value = message.clone();
             self.message = __terrane_value;
         }
-        if completed.clone() == terrane_int_support::Int::from(0_i128) && !failed
+        if completed == terrane_int_support::Int::from(0_i128) && !failed
             && !deadline_exceeded
         {
             {
@@ -5162,7 +5157,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -5194,7 +5189,7 @@ impl ByteReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -5219,7 +5214,7 @@ impl ByteReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -5333,7 +5328,7 @@ impl ByteReader {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
         let mut part: ReadResult;
-        if count.clone() < terrane_int_support::Int::from(0_i128) {
+        if count < terrane_int_support::Int::from(0_i128) {
             return __terrane_await(self.read_async(count.clone(), options.clone()))
                 .await;
         }
@@ -5379,7 +5374,7 @@ impl ByteReader {
         let mut progress: ExactReadProgress;
         let mut data: Vec<u8>;
         let mut part: ReadResult;
-        if count.clone() < terrane_int_support::Int::from(0_i128) {
+        if count < terrane_int_support::Int::from(0_i128) {
             return __terrane_await({
                     let __terrane_shared_call_handle = __terrane_shared_handle.clone();
                     let __terrane_shared_argument_0 = count.clone();
@@ -5640,9 +5635,7 @@ impl ByteWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -5989,7 +5982,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < count.clone() && !end && !failed {
+        while completed < count && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 count.clone() - completed.clone(),
@@ -6021,7 +6014,7 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        if end && completed.clone() < count.clone() && !failed {
+        if end && completed < count && !failed {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
@@ -6055,7 +6048,7 @@ impl TextReader {
         end = false;
         failed = false;
         message = String::from("");
-        while completed.clone() < limit.clone() && !end && !failed {
+        while completed < limit && !end && !failed {
             part = terrane_platform_read(
                 &self.handle.as_ref().expect("required field initialized"),
                 limit.clone() - completed.clone(),
@@ -6265,9 +6258,7 @@ impl TextWriter {
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");
-        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
-            && !failed
-        {
+        while completed < terrane_int_support::Int::from(data.len() as i128) && !failed {
             part = terrane_platform_write(
                 &self.handle.as_ref().expect("required field initialized"),
                 &data,
@@ -6669,7 +6660,7 @@ impl Duration {
         multiplier: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
         let total: terrane_int_support::Int;
-        if multiplier.clone() < terrane_int_support::Int::from(0_i128) {
+        if multiplier < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -6698,7 +6689,7 @@ impl Duration {
     pub fn terrane_static_seconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -6726,7 +6717,7 @@ impl Duration {
     pub fn terrane_static_milliseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -6755,7 +6746,7 @@ impl Duration {
     pub fn terrane_static_microseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -6784,7 +6775,7 @@ impl Duration {
     pub fn terrane_static_nanoseconds(
         value: terrane_int_support::Int,
     ) -> Result<Duration, TerraneError> {
-        if value.clone() < terrane_int_support::Int::from(0_i128) {
+        if value < terrane_int_support::Int::from(0_i128) {
             return Err({
                 let value = InvalidDuration::terrane_construct();
                 let rendered = value.render();
@@ -7090,7 +7081,7 @@ impl Ticker {
         elapsed = observed.elapsed_nanoseconds.clone()
             - self.anchor.elapsed_nanoseconds.clone();
         observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
-        if observed_index.clone() < self.next_index.clone() {
+        if observed_index < self.next_index.clone() {
             observed_index = self.next_index.clone();
         }
         count = observed_index.clone() - self.next_index.clone()
@@ -7163,7 +7154,7 @@ impl Ticker {
                 .elapsed_nanoseconds
                 .clone();
         observed_index = terrane_platform_time_div(&elapsed, period_total.clone());
-        if observed_index.clone()
+        if observed_index
             < {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()

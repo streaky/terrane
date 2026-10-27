@@ -162,7 +162,7 @@ fn branched_single(choose: bool) {
 fn loop_replacement(mut count: terrane_int_support::Int) {
     let mut x: TerraneUnionF0S539;
     x = TerraneUnionF0S539::Arm0(terrane_int_support::Int::from(3_i128));
-    while count.clone() < terrane_int_support::Int::from(1_i128) {
+    while count < terrane_int_support::Int::from(1_i128) {
         x = TerraneUnionF0S539::Arm1(String::from("cat"));
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -178,7 +178,7 @@ fn loop_replacement(mut count: terrane_int_support::Int) {
 fn loop_int(mut count: terrane_int_support::Int) {
     let mut x: i64;
     x = 3;
-    while count.clone() < terrane_int_support::Int::from(1_i128) {
+    while count < terrane_int_support::Int::from(1_i128) {
         x = 3;
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -187,7 +187,7 @@ fn loop_int(mut count: terrane_int_support::Int) {
 fn loop_string(mut count: terrane_int_support::Int) {
     let mut x: String;
     x = String::from("cat");
-    while count.clone() < terrane_int_support::Int::from(1_i128) {
+    while count < terrane_int_support::Int::from(1_i128) {
         x = String::from("cat");
         count = count.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -244,11 +244,10 @@ fn branch_type_use(choose: bool) -> terrane_int_support::Int {
     let result: terrane_int_support::Int;
     if choose {
         x = TerraneUnionF0S1289::Arm0(terrane_int_support::Int::from(3_i128));
-        result = match &x {
+        result = match x {
             TerraneUnionF0S1289::Arm0(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
-        }
-            .clone() + terrane_int_support::Int::from(1_i128);
+        } + terrane_int_support::Int::from(1_i128);
     } else {
         x = TerraneUnionF0S1289::Arm1(String::from("cat"));
         result = terrane_int_support::Int::from(
@@ -298,7 +297,7 @@ fn loop_backedge() {
     let mut count: terrane_int_support::Int;
     x = TerraneUnionF0S1725::Arm0(terrane_int_support::Int::from(3_i128));
     count = terrane_int_support::Int::from(0_i128);
-    while count.clone() < terrane_int_support::Int::from(2_i128) {
+    while count < terrane_int_support::Int::from(2_i128) {
         println!(
             "{}", { let mut __terrane_text = String::new(); match &x {
             TerraneUnionF0S1725::Arm0(__terrane_arm) => {
