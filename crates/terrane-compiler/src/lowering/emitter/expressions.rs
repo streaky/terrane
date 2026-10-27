@@ -1505,20 +1505,6 @@ impl Emitter<'_> {
             return String::new();
         };
         let operator = self.source.text()[left.span.end..right.span.start].trim();
-        let left = self.adaptive_expression(left);
-        let right = self.adaptive_expression(right);
-        match operator {
-            "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
-            "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
-            _ => format!("({left} {operator} {right})"),
-        }
-    }
-
-    pub(super) fn adaptive_binary_as(&mut self, node: &SyntaxNode) -> String {
-        let [left, right] = node.children.as_slice() else {
-            return String::new();
-        };
-        let operator = self.source.text()[left.span.end..right.span.start].trim();
         let left = self.expression_as(left, ValueType::Scalar(ScalarType::Int));
         let right = self.expression_as(right, ValueType::Scalar(ScalarType::Int));
         match operator {
@@ -1822,7 +1808,7 @@ impl Emitter<'_> {
             return self.adaptive_binary(node);
         }
         if self.value_type(node) == Some(ValueType::Scalar(ScalarType::Int)) {
-            return self.adaptive_binary_as(node);
+            return self.adaptive_binary(node);
         }
         if let Some(ValueType::Scalar(operation_type)) = self.value_type(node)
             && operation_type.is_integer()

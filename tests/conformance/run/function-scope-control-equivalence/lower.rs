@@ -244,11 +244,10 @@ fn branch_type_use(choose: bool) -> terrane_int_support::Int {
     let result: terrane_int_support::Int;
     if choose {
         x = TerraneUnionF0S1289::Arm0(terrane_int_support::Int::from(3_i128));
-        result = match &x {
+        result = match x {
             TerraneUnionF0S1289::Arm0(value) => value,
             _ => unreachable!("flow-proven storage refinement"),
-        }
-            .clone() + terrane_int_support::Int::from(1_i128);
+        } + terrane_int_support::Int::from(1_i128);
     } else {
         x = TerraneUnionF0S1289::Arm1(String::from("cat"));
         result = terrane_int_support::Int::from(

@@ -71,11 +71,10 @@ fn main() {
                             }
                                 .clone();
                         ordered = ordered
-                            && match &value {
+                            && match value {
                                 Some(value) => value,
                                 _ => unreachable!("flow-proven storage refinement"),
-                            }
-                                .clone() == expected.clone();
+                            } == expected.clone();
                     }
                     expected = expected.clone() + terrane_int_support::Int::from(1_i128);
                 }

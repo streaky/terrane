@@ -131,11 +131,10 @@ fn union_resource(choose: bool) {
     }
     if matches!(&item, TerraneUnionF0S881::Arm1(_)) {
         item = TerraneUnionF0S881::Arm1(
-            match &item {
+            match item {
                 TerraneUnionF0S881::Arm1(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
-            }
-                .clone() + terrane_int_support::Int::from(1_i128),
+            } + terrane_int_support::Int::from(1_i128),
         );
     } else {
         item = TerraneUnionF0S881::Arm2(String::from("union-replacement"));
