@@ -11,7 +11,7 @@ fn locate<'a>(
             return TerraneCompletion::Return(
                 __terrane_raised_completion!(
                     points.get(&id).ok_or(terrane_collection_support::MissingKey),
-                    0 /* terrane-site: src/main.trn:8:20-8:30 */
+                    0 /* terrane-site: src/main.trn:8:16-8:26 */
                 ),
             );
         })();
@@ -73,7 +73,7 @@ fn main() {
     };
     borrowed = __terrane_traced(
         locate(&points, 1),
-        2 /* terrane-site: src/main.trn:15:16-15:37 */,
+        2 /* terrane-site: src/main.trn:15:16-15:33 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = borrowed

@@ -180,6 +180,10 @@ pub(crate) fn select_unit_callable_contract(
     select_unit_callable_contract_result(package, unit, call, contract, bindings).ok()
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "argument selection keeps explicit, callback, and borrowing constraints together"
+)]
 pub(super) fn select_unit_callable_contract_result(
     package: Option<&SemanticPackage>,
     unit: &SemanticUnit,
@@ -249,6 +253,17 @@ pub(super) fn select_unit_callable_contract_result(
                     actual = closed;
                 }
             }
+            let expected = match expected {
+                ValueType::Reference(inner)
+                    if !matches!(
+                        actual,
+                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                    ) =>
+                {
+                    inner.value_type()
+                }
+                expected => expected,
+            };
             let selected_expected = substitute_value_type(&expected, &substitutions);
             if explicitly_selected
                 && let ValueType::Object(expected_identity) = &selected_expected

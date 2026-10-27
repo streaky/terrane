@@ -482,12 +482,12 @@ mod __terrane_trace {
         "/reference-return-cross-file::main",
     ];
     pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /reference-return-cross-file::locate (src/main.trn:8:20-8:30) */
-        { Site { function: 0, file: 0, line: 8, column: 20, end_line: 8, end_column: 30 } },
+        /* terrane-site-row: site 0: /reference-return-cross-file::locate (src/main.trn:8:16-8:26) */
+        { Site { function: 0, file: 0, line: 8, column: 16, end_line: 8, end_column: 26 } },
         /* terrane-site-row: site 1: /reference-return-cross-file::locate (src/main.trn:10:9-10:28) */
         { Site { function: 0, file: 0, line: 10, column: 9, end_line: 10, end_column: 28 } },
-        /* terrane-site-row: site 2: /reference-return-cross-file::main (src/main.trn:15:16-15:37) */
-        { Site { function: 1, file: 0, line: 15, column: 16, end_line: 15, end_column: 37 } },
+        /* terrane-site-row: site 2: /reference-return-cross-file::main (src/main.trn:15:16-15:33) */
+        { Site { function: 1, file: 0, line: 15, column: 16, end_line: 15, end_column: 33 } },
     ];
     #[cold]
     #[inline(never)]

@@ -7,7 +7,7 @@ class holder
     function construct; value Builder|none
         this.value = move value
     mutable async function check bool;
-        return present; (ref this.value)
+        return present; (this.value)
 async function main;
     h = instance holder; (Builder::new;)
     print; (await h.check;)

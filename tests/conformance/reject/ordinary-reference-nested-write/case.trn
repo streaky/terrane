@@ -1,0 +1,8 @@
+namespace ordinary-reference-nested-write
+class child
+    value int = 0
+class holder
+    nested child = instance child;
+function update; item ref holder
+    item.nested.value = 3
+function main;

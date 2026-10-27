@@ -40,6 +40,7 @@ fn checks_versions_keep_removed() {
                 generic_parameters: Vec::new(),
                 displayable: false,
                 methods: vec![ProjectedFunction {
+                    receiver_bounds: Vec::new(),
                     native_owner: None,
                     native_path: None,
                     name: "read".to_owned(),
@@ -60,6 +61,7 @@ fn checks_versions_keep_removed() {
                     receiver: Some(Receiver::Borrow),
                 }],
                 static_methods: vec![ProjectedFunction {
+                    receiver_bounds: Vec::new(),
                     native_owner: None,
                     native_path: None,
                     name: "create".to_owned(),

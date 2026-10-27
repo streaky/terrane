@@ -35,12 +35,12 @@ async function main;
 
     callback-counter = NativeCounter::new; 20
     callback = function; value ref NativeCounter
-        increment; ref value
-    callback; ref callback-counter
+        increment; value
+    callback; callback-counter
     print; (callback-counter.value;)
 
     owned = NativeCounter::new; 40
     consume = consuming function int64;
-        increment; ref owned
+        increment; owned
         return (owned.value;)
     print; (consume;)

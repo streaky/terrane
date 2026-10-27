@@ -921,12 +921,14 @@ pub(super) fn project_rustdoc(
                             )
                         });
                         static_methods.push(ProjectedFunction {
+                            receiver_bounds: Vec::new(),
                             native_path: None,
                             native_owner: None,
                             operation_owner_generics: Vec::new(),
                             name: variant_name.to_owned(),
                             parameters: (constructor_type != ProjectedType::None)
                                 .then(|| ProjectedParameter {
+                                    borrowed_str: false,
                                     name: "value".to_owned(),
                                     ty: constructor_type,
                                     borrowed: false,
@@ -962,6 +964,7 @@ pub(super) fn project_rustdoc(
                             && !matches!(extraction_type, ProjectedType::Optional(_))
                         {
                             methods.push(ProjectedFunction {
+                                receiver_bounds: Vec::new(),
                                 generic_parameters: Vec::new(),
                                 native_owner: None,
                                 native_path: None,
@@ -990,6 +993,7 @@ pub(super) fn project_rustdoc(
                     }
                     if data_carrying {
                         methods.push(ProjectedFunction {
+                            receiver_bounds: Vec::new(),
                             generic_parameters: Vec::new(),
                             native_owner: None,
                             native_path: None,

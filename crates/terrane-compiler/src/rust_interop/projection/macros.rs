@@ -6,6 +6,7 @@ use super::{
 
 pub(super) fn project_macro(name: &str) -> ProjectedFunction {
     ProjectedFunction {
+        receiver_bounds: Vec::new(),
         native_owner: None,
         native_path: None,
         name: name.to_owned(),
@@ -14,6 +15,7 @@ pub(super) fn project_macro(name: &str) -> ProjectedFunction {
             ty: ProjectedType::Generic("__MacroArgument".to_owned()),
             borrowed: false,
             mutable_borrow: false,
+            borrowed_str: false,
             generic_parameter: None,
             generic_bounds: Vec::new(),
             generic_interface: None,

@@ -7,4 +7,4 @@ function main;
         return second
     left-value = 'first'
     right-value = 'second'
-    print; (callback; ref left-value, ref right-value, true)
+    print; (callback; left-value, right-value, true)

@@ -1,6 +1,6 @@
 namespace app
 
-from /deps/witness import Connection, query, advance, Advance, Stage, observed, outlives
+from /deps/witness import Connection, query, advance, Advance, Stage, observed, outlives, owner_query
 
 class source-counter implements Advance
     count int = 40
@@ -15,11 +15,11 @@ class enum-holder
 function execute-local int64;
     connection = Connection::new;
     bound = query; 'bound-local'
-    return bound.fetch; ref connection
+    return bound.fetch; connection
 
 function execute-reference int64; connection ref Connection
     bound = query; 'bound-reference'
-    return bound.fetch; ref connection
+    return bound.fetch; connection
 
 function execute-formal-reference int64; connection ref Connection
     return advance; connection
@@ -30,14 +30,14 @@ function execute-optional int64; flag bool
         maybe = Connection::new;
     if maybe != none
         bound = query; 'narrowed'
-        return bound.fetch; ref maybe
+        return bound.fetch; maybe
     return 0
 
 function execute-deferred int64; flag bool
     if flag
         late Connection = Connection::new;
     bound = query; 'deferred'
-    return bound.fetch; ref late
+    return bound.fetch; late
 
 function execute-enum int64; stage ref Stage
     return advance; stage
@@ -48,47 +48,51 @@ function observe-native int64; connection ref Connection
 function observe-captured int64;
     connection = Connection::new;
     reader = function int64;
-        return observed; ref connection
+        return observed; connection
     first = reader;
     return first + (reader;)
 
 function execute-outlives int64;
     connection = Connection::new;
     bound = query; 'region-bound'
-    first = bound.fetch_outlives; ref connection
-    second = (query; 'region-direct').fetch_outlives; ref connection
+    first = bound.fetch_outlives; connection
+    second = (query; 'region-direct').fetch_outlives; connection
     return first + second
 
 function observe-outlives int64;
     connection = Connection::new;
+    observer = ref connection
     reader = function int64;
-        return outlives; ref connection
+        return outlives; observer
     first = reader;
     return first + (reader;)
+
+function execute-owner int64; connection ref Connection
+    return (owner_query; 'owner-forward').fetch; connection
 
 async function main;
     print; (execute-local;)
     connection = Connection::new;
-    print; (execute-reference; ref connection)
-    print; ((query; 'direct').fetch; ref connection)
-    print; (execute-formal-reference; ref connection)
+    print; (execute-reference; connection)
+    print; ((query; 'direct').fetch; connection)
+    print; (execute-formal-reference; connection)
     print; (connection.executions;)
     print; (execute-optional; true)
     print; (execute-optional; false)
     print; (execute-deferred; true)
     source = instance source-counter;
-    print; (advance; ref source)
+    print; (advance; source)
     print; source.count
     stage = instance Stage::Idle;
-    print; (execute-enum; ref stage)
+    print; (execute-enum; stage)
     match ref stage
         case Stage::Done
             print; 8
         case Stage::Idle
             print; 0
-    print; (observe-native; ref connection)
+    print; (observe-native; connection)
     holder = instance enum-holder;
-    print; (advance; ref holder.stage)
+    print; (advance; holder.stage)
     match holder.stage
         case Stage::Done
             print; 9
@@ -97,3 +101,6 @@ async function main;
     print; (observe-captured;)
     print; (execute-outlives;)
     print; (observe-outlives;)
+    print; ((owner_query; 'owner-direct').fetch; connection)
+    observer = ref connection
+    print; (execute-owner; observer)

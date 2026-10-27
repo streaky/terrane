@@ -670,26 +670,28 @@ impl Emitter<'_> {
                 format!("Some({})", self.expression_as(node, *inner))
             };
         }
-        if matches!(value_type, ValueType::Reference(_))
-            && node.kind == SyntaxKind::UnaryExpression
-            && self.unary_operator(node).as_deref() == Some("ref")
-        {
-            return self.expression(node);
-        }
-        if matches!(value_type, ValueType::Reference(_))
-            && self.value_type(node) == Some(value_type.clone())
-        {
-            let mut value = node;
-            while value.kind == SyntaxKind::GroupExpression {
-                let Some(grouped) = value.children.first() else {
-                    break;
-                };
-                value = grouped;
+        if let ValueType::Reference(item) = &value_type {
+            if node.kind == SyntaxKind::UnaryExpression
+                && self.unary_operator(node).as_deref() == Some("ref")
+            {
+                return self.expression(node);
             }
-            if value.kind == SyntaxKind::Name && self.reference_uses_shared_storage(value) {
-                return format!("({}).clone()", self.expression(node));
+            if self.value_type(node) == Some(value_type.clone()) {
+                let mut value = node;
+                while value.kind == SyntaxKind::GroupExpression {
+                    let Some(grouped) = value.children.first() else {
+                        break;
+                    };
+                    value = grouped;
+                }
+                if value.kind == SyntaxKind::Name && self.reference_uses_shared_storage(value) {
+                    return format!("({}).clone()", self.expression(node));
+                }
+                return self.expression(node);
             }
-            return self.expression(node);
+            if self.value_type(node).as_ref() == Some(item.value_type_ref()) {
+                return self.reference_address_expression(node);
+            }
         }
         if matches!(value_type, ValueType::SharedReference(_)) {
             if node.kind == SyntaxKind::UnaryExpression {

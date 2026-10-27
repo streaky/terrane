@@ -1,0 +1,6 @@
+namespace reference-return-numeric-conversion
+class holder
+    value int = 7
+function select ref int64; source ref holder
+    return source.value
+function main;

@@ -6,8 +6,8 @@ function mark; header ref HeaderValue
 
 function forward; header ref HeaderValue
     operation = mark
-    operation; ref header
+    operation; header
 
 function change bool; header ref HeaderValue
-    forward; ref header
+    forward; header
     return true

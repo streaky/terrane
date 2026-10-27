@@ -8,4 +8,4 @@ function main;
     if true
         chooser = mark-sensitive
     value = HeaderValue::from_str; 'value'
-    chooser; ref value
+    chooser; value

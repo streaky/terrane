@@ -1,5 +1,5 @@
 namespace app
-from /deps/terrane-borrowed-future-witness import Builder, Envelope, Rejection, reject_free as reject-free
+from /deps/terrane-borrowed-future-witness import Builder, Envelope, Options, Rejection, literal_query, read_literal_later, read_alias_later, read_owned_later, reject_free as reject-free
 from /core/errors import throwable
 
 async function exercise;
@@ -18,7 +18,7 @@ class receiver
     function construct; value Builder|none
         this.value = move value
     function available bool;
-        return present; (ref this.value)
+        return present; (this.value)
     mutable async function receive none;
         print; (this.available;)
         value = move this.value
@@ -44,6 +44,17 @@ function describe string; value throwable
     return value.message
 
 async function main;
+    print; (await read_literal_later; 'borrowed\nλ')
+    print; ((Options::new;).with_label; 'generic\nλ')
+    print; ((Options::new;).with_borrowed_label; 'direct escaped\tvalue')
+    print; ((Options::new;).with_owned_label; 'owned parameter')
+    named string = 'named value survives'
+    print; ((Options::new;).with_label; named)
+    print; named
+    print; (await read_owned_later; 'owned async value')
+    print; (await read_alias_later; ('grouped alias λ'))
+    print; ((Options::new;).with_string_ref; 'owned String borrow')
+    print; (await (literal_query; ('query graph λ')).fetch;)
     group = task-group; none
     group.spawn; (exercise;)
     outcomes = await group.drain;

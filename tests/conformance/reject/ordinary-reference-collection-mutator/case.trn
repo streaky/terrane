@@ -1,0 +1,4 @@
+namespace ordinary-reference-collection-mutator
+function update; values ref (list of int)
+    values.append; 4
+function main;

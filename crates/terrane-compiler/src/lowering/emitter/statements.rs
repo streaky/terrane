@@ -1163,6 +1163,16 @@ impl Emitter<'_> {
         let storage_type =
             storage_binding.and_then(|binding| self.binding_scalar_storage_type(binding));
         let initializer = binding_initializer(node, name_index);
+        let native_mutable_reference = binding.is_some_and(|binding| {
+            binding.mutable
+                && matches!(&binding.value_type, ValueType::Reference(inner)
+                    if inner.value_type_ref().is_mutable_native_reference_target())
+                && self
+                    .unit
+                    .reference_provenance
+                    .get(&(binding.span.start, binding.span.end))
+                    .is_none_or(|loan| !self.reference_owner_uses_shared_storage(loan.owner))
+        });
         if initializer.is_some_and(|initializer| initializer.kind == SyntaxKind::AnonymousFunction)
             && binding.is_some_and(|binding| {
                 matches!(
@@ -1263,7 +1273,20 @@ impl Emitter<'_> {
             });
         }
         let mut value = initializer.map(|initializer| {
-            let value = if let Some(binding) = storage_binding
+            let value = if native_mutable_reference
+                && initializer.kind == SyntaxKind::UnaryExpression
+                && self.unary_operator(initializer).as_deref() == Some("ref")
+                && let Some(operand) = initializer.children.last()
+            {
+                let mut setup = String::new();
+                let reference =
+                    self.staged_native_argument_reference(operand, true, &mut setup, &mut 0);
+                if setup.is_empty() {
+                    reference
+                } else {
+                    format!("{{ {setup}{reference} }}")
+                }
+            } else if let Some(binding) = storage_binding
                 && (!binding.destination_arms.is_empty()
                     || matches!(self.flow_binding_type(binding), ValueType::Union(_)))
             {
@@ -1383,6 +1406,11 @@ impl Emitter<'_> {
                 "std::sync::Weak<TerraneSharedCell<{}>>",
                 rust_element_type(self.package, item.clone())
             )
+        } else if let ValueType::Reference(item) = &flow_type
+            && binding.mutable
+            && item.value_type_ref().is_mutable_native_reference_target()
+        {
+            format!("&mut {}", rust_element_type(self.package, item.clone()))
         } else if !binding.destination_arms.is_empty() || matches!(flow_type, ValueType::Union(_)) {
             union_type_name(binding)
         } else if let Some(storage_type) = storage_type {

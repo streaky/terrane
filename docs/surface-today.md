@@ -156,11 +156,11 @@ Terrane package
     │   ├── file-handle                        inferred resource-owning file stream
     │   ├── directory-handle                   inferred resource-owning directory anchor
     │   ├── open-file(filesystem, path, …) -> file-handle
-    │   ├── file-read(filesystem, ref file-handle, limit) / file-write(filesystem, ref file-handle, data, offset)
-    │   ├── file-flush(filesystem, ref file-handle) / file-sync-data(filesystem, ref file-handle)
-    │   ├── file-sync-all(filesystem, ref file-handle) / file-close(filesystem, file-handle)
+    │   ├── file-read(filesystem, file-handle, limit) / file-write(filesystem, file-handle, data, offset)
+    │   ├── file-flush(filesystem, file-handle) / file-sync-data(filesystem, file-handle)
+    │   ├── file-sync-all(filesystem, file-handle) / file-close(filesystem, file-handle)
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
-    │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
+    │   ├── open-file-beneath(filesystem, directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
@@ -1002,10 +1002,10 @@ There is no source `linear class` qualifier; assignment transfers these values a
 
 
 Ordinary strings, bytes, paths, filesystem capability values, collections, and non-resource
-objects have value semantics. Pass them normally; do not add `ref` merely to work around an
-anticipated Rust move. Lowering preserves later source uses with copy-on-write separation or
-compiler-owned clones. `ref` means the callee intentionally observes or mutates the same source
-value, not “please make generated Rust compile.”
+objects have value semantics. Pass them normally; neither `ref` at an argument nor any other
+reference syntax is a workaround for an anticipated Rust move. Lowering preserves later source uses
+with copy-on-write separation or compiler-owned clones. A declared `ref` parameter means the callee
+intentionally observes or mutates the same source value.
 
 An explicit stream `.close` consumes the resource and returns an observable failure result. Use it
 when close failure matters. Deterministic destruction remains a fallback release path and cannot
@@ -1162,7 +1162,7 @@ from /deps/sqlx-sqlite/sqliteconnectoptions import connect
 options = (SqliteConnectOptions::new).create_if_missing; true
 database SqliteConnection = await connect; options
 create_sql = 'CREATE TABLE events (body BLOB NOT NULL)'
-await (query; create_sql).execute; ref database
+await (query; create_sql).execute; database
 await (close; move database)
 ```
 

@@ -57,10 +57,10 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&result({ let __terrane_index =
         __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: src/main.trn:26:25-26:38 */); __terrane_raised(j.statuses
+        0 /* terrane-site: src/main.trn:26:21-26:34 */); __terrane_raised(j.statuses
         .get(__terrane_index).ok_or_else(| |
         terrane_collection_support::IndexError::from_usize(__terrane_index)),
-        0 /* terrane-site: src/main.trn:26:25-26:38 */) }))
+        0 /* terrane-site: src/main.trn:26:21-26:34 */) }))
     );
 }
 // Source: wrapper/job.trn

@@ -22,6 +22,30 @@ fn contextual() -> terrane_int_support::Int {
         0 /* terrane-site: src/main.trn:8:12-8:23 */,
     );
 }
+fn disable_record(record: &mut Packet) -> terrane_int_support::Int {
+    return __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| {
+                let __terrane_macro_result: i64 = core::convert::Into::into(
+                    witness::disable!(&mut * record),
+                );
+                __terrane_macro_result
+            }),
+        ) {
+            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "witness",
+                        "witness::disable",
+                    ),
+                )
+            }
+        },
+        1 /* terrane-site: src/main.trn:11:12-11:27 */,
+    );
+}
 fn main() {
     let empty: terrane_int_support::Int;
     let total: terrane_int_support::Int;
@@ -51,7 +75,7 @@ fn main() {
                 )
             }
         },
-        1 /* terrane-site: src/main.trn:11:17-11:21 */,
+        2 /* terrane-site: src/main.trn:14:17-14:21 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&empty));
     total = __terrane_raised(
@@ -70,7 +94,7 @@ fn main() {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:13:17-13:29 */,
+        3 /* terrane-site: src/main.trn:16:17-16:29 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&total));
     nested = __terrane_raised(
@@ -89,13 +113,13 @@ fn main() {
                 )
             }
         },
-        3 /* terrane-site: src/main.trn:15:18-15:37 */,
+        4 /* terrane-site: src/main.trn:18:18-18:37 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&nested));
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(sum_terrane_deps_witness(),
-        4 /* terrane-site: src/main.trn:17:13-17:26 */))
+        5 /* terrane-site: src/main.trn:20:13-20:26 */))
     );
     record = __terrane_raised(
         match std::panic::catch_unwind(
@@ -117,32 +141,11 @@ fn main() {
                 )
             }
         },
-        5 /* terrane-site: src/main.trn:18:21-18:36 */,
+        6 /* terrane-site: src/main.trn:21:21-21:36 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&record.value));
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
-    observed = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let __terrane_macro_result: i64 = core::convert::Into::into(
-                    witness::disable!(&mut record),
-                );
-                __terrane_macro_result
-            }),
-        ) {
-            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::disable",
-                    ),
-                )
-            }
-        },
-        6 /* terrane-site: src/main.trn:21:20-21:39 */,
-    );
+    observed = disable_record(&mut record);
     println!("{}", terrane_scalar_support::scalar_text(&observed));
     println!("{}", terrane_scalar_support::scalar_text(&record.enabled));
     text = __terrane_raised(
@@ -165,7 +168,7 @@ fn main() {
                 )
             }
         },
-        7 /* terrane-site: src/main.trn:24:19-24:44 */,
+        7 /* terrane-site: src/main.trn:27:19-27:44 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&text));
     sequence = __terrane_raised(
@@ -197,7 +200,7 @@ fn main() {
                 )
             }
         },
-        8 /* terrane-site: src/main.trn:26:28-26:43 */,
+        8 /* terrane-site: src/main.trn:29:28-29:43 */,
     );
     let __terrane_iterable_0 = sequence;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
@@ -217,7 +220,7 @@ fn main() {
                     witness::twice!(
                         match | | -> Result < _, crate ::TerraneForeignError > {
                         Ok(terrane_int_support::coerce:: < i64 >
-                        (&__terrane_raised(next(), 9 /* terrane-site: src/main.trn:29:28-29:33 */)).map_err(| error | crate
+                        (&__terrane_raised(next(), 9 /* terrane-site: src/main.trn:32:28-32:33 */)).map_err(| error | crate
                         ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
                         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
                         std::panic::panic_any(error) }
@@ -237,12 +240,12 @@ fn main() {
                 )
             }
         },
-        10 /* terrane-site: src/main.trn:29:20-29:34 */,
+        10 /* terrane-site: src/main.trn:32:20-32:34 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&repeated));
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(evaluations(),
-        11 /* terrane-site: src/main.trn:31:13-31:25 */))
+        11 /* terrane-site: src/main.trn:34:13-34:25 */))
     );
     chosen = __terrane_raised(
         match std::panic::catch_unwind(
@@ -251,7 +254,7 @@ fn main() {
                     witness::selected!(
                         false, match | | -> Result < _, crate ::TerraneForeignError > {
                         Ok(terrane_int_support::coerce:: < i64 >
-                        (&__terrane_raised(next(), 12 /* terrane-site: src/main.trn:32:36-32:41 */)).map_err(| error | crate
+                        (&__terrane_raised(next(), 12 /* terrane-site: src/main.trn:35:36-35:41 */)).map_err(| error | crate
                         ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
                         ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
                         std::panic::panic_any(error) }, 17_i64
@@ -271,12 +274,12 @@ fn main() {
                 )
             }
         },
-        13 /* terrane-site: src/main.trn:32:18-32:46 */,
+        13 /* terrane-site: src/main.trn:35:18-35:46 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&chosen));
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(evaluations(),
-        14 /* terrane-site: src/main.trn:34:13-34:25 */))
+        14 /* terrane-site: src/main.trn:37:13-37:25 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&contextual()));
     combined = __terrane_raised(
@@ -299,7 +302,7 @@ fn main() {
                 )
             }
         },
-        15 /* terrane-site: src/main.trn:36:20-36:33 */,
+        15 /* terrane-site: src/main.trn:39:20-39:33 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&combined));
     empty_values = __terrane_raised(
@@ -331,7 +334,7 @@ fn main() {
                 )
             }
         },
-        16 /* terrane-site: src/main.trn:38:32-38:39 */,
+        16 /* terrane-site: src/main.trn:41:32-41:39 */,
     );
     let __terrane_iterable_1 = empty_values;
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(

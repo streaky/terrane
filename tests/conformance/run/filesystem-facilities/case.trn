@@ -26,7 +26,7 @@ function main;
     data = filesystem-read-bounded; fs, target, 7
     print; data.failed, data.completed
     opened file-handle = open-file; fs, target, true, false
-    streamed = file-read; fs, ref opened, 16
+    streamed = file-read; fs, opened, 16
     print; streamed.failed, streamed.completed, streamed.end
     closing = open-file; fs, target, true, false
     closed = file-close; fs, closing
@@ -53,16 +53,16 @@ function main;
     current = instance path; '.'
     root directory-handle = filesystem-open-beneath; fs, base, current
     manifest = instance path; 'terrane-filesystem-case.txt'
-    relative-file file-handle = open-file-beneath; fs, ref root, manifest, true, false
-    relative-data = file-read; fs, ref relative-file, 8
+    relative-file file-handle = open-file-beneath; fs, root, manifest, true, false
+    relative-data = file-read; fs, relative-file, 8
     print; relative-data.failed, relative-data.completed
     partial-target file-handle = open-file; fs, target, false, true, false, true
-    partial = file-write; fs, ref partial-target, b'abc', 1
+    partial = file-write; fs, partial-target, b'abc', 1
     print; partial.failed, partial.completed
     partial-read = filesystem-read-bounded; fs, target, 3
     print; partial-read.failed, partial-read.completed
     durable-target file-handle = open-file; fs, target, false, true
-    sync-failed = sync-file; fs, ref durable-target
+    sync-failed = sync-file; fs, durable-target
     print; sync-failed
     link-removed = filesystem-remove; fs, link
     print; link-removed.failed

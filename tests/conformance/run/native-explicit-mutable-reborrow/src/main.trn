@@ -10,7 +10,7 @@ function advance-optional; counter ref (NativeCounter|none)
         counter.as_mut().unwrap().increment();
 
 function forward-optional; counter ref (NativeCounter|none)
-    advance-optional; ref counter
+    advance-optional; counter
 
 function advance int64; counter ref NativeCounter
     result int64 = rust
@@ -41,33 +41,33 @@ function read-row int64; record ref OpaqueRow
     return record.value;
 
 async function forward-async; native ref NativeCounter
-    await increment-async; ref native
+    await increment-async; native
 
 async function main;
     counter = NativeCounter::new; 4
     optional-counter = optional-counter;
-    advance-optional; ref optional-counter
-    print; (optional-counter-value; ref optional-counter)
-    forward-optional; ref optional-counter
-    print; (optional-counter-value; ref optional-counter)
+    advance-optional; optional-counter
+    print; (optional-counter-value; optional-counter)
+    forward-optional; optional-counter
+    print; (optional-counter-value; optional-counter)
     bump = function; counter ref (NativeCounter|none)
         rust
             let counter = &mut *counter;
             counter.as_mut().unwrap().increment();
-    bump; ref optional-counter
-    print; (optional-counter-value; ref optional-counter)
+    bump; optional-counter
+    print; (optional-counter-value; optional-counter)
     bump-native = function; counter ref NativeCounter
         rust
             let counter = &mut *counter;
             counter.increment();
-    bump-native; ref counter
+    bump-native; counter
     print; (counter.value;)
-    print; (advance; ref counter)
+    print; (advance; counter)
     print; (counter.value;)
-    print; (shadow-read; ref counter, ref counter)
+    print; (shadow-read; counter, counter)
     print; await counter.finish;
     forwarded = NativeCounter::new; 80
-    await forward-async; ref forwarded
+    await forward-async; forwarded
     print; (forwarded.value;)
     values list of int = list; 2, 3
     print; (sum-values; values)

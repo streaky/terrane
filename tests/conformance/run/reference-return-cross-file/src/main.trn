@@ -5,12 +5,12 @@ from /core/errors import throwable
 
 function locate ref point throws throwable; points ref map of int64, point, id int64
     try
-        return ref points[id]
+        return points[id]
     catch throwable
         throw lookup-error;
 
 function main throws throwable;
     points map of int64, point = map;
     points.set; 1, (instance point;)
-    borrowed = locate; ref points, 1
+    borrowed = locate; points, 1
     print; borrowed.latitude

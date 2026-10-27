@@ -11,6 +11,6 @@ async function main;
     print; 'ready'
     first = await subscription.next;
     second = await subscription.next;
-    print; first.signal.name, first.count, first.sequence > 0, (before.duration-until; ref first.observed-at).total-nanoseconds >= 0
-    print; second.signal.name, second.count, second.sequence > first.sequence, (first.observed-at.duration-until; ref second.observed-at).total-nanoseconds >= 0
+    print; first.signal.name, first.count, first.sequence > 0, (before.duration-until; first.observed-at).total-nanoseconds >= 0
+    print; second.signal.name, second.count, second.sequence > first.sequence, (first.observed-at.duration-until; second.observed-at).total-nanoseconds >= 0
     subscription.close;

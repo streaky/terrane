@@ -354,6 +354,7 @@ fn describe(value: TerraneError) -> String {
 fn main() {
     __terrane_run(async move {
         __terrane_group_frame(async move {
+                let named: String;
                 let group: TerraneTaskGroup<()>;
                 let outcomes: terrane_collection_support::List<TerraneTaskOutcome<()>>;
                 let wrapped: terrane_borrowed_future_witness::Envelope<bool>;
@@ -369,6 +370,118 @@ fn main() {
                 let advanced: terrane_int_support::Int;
                 let mut local: Option<Builder> = None;
                 let mut local_result: Option<terrane_int_support::Int> = None;
+                println!(
+                    "{}",
+                    terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
+                    let __terrane_future =
+                    read_literal_later(String::from("borrowed\nλ")); async move {
+                    __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:47:19-47:52 */) } }). await, 9 /* terrane-site: src/main.trn:47:19-47:52 */))
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&{ let
+                    __terrane_native_input_0 =
+                    __terrane_raised(terrane_static_trn_4f7074696f6e73_new(),
+                    10 /* terrane-site: src/main.trn:48:14-48:27 */); let
+                    __terrane_native_input_1 = "generic\nλ"; __terrane_raised(match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+                    __terrane_native_input_0.with_label(__terrane_native_input_1))) {
+                    Ok(value) => Ok(value), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane_borrowed_future_witness",
+                    "terrane_borrowed_future_witness::Options::with_label")) },
+                    11 /* terrane-site: src/main.trn:48:13-48:53 */) })
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&{ let
+                    __terrane_native_input_0 =
+                    __terrane_raised(terrane_static_trn_4f7074696f6e73_new(),
+                    12 /* terrane-site: src/main.trn:49:14-49:27 */); let
+                    __terrane_native_input_1 = "direct escaped\tvalue";
+                    __terrane_raised(match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+                    __terrane_native_input_0
+                    .with_borrowed_label(__terrane_native_input_1))) { Ok(value) =>
+                    Ok(value), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane_borrowed_future_witness",
+                    "terrane_borrowed_future_witness::Options::with_borrowed_label")) },
+                    13 /* terrane-site: src/main.trn:49:13-49:73 */) })
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&{ let
+                    __terrane_native_input_0 =
+                    __terrane_raised(terrane_static_trn_4f7074696f6e73_new(),
+                    14 /* terrane-site: src/main.trn:50:14-50:27 */); let
+                    __terrane_native_input_1 = String::from("owned parameter");
+                    __terrane_raised(match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+                    __terrane_native_input_0.with_owned_label(__terrane_native_input_1)))
+                    { Ok(value) => Ok(value), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane_borrowed_future_witness",
+                    "terrane_borrowed_future_witness::Options::with_owned_label")) },
+                    15 /* terrane-site: src/main.trn:50:13-50:64 */) })
+                );
+                named = String::from("named value survives");
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&{ let
+                    __terrane_native_input_0 =
+                    __terrane_raised(terrane_static_trn_4f7074696f6e73_new(),
+                    16 /* terrane-site: src/main.trn:52:14-52:27 */); let
+                    __terrane_native_input_1 = named.as_str(); __terrane_raised(match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+                    __terrane_native_input_0.with_label(__terrane_native_input_1))) {
+                    Ok(value) => Ok(value), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane_borrowed_future_witness",
+                    "terrane_borrowed_future_witness::Options::with_label")) },
+                    17 /* terrane-site: src/main.trn:52:13-52:46 */) })
+                );
+                println!("{}", terrane_scalar_support::scalar_text(&named));
+                println!(
+                    "{}",
+                    terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
+                    let __terrane_future =
+                    read_owned_later(String::from("owned async value")); async move {
+                    __terrane_raised_err(__terrane_future. await, 18 /* terrane-site: src/main.trn:54:19-54:56 */) } }). await, 18 /* terrane-site: src/main.trn:54:19-54:56 */))
+                );
+                println!(
+                    "{}",
+                    terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
+                    let __terrane_future =
+                    read_alias_later(String::from("grouped alias λ")); async move {
+                    __terrane_raised_err(__terrane_future. await, 19 /* terrane-site: src/main.trn:55:19-55:56 */) } }). await, 19 /* terrane-site: src/main.trn:55:19-55:56 */))
+                );
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&{ let
+                    __terrane_native_input_0 =
+                    __terrane_raised(terrane_static_trn_4f7074696f6e73_new(),
+                    20 /* terrane-site: src/main.trn:56:14-56:27 */); let
+                    __terrane_native_input_1 = &String::from("owned String borrow");
+                    __terrane_raised(match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
+                    __terrane_native_input_0.with_string_ref(__terrane_native_input_1)))
+                    { Ok(value) => Ok(value), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane_borrowed_future_witness",
+                    "terrane_borrowed_future_witness::Options::with_string_ref")) },
+                    21 /* terrane-site: src/main.trn:56:13-56:67 */) })
+                );
+                println!(
+                    "{}",
+                    terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
+                    let __terrane_future = { let __terrane_call =
+                    terrane_borrowed_future_witness::literal_query("query graph λ")
+                    .fetch(); Box::pin(async move { match crate
+                    ::__terrane_dependency_await_unwind(__terrane_call). await {
+                    Ok(value) => Ok(value), Err(payload) => Err(crate
+                    ::__terrane_dependency_panic(payload,
+                    "terrane_borrowed_future_witness",
+                    "terrane_borrowed_future_witness::TextQuery::fetch")) } }) }; async
+                    move { __terrane_raised_err(__terrane_future. await,
+                    22 /* terrane-site: src/main.trn:57:19-57:60 */) } }). await,
+                    22 /* terrane-site: src/main.trn:57:19-57:60 */))
+                );
                 group = TerraneTaskGroup::<()>::new();
                 {
                     let __terrane_child = {
@@ -399,7 +512,7 @@ fn main() {
                     .await;
                 wrapped = __terrane_raised(
                     terrane_static_trn_456e76656c6f7065_new::<bool>(true),
-                    10 /* terrane-site: src/main.trn:50:32-50:61 */,
+                    24 /* terrane-site: src/main.trn:61:32-61:61 */,
                 );
                 println!(
                     "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
@@ -408,11 +521,11 @@ fn main() {
                     ::__terrane_dependency_panic(payload,
                     "terrane_borrowed_future_witness",
                     "terrane_borrowed_future_witness::Envelope::into_value")) },
-                    11 /* terrane-site: src/main.trn:51:13-51:32 */)),
+                    25 /* terrane-site: src/main.trn:62:13-62:32 */)),
                     terrane_scalar_support::scalar_text(&__terrane_raised(outcomes
                     .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                    12 /* terrane-site: src/main.trn:51:35-51:46 */)),
-                    12 /* terrane-site: src/main.trn:51:35-51:46 */).completed)
+                    26 /* terrane-site: src/main.trn:62:35-62:46 */)),
+                    26 /* terrane-site: src/main.trn:62:35-62:46 */).completed)
                 );
                 handler = std::sync::Arc::new(move |
                     argument_0: Option<Builder>,
@@ -423,7 +536,7 @@ fn main() {
                     let __terrane_try_0: TerraneCompletion<()> = async {
                         __terrane_traced_completion!(
                             __terrane_await(invoke(handler.clone())). await,
-                            13 /* terrane-site: src/main.trn:54:15-54:30 */
+                            27 /* terrane-site: src/main.trn:65:15-65:30 */
                         );
                         TerraneCompletion::Normal
                     }
@@ -471,7 +584,7 @@ fn main() {
                             __terrane_await(invoke(std::sync::Arc::new(move | argument_0
                             : Option < Builder >| -> std::pin::Pin < Box < dyn Future <
                             Output = _ > + Send >> { Box::pin(rejected_free(argument_0))
-                            }))). await, 14 /* terrane-site: src/main.trn:59:15-59:36 */
+                            }))). await, 28 /* terrane-site: src/main.trn:70:15-70:36 */
                         );
                         TerraneCompletion::Normal
                     }
@@ -507,7 +620,7 @@ fn main() {
                 }
                 discarded = __terrane_raised(
                     terrane_static_trn_4275696c646572_new(),
-                    15 /* terrane-site: src/main.trn:62:17-62:30 */,
+                    29 /* terrane-site: src/main.trn:73:17-73:30 */,
                 );
                 {
                     let _: terrane_int_support::Int = __terrane_traced(
@@ -538,12 +651,12 @@ fn main() {
                                 async move {
                                     __terrane_raised_err(
                                         __terrane_future.await,
-                                        16 /* terrane-site: src/main.trn:63:15-63:33 */,
+                                        30 /* terrane-site: src/main.trn:74:15-74:33 */,
                                     )
                                 }
                             })
                             .await,
-                        16 /* terrane-site: src/main.trn:63:15-63:33 */,
+                        30 /* terrane-site: src/main.trn:74:15-74:33 */,
                     );
                 }
                 advanced = __terrane_traced(
@@ -589,12 +702,12 @@ fn main() {
                             async move {
                                 __terrane_raised_err(
                                     __terrane_future.await,
-                                    17 /* terrane-site: src/main.trn:64:22-64:38 */,
+                                    31 /* terrane-site: src/main.trn:75:22-75:38 */,
                                 )
                             }
                         })
                         .await,
-                    17 /* terrane-site: src/main.trn:64:22-64:38 */,
+                    31 /* terrane-site: src/main.trn:75:22-75:38 */,
                 );
                 println!("{}", terrane_scalar_support::scalar_text(&advanced));
                 let __terrane_completion_2: TerraneCompletion<()> = async {
@@ -614,8 +727,8 @@ fn main() {
                                 "terrane_borrowed_future_witness",
                                 "terrane_borrowed_future_witness::Builder::reject_value")) }
                                 }) }; async move { __terrane_raised_err(__terrane_future.
-                                await, 18 /* terrane-site: src/main.trn:67:19-67:42 */) }
-                                }). await, 18 /* terrane-site: src/main.trn:67:19-67:42 */
+                                await, 32 /* terrane-site: src/main.trn:78:19-78:42 */) }
+                                }). await, 32 /* terrane-site: src/main.trn:78:19-78:42 */
                             );
                         }
                         TerraneCompletion::Normal
@@ -659,7 +772,7 @@ fn main() {
                             .insert(
                                 __terrane_raised_completion!(
                                     terrane_static_trn_4275696c646572_new(),
-                                    19 /* terrane-site: src/main.trn:71:17-71:30 */
+                                    33 /* terrane-site: src/main.trn:82:17-82:30 */
                                 ),
                             );
                         let _ = local_result
@@ -683,8 +796,8 @@ fn main() {
                                     "terrane_borrowed_future_witness",
                                     "terrane_borrowed_future_witness::Builder::serve")) } }) };
                                     async move { __terrane_raised_err(__terrane_future. await,
-                                    20 /* terrane-site: src/main.trn:72:30-72:42 */) } }).
-                                    await, 20 /* terrane-site: src/main.trn:72:30-72:42 */
+                                    34 /* terrane-site: src/main.trn:83:30-83:42 */) } }).
+                                    await, 34 /* terrane-site: src/main.trn:83:30-83:42 */
                                 ),
                             );
                         println!(

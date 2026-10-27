@@ -48,9 +48,9 @@ function check-shared; value shared ref base-box
 
 function main;
     base = instance base-box;
-    check-borrow; ref base
+    check-borrow; base
     derived = make-derived;
-    check-borrow; ref derived
+    check-borrow; derived
     shared-base = shared ref (instance base-box;)
     check-shared; shared-base
     shared-derived = shared ref (make-derived;)

@@ -148,7 +148,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "286";
+const PROJECTION_SCHEMA: &str = "290";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -537,6 +537,9 @@ pub struct ProjectedFunction {
     pub parameters: Vec<ProjectedParameter>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub generic_parameters: Vec<ProjectedGenericParameter>,
+    /// Predicates on the concrete receiver that constrain caller-selected inputs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receiver_bounds: Vec<String>,
     /// Inherent impl bounds, keyed by the selected nominal owner's generic slots.
     /// These do not introduce method-owned generic arguments.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -607,6 +610,9 @@ pub struct ProjectedParameter {
     pub ty: ProjectedType,
     pub borrowed: bool,
     pub mutable_borrow: bool,
+    /// The native operand is a string slice, not a reference to an owned String.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub borrowed_str: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generic_parameter: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -618,11 +624,12 @@ pub struct ProjectedParameter {
 }
 
 impl ProjectedParameter {
-    pub(crate) fn requires_mutable_reference(&self, explicit_reference: bool) -> bool {
-        // `ref` requests a live loan for an unclosed by-value generic. A
-        // declared or selected borrowed ABI instead decides its mutability.
+    pub(crate) fn borrows_argument(&self) -> bool {
+        self.borrowed || matches!(self.ty, ProjectedType::Reference { .. })
+    }
+
+    pub(crate) fn requires_mutable_reference(&self) -> bool {
         self.mutable_borrow
-            || self.generic_parameter.is_some() && !self.borrowed && explicit_reference
     }
 }
 

@@ -350,6 +350,7 @@ pub(super) fn parse_unit(
         source_enums: Vec::new(),
         source_enum_registry: std::sync::Arc::from([]),
         required_init_proofs: BTreeMap::new(),
+        reference_owner_spans: BTreeSet::new(),
         reference_provenance: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
@@ -1294,6 +1295,7 @@ fn analyze_parsed_with_projection(
     super::throw_construction::normalize(&mut semantic);
     validate_initializer_dependencies(&semantic)?;
     validate_projected_static_declines(&semantic)?;
+    super::ownership::validate_reference_expression_sites(&semantic)?;
     analyze_types(&mut semantic)?;
     stage.finish();
     let references = crate::compilation_progress::start(
@@ -1346,6 +1348,7 @@ fn analyze_parsed_with_projection(
     validate_global_definite_assignment(&semantic)?;
     validate_definite_assignment(&mut semantic)?;
     validate_calls(&semantic)?;
+    super::reference_validation::validate_reference_writes(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
     super::initialization::validate(&mut semantic)?;

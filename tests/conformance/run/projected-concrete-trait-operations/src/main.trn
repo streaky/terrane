@@ -1,11 +1,14 @@
 namespace app
 
-from /deps/witness import Basket, Element, Response, Selected, Token, destination
+from /deps/witness import Basket, Element, OwnedToken, Response, Selected, Token, destination
 
 function main throws dependency-error;
     token Token = Token::from_str; 'good'
     other Token = Token::from_str; 'good'
-    print; (token.contains; ref other)
+    borrowed-other = ref other
+    print; (token.contains; borrowed-other)
+    owned = OwnedToken::Good;
+    print; (token.contains; owned)
 
     response Response = Token::create;
     print; (response.value;)

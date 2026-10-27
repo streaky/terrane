@@ -14,6 +14,29 @@ use super::{
 };
 use super::{expand_output_alias, projected_error_name, type_arguments, type_mentions_generic};
 
+fn borrowed_str_parameter(ty: &Type, index: &HashMap<Id, Item>) -> bool {
+    let Type::BorrowedRef {
+        is_mutable: false,
+        type_,
+        ..
+    } = ty
+    else {
+        return false;
+    };
+    let mut inner = type_.as_ref();
+    while let Type::ResolvedPath(path) = inner {
+        let Some(Item {
+            inner: ItemEnum::TypeAlias(alias),
+            ..
+        }) = index.get(&path.id)
+        else {
+            return false;
+        };
+        inner = &alias.type_;
+    }
+    matches!(inner, Type::Primitive(name) if name == "str")
+}
+
 fn direct_future_output(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<Type> {
     let Type::ImplTrait(bounds) = ty else {
         return None;
@@ -636,6 +659,11 @@ pub(super) fn project_function_inner(
             parameter_name = format!("{parameter_name}-value");
         }
         parameters.push(ProjectedParameter {
+            borrowed_str: matches!(projected_type, ProjectedType::String)
+                && (borrowed_str_parameter(ty, index)
+                    || borrowed
+                        && generic_parameter.is_some()
+                        && !matches!(ty, Type::BorrowedRef { .. })),
             name: parameter_name,
             ty: projected_type,
             borrowed,
@@ -899,7 +927,33 @@ pub(super) fn project_function_inner(
         }
     )
     .then_some(ChainRole::Root);
+    let receiver_bounds = if receiver.is_some() {
+        let receiver_parameter = rustdoc_types::GenericParamDef {
+            name: "Self".to_owned(),
+            kind: GenericParamDefKind::Type {
+                bounds: Vec::new(),
+                default: None,
+                is_synthetic: false,
+            },
+        };
+        render_generic_bounds(&receiver_parameter, function, index, paths, &generic_types)?
+            .into_iter()
+            .filter(|bound| {
+                generic_parameters.iter().any(|parameter| {
+                    parameter.input_selected
+                        && bound
+                            .split(|character: char| {
+                                !character.is_ascii_alphanumeric() && character != '_'
+                            })
+                            .any(|token| token == parameter.name)
+                })
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
     Ok(ProjectedFunction {
+        receiver_bounds,
         operation_owner_generics: Vec::new(),
         name: method_name.unwrap_or_default().to_owned(),
         native_owner: None,

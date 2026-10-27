@@ -894,8 +894,8 @@ pub(super) fn infer_float_call_type(
                 &unit.source,
                 &unit.descriptors,
                 "floating operation argument",
-                expected,
-                actual,
+                &expected,
+                &actual,
                 value,
                 "T0013",
             )?;

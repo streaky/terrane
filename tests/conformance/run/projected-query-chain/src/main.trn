@@ -17,18 +17,18 @@ async function main;
   first_op = 'select'
   second_op = 'select-second'
   invalid_op = 'invalid'
-  await ((query; insert_op).bind; b'first').execute; ref connection
-  await ((query; insert_op).bind; b'second').execute; ref connection
-  rows list of Row = await (query; first_op).fetch_all; ref connection
+  await ((query; insert_op).bind; b'first').execute; connection
+  await ((query; insert_op).bind; b'second').execute; connection
+  rows list of Row = await (query; first_op).fetch_all; connection
   print; rows.length
-  row Row = await (query; first_op).fetch_one; ref connection
+  row Row = await (query; first_op).fetch_one; connection
   body bytes = Row::try_get; row, 'body'
   print; body[0]
-  second_row Row = await (query; second_op).fetch_one; ref connection
+  second_row Row = await (query; second_op).fetch_one; connection
   second_body bytes = second_row.try_get; 'body'
   print; second_body[0]
   try
-    await (query; invalid_op).execute; ref connection
+    await (query; invalid_op).execute; connection
   catch QueryError
     print; 'query-error'
   await connection.close;

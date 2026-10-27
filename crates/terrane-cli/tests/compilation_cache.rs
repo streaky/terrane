@@ -185,7 +185,7 @@ function implicit int64; connection ref Connection
     return bound.fetch; connection
 function main;
     connection = Connection::new;
-    print; (implicit; ref connection)
+    print; (implicit; connection)
 ";
     let missing_interface = r"namespace app
 from /deps/witness import advance
@@ -193,12 +193,19 @@ class unrelated
     value int = 0
 function main;
     value = instance unrelated;
-    print; (advance; ref value)
+    print; (advance; value)
 ";
-    for (source, expected_error) in [
-        (accepted.as_str(), None),
-        (implicit_reference, Some("T0129")),
-        (missing_interface, Some("T0121")),
+    let wrong_owner_executor = r"namespace app
+from /deps/witness import owner_query
+function main;
+    invalid = 'not an executor'
+    print; ((owner_query; 'wrong-owner').fetch; invalid)
+";
+    for (source, expected_error, expected_output) in [
+        (accepted.as_str(), None, expected_output.as_str()),
+        (implicit_reference, None, "1\n"),
+        (missing_interface, Some("T0121"), ""),
+        (wrong_owner_executor, Some("T0119"), ""),
     ] {
         package.source(source);
         let projection = package.0.join(".trn/dependencies/projection.json");
@@ -226,6 +233,9 @@ function main;
             if let Some(code) = expected_error {
                 assert!(!checked.status.success(), "{stderr}");
                 assert!(stderr.contains(&format!("error[{code}]")), "{stderr}");
+                if code == "T0119" {
+                    assert!(stderr.contains("does not satisfy"), "{stderr}");
+                }
                 assert!(!stderr.contains("S9003"), "{stderr}");
             } else {
                 assert!(checked.status.success(), "{stderr}");
@@ -240,6 +250,78 @@ function main;
         if expected_error.is_none() {
             assert_eq!(package.output(), expected_output);
         }
+    }
+}
+
+#[test]
+fn native_receiver_predicates_survive_projection_cache_reloads() {
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let package = Package(workspace.join("target").join(format!(
+        "native-receiver-cache-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )));
+    copy_fixture(
+        &workspace.join("tests/conformance/run/projected-concrete-trait-operations"),
+        &package.0,
+    );
+    let accepted = fs::read_to_string(package.0.join("src/main.trn")).unwrap();
+    let expected_output = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
+    let rejected =
+        fs::read_to_string(workspace.join(
+            "tests/conformance/reject/projected-receiver-predicate-owned-argument/src/main.trn",
+        ))
+        .unwrap();
+    for (source, rejects) in [(accepted.as_str(), false), (rejected.as_str(), true)] {
+        package.source(source);
+        let projection = package.0.join(".trn/dependencies/projection.json");
+        if projection.exists() {
+            fs::remove_file(projection).unwrap();
+        }
+        for _ in 0..2 {
+            let snapshots = package.0.join(".trn/cache");
+            if snapshots.exists() {
+                fs::remove_dir_all(snapshots).unwrap();
+            }
+            let checked = Command::new(env!("CARGO_BIN_EXE_terrane"))
+                .arg("check")
+                .arg(&package.0)
+                .output()
+                .unwrap();
+            let stderr = String::from_utf8(checked.stderr).unwrap();
+            if rejects {
+                assert!(!checked.status.success(), "{stderr}");
+                assert!(stderr.contains("error[T0119]"), "{stderr}");
+                assert!(stderr.contains("borrowed = ref value"), "{stderr}");
+            } else {
+                assert!(checked.status.success(), "{stderr}");
+            }
+        }
+        if !rejects {
+            assert_eq!(package.output(), expected_output);
+        }
+    }
+}
+
+#[test]
+fn native_borrowed_literals_survive_projection_cache_reloads() {
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let package = Package(workspace.join("target").join(format!(
+        "native-literal-cache-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )));
+    copy_fixture(
+        &workspace.join("tests/conformance/run/native-borrowed-future"),
+        &package.0,
+    );
+    let expected = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
+    for _ in 0..2 {
+        let snapshots = package.0.join(".trn/cache");
+        if snapshots.exists() {
+            fs::remove_dir_all(snapshots).unwrap();
+        }
+        assert_eq!(package.output(), expected);
     }
 }
 

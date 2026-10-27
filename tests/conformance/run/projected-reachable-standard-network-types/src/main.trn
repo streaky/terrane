@@ -12,7 +12,8 @@ function main;
     print; (socket.port;)
     network IpNet = IpNet::from_str; '192.0.2.44/32'
     payload IpAddr = socket.ip;
-    print; (network.contains; ref payload)
+    borrowed-payload = ref payload
+    print; (network.contains; borrowed-payload)
     try
         _invalid = IpAddr::from_str; 'not-an-address'
         print; 'unexpected parse success'

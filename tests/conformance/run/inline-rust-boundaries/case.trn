@@ -37,7 +37,7 @@ function main;
   rust-statement;
   print; (inspect-cloned-input; 'copy me')
   input = 'owned handoff'
-  address = borrowed-address; ref input
+  address = borrowed-address; input
   print; address == (owned-address; move input)
   value = 'repeat'
   copied = identity; value

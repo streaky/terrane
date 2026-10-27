@@ -289,7 +289,7 @@ fn main() {
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(update_twice(&mut
-        mutator), 13 /* terrane-site: src/main.trn:31:13-31:38 */))
+        mutator), 13 /* terrane-site: src/main.trn:31:13-31:34 */))
     );
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {

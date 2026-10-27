@@ -9,8 +9,6 @@ function relay ref int; left ref int, right ref int
 function main;
   left = 1
   right = 2
-  left-ref ref int = ref left
-  right-ref ref int = ref right
-  chosen ref int = relay; left-ref, right-ref
+  chosen ref int = relay; left, right
   left = 3
   print; chosen

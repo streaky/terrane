@@ -9,5 +9,5 @@ function increment; counter ref NativeCounter
 function main;
     counter = NativeCounter::new; 0
     callback = function;
-        increment; ref counter
+        increment; counter
     callback;

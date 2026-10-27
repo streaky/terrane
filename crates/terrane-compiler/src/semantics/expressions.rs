@@ -1492,8 +1492,8 @@ fn infer_nonbinary_value_type(
                             &unit.source,
                             &unit.descriptors,
                             "channel-sender.send",
-                            item.value_type(),
-                            actual,
+                            &item.value_type(),
+                            &actual,
                             value,
                             "T0109",
                         )?;

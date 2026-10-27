@@ -68,7 +68,7 @@ async function test-controlled-async-time none throws throwable;
     interval = duration::nanoseconds; 25
     ignored = await clock::sleep; interval
     later = clock::monotonic;
-    elapsed = started.duration-until; ref later
+    elapsed = started.duration-until; later
     assert-equal-int; elapsed.nanoseconds, 25
     return none
 

@@ -44,6 +44,8 @@ mod diagnostics;
 mod field_moves;
 mod objects;
 mod ownership;
+mod receiver_bounds;
+mod reference_validation;
 mod selection;
 mod shared_reentry;
 mod shared_storage;

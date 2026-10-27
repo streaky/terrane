@@ -37,7 +37,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&(first.sequence.clone() >
             terrane_int_support::Int::from(0_i128))),
             terrane_scalar_support::scalar_text(&(__terrane_traced(before
-            .duration_until(&first.observed_at), 3 /* terrane-site: case.trn:14:65-14:109 */).total_nanoseconds.clone() >=
+            .duration_until(&first.observed_at), 3 /* terrane-site: case.trn:14:65-14:105 */).total_nanoseconds.clone() >=
             terrane_int_support::Int::from(0_i128)))
         );
         println!(
@@ -46,7 +46,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&(second.sequence.clone() > first
             .sequence.clone())),
             terrane_scalar_support::scalar_text(&(__terrane_traced(first.observed_at
-            .duration_until(&second.observed_at), 4 /* terrane-site: case.trn:15:81-15:137 */).total_nanoseconds.clone() >=
+            .duration_until(&second.observed_at), 4 /* terrane-site: case.trn:15:81-15:133 */).total_nanoseconds.clone() >=
             terrane_int_support::Int::from(0_i128)))
         );
         __terrane_traced(

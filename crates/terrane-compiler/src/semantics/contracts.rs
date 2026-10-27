@@ -489,8 +489,8 @@ pub(super) fn analyze_function_contract(
                     &unit.source,
                     &unit.descriptors,
                     node_text(&unit.source, parameter_name),
-                    expected,
-                    actual,
+                    &expected,
+                    &actual,
                     default,
                     "T0006",
                 )?;

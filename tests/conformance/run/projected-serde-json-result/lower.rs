@@ -6,9 +6,7 @@ fn main() {
     let value: i64;
     value = __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| serde_json::from_str::<
-                i64,
-            >(&String::from("17"))),
+            std::panic::AssertUnwindSafe(|| serde_json::from_str::<i64>("17")),
         ) {
             Ok(Ok(value)) => Ok(value),
             Ok(Err(error)) => {

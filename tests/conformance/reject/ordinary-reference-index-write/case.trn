@@ -1,0 +1,4 @@
+namespace ordinary-reference-index-write
+function update; items ref (list of int)
+    items[0] = 3
+function main;

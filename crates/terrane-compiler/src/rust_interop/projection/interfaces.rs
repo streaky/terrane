@@ -473,6 +473,7 @@ fn attach_unique_trait_operation(
         associated.parameters.insert(
             0,
             ProjectedParameter {
+                borrowed_str: false,
                 name: "receiver".to_owned(),
                 ty: ProjectedType::Foreign {
                     rust_path: owner.to_owned(),
@@ -547,6 +548,7 @@ pub(super) fn merge_projected_trait_operations(
             function.parameters.insert(
                 0,
                 ProjectedParameter {
+                    borrowed_str: false,
                     name: "receiver".to_owned(),
                     ty: ProjectedType::Foreign {
                         rust_path: owner.to_owned(),

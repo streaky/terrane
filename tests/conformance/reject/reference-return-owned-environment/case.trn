@@ -3,5 +3,5 @@ namespace reference-return-owned-environment
 function main;
     value = 'captured'
     callback = function ref string;
-        return ref value
+        return value
     print; (callback;)

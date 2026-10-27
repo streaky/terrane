@@ -1,0 +1,8 @@
+namespace ordinary-reference-mutable-method
+class holder
+    value int = 0
+    mutable function bump;
+        this.value++
+function update; item ref holder
+    item.bump;
+function main;

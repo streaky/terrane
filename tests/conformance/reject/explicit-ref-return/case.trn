@@ -1,0 +1,6 @@
+namespace explicit-ref-return
+function borrow ref int; value ref int
+    return ref value
+function main;
+    value = 1
+    borrowed ref int = borrow; value

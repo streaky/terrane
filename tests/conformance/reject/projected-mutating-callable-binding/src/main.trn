@@ -4,4 +4,4 @@ from /callbacks import mark-sensitive
 function main;
     action function from ref HeaderValue to bool = mark-sensitive
     value = HeaderValue::from_str; 'value'
-    action; ref value
+    action; value

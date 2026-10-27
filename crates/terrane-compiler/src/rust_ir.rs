@@ -190,6 +190,80 @@ pub(crate) fn format_rust_bound(rust: &str) -> String {
         .unwrap_or_else(|| rust.to_owned())
 }
 
+/// Callable-owned lifetimes are invocation variables, not higher-ranked
+/// obligations. Keep genuine bound-local lifetimes quantified.
+pub(crate) fn scope_callable_bound_lifetimes(
+    rust: String,
+    callable_lifetimes: &std::collections::BTreeSet<String>,
+) -> (String, Vec<String>) {
+    if callable_lifetimes.is_empty() || !rust.trim_start().starts_with("for") {
+        return (rust, Vec::new());
+    }
+    let Ok(syn::TypeParamBound::Trait(mut bound)) = syn::parse_str(&rust) else {
+        return (rust, Vec::new());
+    };
+    let Some(mut binders) = bound.lifetimes.take() else {
+        return (rust, Vec::new());
+    };
+    let mut inferred = Vec::new();
+    binders.lifetimes = binders
+        .lifetimes
+        .into_iter()
+        .filter(|parameter| {
+            let syn::GenericParam::Lifetime(parameter) = parameter else {
+                return true;
+            };
+            let name = parameter.lifetime.to_token_stream().to_string();
+            if callable_lifetimes.contains(&name) {
+                inferred.push(name);
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+    if inferred.is_empty() {
+        return (rust, inferred);
+    }
+    if !binders.lifetimes.is_empty() {
+        bound.lifetimes = Some(binders);
+    }
+    (bound.to_token_stream().to_string(), inferred)
+}
+
+/// Name anonymous loans before a native type is substituted into a where-bound.
+pub(crate) fn name_anonymous_reference_lifetimes(rust: String, lifetime: &str) -> (String, bool) {
+    struct NameLoans {
+        lifetime: syn::Lifetime,
+        changed: bool,
+    }
+    impl syn::fold::Fold for NameLoans {
+        fn fold_type_reference(&mut self, mut reference: syn::TypeReference) -> syn::TypeReference {
+            if reference.lifetime.is_none() {
+                reference.lifetime = Some(self.lifetime.clone());
+                self.changed = true;
+            }
+            syn::fold::fold_type_reference(self, reference)
+        }
+    }
+    if !rust.contains('&') {
+        return (rust, false);
+    }
+    let Ok(ty) = syn::parse_str::<syn::Type>(&rust) else {
+        return (rust, false);
+    };
+    let mut visitor = NameLoans {
+        lifetime: syn::Lifetime::new(lifetime, proc_macro2::Span::call_site()),
+        changed: false,
+    };
+    let ty = syn::fold::Fold::fold_type(&mut visitor, ty);
+    if visitor.changed {
+        (ty.to_token_stream().to_string(), true)
+    } else {
+        (rust, false)
+    }
+}
+
 pub(crate) fn rust_type_arguments(rust: &str) -> Vec<String> {
     let Ok(syn::Type::Path(path)) = syn::parse_str::<syn::Type>(rust) else {
         return Vec::new();

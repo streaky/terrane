@@ -11,7 +11,7 @@ function query-text native-sql;
 async function read int64; native ref native-connection
     arguments = native-arguments::default;
     sql = query-text;
-    record native-row = await (native-query; sql, move arguments).fetch_one; native
+    record native-row = await (native-query; sql, move arguments).fetch_one; ref native
     return 0
 
 function main;

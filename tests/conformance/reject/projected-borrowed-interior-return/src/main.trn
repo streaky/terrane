@@ -6,4 +6,4 @@ function escape host-invocation-scoped-native; request ref Request
 
 function main;
     request = Request::new; 41
-    escape; ref request
+    escape; request

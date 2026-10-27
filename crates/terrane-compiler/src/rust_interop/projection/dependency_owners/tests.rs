@@ -38,6 +38,7 @@ fn locked_transitive_owner() {
             rust_path: "reqwest::Response::status".to_owned(),
             docs: None,
             kind: ProjectedKind::Function(ProjectedFunction {
+                receiver_bounds: Vec::new(),
                 native_owner: None,
                 native_path: None,
                 name: "status".to_owned(),

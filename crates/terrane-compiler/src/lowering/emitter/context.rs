@@ -1371,9 +1371,13 @@ impl<'unit> Emitter<'unit> {
 
     pub(super) fn binding_is_reference_owner(&self, binding: &TypedBinding) -> bool {
         self.unit
-            .reference_provenance
-            .values()
-            .any(|provenance| provenance.owner == binding.span)
+            .reference_owner_spans
+            .contains(&(binding.span.start, binding.span.end))
+            || self
+                .unit
+                .reference_provenance
+                .values()
+                .any(|provenance| provenance.owner == binding.span)
     }
 
     pub(super) fn text(&self, node: &SyntaxNode) -> &str {

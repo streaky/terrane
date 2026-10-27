@@ -284,14 +284,31 @@ pub(super) fn validate_call_nodes<'a>(
                 &expected_type,
                 scoped_bindings,
                 "callable argument",
+                false,
             )?;
             if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
+                let expected_type = match expected.value_type() {
+                    ValueType::Reference(inner) if inner.value_type_ref() == &actual => {
+                        inner.value_type()
+                    }
+                    ValueType::SharedReference(inner)
+                        if !matches!(
+                            &actual,
+                            ValueType::Reference(_)
+                                | ValueType::SharedReference(_)
+                                | ValueType::InvocationScopedNative { .. }
+                        ) =>
+                    {
+                        inner.value_type()
+                    }
+                    expected => expected,
+                };
                 validate_value_destination(
                     &unit.source,
                     &unit.descriptors,
                     "callable argument",
-                    expected.value_type(),
-                    actual,
+                    &expected_type,
+                    &actual,
                     value,
                     "T0012",
                 )?;
@@ -565,15 +582,11 @@ fn validate_projected_generic_arguments(
         );
         let source_interface = parameter.generic_interface.is_some() || boxed_interface;
         if parameter.generic_parameter.is_none()
-            || (!source_interface && !native_parameter.requires_mutable_reference(true))
+            || (!source_interface && !native_parameter.requires_mutable_reference())
         {
             continue;
         }
         let value = argument.children.last().unwrap_or(argument);
-        let has_explicit_reference = [argument, value].into_iter().any(|candidate| {
-            candidate.kind == SyntaxKind::UnaryExpression
-                && unary_operator_text(unit, candidate).as_deref() == Some("ref")
-        });
         let Some(actual) = infer_value_type(unit, value, bindings)? else {
             return Err(failure(
                 &unit.source,
@@ -582,21 +595,6 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         };
-        if !parameter.borrowed
-            && native_parameter.requires_mutable_reference(true)
-            && matches!(
-                &actual,
-                ValueType::Reference(_) | ValueType::SharedReference(_)
-            )
-            && !has_explicit_reference
-        {
-            return Err(failure(
-                &unit.source,
-                "T0129",
-                "native mutable generic reference arguments require an explicit `ref`",
-                value.span,
-            ));
-        }
         if !source_interface {
             continue;
         }
@@ -924,8 +922,8 @@ pub(super) fn validate_resolved_assignment(
         &unit.source,
         &unit.descriptors,
         name,
-        expected,
-        actual,
+        &expected,
+        &actual,
         initializer,
         "T0002",
     )
@@ -1390,13 +1388,40 @@ fn reject_shared_weak_observer_argument(
     expected: &ValueType,
     bindings: &[TypedBinding],
     destination: &str,
+    native_call: bool,
 ) -> Result<(), SemanticFailure> {
     if !matches!(expected, ValueType::Reference(_)) {
         return Ok(());
     }
-    if let Some(owner) = shared_weak_observer_owner(unit, value, bindings)
-        && package.reference_owner_uses_shared_storage(unit, owner)
-    {
+    let actual = infer_value_type(unit, value, bindings)?;
+    if matches!(actual, Some(ValueType::SharedReference(_))) {
+        // Shared ownership is not an ordinary borrow; destination validation
+        // reports the incompatible declaration without changing its identity.
+        return Ok(());
+    }
+    let owner = shared_weak_observer_owner(unit, value, bindings).or_else(|| {
+        let mut root = value;
+        while matches!(
+            root.kind,
+            SyntaxKind::GroupExpression
+                | SyntaxKind::MemberExpression
+                | SyntaxKind::IndexExpression
+        ) {
+            root = root.children.first()?;
+        }
+        if root.kind != SyntaxKind::Name {
+            return None;
+        }
+        let name = node_text(&unit.source, root);
+        bindings
+            .iter()
+            .rev()
+            .find(|binding| {
+                binding.name == name && binding.is_visible_at(unit.source.id(), root.span.start)
+            })
+            .map(|binding| binding.span)
+    });
+    if owner.is_some_and(|owner| package.reference_owner_uses_shared_storage(unit, owner)) {
         return Err(failure(
             &unit.source,
             "T0141",
@@ -1406,34 +1431,8 @@ fn reject_shared_weak_observer_argument(
             value.span,
         ));
     }
-    Ok(())
-}
-
-fn require_ref_argument(
-    unit: &SemanticUnit,
-    value: &SyntaxNode,
-    expected: &ValueType,
-    actual: &ValueType,
-    parameter: &str,
-) -> Result<(), SemanticFailure> {
-    if matches!(expected, ValueType::Reference(_))
-        && !matches!(
-            actual,
-            ValueType::Reference(_)
-                | ValueType::SharedReference(_)
-                | ValueType::InvocationScopedNative { .. }
-        )
-    {
-        return Err(failure(
-            &unit.source,
-            "T0012",
-            format!(
-                "`{parameter}` requires `{}`, found `{}`",
-                diagnostic_value_type(&unit.descriptors, expected),
-                diagnostic_value_type(&unit.descriptors, actual)
-            ),
-            value.span,
-        ));
+    if !native_call {
+        super::ownership::validate_implicit_reference_argument(package, unit, value)?;
     }
     Ok(())
 }
@@ -1480,6 +1479,7 @@ pub(super) fn validate_call_arguments(
                 &expected,
                 bindings,
                 &parameter.name,
+                native_callback,
             )?;
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
@@ -1506,27 +1506,27 @@ pub(super) fn validate_call_arguments(
                 {
                     continue;
                 }
-                bind_projected_generics(&expected, &actual, &mut generic_bindings)
-                    .map_err(generic_failure)?;
-                if !native_callback {
-                    require_ref_argument(unit, value, &expected, &actual, &parameter.name)?;
-                }
                 let validation_expected = match (&expected, &actual) {
                     (
                         ValueType::Reference(_) | ValueType::SharedReference(_),
                         ValueType::Reference(_) | ValueType::SharedReference(_),
                     ) => expected.clone(),
-                    (ValueType::Reference(inner) | ValueType::SharedReference(inner), _) => {
+                    (ValueType::Reference(inner), _)
+                        if native_callback || inner.value_type_ref() == &actual =>
+                    {
                         inner.value_type()
                     }
+                    (ValueType::SharedReference(inner), _) => inner.value_type(),
                     _ => expected.clone(),
                 };
+                bind_projected_generics(&validation_expected, &actual, &mut generic_bindings)
+                    .map_err(generic_failure)?;
                 validate_value_destination(
                     &unit.source,
                     &unit.descriptors,
                     &parameter.name,
-                    validation_expected,
-                    actual,
+                    &validation_expected,
+                    &actual,
                     value,
                     "T0012",
                 )?;

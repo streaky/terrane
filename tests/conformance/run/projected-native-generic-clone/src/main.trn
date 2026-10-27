@@ -9,7 +9,7 @@ function copy CloneBox of uint8; source ref (CloneBox of uint8)
 async function main;
     value uint8 = 42
     original CloneBox of uint8 = (make of uint8); value
-    copied = copy; ref original
+    copied = copy; original
     print; copied.value
     try
         local CloneBox of uint8 = (make of uint8); value

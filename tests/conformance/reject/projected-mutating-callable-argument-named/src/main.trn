@@ -8,4 +8,4 @@ function apply-header bool; action function from ref HeaderValue to bool, header
 
 function main;
     value = HeaderValue::from_str; 'value'
-    apply-header; mark-sensitive, ref value
+    apply-header; mark-sensitive, value

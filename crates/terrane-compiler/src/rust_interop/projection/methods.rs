@@ -29,6 +29,7 @@ fn project_operation_owner_generics(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
+    allow_lifetime_bounds: bool,
 ) -> Result<Vec<ProjectedGenericParameter>, String> {
     let declaration = &implementation.generics;
     let has_owner_lifetimes = declaration
@@ -36,19 +37,21 @@ fn project_operation_owner_generics(
         .iter()
         .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }));
     for predicate in &declaration.where_predicates {
-        if !matches!(
-            predicate,
-            WherePredicate::BoundPredicate {
-                type_: Type::Generic(name),
-                ..
-            } if declaration.params.iter().any(|parameter| {
-                parameter.name == *name
-                    && matches!(
-                        parameter.kind,
-                        GenericParamDefKind::Type { is_synthetic: false, .. }
-                    )
-            })
-        ) {
+        if !allow_lifetime_bounds
+            && !matches!(
+                predicate,
+                WherePredicate::BoundPredicate {
+                    type_: Type::Generic(name),
+                    ..
+                } if declaration.params.iter().any(|parameter| {
+                    parameter.name == *name
+                        && matches!(
+                            parameter.kind,
+                            GenericParamDefKind::Type { is_synthetic: false, .. }
+                        )
+                })
+            )
+        {
             return Err(
                 "inherent impl predicate has no stable owner-generic projection".to_owned(),
             );
@@ -76,39 +79,40 @@ fn project_operation_owner_generics(
             paths,
             generics,
         )?;
-        if rust_bounds.iter().any(|bound| {
-            (bound.starts_with('\'') && bound != "'static")
-                || (has_owner_lifetimes
-                    && rust_lifetimes(bound).iter().any(|lifetime| {
-                        declaration.params.iter().any(|parameter| {
-                            parameter.name == *lifetime
-                                && matches!(parameter.kind, GenericParamDefKind::Lifetime { .. })
-                        })
-                    }))
-        }) {
+        if !allow_lifetime_bounds
+            && rust_bounds.iter().any(|bound| {
+                (bound.starts_with('\'') && bound != "'static")
+                    || (has_owner_lifetimes
+                        && rust_lifetimes(bound).iter().any(|lifetime| {
+                            declaration.params.iter().any(|parameter| {
+                                parameter.name == *lifetime
+                                    && matches!(
+                                        parameter.kind,
+                                        GenericParamDefKind::Lifetime { .. }
+                                    )
+                            })
+                        }))
+            })
+        {
             return Err(
                 "inherent impl lifetime bound has no stable owner-generic projection".to_owned(),
             );
         }
         // The self-type substitution maps impl binders to nominal or alias slots.
         // Concrete alias arguments need no helper parameter; Rust checks their bounds.
-        let Some(selected) = generics.get(&parameter.name) else {
-            if rust_bounds.is_empty() {
+        let name = match generics.get(&parameter.name) {
+            Some(ProjectedType::Generic(name)) => name,
+            Some(selected) if !selected.contains_open_generic() || rust_bounds.is_empty() => {
                 continue;
             }
-            return Err(format!(
-                "inherent impl binder `{}` has no selected owner-generic slot",
-                parameter.name
-            ));
-        };
-        let ProjectedType::Generic(name) = selected else {
-            if !selected.contains_open_generic() || rust_bounds.is_empty() {
-                continue;
+            None if allow_lifetime_bounds => &parameter.name,
+            None if rust_bounds.is_empty() => continue,
+            _ => {
+                return Err(format!(
+                    "inherent impl binder `{}` has no stable owner-generic projection",
+                    parameter.name
+                ));
             }
-            return Err(format!(
-                "inherent impl binder `{}` has no stable owner-generic projection",
-                parameter.name
-            ));
         };
         let entry = projected
             .entry(name.clone())
@@ -507,19 +511,23 @@ pub(super) fn project_methods(
                         &method_generics,
                     );
                     method.native_owner = Some(method_native_owner);
-                    if static_owner_generics {
-                        match project_operation_owner_generics(
-                            implementation,
-                            index,
-                            paths,
-                            &method_generics,
-                        ) {
-                            Ok(owner_generics) => method.operation_owner_generics = owner_generics,
-                            Err(reason) => {
-                                declined.push((name.to_owned(), reason));
-                                continue;
-                            }
+                    match project_operation_owner_generics(
+                        implementation,
+                        index,
+                        paths,
+                        &method_generics,
+                        !static_owner_generics,
+                    ) {
+                        Ok(owner_generics) => method.operation_owner_generics = owner_generics,
+                        Err(reason) if static_owner_generics => {
+                            declined.push((name.to_owned(), reason));
+                            continue;
                         }
+                        // Instance calls retain their native receiver and full
+                        // graph obligations. Keep any representable owner binders
+                        // above even when other impl predicates cannot detach;
+                        // only an unrepresentable binder itself defers this plan.
+                        Err(_) => {}
                     }
                     candidates.push(method);
                 }

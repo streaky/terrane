@@ -2,4 +2,4 @@ namespace app
 from /deps/witness/macros import identity
 function main;
     value int = 7
-    result int = identity; ref value
+    result int = identity; value

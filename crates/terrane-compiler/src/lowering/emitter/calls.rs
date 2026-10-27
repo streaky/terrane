@@ -1886,6 +1886,12 @@ impl Emitter<'_> {
             .and_then(|receiver| self.value_type(receiver))
             .and_then(|value_type| match value_type {
                 ValueType::Object(identity) => Some(identity),
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    match item.value_type() {
+                        ValueType::Object(identity) => Some(identity),
+                        _ => None,
+                    }
+                }
                 _ => None,
             })
             .is_some_and(|identity| {
@@ -2054,12 +2060,9 @@ impl Emitter<'_> {
                     .cloned()
                     .flatten()
                     .or_else(|| parameter.element_value_type());
-                let explicit_reference = [argument, value].into_iter().find_map(|candidate| {
-                    (candidate.kind == SyntaxKind::UnaryExpression
-                        && self.unary_operator(candidate).as_deref() == Some("ref"))
-                    .then(|| candidate.children.last())
-                    .flatten()
-                });
+                let selected_borrowed_reference = projected_parameter.is_some_and(
+                    crate::rust_interop::projection::ProjectedParameter::borrows_argument,
+                );
                 let invocation_callback = projected_parameter
                     .map(|parameter| parameter.ty.clone())
                     .and_then(|projected| {
@@ -2077,8 +2080,40 @@ impl Emitter<'_> {
                             })
                     });
                 let has_invocation_callback = invocation_callback.is_some();
+                let borrowed_literal = if !projected_interface_dispatch
+                    && projected_parameter.is_some_and(|parameter| {
+                        parameter.borrowed_str
+                            && matches!(
+                                parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::String
+                            )
+                    })
+                    && (specialization
+                        .is_some_and(|specialization| specialization.direct_projected_call)
+                        || projected_chain_role.is_some()
+                        || callee.kind == SyntaxKind::MemberExpression)
+                {
+                    let mut literal = value;
+                    while literal.kind == SyntaxKind::GroupExpression
+                        && let [inner] = literal.children.as_slice()
+                    {
+                        literal = inner;
+                    }
+                    (literal.kind == SyntaxKind::Literal
+                        && self.value_type(literal) == Some(ValueType::Scalar(ScalarType::String)))
+                    .then(|| crate::lowering::helpers::native_macro_literal(self.text(literal)))
+                } else {
+                    None
+                };
+                let mut borrowed_expression = false;
                 let expression = if let Some(expression) = invocation_callback {
                     expression
+                } else if let Some(literal) = borrowed_literal {
+                    // The literal itself is the native borrow's owner. Do not
+                    // allocate a String temporary that dies before an await or
+                    // staged native call; owned wrapper inputs keep their ABI.
+                    borrowed_expression = true;
+                    literal
                 } else if value.kind == SyntaxKind::Name
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.borrowed
@@ -2108,16 +2143,15 @@ impl Emitter<'_> {
                     } else {
                         self.raw_storage_name(value)
                     }
-                } else if projected_parameter.is_some_and(|parameter| {
-                    parameter.requires_mutable_reference(explicit_reference.is_some())
-                })
+                } else if projected_parameter.is_some_and(crate::rust_interop::projection::ProjectedParameter::requires_mutable_reference)
                     || self.mutable_native_reference_parameter(
                     contract,
                     index,
                     parameter.binding_value_type().as_ref(),
                 ) {
+                    borrowed_expression = true;
                     self.staged_native_argument_reference(
-                        explicit_reference.unwrap_or(value),
+                        value,
                         true,
                         &mut shared_argument_setup,
                         &mut shared_argument_index,
@@ -2132,12 +2166,23 @@ impl Emitter<'_> {
                         || matches!(
                             parameter.ty,
                             crate::rust_interop::projection::ProjectedType::BoxedInterface { .. }
+                                | crate::rust_interop::projection::ProjectedType::Reference { .. }
                         )
                 }) {
-                    if projected_parameter.is_some_and(|parameter| !parameter.borrowed) {
-                        self.owned_native_argument(value)
-                    } else {
+                    if selected_borrowed_reference && !projected_parameter.is_some_and(|parameter| {
+                        matches!(parameter.ty, crate::rust_interop::projection::ProjectedType::String | crate::rust_interop::projection::ProjectedType::Bytes)
+                    }) {
+                        borrowed_expression = true;
+                        self.staged_native_argument_reference(
+                            value,
+                            false,
+                            &mut shared_argument_setup,
+                            &mut shared_argument_index,
+                        )
+                    } else if selected_borrowed_reference {
                         self.expression(value)
+                    } else {
+                        self.owned_native_argument(value)
                     }
                 } else if let Some(ty) = semantic_parameter.as_ref() {
                     self.expression_as(value, ty.clone())
@@ -2218,6 +2263,7 @@ impl Emitter<'_> {
                     .filter(|parameter| {
                         parameter.borrowed
                             && !parameter.mutable_borrow
+                            && !borrowed_expression
                             && !projected_interface_dispatch
                             && (specialization
                                 .is_some_and(|specialization| specialization.direct_projected_call)
@@ -2251,7 +2297,7 @@ impl Emitter<'_> {
                                 crate::rust_interop::projection::ProjectedType::Foreign { .. },
                                 false,
                             ) => self.staged_native_argument_reference(
-                                explicit_reference.unwrap_or(value),
+                                value,
                                 false,
                                 &mut shared_argument_setup,
                                 &mut shared_argument_index,

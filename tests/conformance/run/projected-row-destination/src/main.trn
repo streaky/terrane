@@ -7,7 +7,7 @@ async function main;
   options = ConnectionOptions::new;
   connection = await options.connect;
   selector = 'first'
-  row Row = await (query; selector).fetch_one; ref connection
+  row Row = await (query; selector).fetch_one; connection
   body bytes = Row::try_get; row, 'body'
   print; body.length, body[0], body[1]
   try

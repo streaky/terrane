@@ -100,18 +100,18 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            2 /* terrane-site: src/main.trn:10:19-10:62 */,
+                            2 /* terrane-site: src/main.trn:10:19-10:58 */,
                         )
                     }
                 })
                 .await,
-            2 /* terrane-site: src/main.trn:10:19-10:62 */,
+            2 /* terrane-site: src/main.trn:10:19-10:58 */,
         );
         body = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &row,
-                    String::from("body").as_str(),
+                    "body",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -152,12 +152,12 @@ fn main() {
                 let _ = missing
                     .insert(
                         __terrane_raised_completion!(
-                            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|
-                            | < terrane_query_witness::Row as
+                            match
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| <
+                            terrane_query_witness::Row as
                             terrane_query_contract::RowAccess > ::try_get(&row,
-                            String::from("missing").as_str()))) { Ok(Ok(value)) =>
-                            Ok(value), Ok(Err(error)) => Err(crate
-                            ::TerraneForeignError(crate
+                            "missing"))) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
+                            Err(crate ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload,
@@ -213,12 +213,12 @@ fn main() {
                 let _ = incompatible
                     .insert(
                         __terrane_raised_completion!(
-                            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|
-                            | < terrane_query_witness::Row as
+                            match
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| <
+                            terrane_query_witness::Row as
                             terrane_query_contract::RowAccess > ::try_get(&row,
-                            String::from("count").as_str()))) { Ok(Ok(value)) =>
-                            Ok(value), Ok(Err(error)) => Err(crate
-                            ::TerraneForeignError(crate
+                            "count"))) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
+                            Err(crate ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
                             .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
                             Err(crate ::__terrane_dependency_panic(payload,

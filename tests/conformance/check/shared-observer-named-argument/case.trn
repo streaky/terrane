@@ -6,4 +6,4 @@ function read-flag bool; value ref box
 function main;
   named = instance box;
   owner shared ref box = shared ref named
-  read-flag; value = ref named
+  read-flag; value = named

@@ -18,6 +18,7 @@ fn main() {
     let socket: TerraneNsDepsTokioNetSocketAddrIdentity2F646570732F746F6B696F2F6E657400536F636B657441646472;
     let network: IpNet;
     let payload: IpAddr;
+    let borrowed_payload: &IpAddr;
     let mut __trn_5f696e76616c6964: Option<IpAddr> = None;
     let local: TerraneNsAppSocketAddrIdentity2F61707000736F636B65742D61646472;
     address = __terrane_raised(
@@ -57,12 +58,13 @@ fn main() {
         },
         4 /* terrane-site: src/main.trn:14:22-14:32 */,
     );
+    borrowed_payload = &payload;
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&network)
-        .contains(&payload))) { Ok(value) => Ok(value), Err(payload) => Err(crate
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&network).contains(&*
+        borrowed_payload))) { Ok(value) => Ok(value), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "ipnet", "ipnet::IpNet::contains")) },
-        5 /* terrane-site: src/main.trn:15:13-15:42 */))
+        5 /* terrane-site: src/main.trn:16:13-16:47 */))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -70,7 +72,7 @@ fn main() {
                 .insert(
                     __terrane_raised_completion!(
                         terrane_static_trn_497041646472_from_str(String::from("not-an-address")),
-                        6 /* terrane-site: src/main.trn:17:20-17:54 */
+                        6 /* terrane-site: src/main.trn:18:20-18:54 */
                     ),
                 );
             let _ = &__trn_5f696e76616c6964;

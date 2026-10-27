@@ -38,6 +38,98 @@ impl Builder {
         Err(Rejection)
     }
 }
+pub fn read_literal_later(value: &str) -> BorrowedLater<'_> {
+    BorrowedLater { value, yielded: false }
+}
+
+pub type Text = str;
+
+pub fn read_alias_later(value: &Text) -> BorrowedLater<'_> {
+    read_literal_later(value)
+}
+
+pub struct BorrowedLater<'a> {
+    value: &'a str,
+    yielded: bool,
+}
+
+impl<'a> Future for BorrowedLater<'a> {
+    type Output = String;
+
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.yielded {
+            Poll::Ready(self.value.to_owned())
+        } else {
+            self.yielded = true;
+            context.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
+pub async fn read_owned_later(value: String) -> String {
+    YieldOnce(false).await;
+    value
+}
+
+#[derive(Clone)]
+pub struct TextQuery<'text> {
+    value: &'text str,
+}
+
+pub fn literal_query(value: &Text) -> TextQuery<'_> {
+    TextQuery { value }
+}
+
+impl TextQuery<'_> {
+    pub async fn fetch(self) -> String {
+        YieldOnce(false).await;
+        self.value.to_owned()
+    }
+}
+
+struct YieldOnce(bool);
+
+impl Future for YieldOnce {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.0 {
+            Poll::Ready(())
+        } else {
+            self.0 = true;
+            context.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
+
+#[derive(Clone)]
+pub struct Options;
+
+impl Options {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn with_label(self, label: impl AsRef<str>) -> String {
+        label.as_ref().to_owned()
+    }
+
+    pub fn with_owned_label(self, label: String) -> String {
+        label
+    }
+
+    pub fn with_borrowed_label(self, label: &str) -> String {
+        label.to_owned()
+    }
+
+    pub fn with_string_ref(self, label: &String) -> String {
+        label.clone()
+    }
+}
+
 
 pub struct Connection<'a, T> {
     lender: &'a Builder,

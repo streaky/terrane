@@ -90,8 +90,8 @@ pub(super) fn analyze_binding_node(
                 &unit.source,
                 &unit.descriptors,
                 node_text(&unit.source, member),
-                expected,
-                actual,
+                &expected,
+                &actual,
                 value,
                 "T0077",
             )?;
@@ -132,8 +132,8 @@ pub(super) fn analyze_binding_node(
                 &unit.source,
                 &unit.descriptors,
                 "indexed assignment",
-                expected,
-                actual,
+                &expected,
+                &actual,
                 value,
                 "T0046",
             )?;
@@ -350,8 +350,8 @@ pub(super) fn analyze_binding_node(
                     &unit.source,
                     &unit.descriptors,
                     &name,
-                    value_type.clone(),
-                    inferred,
+                    &value_type,
+                    &inferred,
                     initializer,
                     "T0002",
                 )?;
@@ -1163,7 +1163,13 @@ pub(super) fn diagnostic_value_type(
     let nested = |item: &ElementType| diagnostic_value_type(objects, &item.value_type());
     match value_type {
         ValueType::Optional(inner) => {
-            format!("{}|none", diagnostic_value_type(objects, inner))
+            let inner = diagnostic_value_type(objects, inner);
+            if matches!(value_type, ValueType::Optional(inner) if matches!(inner.as_ref(), ValueType::Reference(_) | ValueType::SharedReference(_)))
+            {
+                format!("({inner})|none")
+            } else {
+                format!("{inner}|none")
+            }
         }
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
@@ -1300,54 +1306,40 @@ pub(super) fn validate_value_destination(
     source: &SourceFile,
     objects: &[DescriptorContract],
     name: &str,
-    expected: ValueType,
-    actual: ValueType,
+    expected: &ValueType,
+    actual: &ValueType,
     value: &SyntaxNode,
     mismatch_code: &'static str,
 ) -> Result<(), SemanticFailure> {
-    if actual == ValueType::InlineRust
-        || matches!(&expected, ValueType::ProjectedGeneric(_))
-        || matches!(&actual, ValueType::ProjectedGeneric(_))
+    let mut destination = expected;
+    let mut supplied = actual;
+    while let ValueType::Optional(inner) = destination {
+        if supplied == &ValueType::Scalar(ScalarType::None) {
+            return Ok(());
+        }
+        destination = inner;
+        if let ValueType::Optional(inner) = supplied {
+            supplied = inner;
+        }
+    }
+    if supplied == &ValueType::InlineRust
+        || matches!(destination, ValueType::ProjectedGeneric(_))
+        || matches!(supplied, ValueType::ProjectedGeneric(_))
     {
         return Ok(());
     }
-    if let ValueType::Scalar(expected) = expected {
-        let actual = match actual {
+    if let ValueType::Scalar(expected) = destination {
+        let actual = match supplied {
             ValueType::Reference(inner) | ValueType::SharedReference(inner)
-                if inner.value_type_ref() == &ValueType::Scalar(expected) =>
+                if inner.value_type_ref() == &ValueType::Scalar(*expected) =>
             {
                 inner.value_type()
             }
-            actual => actual,
+            actual => actual.clone(),
         };
-        return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
+        return validate_numeric_destination(source, name, *expected, actual, value, mismatch_code);
     }
-    if let ValueType::Optional(expected_inner) = expected {
-        if actual == ValueType::Scalar(ScalarType::None) {
-            return Ok(());
-        }
-        if let ValueType::Optional(actual_inner) = actual {
-            return validate_value_destination(
-                source,
-                objects,
-                name,
-                *expected_inner,
-                *actual_inner,
-                value,
-                mismatch_code,
-            );
-        }
-        return validate_value_destination(
-            source,
-            objects,
-            name,
-            *expected_inner,
-            actual,
-            value,
-            mismatch_code,
-        );
-    }
-    if native_mutating_callable_destination(&expected, &actual) {
+    if native_mutating_callable_destination(destination, supplied) {
         return Err(failure(
             source,
             "T0140",
@@ -1357,7 +1349,7 @@ pub(super) fn validate_value_destination(
             value.span,
         ));
     }
-    if value_types_compatible(objects, &expected, &actual) {
+    if value_types_compatible(objects, destination, supplied) {
         return Ok(());
     }
     Err(failure(
@@ -1365,8 +1357,8 @@ pub(super) fn validate_value_destination(
         mismatch_code,
         format!(
             "`{name}` requires `{}`, found `{}`",
-            diagnostic_value_type(objects, &expected),
-            diagnostic_value_type(objects, &actual)
+            diagnostic_value_type(objects, expected),
+            diagnostic_value_type(objects, actual)
         ),
         value.span,
     ))

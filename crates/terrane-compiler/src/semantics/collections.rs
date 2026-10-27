@@ -229,8 +229,8 @@ pub(super) fn validate_collection_constructor_items(
                         &unit.source,
                         &unit.descriptors,
                         &format!("{label} key"),
-                        key.value_type(),
-                        ValueType::Scalar(ScalarType::String),
+                        &key.value_type(),
+                        &ValueType::Scalar(ScalarType::String),
                         argument,
                         "T0002",
                     )?;
@@ -327,8 +327,8 @@ pub(super) fn validate_collection_constructor_value(
             &unit.source,
             &unit.descriptors,
             destination,
-            expected.clone(),
-            actual,
+            expected,
+            &actual,
             value,
             "T0002",
         )?;

@@ -56,6 +56,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
         default: None,
     });
     map.parameters.push(ProjectedParameter {
+        borrowed_str: false,
         name: "operation".to_owned(),
         ty: ProjectedType::Callback {
             rust_name: "F".to_owned(),
@@ -123,6 +124,7 @@ fn optional_method(
     bounds: Vec<String>,
 ) -> ProjectedFunction {
     ProjectedFunction {
+        receiver_bounds: Vec::new(),
         name: name.to_owned(),
         native_owner: Some("std::option::Option".to_owned()),
         native_path: Some(format!("std::option::Option::<&T>::{name}")),

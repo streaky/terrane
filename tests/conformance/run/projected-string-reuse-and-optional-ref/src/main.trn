@@ -27,8 +27,8 @@ function main;
     print; (parse-twice; 'bad\nvalue')
     header HeaderValue|none = HeaderValue::from_str; 'value'
     if header != none
-        print; (sensitive; ref header)
-        mark-sensitive; ref header
-        print; (sensitive; ref header)
+        print; (sensitive; header)
+        mark-sensitive; header
+        print; (sensitive; header)
     else
         print; 'unexpected absence'

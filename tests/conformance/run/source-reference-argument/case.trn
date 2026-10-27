@@ -1,6 +1,14 @@
 namespace source-reference-argument
 class holder
     value int = 7
+    other int = 9
+    function read-integer int; value ref int
+        return value
+
+class integer-holder
+    value int
+    function construct; value ref int
+        this.value = value
 
 function read int; item ref holder
     return item.value
@@ -8,8 +16,49 @@ function read int; item ref holder
 function forward int; item ref holder
     return read; item
 
+function forward-field ref int; item ref holder
+    return field; item
+
+function field ref int; item ref holder
+    return item.value
+
+
+function read-int int; value ref int
+    return value
+
+function forward-int int; value ref int
+    return read-int; value
+
+function borrow-int ref int; value ref int
+    return value
+
 function main;
+    n = 5
+    print; (read-int; n)
+    explicit int = 6
+    print; (forward-int; explicit)
+    scalar-reader = function int; value ref int
+        return value
+    callable-value = 2
+    print; (scalar-reader; callable-value)
+    constructor-value = 13
+    constructed = instance integer-holder; constructor-value
+    print; constructed.value
+    named-value = 17
+    print; (read-int; value = named-value)
+    returned-value = 19
+    borrowed-int = borrow-int; returned-value
+    print; (read-int; borrowed-int)
     item = instance holder;
-    print; (read; ref item)
+    print; (read; item)
+    method-value = 23
+    print; (item.read-integer; method-value)
     observer = ref item
     print; (forward; observer)
+    selected ref int = forward-field; item
+    print; selected
+    print; (read; item = item)
+    reader = function int; value ref holder
+        return value.value
+    print; (reader; item)
+    print; item.other

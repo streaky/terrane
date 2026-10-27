@@ -334,12 +334,56 @@ fn bound_probe_source(question: &BoundQuestion) -> String {
             question.rust_bound, question.rust_type
         )
     } else {
-        format!(
-            "fn assert_bound<{}>() where {}: {} {{}}\nfn main() {{}}\n",
+        // A concrete reference in a where-clause needs a named lifetime,
+        // unlike the same type used as a turbofish argument above.
+        let (lifetime, reference, rust_type) =
+            if let Some(inner) = question.rust_type.strip_prefix("&mut ") {
+                ("'__terrane_bound, ", "&'__terrane_bound mut ", inner)
+            } else if let Some(inner) = question.rust_type.strip_prefix('&')
+                && !inner.starts_with('\'')
+            {
+                ("'__terrane_bound, ", "&'__terrane_bound ", inner)
+            } else {
+                ("", "", question.rust_type.as_str())
+            };
+        let parameters = || {
+            question
+                .inferred_parameters
+                .iter()
+                .filter_map(|declaration| {
+                    let name = declaration.split(':').next()?.trim();
+                    (!name.starts_with('\'')).then_some(name)
+                })
+        };
+        let concrete = !parameters().any(|name| {
+            question
+                .rust_type
+                .split(|ch: char| !ch.is_ascii_alphanumeric() && ch != '_')
+                .any(|token| token == name)
+        });
+        let mut source = format!(
+            "fn assert_bound<{lifetime}{}>() where {reference}{}: {} {{}}\nfn main() {{",
             question.inferred_parameters.join(", "),
-            question.rust_type,
+            rust_type,
             question.rust_bound
-        )
+        );
+        if concrete {
+            source.push_str(" assert_bound");
+            let count = parameters().count();
+            if count != 0 {
+                source.push_str("::<");
+                for index in 0..count {
+                    if index != 0 {
+                        source.push_str(", ");
+                    }
+                    source.push('_');
+                }
+                source.push('>');
+            }
+            source.push_str("();");
+        }
+        source.push_str(" }\n");
+        source
     }
 }
 
@@ -395,6 +439,7 @@ fn classify_probe_answers(
             answers[index] = if matches!(code, Some("E0277" | "E0271")) {
                 ProbeAnswer::No
             } else {
+                // Inference ambiguity (notably E0283) is not a negative proof.
                 ProbeAnswer::Unknown {
                     reason: rendered.clone(),
                 }
@@ -880,8 +925,34 @@ impl<'connection, 'borrow> Executor<'connection> for &'borrow mut Connection {
                     rust_bound: "for<'connection> terrane_dependency_projection::Executor<'connection, Database = terrane_dependency_projection::OtherDatabase>".to_owned(),
                     inferred_parameters: Vec::new(),
                 },
+                BoundQuestion {
+                    rust_type: "terrane_dependency_projection::Connection".to_owned(),
+                    rust_bound: "for<'connection> terrane_dependency_projection::Executor<'connection, Database = DB>".to_owned(),
+                    inferred_parameters: vec!["DB".to_owned()],
+                },
+                BoundQuestion {
+                    rust_type: "&mut terrane_dependency_projection::Connection".to_owned(),
+                    rust_bound: "for<'connection> terrane_dependency_projection::Executor<'connection, Database = DB>".to_owned(),
+                    inferred_parameters: vec!["DB".to_owned()],
+                },
             ])
             .unwrap();
+        for evidence in report
+            .evidence
+            .iter()
+            .filter(|evidence| evidence.question.inferred_parameters == ["DB"])
+        {
+            assert_eq!(
+                evidence.answer,
+                if evidence.question.rust_type.starts_with('&') {
+                    ProbeAnswer::Yes
+                } else {
+                    ProbeAnswer::No
+                },
+                "{:?}",
+                evidence.question,
+            );
+        }
 
         assert_eq!(
             report
@@ -907,6 +978,48 @@ impl<'connection, 'borrow> Executor<'connection> for &'borrow mut Connection {
                 .find(|item| item.question.rust_bound.contains("OtherDatabase"))
                 .map(|item| &item.answer),
             Some(&ProbeAnswer::No)
+        );
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn ambiguous_free_generic_bound_is_unknown_not_no() {
+        let workspace = workspace("ambiguous-free-generic-bound");
+        fs::write(
+            workspace.join("src/lib.rs"),
+            r"
+pub struct Postgres;
+pub struct Sqlite;
+pub trait Encode<Database> {}
+impl Encode<Postgres> for i64 {}
+impl Encode<Sqlite> for i64 {}
+pub trait Associated<Database> { type Value; }
+impl Associated<Postgres> for i64 { type Value = i64; }
+impl Associated<Sqlite> for i64 { type Value = i64; }
+",
+        )
+        .unwrap();
+        let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
+        let report = oracle
+            .prove_bounds(&[
+                BoundQuestion {
+                    rust_type: "i64".to_owned(),
+                    rust_bound: "terrane_dependency_projection::Encode<DB>".to_owned(),
+                    inferred_parameters: vec!["DB".to_owned()],
+                },
+                BoundQuestion {
+                    rust_type: "i64".to_owned(),
+                    rust_bound: "terrane_dependency_projection::Associated<DB, Value = i64>"
+                        .to_owned(),
+                    inferred_parameters: vec!["DB".to_owned()],
+                },
+            ])
+            .unwrap();
+        assert!(
+            report
+                .evidence
+                .iter()
+                .all(|evidence| matches!(evidence.answer, ProbeAnswer::Unknown { .. }))
         );
         fs::remove_dir_all(workspace).unwrap();
     }

@@ -881,6 +881,17 @@ pub(crate) fn binding_requires_mutable_storage(
     }) {
         return binding_storage_is_replaced(package, unit, declaration_span, closure_writes, false);
     }
+    if unit.typed_bindings.iter().any(|binding| {
+        binding.mutable
+            && matches!(&binding.value_type, ValueType::Reference(inner)
+                if inner.value_type_ref().is_mutable_native_reference_target())
+            && unit
+                .reference_provenance
+                .get(&(binding.span.start, binding.span.end))
+                .is_some_and(|loan| loan.owner == declaration_span)
+    }) {
+        return true;
+    }
     if initially_assigned {
         return binding_span_is_mutated(package, unit, declaration_span, true, closure_writes);
     }

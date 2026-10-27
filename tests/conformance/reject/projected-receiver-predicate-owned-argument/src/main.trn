@@ -1,0 +1,6 @@
+namespace app
+from /deps/witness import Token
+function main throws dependency-error;
+    token Token = Token::from_str; 'good'
+    other Token = Token::from_str; 'good'
+    print; (token.contains; other)

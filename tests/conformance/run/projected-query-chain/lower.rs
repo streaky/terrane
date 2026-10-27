@@ -9,7 +9,7 @@ fn trigger_static_panic(record: Row) -> Result<Vec<u8>, TerraneError> {
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &record,
-                    String::from("panic").as_str(),
+                    "panic",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -45,7 +45,7 @@ fn trigger_instance_panic(record: Row) -> Result<Vec<u8>, TerraneError> {
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &record,
-                    String::from("panic").as_str(),
+                    "panic",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -178,12 +178,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            4 /* terrane-site: src/main.trn:20:9-20:68 */,
+                            4 /* terrane-site: src/main.trn:20:9-20:64 */,
                         )
                     }
                 })
                 .await,
-            4 /* terrane-site: src/main.trn:20:9-20:68 */,
+            4 /* terrane-site: src/main.trn:20:9-20:64 */,
         );
         __terrane_traced(
             __terrane_await({
@@ -224,12 +224,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            5 /* terrane-site: src/main.trn:21:9-21:69 */,
+                            5 /* terrane-site: src/main.trn:21:9-21:65 */,
                         )
                     }
                 })
                 .await,
-            5 /* terrane-site: src/main.trn:21:9-21:69 */,
+            5 /* terrane-site: src/main.trn:21:9-21:65 */,
         );
         rows = __terrane_traced(
             __terrane_await({
@@ -271,12 +271,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            6 /* terrane-site: src/main.trn:22:28-22:71 */,
+                            6 /* terrane-site: src/main.trn:22:28-22:67 */,
                         )
                     }
                 })
                 .await,
-            6 /* terrane-site: src/main.trn:22:28-22:71 */,
+            6 /* terrane-site: src/main.trn:22:28-22:67 */,
         );
         println!(
             "{}",
@@ -321,18 +321,18 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            7 /* terrane-site: src/main.trn:24:19-24:62 */,
+                            7 /* terrane-site: src/main.trn:24:19-24:58 */,
                         )
                     }
                 })
                 .await,
-            7 /* terrane-site: src/main.trn:24:19-24:62 */,
+            7 /* terrane-site: src/main.trn:24:19-24:58 */,
         );
         body = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &row,
-                    String::from("body").as_str(),
+                    "body",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -403,18 +403,18 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            10 /* terrane-site: src/main.trn:27:26-27:70 */,
+                            10 /* terrane-site: src/main.trn:27:26-27:66 */,
                         )
                     }
                 })
                 .await,
-            10 /* terrane-site: src/main.trn:27:26-27:70 */,
+            10 /* terrane-site: src/main.trn:27:26-27:66 */,
         );
         second_body = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &second_row,
-                    String::from("body").as_str(),
+                    "body",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -460,8 +460,8 @@ fn main() {
                     Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
                     "terrane_query_witness", "terrane_query_witness::Query::execute")) }
                     }) }; async move { __terrane_raised_err(__terrane_future. await,
-                    13 /* terrane-site: src/main.trn:31:11-31:54 */) } }). await,
-                    13 /* terrane-site: src/main.trn:31:11-31:54 */
+                    13 /* terrane-site: src/main.trn:31:11-31:50 */) } }). await,
+                    13 /* terrane-site: src/main.trn:31:11-31:50 */
                 );
                 TerraneCompletion::Normal
             }
