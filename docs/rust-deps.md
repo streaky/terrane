@@ -439,6 +439,21 @@ Cache identity covers manifest contents, lock checksum, enabled features, defaul
 target triple, toolchain version, and package source checksums — the same set §23.1 already requires
 of tooling. The projection is a pure function of that identity, so the language server and the
 compiler compute the same model or neither does.
+
+Projection target selection honors the scoped tool override, `CARGO_BUILD_TARGET`, Cargo's
+`build.target` configuration, then the compiler host. A relative JSON target from Cargo
+configuration is resolved from the configuration's origin before being passed explicitly
+to Rustdoc, so the synthetic projection workspace does not change its meaning. Missing
+host metadata is an error, not a synthetic target name. These path-selection rules do not
+establish end-to-end support for a particular custom target or its standard library.
+
+Custom JSON target specifications are currently unsupported for dependency projection.
+The pinned nightly Cargo requires `-Zjson-target-spec`, and projection does not enable
+that unstable gate. Correct config-origin lookup does not establish custom-target
+compilation support. Relative JSON paths supplied through `CARGO_BUILD_TARGET` are
+also forwarded unchanged and are not rebased to the invoking directory; do not rely
+on them resolving from the application root. Use the normal host-target workflow.
+
 The ignored `.trn/projection-cache.json` is disposable generated local projection cache/history.
 It may retain removed-member and replay-mismatch evidence while present, allowing `S2031` to
 distinguish a removed member from one never projected. Clearing the cache or using a fresh checkout
