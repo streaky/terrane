@@ -68,6 +68,7 @@ fn parameter(
     mutable_borrow: bool,
 ) -> ProjectedParameter {
     ProjectedParameter {
+        borrowed_str: false,
         name: format!("argument_{index}"),
         ty,
         borrowed,

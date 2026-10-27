@@ -928,6 +928,7 @@ pub(super) fn project_rustdoc(
                             name: variant_name.to_owned(),
                             parameters: (constructor_type != ProjectedType::None)
                                 .then(|| ProjectedParameter {
+                                    borrowed_str: false,
                                     name: "value".to_owned(),
                                     ty: constructor_type,
                                     borrowed: false,

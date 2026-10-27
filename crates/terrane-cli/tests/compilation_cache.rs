@@ -304,6 +304,28 @@ fn native_receiver_predicates_survive_projection_cache_reloads() {
 }
 
 #[test]
+fn native_borrowed_literals_survive_projection_cache_reloads() {
+    let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let package = Package(workspace.join("target").join(format!(
+        "native-literal-cache-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )));
+    copy_fixture(
+        &workspace.join("tests/conformance/run/native-borrowed-future"),
+        &package.0,
+    );
+    let expected = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
+    for _ in 0..2 {
+        let snapshots = package.0.join(".trn/cache");
+        if snapshots.exists() {
+            fs::remove_dir_all(snapshots).unwrap();
+        }
+        assert_eq!(package.output(), expected);
+    }
+}
+
+#[test]
 fn local_native_dependency_edits_invalidate_cached_projection_and_compilation() {
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     // Rustdoc sandbox fixtures must live below the workspace bind, not its private /tmp.

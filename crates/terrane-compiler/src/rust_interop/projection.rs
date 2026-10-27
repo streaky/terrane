@@ -148,7 +148,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "289";
+const PROJECTION_SCHEMA: &str = "290";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -610,6 +610,9 @@ pub struct ProjectedParameter {
     pub ty: ProjectedType,
     pub borrowed: bool,
     pub mutable_borrow: bool,
+    /// The native operand is a string slice, not a reference to an owned String.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub borrowed_str: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generic_parameter: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

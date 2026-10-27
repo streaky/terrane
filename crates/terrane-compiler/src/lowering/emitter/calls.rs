@@ -1886,6 +1886,12 @@ impl Emitter<'_> {
             .and_then(|receiver| self.value_type(receiver))
             .and_then(|value_type| match value_type {
                 ValueType::Object(identity) => Some(identity),
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    match item.value_type() {
+                        ValueType::Object(identity) => Some(identity),
+                        _ => None,
+                    }
+                }
                 _ => None,
             })
             .is_some_and(|identity| {
@@ -2074,9 +2080,40 @@ impl Emitter<'_> {
                             })
                     });
                 let has_invocation_callback = invocation_callback.is_some();
+                let borrowed_literal = if !projected_interface_dispatch
+                    && projected_parameter.is_some_and(|parameter| {
+                        parameter.borrowed_str
+                            && matches!(
+                                parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::String
+                            )
+                    })
+                    && (specialization
+                        .is_some_and(|specialization| specialization.direct_projected_call)
+                        || projected_chain_role.is_some()
+                        || callee.kind == SyntaxKind::MemberExpression)
+                {
+                    let mut literal = value;
+                    while literal.kind == SyntaxKind::GroupExpression
+                        && let [inner] = literal.children.as_slice()
+                    {
+                        literal = inner;
+                    }
+                    (literal.kind == SyntaxKind::Literal
+                        && self.value_type(literal) == Some(ValueType::Scalar(ScalarType::String)))
+                    .then(|| crate::lowering::helpers::native_macro_literal(self.text(literal)))
+                } else {
+                    None
+                };
                 let mut borrowed_expression = false;
                 let expression = if let Some(expression) = invocation_callback {
                     expression
+                } else if let Some(literal) = borrowed_literal {
+                    // The literal itself is the native borrow's owner. Do not
+                    // allocate a String temporary that dies before an await or
+                    // staged native call; owned wrapper inputs keep their ABI.
+                    borrowed_expression = true;
+                    literal
                 } else if value.kind == SyntaxKind::Name
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.borrowed

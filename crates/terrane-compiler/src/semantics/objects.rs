@@ -3806,6 +3806,10 @@ fn specialize_projected_result_batch(
             if generic.is_some() && candidate_works(NativeBorrowMode::Shared) {
                 for parameter in &mut specialization.projected_parameters {
                     if parameter.generic_parameter.as_ref() == generic.as_ref() {
+                        parameter.borrowed_str = !parameter.borrowed
+                            && bounds
+                                .iter()
+                                .all(|bound| bound.borrowed_rust_type.as_deref() == Some("&str"));
                         parameter.borrowed = true;
                         parameter.mutable_borrow =
                             bounds.iter().any(|bound| bound.borrowed_mutable);

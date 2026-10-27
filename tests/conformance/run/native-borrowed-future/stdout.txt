@@ -1,3 +1,15 @@
+borrowed
+λ
+generic
+λ
+direct escaped	value
+owned parameter
+named value survives
+named value survives
+owned async value
+grouped alias λ
+owned String borrow
+query graph λ
 1
 7
 truetrue

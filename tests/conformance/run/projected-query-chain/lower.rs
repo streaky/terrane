@@ -9,7 +9,7 @@ fn trigger_static_panic(record: Row) -> Result<Vec<u8>, TerraneError> {
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &record,
-                    String::from("panic").as_str(),
+                    "panic",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -45,7 +45,7 @@ fn trigger_instance_panic(record: Row) -> Result<Vec<u8>, TerraneError> {
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &record,
-                    String::from("panic").as_str(),
+                    "panic",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -332,7 +332,7 @@ fn main() {
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &row,
-                    String::from("body").as_str(),
+                    "body",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),
@@ -414,7 +414,7 @@ fn main() {
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
                     &second_row,
-                    String::from("body").as_str(),
+                    "body",
                 )),
             ) {
                 Ok(Ok(value)) => Ok(value),

@@ -76,9 +76,7 @@ fn main() {
         );
         options = __terrane_raised(
             match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    options.filename(String::from(":memory:").as_str())
-                }),
+                std::panic::AssertUnwindSafe(|| options.filename(":memory:")),
             ) {
                 Ok(value) => Ok(value),
                 Err(payload) => {

@@ -32,6 +32,9 @@ function render string; label string, enabled bool
         return label.upper;
     return label
 
+function borrowed-through-reference string; value ref renderable
+    return value.borrowed; 'reference wrapper'
+
 class projected-message implements renderable
     function render string; label string
         return label.upper;
@@ -126,6 +129,7 @@ async function main;
     interface-message renderable = message
     print; (interface-message.decorated; 'provided')
     print; (interface-message.borrowed; 'borrowed')
+    print; (borrowed-through-reference; interface-message)
     print; (interface-message.parsed; '7')
     impl-message = instance projected-message;
     print; (render_impl; impl-message, 'opaque')

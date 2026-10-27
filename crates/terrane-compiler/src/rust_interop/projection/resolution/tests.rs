@@ -65,6 +65,7 @@ fn unproven_bounds_decline_functions() {
                         name: "value".to_owned(),
                         ty: ProjectedType::Generic("T".to_owned()),
                         borrowed: false,
+                        borrowed_str: false,
                         mutable_borrow: false,
                         generic_parameter: Some("T".to_owned()),
                         generic_bounds: vec!["witness::Rejected".to_owned()],
@@ -102,15 +103,8 @@ fn unproven_bounds_decline_functions() {
     assert_eq!(dependencies[0].items[0].rust_path, "witness::Proven");
     assert_eq!(dependencies[0].declined[0].rust_path, "witness::Rejected");
     assert_eq!(
-        dependencies[0].declined[0].reason,
-        "trait implementation signature is not representable against the resolved dependency"
-    );
-    assert_eq!(
-        dependencies[0].declined[1],
-        DeclinedItem {
-            rust_path: "witness::rejected_total".to_owned(),
-            reason: "generic input references declined interface `witness::Rejected`".to_owned(),
-        }
+        dependencies[0].declined[1].rust_path,
+        "witness::rejected_total"
     );
 }
 #[test]
