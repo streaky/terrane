@@ -7,4 +7,7 @@ function accepts-direct-owner; value OwnerGeneratedValue
 
 function main;
     facade-value = GeneratedValue::standard;
+    direct-value int64 = rust
+        crate::direct_macro::answer()
     print; (facade-value.value;)
+    print; direct-value
