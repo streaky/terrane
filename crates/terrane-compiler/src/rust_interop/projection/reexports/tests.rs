@@ -7,6 +7,83 @@ use super::super::test_support::dependency;
 use super::*;
 
 #[test]
+fn host_target_rustdoc() {
+    struct Scratch(std::path::PathBuf);
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let scratch = Scratch(std::env::temp_dir().join(format!(
+        "terrane-rustdoc-target-{}-{nonce}",
+        std::process::id()
+    )));
+    let version = std::process::Command::new("rustc")
+        .arg(format!("+{}", crate::BUILD_TOOLCHAIN))
+        .arg("-vV")
+        .output()
+        .unwrap();
+    assert!(version.status.success());
+    let verbose = String::from_utf8(version.stdout).unwrap();
+    let host = verbose
+        .lines()
+        .find_map(|line| line.strip_prefix("host: "))
+        .unwrap();
+    for (directory, kind, source, exported) in [
+        ("library", "", "pub struct Camera;\n", "Camera"),
+        (
+            "macro",
+            "proc-macro = true\n",
+            "#[proc_macro]\npub fn camera(input: proc_macro::TokenStream) -> proc_macro::TokenStream { input }\n",
+            "camera",
+        ),
+    ] {
+        let root = scratch.0.join(directory);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("Cargo.toml"),
+            format!(
+                "[package]\nname = \"target-probe\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\
+                 [workspace]\n[lib]\npath = \"lib.rs\"\n{kind}"
+            ),
+        )
+        .unwrap();
+        fs::write(root.join("lib.rs"), source).unwrap();
+        fs::write(root.join("local-source-identity"), "target-probe").unwrap();
+        run_cargo(
+            &root,
+            &["generate-lockfile", "--offline"],
+            CargoToolchain::Default,
+            CargoExecution::Host,
+        )
+        .unwrap();
+        let metadata = super::super::cargo_workspace::resolved_dependency_metadata(&root).unwrap();
+        let document = terrane_rust_analysis::with_cargo_target(host, || {
+            cached_owner_rustdoc(
+                &root,
+                "target-probe",
+                "target_probe",
+                "target-probe",
+                host,
+                Containment::Unavailable,
+                &metadata,
+            )
+        })
+        .unwrap();
+        assert!(
+            document
+                .index
+                .values()
+                .any(|item| item.name.as_deref() == Some(exported))
+        );
+    }
+}
+
+#[test]
 fn facade_keeps_unrelated_fragments() {
     let declared = BTreeMap::from([(
         "std::io::error::Error".to_owned(),
@@ -193,6 +270,7 @@ fn owner_mismatch_rebuilds_cache() {
     )
     .unwrap();
 
+    let metadata = super::super::cargo_workspace::resolved_dependency_metadata(&workspace).unwrap();
     let load = || {
         super::cached_owner_rustdoc(
             &workspace,
@@ -201,6 +279,7 @@ fn owner_mismatch_rebuilds_cache() {
             "owner-fixture",
             "x86_64-unknown-linux-gnu",
             Containment::Unavailable,
+            &metadata,
         )
         .unwrap()
     };

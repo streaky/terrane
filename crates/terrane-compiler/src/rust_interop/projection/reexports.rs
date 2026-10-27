@@ -1,7 +1,7 @@
 //! Owns supplemental rustdoc discovery and dependency reexport projection.
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use rustdoc_types::{Crate as RustdocCrate, Id, ItemKind};
 use serde::Deserialize;
@@ -45,11 +45,55 @@ struct ReexportRequest {
     signature_paths: BTreeMap<usize, BTreeSet<String>>,
 }
 
+// Proc macros are always host-built, and Cargo puts their docs outside the target subdirectory.
+pub(super) fn rustdoc_target<'a>(
+    metadata: &serde_json::Value,
+    package_spec: &str,
+    crate_name: &str,
+    package_name: &str,
+    target: &'a str,
+) -> Option<&'a str> {
+    let version = package_spec.rsplit_once('@').map(|(_, version)| version);
+    let proc_macro = metadata["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|package| {
+            package["name"].as_str() == Some(package_name)
+                && version.is_none_or(|version| package["version"].as_str() == Some(version))
+        })
+        .flat_map(|package| package["targets"].as_array().into_iter().flatten())
+        .any(|item| {
+            item["name"].as_str() == Some(crate_name)
+                && item["kind"].as_array().is_some_and(|kinds| {
+                    kinds.iter().any(|kind| kind.as_str() == Some("proc-macro"))
+                })
+        });
+    (!proc_macro).then_some(target)
+}
+
+fn rustdoc_output_path(workspace: &Path, target: Option<&str>, crate_name: &str) -> PathBuf {
+    let mut directory = workspace.join("target/rustdoc-57");
+    if let Some(target) = target {
+        let target_directory = if Path::new(target)
+            .extension()
+            .is_some_and(|ext| ext == "json")
+        {
+            Path::new(target).file_stem().unwrap_or_default()
+        } else {
+            std::ffi::OsStr::new(target)
+        };
+        directory.push(target_directory);
+    }
+    directory.join("doc").join(format!("{crate_name}.json"))
+}
+
 pub(super) fn generate_rustdoc(
     workspace: &Path,
     package_spec: &str,
     crate_name: &str,
     package_name: &str,
+    target: Option<&str>,
     containment: Containment,
     retain_hidden_definitions: bool,
 ) -> Result<RustdocCrate, ProjectionError> {
@@ -64,8 +108,11 @@ pub(super) fn generate_rustdoc(
         "target/rustdoc-57",
         "--offline",
         "--frozen",
-        "--",
     ];
+    if let Some(target) = target {
+        rustdoc_args.extend(["--target", target]);
+    }
+    rustdoc_args.push("--");
     rustdoc_args.extend_from_slice(terrane_rust_analysis::RUSTDOC_JSON_ARGS);
     if retain_hidden_definitions {
         rustdoc_args.push("--document-hidden-items");
@@ -82,9 +129,7 @@ pub(super) fn generate_rustdoc(
     )?;
     generation.finish();
     let loading = crate::compilation_progress::start("loading Rustdoc metadata", package_spec);
-    let rustdoc_path = workspace
-        .join("target/rustdoc-57/doc")
-        .join(format!("{crate_name}.json"));
+    let rustdoc_path = rustdoc_output_path(workspace, target, crate_name);
     let bytes = fs::read(&rustdoc_path).map_err(|error| ProjectionError {
         message: format!(
             "cannot read rustdoc projection `{}`: {error}",
@@ -106,6 +151,7 @@ fn cached_owner_rustdoc(
     package_name: &str,
     target: &str,
     containment: Containment,
+    metadata: &serde_json::Value,
 ) -> Result<RustdocCrate, ProjectionError> {
     #[derive(Deserialize)]
     struct CacheHeader<'a> {
@@ -151,17 +197,17 @@ fn cached_owner_rustdoc(
         return Ok(document);
     }
     cache.finish();
+    let output_target = rustdoc_target(metadata, package_spec, crate_name, package_name, target);
     let document = generate_rustdoc(
         workspace,
         package_spec,
         crate_name,
         package_name,
+        output_target,
         containment,
         true,
     )?;
-    let generated_path = workspace
-        .join("target/rustdoc-57/doc")
-        .join(format!("{crate_name}.json"));
+    let generated_path = rustdoc_output_path(workspace, output_target, crate_name);
     let bytes = fs::read(&generated_path).map_err(|error| ProjectionError {
         message: format!(
             "cannot cache owner rustdoc `{}`: {error}",
@@ -592,6 +638,7 @@ pub(super) fn external_reexport_rustdocs(
                     &request.package_name,
                     target,
                     containment,
+                    metadata,
                 )?
             };
             let owner_public_paths = rustdoc_public_paths(&document);
