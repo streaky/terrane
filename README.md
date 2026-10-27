@@ -174,6 +174,9 @@ fixtures similarly preserve the relevant native type and runtime boundaries with
 crates. They do not assert Iced, PDF rendering, SQLx, Axum, or Reqwest compatibility;
 real-library evidence belongs in dedicated native-survey/application checks. Cache-key
 tests similarly use tiny real Rustdoc inputs while retaining separate real-sysroot coverage.
+Host-only Rustdoc fixtures must discover the compiler host triple rather than
+hard-code a cache target: target selection also controls Cargo's `--target` and
+must not silently introduce a cross-compilation prerequisite.
 Keep profiling workloads long enough to collect meaningful samples, and inspect
 fresh-source reports before rewriting a workload for comparison.
 Fixture registries may be symlinked into related rejection cases; retain the shared

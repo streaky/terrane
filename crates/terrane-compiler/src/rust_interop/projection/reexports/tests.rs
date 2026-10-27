@@ -6,6 +6,21 @@ use serde_json::json;
 use super::super::test_support::dependency;
 use super::*;
 
+fn host_target() -> String {
+    let version = std::process::Command::new("rustc")
+        .arg(format!("+{}", crate::BUILD_TOOLCHAIN))
+        .arg("-vV")
+        .output()
+        .unwrap();
+    assert!(version.status.success());
+    let verbose = String::from_utf8(version.stdout).unwrap();
+    verbose
+        .lines()
+        .find_map(|line| line.strip_prefix("host: "))
+        .unwrap()
+        .to_owned()
+}
+
 #[test]
 fn host_target_rustdoc() {
     struct Scratch(std::path::PathBuf);
@@ -22,17 +37,7 @@ fn host_target_rustdoc() {
         "terrane-rustdoc-target-{}-{nonce}",
         std::process::id()
     )));
-    let version = std::process::Command::new("rustc")
-        .arg(format!("+{}", crate::BUILD_TOOLCHAIN))
-        .arg("-vV")
-        .output()
-        .unwrap();
-    assert!(version.status.success());
-    let verbose = String::from_utf8(version.stdout).unwrap();
-    let host = verbose
-        .lines()
-        .find_map(|line| line.strip_prefix("host: "))
-        .unwrap();
+    let host = host_target();
     for (directory, kind, source, exported) in [
         ("library", "", "pub struct Camera;\n", "Camera"),
         (
@@ -62,13 +67,13 @@ fn host_target_rustdoc() {
         )
         .unwrap();
         let metadata = super::super::cargo_workspace::resolved_dependency_metadata(&root).unwrap();
-        let document = terrane_rust_analysis::with_cargo_target(host, || {
+        let document = terrane_rust_analysis::with_cargo_target(&host, || {
             cached_owner_rustdoc(
                 &root,
                 "target-probe",
                 "target_probe",
                 "target-probe",
-                host,
+                &host,
                 Containment::Unavailable,
                 &metadata,
             )
@@ -270,6 +275,8 @@ fn owner_mismatch_rebuilds_cache() {
     )
     .unwrap();
 
+    // This is a host-only cache test, not a cross-target Rustdoc prerequisite.
+    let host = host_target();
     let metadata = super::super::cargo_workspace::resolved_dependency_metadata(&workspace).unwrap();
     let load = || {
         super::cached_owner_rustdoc(
@@ -277,7 +284,7 @@ fn owner_mismatch_rebuilds_cache() {
             "owner-fixture@1.0.0",
             "owner_fixture",
             "owner-fixture",
-            "x86_64-unknown-linux-gnu",
+            &host,
             Containment::Unavailable,
             &metadata,
         )
@@ -285,30 +292,20 @@ fn owner_mismatch_rebuilds_cache() {
     };
     let document = load();
     let cached = load();
-    assert!(
-        cached
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
-    );
-    assert!(
-        cached
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("usable_owner_function"))
-    );
-    assert!(
-        document
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
-    );
-    assert!(
-        document
-            .index
-            .values()
-            .any(|item| item.name.as_deref() == Some("usable_owner_function"))
-    );
+    for loaded in [&document, &cached] {
+        assert!(
+            loaded
+                .index
+                .values()
+                .any(|item| item.name.as_deref() == Some("UsableOwnerType"))
+        );
+        assert!(
+            loaded
+                .index
+                .values()
+                .any(|item| item.name.as_deref() == Some("usable_owner_function"))
+        );
+    }
     fs::write(
         package.join("src/lib.rs"),
         "pub struct ChangedOwnerType;\npub fn usable_owner_function() -> bool { true }\n",
