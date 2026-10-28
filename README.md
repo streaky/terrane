@@ -8,6 +8,8 @@ Everything is an object in Terrane's semantics, but not everything becomes a hea
 
 > **Platforms:** development and testing currently target Linux. Windows and macOS are untested and likely do not work yet; neither is currently a supported platform. The quick start below assumes Linux.
 
+For user-visible changes and migration guidance, see the reference manual's [changelog version index](https://github.com/streaky/terrane-manual/blob/main/reference/records/manual/changelog.yaml). Each version has its own page of dated changes, with Unreleased first.
+
 ## What works today
 
 - **Language:** indentation-sensitive syntax, namespaces and imports, lexical scope, typed and inferred bindings, functions with named/default/variadic arguments, closures, and bound methods.
