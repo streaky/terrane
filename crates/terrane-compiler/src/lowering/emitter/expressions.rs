@@ -1,4 +1,5 @@
 use super::super::prelude::*;
+use proc_macro2::{Delimiter, TokenStream, TokenTree};
 
 fn callable_adapter_parameters(
     package: &SemanticPackage,
@@ -2028,24 +2029,44 @@ impl Emitter<'_> {
     }
 
     pub(super) fn unwrapped_expression(mut expression: String) -> String {
+        let bytes = expression.as_bytes();
+        if bytes.len() <= 2 || bytes.first() != Some(&b'(') || bytes.last() != Some(&b')') {
+            return expression;
+        }
+        let Ok(mut tokens) = expression.parse::<TokenStream>() else {
+            return expression;
+        };
+        let mut wrappers = 0;
         loop {
-            let bytes = expression.as_bytes();
-            if bytes.len() <= 2 || bytes.first() != Some(&b'(') || bytes.last() != Some(&b')') {
+            let remaining = &bytes[wrappers..bytes.len() - wrappers];
+            if remaining.len() <= 2
+                || remaining.first() != Some(&b'(')
+                || remaining.last() != Some(&b')')
+            {
                 break;
             }
-            let mut depth = 0_usize;
-            let wraps_expression = bytes.iter().enumerate().all(|(index, byte)| {
-                match byte {
-                    b'(' => depth += 1,
-                    b')' => depth -= 1,
-                    _ => {}
-                }
-                depth != 0 || index == bytes.len() - 1
-            });
-            if !wraps_expression {
+            let mut current = tokens.into_iter();
+            let Some(TokenTree::Group(group)) = current.next() else {
+                break;
+            };
+            if group.delimiter() != Delimiter::Parenthesis || current.next().is_some() {
                 break;
             }
-            expression = expression[1..expression.len() - 1].to_owned();
+            let inner = group.stream();
+            if inner.is_empty()
+                || inner
+                    .clone()
+                    .into_iter()
+                    .any(|token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == ','))
+            {
+                break;
+            }
+            wrappers += 1;
+            tokens = inner;
+        }
+        if wrappers != 0 {
+            expression.truncate(expression.len() - wrappers);
+            drop(expression.drain(..wrappers));
         }
         expression
     }
