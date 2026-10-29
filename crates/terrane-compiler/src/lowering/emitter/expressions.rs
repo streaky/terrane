@@ -2045,7 +2045,7 @@ impl Emitter<'_> {
             {
                 break;
             }
-            let mut current = tokens.into_iter();
+            let mut current = tokens.clone().into_iter();
             let Some(TokenTree::Group(group)) = current.next() else {
                 break;
             };
@@ -2053,6 +2053,8 @@ impl Emitter<'_> {
                 break;
             }
             let inner = group.stream();
+            // A top-level comma may form a tuple; conservatively keep generic
+            // and closure wrappers too. Rust IR canonicalization removes extras.
             if inner.is_empty()
                 || inner
                     .clone()
@@ -2065,6 +2067,15 @@ impl Emitter<'_> {
             tokens = inner;
         }
         if wrappers != 0 {
+            // Ordinary comments disappear from tokens, so the final ')' byte need
+            // not close the group. Only strip bytes that preserve its token stream.
+            let candidate = &expression[wrappers..expression.len() - wrappers];
+            let Ok(candidate_tokens) = candidate.parse::<TokenStream>() else {
+                return expression;
+            };
+            if candidate_tokens.to_string() != tokens.to_string() {
+                return expression;
+            }
             expression.truncate(expression.len() - wrappers);
             drop(expression.drain(..wrappers));
         }
@@ -2150,6 +2161,43 @@ impl Emitter<'_> {
                 .last()
                 .and_then(|child| self.value_type(child)),
             _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Emitter;
+
+    #[test]
+    fn unwrap_expression_boundaries() {
+        for (input, expected) in [
+            ("((a + b))", "a + b"),
+            ("( (a + b) )", " (a + b) "),
+            ("(a, b)", "(a, b)"),
+            ("(a,)", "(a,)"),
+            ("(f::<A, B>())", "(f::<A, B>())"),
+            ("(|a, b| a < b)", "(|a, b| a < b)"),
+            ("(a) + (b)", "(a) + (b)"),
+            ("(a)(b)", "(a)(b)"),
+            ("()", "()"),
+            ("( )", "( )"),
+            ("((()))", "()"),
+            ("(\"unterminated)", "(\"unterminated)"),
+            (" (a + b) ", " (a + b) "),
+            ("(true) // see (docs)", "(true) // see (docs)"),
+            ("((true) // see (docs)\n)", "(true) // see (docs)\n"),
+            ("((true) /* docs */)", "(true) /* docs */"),
+            ("(/* docs */ true)", "/* docs */ true"),
+            ("(\"// see (docs)\")", "\"// see (docs)\""),
+            ("(r#\")(\"#)", "r#\")(\"#"),
+            ("(b')')", "b')'"),
+        ] {
+            assert_eq!(
+                Emitter::unwrapped_expression(input.to_owned()),
+                expected,
+                "{input:?}"
+            );
         }
     }
 }
