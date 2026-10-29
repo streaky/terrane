@@ -1,4 +1,5 @@
 use super::super::prelude::*;
+use proc_macro2::{Delimiter, TokenStream, TokenTree};
 
 fn callable_adapter_parameters(
     package: &SemanticPackage,
@@ -2028,24 +2029,55 @@ impl Emitter<'_> {
     }
 
     pub(super) fn unwrapped_expression(mut expression: String) -> String {
+        let bytes = expression.as_bytes();
+        if bytes.len() <= 2 || bytes.first() != Some(&b'(') || bytes.last() != Some(&b')') {
+            return expression;
+        }
+        let Ok(mut tokens) = expression.parse::<TokenStream>() else {
+            return expression;
+        };
+        let mut wrappers = 0;
         loop {
-            let bytes = expression.as_bytes();
-            if bytes.len() <= 2 || bytes.first() != Some(&b'(') || bytes.last() != Some(&b')') {
+            let remaining = &bytes[wrappers..bytes.len() - wrappers];
+            if remaining.len() <= 2
+                || remaining.first() != Some(&b'(')
+                || remaining.last() != Some(&b')')
+            {
                 break;
             }
-            let mut depth = 0_usize;
-            let wraps_expression = bytes.iter().enumerate().all(|(index, byte)| {
-                match byte {
-                    b'(' => depth += 1,
-                    b')' => depth -= 1,
-                    _ => {}
-                }
-                depth != 0 || index == bytes.len() - 1
-            });
-            if !wraps_expression {
+            let mut current = tokens.clone().into_iter();
+            let Some(TokenTree::Group(group)) = current.next() else {
+                break;
+            };
+            if group.delimiter() != Delimiter::Parenthesis || current.next().is_some() {
                 break;
             }
-            expression = expression[1..expression.len() - 1].to_owned();
+            let inner = group.stream();
+            // A top-level comma may form a tuple; conservatively keep generic
+            // and closure wrappers too. Rust IR canonicalization removes extras.
+            if inner.is_empty()
+                || inner
+                    .clone()
+                    .into_iter()
+                    .any(|token| matches!(token, TokenTree::Punct(punct) if punct.as_char() == ','))
+            {
+                break;
+            }
+            wrappers += 1;
+            tokens = inner;
+        }
+        if wrappers != 0 {
+            // Ordinary comments disappear from tokens, so the final ')' byte need
+            // not close the group. Only strip bytes that preserve its token stream.
+            let candidate = &expression[wrappers..expression.len() - wrappers];
+            let Ok(candidate_tokens) = candidate.parse::<TokenStream>() else {
+                return expression;
+            };
+            if candidate_tokens.to_string() != tokens.to_string() {
+                return expression;
+            }
+            expression.truncate(expression.len() - wrappers);
+            drop(expression.drain(..wrappers));
         }
         expression
     }
@@ -2129,6 +2161,43 @@ impl Emitter<'_> {
                 .last()
                 .and_then(|child| self.value_type(child)),
             _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Emitter;
+
+    #[test]
+    fn unwrap_expression_boundaries() {
+        for (input, expected) in [
+            ("((a + b))", "a + b"),
+            ("( (a + b) )", " (a + b) "),
+            ("(a, b)", "(a, b)"),
+            ("(a,)", "(a,)"),
+            ("(f::<A, B>())", "(f::<A, B>())"),
+            ("(|a, b| a < b)", "(|a, b| a < b)"),
+            ("(a) + (b)", "(a) + (b)"),
+            ("(a)(b)", "(a)(b)"),
+            ("()", "()"),
+            ("( )", "( )"),
+            ("((()))", "()"),
+            ("(\"unterminated)", "(\"unterminated)"),
+            (" (a + b) ", " (a + b) "),
+            ("(true) // see (docs)", "(true) // see (docs)"),
+            ("((true) // see (docs)\n)", "(true) // see (docs)\n"),
+            ("((true) /* docs */)", "(true) /* docs */"),
+            ("(/* docs */ true)", "/* docs */ true"),
+            ("(\"// see (docs)\")", "\"// see (docs)\""),
+            ("(r#\")(\"#)", "r#\")(\"#"),
+            ("(b')')", "b')'"),
+        ] {
+            assert_eq!(
+                Emitter::unwrapped_expression(input.to_owned()),
+                expected,
+                "{input:?}"
+            );
         }
     }
 }

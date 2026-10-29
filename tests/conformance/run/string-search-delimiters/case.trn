@@ -1,0 +1,24 @@
+namespace string-search-delimiters
+
+function active-content bool; text string
+    return (text.contains; 'javascript:') or (text.contains; 'expression(') or (text.contains; '-moz-binding')
+
+function closing-marker bool; text string
+    return (text.contains; ')') or (text.contains; 'quote"(') or (text.contains; '\\')
+
+function main;
+    print; 'active: ' + (active-content; 'expression(alert)')
+    print; 'safe: ' + (active-content; 'ordinary text')
+    print; 'closing: ' + (closing-marker; 'call)')
+    print; 'quoted: ' + (closing-marker; 'quote"(')
+    print; 'backslash: ' + (closing-marker; 'path\\part')
+    native-result bool = rust
+        (r#"("#.contains('(') && b')' == 41)
+    print; 'native: ' + native-result
+    unit-result none = rust
+        ( )
+    print; 'unit: ' + unit-result
+    grouped-result bool = rust
+        ((1, 2) == (1, 2))
+    print; 'grouped: ' + grouped-result
+    print; 'precedence: ' + ((1 + 2) * 3)
