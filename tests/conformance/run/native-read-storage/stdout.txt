@@ -7,6 +7,9 @@ true
 true
 true
 true
+indexed storage|second
+c|b
+green|blue
 true
 true
 false

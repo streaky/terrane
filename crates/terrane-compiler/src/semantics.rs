@@ -31,6 +31,7 @@ mod logging;
 mod macros;
 pub(crate) use macros::macro_argument;
 mod member_inference;
+pub(crate) use member_inference::platform_result_member_type;
 mod native_cache;
 mod native_constructors;
 mod numeric;

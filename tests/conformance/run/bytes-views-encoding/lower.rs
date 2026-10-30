@@ -91,56 +91,56 @@ fn main() {
     };
     println!("{}", terrane_scalar_support::scalar_text(&decoded));
     utf16le_text = {
-        let __terrane_receiver_value = &{
+        let __terrane_receiver_value_0 = &{
             let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Le;
             terrane_string_support::encode(&text, __terrane_string_argument_0)
         };
         let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Le;
         __terrane_raised(
             terrane_string_support::decode(
-                &__terrane_receiver_value,
+                &__terrane_receiver_value_0,
                 __terrane_string_argument_0,
             ),
             1 /* terrane-site: case.trn:21:25-21:65 */,
         )
     };
     utf16be_text = {
-        let __terrane_receiver_value = &{
+        let __terrane_receiver_value_1 = &{
             let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Be;
             terrane_string_support::encode(&text, __terrane_string_argument_0)
         };
         let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Be;
         __terrane_raised(
             terrane_string_support::decode(
-                &__terrane_receiver_value,
+                &__terrane_receiver_value_1,
                 __terrane_string_argument_0,
             ),
             2 /* terrane-site: case.trn:22:25-22:65 */,
         )
     };
     utf32le_text = {
-        let __terrane_receiver_value = &{
+        let __terrane_receiver_value_2 = &{
             let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Le;
             terrane_string_support::encode(&text, __terrane_string_argument_0)
         };
         let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Le;
         __terrane_raised(
             terrane_string_support::decode(
-                &__terrane_receiver_value,
+                &__terrane_receiver_value_2,
                 __terrane_string_argument_0,
             ),
             3 /* terrane-site: case.trn:23:25-23:65 */,
         )
     };
     utf32be_text = {
-        let __terrane_receiver_value = &{
+        let __terrane_receiver_value_3 = &{
             let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Be;
             terrane_string_support::encode(&text, __terrane_string_argument_0)
         };
         let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Be;
         __terrane_raised(
             terrane_string_support::decode(
-                &__terrane_receiver_value,
+                &__terrane_receiver_value_3,
                 __terrane_string_argument_0,
             ),
             4 /* terrane-site: case.trn:24:25-24:65 */,

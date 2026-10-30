@@ -40,11 +40,11 @@ fn main() {
                             );
                             println!(
                                 "{}", terrane_scalar_support::scalar_text(&{ let
-                                __terrane_receiver_value = &caught.as_ref()
+                                __terrane_receiver_value_0 = &caught.as_ref()
                                 .expect("flow-proven available binding").clone().render();
                                 let __terrane_string_argument_0 =
-                                &String::from("coercion-error: coercion has no compatible result");
-                                __terrane_receiver_value.contains(std::convert::AsRef:: <
+                                "coercion-error: coercion has no compatible result";
+                                __terrane_receiver_value_0.contains(std::convert::AsRef:: <
                                 str > ::as_ref(&__terrane_string_argument_0)) })
                             );
                             return TerraneCompletion::Error(

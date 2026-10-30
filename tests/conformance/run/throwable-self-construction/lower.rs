@@ -231,11 +231,10 @@ fn main() {
                     );
                     println!(
                         "{}", terrane_scalar_support::scalar_text(&{ let
-                        __terrane_receiver_value = &failure_2.as_ref()
+                        __terrane_receiver_value_0 = &failure_2.as_ref()
                         .expect("flow-proven available binding").clone().render(); let
-                        __terrane_string_argument_0 =
-                        &String::from("::child-error: inherited self");
-                        __terrane_receiver_value.contains(std::convert::AsRef:: < str >
+                        __terrane_string_argument_0 = "::child-error: inherited self";
+                        __terrane_receiver_value_0.contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) })
                     );
                 }

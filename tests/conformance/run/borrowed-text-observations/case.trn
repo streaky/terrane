@@ -1,11 +1,26 @@
 namespace borrowed-text-observations
 
-from /core/collections import list
+from /core/collections import list, map
 from /core/encodings import utf8
+from /core/errors import index-error
 
 class holder
     text string = ' AéA '
     data bytes = b'ABC'
+    items list of string = list; 'alpha'
+    calls int = 0
+
+function replace-shared string; owner shared ref holder
+    owner.text = 'xyz'
+    return 'x'
+
+function shrink-shared int; owner shared ref holder
+    owner.items = list; 'z'
+    return 0
+
+function counted-key string; owner shared ref holder, key string
+    owner.calls = owner.calls + 1
+    return key
 
 function decode-input string; source ref bytes
     return source.decode; utf8
@@ -55,6 +70,8 @@ async function main;
         print; scalar
         break
     shared = shared ref (instance holder;)
+    print; (shared.text.contains; (replace-shared; shared))
+    print; shared.items[(shrink-shared; shared)]
     print; (shared.text.trim;)
     print; (shared.text.contains; shared.text)
     print; (shared.data.decode; utf8)
@@ -62,3 +79,28 @@ async function main;
     if maybe != none
         print; (maybe.trim;)
     print; await scan-later; copy.text
+    values = list; 'al', 'alpha'
+    print; (values[0].contains; values[1])
+    item.items = list; 'al', 'alpha'
+    print; (item.items[0].contains; item.items[1])
+    shared.items = list; 'al', 'alpha'
+    print; (shared.items[0].contains; shared.items[1])
+    print; ('escaped\n雪'.contains; '雪')
+    print; ('x'.contains; ('b'))
+    grid list of list of string = list; (list; 'a', 'b'), (list; 'c', 'd')
+    print; (grid[1][0].trim;)
+    print; (grid[1][0].contains; grid[0][1])
+    for character in grid[1][0].scalars
+        print; character
+    map-grid map of string, map of string, string = map; first=(map; left='red', right='blue'), second=(map; left='green', right='gold')
+    print; (map-grid['second']['left'].contains; map-grid['first']['right'])
+    print; (map-grid[(counted-key; shared, 'second')][(counted-key; shared, 'left')].contains; map-grid[(counted-key; shared, 'first')][(counted-key; shared, 'right')])
+    print; shared.calls
+    try
+        print; (values[99].contains; (counted-key; shared, 'a'))
+    catch index-error
+        print; shared.calls
+    try
+        print; (grid[99][(shrink-shared; shared)].trim;)
+    catch index-error
+        print; shared.items[0]

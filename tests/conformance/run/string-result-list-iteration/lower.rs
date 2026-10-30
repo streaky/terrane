@@ -7,10 +7,10 @@ fn main() {
     let matches: Vec<terrane_string_support::TextRange>;
     let mut found: terrane_string_support::TextRange;
     parts = {
-        let __terrane_receiver_value = &String::from("red,green,blue");
-        let __terrane_string_argument_0 = &String::from(",");
+        let __terrane_receiver_value_0 = &String::from("red,green,blue");
+        let __terrane_string_argument_0 = ",";
         terrane_string_support::split(
-            &__terrane_receiver_value,
+            &__terrane_receiver_value_0,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
         )
     };
@@ -39,10 +39,10 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&part));
     }
     matches = {
-        let __terrane_receiver_value = &String::from("banana");
-        let __terrane_string_argument_0 = &String::from("an");
+        let __terrane_receiver_value_1 = &String::from("banana");
+        let __terrane_string_argument_0 = "an";
         terrane_string_support::find_all(
-            &__terrane_receiver_value,
+            &__terrane_receiver_value_1,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
         )
     };

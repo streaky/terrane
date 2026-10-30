@@ -467,15 +467,69 @@ mod __terrane_trace {
         "/borrowed-text-observations::decode-input",
         "/borrowed-text-observations::main",
     ];
-    pub static SITES: [Site; 4] = [
-        /* terrane-site-row: site 0: /borrowed-text-observations::decode-input (case.trn:11:12-11:31) */
-        { Site { function: 0, file: 0, line: 11, column: 12, end_line: 11, end_column: 31 } },
-        /* terrane-site-row: site 1: /borrowed-text-observations::main (case.trn:34:13-34:36) */
-        { Site { function: 1, file: 0, line: 34, column: 13, end_line: 34, end_column: 36 } },
-        /* terrane-site-row: site 2: /borrowed-text-observations::main (case.trn:41:13-41:22) */
-        { Site { function: 1, file: 0, line: 41, column: 13, end_line: 41, end_column: 22 } },
-        /* terrane-site-row: site 3: /borrowed-text-observations::main (case.trn:60:13-60:37) */
-        { Site { function: 1, file: 0, line: 60, column: 13, end_line: 60, end_column: 37 } },
+    pub static SITES: [Site; 31] = [
+        /* terrane-site-row: site 0: /borrowed-text-observations::decode-input (case.trn:26:12-26:31) */
+        { Site { function: 0, file: 0, line: 26, column: 12, end_line: 26, end_column: 31 } },
+        /* terrane-site-row: site 1: /borrowed-text-observations::main (case.trn:49:13-49:36) */
+        { Site { function: 1, file: 0, line: 49, column: 13, end_line: 49, end_column: 36 } },
+        /* terrane-site-row: site 2: /borrowed-text-observations::main (case.trn:56:13-56:22) */
+        { Site { function: 1, file: 0, line: 56, column: 13, end_line: 56, end_column: 22 } },
+        /* terrane-site-row: site 3: /borrowed-text-observations::main (case.trn:74:12-74:49) */
+        { Site { function: 1, file: 0, line: 74, column: 12, end_line: 74, end_column: 49 } },
+        /* terrane-site-row: site 4: /borrowed-text-observations::main (case.trn:77:13-77:37) */
+        { Site { function: 1, file: 0, line: 77, column: 13, end_line: 77, end_column: 37 } },
+        /* terrane-site-row: site 5: /borrowed-text-observations::main (case.trn:83:13-83:22) */
+        { Site { function: 1, file: 0, line: 83, column: 13, end_line: 83, end_column: 22 } },
+        /* terrane-site-row: site 6: /borrowed-text-observations::main (case.trn:83:33-83:42) */
+        { Site { function: 1, file: 0, line: 83, column: 33, end_line: 83, end_column: 42 } },
+        /* terrane-site-row: site 7: /borrowed-text-observations::main (case.trn:85:13-85:26) */
+        { Site { function: 1, file: 0, line: 85, column: 13, end_line: 85, end_column: 26 } },
+        /* terrane-site-row: site 8: /borrowed-text-observations::main (case.trn:85:37-85:50) */
+        { Site { function: 1, file: 0, line: 85, column: 37, end_line: 85, end_column: 50 } },
+        /* terrane-site-row: site 9: /borrowed-text-observations::main (case.trn:87:13-87:28) */
+        { Site { function: 1, file: 0, line: 87, column: 13, end_line: 87, end_column: 28 } },
+        /* terrane-site-row: site 10: /borrowed-text-observations::main (case.trn:87:39-87:54) */
+        { Site { function: 1, file: 0, line: 87, column: 39, end_line: 87, end_column: 54 } },
+        /* terrane-site-row: site 11: /borrowed-text-observations::main (case.trn:91:13-91:20) */
+        { Site { function: 1, file: 0, line: 91, column: 13, end_line: 91, end_column: 20 } },
+        /* terrane-site-row: site 12: /borrowed-text-observations::main (case.trn:91:13-91:23) */
+        { Site { function: 1, file: 0, line: 91, column: 13, end_line: 91, end_column: 23 } },
+        /* terrane-site-row: site 13: /borrowed-text-observations::main (case.trn:92:13-92:20) */
+        { Site { function: 1, file: 0, line: 92, column: 13, end_line: 92, end_column: 20 } },
+        /* terrane-site-row: site 14: /borrowed-text-observations::main (case.trn:92:13-92:23) */
+        { Site { function: 1, file: 0, line: 92, column: 13, end_line: 92, end_column: 23 } },
+        /* terrane-site-row: site 15: /borrowed-text-observations::main (case.trn:92:34-92:41) */
+        { Site { function: 1, file: 0, line: 92, column: 34, end_line: 92, end_column: 41 } },
+        /* terrane-site-row: site 16: /borrowed-text-observations::main (case.trn:92:34-92:44) */
+        { Site { function: 1, file: 0, line: 92, column: 34, end_line: 92, end_column: 44 } },
+        /* terrane-site-row: site 17: /borrowed-text-observations::main (case.trn:93:22-93:29) */
+        { Site { function: 1, file: 0, line: 93, column: 22, end_line: 93, end_column: 29 } },
+        /* terrane-site-row: site 18: /borrowed-text-observations::main (case.trn:93:22-93:32) */
+        { Site { function: 1, file: 0, line: 93, column: 22, end_line: 93, end_column: 32 } },
+        /* terrane-site-row: site 19: /borrowed-text-observations::main (case.trn:96:13-96:31) */
+        { Site { function: 1, file: 0, line: 96, column: 13, end_line: 96, end_column: 31 } },
+        /* terrane-site-row: site 20: /borrowed-text-observations::main (case.trn:96:13-96:39) */
+        { Site { function: 1, file: 0, line: 96, column: 13, end_line: 96, end_column: 39 } },
+        /* terrane-site-row: site 21: /borrowed-text-observations::main (case.trn:96:50-96:67) */
+        { Site { function: 1, file: 0, line: 96, column: 50, end_line: 96, end_column: 67 } },
+        /* terrane-site-row: site 22: /borrowed-text-observations::main (case.trn:96:50-96:76) */
+        { Site { function: 1, file: 0, line: 96, column: 50, end_line: 96, end_column: 76 } },
+        /* terrane-site-row: site 23: /borrowed-text-observations::main (case.trn:97:13-97:54) */
+        { Site { function: 1, file: 0, line: 97, column: 13, end_line: 97, end_column: 54 } },
+        /* terrane-site-row: site 24: /borrowed-text-observations::main (case.trn:97:13-97:85) */
+        { Site { function: 1, file: 0, line: 97, column: 13, end_line: 97, end_column: 85 } },
+        /* terrane-site-row: site 25: /borrowed-text-observations::main (case.trn:97:96-97:136) */
+        { Site { function: 1, file: 0, line: 97, column: 96, end_line: 97, end_column: 136 } },
+        /* terrane-site-row: site 26: /borrowed-text-observations::main (case.trn:97:96-97:168) */
+        { Site { function: 1, file: 0, line: 97, column: 96, end_line: 97, end_column: 168 } },
+        /* terrane-site-row: site 27: /borrowed-text-observations::main (case.trn:100:17-100:27) */
+        { Site { function: 1, file: 0, line: 100, column: 17, end_line: 100, end_column: 27 } },
+        /* terrane-site-row: site 28: /borrowed-text-observations::main (case.trn:104:17-104:25) */
+        { Site { function: 1, file: 0, line: 104, column: 17, end_line: 104, end_column: 25 } },
+        /* terrane-site-row: site 29: /borrowed-text-observations::main (case.trn:104:17-104:50) */
+        { Site { function: 1, file: 0, line: 104, column: 17, end_line: 104, end_column: 50 } },
+        /* terrane-site-row: site 30: /borrowed-text-observations::main (case.trn:106:16-106:31) */
+        { Site { function: 1, file: 0, line: 106, column: 16, end_line: 106, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]

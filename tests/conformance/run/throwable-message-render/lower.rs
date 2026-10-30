@@ -130,14 +130,13 @@ fn main() {
                             println!(
                                 "{}{}", terrane_scalar_support::scalar_text(&{ let
                                 __terrane_string_argument_0 =
-                                &String::from("::split-error: original display"); shown
-                                .as_ref().expect("flow-proven available binding")
+                                "::split-error: original display"; shown.as_ref()
+                                .expect("flow-proven available binding")
                                 .contains(std::convert::AsRef:: < str >
                                 ::as_ref(&__terrane_string_argument_0)) }),
                                 terrane_scalar_support::scalar_text(&{ let
-                                __terrane_string_argument_0 =
-                                &String::from("original message"); shown.as_ref()
-                                .expect("flow-proven available binding")
+                                __terrane_string_argument_0 = "original message"; shown
+                                .as_ref().expect("flow-proven available binding")
                                 .contains(std::convert::AsRef:: < str >
                                 ::as_ref(&__terrane_string_argument_0)) })
                             );
@@ -193,15 +192,13 @@ fn main() {
                         );
                     println!(
                         "{}{}", terrane_scalar_support::scalar_text(&{ let
-                        __terrane_string_argument_0 =
-                        &String::from("::split-error: original display"); shown.as_ref()
-                        .expect("flow-proven available binding")
+                        __terrane_string_argument_0 = "::split-error: original display";
+                        shown.as_ref().expect("flow-proven available binding")
                         .contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) }),
                         terrane_scalar_support::scalar_text(&{ let
-                        __terrane_string_argument_0 =
-                        &String::from("::raise-original (case.trn:"); shown.as_ref()
-                        .expect("flow-proven available binding")
+                        __terrane_string_argument_0 = "::raise-original (case.trn:";
+                        shown.as_ref().expect("flow-proven available binding")
                         .contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) })
                     );
@@ -291,11 +288,10 @@ fn main() {
                     );
                     println!(
                         "{}{}", terrane_scalar_support::scalar_text(&{ let
-                        __terrane_receiver_value = &caught_4.as_ref()
+                        __terrane_receiver_value_0 = &caught_4.as_ref()
                         .expect("flow-proven available binding").clone().render(); let
-                        __terrane_string_argument_0 =
-                        &String::from("::split-error: original display");
-                        __terrane_receiver_value.contains(std::convert::AsRef:: < str >
+                        __terrane_string_argument_0 = "::split-error: original display";
+                        __terrane_receiver_value_0.contains(std::convert::AsRef:: < str >
                         ::as_ref(&__terrane_string_argument_0)) }),
                         terrane_scalar_support::scalar_text(&caught_4.as_ref()
                         .expect("flow-proven available binding").clone().detail.as_ref()
@@ -426,13 +422,13 @@ fn main() {
                         println!(
                             "{}{}", terrane_scalar_support::scalar_text(&{ let
                             __terrane_string_argument_0 =
-                            &String::from("::wrapper-error: wrapper display"); shown
-                            .as_ref().expect("flow-proven available binding")
+                            "::wrapper-error: wrapper display"; shown.as_ref()
+                            .expect("flow-proven available binding")
                             .contains(std::convert::AsRef:: < str >
                             ::as_ref(&__terrane_string_argument_0)) }),
                             terrane_scalar_support::scalar_text(&{ let
                             __terrane_string_argument_0 =
-                            &String::from("caused by: /throwable-message-render::split-error: original display");
+                            "caused by: /throwable-message-render::split-error: original display";
                             shown.as_ref().expect("flow-proven available binding")
                             .contains(std::convert::AsRef:: < str >
                             ::as_ref(&__terrane_string_argument_0)) })

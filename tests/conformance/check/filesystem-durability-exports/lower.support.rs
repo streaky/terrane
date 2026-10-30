@@ -1712,7 +1712,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
     let mut index: terrane_int_support::Int;
     let mut part: String;
     parts = {
-        let __terrane_string_argument_0 = &String::from("/");
+        let __terrane_string_argument_0 = "/";
         terrane_string_support::split(
             &subject.text,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
@@ -1752,7 +1752,7 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
 }
 pub fn path_is_absolute(subject: Path) -> bool {
     return {
-        let __terrane_string_argument_0 = &String::from("/");
+        let __terrane_string_argument_0 = "/";
         subject
             .text
             .starts_with(
@@ -1770,7 +1770,7 @@ pub fn normalise_path(subject: Path) -> Path {
     let mut result: String;
     let mut index: terrane_int_support::Int;
     parts = {
-        let __terrane_string_argument_0 = &String::from("/");
+        let __terrane_string_argument_0 = "/";
         terrane_string_support::split(
             &subject.text,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
@@ -2026,7 +2026,7 @@ pub fn path_stem(subject: Path) -> String {
     let mut index: terrane_int_support::Int;
     current = path_name(subject);
     pieces = {
-        let __terrane_string_argument_0 = &String::from(".");
+        let __terrane_string_argument_0 = ".";
         terrane_string_support::split(
             &current,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
@@ -2114,7 +2114,7 @@ pub fn path_extension(subject: Path) -> String {
     let pieces: Vec<String>;
     current = path_name(subject);
     pieces = {
-        let __terrane_string_argument_0 = &String::from(".");
+        let __terrane_string_argument_0 = ".";
         terrane_string_support::split(
             &current,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
@@ -2180,7 +2180,7 @@ pub fn join_path(base: Path, child: Path) -> Path {
     joined = base.text.clone();
     if joined.as_str() != ""
         && !{
-            let __terrane_string_argument_0 = &String::from("/");
+            let __terrane_string_argument_0 = "/";
             joined
                 .ends_with(
                     std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),

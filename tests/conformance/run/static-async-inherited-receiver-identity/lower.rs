@@ -393,9 +393,9 @@ fn main() {
         ready = __terrane_await(started.receiver.receive()).await;
         TERRANE_STATIC_HOLDER_SLOT.replace(Base::terrane_construct());
         {
-            let __terrane_owner = TERRANE_STATIC_HOLDER_SLOT.handle();
+            let __terrane_owner_1 = TERRANE_STATIC_HOLDER_SLOT.handle();
             let __terrane_value = terrane_int_support::Int::from(100_i128);
-            *__terrane_owner
+            *__terrane_owner_1
                 .lock()
                 .expect("static field lock poisoned")
                 .terrane_field_total_mut() = __terrane_value;

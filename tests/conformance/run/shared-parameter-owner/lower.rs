@@ -60,14 +60,14 @@ impl Tracked {
     }
     pub fn destruct(&mut self) {
         {
-            let __terrane_owner = self
+            let __terrane_owner_1 = self
                 .observer
                 .as_ref()
                 .expect("required field initialized")
                 .clone();
             let __terrane_shared_argument_0 = self.value.clone();
             let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-            let __terrane_call_result = __terrane_owner
+            let __terrane_call_result = __terrane_owner_1
                 .lock()
                 .expect("shared reference lock poisoned")
                 .record(__terrane_shared_argument_1);
@@ -91,9 +91,9 @@ fn share(owner: Tracked) {
     let alias: std::sync::Arc<TerraneSharedCell<Tracked>>;
     alias = owner.clone();
     {
-        let __terrane_owner = alias.clone();
+        let __terrane_owner_2 = alias.clone();
         let __terrane_value = terrane_int_support::Int::from(3_i128);
-        __terrane_owner.lock().expect("shared reference lock poisoned").value = __terrane_value;
+        __terrane_owner_2.lock().expect("shared reference lock poisoned").value = __terrane_value;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
@@ -106,9 +106,9 @@ async fn share_async(owner: Tracked) {
     let alias: std::sync::Arc<TerraneSharedCell<Tracked>>;
     alias = owner.clone();
     {
-        let __terrane_owner = alias.clone();
+        let __terrane_owner_3 = alias.clone();
         let __terrane_value = terrane_int_support::Int::from(5_i128);
-        __terrane_owner.lock().expect("shared reference lock poisoned").value = __terrane_value;
+        __terrane_owner_3.lock().expect("shared reference lock poisoned").value = __terrane_value;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
@@ -133,14 +133,14 @@ fn replace(owner: Counter) {
     alias = owner.clone();
     *owner.lock().expect("reference lock poisoned") = Counter::terrane_construct();
     {
-        let __terrane_owner = owner.clone();
+        let __terrane_owner_4 = owner.clone();
         let __terrane_value = terrane_int_support::Int::from(99_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").value = __terrane_value;
+        __terrane_owner_4.lock().expect("reference lock poisoned").value = __terrane_value;
     }
     {
-        let __terrane_owner = alias.clone();
+        let __terrane_owner_5 = alias.clone();
         let __terrane_value = terrane_int_support::Int::from(11_i128);
-        __terrane_owner.lock().expect("shared reference lock poisoned").value = __terrane_value;
+        __terrane_owner_5.lock().expect("shared reference lock poisoned").value = __terrane_value;
     }
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
@@ -165,9 +165,9 @@ fn main() {
                 let alias: std::sync::Arc<TerraneSharedCell<Tracked>>;
                 alias = owner.clone();
                 {
-                    let __terrane_owner = alias.clone();
+                    let __terrane_owner_6 = alias.clone();
                     let __terrane_value = terrane_int_support::Int::from(7_i128);
-                    __terrane_owner
+                    __terrane_owner_6
                         .lock()
                         .expect("shared reference lock poisoned")
                         .value = __terrane_value;

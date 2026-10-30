@@ -54,9 +54,9 @@ fn main() {
             __terrane_result
         };
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
-            &pair.key.clone(); let __terrane_string_argument_0 = &String::from("al");
-            __terrane_receiver_value.contains(std::convert::AsRef:: < str >
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_0 =
+            &pair.key.clone(); let __terrane_string_argument_0 = "al";
+            __terrane_receiver_value_0.contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) })
         );
         println!(

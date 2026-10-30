@@ -160,8 +160,8 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&duplicate.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("duplicate key"); duplicate.message.contains(std::convert::AsRef::
-        < str > ::as_ref(&__terrane_string_argument_0)) })
+        "duplicate key"; duplicate.message.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
     );
     fields = terrane_collection_support::List::<
         String,
@@ -318,8 +318,8 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&limited.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("byte limit"); limited.message.contains(std::convert::AsRef:: < str
-        > ::as_ref(&__terrane_string_argument_0)) })
+        "byte limit"; limited.message.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
     );
     excessive_depth = parse_json(
         String::from("[]"),
@@ -331,17 +331,15 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&excessive_depth.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("cannot exceed"); excessive_depth.message
-        .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
-        })
+        "cannot exceed"; excessive_depth.message.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
     );
     trailing_json = parse_json(String::from("{\"a\":1} garbage"), options);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&trailing_json.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("trailing characters"); trailing_json.message
-        .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
-        })
+        "trailing characters"; trailing_json.message.contains(std::convert::AsRef:: < str
+        > ::as_ref(&__terrane_string_argument_0)) })
     );
     yaml_limits = make_yaml_options(
         terrane_int_support::Int::from(32_i128),
@@ -393,8 +391,8 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&bomb.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("alias node limit"); bomb.message.contains(std::convert::AsRef:: <
-        str > ::as_ref(&__terrane_string_argument_0)) })
+        "alias node limit"; bomb.message.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
     );
     yaml_depth = parse_yaml(
         String::from("a: [[[[]]]]"),
@@ -407,8 +405,8 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&yaml_depth.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("depth limit"); yaml_depth.message.contains(std::convert::AsRef:: <
-        str > ::as_ref(&__terrane_string_argument_0)) })
+        "depth limit"; yaml_depth.message.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
     );
     excessive_yaml_depth = parse_yaml(
         String::from("[]"),
@@ -421,8 +419,7 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&excessive_yaml_depth.failed),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("cannot exceed 255"); excessive_yaml_depth.message
-        .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
-        })
+        "cannot exceed 255"; excessive_yaml_depth.message.contains(std::convert::AsRef::
+        < str > ::as_ref(&__terrane_string_argument_0)) })
     );
 }

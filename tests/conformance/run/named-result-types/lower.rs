@@ -34,7 +34,7 @@ fn main() {
     );
     text = String::from("banana");
     found = {
-        let __terrane_string_argument_0 = &String::from("ana");
+        let __terrane_string_argument_0 = "ana";
         terrane_string_support::find(
             &text,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),

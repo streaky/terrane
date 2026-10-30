@@ -64,7 +64,7 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                                 {
                                     __terrane_handled_1 = true;
                                     if {
-                                        let __terrane_string_argument_0 = &String::from("\n");
+                                        let __terrane_string_argument_0 = "\n";
                                         text.contains(
                                             std::convert::AsRef::<
                                                 str,

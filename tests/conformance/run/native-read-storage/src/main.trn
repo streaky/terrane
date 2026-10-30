@@ -1,6 +1,6 @@
 namespace app
 
-from /core/collections import list
+from /core/collections import list, map
 from /deps/witness import Record, Inspect, same_text, same_string, same_bytes, owned_text, same_after_yield, same_sequence, same_generic, update_record, echo_after_yield, take_text, join_text, sequence_address, read_sequence_after_yield
 
 class holder
@@ -26,8 +26,13 @@ async function main;
     print; (same_text; item.text, item.text)
     print; (same_bytes; item.data, item.data)
     read-holder; item
-    values list of string = list; 'indexed storage'
+    values list of string = list; 'indexed storage', 'second'
     print; (same_text; values[0], values[0])
+    print; (join_text; values[0], values[1])
+    nested list of list of string = list; (list; 'a', 'b'), (list; 'c', 'd')
+    print; (join_text; nested[1][0], nested[0][1])
+    map-grid map of string, map of string, string = map; first=(map; left='red', right='blue'), second=(map; left='green', right='gold')
+    print; (join_text; map-grid['second']['left'], map-grid['first']['right'])
     print; (same_sequence; values, values)
     values-copy = values
     print; (same_sequence; values, values-copy)

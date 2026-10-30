@@ -44,10 +44,10 @@ fn inner(
     >,
 ) -> terrane_int_support::Int {
     return {
-        let __terrane_owner = first.clone();
+        let __terrane_owner_1 = first.clone();
         let __terrane_shared_argument_0 = second.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);
@@ -193,9 +193,9 @@ fn main() {
         ),
     );
     {
-        let __terrane_owner = b.clone();
+        let __terrane_owner_2 = b.clone();
         let __terrane_value = terrane_int_support::Int::from(4_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
+        __terrane_owner_2.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     ha = a.clone();
     hb = b.clone();

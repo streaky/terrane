@@ -9,10 +9,10 @@ fn selected_index() -> terrane_int_support::Int {
 fn main() {
     let fields: Vec<String>;
     fields = {
-        let __terrane_receiver_value = &String::from("value");
-        let __terrane_string_argument_0 = &String::from(",");
+        let __terrane_receiver_value_0 = &String::from("value");
+        let __terrane_string_argument_0 = ",";
         terrane_string_support::split(
-            &__terrane_receiver_value,
+            &__terrane_receiver_value_0,
             &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
         )
     };

@@ -165,11 +165,11 @@ fn main() {
             ],
         };
         if {
-            let __terrane_receiver_value = &terrane_collection_support::List::new(
+            let __terrane_receiver_value_0 = &terrane_collection_support::List::new(
                 descriptor.fields.iter().map(|field| field.secret).collect::<Vec<bool>>(),
             );
             __terrane_raised(
-                __terrane_receiver_value
+                __terrane_receiver_value_0
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(
@@ -227,103 +227,111 @@ fn main() {
             .length()))
         );
         println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index =
+            "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_1 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            1 /* terrane-site: case.trn:47:13-47:23 */); let __terrane_index_place_2 =
+            __terrane_raised(records.get(__terrane_index_1).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_1)),
             1 /* terrane-site: case.trn:47:13-47:23 */); let
-            __terrane_string_argument_0 = &String::from("\"timestamp\":1000");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            1 /* terrane-site: case.trn:47:13-47:23 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            2 /* terrane-site: case.trn:47:56-47:66 */); let
-            __terrane_string_argument_0 = &String::from("\"sequence\":0");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            2 /* terrane-site: case.trn:47:56-47:66 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            3 /* terrane-site: case.trn:47:95-47:105 */); let
-            __terrane_string_argument_0 = &String::from("\"severity\":\"info\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            3 /* terrane-site: case.trn:47:95-47:105 */)
-            .contains(std::convert::AsRef:: < str >
-            ::as_ref(&__terrane_string_argument_0)) })
-        );
-        println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            4 /* terrane-site: case.trn:48:13-48:23 */); let
-            __terrane_string_argument_0 = &String::from("\"target\":\"service.worker\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            4 /* terrane-site: case.trn:48:13-48:23 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            5 /* terrane-site: case.trn:48:65-48:75 */); let
-            __terrane_string_argument_0 = &String::from("\"message\":\"handled\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            5 /* terrane-site: case.trn:48:65-48:75 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            6 /* terrane-site: case.trn:48:111-48:121 */); let
-            __terrane_string_argument_0 = &String::from("\"serve\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            6 /* terrane-site: case.trn:48:111-48:121 */)
-            .contains(std::convert::AsRef:: < str >
-            ::as_ref(&__terrane_string_argument_0)) })
-        );
-        println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            7 /* terrane-site: case.trn:49:13-49:23 */); let
-            __terrane_string_argument_0 = &String::from("\"request\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            7 /* terrane-site: case.trn:49:13-49:23 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            8 /* terrane-site: case.trn:49:49-49:59 */); let
-            __terrane_string_argument_0 = &String::from("\"<redacted>\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            8 /* terrane-site: case.trn:49:49-49:59 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            9 /* terrane-site: case.trn:49:88-49:98 */); let
-            __terrane_string_argument_0 = &String::from("raw-secret");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            9 /* terrane-site: case.trn:49:88-49:98 */).contains(std::convert::AsRef::
-            < str > ::as_ref(&__terrane_string_argument_0)) })
-        );
-        println!(
-            "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index =
-            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            10 /* terrane-site: case.trn:50:13-50:23 */); let
-            __terrane_string_argument_0 = &String::from("case.trn");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            10 /* terrane-site: case.trn:50:13-50:23 */)
+            __terrane_string_argument_0 = "\"timestamp\":1000"; __terrane_index_place_2
             .contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_3 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            11 /* terrane-site: case.trn:50:48-50:58 */); let
-            __terrane_string_argument_0 = &String::from("\"origin\":\"terrane\"");
-            __terrane_raised(records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            11 /* terrane-site: case.trn:50:48-50:58 */)
+            2 /* terrane-site: case.trn:47:56-47:66 */); let __terrane_index_place_4 =
+            __terrane_raised(records.get(__terrane_index_3).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_3)),
+            2 /* terrane-site: case.trn:47:56-47:66 */); let
+            __terrane_string_argument_0 = "\"sequence\":0"; __terrane_index_place_4
             .contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) }),
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_5 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            3 /* terrane-site: case.trn:47:95-47:105 */); let __terrane_index_place_6
+            = __terrane_raised(records.get(__terrane_index_5).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_5)),
+            3 /* terrane-site: case.trn:47:95-47:105 */); let
+            __terrane_string_argument_0 = "\"severity\":\"info\"";
+            __terrane_index_place_6.contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) })
+        );
+        println!(
+            "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_7 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            4 /* terrane-site: case.trn:48:13-48:23 */); let __terrane_index_place_8 =
+            __terrane_raised(records.get(__terrane_index_7).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_7)),
+            4 /* terrane-site: case.trn:48:13-48:23 */); let
+            __terrane_string_argument_0 = "\"target\":\"service.worker\"";
+            __terrane_index_place_8.contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) }),
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_9 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            5 /* terrane-site: case.trn:48:65-48:75 */); let __terrane_index_place_10
+            = __terrane_raised(records.get(__terrane_index_9).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_9)),
+            5 /* terrane-site: case.trn:48:65-48:75 */); let
+            __terrane_string_argument_0 = "\"message\":\"handled\"";
+            __terrane_index_place_10.contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) }),
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_11 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            6 /* terrane-site: case.trn:48:111-48:121 */); let
+            __terrane_index_place_12 = __terrane_raised(records.get(__terrane_index_11)
+            .ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_11)),
+            6 /* terrane-site: case.trn:48:111-48:121 */); let
+            __terrane_string_argument_0 = "\"serve\""; __terrane_index_place_12
+            .contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) })
+        );
+        println!(
+            "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_13 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            7 /* terrane-site: case.trn:49:13-49:23 */); let __terrane_index_place_14
+            = __terrane_raised(records.get(__terrane_index_13).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_13)),
+            7 /* terrane-site: case.trn:49:13-49:23 */); let
+            __terrane_string_argument_0 = "\"request\""; __terrane_index_place_14
+            .contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) }),
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_15 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            8 /* terrane-site: case.trn:49:49-49:59 */); let __terrane_index_place_16
+            = __terrane_raised(records.get(__terrane_index_15).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_15)),
+            8 /* terrane-site: case.trn:49:49-49:59 */); let
+            __terrane_string_argument_0 = "\"<redacted>\""; __terrane_index_place_16
+            .contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) }),
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_17 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            9 /* terrane-site: case.trn:49:88-49:98 */); let __terrane_index_place_18
+            = __terrane_raised(records.get(__terrane_index_17).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_17)),
+            9 /* terrane-site: case.trn:49:88-49:98 */); let
+            __terrane_string_argument_0 = "raw-secret"; __terrane_index_place_18
+            .contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) })
+        );
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_19 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            10 /* terrane-site: case.trn:50:13-50:23 */); let __terrane_index_place_20
+            = __terrane_raised(records.get(__terrane_index_19).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_19)),
+            10 /* terrane-site: case.trn:50:13-50:23 */); let
+            __terrane_string_argument_0 = "case.trn"; __terrane_index_place_20
+            .contains(std::convert::AsRef:: < str >
+            ::as_ref(&__terrane_string_argument_0)) }),
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_21 =
+            __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            11 /* terrane-site: case.trn:50:48-50:58 */); let __terrane_index_place_22
+            = __terrane_raised(records.get(__terrane_index_21).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_21)),
+            11 /* terrane-site: case.trn:50:48-50:58 */); let
+            __terrane_string_argument_0 = "\"origin\":\"terrane\"";
+            __terrane_index_place_22.contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) })
         );
         other_sink = memory_sink(
@@ -408,18 +416,18 @@ fn main() {
                             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(error_records
                             .as_ref().expect("flow-proven available binding").clone()
                             .length())), terrane_scalar_support::scalar_text(&{ let
-                            __terrane_index =
+                            __terrane_index_23 =
                             __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
                             13 /* terrane-site: case.trn:65:59-65:75 */); let
-                            __terrane_string_argument_0 =
-                            &String::from("coercion-error");
+                            __terrane_index_place_24 =
                             __terrane_raised_completion!(error_records.as_ref()
-                            .expect("flow-proven available binding").get(__terrane_index)
-                            .ok_or_else(| |
-                            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-                            13 /* terrane-site: case.trn:65:59-65:75 */)
-                            .contains(std::convert::AsRef:: < str >
-                            ::as_ref(&__terrane_string_argument_0)) })
+                            .expect("flow-proven available binding")
+                            .get(__terrane_index_23).ok_or_else(| |
+                            terrane_collection_support::IndexError::from_usize(__terrane_index_23)),
+                            13 /* terrane-site: case.trn:65:59-65:75 */); let
+                            __terrane_string_argument_0 = "coercion-error";
+                            __terrane_index_place_24.contains(std::convert::AsRef:: < str
+                            > ::as_ref(&__terrane_string_argument_0)) })
                         );
                     }
                     if !__terrane_handled_0 {
@@ -451,13 +459,13 @@ fn main() {
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&failed_write.failed),
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(fallback
-            .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index =
+            .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index_25 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            14 /* terrane-site: case.trn:71:51-71:62 */); let __terrane_index_place_26
+            = __terrane_raised(fallback.get(__terrane_index_25).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_25)),
             14 /* terrane-site: case.trn:71:51-71:62 */); let
-            __terrane_string_argument_0 = &String::from("event rejected");
-            __terrane_raised(fallback.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            14 /* terrane-site: case.trn:71:51-71:62 */)
+            __terrane_string_argument_0 = "event rejected"; __terrane_index_place_26
             .contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) })
         );
@@ -579,25 +587,25 @@ fn main() {
         println!(
             "{}{}{}",
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(transported_records
-            .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index =
+            .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index_27 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             15 /* terrane-site: case.trn:101:41-101:63 */); let
-            __terrane_string_argument_0 =
-            &String::from("\"message\":\"transported-one\"");
-            __terrane_raised(transported_records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            15 /* terrane-site: case.trn:101:41-101:63 */)
-            .contains(std::convert::AsRef:: < str >
+            __terrane_index_place_28 = __terrane_raised(transported_records
+            .get(__terrane_index_27).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_27)),
+            15 /* terrane-site: case.trn:101:41-101:63 */); let
+            __terrane_string_argument_0 = "\"message\":\"transported-one\"";
+            __terrane_index_place_28.contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_index =
+            terrane_scalar_support::scalar_text(&{ let __terrane_index_29 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
             16 /* terrane-site: case.trn:101:107-101:129 */); let
-            __terrane_string_argument_0 =
-            &String::from("\"message\":\"transported-two\"");
-            __terrane_raised(transported_records.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            16 /* terrane-site: case.trn:101:107-101:129 */)
-            .contains(std::convert::AsRef:: < str >
+            __terrane_index_place_30 = __terrane_raised(transported_records
+            .get(__terrane_index_29).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_29)),
+            16 /* terrane-site: case.trn:101:107-101:129 */); let
+            __terrane_string_argument_0 = "\"message\":\"transported-two\"";
+            __terrane_index_place_30.contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) })
         );
         failing_pair = TerraneChannelPair::new(
@@ -658,13 +666,14 @@ fn main() {
         println!(
             "{}{}",
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(async_fallback
-            .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index =
+            .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index_31 =
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
             17 /* terrane-site: case.trn:115:36-115:53 */); let
-            __terrane_string_argument_0 = &String::from("event rejected");
-            __terrane_raised(async_fallback.get(__terrane_index).ok_or_else(| |
-            terrane_collection_support::IndexError::from_usize(__terrane_index)),
-            17 /* terrane-site: case.trn:115:36-115:53 */)
+            __terrane_index_place_32 = __terrane_raised(async_fallback
+            .get(__terrane_index_31).ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_index_31)),
+            17 /* terrane-site: case.trn:115:36-115:53 */); let
+            __terrane_string_argument_0 = "event rejected"; __terrane_index_place_32
             .contains(std::convert::AsRef:: < str >
             ::as_ref(&__terrane_string_argument_0)) })
         );

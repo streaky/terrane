@@ -34,10 +34,10 @@ fn main() {
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("user:pass@"); value.serialized.contains(std::convert::AsRef:: <
-        str > ::as_ref(&__terrane_string_argument_0)) }),
+        "user:pass@"; value.serialized.contains(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) }),
         terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
-        &String::from("user:pass@"); value.display.contains(std::convert::AsRef:: < str >
+        "user:pass@"; value.display.contains(std::convert::AsRef:: < str >
         ::as_ref(&__terrane_string_argument_0)) })
     );
     relative = value.resolve(String::from("../b?q=hello%20world"));

@@ -139,7 +139,7 @@ impl Emitter<'_> {
         let family = selection.family.source_name();
         let child = selection.child.as_str();
         let prior_read_guards = self.borrowed_receiver_overrides.len();
-        let mut setup = String::new();
+        let mut guard_setup = String::new();
         self.prepare_read_guards(
             std::iter::once(subject).chain(
                 arguments
@@ -147,26 +147,30 @@ impl Emitter<'_> {
                     .iter()
                     .map(|argument| argument.children.last().unwrap_or(argument)),
             ),
-            &mut setup,
+            &mut guard_setup,
         );
-        let (receiver_setup, receiver) = if !self.receiver_needs_live_guard(subject)
-            && !self.read_borrow_is_stable_in(subject, arguments)
-        {
-            let (setup, reference) = self.operand_reference_parts(subject, false);
-            (
-                format!("{setup}let __terrane_string_receiver = (*({reference})).clone(); "),
-                "__terrane_string_receiver".to_owned(),
-            )
+        let snapshot_receiver = self.native_read_needs_snapshot(subject, arguments, false, false);
+        let (receiver_setup, receiver) = if snapshot_receiver {
+            let value = self.read_snapshot(subject);
+            let name = self.fresh_read_binding_name("string_receiver");
+            (format!("let {name} = {value}; "), name)
         } else {
             self.borrowed_receiver_parts(subject)
         };
-        setup.push_str(&receiver_setup);
+        let mut setup = if snapshot_receiver {
+            format!("{receiver_setup}{guard_setup}")
+        } else {
+            format!("{guard_setup}{receiver_setup}")
+        };
         let mut values = Vec::with_capacity(arguments.children.len());
         for (index, argument) in arguments.children.iter().enumerate() {
             let operand = argument.children.last().unwrap_or(argument);
             let value_type = self.receiver_value_type(operand);
             let name = format!("__terrane_string_argument_{index}");
-            let expression = if matches!(
+            let literal = self.borrowed_string_literal(operand);
+            let expression = if let Some(literal) = literal {
+                literal
+            } else if matches!(
                 value_type,
                 Some(
                     ValueType::Scalar(ScalarType::String | ScalarType::Bytes) | ValueType::List(_)

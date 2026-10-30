@@ -165,9 +165,9 @@ impl Derived {
 }
 fn assign(value: std::sync::Arc<TerraneSharedCell<Derived>>) {
     {
-        let __terrane_owner = value.clone();
+        let __terrane_owner_0 = value.clone();
         let __terrane_value = terrane_int_support::Int::from(9_i128);
-        __terrane_owner.lock().expect("shared reference lock poisoned").count = __terrane_value;
+        __terrane_owner_0.lock().expect("shared reference lock poisoned").count = __terrane_value;
     }
 }
 fn main() {
@@ -182,12 +182,12 @@ fn main() {
     plain = std::sync::Arc::new(TerraneSharedCell::new(Derived::terrane_construct()));
     held = plain.clone();
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_1 = held.clone();
         let __terrane_value = false;
-        __terrane_owner.lock().expect("shared reference lock poisoned").flag = __terrane_value;
+        __terrane_owner_1.lock().expect("shared reference lock poisoned").flag = __terrane_value;
     }
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_2 = held.clone();
         let __terrane_value = {
             let __terrane_snapshot = held
                 .lock()
@@ -196,10 +196,10 @@ fn main() {
                 .clone();
             __terrane_snapshot
         } + terrane_int_support::Int::from(1_i128);
-        __terrane_owner.lock().expect("shared reference lock poisoned").count = __terrane_value;
+        __terrane_owner_2.lock().expect("shared reference lock poisoned").count = __terrane_value;
     }
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_3 = held.clone();
         let __terrane_collection_argument_0 = {
             let __terrane_snapshot = held
                 .lock()
@@ -208,7 +208,7 @@ fn main() {
                 .clone();
             __terrane_snapshot
         };
-        __terrane_owner
+        __terrane_owner_3
             .lock()
             .expect("shared reference lock poisoned")
             .values
@@ -236,9 +236,9 @@ fn main() {
     );
     weak = std::sync::Arc::downgrade(&plain.clone());
     {
-        let __terrane_owner = weak.upgrade().expect("reference expired");
+        let __terrane_owner_4 = weak.upgrade().expect("reference expired");
         let __terrane_value = terrane_int_support::Int::from(12_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
+        __terrane_owner_4.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = { let
@@ -248,7 +248,7 @@ fn main() {
         .expect("shared reference lock poisoned").count.clone(); __terrane_snapshot })
     );
     {
-        let __terrane_owner = weak.upgrade().expect("reference expired");
+        let __terrane_owner_5 = weak.upgrade().expect("reference expired");
         let __terrane_index = __terrane_raised(
             terrane_collection_support::index_from_int(
                 &terrane_int_support::Int::from(0_i128),
@@ -263,7 +263,7 @@ fn main() {
             __terrane_snapshot
         };
         let _ = __terrane_raised(
-            __terrane_owner
+            __terrane_owner_5
                 .lock()
                 .expect("reference lock poisoned")
                 .values
@@ -272,31 +272,32 @@ fn main() {
         );
     }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &plain;
-        __terrane_raised(__terrane_owner.lock().expect("reference lock poisoned").values
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_6 = &plain;
+        __terrane_raised(__terrane_owner_6.lock().expect("reference lock poisoned")
+        .values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         1 /* terrane-site: case.trn:40:12-40:27 */)), 1 /* terrane-site: case.trn:40:12-40:27 */) }), String::from(" "),
-        terrane_scalar_support::scalar_text(&{ let __terrane_owner = &held;
-        __terrane_raised(__terrane_owner.lock().expect("shared reference lock poisoned")
-        .values
+        terrane_scalar_support::scalar_text(&{ let __terrane_owner_7 = &held;
+        __terrane_raised(__terrane_owner_7.lock()
+        .expect("shared reference lock poisoned").values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         2 /* terrane-site: case.trn:40:34-40:48 */)), 2 /* terrane-site: case.trn:40:34-40:48 */) })
     );
     other = std::sync::Arc::new(TerraneSharedCell::new(Base::terrane_construct()));
     other_held = other.clone();
     {
-        let __terrane_owner = other_held.clone();
+        let __terrane_owner_8 = other_held.clone();
         let __terrane_value = terrane_int_support::Int::from(14_i128);
-        *__terrane_owner
+        *__terrane_owner_8
             .lock()
             .expect("shared reference lock poisoned")
             .terrane_field_count_mut() = __terrane_value;
     }
     other_observer = std::sync::Arc::downgrade(&other.clone());
     {
-        let __terrane_owner = other_observer.upgrade().expect("reference expired");
+        let __terrane_owner_9 = other_observer.upgrade().expect("reference expired");
         let __terrane_value = false;
-        *__terrane_owner
+        *__terrane_owner_9
             .lock()
             .expect("reference lock poisoned")
             .terrane_field_flag_mut() = __terrane_value;
@@ -313,7 +314,7 @@ fn main() {
         .terrane_field_flag(); __terrane_result }; __terrane_snapshot })
     );
     {
-        let __terrane_owner = other_held.clone();
+        let __terrane_owner_10 = other_held.clone();
         let __terrane_collection_argument_0 = {
             let __terrane_snapshot = {
                 let __terrane_owner = other_observer
@@ -327,7 +328,7 @@ fn main() {
             };
             __terrane_snapshot
         };
-        __terrane_owner
+        __terrane_owner_10
             .lock()
             .expect("shared reference lock poisoned")
             .terrane_field_values_mut()
@@ -335,24 +336,24 @@ fn main() {
     };
     next = Item::terrane_construct();
     {
-        let __terrane_owner = other_held.clone();
+        let __terrane_owner_11 = other_held.clone();
         let __terrane_value = next;
-        *__terrane_owner
+        *__terrane_owner_11
             .lock()
             .expect("shared reference lock poisoned")
             .terrane_field_required_slot_mut() = Some(__terrane_value);
     }
     {
-        let __terrane_owner = other_observer.upgrade().expect("reference expired");
+        let __terrane_owner_12 = other_observer.upgrade().expect("reference expired");
         let __terrane_value = terrane_int_support::Int::from(25_i128);
-        __terrane_owner
+        __terrane_owner_12
             .lock()
             .expect("reference lock poisoned")
             .terrane_field_required_mut()
             .value = __terrane_value;
     }
     {
-        let __terrane_owner = other_held.clone();
+        let __terrane_owner_14 = other_held.clone();
         let __terrane_shared_argument_0 = {
             let __terrane_snapshot = {
                 let __terrane_owner = other_observer
@@ -367,7 +368,7 @@ fn main() {
             __terrane_snapshot
         } + terrane_int_support::Int::from(1_i128);
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_14
             .lock()
             .expect("shared reference lock poisoned")
             .update(__terrane_shared_argument_1);
@@ -395,9 +396,9 @@ fn main() {
         .expect("reference lock poisoned").terrane_field_flag() }; __terrane_snapshot })
     );
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_15 = held.clone();
         let __terrane_value = terrane_int_support::Int::from(17_i128);
-        __terrane_owner
+        __terrane_owner_15
             .lock()
             .expect("shared reference lock poisoned")
             .required
@@ -420,9 +421,9 @@ fn main() {
         replacement.value = __terrane_value;
     }
     {
-        let __terrane_owner = weak.upgrade().expect("reference expired");
+        let __terrane_owner_16 = weak.upgrade().expect("reference expired");
         let __terrane_value = replacement;
-        __terrane_owner.lock().expect("reference lock poisoned").required = Some(
+        __terrane_owner_16.lock().expect("reference lock poisoned").required = Some(
             __terrane_value,
         );
     }
@@ -436,9 +437,9 @@ fn main() {
         .expect("required field initialized").clone(); __terrane_snapshot } .value)
     );
     {
-        let __terrane_owner = plain.clone();
+        let __terrane_owner_17 = plain.clone();
         let __terrane_value = terrane_int_support::Int::from(19_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
+        __terrane_owner_17.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_snapshot = held.lock()

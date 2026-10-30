@@ -3678,13 +3678,9 @@ impl TextReader {
             count,
         );
         text = {
-            let __terrane_receiver_value = &raw.data.clone();
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
-                terrane_string_support::decode(
-                    &__terrane_receiver_value,
-                    __terrane_string_argument_0,
-                ),
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
                 1 /* terrane-site: core/streams.trn:381:23-381:50 */,
             )?
         };
@@ -3848,13 +3844,9 @@ impl TextReader {
             )
             .await;
         text = {
-            let __terrane_receiver_value = &raw.data.clone();
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
-                terrane_string_support::decode(
-                    &__terrane_receiver_value,
-                    __terrane_string_argument_0,
-                ),
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
                 4 /* terrane-site: core/streams.trn:427:23-427:50 */,
             )?
         };
@@ -3893,7 +3885,6 @@ impl TextReader {
             )
             .await;
         text = {
-            let __terrane_receiver_value = &raw.data.clone();
             let __terrane_string_argument_0 = {
                 let __terrane_snapshot = __terrane_shared_handle
                     .lock()
@@ -3903,10 +3894,7 @@ impl TextReader {
                 __terrane_snapshot
             };
             __terrane_raised_err(
-                terrane_string_support::decode(
-                    &__terrane_receiver_value,
-                    __terrane_string_argument_0,
-                ),
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
                 4 /* terrane-site: core/streams.trn:427:23-427:50 */,
             )?
         };

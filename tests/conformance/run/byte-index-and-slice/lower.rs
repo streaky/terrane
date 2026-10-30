@@ -10,10 +10,10 @@ fn main() {
     let __trn_66696e616c: Vec<u8>;
     let mut failure: Option<TerraneError> = None;
     data = {
-        let __terrane_receiver_value = &String::from("A👍");
+        let __terrane_receiver_value_0 = &String::from("A👍");
         let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
         terrane_string_support::encode(
-            &__terrane_receiver_value,
+            &__terrane_receiver_value_0,
             __terrane_string_argument_0,
         )
     };

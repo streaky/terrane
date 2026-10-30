@@ -44,10 +44,10 @@ fn invoke(
     >,
 ) -> terrane_int_support::Int {
     return {
-        let __terrane_owner = first.clone();
+        let __terrane_owner_1 = first.clone();
         let __terrane_shared_argument_0 = second.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);
@@ -121,10 +121,10 @@ fn main() {
         copy = ha.clone();
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = ha.clone();
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_3 = ha.clone();
         let __terrane_shared_argument_0 = other.clone(); let __terrane_shared_argument_1
-        = __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner.lock()
-        .expect("shared reference lock poisoned").peek(__terrane_shared_argument_1);
-        __terrane_call_result })
+        = __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner_3
+        .lock().expect("shared reference lock poisoned")
+        .peek(__terrane_shared_argument_1); __terrane_call_result })
     );
 }

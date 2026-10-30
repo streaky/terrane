@@ -360,8 +360,8 @@ fn main() {
             5 /* terrane-site: src/main.trn:51:11-51:23 */,
         );
         {
-            let __terrane_owner = app.clone();
-            let __terrane_call_result = __terrane_owner
+            let __terrane_owner_2 = app.clone();
+            let __terrane_call_result = __terrane_owner_2
                 .lock()
                 .expect("reference lock poisoned")
                 .values();
@@ -379,8 +379,8 @@ fn main() {
             6 /* terrane-site: src/main.trn:54:11-54:26 */,
         );
         {
-            let __terrane_owner = shared.clone();
-            let __terrane_call_result = __terrane_owner
+            let __terrane_owner_5 = shared.clone();
+            let __terrane_call_result = __terrane_owner_5
                 .lock()
                 .expect("shared reference lock poisoned")
                 .values();

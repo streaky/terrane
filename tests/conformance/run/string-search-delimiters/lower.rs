@@ -3,17 +3,17 @@
 // Namespace: string-search-delimiters
 fn active_content(text: String) -> bool {
     return {
-        let __terrane_string_argument_0 = &String::from("javascript:");
+        let __terrane_string_argument_0 = "javascript:";
         text.contains(std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0))
     }
         || {
-            let __terrane_string_argument_0 = &String::from("expression(");
+            let __terrane_string_argument_0 = "expression(";
             text.contains(
                 std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
             )
         }
         || {
-            let __terrane_string_argument_0 = &String::from("-moz-binding");
+            let __terrane_string_argument_0 = "-moz-binding";
             text.contains(
                 std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
             )
@@ -21,17 +21,17 @@ fn active_content(text: String) -> bool {
 }
 fn closing_marker(text: String) -> bool {
     return {
-        let __terrane_string_argument_0 = &String::from(")");
+        let __terrane_string_argument_0 = ")";
         text.contains(std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0))
     }
         || {
-            let __terrane_string_argument_0 = &String::from("quote\"(");
+            let __terrane_string_argument_0 = "quote\"(";
             text.contains(
                 std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
             )
         }
         || {
-            let __terrane_string_argument_0 = &String::from("\\");
+            let __terrane_string_argument_0 = "\\";
             text.contains(
                 std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
             )

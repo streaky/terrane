@@ -41,8 +41,8 @@ impl Holder {
 }
 fn main() {
     {
-        let __terrane_owner = TERRANE_STATIC_HOLDER_SLOT.handle();
-        let __terrane_call_result = __terrane_owner
+        let __terrane_owner_1 = TERRANE_STATIC_HOLDER_SLOT.handle();
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("static field lock poisoned")
             .bump();

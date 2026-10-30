@@ -952,7 +952,7 @@ pub fn parse_command_line(
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
                     }
                 } else if {
-                    let __terrane_string_argument_0 = &String::from("--");
+                    let __terrane_string_argument_0 = "--";
                     argument
                         .text
                         .starts_with(

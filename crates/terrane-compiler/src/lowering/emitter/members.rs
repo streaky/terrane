@@ -1,3 +1,9 @@
+#[derive(Clone, Copy)]
+enum GuardScope {
+    Expression,
+    Place,
+}
+
 fn contains_move_of(node: &SyntaxNode, target: crate::Span, emitter: &super::Emitter<'_>) -> bool {
     let move_here = node.kind == SyntaxKind::UnaryExpression
         && emitter.unary_operator(node).as_deref() == Some("move")
@@ -391,23 +397,26 @@ impl Emitter<'_> {
             || self.reference_backed_name(receiver).is_some()
             || matches!(
                 receiver.kind,
-                SyntaxKind::MemberExpression | SyntaxKind::GroupExpression
+                SyntaxKind::MemberExpression
+                    | SyntaxKind::GroupExpression
+                    | SyntaxKind::IndexExpression
             ) && receiver
                 .children
                 .first()
                 .is_some_and(|holder| self.receiver_needs_live_guard(holder))
     }
 
-    fn static_receiver_parts(&self, receiver: &SyntaxNode) -> Option<(String, String)> {
+    fn static_receiver_parts(&mut self, receiver: &SyntaxNode) -> Option<(String, String)> {
         let storage = self.static_storage_name(receiver)?;
         Some(
             if matches!(
                 self.receiver_value_type(receiver),
                 Some(ValueType::Object(_))
             ) {
+                let owner = self.fresh_read_binding_name("owner");
                 (
-                    format!("let __terrane_owner = {storage}; "),
-                    "__terrane_owner.lock().expect(\"static field lock poisoned\")".to_owned(),
+                    format!("let {owner} = {storage}; "),
+                    format!("{owner}.lock().expect(\"static field lock poisoned\")"),
                 )
             } else {
                 (
@@ -421,11 +430,11 @@ impl Emitter<'_> {
     // Capture shared identity before arguments, but acquire its guard only when
     // the returned place expression is evaluated. Nested fields stay live.
     pub(super) fn live_receiver_parts(&mut self, receiver: &SyntaxNode) -> (String, String) {
-        self.receiver_place_parts(receiver, true)
+        self.receiver_place_parts(receiver, true, GuardScope::Expression)
     }
 
     pub(super) fn borrowed_receiver_parts(&mut self, receiver: &SyntaxNode) -> (String, String) {
-        self.receiver_place_parts(receiver, false)
+        self.receiver_place_parts(receiver, false, GuardScope::Expression)
     }
 
     fn borrowed_receiver_handle(&mut self, receiver: &SyntaxNode) -> String {
@@ -444,8 +453,9 @@ impl Emitter<'_> {
         &mut self,
         receiver: &SyntaxNode,
         mutable: bool,
+        scope: GuardScope,
     ) -> Option<(String, String)> {
-        let (owner, guard) = if matches!(
+        let (owner, message) = if matches!(
             self.value_type(receiver),
             Some(ValueType::SharedReference(_))
         ) {
@@ -454,10 +464,7 @@ impl Emitter<'_> {
             } else {
                 self.borrowed_receiver_handle(receiver)
             };
-            (
-                owner,
-                "__terrane_owner.lock().expect(\"shared reference lock poisoned\")",
-            )
+            (owner, "shared reference lock poisoned")
         } else if self.reference_uses_shared_storage(receiver) {
             let handle = if mutable {
                 self.expression(receiver)
@@ -466,7 +473,7 @@ impl Emitter<'_> {
             };
             (
                 format!("({handle}).upgrade().expect(\"reference expired\")"),
-                "__terrane_owner.lock().expect(\"reference lock poisoned\")",
+                "reference lock poisoned",
             )
         } else if self.reference_backed_name(receiver).is_some() {
             let owner = if mutable {
@@ -474,22 +481,43 @@ impl Emitter<'_> {
             } else {
                 self.borrowed_receiver_handle(receiver)
             };
-            (
-                owner,
-                "__terrane_owner.lock().expect(\"reference lock poisoned\")",
-            )
+            (owner, "reference lock poisoned")
         } else {
             return None;
         };
-        // Refine the guarded payload only when the returned place is used. In
-        // particular, staging the owner must not acquire a guard before arguments.
+        let owner_name = self.fresh_read_binding_name("owner");
+        let (setup, guard) = self.capture_read_guard(
+            format!("let {owner_name} = {owner}; "),
+            format!("{owner_name}.lock().expect({message:?})"),
+            scope,
+        );
         let value = self
-            .narrowed_storage_projection(receiver, guard, mutable)
-            .unwrap_or_else(|| guard.to_owned());
-        Some((format!("let __terrane_owner = {owner}; "), value))
+            .narrowed_storage_projection(receiver, &guard, mutable)
+            .unwrap_or(guard);
+        Some((setup, value))
     }
 
-    fn receiver_place_parts(&mut self, receiver: &SyntaxNode, mutable: bool) -> (String, String) {
+    fn capture_read_guard(
+        &mut self,
+        mut setup: String,
+        guard: String,
+        scope: GuardScope,
+    ) -> (String, String) {
+        if matches!(scope, GuardScope::Place) {
+            let name = self.fresh_read_binding_name("read_guard");
+            write!(setup, "let {name} = {guard}; ").expect("writing to a String cannot fail");
+            (setup, name)
+        } else {
+            (setup, guard)
+        }
+    }
+
+    fn receiver_place_parts(
+        &mut self,
+        receiver: &SyntaxNode,
+        mutable: bool,
+        scope: GuardScope,
+    ) -> (String, String) {
         if !mutable
             && receiver.kind == SyntaxKind::Name
             && let Some(identity) = self.local_binding_identity(receiver)
@@ -504,32 +532,36 @@ impl Emitter<'_> {
         if receiver.kind == SyntaxKind::GroupExpression
             && let [grouped] = receiver.children.as_slice()
         {
-            return self.receiver_place_parts(grouped, mutable);
+            return self.receiver_place_parts(grouped, mutable, scope);
         }
-        if let Some(parts) = self.static_receiver_parts(receiver) {
-            return parts;
+        if let Some((setup, guard)) = self.static_receiver_parts(receiver) {
+            return self.capture_read_guard(setup, guard, scope);
         }
         if self.shared_async_receiver && self.text(receiver) == "this" {
-            return (
+            return self.capture_read_guard(
                 String::new(),
                 "__terrane_shared_handle.lock().expect(\"shared async receiver lock poisoned\")"
                     .to_owned(),
+                scope,
             );
         }
-        if let Some(parts) = self.guarded_receiver_parts(receiver, mutable) {
+        if let Some(parts) = self.guarded_receiver_parts(receiver, mutable, scope) {
             return parts;
         }
         if receiver.kind == SyntaxKind::MemberExpression
             && let [holder, member] = receiver.children.as_slice()
-            && matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
-            && !self.is_throwable_value(holder)
-            && self
-                .native_field_type(receiver)
-                .is_none_or(|field| field.has_identity_representation()
-                    || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
-                        if item.has_identity_representation()))
+            && (Self::intrinsic_physical_field(
+                self.receiver_value_type(holder).as_ref(),
+                self.text(member),
+            ) || matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
+                && !self.is_throwable_value(holder)
+                && self
+                    .native_field_type(receiver)
+                    .is_none_or(|field| field.has_identity_representation()
+                        || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                            if item.has_identity_representation())))
         {
-            let (setup, holder_value) = self.receiver_place_parts(holder, mutable);
+            let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
             let field = self
                 .native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
             let wrapped = self.wrapped_object_field(holder, self.text(member));
@@ -551,13 +583,14 @@ impl Emitter<'_> {
             return parts;
         }
         if receiver.kind != SyntaxKind::Name {
+            let name = self.fresh_read_binding_name("receiver_value");
             return (
                 format!(
-                    "let __terrane_receiver_value = &{}({}); ",
+                    "let {name} = &{}({}); ",
                     if mutable { "mut " } else { "" },
                     self.expression(receiver)
                 ),
-                "__terrane_receiver_value".to_owned(),
+                name,
             );
         }
         let value = if receiver.kind == SyntaxKind::Name
@@ -589,30 +622,55 @@ impl Emitter<'_> {
             collection_type,
             Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList)
         ) {
-            let (mut setup, collection) = self.receiver_place_parts(collection, false);
+            let (setup, place) = self.receiver_place_parts(collection, false, GuardScope::Place);
+            let (mut setup, collection) = if self.read_index_needs_snapshot(collection, index) {
+                let name = self.fresh_read_binding_name("index_collection");
+                (
+                    format!("let {name} = {{ {setup}({place}).clone() }}; "),
+                    name,
+                )
+            } else {
+                (setup, place)
+            };
             let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
             let index = self.fallible(
                 format!("terrane_collection_support::index_from_int(&({index}))"),
                 receiver,
             );
-            write!(setup, "let __terrane_index = {index}; ")
-                .expect("writing to a String cannot fail");
+            let index_name = self.fresh_read_binding_name("index");
+            write!(setup, "let {index_name} = {index}; ").expect("writing to a String cannot fail");
             let place = self.fallible(
-                format!("({collection}).get(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index))"),
+                format!("({collection}).get({index_name}).ok_or_else(|| terrane_collection_support::IndexError::from_usize({index_name}))"),
                 receiver,
             );
-            return Some((setup, place));
+            let reference = self.fresh_read_binding_name("index_place");
+            write!(setup, "let {reference} = {place}; ").expect("writing to a String cannot fail");
+            return Some((setup, reference));
         }
         if let Some(ValueType::Map(key, _) | ValueType::UnorderedMap(key, _)) = collection_type {
-            let (setup, collection) = self.receiver_place_parts(collection, false);
-            let key = self.expression_as(index, key.value_type());
+            let (setup, place) = self.receiver_place_parts(collection, false, GuardScope::Place);
+            let (mut setup, collection) = if self.read_index_needs_snapshot(collection, index) {
+                let name = self.fresh_read_binding_name("index_collection");
+                (
+                    format!("let {name} = {{ {setup}({place}).clone() }}; "),
+                    name,
+                )
+            } else {
+                (setup, place)
+            };
+            let key_value = self.expression_as(index, key.value_type());
+            let key_name = self.fresh_read_binding_name("map_key");
+            write!(setup, "let {key_name} = {key_value}; ")
+                .expect("writing to a String cannot fail");
             let place = self.fallible(
                 format!(
-                    "({collection}).get(&({key})).ok_or(terrane_collection_support::MissingKey)"
+                    "({collection}).get(&{key_name}).ok_or(terrane_collection_support::MissingKey)"
                 ),
                 receiver,
             );
-            return Some((setup, place));
+            let reference = self.fresh_read_binding_name("index_place");
+            write!(setup, "let {reference} = {place}; ").expect("writing to a String cannot fail");
+            return Some((setup, reference));
         }
         None
     }
@@ -1286,6 +1344,18 @@ impl Emitter<'_> {
             }
             _ => false,
         }
+    }
+
+    fn intrinsic_physical_field(receiver: Option<&ValueType>, name: &str) -> bool {
+        receiver.is_some_and(|receiver| {
+            matches!(
+                receiver,
+                ValueType::PlatformOpenResult
+                    | ValueType::PlatformReadResult
+                    | ValueType::PlatformWriteResult
+                    | ValueType::PlatformUnitResult
+            ) && crate::semantics::platform_result_member_type(receiver, name).is_some()
+        })
     }
 
     pub(super) fn native_field_type(

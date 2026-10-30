@@ -53,9 +53,12 @@ async fn child(
     observer: std::sync::Arc<TerraneSharedCell<State>>,
 ) -> terrane_int_support::Int {
     {
-        let __terrane_owner = observer.clone();
+        let __terrane_owner_0 = observer.clone();
         let __terrane_value = true;
-        __terrane_owner.lock().expect("shared reference lock poisoned").child_started = __terrane_value;
+        __terrane_owner_0
+            .lock()
+            .expect("shared reference lock poisoned")
+            .child_started = __terrane_value;
     }
     let mut __terrane_finally_guard_0 = __terrane_finally_guard();
     let __terrane_maybe_completion_0: Option<
@@ -78,9 +81,9 @@ async fn child(
                             .await;
                     }
                     {
-                        let __terrane_owner = observer.clone();
+                        let __terrane_owner_1 = observer.clone();
                         let __terrane_value = true;
-                        __terrane_owner
+                        __terrane_owner_1
                             .lock()
                             .expect("shared reference lock poisoned")
                             .child_finished_normally = __terrane_value;
@@ -111,9 +114,9 @@ async fn child(
         .unwrap_or(TerraneCompletion::Normal);
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         {
-            let __terrane_owner = observer.clone();
+            let __terrane_owner_2 = observer.clone();
             let __terrane_value = true;
-            __terrane_owner
+            __terrane_owner_2
                 .lock()
                 .expect("shared reference lock poisoned")
                 .child_cleaned = __terrane_value;

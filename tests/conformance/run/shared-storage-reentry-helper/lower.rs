@@ -31,10 +31,10 @@ fn go(
     y: std::sync::Arc<TerraneSharedCell<Base>>,
 ) -> terrane_int_support::Int {
     return {
-        let __terrane_owner = x.clone();
+        let __terrane_owner_1 = x.clone();
         let __terrane_shared_argument_0 = y.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);

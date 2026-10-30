@@ -37,10 +37,10 @@ fn main() {
     a = std::sync::Arc::new(TerraneSharedCell::new(Base::terrane_construct()));
     ha = a.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = ha.clone();
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_1 = ha.clone();
         let __terrane_shared_argument_0 = pick(ha.clone()).clone(); let
         __terrane_shared_argument_1 = __terrane_shared_argument_0; let
-        __terrane_call_result = __terrane_owner.lock()
+        __terrane_call_result = __terrane_owner_1.lock()
         .expect("shared reference lock poisoned").peek(__terrane_shared_argument_1);
         __terrane_call_result })
     );

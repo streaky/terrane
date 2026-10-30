@@ -1,6 +1,46 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
+    pub(super) fn read_snapshot(&mut self, operand: &SyntaxNode) -> String {
+        let (setup, reference) = self.operand_reference_parts(operand, false);
+        let value = format!("(*({reference})).clone()");
+        if setup.is_empty() {
+            value
+        } else {
+            format!("{{ {setup}{value} }}")
+        }
+    }
+
+    pub(super) fn borrowed_string_literal(&self, expression: &SyntaxNode) -> Option<String> {
+        let mut literal = expression;
+        while literal.kind == SyntaxKind::GroupExpression
+            && let [inner] = literal.children.as_slice()
+        {
+            literal = inner;
+        }
+        (literal.kind == SyntaxKind::Literal
+            && self.value_type(literal) == Some(ValueType::Scalar(ScalarType::String)))
+        .then(|| crate::lowering::helpers::native_macro_literal(self.text(literal)))
+    }
+
+    pub(super) fn fresh_read_binding_name(&mut self, stem: &str) -> String {
+        let index = self.read_place_counter;
+        self.read_place_counter += 1;
+        format!("__terrane_{stem}_{index}")
+    }
+
+    pub(super) fn read_index_needs_snapshot(
+        &self,
+        receiver: &SyntaxNode,
+        index: &SyntaxNode,
+    ) -> bool {
+        if self.receiver_needs_live_guard(receiver) {
+            !simple_read(index)
+        } else {
+            !self.read_borrow_is_stable_in(receiver, index)
+        }
+    }
+
     /// Observation can lend an existing place until the selected scope ends,
     /// including across suspension when its lender remains valid. Shared storage
     /// needs bounded guards; mutation within the scope needs a value snapshot.
@@ -76,8 +116,7 @@ impl Emitter<'_> {
         } else {
             // Mutation during traversal needs a snapshot. Do not retain a
             // shared guard across user code or a suspension.
-            let (setup, reference) = self.operand_reference_parts(source, false);
-            (setup, format!("(*({reference})).clone()"))
+            (String::new(), self.read_snapshot(source))
         };
         Some((setup, source, unit))
     }
@@ -158,14 +197,10 @@ impl Emitter<'_> {
         setup: &mut String,
         index: &mut usize,
     ) -> String {
-        let (owner_setup, reference) = self.operand_reference_parts(operand, false);
+        let value = self.read_snapshot(operand);
         let name = format!("__terrane_native_snapshot_{index}");
         *index += 1;
-        write!(
-            setup,
-            "{owner_setup}let {name} = (*({reference})).clone(); "
-        )
-        .expect("writing to a String cannot fail");
+        write!(setup, "let {name} = {value}; ").expect("writing to a String cannot fail");
         format!("&{name}")
     }
     pub(super) fn staged_native_value_argument(
@@ -237,16 +272,10 @@ impl Emitter<'_> {
         );
         if self.assignment_target || consuming {
             (String::new(), self.receiver_expression(receiver))
-        } else if self.read_borrow_is_stable_in(receiver, index)
-            || self.receiver_needs_live_guard(receiver)
-        {
+        } else if !self.read_index_needs_snapshot(receiver, index) {
             self.borrowed_receiver_parts(receiver)
         } else {
-            let (setup, reference) = self.operand_reference_parts(receiver, false);
-            (
-                format!("{setup}let __terrane_index_receiver = (*({reference})).clone(); "),
-                "__terrane_index_receiver".to_owned(),
-            )
+            (String::new(), self.read_snapshot(receiver))
         }
     }
 

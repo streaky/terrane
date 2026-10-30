@@ -1441,13 +1441,9 @@ impl TextReader {
             count,
         );
         text = {
-            let __terrane_receiver_value = &raw.data.clone();
             let __terrane_string_argument_0 = self.codec;
             __terrane_raised_err(
-                terrane_string_support::decode(
-                    &__terrane_receiver_value,
-                    __terrane_string_argument_0,
-                ),
+                terrane_string_support::decode(&raw.data, __terrane_string_argument_0),
                 2 /* terrane-site: core/streams.trn:381:23-381:50 */,
             )?
         };

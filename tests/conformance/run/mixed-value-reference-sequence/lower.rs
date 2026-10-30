@@ -36,9 +36,9 @@ fn main() {
     }
         .clone();
     {
-        let __terrane_owner = numbers.clone();
+        let __terrane_owner_0 = numbers.clone();
         let __terrane_collection_argument_0 = terrane_int_support::Int::from(2_i128);
-        __terrane_owner
+        __terrane_owner_0
             .lock()
             .expect("reference lock poisoned")
             .append(__terrane_collection_argument_0);
@@ -46,9 +46,9 @@ fn main() {
     number_owner = numbers.clone();
     number_observer = std::sync::Arc::downgrade(&numbers.clone());
     {
-        let __terrane_owner = number_owner.clone();
+        let __terrane_owner_1 = number_owner.clone();
         let __terrane_collection_argument_0 = terrane_int_support::Int::from(3_i128);
-        __terrane_owner
+        __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .append(__terrane_collection_argument_0);
@@ -76,9 +76,9 @@ fn main() {
     }
         .clone();
     {
-        let __terrane_owner = words.clone();
+        let __terrane_owner_2 = words.clone();
         let __terrane_collection_argument_0 = String::from("b");
-        __terrane_owner
+        __terrane_owner_2
             .lock()
             .expect("reference lock poisoned")
             .append(__terrane_collection_argument_0);
@@ -86,9 +86,9 @@ fn main() {
     word_owner = words.clone();
     word_observer = std::sync::Arc::downgrade(&words.clone());
     {
-        let __terrane_owner = word_owner.clone();
+        let __terrane_owner_3 = word_owner.clone();
         let __terrane_collection_argument_0 = String::from("c");
-        __terrane_owner
+        __terrane_owner_3
             .lock()
             .expect("shared reference lock poisoned")
             .append(__terrane_collection_argument_0);
@@ -97,12 +97,12 @@ fn main() {
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(word_snapshot
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:20:10-20:26 */)), 0 /* terrane-site: case.trn:20:10-20:26 */)), terrane_scalar_support::scalar_text(&{ let
-        __terrane_owner = &words; __terrane_raised(__terrane_owner.lock()
+        __terrane_owner_4 = &words; __terrane_raised(__terrane_owner_4.lock()
         .expect("reference lock poisoned")
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
         1 /* terrane-site: case.trn:20:28-20:36 */)), 1 /* terrane-site: case.trn:20:28-20:36 */) }), terrane_scalar_support::scalar_text(&{ let
-        __terrane_owner = (&word_observer).upgrade().expect("reference expired");
-        __terrane_raised(__terrane_owner.lock().expect("reference lock poisoned")
+        __terrane_owner_5 = (&word_observer).upgrade().expect("reference expired");
+        __terrane_raised(__terrane_owner_5.lock().expect("reference lock poisoned")
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
         2 /* terrane-site: case.trn:20:38-20:54 */)), 2 /* terrane-site: case.trn:20:38-20:54 */) })
     );

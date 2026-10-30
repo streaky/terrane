@@ -45,38 +45,38 @@ impl Holder {
         let first_value: terrane_int_support::Int;
         let second_value: terrane_int_support::Int;
         first_value = {
-            let __terrane_owner = TERRANE_STATIC_HOLDER_FIRST.handle();
-            let __terrane_call_result = __terrane_owner
+            let __terrane_owner_1 = TERRANE_STATIC_HOLDER_FIRST.handle();
+            let __terrane_call_result = __terrane_owner_1
                 .lock()
                 .expect("static field lock poisoned")
                 .increment();
             __terrane_call_result
         };
         second_value = {
-            let __terrane_owner = TERRANE_STATIC_HOLDER_SECOND.handle();
-            let __terrane_call_result = __terrane_owner
+            let __terrane_owner_3 = TERRANE_STATIC_HOLDER_SECOND.handle();
+            let __terrane_call_result = __terrane_owner_3
                 .lock()
                 .expect("static field lock poisoned")
                 .increment();
             __terrane_call_result
         };
         {
-            let __terrane_owner = TERRANE_STATIC_HOLDER_FIRST.handle();
+            let __terrane_owner_4 = TERRANE_STATIC_HOLDER_FIRST.handle();
             let __terrane_value = first_value.clone() + second_value.clone()
                 + terrane_int_support::Int::from(1_i128);
-            __terrane_owner.lock().expect("static field lock poisoned").value = __terrane_value;
+            __terrane_owner_4.lock().expect("static field lock poisoned").value = __terrane_value;
         }
         return {
-            let __terrane_owner = TERRANE_STATIC_HOLDER_FIRST.handle();
-            let __terrane_call_result = __terrane_owner
+            let __terrane_owner_6 = TERRANE_STATIC_HOLDER_FIRST.handle();
+            let __terrane_call_result = __terrane_owner_6
                 .lock()
                 .expect("static field lock poisoned")
                 .read();
             __terrane_call_result
         }
             + {
-                let __terrane_owner = TERRANE_STATIC_HOLDER_SECOND.handle();
-                let __terrane_call_result = __terrane_owner
+                let __terrane_owner_8 = TERRANE_STATIC_HOLDER_SECOND.handle();
+                let __terrane_call_result = __terrane_owner_8
                     .lock()
                     .expect("static field lock poisoned")
                     .read();
