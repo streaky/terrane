@@ -81,6 +81,9 @@ pub fn take_text(record: &mut Record) -> String {
 pub fn join_text(left: &str, right: &str) -> String {
     format!("{left}|{right}")
 }
+pub fn join_four(first: &str, second: &str, third: &str, fourth: &str) -> String {
+    format!("{first}|{second}|{third}|{fourth}")
+}
 #[derive(Clone)]
 pub struct ReadObservation {
     pub address: u64,

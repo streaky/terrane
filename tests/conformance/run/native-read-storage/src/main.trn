@@ -1,11 +1,15 @@
 namespace app
 
 from /core/collections import list, map
-from /deps/witness import Record, Inspect, same_text, same_string, same_bytes, owned_text, same_after_yield, same_sequence, same_generic, update_record, echo_after_yield, take_text, join_text, sequence_address, read_sequence_after_yield
+from /deps/witness import Record, Inspect, same_text, same_string, same_bytes, owned_text, same_after_yield, same_sequence, same_generic, update_record, echo_after_yield, take_text, join_text, join_four, sequence_address, read_sequence_after_yield
 
 class holder
     text string = 'source storage'
     data bytes = b'ABC'
+    items list of string = list; 'al', 'alpha'
+    n int = 1
+    key string = 'second'
+    entries map of string, string = map; first='al', second='alpha'
 
 class inspector implements Inspect
     function marker bool;
@@ -106,3 +110,9 @@ async function main;
     print; native.text
     print; await native.echo_after_yield; shared.text
     print; native.text
+    print; (join_text; shared.items[shared.n], 'tail')
+    alias = shared
+    print; (join_text; shared.items[alias.n], alias.items[0])
+    print; (join_text; shared.entries[alias.key], alias.entries['first'])
+    print; (join_four; shared.items[0], shared.items[1], alias.items[0], alias.items[1])
+    print; (join_text; shared.items[0], values[shared.n])

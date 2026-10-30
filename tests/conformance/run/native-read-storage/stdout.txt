@@ -55,3 +55,8 @@ after method
 replacement
 replacement/replacement before polling
 replacement
+alpha|tail
+alpha|al
+alpha|al
+al|alpha|al|alpha
+al|second

@@ -9,6 +9,10 @@ class holder
     data bytes = b'ABC'
     items list of string = list; 'alpha'
     calls int = 0
+    n int = 1
+    key string = 'second'
+    entries map of string, string = map; first='al', second='alpha'
+    codec encoding = utf8
 
 function replace-shared string; owner shared ref holder
     owner.text = 'xyz'
@@ -104,3 +108,15 @@ async function main;
         print; (grid[99][(shrink-shared; shared)].trim;)
     catch index-error
         print; shared.items[0]
+    shared.text = 'alpha'
+    print; shared.items[shared.n]
+    print; (shared.items[0].contains; shared.items[shared.n])
+    alias = shared
+    print; shared.items[alias.n]
+    print; (shared.items[0].contains; alias.items[1])
+    print; (shared.text.contains; alias.text)
+    print; (shared.text.contains; shared.items[0])
+    print; shared.entries[shared.key]
+    print; (shared.entries[alias.key].contains; shared.entries['first'])
+    print; (shared.text.replace; shared.items[0], alias.items[1])
+    print; (shared.data.decode; shared.codec)

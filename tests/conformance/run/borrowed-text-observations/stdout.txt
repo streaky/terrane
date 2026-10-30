@@ -38,3 +38,13 @@ false
 4
 4
 al
+alpha
+false
+alpha
+false
+true
+true
+alpha
+true
+alphapha
+ABC

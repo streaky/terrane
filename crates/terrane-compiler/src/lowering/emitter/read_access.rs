@@ -35,7 +35,7 @@ impl Emitter<'_> {
         index: &SyntaxNode,
     ) -> bool {
         if self.receiver_needs_live_guard(receiver) {
-            !simple_read(index)
+            !simple_read(index) || self.contains_guarded_read(index)
         } else {
             !self.read_borrow_is_stable_in(receiver, index)
         }
@@ -121,12 +121,50 @@ impl Emitter<'_> {
         Some((setup, source, unit))
     }
 
+    pub(super) fn contains_guarded_read(&self, operand: &SyntaxNode) -> bool {
+        self.receiver_needs_live_guard(operand)
+            || operand
+                .children
+                .iter()
+                .any(|child| self.contains_guarded_read(child))
+    }
+
+    fn has_guarded_index_read(&self, operand: &SyntaxNode) -> bool {
+        operand.kind == SyntaxKind::IndexExpression
+            && operand
+                .children
+                .iter()
+                .skip(1)
+                .any(|index| self.contains_guarded_read(index))
+            || operand
+                .children
+                .iter()
+                .any(|child| self.has_guarded_index_read(child))
+    }
+
+    fn can_coalesce_read(&self, operand: &SyntaxNode) -> bool {
+        simple_read(operand)
+            && !self.has_guarded_index_read(operand)
+            && (!self.contains_guarded_read(operand)
+                || matches!(
+                    self.receiver_value_type(operand),
+                    Some(
+                        ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
+                            | ValueType::List(_)
+                            | ValueType::Object(_)
+                    )
+                ))
+    }
+
     pub(super) fn prepare_read_guards<'node>(
         &mut self,
         mut operands: impl Iterator<Item = &'node SyntaxNode> + Clone,
         setup: &mut String,
     ) {
-        if !operands.clone().all(simple_read) {
+        if !operands
+            .clone()
+            .all(|operand| self.can_coalesce_read(operand))
+        {
             return;
         }
         let mut roots = BTreeMap::<crate::Span, (&SyntaxNode, usize)>::new();
@@ -138,6 +176,11 @@ impl Emitter<'_> {
             {
                 roots.entry(identity).or_insert((root, 0)).1 += 1;
             }
+        }
+        // Different bindings may own handles to the same storage. Do not
+        // acquire multiple guards without a storage-distinctness proof.
+        if roots.len() != 1 {
+            return;
         }
         for (identity, (root, uses)) in roots {
             if uses < 2 {
@@ -185,7 +228,7 @@ impl Emitter<'_> {
                     .children
                     .iter()
                     .filter(|argument| {
-                        self.receiver_needs_live_guard(argument.children.last().unwrap_or(argument))
+                        self.contains_guarded_read(argument.children.last().unwrap_or(argument))
                     })
                     .count()
                     > 1

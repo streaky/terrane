@@ -149,7 +149,12 @@ impl Emitter<'_> {
             ),
             &mut guard_setup,
         );
-        let snapshot_receiver = self.native_read_needs_snapshot(subject, arguments, false, false);
+        let competing_guard = !self.has_read_guard(subject)
+            && arguments.children.iter().any(|argument| {
+                self.contains_guarded_read(argument.children.last().unwrap_or(argument))
+            });
+        let snapshot_receiver =
+            self.native_read_needs_snapshot(subject, arguments, competing_guard, false);
         let (receiver_setup, receiver) = if snapshot_receiver {
             let value = self.read_snapshot(subject);
             let name = self.fresh_read_binding_name("string_receiver");
