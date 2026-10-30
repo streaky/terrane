@@ -11,6 +11,10 @@ class holder
     key string = 'second'
     entries map of string, string = map; first='al', second='alpha'
 
+    mutable async function joined-read string;
+        this.n = 1
+        return (join_text; this.items[this.n], 'tail')
+
 class inspector implements Inspect
     function marker bool;
         return true
@@ -116,3 +120,4 @@ async function main;
     print; (join_text; shared.entries[alias.key], alias.entries['first'])
     print; (join_four; shared.items[0], shared.items[1], alias.items[0], alias.items[1])
     print; (join_text; shared.items[0], values[shared.n])
+    print; await shared.joined-read;

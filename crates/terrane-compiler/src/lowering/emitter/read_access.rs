@@ -3,12 +3,10 @@ use super::super::prelude::*;
 impl Emitter<'_> {
     pub(super) fn read_snapshot(&mut self, operand: &SyntaxNode) -> String {
         let (setup, reference) = self.operand_reference_parts(operand, false);
-        let value = format!("(*({reference})).clone()");
-        if setup.is_empty() {
-            value
-        } else {
-            format!("{{ {setup}{value} }}")
-        }
+        let name = self.fresh_read_binding_name("snapshot");
+        // A statement boundary ends lock temporaries even when no setup was
+        // needed (notably the shared-async `this` handle).
+        format!("{{ {setup}let {name} = (*({reference})).clone(); {name} }}")
     }
 
     pub(super) fn borrowed_string_literal(&self, expression: &SyntaxNode) -> Option<String> {

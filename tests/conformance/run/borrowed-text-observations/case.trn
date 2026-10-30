@@ -14,6 +14,18 @@ class holder
     entries map of string, string = map; first='al', second='alpha'
     codec encoding = utf8
 
+    mutable async function indexed-read string;
+        this.n = 1
+        return this.items[this.n]
+
+    mutable async function indexed-contains bool;
+        this.n = 1
+        return (this.items[0].contains; this.items[this.n])
+
+    mutable async function keyed-read string;
+        this.key = 'second'
+        return this.entries[this.key]
+
 function replace-shared string; owner shared ref holder
     owner.text = 'xyz'
     return 'x'
@@ -120,3 +132,6 @@ async function main;
     print; (shared.entries[alias.key].contains; shared.entries['first'])
     print; (shared.text.replace; shared.items[0], alias.items[1])
     print; (shared.data.decode; shared.codec)
+    print; await shared.indexed-read;
+    print; await shared.indexed-contains;
+    print; await shared.keyed-read;

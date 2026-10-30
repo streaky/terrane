@@ -48,3 +48,6 @@ alpha
 true
 alphapha
 ABC
+alpha
+false
+alpha
