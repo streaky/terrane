@@ -31,10 +31,14 @@ fn main() {
             "{}{}", terrane_scalar_support::scalar_text(&branch_name(true)),
             terrane_scalar_support::scalar_text(&branch_name(false))
         );
-        let __terrane_iterable_0 = terrane_string_support::split(
-            &String::from("red,green"),
-            &String::from(","),
-        );
+        let __terrane_iterable_0 = {
+            let __terrane_receiver_value = &String::from("red,green");
+            let __terrane_string_argument_0 = &String::from(",");
+            terrane_string_support::split(
+                &__terrane_receiver_value,
+                &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+            )
+        };
         let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
             &__terrane_iterable_0,
         );
@@ -51,9 +55,11 @@ fn main() {
             counter = counter.clone() + terrane_int_support::Int::from(1_i128);
         }
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data,
-            terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:30:11-30:28 */))
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0
+            = terrane_string_support::Encoding::Utf8;
+            __terrane_raised(terrane_string_support::decode(&data,
+            __terrane_string_argument_0), 0 /* terrane-site: case.trn:30:11-30:28 */)
+            })
         );
     });
 }

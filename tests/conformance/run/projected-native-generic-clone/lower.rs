@@ -140,14 +140,22 @@ fn main() {
                         __terrane_handled_1 = true;
                         let _ = failure.insert(__terrane_error_1.clone());
                         println!(
-                            "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
+                            "{}", terrane_scalar_support::scalar_text(&{ let
+                            __terrane_receiver_value = &failure.as_ref()
                             .expect("flow-proven available binding").clone().message()
-                            .to_owned().contains(&String::from("CloneBox::reject")))
+                            .to_owned(); let __terrane_string_argument_0 =
+                            &String::from("CloneBox::reject"); __terrane_receiver_value
+                            .contains(std::convert::AsRef:: < str >
+                            ::as_ref(&__terrane_string_argument_0)) })
                         );
                         println!(
-                            "{}", terrane_scalar_support::scalar_text(&failure.as_ref()
+                            "{}", terrane_scalar_support::scalar_text(&{ let
+                            __terrane_receiver_value = &failure.as_ref()
                             .expect("flow-proven available binding").clone().message()
-                            .to_owned().contains(&String::from("<")))
+                            .to_owned(); let __terrane_string_argument_0 =
+                            &String::from("<"); __terrane_receiver_value
+                            .contains(std::convert::AsRef:: < str >
+                            ::as_ref(&__terrane_string_argument_0)) })
                         );
                     }
                     if !__terrane_handled_1 {

@@ -1,0 +1,8 @@
+package = "native-read-storage"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "native-read-witness"
+version = "=0.1.0"

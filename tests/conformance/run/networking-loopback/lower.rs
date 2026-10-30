@@ -65,15 +65,16 @@ fn main() {
         bytes_output = stdout();
         output = bytes_output.text(terrane_string_support::Encoding::Utf8);
         written = output
-            .line(
+            .line({
+                let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
                 __terrane_raised(
                     terrane_string_support::decode(
                         &received.data,
-                        terrane_string_support::Encoding::Utf8,
+                        __terrane_string_argument_0,
                     ),
                     1 /* terrane-site: case.trn:24:29-24:55 */,
-                ),
-            );
+                )
+            });
         if written.failed {
             println!("{}", terrane_scalar_support::scalar_text(&written.message));
         }

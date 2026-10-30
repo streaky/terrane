@@ -6,7 +6,7 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_raised_completion!(
-                parse_http_date(String::from("not a date")), 0 /* terrane-site: src/main.trn:6:9-6:37 */
+                parse_http_date("not a date"), 0 /* terrane-site: src/main.trn:6:9-6:37 */
             );
             TerraneCompletion::Normal
         })();

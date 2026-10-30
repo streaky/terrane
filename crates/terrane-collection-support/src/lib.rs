@@ -214,6 +214,12 @@ impl<T> List<T> {
     pub fn as_slice(&self) -> &[T] {
         self.0.as_slice()
     }
+    /// Lends the backing vector to native APIs without copying its elements.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn as_vec(&self) -> &Vec<T> {
+        &self.0
+    }
     #[must_use]
     pub fn length(&self) -> i128 {
         self.0.len() as i128

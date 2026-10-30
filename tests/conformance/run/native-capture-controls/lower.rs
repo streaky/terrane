@@ -116,7 +116,7 @@ fn main() {
                             >(
                                 &__terrane_traced_err(
                                     __terrane_await({
-                                            let __terrane_future = checksum(async_values.clone());
+                                            let __terrane_future = checksum((&async_values).as_vec());
                                             async move {
                                                 __terrane_raised_err(
                                                     __terrane_future.await,

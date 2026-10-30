@@ -64,10 +64,10 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(group.value
-            .clone()
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+            &group.value.clone(); __terrane_raised(__terrane_receiver_value
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-            1 /* terrane-site: case.trn:10:12-10:26 */)), 1 /* terrane-site: case.trn:10:12-10:26 */))
+            1 /* terrane-site: case.trn:10:12-10:26 */)), 1 /* terrane-site: case.trn:10:12-10:26 */) })
         );
     }
 }

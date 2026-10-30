@@ -9,10 +9,14 @@ fn main() {
     let empty: Vec<u8>;
     let __trn_66696e616c: Vec<u8>;
     let mut failure: Option<TerraneError> = None;
-    data = terrane_string_support::encode(
-        &String::from("A👍"),
-        terrane_string_support::Encoding::Utf8,
-    );
+    data = {
+        let __terrane_receiver_value = &String::from("A👍");
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
+        terrane_string_support::encode(
+            &__terrane_receiver_value,
+            __terrane_string_argument_0,
+        )
+    };
     println!(
         "{}{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&data,
@@ -37,9 +41,10 @@ fn main() {
         3 /* terrane-site: case.trn:9:18-9:35 */,
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&middle,
-        terrane_string_support::Encoding::Utf8), 4 /* terrane-site: case.trn:10:11-10:30 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&middle,
+        __terrane_string_argument_0), 4 /* terrane-site: case.trn:10:11-10:30 */) })
     );
     stepped = __terrane_raised(
         terrane_collection_support::byte_slice(

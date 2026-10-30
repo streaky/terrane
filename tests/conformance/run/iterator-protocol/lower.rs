@@ -39,15 +39,17 @@ fn main() {
     };
     println!("{}", String::from("end"));
     text = String::from("A👍🏽");
-    let __terrane_iterable_1 = text;
-    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_1,
-    );
-    loop {
-        grapheme = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        println!("{}", terrane_scalar_support::scalar_text(&grapheme));
+    {
+        let __terrane_iterable_1 = &text;
+        let mut __terrane_iterator_1 = terrane_string_support::graphemes(
+            &__terrane_iterable_1,
+        );
+        loop {
+            grapheme = match __terrane_iterator_1.next() {
+                Some(item) => item,
+                None => break,
+            };
+            println!("{}", terrane_scalar_support::scalar_text(&grapheme));
+        }
     }
 }

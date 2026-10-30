@@ -18,17 +18,19 @@ fn main() {
         );
     }
     for_value = 0;
-    let __terrane_iterable_0 = String::from("ab");
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        character = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &character;
-        println!("{}", terrane_scalar_support::scalar_text(&for_value));
-        for_value = 7;
+    {
+        let __terrane_iterable_0 = &String::from("ab");
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
+        );
+        loop {
+            character = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
+            };
+            let _ = &character;
+            println!("{}", terrane_scalar_support::scalar_text(&for_value));
+            for_value = 7;
+        }
     }
 }

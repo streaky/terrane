@@ -550,6 +550,9 @@ lowering: contextual constants materialise directly; widening changes representa
 ordinary_assignment: copyable values use value semantics; resource-owning values transfer automatically
 implementation: COW/share storage allowed if mutation cannot leak
 mutation: separates backing storage before observable change
+observation: read-only builtin operands and storage-preserving native borrowed inputs lend existing places; neither explicit ref nor an owned input snapshot is required merely to read
+native_boundary: preserve &str versus &String and identity-element collection backing through direct calls and synchronous provided-interface facades; owned inputs and representation conversions retain their actual ABI
+read_lifetimes: scoped mutation/evaluation-order conflicts retain snapshots; immediate text/byte loops traverse lazily and release iterators at loop exit; direct awaits may lend stable inputs, retained native tasks own value inputs (moving or sharing COW backing where possible), and shared guards do not span await
 ref: explicit non-owning source-visible identity; does not extend lifetime
 shared_ref: explicit shared identity plus shared ownership; extends lifetime
 shared_ref_copy: copies the owning handle, not the referent; shared references to resource-shaped or non-Clone native values remain copyable in class/enum fields and collection indexing/iteration

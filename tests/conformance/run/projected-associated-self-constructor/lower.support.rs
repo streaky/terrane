@@ -722,11 +722,11 @@ pub fn terrane_static_trn_4f7074696f6e73_gfm() -> Result<
     }
 }
 pub fn to_html_with_options(
-    value: String,
+    value: &str,
     options: &Options,
 ) -> Result<String, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| markdown::to_html_with_options(&value, options)),
+        std::panic::AssertUnwindSafe(|| markdown::to_html_with_options(value, options)),
     ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {

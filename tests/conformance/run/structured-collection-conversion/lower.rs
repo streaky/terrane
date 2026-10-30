@@ -50,11 +50,11 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(build(wide),
-                2 /* terrane-site: case.trn:12:13-12:24 */)
+                "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value
+                = &__terrane_traced_completion!(build(wide), 2 /* terrane-site: case.trn:12:13-12:24 */);
+                __terrane_raised_completion!(__terrane_receiver_value
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                3 /* terrane-site: case.trn:12:12-12:28 */)), 3 /* terrane-site: case.trn:12:12-12:28 */))
+                3 /* terrane-site: case.trn:12:12-12:28 */)), 3 /* terrane-site: case.trn:12:12-12:28 */) })
             );
             TerraneCompletion::Normal
         })();
@@ -90,11 +90,11 @@ fn main() {
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(append_value(wide),
-                4 /* terrane-site: case.trn:16:13-16:31 */)
+                "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value
+                = &__terrane_traced_completion!(append_value(wide), 4 /* terrane-site: case.trn:16:13-16:31 */);
+                __terrane_raised_completion!(__terrane_receiver_value
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                5 /* terrane-site: case.trn:16:12-16:35 */)), 5 /* terrane-site: case.trn:16:12-16:35 */))
+                5 /* terrane-site: case.trn:16:12-16:35 */)), 5 /* terrane-site: case.trn:16:12-16:35 */) })
             );
             TerraneCompletion::Normal
         })();

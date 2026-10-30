@@ -20,7 +20,7 @@ fn main() {
         2 /* terrane-site: src/main.trn:9:13-9:26 */,
     );
     html = __terrane_raised(
-        to_html_with_options(String::from("|a|\n|-|\n|b|"), &options),
+        to_html_with_options("|a|\n|-|\n|b|", &options),
         3 /* terrane-site: src/main.trn:10:17-10:63 */,
     );
     println!(

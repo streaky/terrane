@@ -17,68 +17,78 @@ fn main() {
     let _ = &stale;
     stale = 4;
     let _ = &stale;
-    let __terrane_iterable_0 = String::from("ab");
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        ignored = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &ignored;
-        println!("{}", String::from("tick"));
-    }
-    let __terrane_iterable_1 = String::from("ab");
-    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_1,
-    );
-    loop {
-        replaced = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &replaced;
-        replaced = String::from("x");
-        println!("{}", terrane_scalar_support::scalar_text(&replaced));
-    }
-    let __terrane_iterable_2 = String::from("c");
-    let mut __terrane_iterator_2 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_2,
-    );
-    loop {
-        preserved = match __terrane_iterator_2.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        println!("{}", terrane_scalar_support::scalar_text(&preserved));
-        preserved = String::from("y");
-        println!("{}", terrane_scalar_support::scalar_text(&preserved));
-    }
-    let __terrane_iterable_3 = String::from("a");
-    let mut __terrane_iterator_3 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_3,
-    );
-    loop {
-        outer = match __terrane_iterator_3.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let __terrane_iterable_4 = String::from("b");
-        let mut __terrane_iterator_4 = terrane_collection_support::string_iterator(
-            &__terrane_iterable_4,
+    {
+        let __terrane_iterable_0 = &String::from("ab");
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
         );
         loop {
-            inner = match __terrane_iterator_4.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
+            ignored = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
             };
-            let _ = &inner;
-            inner = String::from("z");
-            println!(
-                "{}{}", terrane_scalar_support::scalar_text(&outer),
-                terrane_scalar_support::scalar_text(&inner)
-            );
+            let _ = &ignored;
+            println!("{}", String::from("tick"));
+        }
+    }
+    {
+        let __terrane_iterable_1 = &String::from("ab");
+        let mut __terrane_iterator_1 = terrane_string_support::graphemes(
+            &__terrane_iterable_1,
+        );
+        loop {
+            replaced = match __terrane_iterator_1.next() {
+                Some(item) => item,
+                None => break,
+            };
+            let _ = &replaced;
+            replaced = String::from("x");
+            println!("{}", terrane_scalar_support::scalar_text(&replaced));
+        }
+    }
+    {
+        let __terrane_iterable_2 = &String::from("c");
+        let mut __terrane_iterator_2 = terrane_string_support::graphemes(
+            &__terrane_iterable_2,
+        );
+        loop {
+            preserved = match __terrane_iterator_2.next() {
+                Some(item) => item,
+                None => break,
+            };
+            println!("{}", terrane_scalar_support::scalar_text(&preserved));
+            preserved = String::from("y");
+            println!("{}", terrane_scalar_support::scalar_text(&preserved));
+        }
+    }
+    {
+        let __terrane_iterable_3 = &String::from("a");
+        let mut __terrane_iterator_3 = terrane_string_support::graphemes(
+            &__terrane_iterable_3,
+        );
+        loop {
+            outer = match __terrane_iterator_3.next() {
+                Some(item) => item,
+                None => break,
+            };
+            {
+                let __terrane_iterable_4 = &String::from("b");
+                let mut __terrane_iterator_4 = terrane_string_support::graphemes(
+                    &__terrane_iterable_4,
+                );
+                loop {
+                    inner = match __terrane_iterator_4.next() {
+                        Some(item) => item,
+                        None => break,
+                    };
+                    let _ = &inner;
+                    inner = String::from("z");
+                    println!(
+                        "{}{}", terrane_scalar_support::scalar_text(&outer),
+                        terrane_scalar_support::scalar_text(&inner)
+                    );
+                }
+            }
         }
     }
 }

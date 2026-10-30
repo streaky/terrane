@@ -1,0 +1,25 @@
+AéA
+ABC
+2
+ AéA 
+changed
+nested
+A
+é
+A
+A
+é
+A
+65
+195
+169
+65
+a
+b
+changed during traversal
+T
+AéA
+true
+ABC
+optional
+2

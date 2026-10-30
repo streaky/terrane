@@ -54,12 +54,22 @@ fn main() {
         .length())), terrane_scalar_support::scalar_text(&discarded_count(dropping))
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(dropped_records
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:15:13-15:31 */)), 0 /* terrane-site: case.trn:15:13-15:31 */).contains(&String::from("\"message\":\"second\""))),
-        terrane_scalar_support::scalar_text(&__terrane_raised(dropped_records
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:15:66-15:84 */)), 1 /* terrane-site: case.trn:15:66-15:84 */).contains(&String::from("\"message\":\"first\"")))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_index =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        0 /* terrane-site: case.trn:15:13-15:31 */); let __terrane_string_argument_0 =
+        &String::from("\"message\":\"second\""); __terrane_raised(dropped_records
+        .get(__terrane_index).ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index)),
+        0 /* terrane-site: case.trn:15:13-15:31 */).contains(std::convert::AsRef:: <
+        str > ::as_ref(&__terrane_string_argument_0)) }),
+        terrane_scalar_support::scalar_text(&{ let __terrane_index =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        1 /* terrane-site: case.trn:15:66-15:84 */); let __terrane_string_argument_0 =
+        &String::from("\"message\":\"first\""); __terrane_raised(dropped_records
+        .get(__terrane_index).ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index)),
+        1 /* terrane-site: case.trn:15:66-15:84 */).contains(std::convert::AsRef:: <
+        str > ::as_ref(&__terrane_string_argument_0)) })
     );
     rejecting_sink = memory_sink(
         terrane_int_support::Int::from(1_i128),

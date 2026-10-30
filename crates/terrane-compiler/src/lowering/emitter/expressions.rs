@@ -170,7 +170,16 @@ impl Emitter<'_> {
     }
 
     fn await_expression(&mut self, operand: &SyntaxNode) -> String {
-        let awaited = format!("__terrane_await({}).await", self.expression(operand));
+        let mut direct = operand;
+        while direct.kind == SyntaxKind::GroupExpression
+            && let [inner] = direct.children.as_slice()
+        {
+            direct = inner;
+        }
+        let previous = self.direct_await_operand.replace(direct.span);
+        let future = self.expression(operand);
+        self.direct_await_operand = previous;
+        let awaited = format!("__terrane_await({future}).await");
         self.traced_await_output(awaited, operand)
     }
 
@@ -1041,6 +1050,13 @@ impl Emitter<'_> {
                     }
                     _ => (InvocationMode::Shared, false),
                 };
+                if let Some(call) =
+                    self.native_callable_invocation(node, &parameters, expected_throws, true)
+                {
+                    return format!(
+                        "{constructor}(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin(async move {{ {call} }}) }})"
+                    );
+                }
                 if let Some(contract) = self.contract_for_call(node, false) {
                     let function = function_name(self.package, contract);
                     let actual_throws =
@@ -1228,12 +1244,46 @@ impl Emitter<'_> {
                     || rust_name(self.text(member)),
                     |contract| function_name(self.package, contract),
                 );
+                let borrowed_arguments = self
+                    .contract_for_call(node, false)
+                    .filter(|contract| {
+                        parameters.iter().enumerate().any(|(index, _)| {
+                            self.interface_read_parameter(contract, index).is_some()
+                        })
+                    })
+                    .map(|contract| {
+                        parameters
+                            .iter()
+                            .enumerate()
+                            .map(|(index, parameter)| {
+                                let name = format!("argument_{index}");
+                                if self.interface_read_parameter(contract, index).is_some_and(
+                                    |projected| matches!(projected.ty,
+                                        crate::rust_interop::projection::ProjectedType::Sequence { .. })
+                                ) {
+                                    return format!("({name}).as_vec()");
+                                }
+                                if self.interface_read_parameter(contract, index).is_some()
+                                    && !matches!(
+                                        parameter.value_type_ref(),
+                                        ValueType::Reference(_)
+                                    )
+                                {
+                                    format!("&{name}")
+                                } else {
+                                    name
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    });
+                let method_arguments = borrowed_arguments.as_deref().unwrap_or(&arguments);
                 let call = if callable_field && actual_mode != InvocationMode::Shared {
                     format!("receiver.{method_name}.call({tuple_arguments})")
                 } else if callable_field {
                     format!("(receiver.{method_name})({arguments})")
                 } else {
-                    format!("receiver.{method_name}({arguments})")
+                    format!("receiver.{method_name}({method_arguments})")
                 };
                 let body = if expected_throws && !actual_throws {
                     format!("Ok({call})")
@@ -1259,6 +1309,11 @@ impl Emitter<'_> {
                     }
                     _ => (InvocationMode::Shared, false),
                 };
+                if let Some(call) =
+                    self.native_callable_invocation(node, &parameters, expected_throws, false)
+                {
+                    return format!("{constructor}(move |{declarations}| {call})");
+                }
                 if let Some(contract) = self.contract_for_call(node, false) {
                     let function = function_name(self.package, contract);
                     let actual_throws =

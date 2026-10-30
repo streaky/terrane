@@ -3530,10 +3530,17 @@ impl TextReader {
             &self.handle.as_ref().expect("required field initialized"),
             count,
         );
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&raw.data.clone(), self.codec),
-            0 /* terrane-site: core/streams.trn:381:23-381:50 */,
-        )?;
+        text = {
+            let __terrane_receiver_value = &raw.data.clone();
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(
+                    &__terrane_receiver_value,
+                    __terrane_string_argument_0,
+                ),
+                0 /* terrane-site: core/streams.trn:381:23-381:50 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -3596,10 +3603,13 @@ impl TextReader {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&data, self.codec),
-            1 /* terrane-site: core/streams.trn:403:23-403:46 */,
-        )?;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&data, __terrane_string_argument_0),
+                1 /* terrane-site: core/streams.trn:403:23-403:46 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -3658,10 +3668,13 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&data, self.codec),
-            2 /* terrane-site: core/streams.trn:422:23-422:46 */,
-        )?;
+        text = {
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(&data, __terrane_string_argument_0),
+                2 /* terrane-site: core/streams.trn:422:23-422:46 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -3687,10 +3700,17 @@ impl TextReader {
                 ),
             )
             .await;
-        text = __terrane_raised_err(
-            terrane_string_support::decode(&raw.data.clone(), self.codec),
-            3 /* terrane-site: core/streams.trn:427:23-427:50 */,
-        )?;
+        text = {
+            let __terrane_receiver_value = &raw.data.clone();
+            let __terrane_string_argument_0 = self.codec;
+            __terrane_raised_err(
+                terrane_string_support::decode(
+                    &__terrane_receiver_value,
+                    __terrane_string_argument_0,
+                ),
+                3 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -3725,20 +3745,24 @@ impl TextReader {
                 ),
             )
             .await;
-        text = __terrane_raised_err(
-            terrane_string_support::decode(
-                &raw.data.clone(),
-                {
-                    let __terrane_snapshot = __terrane_shared_handle
-                        .lock()
-                        .expect("shared async receiver lock poisoned")
-                        .codec
-                        .clone();
-                    __terrane_snapshot
-                },
-            ),
-            3 /* terrane-site: core/streams.trn:427:23-427:50 */,
-        )?;
+        text = {
+            let __terrane_receiver_value = &raw.data.clone();
+            let __terrane_string_argument_0 = {
+                let __terrane_snapshot = __terrane_shared_handle
+                    .lock()
+                    .expect("shared async receiver lock poisoned")
+                    .codec
+                    .clone();
+                __terrane_snapshot
+            };
+            __terrane_raised_err(
+                terrane_string_support::decode(
+                    &__terrane_receiver_value,
+                    __terrane_string_argument_0,
+                ),
+                3 /* terrane-site: core/streams.trn:427:23-427:50 */,
+            )?
+        };
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -3811,7 +3835,10 @@ impl TextWriter {
         let data: Vec<u8>;
         let offset: i64;
         let raw: TerranePlatformWriteResult;
-        data = terrane_string_support::encode(&text, self.codec);
+        data = {
+            let __terrane_string_argument_0 = self.codec;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
         offset = 0;
         raw = terrane_platform_write(
             &self.handle.as_ref().expect("required field initialized"),
@@ -3832,7 +3859,10 @@ impl TextWriter {
         let mut failed: bool;
         let mut message: String;
         let mut part: TerranePlatformWriteResult;
-        data = terrane_string_support::encode(&text, self.codec);
+        data = {
+            let __terrane_string_argument_0 = self.codec;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
         completed = terrane_int_support::Int::from(0_i128);
         failed = false;
         message = String::from("");

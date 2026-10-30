@@ -529,10 +529,10 @@ mod __terrane_trace {
 // Source: <terrane>/projected/deps/serde-json.trn
 // Namespace: deps/serde-json
 pub fn from_str<T: for<'a> serde_core::de::Deserialize<'a>>(
-    s: String,
+    s: &str,
 ) -> Result<T, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| serde_json::from_str::<T>(&s)),
+        std::panic::AssertUnwindSafe(|| serde_json::from_str::<T>(s)),
     ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {

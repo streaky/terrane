@@ -1523,7 +1523,16 @@ pub fn parse_command_line(
                         };
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
                     }
-                } else if argument.text.starts_with(&String::from("--")) {
+                } else if {
+                    let __terrane_string_argument_0 = &String::from("--");
+                    argument
+                        .text
+                        .starts_with(
+                            std::convert::AsRef::<
+                                str,
+                            >::as_ref(&__terrane_string_argument_0),
+                        )
+                } {
                     {
                         let __terrane_collection_argument_0 = index.clone();
                         __terrane_list_append_2.push(__terrane_collection_argument_0);

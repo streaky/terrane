@@ -176,8 +176,8 @@ impl Application {
                             .insert(
                                 __terrane_traced_completion!(
                                     __terrane_await({ let __terrane_future = { let
-                                    __terrane_call = (&native).inspect(&* text.as_ref()
-                                    .expect("flow-proven available binding"), &* data.as_ref()
+                                    __terrane_call = (&native).inspect(text.as_ref()
+                                    .expect("flow-proven available binding"), data.as_ref()
                                     .expect("flow-proven available binding")); Box::pin(async
                                     move { match crate
                                     ::__terrane_dependency_await_unwind(__terrane_call). await {
@@ -268,8 +268,8 @@ impl Application {
                             .insert(
                                 __terrane_traced_completion!(
                                     __terrane_await({ let __terrane_future = { let
-                                    __terrane_call = (&native).inspect(&* text.as_ref()
-                                    .expect("flow-proven available binding"), &* data.as_ref()
+                                    __terrane_call = (&native).inspect(text.as_ref()
+                                    .expect("flow-proven available binding"), data.as_ref()
                                     .expect("flow-proven available binding")); Box::pin(async
                                     move { match crate
                                     ::__terrane_dependency_await_unwind(__terrane_call). await {

@@ -194,9 +194,10 @@ fn main() {
             let __terrane_select_control_1059_0 = __terrane_select_control();
             let mut __terrane_select_future_1059_0 = std::pin::pin!(
                 __terrane_select_operation(__terrane_select_control_1059_0.clone(), { let
-                __terrane_future = echo_after_yield(String::from("selected-projected"));
-                async move { __terrane_raised_err(__terrane_future. await,
-                4 /* terrane-site: src/main.trn:30:34-30:71 */) } })
+                __terrane_native_future_argument_0 = String::from("selected-projected");
+                async move { let __terrane_future =
+                echo_after_yield(__terrane_native_future_argument_0);
+                __terrane_raised_err(__terrane_future. await, 4 /* terrane-site: src/main.trn:30:34-30:71 */) } })
             );
             let mut __terrane_select_result_1059_0 = None;
             let __terrane_select_control_1059_1 = __terrane_select_control();
@@ -339,9 +340,9 @@ fn main() {
             let mut __terrane_select_cleanup_error_1232: Option<TerraneError> = None;
             let __terrane_select_control_1232_0 = __terrane_select_control();
             let mut __terrane_select_future_1232_0 = std::pin::pin!(
-                __terrane_select_operation(__terrane_select_control_1232_0.clone(), { let
-                __terrane_future = socket_round_trip(); async move {
-                __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:35:28-35:46 */) } })
+                __terrane_select_operation(__terrane_select_control_1232_0.clone(), async
+                move { let __terrane_future = socket_round_trip();
+                __terrane_raised_err(__terrane_future. await, 5 /* terrane-site: src/main.trn:35:28-35:46 */) })
             );
             let mut __terrane_select_result_1232_0 = None;
             let __terrane_select_control_1232_1 = __terrane_select_control();
@@ -485,17 +486,19 @@ fn main() {
             let __terrane_select_control_1370_0 = __terrane_select_control();
             let mut __terrane_select_future_1370_0 = std::pin::pin!(
                 __terrane_select_operation(__terrane_select_control_1370_0.clone(), { let
-                __terrane_future = echo_after_yield(String::from("pending-first")); async
-                move { __terrane_raised_err(__terrane_future. await,
-                6 /* terrane-site: src/main.trn:40:24-40:56 */) } })
+                __terrane_native_future_argument_0 = String::from("pending-first"); async
+                move { let __terrane_future =
+                echo_after_yield(__terrane_native_future_argument_0);
+                __terrane_raised_err(__terrane_future. await, 6 /* terrane-site: src/main.trn:40:24-40:56 */) } })
             );
             let mut __terrane_select_result_1370_0 = None;
             let __terrane_select_control_1370_1 = __terrane_select_control();
             let mut __terrane_select_future_1370_1 = std::pin::pin!(
                 __terrane_select_operation(__terrane_select_control_1370_1.clone(), { let
-                __terrane_future = echo_after_yield(String::from("pending-second"));
-                async move { __terrane_raised_err(__terrane_future. await,
-                7 /* terrane-site: src/main.trn:42:25-42:58 */) } })
+                __terrane_native_future_argument_0 = String::from("pending-second");
+                async move { let __terrane_future =
+                echo_after_yield(__terrane_native_future_argument_0);
+                __terrane_raised_err(__terrane_future. await, 7 /* terrane-site: src/main.trn:42:25-42:58 */) } })
             );
             let mut __terrane_select_result_1370_1 = None;
             let __terrane_select_winner_1370 = std::future::poll_fn(|
@@ -659,16 +662,16 @@ fn main() {
             let mut __terrane_select_cleanup_error_1557: Option<TerraneError> = None;
             let __terrane_select_control_1557_0 = __terrane_select_control();
             let mut __terrane_select_future_1557_0 = std::pin::pin!(
-                __terrane_select_operation(__terrane_select_control_1557_0.clone(), { let
-                __terrane_future = wait_forever(); async move {
-                __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:46:16-46:29 */) } })
+                __terrane_select_operation(__terrane_select_control_1557_0.clone(), async
+                move { let __terrane_future = wait_forever();
+                __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:46:16-46:29 */) })
             );
             let mut __terrane_select_result_1557_0 = None;
             let __terrane_select_control_1557_1 = __terrane_select_control();
             let mut __terrane_select_future_1557_1 = std::pin::pin!(
-                __terrane_select_operation(__terrane_select_control_1557_1.clone(), { let
-                __terrane_future = timer_poll_count(); async move {
-                __terrane_raised_err(__terrane_future. await, 10 /* terrane-site: src/main.trn:48:38-48:55 */) } })
+                __terrane_select_operation(__terrane_select_control_1557_1.clone(), async
+                move { let __terrane_future = timer_poll_count();
+                __terrane_raised_err(__terrane_future. await, 10 /* terrane-site: src/main.trn:48:38-48:55 */) })
             );
             let mut __terrane_select_result_1557_1 = None;
             let __terrane_select_winner_1557 = std::future::poll_fn(|

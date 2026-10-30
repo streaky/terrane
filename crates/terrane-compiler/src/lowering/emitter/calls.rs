@@ -1999,6 +1999,41 @@ impl Emitter<'_> {
         };
         let mut shared_argument_setup = String::new();
         let mut shared_argument_index = 0;
+        let prior_read_guards = self.borrowed_receiver_overrides.len();
+        let retained_native_loans = projected_function
+            .as_ref()
+            .is_some_and(|function| function.is_async || function.chain_role.is_some());
+        let native_owned_argument_future = projected_function
+            .as_ref()
+            .is_some_and(|function| function.is_async)
+            && (self.direct_await_operand != Some(node.span)
+                || arguments.children.iter().any(|argument| {
+                    self.receiver_needs_live_guard(argument.children.last().unwrap_or(argument))
+                }));
+        if (!projected_interface_dispatch
+            || contract.as_ref().is_some_and(|contract| {
+                contract
+                    .parameters
+                    .iter()
+                    .enumerate()
+                    .all(|(index, _)| self.interface_read_parameter(contract, index).is_some())
+            }))
+            && guarded_method_receiver.is_none()
+            && !retained_native_loans
+            && projected_parameters.as_ref().is_some_and(|parameters| {
+                parameters.iter().all(|parameter| {
+                    parameter.preserves_borrowed_storage() && !parameter.mutable_borrow
+                })
+            })
+        {
+            self.prepare_read_guards(
+                arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument)),
+                &mut shared_argument_setup,
+            );
+        }
         let mut native_field_values = None;
         let mut native_optional_arguments = Vec::new();
         if let Some(contract) = &contract {
@@ -2055,6 +2090,9 @@ impl Emitter<'_> {
                 let projected_parameter = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index));
+                let borrowed_facade_parameter = projected_interface_dispatch
+                    && self.interface_read_parameter(contract, index).is_some();
+                let borrowed_input_abi = !projected_interface_dispatch || borrowed_facade_parameter;
                 let semantic_parameter = specialization
                     .and_then(|specialization| specialization.value_parameters.get(index))
                     .cloned()
@@ -2080,19 +2118,14 @@ impl Emitter<'_> {
                             })
                     });
                 let has_invocation_callback = invocation_callback.is_some();
-                let borrowed_literal = if !projected_interface_dispatch
+                let borrowed_literal = if borrowed_input_abi
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.borrowed_str
                             && matches!(
                                 parameter.ty,
                                 crate::rust_interop::projection::ProjectedType::String
                             )
-                    })
-                    && (specialization
-                        .is_some_and(|specialization| specialization.direct_projected_call)
-                        || projected_chain_role.is_some()
-                        || callee.kind == SyntaxKind::MemberExpression)
-                {
+                    }) {
                     let mut literal = value;
                     while literal.kind == SyntaxKind::GroupExpression
                         && let [inner] = literal.children.as_slice()
@@ -2106,6 +2139,7 @@ impl Emitter<'_> {
                     None
                 };
                 let mut borrowed_expression = false;
+                let mut snapshot_expression = false;
                 let expression = if let Some(expression) = invocation_callback {
                     expression
                 } else if let Some(literal) = borrowed_literal {
@@ -2114,37 +2148,60 @@ impl Emitter<'_> {
                     // staged native call; owned wrapper inputs keep their ABI.
                     borrowed_expression = true;
                     literal
-                } else if value.kind == SyntaxKind::Name
+                } else if borrowed_input_abi
                     && projected_parameter.is_some_and(|parameter| {
-                        parameter.borrowed
-                            && (matches!(
-                                parameter.ty,
-                                crate::rust_interop::projection::ProjectedType::String
-                                    | crate::rust_interop::projection::ProjectedType::Bytes
-                            ) || matches!(
-                                &parameter.ty,
-                                crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
-                                    if item.has_identity_representation()
-                            ))
+                        parameter.preserves_borrowed_storage() && !parameter.mutable_borrow
                     })
-                    && (specialization
-                        .is_some_and(|specialization| specialization.direct_projected_call)
-                        || projected_chain_role.is_some()
-                        || callee.kind == SyntaxKind::MemberExpression)
                 {
-                    if let Some(binding) = self.local_typed_binding(value)
-                        && self.binding_may_be_unassigned(binding)
-                        && !self.reference_backed(binding)
+                    borrowed_expression = true;
+                    let retain_value_input = native_owned_argument_future
+                        && semantic_parameter.as_ref().is_some_and(|parameter| {
+                            !matches!(
+                                parameter,
+                                ValueType::Reference(_) | ValueType::SharedReference(_)
+                            )
+                        });
+                    if !matches!(
+                        projected_parameter.map(|parameter| &parameter.ty),
+                        Some(crate::rust_interop::projection::ProjectedType::Foreign { .. })
+                    ) && (retain_value_input
+                        || self.native_read_needs_snapshot(
+                            value,
+                            arguments,
+                            guarded_method_receiver.is_some(),
+                            retained_native_loans,
+                        ))
                     {
-                        format!(
-                            "*({})",
-                            self.available_storage_reference(binding, value, false)
+                        snapshot_expression = true;
+                        if retain_value_input && !self.native_field_type(value).is_some_and(
+                            |field| matches!(field,
+                                crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                                    if item.has_identity_representation())
+                        ) {
+                            let value_type = self.receiver_value_type(value)
+                                .expect("storage-preserving native input has a value type");
+                            self.staged_native_value_argument(
+                                value, value_type, &mut shared_argument_setup,
+                                &mut shared_argument_index,
+                            )
+                        } else {
+                        self.staged_read_snapshot(
+                            value,
+                            &mut shared_argument_setup,
+                            &mut shared_argument_index,
                         )
+                        }
                     } else {
-                        self.raw_storage_name(value)
+                        self.staged_native_argument_reference(
+                            value,
+                            false,
+                            &mut shared_argument_setup,
+                            &mut shared_argument_index,
+                        )
                     }
-                } else if projected_parameter.is_some_and(crate::rust_interop::projection::ProjectedParameter::requires_mutable_reference)
-                    || self.mutable_native_reference_parameter(
+                } else if projected_parameter.is_some_and(
+                    crate::rust_interop::projection::ProjectedParameter::requires_mutable_reference,
+                ) || self.mutable_native_reference_parameter(
                     contract,
                     index,
                     parameter.binding_value_type().as_ref(),
@@ -2169,9 +2226,15 @@ impl Emitter<'_> {
                                 | crate::rust_interop::projection::ProjectedType::Reference { .. }
                         )
                 }) {
-                    if selected_borrowed_reference && !projected_parameter.is_some_and(|parameter| {
-                        matches!(parameter.ty, crate::rust_interop::projection::ProjectedType::String | crate::rust_interop::projection::ProjectedType::Bytes)
-                    }) {
+                    if selected_borrowed_reference
+                        && !projected_parameter.is_some_and(|parameter| {
+                            matches!(
+                                parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::String
+                                    | crate::rust_interop::projection::ProjectedType::Bytes
+                            )
+                        })
+                    {
                         borrowed_expression = true;
                         self.staged_native_argument_reference(
                             value,
@@ -2189,11 +2252,27 @@ impl Emitter<'_> {
                 } else {
                     self.expression(value)
                 };
-                let expression = if let Some(projected) = projected_parameters
+                let expression = if borrowed_expression
+                    && projected_parameter.is_some_and(|parameter| {
+                        parameter.preserves_borrowed_storage()
+                            && matches!(parameter.ty,
+                                crate::rust_interop::projection::ProjectedType::Sequence { .. })
+                    })
+                {
+                    if self.native_field_type(value).is_some_and(|field| matches!(
+                        field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                            if item.has_identity_representation()
+                    )) {
+                        expression
+                    } else {
+                        format!("({expression}).as_vec()")
+                    }
+                } else if let Some(projected) = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index))
                     .filter(|parameter| {
                         !has_invocation_callback
+                            && !projected_interface_dispatch
                             && !matches!(
                                 parameter.ty,
                                 crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
@@ -2240,7 +2319,7 @@ impl Emitter<'_> {
                                 "into_vec"
                             };
                             Some(if projected.borrowed && !convert_items {
-                                format!("({expression}).as_slice()")
+                                format!("({expression}).as_vec()")
                             } else if convert_items {
                                 format!(
                                     "{expression}.{consume}().into_iter().map(Into::into).collect::<Vec<_>>()"
@@ -2306,6 +2385,15 @@ impl Emitter<'_> {
                             _ => format!("&{expression}"),
                         }
                     });
+                let expression = if native_owned_argument_future && !snapshot_expression {
+                    let name = format!("__terrane_native_future_argument_{shared_argument_index}");
+                    shared_argument_index += 1;
+                    write!(shared_argument_setup, "let {name} = {expression}; ")
+                        .expect("writing to a String cannot fail");
+                    name
+                } else {
+                    expression
+                };
                 let expression = if guarded_method_receiver.is_some() || shared_async_method {
                     let name = format!("__terrane_shared_argument_{shared_argument_index}");
                     shared_argument_index += 1;
@@ -2405,6 +2493,7 @@ impl Emitter<'_> {
                 ));
             }
         }
+        self.borrowed_receiver_overrides.truncate(prior_read_guards);
         let projected_static_owner = contract.as_ref().and_then(|contract| {
             let owner = contract.owner.as_deref()?;
             let unit = self.package.units.iter().find(|unit| {
@@ -2640,6 +2729,11 @@ impl Emitter<'_> {
                 }
                 _ => self.receiver_expression(receiver),
             };
+            let receiver = if native_owned_argument_future {
+                Self::staged_native_future_receiver(&receiver, &mut shared_argument_setup)
+            } else {
+                receiver
+            };
             native_member_receiver = Some(receiver);
             native_path.clone()
         } else if let [receiver, _member] = callee.children.as_slice()
@@ -2657,7 +2751,12 @@ impl Emitter<'_> {
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow)
             );
             let receiver = self.native_receiver_expression(receiver, mutable);
-            let receiver = if stage_native_inputs {
+            let receiver = if native_owned_argument_future {
+                Self::staged_native_future_receiver(
+                    format_args!("&{}({receiver})", if mutable { "mut " } else { "" }),
+                    &mut shared_argument_setup,
+                )
+            } else if stage_native_inputs {
                 stage_native_input(if mutable {
                     format!("&mut ({receiver})")
                 } else {
@@ -2772,7 +2871,9 @@ impl Emitter<'_> {
             } else {
                 receiver_expression
             };
-            let receiver = if stage_native_inputs {
+            let receiver = if native_owned_argument_future {
+                Self::staged_native_future_receiver(&receiver, &mut shared_argument_setup)
+            } else if stage_native_inputs {
                 let receiver = if !contract.is_async
                     && projected_receiver
                         == Some(crate::rust_interop::projection::Receiver::MutableBorrow)
@@ -3512,7 +3613,11 @@ impl Emitter<'_> {
                 } else {
                     completed
                 };
-                format!("{{ let __terrane_future = {call}; async move {{ {completed} }} }}")
+                if native_owned_argument_future {
+                    format!("async move {{ let __terrane_future = {call}; {completed} }}")
+                } else {
+                    format!("{{ let __terrane_future = {call}; async move {{ {completed} }} }}")
+                }
             } else {
                 call
             }

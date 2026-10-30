@@ -1,0 +1,2 @@
+[patch.crates-io]
+native-read-witness = { path = "fixture-registry/native-read-witness-0.1.0" }

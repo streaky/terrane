@@ -628,6 +628,23 @@ impl ProjectedParameter {
         self.borrowed || matches!(self.ty, ProjectedType::Reference { .. })
     }
 
+    /// Whether the projected facade can lend source storage directly. A native
+    /// borrow alone is insufficient when elements require representation conversion.
+    pub(crate) fn preserves_borrowed_storage(&self) -> bool {
+        self.borrowed
+            && match &self.ty {
+                ProjectedType::String | ProjectedType::Bytes | ProjectedType::Foreign { .. } => {
+                    true
+                }
+                ProjectedType::Sequence { rust_path, item } => {
+                    (rust_path.starts_with("alloc::vec::Vec<")
+                        || rust_path.starts_with("std::vec::Vec<"))
+                        && item.has_identity_representation()
+                }
+                _ => false,
+            }
+    }
+
     pub(crate) fn requires_mutable_reference(&self) -> bool {
         self.mutable_borrow
     }

@@ -130,21 +130,66 @@ impl Emitter<'_> {
         let selection = string_call_selection(self.source, node)?;
         let subject = find_node_by_span(&self.unit.tree.root, selection.receiver)
             .expect("selected string receiver belongs to this syntax tree");
-        if matches!(
+        if !matches!(
             self.receiver_value_type(subject),
-            Some(ValueType::Object(_))
+            Some(ValueType::Scalar(ScalarType::String | ScalarType::Bytes))
         ) {
             return None;
         }
         let family = selection.family.source_name();
         let child = selection.child.as_str();
-        let receiver = self.receiver_expression(subject);
-        let values = arguments
-            .children
-            .iter()
-            .map(|argument| argument.children.last().unwrap_or(argument))
-            .map(|value| self.expression(value))
-            .collect::<Vec<_>>();
+        let prior_read_guards = self.borrowed_receiver_overrides.len();
+        let mut setup = String::new();
+        self.prepare_read_guards(
+            std::iter::once(subject).chain(
+                arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument)),
+            ),
+            &mut setup,
+        );
+        let (receiver_setup, receiver) = if !self.receiver_needs_live_guard(subject)
+            && !self.read_borrow_is_stable_in(subject, arguments)
+        {
+            let (setup, reference) = self.operand_reference_parts(subject, false);
+            (
+                format!("{setup}let __terrane_string_receiver = (*({reference})).clone(); "),
+                "__terrane_string_receiver".to_owned(),
+            )
+        } else {
+            self.borrowed_receiver_parts(subject)
+        };
+        setup.push_str(&receiver_setup);
+        let mut values = Vec::with_capacity(arguments.children.len());
+        for (index, argument) in arguments.children.iter().enumerate() {
+            let operand = argument.children.last().unwrap_or(argument);
+            let value_type = self.receiver_value_type(operand);
+            let name = format!("__terrane_string_argument_{index}");
+            let expression = if matches!(
+                value_type,
+                Some(
+                    ValueType::Scalar(ScalarType::String | ScalarType::Bytes) | ValueType::List(_)
+                )
+            ) && ((!self.receiver_needs_live_guard(operand)
+                && self.read_borrow_is_stable_in(operand, arguments))
+                || self.has_read_guard(operand))
+            {
+                let (owner_setup, reference) = self.operand_reference_parts(operand, false);
+                setup.push_str(&owner_setup);
+                reference
+            } else {
+                self.receiver_expression(operand)
+            };
+            write!(setup, "let {name} = {expression}; ").expect("writing to a String cannot fail");
+            values.push(
+                if value_type == Some(ValueType::Scalar(ScalarType::String)) {
+                    format!("std::convert::AsRef::<str>::as_ref(&({name}))")
+                } else {
+                    name
+                },
+            );
+        }
         let result = match (family, child) {
             ("trim", "default") => {
                 format!("terrane_string_support::trim(&({receiver}))")
@@ -160,9 +205,9 @@ impl Emitter<'_> {
                     .map_or_else(|| "None".to_owned(), |value| format!("Some(&({value}))"));
                 format!("terrane_string_support::{helper}(&({receiver}), {pattern})")
             }
-            ("contains", "default") => format!("({receiver}).contains(&({}))", values[0]),
-            ("contains", "start") => format!("({receiver}).starts_with(&({}))", values[0]),
-            ("contains", "end") => format!("({receiver}).ends_with(&({}))", values[0]),
+            ("contains", "default") => format!("({receiver}).contains({})", values[0]),
+            ("contains", "start") => format!("({receiver}).starts_with({})", values[0]),
+            ("contains", "end") => format!("({receiver}).ends_with({})", values[0]),
             ("find", "default") => {
                 format!(
                     "terrane_string_support::find(&({receiver}), &({}))",
@@ -249,7 +294,12 @@ impl Emitter<'_> {
             ),
             _ => unreachable!("semantic analysis validated string family"),
         };
-        Some(result)
+        self.borrowed_receiver_overrides.truncate(prior_read_guards);
+        Some(if setup.is_empty() {
+            result
+        } else {
+            format!("{{ {setup}{result} }}")
+        })
     }
     #[allow(clippy::too_many_lines)]
     pub(super) fn arithmetic_family(

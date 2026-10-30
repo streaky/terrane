@@ -156,17 +156,19 @@ fn main() {
     );
     strict = decode_base64(String::from("aGVsbG8="), false, true);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&strict
-        .value, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:51:13-51:38 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&strict.value,
+        __terrane_string_argument_0), 0 /* terrane-site: case.trn:51:13-51:38 */) })
     );
     unpadded_as_padded = decode_base64(String::from("aGVsbG8"), false, true);
     println!("{}", terrane_scalar_support::scalar_text(&unpadded_as_padded.failed));
     unpadded = decode_base64(String::from("aGVsbG8"), false, false);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unpadded
-        .value, terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:55:13-55:40 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&unpadded.value,
+        __terrane_string_argument_0), 1 /* terrane-site: case.trn:55:13-55:40 */) })
     );
     wrong_alphabet = decode_base64(String::from("aGVsbG8_"), false, false);
     println!("{}", terrane_scalar_support::scalar_text(&wrong_alphabet.failed));
@@ -188,9 +190,10 @@ fn main() {
     );
     unpacked = gzip_codec.decompress(packed.value.clone(), limits.clone());
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unpacked
-        .value, terrane_string_support::Encoding::Utf8), 2 /* terrane-site: case.trn:64:13-64:40 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&unpacked.value,
+        __terrane_string_argument_0), 2 /* terrane-site: case.trn:64:13-64:40 */) })
     );
     zlib_codec = zlib();
     zlib_packed = zlib_codec
@@ -200,9 +203,10 @@ fn main() {
         );
     zlib_unpacked = zlib_codec.decompress(zlib_packed.value.clone(), limits.clone());
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&zlib_unpacked
-        .value, terrane_string_support::Encoding::Utf8), 3 /* terrane-site: case.trn:68:13-68:45 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&zlib_unpacked.value,
+        __terrane_string_argument_0), 3 /* terrane-site: case.trn:68:13-68:45 */) })
     );
     raw_codec = deflate_raw();
     raw_packed = raw_codec
@@ -212,9 +216,10 @@ fn main() {
         );
     raw_unpacked = raw_codec.decompress(raw_packed.value.clone(), limits);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&raw_unpacked
-        .value, terrane_string_support::Encoding::Utf8), 4 /* terrane-site: case.trn:72:13-72:44 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&raw_unpacked.value,
+        __terrane_string_argument_0), 4 /* terrane-site: case.trn:72:13-72:44 */) })
     );
     zstd_codec = zstd();
     zstd_packed = zstd_codec
@@ -229,9 +234,10 @@ fn main() {
     );
     zstd_unpacked = zstd_codec.decompress(zstd_packed.value.clone(), zstd_limits);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&zstd_unpacked
-        .value, terrane_string_support::Encoding::Utf8), 5 /* terrane-site: case.trn:77:13-77:45 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&zstd_unpacked.value,
+        __terrane_string_argument_0), 5 /* terrane-site: case.trn:77:13-77:45 */) })
     );
     bomb_limits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(4_i128),

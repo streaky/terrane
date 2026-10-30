@@ -67,16 +67,21 @@ fn main() {
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(echoed
-        .length())),
-        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(echoed
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        2 /* terrane-site: case.trn:18:25-18:34 */)), 2 /* terrane-site: case.trn:18:25-18:34 */)
+        .length())), terrane_scalar_support::scalar_text(&{ let __terrane_index =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        2 /* terrane-site: case.trn:18:25-18:34 */);
+        __terrane_raised(__terrane_raised(echoed.get(__terrane_index).ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index)),
+        2 /* terrane-site: case.trn:18:25-18:34 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        3 /* terrane-site: case.trn:18:25-18:37 */)), 3 /* terrane-site: case.trn:18:25-18:37 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(echoed
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        4 /* terrane-site: case.trn:18:39-18:48 */)), 4 /* terrane-site: case.trn:18:39-18:48 */)
+        3 /* terrane-site: case.trn:18:25-18:37 */)), 3 /* terrane-site: case.trn:18:25-18:37 */) }), terrane_scalar_support::scalar_text(&{ let
+        __terrane_index =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
+        4 /* terrane-site: case.trn:18:39-18:48 */);
+        __terrane_raised(__terrane_raised(echoed.get(__terrane_index).ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index)),
+        4 /* terrane-site: case.trn:18:39-18:48 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        5 /* terrane-site: case.trn:18:39-18:51 */)), 5 /* terrane-site: case.trn:18:39-18:51 */))
+        5 /* terrane-site: case.trn:18:39-18:51 */)), 5 /* terrane-site: case.trn:18:39-18:51 */) })
     );
 }

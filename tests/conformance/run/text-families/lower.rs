@@ -32,13 +32,17 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_string_support::case_fold(&text))
     );
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::upper_first(&String::from("straße"))),
-        terrane_scalar_support::scalar_text(&terrane_string_support::upper_words(&String::from("hello world")))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("straße");
+        terrane_string_support::upper_first(&__terrane_receiver_value) }),
+        terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("hello world");
+        terrane_string_support::upper_words(&__terrane_receiver_value) })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::lower_first(&String::from("Hello")))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("Hello");
+        terrane_string_support::lower_first(&__terrane_receiver_value) })
     );
     decomposed = String::from("e\u{301}");
     println!(
@@ -47,37 +51,51 @@ fn main() {
         "nfc"))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::replace(&String::from("banana"),
-        &String::from("ana"), &String::from("X")))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("banana"); let __terrane_string_argument_0 = &String::from("ana");
+        let __terrane_string_argument_1 = &String::from("X");
+        terrane_string_support::replace(&__terrane_receiver_value, &std::convert::AsRef::
+        < str > ::as_ref(&__terrane_string_argument_0), &std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_1)) })
     );
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(terrane_string_support::find_all(&String::from("banana"),
-        &String::from("ana")).len() as i128)),
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(terrane_string_support::find_all(&String::from("banana"),
-        &String::from("")).len() as i128))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("banana"); let __terrane_string_argument_0 = &String::from("ana");
+        terrane_int_support::Int::from(terrane_string_support::find_all(&__terrane_receiver_value,
+        &std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0)).len() as
+        i128) }), terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("banana"); let __terrane_string_argument_0 = &String::from("");
+        terrane_int_support::Int::from(terrane_string_support::find_all(&__terrane_receiver_value,
+        &std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0)).len() as
+        i128) })
     );
     rtl = String::from("שלום");
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&rtl
-        .starts_with(&String::from("ש"))), terrane_scalar_support::scalar_text(&rtl
-        .ends_with(&String::from("ם")))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        &String::from("ש"); rtl.starts_with(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) }),
+        terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        &String::from("ם"); rtl.ends_with(std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0)) })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&(terrane_string_support::find_all(&decomposed,
-        &String::from("")).len() as i128))
+        "{}", terrane_scalar_support::scalar_text(&({ let __terrane_string_argument_0 =
+        &String::from(""); terrane_string_support::find_all(&decomposed,
+        &std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0)) } .len()
+        as i128))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&(terrane_string_support::split(&decomposed,
-        &String::from("")).len() as i128))
+        "{}", terrane_scalar_support::scalar_text(&({ let __terrane_string_argument_0 =
+        &String::from(""); terrane_string_support::split(&decomposed,
+        &std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0)) } .len()
+        as i128))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::replace(&decomposed,
-        &String::from(""), &String::from("X")))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        &String::from(""); let __terrane_string_argument_1 = &String::from("X");
+        terrane_string_support::replace(&decomposed, &std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_0), &std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_1)) })
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&(decomposed.len() as i128)),
@@ -92,9 +110,12 @@ fn main() {
         String,
     >::new(vec![String::from("&amp;"), String::from("&lt;")]);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::replace_many(&String::from("&<"),
-        searches.as_slice(), html_replacements.as_slice()), 0 /* terrane-site: case.trn:25:11-25:52 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("&<"); let __terrane_string_argument_0 = &searches; let
+        __terrane_string_argument_1 = &html_replacements;
+        __terrane_raised(terrane_string_support::replace_many(&__terrane_receiver_value,
+        __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
+        0 /* terrane-site: case.trn:25:11-25:52 */) })
     );
     reversed_searches = terrane_collection_support::List::<
         String,
@@ -103,18 +124,23 @@ fn main() {
         String,
     >::new(vec![String::from("&lt;"), String::from("&amp;")]);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::replace_many(&String::from("&<"),
-        reversed_searches.as_slice(), reversed_replacements.as_slice()),
-        1 /* terrane-site: case.trn:28:11-28:65 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("&<"); let __terrane_string_argument_0 = &reversed_searches; let
+        __terrane_string_argument_1 = &reversed_replacements;
+        __terrane_raised(terrane_string_support::replace_many(&__terrane_receiver_value,
+        __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
+        1 /* terrane-site: case.trn:28:11-28:65 */) })
     );
     broadcast_searches = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("one"), String::from("two")]);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::replace_broadcast(&String::from("one and two"),
-        broadcast_searches.as_slice(), &String::from("x")))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("one and two"); let __terrane_string_argument_0 =
+        &broadcast_searches; let __terrane_string_argument_1 = &String::from("x");
+        terrane_string_support::replace_broadcast(&__terrane_receiver_value,
+        __terrane_string_argument_0.as_slice(), &std::convert::AsRef:: < str >
+        ::as_ref(&__terrane_string_argument_1)) })
     );
     priority_searches = terrane_collection_support::List::<
         String,
@@ -123,31 +149,41 @@ fn main() {
         String,
     >::new(vec![String::from("first"), String::from("second")]);
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::replace_many(&String::from("ab"),
-        priority_searches.as_slice(), priority_replacements.as_slice()),
-        2 /* terrane-site: case.trn:33:11-33:65 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("ab"); let __terrane_string_argument_0 = &priority_searches; let
+        __terrane_string_argument_1 = &priority_replacements;
+        __terrane_raised(terrane_string_support::replace_many(&__terrane_receiver_value,
+        __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
+        2 /* terrane-site: case.trn:33:11-33:65 */) })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::replace_many(&String::from("abc"),
-        terrane_collection_support::List:: < String > ::new(vec![String::from("b")])
-        .as_slice(), terrane_collection_support::List:: < String >
-        ::new(vec![String::from("abc")]).as_slice()), 3 /* terrane-site: case.trn:34:11-34:52 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("abc"); let __terrane_string_argument_0 =
+        &terrane_collection_support::List:: < String > ::new(vec![String::from("b")]);
+        let __terrane_string_argument_1 = &terrane_collection_support::List:: < String >
+        ::new(vec![String::from("abc")]);
+        __terrane_raised(terrane_string_support::replace_many(&__terrane_receiver_value,
+        __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
+        3 /* terrane-site: case.trn:34:11-34:52 */) })
     );
     no_searches = terrane_collection_support::List::<String>::new(Vec::new());
     no_replacements = terrane_collection_support::List::<String>::new(Vec::new());
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::replace_many(&String::from("text"),
-        no_searches.as_slice(), no_replacements.as_slice()), 4 /* terrane-site: case.trn:37:11-37:55 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &String::from("text"); let __terrane_string_argument_0 = &no_searches; let
+        __terrane_string_argument_1 = &no_replacements;
+        __terrane_raised(terrane_string_support::replace_many(&__terrane_receiver_value,
+        __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
+        4 /* terrane-site: case.trn:37:11-37:55 */) })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::replace_many(&decomposed,
-        terrane_collection_support::List:: < String > ::new(vec![String::from("")])
-        .as_slice(), terrane_collection_support::List:: < String >
-        ::new(vec![String::from("-")]).as_slice()), 5 /* terrane-site: case.trn:38:11-38:54 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        &terrane_collection_support::List:: < String > ::new(vec![String::from("")]); let
+        __terrane_string_argument_1 = &terrane_collection_support::List:: < String >
+        ::new(vec![String::from("-")]);
+        __terrane_raised(terrane_string_support::replace_many(&decomposed,
+        __terrane_string_argument_0.as_slice(), __terrane_string_argument_1.as_slice()),
+        5 /* terrane-site: case.trn:38:11-38:54 */) })
     );
     mismatch_searches = terrane_collection_support::List::<
         String,
@@ -155,10 +191,12 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_string_support::replace_many(&String::from("x"),
-                mismatch_searches.as_slice(), no_replacements.as_slice()),
-                6 /* terrane-site: case.trn:41:13-41:60 */))
+                "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value
+                = &String::from("x"); let __terrane_string_argument_0 =
+                &mismatch_searches; let __terrane_string_argument_1 = &no_replacements;
+                __terrane_raised_completion!(terrane_string_support::replace_many(&__terrane_receiver_value,
+                __terrane_string_argument_0.as_slice(), __terrane_string_argument_1
+                .as_slice()), 6 /* terrane-site: case.trn:41:13-41:60 */) })
             );
             TerraneCompletion::Normal
         })();

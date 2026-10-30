@@ -681,16 +681,17 @@ fn main() {
         terrane_scalar_support::scalar_text(&decoded.value.clone().endpoint.port)
     );
     println!(
-        "{}{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(decoded.value
-        .clone().ports
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &decoded.value.clone(); __terrane_raised(__terrane_receiver_value.ports
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        0 /* terrane-site: case.trn:38:12-38:34 */)), 0 /* terrane-site: case.trn:38:12-38:34 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(decoded.value.clone()
-        .labels.get_or_error(&String::from("tier")), 1 /* terrane-site: case.trn:38:36-38:64 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(decoded.value.clone()
-        .coordinates
+        0 /* terrane-site: case.trn:38:12-38:34 */)), 0 /* terrane-site: case.trn:38:12-38:34 */) }), terrane_scalar_support::scalar_text(&{ let
+        __terrane_receiver_value = &decoded.value.clone();
+        __terrane_raised(__terrane_receiver_value.labels
+        .get_or_error(&String::from("tier")), 1 /* terrane-site: case.trn:38:36-38:64 */) }), terrane_scalar_support::scalar_text(&{ let
+        __terrane_receiver_value = &decoded.value.clone();
+        __terrane_raised(__terrane_receiver_value.coordinates
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        2 /* terrane-site: case.trn:38:66-38:94 */)), 2 /* terrane-site: case.trn:38:66-38:94 */)), terrane_scalar_support::scalar_text(&decoded.value
+        2 /* terrane-site: case.trn:38:66-38:94 */)), 2 /* terrane-site: case.trn:38:66-38:94 */) }), terrane_scalar_support::scalar_text(&decoded.value
         .clone().ratio)
     );
     malformed = {
@@ -767,15 +768,21 @@ fn main() {
         );
     }
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(malformed
-        .diagnostics.clone()
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value = &{
+        let __terrane_receiver_value = &malformed.diagnostics.clone();
+        __terrane_raised(__terrane_receiver_value
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        3 /* terrane-site: case.trn:44:13-44:37 */)), 3 /* terrane-site: case.trn:44:13-44:37 */).source.clone().contains(&String::from("case.trn"))),
-        terrane_scalar_support::scalar_text(&__terrane_raised(malformed.diagnostics
-        .clone()
+        3 /* terrane-site: case.trn:44:13-44:37 */)), 3 /* terrane-site: case.trn:44:13-44:37 */) } .source.clone(); let __terrane_string_argument_0 =
+        &String::from("case.trn"); __terrane_receiver_value
+        .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
+        }), terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value = &{ let
+        __terrane_receiver_value = &malformed.diagnostics.clone();
+        __terrane_raised(__terrane_receiver_value
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        4 /* terrane-site: case.trn:44:69-44:93 */)), 4 /* terrane-site: case.trn:44:69-44:93 */).field_source.clone()
-        .contains(&String::from("case.trn")))
+        4 /* terrane-site: case.trn:44:69-44:93 */)), 4 /* terrane-site: case.trn:44:69-44:93 */) } .field_source.clone(); let __terrane_string_argument_0
+        = &String::from("case.trn"); __terrane_receiver_value
+        .contains(std::convert::AsRef:: < str > ::as_ref(&__terrane_string_argument_0))
+        })
     );
     invalid = {
         let __terrane_document_source = &String::from(
@@ -831,13 +838,14 @@ fn main() {
     };
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&(invalid.diagnostics.length() !=
-        0)), terrane_scalar_support::scalar_text(&__terrane_raised(invalid.diagnostics
-        .clone()
+        0)), terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
+        &invalid.diagnostics.clone(); __terrane_raised(__terrane_receiver_value
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        5 /* terrane-site: case.trn:47:28-47:50 */)), 5 /* terrane-site: case.trn:47:28-47:50 */).reason.to_owned()),
-        terrane_scalar_support::scalar_text(&__terrane_raised(invalid.diagnostics.clone()
+        5 /* terrane-site: case.trn:47:28-47:50 */)), 5 /* terrane-site: case.trn:47:28-47:50 */) } .reason.to_owned()),
+        terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value = &invalid
+        .diagnostics.clone(); __terrane_raised(__terrane_receiver_value
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        6 /* terrane-site: case.trn:47:59-47:81 */)), 6 /* terrane-site: case.trn:47:59-47:81 */).message.clone())
+        6 /* terrane-site: case.trn:47:59-47:81 */)), 6 /* terrane-site: case.trn:47:59-47:81 */) } .message.clone())
     );
     permissive = {
         let __terrane_document_source = &String::from(
@@ -1008,10 +1016,10 @@ fn main() {
     println!(
         "{}{}{}{}", terrane_scalar_support::scalar_text(&(journey.diagnostics.length() !=
         0)), terrane_scalar_support::scalar_text(&journey.value.clone().name),
-        terrane_scalar_support::scalar_text(&__terrane_raised(journey.value.clone()
-        .points
+        terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value = &journey
+        .value.clone(); __terrane_raised(__terrane_receiver_value.points
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        7 /* terrane-site: case.trn:56:48-56:71 */)), 7 /* terrane-site: case.trn:56:48-56:71 */).y), terrane_scalar_support::scalar_text(&journey.value
-        .clone().active)
+        7 /* terrane-site: case.trn:56:48-56:71 */)), 7 /* terrane-site: case.trn:56:48-56:71 */) } .y), terrane_scalar_support::scalar_text(&journey
+        .value.clone().active)
     );
 }

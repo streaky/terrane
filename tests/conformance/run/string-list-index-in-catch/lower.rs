@@ -8,7 +8,14 @@ fn selected_index() -> terrane_int_support::Int {
 }
 fn main() {
     let fields: Vec<String>;
-    fields = terrane_string_support::split(&String::from("value"), &String::from(","));
+    fields = {
+        let __terrane_receiver_value = &String::from("value");
+        let __terrane_string_argument_0 = &String::from(",");
+        terrane_string_support::split(
+            &__terrane_receiver_value,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(

@@ -2,13 +2,40 @@
 // Source: case.trn
 // Namespace: string-search-delimiters
 fn active_content(text: String) -> bool {
-    return text.contains(&String::from("javascript:"))
-        || text.contains(&String::from("expression("))
-        || text.contains(&String::from("-moz-binding"));
+    return {
+        let __terrane_string_argument_0 = &String::from("javascript:");
+        text.contains(std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0))
+    }
+        || {
+            let __terrane_string_argument_0 = &String::from("expression(");
+            text.contains(
+                std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+            )
+        }
+        || {
+            let __terrane_string_argument_0 = &String::from("-moz-binding");
+            text.contains(
+                std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+            )
+        };
 }
 fn closing_marker(text: String) -> bool {
-    return text.contains(&String::from(")")) || text.contains(&String::from("quote\"("))
-        || text.contains(&String::from("\\"));
+    return {
+        let __terrane_string_argument_0 = &String::from(")");
+        text.contains(std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0))
+    }
+        || {
+            let __terrane_string_argument_0 = &String::from("quote\"(");
+            text.contains(
+                std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+            )
+        }
+        || {
+            let __terrane_string_argument_0 = &String::from("\\");
+            text.contains(
+                std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+            )
+        };
 }
 fn main() {
     let native_result: bool;

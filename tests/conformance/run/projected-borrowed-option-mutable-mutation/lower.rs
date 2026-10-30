@@ -93,7 +93,7 @@ fn main() {
     let cleared: Option<bool>;
     let after: Option<bool>;
     plain = __terrane_raised(
-        terrane_static_trn_48656164657256616c7565_from_str(String::from("plain")),
+        terrane_static_trn_48656164657256616c7565_from_str("plain"),
         3 /* terrane-site: src/main.trn:32:13-32:43 */,
     );
     forward(&mut plain);
@@ -124,11 +124,11 @@ fn main() {
         5 /* terrane-site: src/main.trn:38:15-38:30 */,
     );
     name = __terrane_raised(
-        terrane_static_trn_4865616465724e616d65_from_str(String::from("x-test")),
+        terrane_static_trn_4865616465724e616d65_from_str("x-test"),
         6 /* terrane-site: src/main.trn:39:12-39:42 */,
     );
     value = __terrane_raised(
-        terrane_static_trn_48656164657256616c7565_from_str(String::from("value")),
+        terrane_static_trn_48656164657256616c7565_from_str("value"),
         7 /* terrane-site: src/main.trn:40:13-40:43 */,
     );
     __terrane_raised(

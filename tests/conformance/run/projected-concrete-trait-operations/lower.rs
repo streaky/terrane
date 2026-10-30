@@ -12,11 +12,11 @@ fn main() {
     let basket: Basket;
     let selected: Selected;
     token = __terrane_raised(
-        terrane_static_trn_546f6b656e_from_str(String::from("good")),
+        terrane_static_trn_546f6b656e_from_str("good"),
         0 /* terrane-site: src/main.trn:6:19-6:42 */,
     );
     other = __terrane_raised(
-        terrane_static_trn_546f6b656e_from_str(String::from("good")),
+        terrane_static_trn_546f6b656e_from_str("good"),
         1 /* terrane-site: src/main.trn:7:19-7:42 */,
     );
     borrowed_other = &other;
@@ -63,7 +63,7 @@ fn main() {
         "witness::Response::value")) }, 6 /* terrane-site: src/main.trn:14:13-14:28 */))
     );
     token = __terrane_raised(
-        terrane_static_trn_546f6b656e_from_str(String::from("good")),
+        terrane_static_trn_546f6b656e_from_str("good"),
         7 /* terrane-site: src/main.trn:16:13-16:36 */,
     );
     response = __terrane_raised(
@@ -93,7 +93,7 @@ fn main() {
         "witness::Response::value")) }, 9 /* terrane-site: src/main.trn:18:13-18:28 */))
     );
     token = __terrane_raised(
-        terrane_static_trn_546f6b656e_from_str(String::from("good")),
+        terrane_static_trn_546f6b656e_from_str("good"),
         10 /* terrane-site: src/main.trn:20:13-20:36 */,
     );
     element = __terrane_raised(

@@ -668,11 +668,11 @@ pub fn terrane_static_trn_4865616465724d6170_new() -> Result<
     }
 }
 pub fn terrane_static_trn_4865616465724e616d65_from_str(
-    s: String,
+    s: &str,
 ) -> Result<HeaderName, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| <http::HeaderName as std::str::FromStr>::from_str(
-            &s,
+            s,
         )),
     ) {
         Ok(Ok(value)) => Ok(value),
@@ -693,10 +693,10 @@ pub fn terrane_static_trn_4865616465724e616d65_from_str(
     }
 }
 pub fn terrane_static_trn_48656164657256616c7565_from_str(
-    src: String,
+    src: &str,
 ) -> Result<HeaderValue, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| http::HeaderValue::from_str(&src)),
+        std::panic::AssertUnwindSafe(|| http::HeaderValue::from_str(src)),
     ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {

@@ -402,11 +402,11 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
     name = __terrane_raised(
-        terrane_static_trn_4865616465724e616d65_from_str(String::from("forwarded")),
+        terrane_static_trn_4865616465724e616d65_from_str("forwarded"),
         27 /* terrane-site: src/main.trn:44:12-44:45 */,
     );
     value = __terrane_raised(
-        terrane_static_trn_48656164657256616c7565_from_str(String::from("initial")),
+        terrane_static_trn_48656164657256616c7565_from_str("initial"),
         28 /* terrane-site: src/main.trn:45:13-45:45 */,
     );
     __terrane_raised(
@@ -967,7 +967,7 @@ fn main() {
         );
     }
     direct = __terrane_raised(
-        terrane_static_trn_48656164657256616c7565_from_str(String::from("direct")),
+        terrane_static_trn_48656164657256616c7565_from_str("direct"),
         47 /* terrane-site: src/main.trn:90:14-90:45 */,
     );
     anonymous_update(&mut direct);
@@ -986,7 +986,7 @@ fn main() {
     );
     aliased_update = anonymous_update.clone();
     aliased = __terrane_raised(
-        terrane_static_trn_48656164657256616c7565_from_str(String::from("aliased")),
+        terrane_static_trn_48656164657256616c7565_from_str("aliased"),
         49 /* terrane-site: src/main.trn:96:15-96:47 */,
     );
     aliased_update(&mut aliased);
@@ -999,7 +999,7 @@ fn main() {
     );
     named_update = std::sync::Arc::new(mark_sensitive);
     named_target = __terrane_raised(
-        terrane_static_trn_48656164657256616c7565_from_str(String::from("named")),
+        terrane_static_trn_48656164657256616c7565_from_str("named"),
         51 /* terrane-site: src/main.trn:100:20-100:50 */,
     );
     named_update(&mut named_target);

@@ -155,9 +155,11 @@ fn main() {
         outcome = __terrane_await(scope.join(child)).await;
         println!("{}", terrane_scalar_support::scalar_text(&sent.completed));
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&response
-            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:48:13-48:39 */))
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0
+            = terrane_string_support::Encoding::Utf8;
+            __terrane_raised(terrane_string_support::decode(&response.data,
+            __terrane_string_argument_0), 0 /* terrane-site: case.trn:48:13-48:39 */)
+            })
         );
         println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
         input_outcome = __terrane_await(scope.join(input_child)).await;

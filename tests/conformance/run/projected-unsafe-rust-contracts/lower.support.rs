@@ -532,7 +532,7 @@ mod __terrane_trace {
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
 pub fn borrowed_view<'view>(
-    value: &'view String,
+    value: &'view str,
 ) -> Result<witness::ScopedView<'view>, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| witness::borrowed_view(value)),
@@ -553,11 +553,11 @@ pub fn render_unsafe<
     TerraneImpl1: for<'view> witness::UnsafeView<'view>,
     TerraneNativeCallback: for<'view> witness::UnsafeView<'view>,
 >(
-    state: String,
+    state: &String,
     view: TerraneNativeCallback,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| witness::render_unsafe(&state, view)),
+        std::panic::AssertUnwindSafe(|| witness::render_unsafe(state, view)),
     ) {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {

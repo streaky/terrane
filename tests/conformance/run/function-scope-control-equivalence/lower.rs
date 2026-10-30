@@ -205,23 +205,25 @@ fn both_branches(choose: bool) -> terrane_int_support::Int {
 fn for_join(text: String) {
     let mut last: TerraneUnionF0S1017;
     last = TerraneUnionF0S1017::Arm0(terrane_int_support::Int::from(10_i128));
-    let __terrane_iterable_0 = text;
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        last = TerraneUnionF0S1017::Arm1(
-            match __terrane_iterator_0.next() {
-                terrane_collection_support::IterationStep::Item(item) => item,
-                terrane_collection_support::IterationStep::End => break,
-            },
+    {
+        let __terrane_iterable_0 = &text;
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
         );
-        let _ = &last;
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&match &last {
-            TerraneUnionF0S1017::Arm1(value) => value, _ =>
-            unreachable!("flow-proven storage refinement") })
-        );
+        loop {
+            last = TerraneUnionF0S1017::Arm1(
+                match __terrane_iterator_0.next() {
+                    Some(item) => item,
+                    None => break,
+                },
+            );
+            let _ = &last;
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&match &last {
+                TerraneUnionF0S1017::Arm1(value) => value, _ =>
+                unreachable!("flow-proven storage refinement") })
+            );
+        }
     }
     println!(
         "{}", { let mut __terrane_text = String::new(); match &last {
@@ -336,17 +338,19 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&both_branches(true)));
     println!("{}", terrane_scalar_support::scalar_text(&both_branches(false)));
     last = String::from("before");
-    let __terrane_iterable_1 = String::from("ab");
-    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_1,
-    );
-    loop {
-        last = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &last;
-        println!("{}", terrane_scalar_support::scalar_text(&last));
+    {
+        let __terrane_iterable_1 = &String::from("ab");
+        let mut __terrane_iterator_1 = terrane_string_support::graphemes(
+            &__terrane_iterable_1,
+        );
+        loop {
+            last = match __terrane_iterator_1.next() {
+                Some(item) => item,
+                None => break,
+            };
+            let _ = &last;
+            println!("{}", terrane_scalar_support::scalar_text(&last));
+        }
     }
     println!("{}", terrane_scalar_support::scalar_text(&last));
     for_join(String::from(""));

@@ -12,7 +12,7 @@ fn main() {
         0 /* terrane-site: src/main.trn:8:9-8:22 */,
     );
     rendered = __terrane_raised(
-        to_html_with_options(String::from("~Venus~Mars!"), &gfm),
+        to_html_with_options("~Venus~Mars!", &gfm),
         1 /* terrane-site: src/main.trn:9:14-9:55 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&rendered));
@@ -20,7 +20,7 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let _ = invalid
                 .insert({
-                    let __terrane_native_input_0 = String::from("{");
+                    let __terrane_native_input_0 = "{";
                     let __terrane_native_input_1 = &__terrane_raised_completion!(
                         mdx_options(), 2 /* terrane-site: src/main.trn:12:43-12:55 */
                     );

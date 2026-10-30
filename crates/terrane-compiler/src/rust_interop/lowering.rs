@@ -1224,11 +1224,9 @@ pub(super) fn emit_dependency_unit(
     let mut output = String::new();
     emit_dependency_imports(package, import_owners, unit, &mut output);
     // Imported contracts retain their declaration span and only reference its native wrapper.
-    for contract in unit
-        .functions
-        .iter()
-        .filter(|contract| contract.span.file == unit.source.id())
-    {
+    for contract in unit.functions.iter().filter(|contract| {
+        contract.span.file == unit.source.id() && (contract.owner.is_none() || contract.is_static)
+    }) {
         let (item, projected, static_owner) = if let Some(owner) =
             contract.owner.as_deref().filter(|_| contract.is_static)
         {
@@ -1330,23 +1328,44 @@ pub(super) fn emit_dependency_unit(
                 } else {
                     value_type
                 };
-                let preserves_identity = projected.borrowed
+                let value_type = if projected.borrowed_str {
+                    if invocation_scoped {
+                        "&'view str".to_owned()
+                    } else {
+                        "&str".to_owned()
+                    }
+                } else if projected.preserves_borrowed_storage()
                     && matches!(
                         projected.ty,
-                        crate::rust_interop::projection::ProjectedType::Foreign { .. }
+                        crate::rust_interop::projection::ProjectedType::Sequence { .. }
                     )
-                    && !matches!(
-                        parameter.value_type.as_ref(),
-                        Some(ValueType::Reference(_) | ValueType::SharedReference(_))
-                    );
+                {
+                    format!(
+                        "&{}{}",
+                        if invocation_scoped { "'view " } else { "" },
+                        projected.ty.rust_type()
+                    )
+                } else {
+                    value_type
+                };
                 format!(
-                    "{}: {}{value_type}",
+                    "{}: {}{}",
                     crate::lowering::parameter_source_rust_name(
                         unit,
                         &parameter.name,
                         parameter.span
                     ),
-                    if preserves_identity {
+                    if projected.preserves_borrowed_storage()
+                        && !projected.borrowed_str
+                        && !matches!(
+                            projected.ty,
+                            crate::rust_interop::projection::ProjectedType::Sequence { .. }
+                        )
+                        && !matches!(
+                            parameter.value_type.as_ref(),
+                            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                        )
+                    {
                         if projected.mutable_borrow {
                             "&mut "
                         } else {
@@ -1355,6 +1374,7 @@ pub(super) fn emit_dependency_unit(
                     } else {
                         ""
                     },
+                    value_type,
                 )
             })
             .collect::<Vec<_>>();
@@ -1410,7 +1430,24 @@ pub(super) fn emit_dependency_unit(
                     projected.ty,
                     crate::rust_interop::projection::ProjectedType::String
                         | crate::rust_interop::projection::ProjectedType::Bytes
-                        | crate::rust_interop::projection::ProjectedType::Bool
+                )
+            {
+                arguments.push(name);
+                continue;
+            }
+            if projected.preserves_borrowed_storage()
+                && matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Sequence { .. }
+                )
+            {
+                arguments.push(name);
+                continue;
+            }
+            if projected.borrowed
+                && matches!(
+                    projected.ty,
+                    crate::rust_interop::projection::ProjectedType::Bool
                         | crate::rust_interop::projection::ProjectedType::FixedInt(_)
                 )
             {

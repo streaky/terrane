@@ -230,9 +230,13 @@ fn main() {
                         .to_owned())
                     );
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&failure_2.as_ref()
-                        .expect("flow-proven available binding").clone().render()
-                        .contains(&String::from("::child-error: inherited self")))
+                        "{}", terrane_scalar_support::scalar_text(&{ let
+                        __terrane_receiver_value = &failure_2.as_ref()
+                        .expect("flow-proven available binding").clone().render(); let
+                        __terrane_string_argument_0 =
+                        &String::from("::child-error: inherited self");
+                        __terrane_receiver_value.contains(std::convert::AsRef:: < str >
+                        ::as_ref(&__terrane_string_argument_0)) })
                     );
                 }
                 if !__terrane_handled_1 {

@@ -121,8 +121,8 @@ impl Emitter<'_> {
             return None;
         };
         receiver.children.first().map(|source| {
-            let source = self.expression(source);
-            match unit {
+            let (setup, source) = self.borrowed_receiver_parts(source);
+            let length = match unit {
                 crate::semantics::TextUnit::Bytes => format!("({source}).len() as i128"),
                 crate::semantics::TextUnit::Scalars => {
                     format!("({source}).chars().count() as i128")
@@ -130,6 +130,11 @@ impl Emitter<'_> {
                 crate::semantics::TextUnit::Graphemes => {
                     format!("terrane_string_support::length(&({source})) as i128")
                 }
+            };
+            if setup.is_empty() {
+                length
+            } else {
+                format!("{{ {setup}{length} }}")
             }
         })
     }
@@ -139,8 +144,8 @@ impl Emitter<'_> {
             return String::new();
         };
         let receiver_type = self.receiver_value_type(receiver);
-        let receiver = self.receiver_expression(receiver);
-        match receiver_type {
+        let (setup, receiver) = self.index_read_receiver_parts(receiver, index);
+        let result = match receiver_type {
             Some(ValueType::Scalar(ScalarType::Bytes)) => {
                 if self.value_type(index) == Some(ValueType::Range) {
                     let range = self.expression(index);
@@ -217,6 +222,11 @@ impl Emitter<'_> {
                 self.fallible(format!("({receiver}).get_or_error(&({index_value}))"), node)
             }
             _ => String::new(),
+        };
+        if setup.is_empty() {
+            result
+        } else {
+            format!("{{ {setup}{result} }}")
         }
     }
 
@@ -480,6 +490,17 @@ impl Emitter<'_> {
     }
 
     fn receiver_place_parts(&mut self, receiver: &SyntaxNode, mutable: bool) -> (String, String) {
+        if !mutable
+            && receiver.kind == SyntaxKind::Name
+            && let Some(identity) = self.local_binding_identity(receiver)
+            && let Some((_, place)) = self
+                .borrowed_receiver_overrides
+                .iter()
+                .rev()
+                .find(|(candidate, _)| *candidate == identity)
+        {
+            return (String::new(), place.clone());
+        }
         if receiver.kind == SyntaxKind::GroupExpression
             && let [grouped] = receiver.children.as_slice()
         {
@@ -500,6 +521,13 @@ impl Emitter<'_> {
         }
         if receiver.kind == SyntaxKind::MemberExpression
             && let [holder, member] = receiver.children.as_slice()
+            && matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
+            && !self.is_throwable_value(holder)
+            && self
+                .native_field_type(receiver)
+                .is_none_or(|field| field.has_identity_representation()
+                    || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                        if item.has_identity_representation()))
         {
             let (setup, holder_value) = self.receiver_place_parts(holder, mutable);
             let field = self
@@ -518,6 +546,9 @@ impl Emitter<'_> {
                 (false, false) => format!("({holder_value}).{field}"),
             };
             return (setup, value);
+        }
+        if !mutable && let Some(parts) = self.borrowed_index_place_parts(receiver) {
+            return parts;
         }
         if receiver.kind != SyntaxKind::Name {
             return (
@@ -545,6 +576,45 @@ impl Emitter<'_> {
             self.expression(receiver)
         };
         (String::new(), value)
+    }
+    fn borrowed_index_place_parts(&mut self, receiver: &SyntaxNode) -> Option<(String, String)> {
+        let [collection, index] = receiver.children.as_slice() else {
+            return None;
+        };
+        if receiver.kind != SyntaxKind::IndexExpression {
+            return None;
+        }
+        let collection_type = self.receiver_value_type(collection);
+        if matches!(
+            collection_type,
+            Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList)
+        ) {
+            let (mut setup, collection) = self.receiver_place_parts(collection, false);
+            let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+            let index = self.fallible(
+                format!("terrane_collection_support::index_from_int(&({index}))"),
+                receiver,
+            );
+            write!(setup, "let __terrane_index = {index}; ")
+                .expect("writing to a String cannot fail");
+            let place = self.fallible(
+                format!("({collection}).get(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index))"),
+                receiver,
+            );
+            return Some((setup, place));
+        }
+        if let Some(ValueType::Map(key, _) | ValueType::UnorderedMap(key, _)) = collection_type {
+            let (setup, collection) = self.receiver_place_parts(collection, false);
+            let key = self.expression_as(index, key.value_type());
+            let place = self.fallible(
+                format!(
+                    "({collection}).get(&({key})).ok_or(terrane_collection_support::MissingKey)"
+                ),
+                receiver,
+            );
+            return Some((setup, place));
+        }
+        None
     }
 
     pub(super) fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {

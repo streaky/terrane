@@ -282,20 +282,18 @@ fn mutate_counter(value: Option<Counter>) {
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_total()
             .clone(); __terrane_result }; __terrane_snapshot }), String::from("/"),
-            terrane_scalar_support::scalar_text(&__terrane_raised({ let
-            __terrane_snapshot = { let __terrane_result = match &mut * (&value).lock()
+            terrane_scalar_support::scalar_text(&{ let __terrane_owner = &value;
+            __terrane_raised(match &* __terrane_owner.lock()
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_items()
-            .clone(); __terrane_result }; __terrane_snapshot }
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            1 /* terrane-site: case.trn:25:34-25:48 */)), 1 /* terrane-site: case.trn:25:34-25:48 */)), String::from("/"),
-            terrane_scalar_support::scalar_text(&__terrane_raised({ let
-            __terrane_snapshot = { let __terrane_result = match &mut * (&value).lock()
+            1 /* terrane-site: case.trn:25:34-25:48 */)), 1 /* terrane-site: case.trn:25:34-25:48 */) }), String::from("/"),
+            terrane_scalar_support::scalar_text(&{ let __terrane_owner = &value;
+            __terrane_raised(match &* __terrane_owner.lock()
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_items()
-            .clone(); __terrane_result }; __terrane_snapshot }
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: case.trn:25:55-25:69 */)), 2 /* terrane-site: case.trn:25:55-25:69 */))
+            2 /* terrane-site: case.trn:25:55-25:69 */)), 2 /* terrane-site: case.trn:25:55-25:69 */) })
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &value;
@@ -438,7 +436,14 @@ fn main() {
     missing();
     println!("{}", terrane_scalar_support::scalar_text(&true));
     helper();
-    found = terrane_string_support::find(&String::from("banana"), &String::from("ana"));
+    found = {
+        let __terrane_receiver_value = &String::from("banana");
+        let __terrane_string_argument_0 = &String::from("ana");
+        terrane_string_support::find(
+            &__terrane_receiver_value,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     if (&found).is_some() {
         if (&found).is_some() {
             println!(

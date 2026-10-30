@@ -1274,10 +1274,7 @@ milestone.
 
 ### Milestone 31.8 — Efficient borrowed reads and source/native composition
 
-**Status:** planned investigation and design review. Make efficient ordinary Terrane a
-genuine choice where authors currently need `rust` to avoid unnecessary copies or work
-around language/projection limitations. The `rust` escape hatch remains a first-class
-engineering tool; reducing its keyword count is not the goal.
+**Status:** core read-preserving lowering implemented; broader capability investigation and design review remain open. Builtin observations, immediate text/byte traversal, and storage-preserving native inputs now retain borrowed places through direct calls and synchronous provided-interface facades. The `native-read-storage` and `borrowed-text-observations` core witnesses exercise storage identity, COW mutation isolation, bounded shared guards, retained-future snapshots, and source traversal replacement. Packages/projects have not been migrated as part of this core change. The remaining review scope below is not claimed complete; reducing the `rust` keyword count is not the goal.
 
 Use the [HTTP Rust-usage audit](docs/dump/http-server-rust-usage.md) **note: this isn't in repo** as initial evidence
 (G1–G13, last checked just after PR #107), not as a permanent dependency or an HTTP-specific

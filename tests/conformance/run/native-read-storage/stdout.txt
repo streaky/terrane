@@ -1,0 +1,54 @@
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+false
+changed list
+indexed storage
+true
+true
+true
+true
+true
+native storage!
+native storage
+ordinary storage!
+ordinary storage
+changed
+true
+native storage!!
+native storage
+false
+true
+true
+source storage
+replacement before polling
+ordinary storage
+true
+true
+true
+false
+native storage!!|native storage!!
+true
+replacement
+true
+native list
+true
+true
+before replacement
+after replacement
+true
+changed list
+after retained read
+replacement/before method
+after method
+replacement
+replacement/replacement before polling
+replacement

@@ -96,16 +96,14 @@ fn main() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(word_snapshot
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:20:10-20:26 */)), 0 /* terrane-site: case.trn:20:10-20:26 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_value =
-        words.lock().expect("reference lock poisoned").clone(); __terrane_value }
+        0 /* terrane-site: case.trn:20:10-20:26 */)), 0 /* terrane-site: case.trn:20:10-20:26 */)), terrane_scalar_support::scalar_text(&{ let
+        __terrane_owner = &words; __terrane_raised(__terrane_owner.lock()
+        .expect("reference lock poisoned")
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        1 /* terrane-site: case.trn:20:28-20:36 */)), 1 /* terrane-site: case.trn:20:28-20:36 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_owner =
-        word_observer.upgrade().expect("reference expired"); let __terrane_value =
-        __terrane_owner.lock().expect("reference lock poisoned").clone(); __terrane_value
-        }
+        1 /* terrane-site: case.trn:20:28-20:36 */)), 1 /* terrane-site: case.trn:20:28-20:36 */) }), terrane_scalar_support::scalar_text(&{ let
+        __terrane_owner = (&word_observer).upgrade().expect("reference expired");
+        __terrane_raised(__terrane_owner.lock().expect("reference lock poisoned")
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        2 /* terrane-site: case.trn:20:38-20:54 */)), 2 /* terrane-site: case.trn:20:38-20:54 */))
+        2 /* terrane-site: case.trn:20:38-20:54 */)), 2 /* terrane-site: case.trn:20:38-20:54 */) })
     );
 }

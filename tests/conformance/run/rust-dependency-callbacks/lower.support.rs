@@ -2558,7 +2558,7 @@ pub trait RenderableProtocol: Send {
     fn separate_box(&self) -> Box<dyn RenderableProtocol>;
     fn render(&self, label_: String) -> String;
     fn decorated(&self, label_: String) -> String;
-    fn borrowed(&self, label_: String) -> String;
+    fn borrowed(&self, label_: &str) -> String;
     fn parsed(&self, text: String) -> Result<terrane_int_support::Int, TerraneError>;
 }
 impl Clone for Box<dyn RenderableProtocol> {
@@ -2579,7 +2579,7 @@ impl Renderable {
     pub fn decorated(&self, label_: String) -> String {
         self.0.decorated(label_)
     }
-    pub fn borrowed(&self, label_: String) -> String {
+    pub fn borrowed(&self, label_: &str) -> String {
         self.0.borrowed(label_)
     }
     pub fn parsed(

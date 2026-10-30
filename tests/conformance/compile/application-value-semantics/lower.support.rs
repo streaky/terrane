@@ -1714,7 +1714,13 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
     let mut result: terrane_collection_support::List<String>;
     let mut index: terrane_int_support::Int;
     let mut part: String;
-    parts = terrane_string_support::split(&subject.text, &String::from("/"));
+    parts = {
+        let __terrane_string_argument_0 = &String::from("/");
+        terrane_string_support::split(
+            &subject.text,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     result = terrane_collection_support::List::<String>::new(vec![]);
     index = terrane_int_support::Int::from(0_i128);
     {
@@ -1748,7 +1754,14 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
     return result;
 }
 pub fn path_is_absolute(subject: Path) -> bool {
-    return subject.text.starts_with(&String::from("/"));
+    return {
+        let __terrane_string_argument_0 = &String::from("/");
+        subject
+            .text
+            .starts_with(
+                std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+            )
+    };
 }
 pub fn normalise_path(subject: Path) -> Path {
     let parts: Vec<String>;
@@ -1759,7 +1772,13 @@ pub fn normalise_path(subject: Path) -> Path {
     let mut part: String;
     let mut result: String;
     let mut index: terrane_int_support::Int;
-    parts = terrane_string_support::split(&subject.text, &String::from("/"));
+    parts = {
+        let __terrane_string_argument_0 = &String::from("/");
+        terrane_string_support::split(
+            &subject.text,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     absolute = path_is_absolute(subject);
     kept = terrane_collection_support::List::<String>::new(vec![]);
     count = terrane_int_support::Int::from(0_i128);
@@ -2009,7 +2028,13 @@ pub fn path_stem(subject: Path) -> String {
     let mut result: String;
     let mut index: terrane_int_support::Int;
     current = path_name(subject);
-    pieces = terrane_string_support::split(&current, &String::from("."));
+    pieces = {
+        let __terrane_string_argument_0 = &String::from(".");
+        terrane_string_support::split(
+            &current,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
@@ -2091,7 +2116,13 @@ pub fn path_extension(subject: Path) -> String {
     let current: String;
     let pieces: Vec<String>;
     current = path_name(subject);
-    pieces = terrane_string_support::split(&current, &String::from("."));
+    pieces = {
+        let __terrane_string_argument_0 = &String::from(".");
+        terrane_string_support::split(
+            &current,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
@@ -2150,7 +2181,15 @@ pub fn join_path(base: Path, child: Path) -> Path {
         return normalise_path(child.clone());
     }
     joined = base.text.clone();
-    if joined.as_str() != "" && !joined.ends_with(&String::from("/")) {
+    if joined.as_str() != ""
+        && !{
+            let __terrane_string_argument_0 = &String::from("/");
+            joined
+                .ends_with(
+                    std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+                )
+        }
+    {
         joined = {
             let mut __terrane_text = String::with_capacity(1);
             terrane_scalar_support::ScalarDisplay::write_scalar(

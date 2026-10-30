@@ -1,0 +1,103 @@
+namespace app
+
+from /core/collections import list
+from /deps/witness import Record, Inspect, same_text, same_string, same_bytes, owned_text, same_after_yield, same_sequence, same_generic, update_record, echo_after_yield, take_text, join_text, sequence_address, read_sequence_after_yield
+
+class holder
+    text string = 'source storage'
+    data bytes = b'ABC'
+
+class inspector implements Inspect
+    function marker bool;
+        return true
+
+function read-holder; item ref holder
+    print; (same_text; item.text, item.text)
+    print; (same_string; item.text, item.text)
+    print; (same_bytes; item.data, item.data)
+
+async function main;
+    text = 'ordinary storage'
+    data = b'ABC'
+    print; (same_text; text, text)
+    print; (same_string; text, text)
+    print; (same_bytes; data, data)
+    item = instance holder;
+    print; (same_text; item.text, item.text)
+    print; (same_bytes; item.data, item.data)
+    read-holder; item
+    values list of string = list; 'indexed storage'
+    print; (same_text; values[0], values[0])
+    print; (same_sequence; values, values)
+    values-copy = values
+    print; (same_sequence; values, values-copy)
+    values[0] = 'changed list'
+    print; (same_sequence; values, values-copy)
+    print; values[0]
+    print; values-copy[0]
+    print; (same_generic; text, text)
+    native = Record::new;
+    print; (same_text; native.text, native.text)
+    print; (native.same; native.text)
+    print; (Record::inspect; item.text, item.text)
+    print; await same_after_yield; item.text, item.text
+    copy = native
+    native.update;
+    print; native.text
+    print; copy.text
+    print; (owned_text; text)
+    print; text
+    item.text = 'changed'
+    print; item.text
+    print; (same_text; item.text, item.text)
+    update_record; native
+    print; native.text
+    print; copy.text
+    reader = same_text
+    print; (reader; text, text)
+    shared = shared ref (instance holder;)
+    print; (same_text; shared.text, shared.text)
+    print; (same_bytes; shared.data, shared.data)
+    pending = echo_after_yield; shared.text
+    shared.text = 'replacement before polling'
+    print; await pending
+    print; shared.text
+    async-reader = echo_after_yield
+    print; await async-reader; text
+    erased Inspect = instance inspector;
+    print; (erased.inspect_text; text, text)
+    print; (erased.inspect_strings; values, values)
+    observer = ref erased
+    print; (observer.inspect_text; text, text)
+    inspect-callback = erased.inspect_text
+    print; (inspect-callback; text, text)
+    print; (join_text; native.text, (take_text; native))
+    native.text = 'old receiver'
+    print; (native.text.contains; (take_text; native))
+    print; native.text
+    print; (same_sequence; native.texts, native.texts)
+    for word in ref native.texts
+        print; word
+    list-reader = same_sequence
+    print; (list-reader; values, values)
+    list-inspector = erased.inspect_strings
+    print; (list-inspector; values, values)
+    before = 'before replacement'
+    pending-value = echo_after_yield; before
+    before = 'after replacement'
+    print; await pending-value
+    print; before
+    address = sequence_address; values
+    pending-list = read_sequence_after_yield; values
+    values[0] = 'after retained read'
+    observed = await pending-list
+    print; observed.address == address
+    print; observed.first
+    print; values[0]
+    method-input = 'before method'
+    print; await native.echo_after_yield; method-input
+    method-input = 'after method'
+    print; method-input
+    print; native.text
+    print; await native.echo_after_yield; shared.text
+    print; native.text

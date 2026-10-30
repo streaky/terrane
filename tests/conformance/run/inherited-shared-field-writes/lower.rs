@@ -272,17 +272,15 @@ fn main() {
         );
     }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised({ let
-        __terrane_snapshot = { let __terrane_result = plain.lock()
-        .expect("reference lock poisoned").values.clone(); __terrane_result };
-        __terrane_snapshot }
+        "{}{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &plain;
+        __terrane_raised(__terrane_owner.lock().expect("reference lock poisoned").values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:40:12-40:27 */)), 1 /* terrane-site: case.trn:40:12-40:27 */)), String::from(" "),
-        terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_snapshot =
-        held.lock().expect("shared reference lock poisoned").values.clone();
-        __terrane_snapshot }
+        1 /* terrane-site: case.trn:40:12-40:27 */)), 1 /* terrane-site: case.trn:40:12-40:27 */) }), String::from(" "),
+        terrane_scalar_support::scalar_text(&{ let __terrane_owner = &held;
+        __terrane_raised(__terrane_owner.lock().expect("shared reference lock poisoned")
+        .values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        2 /* terrane-site: case.trn:40:34-40:48 */)), 2 /* terrane-site: case.trn:40:34-40:48 */))
+        2 /* terrane-site: case.trn:40:34-40:48 */)), 2 /* terrane-site: case.trn:40:34-40:48 */) })
     );
     other = std::sync::Arc::new(TerraneSharedCell::new(Base::terrane_construct()));
     other_held = other.clone();

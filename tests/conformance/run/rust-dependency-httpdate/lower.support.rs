@@ -536,8 +536,8 @@ pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneForeignError
     let value = date_codec::fmt_http_date(d);
     Ok(value)
 }
-pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignError> {
-    match date_codec::parse_http_date(&s) {
+pub fn parse_http_date(s: &str) -> Result<SystemTime, crate::TerraneForeignError> {
+    match date_codec::parse_http_date(s) {
         Ok(value) => Ok(value),
         Err(error) => {
             Err(
