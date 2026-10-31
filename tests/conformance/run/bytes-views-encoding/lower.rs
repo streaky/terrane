@@ -26,50 +26,51 @@ fn main() {
         i128))
     );
     byte_count = terrane_int_support::Int::from(0_i128);
-    let __terrane_iterable_0 = text.as_bytes().to_vec();
-    let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        byte = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if byte == byte {
-            byte_count = byte_count.clone() + terrane_int_support::Int::from(1_i128);
+    {
+        let __terrane_iterable_0 = &text;
+        let mut __terrane_iterator_0 = __terrane_iterable_0.bytes();
+        loop {
+            byte = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
+            };
+            if byte == byte {
+                byte_count = byte_count.clone() + terrane_int_support::Int::from(1_i128);
+            }
         }
     }
     scalar_count = terrane_int_support::Int::from(0_i128);
-    let __terrane_iterable_1 = text
-        .chars()
-        .map(|value| value.to_string())
-        .collect::<Vec<_>>();
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterator::new(
-        __terrane_iterable_1,
-    );
-    loop {
-        scalar = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if scalar.as_str() == scalar.as_str() {
-            scalar_count = scalar_count.clone() + terrane_int_support::Int::from(1_i128);
+    {
+        let __terrane_iterable_1 = &text;
+        let mut __terrane_iterator_1 = __terrane_iterable_1
+            .chars()
+            .map(|value| value.to_string());
+        loop {
+            scalar = match __terrane_iterator_1.next() {
+                Some(item) => item,
+                None => break,
+            };
+            if scalar.as_str() == scalar.as_str() {
+                scalar_count = scalar_count.clone()
+                    + terrane_int_support::Int::from(1_i128);
+            }
         }
     }
     grapheme_count = terrane_int_support::Int::from(0_i128);
-    let __terrane_iterable_2 = terrane_string_support::graphemes(&text)
-        .collect::<Vec<_>>();
-    let mut __terrane_iterator_2 = terrane_collection_support::Iterator::new(
-        __terrane_iterable_2,
-    );
-    loop {
-        grapheme = match __terrane_iterator_2.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if grapheme.as_str() == grapheme.as_str() {
-            grapheme_count = grapheme_count.clone()
-                + terrane_int_support::Int::from(1_i128);
+    {
+        let __terrane_iterable_2 = &text;
+        let mut __terrane_iterator_2 = terrane_string_support::graphemes(
+            &__terrane_iterable_2,
+        );
+        loop {
+            grapheme = match __terrane_iterator_2.next() {
+                Some(item) => item,
+                None => break,
+            };
+            if grapheme.as_str() == grapheme.as_str() {
+                grapheme_count = grapheme_count.clone()
+                    + terrane_int_support::Int::from(1_i128);
+            }
         }
     }
     println!(
@@ -77,55 +78,74 @@ fn main() {
         terrane_scalar_support::scalar_text(&scalar_count),
         terrane_scalar_support::scalar_text(&grapheme_count)
     );
-    encoded = terrane_string_support::encode(
-        &text,
-        terrane_string_support::Encoding::Utf8,
-    );
-    decoded = __terrane_raised(
-        terrane_string_support::decode(&encoded, terrane_string_support::Encoding::Utf8),
-        0 /* terrane-site: case.trn:19:20-19:40 */,
-    );
+    encoded = {
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
+        terrane_string_support::encode(&text, __terrane_string_argument_0)
+    };
+    decoded = {
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
+        __terrane_raised(
+            terrane_string_support::decode(&encoded, __terrane_string_argument_0),
+            0 /* terrane-site: case.trn:19:20-19:40 */,
+        )
+    };
     println!("{}", terrane_scalar_support::scalar_text(&decoded));
-    utf16le_text = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf16Le,
+    utf16le_text = {
+        let __terrane_receiver_value_0 = &{
+            let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Le;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Le;
+        __terrane_raised(
+            terrane_string_support::decode(
+                &__terrane_receiver_value_0,
+                __terrane_string_argument_0,
             ),
-            terrane_string_support::Encoding::Utf16Le,
-        ),
-        1 /* terrane-site: case.trn:21:25-21:65 */,
-    );
-    utf16be_text = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf16Be,
+            1 /* terrane-site: case.trn:21:25-21:65 */,
+        )
+    };
+    utf16be_text = {
+        let __terrane_receiver_value_1 = &{
+            let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Be;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf16Be;
+        __terrane_raised(
+            terrane_string_support::decode(
+                &__terrane_receiver_value_1,
+                __terrane_string_argument_0,
             ),
-            terrane_string_support::Encoding::Utf16Be,
-        ),
-        2 /* terrane-site: case.trn:22:25-22:65 */,
-    );
-    utf32le_text = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf32Le,
+            2 /* terrane-site: case.trn:22:25-22:65 */,
+        )
+    };
+    utf32le_text = {
+        let __terrane_receiver_value_2 = &{
+            let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Le;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Le;
+        __terrane_raised(
+            terrane_string_support::decode(
+                &__terrane_receiver_value_2,
+                __terrane_string_argument_0,
             ),
-            terrane_string_support::Encoding::Utf32Le,
-        ),
-        3 /* terrane-site: case.trn:23:25-23:65 */,
-    );
-    utf32be_text = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf32Be,
+            3 /* terrane-site: case.trn:23:25-23:65 */,
+        )
+    };
+    utf32be_text = {
+        let __terrane_receiver_value_3 = &{
+            let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Be;
+            terrane_string_support::encode(&text, __terrane_string_argument_0)
+        };
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf32Be;
+        __terrane_raised(
+            terrane_string_support::decode(
+                &__terrane_receiver_value_3,
+                __terrane_string_argument_0,
             ),
-            terrane_string_support::Encoding::Utf32Be,
-        ),
-        4 /* terrane-site: case.trn:24:25-24:65 */,
-    );
+            4 /* terrane-site: case.trn:24:25-24:65 */,
+        )
+    };
     println!("{}", terrane_scalar_support::scalar_text(&utf16le_text));
     println!("{}", terrane_scalar_support::scalar_text(&utf16be_text));
     println!("{}", terrane_scalar_support::scalar_text(&utf32le_text));

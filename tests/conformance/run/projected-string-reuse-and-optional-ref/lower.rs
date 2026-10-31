@@ -10,7 +10,7 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
             let _ = __trn_5f6669727374
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_static_trn_48656164657256616c7565_from_str(text.clone()),
+                        terrane_static_trn_48656164657256616c7565_from_str(&text),
                         0 /* terrane-site: src/main.trn:8:18-8:45 */
                     ),
                 );
@@ -38,8 +38,8 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                             let _ = __trn_5f7365636f6e64
                                 .insert(
                                     __terrane_raised_completion!(
-                                        terrane_static_trn_48656164657256616c7565_from_str(text
-                                        .clone()), 1 /* terrane-site: src/main.trn:12:23-12:50 */
+                                        terrane_static_trn_48656164657256616c7565_from_str(&text),
+                                        1 /* terrane-site: src/main.trn:12:23-12:50 */
                                     ),
                                 );
                             let _ = &__trn_5f7365636f6e64;
@@ -63,7 +63,14 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
                                         == TerraneErrorKind::Custom(DescriptorId(2))
                                 {
                                     __terrane_handled_1 = true;
-                                    if text.contains(&String::from("\n")) {
+                                    if {
+                                        let __terrane_string_argument_0 = "\n";
+                                        text.contains(
+                                            std::convert::AsRef::<
+                                                str,
+                                            >::as_ref(&__terrane_string_argument_0),
+                                        )
+                                    } {
                                         return TerraneCompletion::Return(
                                             terrane_int_support::Int::from(3_i128),
                                         );
@@ -164,7 +171,7 @@ fn main() {
     );
     header = Some(
         __terrane_raised(
-            terrane_static_trn_48656164657256616c7565_from_str(String::from("value")),
+            terrane_static_trn_48656164657256616c7565_from_str("value"),
             4 /* terrane-site: src/main.trn:28:31-28:61 */,
         ),
     );

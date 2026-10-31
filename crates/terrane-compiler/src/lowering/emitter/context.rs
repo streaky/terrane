@@ -384,7 +384,7 @@ impl<'unit> Emitter<'unit> {
         }
     }
 
-    fn native_argument_reference_parts(
+    pub(super) fn operand_reference_parts(
         &mut self,
         operand: &SyntaxNode,
         mutable: bool,
@@ -392,7 +392,7 @@ impl<'unit> Emitter<'unit> {
         if operand.kind == SyntaxKind::GroupExpression
             && let [inner] = operand.children.as_slice()
         {
-            return self.native_argument_reference_parts(inner, mutable);
+            return self.operand_reference_parts(inner, mutable);
         }
         let prefix = if mutable { "&mut " } else { "&" };
         if operand.kind == SyntaxKind::MemberExpression
@@ -412,6 +412,18 @@ impl<'unit> Emitter<'unit> {
             };
             let dereference = if borrowed { "*" } else { "" };
             return (setup, format!("{prefix}{dereference}({place})"));
+        }
+        if !mutable && operand.kind == SyntaxKind::IndexExpression {
+            let (setup, place) = self.borrowed_receiver_parts(operand);
+            return (setup, format!("&*({place})"));
+        }
+        if self.receiver_needs_live_guard(operand) {
+            let (setup, place) = if mutable {
+                self.live_receiver_parts(operand)
+            } else {
+                self.borrowed_receiver_parts(operand)
+            };
+            return (setup, format!("{prefix}*({place})"));
         }
         let reference = if let Some(reference) = self.narrowed_storage_name(operand, false, mutable)
         {
@@ -447,7 +459,7 @@ impl<'unit> Emitter<'unit> {
         setup: &mut String,
         index: &mut usize,
     ) -> String {
-        let (owner_setup, reference) = self.native_argument_reference_parts(operand, mutable);
+        let (owner_setup, reference) = self.operand_reference_parts(operand, mutable);
         if owner_setup.is_empty() {
             return reference;
         }

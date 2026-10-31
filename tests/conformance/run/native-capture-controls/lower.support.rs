@@ -878,10 +878,9 @@ pub fn terrane_static_trn_4f706171756556616c7565_new(
     }
 }
 pub async fn checksum(
-    values: terrane_collection_support::List<OpaqueValue>,
+    values: &std::vec::Vec<witness::OpaqueValue>,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    let values = values.into_vec();
-    match crate::__terrane_dependency_await_unwind(witness::checksum(&values)).await {
+    match crate::__terrane_dependency_await_unwind(witness::checksum(values)).await {
         Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
         Err(payload) => {
             Err(

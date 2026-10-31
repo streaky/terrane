@@ -22,7 +22,7 @@ fn main() {
     let mut __trn_5f696e76616c6964: Option<IpAddr> = None;
     let local: TerraneNsAppSocketAddrIdentity2F61707000736F636B65742D61646472;
     address = __terrane_raised(
-        terrane_static_trn_497041646472_from_str(String::from("192.0.2.44")),
+        terrane_static_trn_497041646472_from_str("192.0.2.44"),
         0 /* terrane-site: src/main.trn:10:22-10:52 */,
     );
     socket = __terrane_raised(
@@ -40,7 +40,7 @@ fn main() {
         "std::net::SocketAddr::port")) }, 2 /* terrane-site: src/main.trn:12:13-12:25 */))
     );
     network = __terrane_raised(
-        terrane_static_trn_49704e6574_from_str(String::from("192.0.2.44/32")),
+        terrane_static_trn_49704e6574_from_str("192.0.2.44/32"),
         3 /* terrane-site: src/main.trn:13:21-13:53 */,
     );
     payload = __terrane_raised(
@@ -71,7 +71,7 @@ fn main() {
             let _ = __trn_5f696e76616c6964
                 .insert(
                     __terrane_raised_completion!(
-                        terrane_static_trn_497041646472_from_str(String::from("not-an-address")),
+                        terrane_static_trn_497041646472_from_str("not-an-address"),
                         6 /* terrane-site: src/main.trn:18:20-18:54 */
                     ),
                 );

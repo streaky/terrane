@@ -7,23 +7,25 @@ fn main() {
     let mut item: String;
     let mut previous: Option<String> = None;
     first = true;
-    let __terrane_iterable_0 = String::from("abc");
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        item = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if !first {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&previous.as_ref()
-                .unwrap_or_else(| | __terrane_uninitialized_binding("previous",
-                "case.trn", 8, 20)))
-            );
+    {
+        let __terrane_iterable_0 = &String::from("abc");
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
+        );
+        loop {
+            item = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
+            };
+            if !first {
+                println!(
+                    "{}", terrane_scalar_support::scalar_text(&previous.as_ref()
+                    .unwrap_or_else(| | __terrane_uninitialized_binding("previous",
+                    "case.trn", 8, 20)))
+                );
+            }
+            let _ = previous.insert(item);
+            first = false;
         }
-        let _ = previous.insert(item);
-        first = false;
     }
 }

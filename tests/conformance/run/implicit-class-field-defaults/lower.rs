@@ -227,13 +227,17 @@ fn main() {
         "{}{}{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor
         .fields.len() as i128)), String::from(":"),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
+        terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_0 =
+        &terrane_collection_support::List::new(descriptor.fields.iter().map(| field |
+        field.defaulted).collect:: < Vec < bool > > ());
+        __terrane_raised(__terrane_receiver_value_0
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:38:39-38:68 */)), 0 /* terrane-site: case.trn:38:39-38:68 */)), String::from(":"),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
+        0 /* terrane-site: case.trn:38:39-38:68 */)), 0 /* terrane-site: case.trn:38:39-38:68 */) }), String::from(":"),
+        terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_1 =
+        &terrane_collection_support::List::new(descriptor.fields.iter().map(| field |
+        field.defaulted).collect:: < Vec < bool > > ());
+        __terrane_raised(__terrane_receiver_value_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(13_i128)),
-        1 /* terrane-site: case.trn:38:75-38:105 */)), 1 /* terrane-site: case.trn:38:75-38:105 */))
+        1 /* terrane-site: case.trn:38:75-38:105 */)), 1 /* terrane-site: case.trn:38:75-38:105 */) })
     );
 }

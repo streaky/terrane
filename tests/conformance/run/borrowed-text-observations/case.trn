@@ -1,0 +1,137 @@
+namespace borrowed-text-observations
+
+from /core/collections import list, map
+from /core/encodings import utf8
+from /core/errors import index-error
+
+class holder
+    text string = ' AéA '
+    data bytes = b'ABC'
+    items list of string = list; 'alpha'
+    calls int = 0
+    n int = 1
+    key string = 'second'
+    entries map of string, string = map; first='al', second='alpha'
+    codec encoding = utf8
+
+    mutable async function indexed-read string;
+        this.n = 1
+        return this.items[this.n]
+
+    mutable async function indexed-contains bool;
+        this.n = 1
+        return (this.items[0].contains; this.items[this.n])
+
+    mutable async function keyed-read string;
+        this.key = 'second'
+        return this.entries[this.key]
+
+function replace-shared string; owner shared ref holder
+    owner.text = 'xyz'
+    return 'x'
+
+function shrink-shared int; owner shared ref holder
+    owner.items = list; 'z'
+    return 0
+
+function counted-key string; owner shared ref holder, key string
+    owner.calls = owner.calls + 1
+    return key
+
+function decode-input string; source ref bytes
+    return source.decode; utf8
+
+function scan-input int; source ref string
+    total int = 0
+    for byte in source.bytes
+        if byte == 65
+            total++
+    return total
+
+async function pause;
+    return
+
+async function scan-later int; source ref string
+    total int = 0
+    for byte in source.bytes
+        await pause;
+        if byte == 65
+            total++
+    return total
+
+async function main;
+    item = instance holder;
+    print; (item.text.trim;)
+    print; (decode-input; item.data)
+    print; (scan-input; item.text)
+    copy = item
+    item.text = 'changed'
+    print; copy.text
+    print; item.text
+    values list of string = list; ' nested '
+    print; (values[0].trim;)
+    source = 'AéA'
+    for scalar in source.scalars
+        print; scalar
+    for grapheme in source.graphemes
+        print; grapheme
+    for byte in source.bytes
+        print; byte
+    source = 'ab'
+    for scalar in source.scalars
+        source = 'changed during traversal'
+        print; scalar
+    print; source
+    for scalar in ('temporary'.upper;).scalars
+        print; scalar
+        break
+    shared = shared ref (instance holder;)
+    print; (shared.text.contains; (replace-shared; shared))
+    print; shared.items[(shrink-shared; shared)]
+    print; (shared.text.trim;)
+    print; (shared.text.contains; shared.text)
+    print; (shared.data.decode; utf8)
+    maybe string|none = ' optional '
+    if maybe != none
+        print; (maybe.trim;)
+    print; await scan-later; copy.text
+    values = list; 'al', 'alpha'
+    print; (values[0].contains; values[1])
+    item.items = list; 'al', 'alpha'
+    print; (item.items[0].contains; item.items[1])
+    shared.items = list; 'al', 'alpha'
+    print; (shared.items[0].contains; shared.items[1])
+    print; ('escaped\n雪'.contains; '雪')
+    print; ('x'.contains; ('b'))
+    grid list of list of string = list; (list; 'a', 'b'), (list; 'c', 'd')
+    print; (grid[1][0].trim;)
+    print; (grid[1][0].contains; grid[0][1])
+    for character in grid[1][0].scalars
+        print; character
+    map-grid map of string, map of string, string = map; first=(map; left='red', right='blue'), second=(map; left='green', right='gold')
+    print; (map-grid['second']['left'].contains; map-grid['first']['right'])
+    print; (map-grid[(counted-key; shared, 'second')][(counted-key; shared, 'left')].contains; map-grid[(counted-key; shared, 'first')][(counted-key; shared, 'right')])
+    print; shared.calls
+    try
+        print; (values[99].contains; (counted-key; shared, 'a'))
+    catch index-error
+        print; shared.calls
+    try
+        print; (grid[99][(shrink-shared; shared)].trim;)
+    catch index-error
+        print; shared.items[0]
+    shared.text = 'alpha'
+    print; shared.items[shared.n]
+    print; (shared.items[0].contains; shared.items[shared.n])
+    alias = shared
+    print; shared.items[alias.n]
+    print; (shared.items[0].contains; alias.items[1])
+    print; (shared.text.contains; alias.text)
+    print; (shared.text.contains; shared.items[0])
+    print; shared.entries[shared.key]
+    print; (shared.entries[alias.key].contains; shared.entries['first'])
+    print; (shared.text.replace; shared.items[0], alias.items[1])
+    print; (shared.data.decode; shared.codec)
+    print; await shared.indexed-read;
+    print; await shared.indexed-contains;
+    print; await shared.keyed-read;

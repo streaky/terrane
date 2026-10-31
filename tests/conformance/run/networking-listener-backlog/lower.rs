@@ -101,9 +101,11 @@ fn main() {
             )
             .await;
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&first,
-            terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:45:13-45:31 */))
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0
+            = terrane_string_support::Encoding::Utf8;
+            __terrane_raised(terrane_string_support::decode(&first,
+            __terrane_string_argument_0), 0 /* terrane-site: case.trn:45:13-45:31 */)
+            })
         );
         settings = TcpListenerOptions::terrane_construct(
             terrane_int_support::Int::from(16_i128),
@@ -120,9 +122,11 @@ fn main() {
             )
             .await;
         println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&second,
-            terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:49:13-49:32 */))
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0
+            = terrane_string_support::Encoding::Utf8;
+            __terrane_raised(terrane_string_support::decode(&second,
+            __terrane_string_argument_0), 1 /* terrane-site: case.trn:49:13-49:32 */)
+            })
         );
         address = socket_address_from_string(String::from("127.0.0.1:0"));
         invalid_negative = bind_tcp(

@@ -12,10 +12,11 @@ fn main() {
     octets = terrane_collection_support::List::<u8>::new(vec![65, 66, 67]);
     data = bytes_from_octets(octets);
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&data,
-        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:12:11-12:28 */)), terrane_scalar_support::scalar_text(&(data.len() as
-        i128))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&data,
+        __terrane_string_argument_0), 0 /* terrane-site: case.trn:12:11-12:28 */) }),
+        terrane_scalar_support::scalar_text(&(data.len() as i128))
     );
     empty_octets = terrane_collection_support::List::<u8>::new(vec![]);
     empty = bytes_from_octets(empty_octets);

@@ -579,11 +579,11 @@ pub fn terrane_static_trn_4261736b6574_new() -> Result<
     }
 }
 pub fn terrane_static_trn_546f6b656e_from_str(
-    value: String,
+    value: &str,
 ) -> Result<Token, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| <witness::Token as std::str::FromStr>::from_str(
-            &value,
+            value,
         )),
     ) {
         Ok(Ok(value)) => Ok(value),

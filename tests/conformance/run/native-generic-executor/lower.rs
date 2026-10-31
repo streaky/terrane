@@ -70,7 +70,7 @@ fn execute_local() -> Result<i64, TerraneError> {
         0 /* terrane-site: src/main.trn:16:18-16:34 */,
     )?;
     bound = __terrane_raised_err(
-        query(String::from("bound-local")),
+        query("bound-local"),
         1 /* terrane-site: src/main.trn:17:13-17:33 */,
     )?;
     return Ok(
@@ -105,7 +105,7 @@ fn execute_local() -> Result<i64, TerraneError> {
 fn execute_reference(connection: &mut Connection) -> Result<i64, TerraneError> {
     let bound: Query;
     bound = __terrane_raised_err(
-        query(String::from("bound-reference")),
+        query("bound-reference"),
         3 /* terrane-site: src/main.trn:21:13-21:37 */,
     )?;
     return Ok(
@@ -183,7 +183,7 @@ fn execute_optional(flag: bool) -> Result<i64, TerraneError> {
     }
     if (&maybe).is_some() {
         bound = __terrane_raised_err(
-            query(String::from("narrowed")),
+            query("narrowed"),
             7 /* terrane-site: src/main.trn:32:17-32:34 */,
         )?;
         return Ok(
@@ -238,7 +238,7 @@ fn execute_deferred(flag: bool) -> Result<i64, TerraneError> {
             );
     }
     bound = __terrane_raised_err(
-        query(String::from("deferred")),
+        query("deferred"),
         10 /* terrane-site: src/main.trn:39:13-39:30 */,
     )?;
     return Ok(
@@ -412,7 +412,7 @@ fn execute_outlives() -> Result<i64, TerraneError> {
         19 /* terrane-site: src/main.trn:56:18-56:34 */,
     )?;
     bound = __terrane_raised_err(
-        query(String::from("region-bound")),
+        query("region-bound"),
         20 /* terrane-site: src/main.trn:57:13-57:34 */,
     )?;
     first = __terrane_raised_err(
@@ -434,7 +434,7 @@ fn execute_outlives() -> Result<i64, TerraneError> {
     )?;
     second = {
         let __terrane_native_input_0 = __terrane_raised_err(
-            query(String::from("region-direct")),
+            query("region-direct"),
             22 /* terrane-site: src/main.trn:59:15-59:37 */,
         )?;
         let __terrane_native_input_1 = &mut connection;
@@ -535,7 +535,7 @@ fn execute_owner(connection: &mut Connection) -> Result<i64, TerraneError> {
             >(
                 &{
                     let __terrane_native_input_0 = __terrane_raised_err(
-                        owner_query(String::from("owner-forward")),
+                        owner_query("owner-forward"),
                         30 /* terrane-site: src/main.trn:71:13-71:41 */,
                     )?;
                     let __terrane_native_input_1 = &mut *connection;
@@ -588,7 +588,7 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
-            __terrane_raised(query(String::from("direct")), 35 /* terrane-site: src/main.trn:77:14-77:29 */); let __terrane_native_input_1 = &mut connection;
+            __terrane_raised(query("direct"), 35 /* terrane-site: src/main.trn:77:14-77:29 */); let __terrane_native_input_1 = &mut connection;
             __terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             __terrane_native_input_0.fetch(__terrane_native_input_1))) { Ok(value) =>
@@ -687,9 +687,8 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
-            __terrane_raised(owner_query(String::from("owner-direct")),
-            49 /* terrane-site: src/main.trn:104:14-104:41 */); let
-            __terrane_native_input_1 = &mut connection; __terrane_raised(match
+            __terrane_raised(owner_query("owner-direct"), 49 /* terrane-site: src/main.trn:104:14-104:41 */); let __terrane_native_input_1 = &mut
+            connection; __terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             __terrane_native_input_0.fetch(__terrane_native_input_1))) { Ok(value) =>
             Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>

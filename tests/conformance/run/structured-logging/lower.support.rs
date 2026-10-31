@@ -4140,7 +4140,14 @@ pub fn emit_at(
         return LogOutcome::terrane_construct(true, false, String::from(""));
     }
     if v.options.target_prefix.as_str() != ""
-        && !v.options.target.starts_with(&v.options.target_prefix)
+        && !{
+            let __terrane_string_argument_0 = &v.options.target_prefix;
+            v.options
+                .target
+                .starts_with(
+                    std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+                )
+        }
     {
         return LogOutcome::terrane_construct(true, false, String::from(""));
     }

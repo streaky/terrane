@@ -17,29 +17,33 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&across_if));
     }
     across_loop = 0;
-    let __terrane_iterable_0 = String::from("ab");
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        first = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &first;
-        across_loop = 1;
+    {
+        let __terrane_iterable_0 = &String::from("ab");
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
+        );
+        loop {
+            first = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
+            };
+            let _ = &first;
+            across_loop = 1;
+        }
     }
-    let __terrane_iterable_1 = String::from("cd");
-    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_1,
-    );
-    loop {
-        second = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &second;
-        println!("{}", terrane_scalar_support::scalar_text(&across_loop));
+    {
+        let __terrane_iterable_1 = &String::from("cd");
+        let mut __terrane_iterator_1 = terrane_string_support::graphemes(
+            &__terrane_iterable_1,
+        );
+        loop {
+            second = match __terrane_iterator_1.next() {
+                Some(item) => item,
+                None => break,
+            };
+            let _ = &second;
+            println!("{}", terrane_scalar_support::scalar_text(&across_loop));
+        }
     }
     across_catch = 0;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {

@@ -13,18 +13,20 @@ fn main() {
     let mut skipped: terrane_int_support::Int;
     show(String::from("original"));
     text = String::from("e\u{301}x");
-    let __terrane_iterable_0 = text.clone();
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &__terrane_iterable_0,
-    );
-    loop {
-        character = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        println!("{}", terrane_scalar_support::scalar_text(&character));
-        character = String::from("loop");
-        println!("{}", terrane_scalar_support::scalar_text(&character));
+    {
+        let __terrane_iterable_0 = &text;
+        let mut __terrane_iterator_0 = terrane_string_support::graphemes(
+            &__terrane_iterable_0,
+        );
+        loop {
+            character = match __terrane_iterator_0.next() {
+                Some(item) => item,
+                None => break,
+            };
+            println!("{}", terrane_scalar_support::scalar_text(&character));
+            character = String::from("loop");
+            println!("{}", terrane_scalar_support::scalar_text(&character));
+        }
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text)

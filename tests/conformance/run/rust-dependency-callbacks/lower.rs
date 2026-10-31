@@ -86,7 +86,7 @@ fn render(label: String, enabled: bool) -> String {
     return label;
 }
 fn borrowed_through_reference(value: &Renderable) -> String {
-    return (&*value).borrowed(String::from("reference wrapper"));
+    return (&*value).borrowed("reference wrapper");
 }
 #[derive(Clone)]
 pub struct ProjectedMessage {}
@@ -118,11 +118,11 @@ impl RenderableProtocol for ProjectedMessage {
         }()
             .unwrap_or_else(|error| panic!("{}", error.render()))
     }
-    fn borrowed(&self, label_: String) -> String {
+    fn borrowed(&self, label_: &str) -> String {
         || -> Result<String, crate::TerraneForeignError> {
             let __terrane_default = <ProjectedMessage as terrane_render_witness::Renderable>::borrowed(
                 &*self,
-                &label_,
+                label_,
             );
             Ok(__terrane_default)
         }()
@@ -1380,7 +1380,7 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&(&interface_message)
-            .borrowed(String::from("borrowed")))
+            .borrowed("borrowed"))
         );
         println!(
             "{}",

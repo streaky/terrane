@@ -28,15 +28,16 @@ fn main() {
         .push_str("x"); __terrane_text.push_str(__terrane_separator); __terrane_text
         .push_str("y"); __terrane_text })
     );
-    encoded = terrane_string_support::encode(
-        &text,
-        terrane_string_support::Encoding::Utf8,
-    );
+    encoded = {
+        let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
+        terrane_string_support::encode(&text, __terrane_string_argument_0)
+    };
     decoded = &encoded;
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded
-        .clone(), terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:12:13-12:33 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&decoded,
+        __terrane_string_argument_0), 0 /* terrane-site: case.trn:12:13-12:33 */) })
     );
     number = std::sync::Arc::new(TerraneSharedCell::new(7));
     observed = std::sync::Arc::downgrade(&number.clone());

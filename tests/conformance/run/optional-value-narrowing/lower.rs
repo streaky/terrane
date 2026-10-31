@@ -119,9 +119,9 @@ fn mutate_counter(value: Option<Counter>) {
         __terrane_present
     } {
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_1 = value.clone();
             let __terrane_shared_argument_0 = terrane_int_support::Int::from(1_i128);
-            let __terrane_call_result = match &mut *__terrane_owner
+            let __terrane_call_result = match &mut *__terrane_owner_1
                 .lock()
                 .expect("reference lock poisoned")
             {
@@ -139,7 +139,7 @@ fn mutate_counter(value: Option<Counter>) {
             .clone(); __terrane_result }; __terrane_snapshot })
         );
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_3 = value.clone();
             let __terrane_shared_argument_0 = {
                 let __terrane_snapshot = {
                     let __terrane_result = match &mut *(&value)
@@ -156,7 +156,7 @@ fn mutate_counter(value: Option<Counter>) {
                 __terrane_snapshot
             };
             let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-            let __terrane_call_result = match &mut *__terrane_owner
+            let __terrane_call_result = match &mut *__terrane_owner_3
                 .lock()
                 .expect("reference lock poisoned")
             {
@@ -174,16 +174,16 @@ fn mutate_counter(value: Option<Counter>) {
             .clone(); __terrane_result }; __terrane_snapshot })
         );
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_4 = value.clone();
             let __terrane_value = terrane_int_support::Int::from(10_i128);
-            *match &mut *__terrane_owner.lock().expect("reference lock poisoned") {
+            *match &mut *__terrane_owner_4.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
                 .terrane_field_total_mut() = __terrane_value;
         }
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_5 = value.clone();
             let __terrane_value = {
                 let __terrane_snapshot = {
                     let __terrane_result = match &mut *(&value)
@@ -199,14 +199,14 @@ fn mutate_counter(value: Option<Counter>) {
                 };
                 __terrane_snapshot
             } + terrane_int_support::Int::from(1_i128);
-            *match &mut *__terrane_owner.lock().expect("reference lock poisoned") {
+            *match &mut *__terrane_owner_5.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
                 .terrane_field_total_mut() = __terrane_value;
         }
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_6 = value.clone();
             let __terrane_collection_argument_0 = {
                 let __terrane_snapshot = {
                     let __terrane_result = match &mut *(&value)
@@ -222,7 +222,7 @@ fn mutate_counter(value: Option<Counter>) {
                 };
                 __terrane_snapshot
             };
-            match &mut *__terrane_owner.lock().expect("reference lock poisoned") {
+            match &mut *__terrane_owner_6.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
@@ -230,7 +230,7 @@ fn mutate_counter(value: Option<Counter>) {
                 .append(__terrane_collection_argument_0);
         };
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_7 = value.clone();
             let __terrane_index = __terrane_raised(
                 terrane_collection_support::index_from_int(
                     &({
@@ -267,7 +267,7 @@ fn mutate_counter(value: Option<Counter>) {
                 __terrane_snapshot
             } + terrane_int_support::Int::from(1_i128);
             let _ = __terrane_raised(
-                match &mut *__terrane_owner.lock().expect("reference lock poisoned") {
+                match &mut *__terrane_owner_7.lock().expect("reference lock poisoned") {
                     Some(value) => value,
                     _ => unreachable!("flow-proven storage refinement"),
                 }
@@ -282,43 +282,41 @@ fn mutate_counter(value: Option<Counter>) {
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_total()
             .clone(); __terrane_result }; __terrane_snapshot }), String::from("/"),
-            terrane_scalar_support::scalar_text(&__terrane_raised({ let
-            __terrane_snapshot = { let __terrane_result = match &mut * (&value).lock()
+            terrane_scalar_support::scalar_text(&{ let __terrane_owner_8 = &value;
+            __terrane_raised(match &* __terrane_owner_8.lock()
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_items()
-            .clone(); __terrane_result }; __terrane_snapshot }
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            1 /* terrane-site: case.trn:25:34-25:48 */)), 1 /* terrane-site: case.trn:25:34-25:48 */)), String::from("/"),
-            terrane_scalar_support::scalar_text(&__terrane_raised({ let
-            __terrane_snapshot = { let __terrane_result = match &mut * (&value).lock()
+            1 /* terrane-site: case.trn:25:34-25:48 */)), 1 /* terrane-site: case.trn:25:34-25:48 */) }), String::from("/"),
+            terrane_scalar_support::scalar_text(&{ let __terrane_owner_9 = &value;
+            __terrane_raised(match &* __terrane_owner_9.lock()
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_items()
-            .clone(); __terrane_result }; __terrane_snapshot }
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: case.trn:25:55-25:69 */)), 2 /* terrane-site: case.trn:25:55-25:69 */))
+            2 /* terrane-site: case.trn:25:55-25:69 */)), 2 /* terrane-site: case.trn:25:55-25:69 */) })
         );
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &value;
-            match &* __terrane_owner.lock().expect("reference lock poisoned") {
-            Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
+            "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_10 =
+            &value; match &* __terrane_owner_10.lock().expect("reference lock poisoned")
+            { Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
             .terrane_field_tag().is_some() }), terrane_scalar_support::scalar_text(&{ let
-            __terrane_owner = &value; match &* __terrane_owner.lock()
+            __terrane_owner_11 = &value; match &* __terrane_owner_11.lock()
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_tag()
             .is_none() })
         );
         {
-            let __terrane_owner = value.clone();
+            let __terrane_owner_12 = value.clone();
             let __terrane_value = None;
-            *match &mut *__terrane_owner.lock().expect("reference lock poisoned") {
+            *match &mut *__terrane_owner_12.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
                 .terrane_field_tag_mut() = __terrane_value;
         }
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &value;
-            match &* __terrane_owner.lock().expect("reference lock poisoned") {
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_13 = &value;
+            match &* __terrane_owner_13.lock().expect("reference lock poisoned") {
             Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
             .terrane_field_tag().is_none() })
         );
@@ -438,7 +436,14 @@ fn main() {
     missing();
     println!("{}", terrane_scalar_support::scalar_text(&true));
     helper();
-    found = terrane_string_support::find(&String::from("banana"), &String::from("ana"));
+    found = {
+        let __terrane_receiver_value_14 = &String::from("banana");
+        let __terrane_string_argument_0 = "ana";
+        terrane_string_support::find(
+            &__terrane_receiver_value_14,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     if (&found).is_some() {
         if (&found).is_some() {
             println!(
@@ -618,7 +623,7 @@ fn main() {
         __terrane_present
     } {
         {
-            let __terrane_owner = latecounter
+            let __terrane_owner_16 = latecounter
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
                     "latecounter",
@@ -628,7 +633,7 @@ fn main() {
                 ))
                 .clone();
             let __terrane_shared_argument_0 = terrane_int_support::Int::from(1_i128);
-            let __terrane_call_result = match &mut *__terrane_owner
+            let __terrane_call_result = match &mut *__terrane_owner_16
                 .lock()
                 .expect("reference lock poisoned")
             {
@@ -639,7 +644,7 @@ fn main() {
             __terrane_call_result
         };
         {
-            let __terrane_owner = latecounter
+            let __terrane_owner_17 = latecounter
                 .as_ref()
                 .unwrap_or_else(|| __terrane_uninitialized_binding(
                     "latecounter",
@@ -670,7 +675,7 @@ fn main() {
                 };
                 __terrane_snapshot
             } + terrane_int_support::Int::from(9_i128);
-            *match &mut *__terrane_owner.lock().expect("reference lock poisoned") {
+            *match &mut *__terrane_owner_17.lock().expect("reference lock poisoned") {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
             }
@@ -683,9 +688,9 @@ fn main() {
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_total()
             .clone(); __terrane_result }; __terrane_snapshot }),
-            terrane_scalar_support::scalar_text(&{ let __terrane_owner = latecounter
+            terrane_scalar_support::scalar_text(&{ let __terrane_owner_18 = latecounter
             .as_ref().unwrap_or_else(| | __terrane_uninitialized_binding("latecounter",
-            "case.trn", 107, 35)); match &* __terrane_owner.lock()
+            "case.trn", 107, 35)); match &* __terrane_owner_18.lock()
             .expect("reference lock poisoned") { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") } .terrane_field_tag()
             .is_some() })

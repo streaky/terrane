@@ -529,9 +529,9 @@ mod __terrane_trace {
 // Source: <terrane>/projected/deps/httpdate.trn
 // Namespace: deps/httpdate
 pub use std::time::SystemTime;
-pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignError> {
+pub fn parse_http_date(s: &str) -> Result<SystemTime, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),
+        std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(s)),
     ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {

@@ -1821,11 +1821,11 @@ pub fn terrane_static_trn_4f7074696f6e73_new() -> Result<
     }
 }
 pub async fn read_alias_later(
-    value: String,
+    value: &str,
 ) -> Result<String, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             std::future::IntoFuture::into_future(
-                terrane_borrowed_future_witness::read_alias_later(&value),
+                terrane_borrowed_future_witness::read_alias_later(value),
             ),
         )
         .await
@@ -1843,11 +1843,11 @@ pub async fn read_alias_later(
     }
 }
 pub async fn read_literal_later(
-    value: String,
+    value: &str,
 ) -> Result<String, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             std::future::IntoFuture::into_future(
-                terrane_borrowed_future_witness::read_literal_later(&value),
+                terrane_borrowed_future_witness::read_literal_later(value),
             ),
         )
         .await

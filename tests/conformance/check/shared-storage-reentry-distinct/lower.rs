@@ -58,10 +58,10 @@ fn main() {
     );
     held = plain.clone();
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_1 = held.clone();
         let __terrane_shared_argument_0 = other.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);

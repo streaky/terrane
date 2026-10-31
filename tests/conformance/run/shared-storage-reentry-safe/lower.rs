@@ -66,10 +66,10 @@ fn distinct(
     >,
 ) -> terrane_int_support::Int {
     return {
-        let __terrane_owner = first.clone();
+        let __terrane_owner_1 = first.clone();
         let __terrane_shared_argument_0 = second.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);
@@ -165,14 +165,14 @@ fn branch(flag: bool) -> terrane_int_support::Int {
         ),
     );
     {
-        let __terrane_owner = second.clone();
+        let __terrane_owner_2 = second.clone();
         let __terrane_value = terrane_int_support::Int::from(4_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
+        __terrane_owner_2.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     {
-        let __terrane_owner = third.clone();
+        let __terrane_owner_3 = third.clone();
         let __terrane_value = terrane_int_support::Int::from(8_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
+        __terrane_owner_3.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     a = first.clone();
     b = second.clone();
@@ -188,10 +188,10 @@ fn branch(flag: bool) -> terrane_int_support::Int {
         copy = c.clone();
     }
     return {
-        let __terrane_owner = a.clone();
+        let __terrane_owner_5 = a.clone();
         let __terrane_shared_argument_0 = copy.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_5
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);
@@ -240,9 +240,9 @@ fn main() {
         ),
     );
     {
-        let __terrane_owner = other.clone();
+        let __terrane_owner_6 = other.clone();
         let __terrane_value = terrane_int_support::Int::from(4_i128);
-        __terrane_owner.lock().expect("reference lock poisoned").count = __terrane_value;
+        __terrane_owner_6.lock().expect("reference lock poisoned").count = __terrane_value;
     }
     held = plain.clone();
     alternate = other.clone();
@@ -251,10 +251,10 @@ fn main() {
         .clone()))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = held.clone();
-        let __terrane_shared_argument_0 = alternate.clone(); let
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_8 = held
+        .clone(); let __terrane_shared_argument_0 = alternate.clone(); let
         __terrane_shared_argument_1 = __terrane_shared_argument_0; let
-        __terrane_call_result = __terrane_owner.lock()
+        __terrane_call_result = __terrane_owner_8.lock()
         .expect("shared reference lock poisoned").add_from(__terrane_shared_argument_1);
         __terrane_call_result })
     );
@@ -265,40 +265,43 @@ fn main() {
     );
     held = alternate.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = alias.clone();
-        let __terrane_shared_argument_0 = held.clone(); let __terrane_shared_argument_1 =
-        __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner.lock()
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_10 = alias
+        .clone(); let __terrane_shared_argument_0 = held.clone(); let
+        __terrane_shared_argument_1 = __terrane_shared_argument_0; let
+        __terrane_call_result = __terrane_owner_10.lock()
         .expect("shared reference lock poisoned").peek(__terrane_shared_argument_1);
         __terrane_call_result })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = held.clone();
-        let __terrane_shared_argument_0 = alias.clone(); let __terrane_shared_argument_1
-        = __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner.lock()
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_12 = held
+        .clone(); let __terrane_shared_argument_0 = alias.clone(); let
+        __terrane_shared_argument_1 = __terrane_shared_argument_0; let
+        __terrane_call_result = __terrane_owner_12.lock()
         .expect("shared reference lock poisoned").peek(__terrane_shared_argument_1);
         __terrane_call_result })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = plain.clone();
-        let __terrane_shared_argument_0 = held.clone(); let __terrane_shared_argument_1 =
-        __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner.lock()
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_14 = plain
+        .clone(); let __terrane_shared_argument_0 = held.clone(); let
+        __terrane_shared_argument_1 = __terrane_shared_argument_0; let
+        __terrane_call_result = __terrane_owner_14.lock()
         .expect("reference lock poisoned").peek(__terrane_shared_argument_1);
         __terrane_call_result })
     );
     observer = std::sync::Arc::downgrade(&plain.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observer
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_16 = observer
         .upgrade().expect("reference expired"); let __terrane_shared_argument_0 =
         pick(held.clone()).clone(); let __terrane_shared_argument_1 =
-        __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner.lock()
-        .expect("reference lock poisoned").peek(__terrane_shared_argument_1);
+        __terrane_shared_argument_0; let __terrane_call_result = __terrane_owner_16
+        .lock().expect("reference lock poisoned").peek(__terrane_shared_argument_1);
         __terrane_call_result })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = alias.clone();
-        let __terrane_shared_argument_0 = replaced(alias.clone(), held.clone()).clone();
-        let __terrane_shared_argument_1 = __terrane_shared_argument_0; let
-        __terrane_call_result = __terrane_owner.lock()
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_18 = alias
+        .clone(); let __terrane_shared_argument_0 = replaced(alias.clone(), held.clone())
+        .clone(); let __terrane_shared_argument_1 = __terrane_shared_argument_0; let
+        __terrane_call_result = __terrane_owner_18.lock()
         .expect("shared reference lock poisoned").peek(__terrane_shared_argument_1);
         __terrane_call_result })
     );

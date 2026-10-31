@@ -202,7 +202,7 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
-            let __terrane_future = checksum(opaque_values); async move {
+            let __terrane_future = checksum((&opaque_values).as_vec()); async move {
             __terrane_raised_err(__terrane_future. await, 12 /* terrane-site: src/main.trn:77:18-77:41 */) } }). await, 12 /* terrane-site: src/main.trn:77:18-77:41 */))
         );
         records = __terrane_raised(

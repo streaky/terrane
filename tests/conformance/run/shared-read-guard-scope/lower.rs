@@ -42,7 +42,7 @@ fn argument(
     amount: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
     {
-        let __terrane_owner = owner.clone();
+        let __terrane_owner_0 = owner.clone();
         let __terrane_value = {
             let __terrane_snapshot = owner
                 .lock()
@@ -51,7 +51,7 @@ fn argument(
                 .clone();
             __terrane_snapshot
         } * terrane_int_support::Int::from(10_i128) + amount.clone();
-        __terrane_owner.lock().expect("shared reference lock poisoned").trail = __terrane_value;
+        __terrane_owner_0.lock().expect("shared reference lock poisoned").trail = __terrane_value;
     }
     return amount.clone();
 }
@@ -100,7 +100,7 @@ fn inspect(
         1 /* terrane-site: case.trn:22:25-22:35 */)), 1 /* terrane-site: case.trn:22:25-22:35 */)))
     );
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_2 = held.clone();
         let __terrane_shared_argument_0 = {
             let __terrane_snapshot = held
                 .lock()
@@ -110,7 +110,7 @@ fn inspect(
             __terrane_snapshot
         } + terrane_int_support::Int::from(1_i128);
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_2
             .lock()
             .expect("shared reference lock poisoned")
             .update(__terrane_shared_argument_1);
@@ -121,7 +121,7 @@ fn inspect(
         .expect("shared reference lock poisoned").count.clone(); __terrane_snapshot })
     );
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_4 = held.clone();
         let __terrane_shared_argument_0 = {
             let __terrane_snapshot = held
                 .lock()
@@ -132,7 +132,7 @@ fn inspect(
         };
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
         let __terrane_shared_argument_2 = terrane_int_support::Int::from(1_i128);
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_4
             .lock()
             .expect("shared reference lock poisoned")
             .combine(__terrane_shared_argument_1, __terrane_shared_argument_2);
@@ -143,7 +143,7 @@ fn inspect(
         .expect("shared reference lock poisoned").count.clone(); __terrane_snapshot })
     );
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_6 = held.clone();
         let __terrane_shared_argument_0 = argument(
             alias.clone(),
             terrane_int_support::Int::from(2_i128),
@@ -154,7 +154,7 @@ fn inspect(
         );
         let __terrane_shared_argument_2 = __terrane_shared_argument_1;
         let __terrane_shared_argument_3 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_6
             .lock()
             .expect("shared reference lock poisoned")
             .combine(__terrane_shared_argument_2, __terrane_shared_argument_3);
@@ -208,7 +208,7 @@ fn main() {
         .count.clone(); __terrane_snapshot }))
     );
     {
-        let __terrane_owner = observer.upgrade().expect("reference expired");
+        let __terrane_owner_8 = observer.upgrade().expect("reference expired");
         let __terrane_shared_argument_0 = {
             let __terrane_snapshot = held
                 .lock()
@@ -218,7 +218,7 @@ fn main() {
             __terrane_snapshot
         } + terrane_int_support::Int::from(1_i128);
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_8
             .lock()
             .expect("reference lock poisoned")
             .update(__terrane_shared_argument_1);

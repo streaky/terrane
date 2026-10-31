@@ -39,10 +39,10 @@ fn left(
         );
     }
     return {
-        let __terrane_owner = first.clone();
+        let __terrane_owner_1 = first.clone();
         let __terrane_shared_argument_0 = second.clone();
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_call_result = __terrane_owner
+        let __terrane_call_result = __terrane_owner_1
             .lock()
             .expect("shared reference lock poisoned")
             .peek(__terrane_shared_argument_1);

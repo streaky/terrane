@@ -25,14 +25,14 @@ fn main() {
         ),
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised({ let
-        __terrane_value = owner.lock().expect("shared reference lock poisoned").clone();
-        __terrane_value }
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_0 = &owner;
+        __terrane_raised(__terrane_owner_0.lock()
+        .expect("shared reference lock poisoned")
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:8:12-8:20 */)), 0 /* terrane-site: case.trn:8:12-8:20 */)), terrane_scalar_support::scalar_text(&__terrane_raised({
-        let __terrane_value = value.lock().expect("reference lock poisoned").clone();
-        __terrane_value }
+        0 /* terrane-site: case.trn:8:12-8:20 */)), 0 /* terrane-site: case.trn:8:12-8:20 */) }), terrane_scalar_support::scalar_text(&{ let
+        __terrane_owner_1 = &value; __terrane_raised(__terrane_owner_1.lock()
+        .expect("reference lock poisoned")
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:8:22-8:30 */)), 1 /* terrane-site: case.trn:8:22-8:30 */))
+        1 /* terrane-site: case.trn:8:22-8:30 */)), 1 /* terrane-site: case.trn:8:22-8:30 */) })
     );
 }

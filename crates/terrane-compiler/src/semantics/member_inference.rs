@@ -256,6 +256,38 @@ pub(super) fn infer_receiver_value_type(
     )
 }
 
+pub(crate) fn platform_result_member_type(
+    result: &ValueType,
+    member_name: &str,
+) -> Option<ValueType> {
+    match (result, member_name) {
+        (ValueType::PlatformOpenResult, "handle") => Some(ValueType::PlatformStreamHandle),
+        (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "data") => {
+            Some(ValueType::Scalar(ScalarType::Bytes))
+        }
+        (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "completed") => {
+            Some(ValueType::Scalar(ScalarType::Int))
+        }
+        (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "deadline-exceeded")
+        | (ValueType::PlatformReadResult, "end")
+        | (
+            ValueType::PlatformOpenResult
+            | ValueType::PlatformReadResult
+            | ValueType::PlatformWriteResult
+            | ValueType::PlatformUnitResult,
+            "failed",
+        ) => Some(ValueType::Scalar(ScalarType::Bool)),
+        (
+            ValueType::PlatformOpenResult
+            | ValueType::PlatformReadResult
+            | ValueType::PlatformWriteResult
+            | ValueType::PlatformUnitResult,
+            "message",
+        ) => Some(ValueType::Scalar(ScalarType::String)),
+        _ => None,
+    }
+}
+
 pub(super) fn infer_member_value_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -507,6 +539,7 @@ fn infer_member_type(
             )),
         };
     }
+
     if let Some(result) = &receiver_type
         && matches!(
             result,
@@ -516,35 +549,7 @@ fn infer_member_type(
                 | ValueType::PlatformUnitResult
         )
     {
-        let member_type = match (result, member_name) {
-            (ValueType::PlatformOpenResult, "handle") => Some(ValueType::PlatformStreamHandle),
-            (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "data") => {
-                Some(ValueType::Scalar(ScalarType::Bytes))
-            }
-            (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "completed") => {
-                Some(ValueType::Scalar(ScalarType::Int))
-            }
-            (
-                ValueType::PlatformReadResult | ValueType::PlatformWriteResult,
-                "deadline-exceeded",
-            )
-            | (ValueType::PlatformReadResult, "end")
-            | (
-                ValueType::PlatformOpenResult
-                | ValueType::PlatformReadResult
-                | ValueType::PlatformWriteResult
-                | ValueType::PlatformUnitResult,
-                "failed",
-            ) => Some(ValueType::Scalar(ScalarType::Bool)),
-            (
-                ValueType::PlatformOpenResult
-                | ValueType::PlatformReadResult
-                | ValueType::PlatformWriteResult
-                | ValueType::PlatformUnitResult,
-                "message",
-            ) => Some(ValueType::Scalar(ScalarType::String)),
-            _ => None,
-        };
+        let member_type = platform_result_member_type(result, member_name);
         return member_type.map(Some).ok_or_else(|| {
             failure(
                 &unit.source,

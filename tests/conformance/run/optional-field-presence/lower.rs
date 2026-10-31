@@ -100,10 +100,10 @@ fn inspect(value: &BaseBox) {
 }
 fn inspect_shared(value: std::sync::Arc<TerraneSharedCell<BaseBox>>) {
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &value;
-        __terrane_owner.lock().expect("shared reference lock poisoned")
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_0 = &value;
+        __terrane_owner_0.lock().expect("shared reference lock poisoned")
         .terrane_field_value().is_some() }), terrane_scalar_support::scalar_text(&{ let
-        __terrane_owner = &value; __terrane_owner.lock()
+        __terrane_owner_1 = &value; __terrane_owner_1.lock()
         .expect("shared reference lock poisoned").terrane_field_value().is_none() })
     );
 }
@@ -137,24 +137,24 @@ fn main() {
     inspect_shared(shared.clone());
     observer = std::sync::Arc::downgrade(&shared_owner.clone());
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = (&observer)
-        .upgrade().expect("reference expired"); __terrane_owner.lock()
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_2 =
+        (&observer).upgrade().expect("reference expired"); __terrane_owner_2.lock()
         .expect("reference lock poisoned").terrane_field_value().is_some() }),
-        terrane_scalar_support::scalar_text(&{ let __terrane_owner = (&observer)
-        .upgrade().expect("reference expired"); __terrane_owner.lock()
+        terrane_scalar_support::scalar_text(&{ let __terrane_owner_3 = (&observer)
+        .upgrade().expect("reference expired"); __terrane_owner_3.lock()
         .expect("reference lock poisoned").terrane_field_value().is_none() })
     );
     {
-        let __terrane_owner = shared.clone();
+        let __terrane_owner_4 = shared.clone();
         let __terrane_value = None;
-        *__terrane_owner
+        *__terrane_owner_4
             .lock()
             .expect("shared reference lock poisoned")
             .terrane_field_value_mut() = __terrane_value;
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &shared;
-        __terrane_owner.lock().expect("shared reference lock poisoned")
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_5 = &shared;
+        __terrane_owner_5.lock().expect("shared reference lock poisoned")
         .terrane_field_value().is_none() })
     );
     required = RequiredBox::terrane_construct();
@@ -166,26 +166,26 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&(&required.value).is_none()));
     outer = std::sync::Arc::new(TerraneSharedCell::new(OuterBox::terrane_construct()));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &outer;
-        __terrane_owner.lock().expect("shared reference lock poisoned").inner
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_6 = &outer;
+        __terrane_owner_6.lock().expect("shared reference lock poisoned").inner
         .terrane_field_value().is_some() })
     );
     {
-        let __terrane_owner = outer.clone();
+        let __terrane_owner_7 = outer.clone();
         let __terrane_value = None;
-        *__terrane_owner
+        *__terrane_owner_7
             .lock()
             .expect("shared reference lock poisoned")
             .inner
             .terrane_field_value_mut() = __terrane_value;
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = &outer;
-        __terrane_owner.lock().expect("shared reference lock poisoned").inner
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_8 = &outer;
+        __terrane_owner_8.lock().expect("shared reference lock poisoned").inner
         .terrane_field_value().is_none() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value =
-        &make_box(); (&__terrane_receiver_value.value).is_some() })
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_9 =
+        &make_box(); (&__terrane_receiver_value_9.value).is_some() })
     );
 }

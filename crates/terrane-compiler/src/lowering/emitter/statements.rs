@@ -1920,41 +1920,6 @@ impl Emitter<'_> {
         self.end_list_append_region(prior_borrow_count);
     }
 
-    fn iterable_constructor(collection_type: Option<ValueType>, source: &str) -> String {
-        match collection_type {
-            Some(
-                ValueType::Scalar(ScalarType::Bytes)
-                | ValueType::StringView(crate::semantics::TextUnit::Bytes),
-            ) => format!("terrane_collection_support::bytes_iterator(&{source})"),
-            Some(ValueType::StringView(
-                crate::semantics::TextUnit::Scalars | crate::semantics::TextUnit::Graphemes,
-            )) => format!("terrane_collection_support::Iterator::new({source})"),
-            Some(ValueType::StringList | ValueType::TextRangeList) => {
-                format!("terrane_collection_support::slice_iterator(&{source})")
-            }
-            Some(ValueType::Iterator(_)) => format!("&mut {source}"),
-            Some(ValueType::Reference(item))
-                if matches!(
-                    item.value_type(),
-                    ValueType::List(_) | ValueType::Tuple(_, _)
-                ) =>
-            {
-                format!("{source}.terrane_borrowing_iterator()")
-            }
-            Some(
-                ValueType::List(_)
-                | ValueType::Map(_, _)
-                | ValueType::Set(_)
-                | ValueType::Tuple(_, _)
-                | ValueType::Range
-                | ValueType::UnorderedMap(_, _)
-                | ValueType::UnorderedSet(_),
-            ) => format!("terrane_collection_support::Iterable::terrane_iterator(&{source})"),
-            Some(ValueType::Object(_)) => format!("{source}.iterator()"),
-            _ => format!("terrane_collection_support::string_iterator(&{source})"),
-        }
-    }
-
     fn native_sequence_iterator(&self, collection: &SyntaxNode) -> bool {
         self.unary_operator(collection).as_deref() == Some("ref")
             && collection.children.last().is_some_and(|operand| {
@@ -1975,36 +1940,31 @@ impl Emitter<'_> {
         match node.children.as_slice() {
             [target, collection, block] if target.kind == SyntaxKind::ForTarget => {
                 let collection_type = self.value_type(collection);
-                let native_iterator = self.native_sequence_iterator(collection);
+                let text_iteration = self.text_iteration_source(collection, node);
+                let scoped_iteration = text_iteration.is_some();
+                if scoped_iteration {
+                    self.line("{");
+                    self.indent += 1;
+                }
+                let native_iterator =
+                    text_iteration.is_some() || self.native_sequence_iterator(collection);
                 let append_bindings = self.inactive_list_append_bindings(collection, block);
-                let collection_expression = match collection_type.clone() {
-                    Some(value_type) => self.expression_as(collection, value_type),
-                    None => self.expression(collection),
-                };
                 let loop_index = self.loop_counter;
                 self.loop_counter += 1;
-                let source_name = format!("__terrane_iterable_{loop_index}");
+                let (source, text_unit) = self.for_iterable_source(
+                    collection,
+                    collection_type.as_ref(),
+                    text_iteration,
+                    loop_index,
+                );
                 let iterator = format!("__terrane_iterator_{loop_index}");
-                let source = if matches!(&collection_type, Some(ValueType::Iterator(_)))
-                    && collection.kind == SyntaxKind::Name
-                {
-                    collection_expression
-                } else {
-                    let mutable = if matches!(&collection_type, Some(ValueType::Iterator(_))) {
-                        "mut "
-                    } else {
-                        ""
-                    };
-                    self.line(&format!(
-                        "let {mutable}{source_name} = {collection_expression};"
-                    ));
-                    source_name
-                };
-                let constructor = if native_iterator {
-                    format!("{source}.iter()")
-                } else {
-                    Self::iterable_constructor(collection_type, &source)
-                };
+                let constructor = self.for_iterator_constructor(
+                    collection,
+                    &source,
+                    collection_type,
+                    native_iterator,
+                    text_unit,
+                );
                 self.line(&format!("let mut {iterator} = {constructor};"));
                 let prior_borrow_count = self.begin_list_append_region(append_bindings, None);
                 self.line("loop {");
@@ -2020,6 +1980,10 @@ impl Emitter<'_> {
                 self.indent -= 1;
                 self.line("}");
                 self.end_list_append_region(prior_borrow_count);
+                if scoped_iteration {
+                    self.indent -= 1;
+                    self.line("}");
+                }
             }
             [initial, condition, update, block] => {
                 self.statement(initial);

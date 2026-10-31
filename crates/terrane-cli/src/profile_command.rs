@@ -480,6 +480,7 @@ fn perf_record_configuration(
         DEFAULT_FREQUENCY_HZ.to_string(),
         "--call-graph".to_owned(),
         "dwarf,8192".to_owned(),
+        "--user-callchains".to_owned(),
         "--buildid-all".to_owned(),
         "--".to_owned(),
         executable.to_string_lossy().into_owned(),
@@ -514,6 +515,7 @@ fn run_perf(
             &DEFAULT_FREQUENCY_HZ.to_string(),
             "--call-graph",
             "dwarf,8192",
+            "--user-callchains",
             "--buildid-all",
             "--",
         ])

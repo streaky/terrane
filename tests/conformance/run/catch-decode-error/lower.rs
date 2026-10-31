@@ -9,12 +9,13 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let _ = decoded
-                .insert(
+                .insert({
+                    let __terrane_string_argument_0 = terrane_string_support::Encoding::Utf8;
                     __terrane_raised_completion!(
                         terrane_string_support::decode(&raw,
-                        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:6:15-6:31 */
-                    ),
-                );
+                        __terrane_string_argument_0), 0 /* terrane-site: case.trn:6:15-6:31 */
+                    )
+                });
             println!(
                 "{}", terrane_scalar_support::scalar_text(&decoded.as_ref()
                 .expect("flow-proven available binding"))

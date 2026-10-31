@@ -6,10 +6,14 @@ fn main() {
     let mut part: String;
     let matches: Vec<terrane_string_support::TextRange>;
     let mut found: terrane_string_support::TextRange;
-    parts = terrane_string_support::split(
-        &String::from("red,green,blue"),
-        &String::from(","),
-    );
+    parts = {
+        let __terrane_receiver_value_0 = &String::from("red,green,blue");
+        let __terrane_string_argument_0 = ",";
+        terrane_string_support::split(
+            &__terrane_receiver_value_0,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     let __terrane_iterable_0 = parts.clone();
     let mut __terrane_iterator_0 = terrane_collection_support::slice_iterator(
         &__terrane_iterable_0,
@@ -34,10 +38,14 @@ fn main() {
         let _ = &part;
         println!("{}", terrane_scalar_support::scalar_text(&part));
     }
-    matches = terrane_string_support::find_all(
-        &String::from("banana"),
-        &String::from("an"),
-    );
+    matches = {
+        let __terrane_receiver_value_1 = &String::from("banana");
+        let __terrane_string_argument_0 = "an";
+        terrane_string_support::find_all(
+            &__terrane_receiver_value_1,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     let __terrane_iterable_2 = matches.clone();
     let mut __terrane_iterator_2 = terrane_collection_support::slice_iterator(
         &__terrane_iterable_2,

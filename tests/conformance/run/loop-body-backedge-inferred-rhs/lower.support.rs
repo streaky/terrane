@@ -1,4 +1,4 @@
-// Vendored support crates: terrane-collection-support, terrane-scalar-support
+// Vendored support crates: terrane-scalar-support, terrane-string-support
 fn __terrane_uninitialized_binding(
     name: &str,
     path: &str,

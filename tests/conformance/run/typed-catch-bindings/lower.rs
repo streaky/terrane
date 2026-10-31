@@ -39,9 +39,13 @@ fn main() {
                                 .to_owned())
                             );
                             println!(
-                                "{}", terrane_scalar_support::scalar_text(&caught.as_ref()
-                                .expect("flow-proven available binding").clone().render()
-                                .contains(&String::from("coercion-error: coercion has no compatible result")))
+                                "{}", terrane_scalar_support::scalar_text(&{ let
+                                __terrane_receiver_value_0 = &caught.as_ref()
+                                .expect("flow-proven available binding").clone().render();
+                                let __terrane_string_argument_0 =
+                                "coercion-error: coercion has no compatible result";
+                                __terrane_receiver_value_0.contains(std::convert::AsRef:: <
+                                str > ::as_ref(&__terrane_string_argument_0)) })
                             );
                             return TerraneCompletion::Error(
                                 TerraneError::raised(

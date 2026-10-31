@@ -6,7 +6,7 @@ fn main() {
     let moment: SystemTime;
     let rendered: String;
     moment = __terrane_raised(
-        parse_http_date(String::from("Sun, 06 Nov 1994 08:49:37 GMT")),
+        parse_http_date("Sun, 06 Nov 1994 08:49:37 GMT"),
         0 /* terrane-site: src/main.trn:4:14-4:61 */,
     );
     rendered = __terrane_raised(

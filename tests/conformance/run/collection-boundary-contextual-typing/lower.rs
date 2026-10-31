@@ -47,33 +47,40 @@ fn take_nested_map(
     >,
 ) {
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(values
-        .get_or_error(&String::from("a")), 3 /* terrane-site: case.trn:12:10-12:21 */)
-        .get_or_error(&String::from("b")), 4 /* terrane-site: case.trn:12:10-12:26 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_map_key_0 =
+        String::from("a"); let __terrane_index_place_1 = __terrane_raised(values
+        .get(&__terrane_map_key_0).ok_or(terrane_collection_support::MissingKey),
+        3 /* terrane-site: case.trn:12:10-12:21 */);
+        __terrane_raised(__terrane_index_place_1.get_or_error(&String::from("b")),
+        4 /* terrane-site: case.trn:12:10-12:26 */) })
     );
 }
 fn take_nested_list(
     values: terrane_collection_support::List<terrane_collection_support::List<i8>>,
 ) {
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(values
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        5 /* terrane-site: case.trn:14:10-14:19 */)), 5 /* terrane-site: case.trn:14:10-14:19 */)
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_index_2 =
+        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        5 /* terrane-site: case.trn:14:10-14:19 */); let __terrane_index_place_3 =
+        __terrane_raised(values.get(__terrane_index_2).ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_index_2)),
+        5 /* terrane-site: case.trn:14:10-14:19 */);
+        __terrane_raised(__terrane_index_place_3
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        6 /* terrane-site: case.trn:14:10-14:22 */)), 6 /* terrane-site: case.trn:14:10-14:22 */))
+        6 /* terrane-site: case.trn:14:10-14:22 */)), 6 /* terrane-site: case.trn:14:10-14:22 */) })
     );
 }
 fn take_map_list(
     values: terrane_collection_support::Map<String, terrane_collection_support::List<i8>>,
 ) {
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(values
-        .get_or_error(&String::from("a")), 7 /* terrane-site: case.trn:16:10-16:21 */)
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_map_key_4 =
+        String::from("a"); let __terrane_index_place_5 = __terrane_raised(values
+        .get(&__terrane_map_key_4).ok_or(terrane_collection_support::MissingKey),
+        7 /* terrane-site: case.trn:16:10-16:21 */);
+        __terrane_raised(__terrane_index_place_5
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        8 /* terrane-site: case.trn:16:10-16:24 */)), 8 /* terrane-site: case.trn:16:10-16:24 */))
+        8 /* terrane-site: case.trn:16:10-16:24 */)), 8 /* terrane-site: case.trn:16:10-16:24 */) })
     );
 }
 fn main() {

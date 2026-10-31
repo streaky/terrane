@@ -8,7 +8,10 @@ mod expressions;
 mod guarded_arithmetic;
 mod items;
 mod members;
+mod native_arguments;
+mod native_callable;
 pub(super) mod pipeline;
+mod read_access;
 mod statements;
 mod task_storage;
 
@@ -171,6 +174,9 @@ pub(super) struct Emitter<'a> {
     async_mutable_captures: BTreeSet<String>,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
     list_append_borrows: Vec<ListAppendBorrow>,
+    borrowed_receiver_overrides: Vec<(crate::Span, String)>,
+    read_place_counter: usize,
+    direct_await_operand: Option<crate::Span>,
     fresh_empty_lists: Vec<crate::Span>,
     active_function_bindings: HashSet<crate::Span>,
     active_local_functions: std::collections::BTreeSet<crate::Span>,
@@ -214,6 +220,9 @@ impl<'a> Emitter<'a> {
             async_mutable_captures: BTreeSet::new(),
             bounded_integer_ranges: Vec::new(),
             list_append_borrows: Vec::new(),
+            borrowed_receiver_overrides: Vec::new(),
+            read_place_counter: 0,
+            direct_await_operand: None,
             fresh_empty_lists: Vec::new(),
             active_function_bindings: HashSet::new(),
             active_local_functions: std::collections::BTreeSet::new(),

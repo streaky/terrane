@@ -313,8 +313,9 @@ fn main() {
         __terrane_result
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&deterministic_set
-        .contains(&String::from("y")))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_result = { let
+        __terrane_value = String::from("y"); deterministic_set.contains(&__terrane_value)
+        }; __terrane_result })
     );
     println!(
         "{}",

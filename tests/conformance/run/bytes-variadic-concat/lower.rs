@@ -26,10 +26,11 @@ fn main() {
         bytes
     };
     println!(
-        "{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&combined,
-        terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:7:11-7:32 */)), terrane_scalar_support::scalar_text(&(combined.len() as
-        i128))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&combined,
+        __terrane_string_argument_0), 0 /* terrane-site: case.trn:7:11-7:32 */) }),
+        terrane_scalar_support::scalar_text(&(combined.len() as i128))
     );
     unchanged = {
         let mut bytes = Vec::<u8>::from([122]);
@@ -43,8 +44,9 @@ fn main() {
         bytes
     };
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&unchanged,
-        terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:9:11-9:33 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_string_argument_0 =
+        terrane_string_support::Encoding::Utf8;
+        __terrane_raised(terrane_string_support::decode(&unchanged,
+        __terrane_string_argument_0), 1 /* terrane-site: case.trn:9:11-9:33 */) })
     );
 }

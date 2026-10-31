@@ -11,7 +11,7 @@ fn main() {
     >::new(vec![terrane_int_support::Int::from(12_i128)]);
     observer = &value;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(observer.clone()
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(observer
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
         0 /* terrane-site: case.trn:7:12-7:23 */)), 0 /* terrane-site: case.trn:7:12-7:23 */))
     );

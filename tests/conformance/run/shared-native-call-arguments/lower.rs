@@ -6,7 +6,7 @@ fn inspect(
     value: std::sync::Arc<TerraneSharedCell<http::HeaderMap<http::HeaderValue>>>,
 ) {
     {
-        let __terrane_owner = value.clone();
+        let __terrane_owner_3 = value.clone();
         let __terrane_shared_argument_0 = match || -> Result<
             _,
             crate::TerraneForeignError,
@@ -16,11 +16,11 @@ fn inspect(
                     usize,
                 >(
                         &{
-                            let __terrane_owner = value.clone();
+                            let __terrane_owner_5 = value.clone();
                             let __terrane_call_result = __terrane_raised(
                                 match std::panic::catch_unwind(
                                     std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner
+                                        __terrane_owner_5
                                             .lock()
                                             .expect("shared reference lock poisoned")
                                             .len()
@@ -53,7 +53,7 @@ fn inspect(
             Err(error) => std::panic::panic_any(error),
         };
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner
+        let __terrane_native_input_0 = &mut __terrane_owner_3
             .lock()
             .expect("shared reference lock poisoned");
         let __terrane_native_input_1 = __terrane_shared_argument_1;
@@ -79,10 +79,10 @@ fn inspect(
         __terrane_call_result
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = value.clone();
-        let __terrane_call_result = __terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner.lock()
-        .expect("shared reference lock poisoned").len())) { Ok(value) =>
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_7 = value
+        .clone(); let __terrane_call_result = __terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner_7
+        .lock().expect("shared reference lock poisoned").len())) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "http", "http::HeaderMap::len")) },
         2 /* terrane-site: src/main.trn:6:13-6:23 */); __terrane_call_result })
@@ -102,7 +102,7 @@ fn main() {
     );
     held = headers.clone();
     {
-        let __terrane_owner = held.clone();
+        let __terrane_owner_11 = held.clone();
         let __terrane_shared_argument_0 = match || -> Result<
             _,
             crate::TerraneForeignError,
@@ -112,11 +112,11 @@ fn main() {
                     usize,
                 >(
                         &({
-                            let __terrane_owner = held.clone();
+                            let __terrane_owner_13 = held.clone();
                             let __terrane_call_result = __terrane_raised(
                                 match std::panic::catch_unwind(
                                     std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner
+                                        __terrane_owner_13
                                             .lock()
                                             .expect("shared reference lock poisoned")
                                             .len()
@@ -149,7 +149,7 @@ fn main() {
             Err(error) => std::panic::panic_any(error),
         };
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner
+        let __terrane_native_input_0 = &mut __terrane_owner_11
             .lock()
             .expect("shared reference lock poisoned");
         let __terrane_native_input_1 = __terrane_shared_argument_1;
@@ -176,7 +176,7 @@ fn main() {
     };
     alias = held.clone();
     {
-        let __terrane_owner = alias.clone();
+        let __terrane_owner_17 = alias.clone();
         let __terrane_shared_argument_0 = match || -> Result<
             _,
             crate::TerraneForeignError,
@@ -186,11 +186,11 @@ fn main() {
                     usize,
                 >(
                         &{
-                            let __terrane_owner = held.clone();
+                            let __terrane_owner_19 = held.clone();
                             let __terrane_call_result = __terrane_raised(
                                 match std::panic::catch_unwind(
                                     std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner
+                                        __terrane_owner_19
                                             .lock()
                                             .expect("shared reference lock poisoned")
                                             .len()
@@ -223,7 +223,7 @@ fn main() {
             Err(error) => std::panic::panic_any(error),
         };
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner
+        let __terrane_native_input_0 = &mut __terrane_owner_17
             .lock()
             .expect("shared reference lock poisoned");
         let __terrane_native_input_1 = __terrane_shared_argument_1;
@@ -250,7 +250,7 @@ fn main() {
     };
     observer = std::sync::Arc::downgrade(&headers.clone());
     {
-        let __terrane_owner = observer.upgrade().expect("reference expired");
+        let __terrane_owner_23 = observer.upgrade().expect("reference expired");
         let __terrane_shared_argument_0 = match || -> Result<
             _,
             crate::TerraneForeignError,
@@ -260,11 +260,11 @@ fn main() {
                     usize,
                 >(
                         &{
-                            let __terrane_owner = alias.clone();
+                            let __terrane_owner_25 = alias.clone();
                             let __terrane_call_result = __terrane_raised(
                                 match std::panic::catch_unwind(
                                     std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner
+                                        __terrane_owner_25
                                             .lock()
                                             .expect("shared reference lock poisoned")
                                             .len()
@@ -297,7 +297,7 @@ fn main() {
             Err(error) => std::panic::panic_any(error),
         };
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
-        let __terrane_native_input_0 = &mut __terrane_owner
+        let __terrane_native_input_0 = &mut __terrane_owner_23
             .lock()
             .expect("reference lock poisoned");
         let __terrane_native_input_1 = __terrane_shared_argument_1;
@@ -324,11 +324,11 @@ fn main() {
     };
     inspect(held.clone());
     {
-        let __terrane_owner = observer.upgrade().expect("reference expired");
+        let __terrane_owner_27 = observer.upgrade().expect("reference expired");
         let __terrane_call_result = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| {
-                    let _ = __terrane_owner
+                    let _ = __terrane_owner_27
                         .lock()
                         .expect("reference lock poisoned")
                         .clear();
@@ -350,10 +350,10 @@ fn main() {
         __terrane_call_result
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = held.clone();
-        let __terrane_call_result = __terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner.lock()
-        .expect("shared reference lock poisoned").len())) { Ok(value) =>
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_29 = held
+        .clone(); let __terrane_call_result = __terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner_29
+        .lock().expect("shared reference lock poisoned").len())) { Ok(value) =>
         Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
         ::__terrane_dependency_panic(payload, "http", "http::HeaderMap::len")) },
         10 /* terrane-site: src/main.trn:21:13-21:22 */); __terrane_call_result })

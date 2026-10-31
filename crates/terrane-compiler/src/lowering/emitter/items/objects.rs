@@ -397,11 +397,8 @@ impl<'a> Emitter<'a> {
                         function_name(self.package, method)
                     )
                     .unwrap();
-                    for parameter in &method.parameters {
-                        let ty = parameter.binding_value_type().map_or_else(
-                            || "i128".to_owned(),
-                            |value_type| rust_value_type(self.package, value_type),
-                        );
+                    for (index, parameter) in method.parameters.iter().enumerate() {
+                        let ty = self.forwarded_parameter_type(method, index);
                         let name = self.parameter_source_name(&parameter.name, parameter.span);
                         write!(self.output, ", {name}: {ty}").unwrap();
                     }
@@ -476,11 +473,8 @@ impl<'a> Emitter<'a> {
                         function_name(self.package, method)
                     )
                     .unwrap();
-                    for parameter in &method.parameters {
-                        let ty = parameter.binding_value_type().map_or_else(
-                            || "i128".to_owned(),
-                            |value_type| rust_value_type(self.package, value_type),
-                        );
+                    for (index, parameter) in method.parameters.iter().enumerate() {
+                        let ty = self.forwarded_parameter_type(method, index);
                         let name = self.parameter_source_name(&parameter.name, parameter.span);
                         write!(self.output, ", {name}: {ty}").unwrap();
                     }
@@ -1399,11 +1393,8 @@ impl<'a> Emitter<'a> {
                             function_name(self.package, method)
                         )
                         .unwrap();
-                        for parameter in &method.parameters {
-                            let ty = parameter.binding_value_type().map_or_else(
-                                || "i128".to_owned(),
-                                |value_type| rust_value_type(self.package, value_type),
-                            );
+                        for (index, parameter) in method.parameters.iter().enumerate() {
+                            let ty = self.forwarded_parameter_type(method, index);
                             let name = self.parameter_source_name(&parameter.name, parameter.span);
                             write!(self.output, ", {name}: {ty}").unwrap();
                         }
@@ -1491,6 +1482,13 @@ impl<'a> Emitter<'a> {
                                 .iter()
                                 .zip(&method.parameters)
                                 .map(|(projected, parameter)| {
+                                    if projected.preserves_borrowed_storage()
+                                        && !projected_method.function.is_async
+                                    {
+                                        let name = self
+                                            .parameter_source_name(&parameter.name, parameter.span);
+                                        return name;
+                                    }
                                     let converted = projected_callback_output_expression(
                                         &self
                                             .parameter_source_name(&parameter.name, parameter.span),

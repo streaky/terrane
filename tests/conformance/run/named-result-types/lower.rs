@@ -33,7 +33,13 @@ fn main() {
         terrane_scalar_support::scalar_text(&pair.remainder)
     );
     text = String::from("banana");
-    found = terrane_string_support::find(&text, &String::from("ana"));
+    found = {
+        let __terrane_string_argument_0 = "ana";
+        terrane_string_support::find(
+            &text,
+            &std::convert::AsRef::<str>::as_ref(&__terrane_string_argument_0),
+        )
+    };
     if (&found).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&match &found { Some(value) =>

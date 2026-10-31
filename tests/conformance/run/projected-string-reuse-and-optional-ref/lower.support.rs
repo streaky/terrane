@@ -554,10 +554,10 @@ fn __terrane_uninitialized_binding(
 // Namespace: deps/http
 pub use http::HeaderValue;
 pub fn terrane_static_trn_48656164657256616c7565_from_str(
-    src: String,
+    src: &str,
 ) -> Result<HeaderValue, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| http::HeaderValue::from_str(&src)),
+        std::panic::AssertUnwindSafe(|| http::HeaderValue::from_str(src)),
     ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {

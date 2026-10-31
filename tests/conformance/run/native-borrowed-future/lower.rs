@@ -373,9 +373,8 @@ fn main() {
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
-                    let __terrane_future =
-                    read_literal_later(String::from("borrowed\nλ")); async move {
-                    __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:47:19-47:52 */) } }). await, 9 /* terrane-site: src/main.trn:47:19-47:52 */))
+                    let __terrane_future = read_literal_later("borrowed\nλ"); async move
+                    { __terrane_raised_err(__terrane_future. await, 9 /* terrane-site: src/main.trn:47:19-47:52 */) } }). await, 9 /* terrane-site: src/main.trn:47:19-47:52 */))
                 );
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&{ let
@@ -428,7 +427,7 @@ fn main() {
                     __terrane_native_input_0 =
                     __terrane_raised(terrane_static_trn_4f7074696f6e73_new(),
                     16 /* terrane-site: src/main.trn:52:14-52:27 */); let
-                    __terrane_native_input_1 = named.as_str(); __terrane_raised(match
+                    __terrane_native_input_1 = &named; __terrane_raised(match
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
                     __terrane_native_input_0.with_label(__terrane_native_input_1))) {
                     Ok(value) => Ok(value), Err(payload) => Err(crate
@@ -448,9 +447,10 @@ fn main() {
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
-                    let __terrane_future =
-                    read_alias_later(String::from("grouped alias λ")); async move {
-                    __terrane_raised_err(__terrane_future. await, 19 /* terrane-site: src/main.trn:55:19-55:56 */) } }). await, 19 /* terrane-site: src/main.trn:55:19-55:56 */))
+                    let __terrane_future = read_alias_later("grouped alias λ"); async
+                    move { __terrane_raised_err(__terrane_future. await,
+                    19 /* terrane-site: src/main.trn:55:19-55:56 */) } }). await,
+                    19 /* terrane-site: src/main.trn:55:19-55:56 */))
                 );
                 println!(
                     "{}", terrane_scalar_support::scalar_text(&{ let

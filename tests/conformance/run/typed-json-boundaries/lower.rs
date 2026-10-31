@@ -901,18 +901,22 @@ fn main() {
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&(duplicate.diagnostics.length() != 0
-        &&__terrane_raised(duplicate.diagnostics.clone()
+        &&{ let __terrane_receiver_value_0 = &duplicate.diagnostics.clone();
+        __terrane_raised(__terrane_receiver_value_0
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:52:33-52:57 */)), 1 /* terrane-site: case.trn:52:33-52:57 */).reason.to_owned().as_str() == "parse" &&trailing
-        .diagnostics.length() != 0 &&__terrane_raised(trailing.diagnostics.clone()
+        1 /* terrane-site: case.trn:52:33-52:57 */)), 1 /* terrane-site: case.trn:52:33-52:57 */) } .reason.to_owned().as_str() == "parse" &&trailing
+        .diagnostics.length() != 0 &&{ let __terrane_receiver_value_1 = &trailing
+        .diagnostics.clone(); __terrane_raised(__terrane_receiver_value_1
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        2 /* terrane-site: case.trn:52:100-52:123 */)), 2 /* terrane-site: case.trn:52:100-52:123 */).reason.to_owned().as_str() == "parse" &&too_deep
-        .diagnostics.length() != 0 &&__terrane_raised(too_deep.diagnostics.clone()
+        2 /* terrane-site: case.trn:52:100-52:123 */)), 2 /* terrane-site: case.trn:52:100-52:123 */) } .reason.to_owned().as_str() == "parse" &&too_deep
+        .diagnostics.length() != 0 &&{ let __terrane_receiver_value_2 = &too_deep
+        .diagnostics.clone(); __terrane_raised(__terrane_receiver_value_2
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        3 /* terrane-site: case.trn:52:166-52:189 */)), 3 /* terrane-site: case.trn:52:166-52:189 */).reason.to_owned().as_str() == "parse" &&too_large
-        .diagnostics.length() != 0 &&__terrane_raised(too_large.diagnostics.clone()
+        3 /* terrane-site: case.trn:52:166-52:189 */)), 3 /* terrane-site: case.trn:52:166-52:189 */) } .reason.to_owned().as_str() == "parse" &&too_large
+        .diagnostics.length() != 0 &&{ let __terrane_receiver_value_3 = &too_large
+        .diagnostics.clone(); __terrane_raised(__terrane_receiver_value_3
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        4 /* terrane-site: case.trn:52:233-52:257 */)), 4 /* terrane-site: case.trn:52:233-52:257 */).reason.to_owned().as_str() == "parse"))
+        4 /* terrane-site: case.trn:52:233-52:257 */)), 4 /* terrane-site: case.trn:52:233-52:257 */) } .reason.to_owned().as_str() == "parse"))
     );
     source = true;
     text = String::from("{\"integral\":7,\"future\":{\"anything\":[1,2,3]}}");
@@ -1076,12 +1080,12 @@ fn main() {
                     }
                 });
             println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(decoded
-                .as_ref().expect("flow-proven available binding").clone().diagnostics
-                .clone()
+                "{}", terrane_scalar_support::scalar_text(&{ let
+                __terrane_receiver_value_4 = &decoded.as_ref()
+                .expect("flow-proven available binding").clone().diagnostics.clone();
+                __terrane_raised_completion!(__terrane_receiver_value_4
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                6 /* terrane-site: case.trn:60:16-60:38 */)), 6 /* terrane-site: case.trn:60:16-60:38 */) .reason.to_owned())
+                6 /* terrane-site: case.trn:60:16-60:38 */)), 6 /* terrane-site: case.trn:60:16-60:38 */) } .reason.to_owned())
             );
             TerraneCompletion::Normal
         })();

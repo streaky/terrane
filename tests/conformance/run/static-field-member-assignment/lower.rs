@@ -23,9 +23,9 @@ impl Holder {
     }
     pub fn terrane_static_update() {
         {
-            let __terrane_owner = TERRANE_STATIC_HOLDER_SLOT.handle();
+            let __terrane_owner_0 = TERRANE_STATIC_HOLDER_SLOT.handle();
             let __terrane_value = terrane_int_support::Int::from(5_i128);
-            __terrane_owner.lock().expect("static field lock poisoned").value = __terrane_value;
+            __terrane_owner_0.lock().expect("static field lock poisoned").value = __terrane_value;
         }
     }
 }

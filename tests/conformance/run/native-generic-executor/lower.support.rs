@@ -909,10 +909,10 @@ pub fn terrane_static_trn_436f6e6e656374696f6e_new() -> Result<
     }
 }
 pub fn owner_query(
-    __trn_5f73716c: String,
+    __trn_5f73716c: &str,
 ) -> Result<witness::OwnerQuery<witness::Database>, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| witness::owner_query(&__trn_5f73716c)),
+        std::panic::AssertUnwindSafe(|| witness::owner_query(__trn_5f73716c)),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
@@ -926,9 +926,9 @@ pub fn owner_query(
         }
     }
 }
-pub fn query(__trn_5f73716c: String) -> Result<Query, crate::TerraneForeignError> {
+pub fn query(__trn_5f73716c: &str) -> Result<Query, crate::TerraneForeignError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| witness::query(&__trn_5f73716c)),
+        std::panic::AssertUnwindSafe(|| witness::query(__trn_5f73716c)),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
