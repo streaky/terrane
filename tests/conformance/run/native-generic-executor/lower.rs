@@ -51,7 +51,6 @@ impl witness::Advance for SourceCounter {
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
     }
 }
-#[derive(Clone)]
 pub struct EnumHolder {
     pub stage: Stage,
 }
@@ -468,7 +467,7 @@ fn execute_outlives() -> Result<i64, TerraneError> {
 fn observe_outlives() -> Result<i64, TerraneError> {
     let connection: Connection;
     let observer: &Connection;
-    let reader: std::sync::Arc<dyn Fn() -> Result<i64, TerraneError> + Send + Sync>;
+    let reader: std::boxed::Box<dyn Fn() -> Result<i64, TerraneError> + '_>;
     let first: i64;
     connection = __terrane_raised_err(
         terrane_static_trn_436f6e6e656374696f6e_new(),
@@ -477,7 +476,7 @@ fn observe_outlives() -> Result<i64, TerraneError> {
     observer = &connection;
     reader = {
         let observer = observer;
-        std::sync::Arc::new(move || -> Result<i64, TerraneError> {
+        std::boxed::Box::new(move || -> Result<i64, TerraneError> {
             return Ok(
                 __terrane_raised_err(
                     terrane_int_support::coerce::<
@@ -661,8 +660,8 @@ fn main() {
             Err(crate ::__terrane_dependency_panic(payload, "witness",
             "witness::advance")) }, 45 /* terrane-site: src/main.trn:95:13-95:34 */))
         );
-        let __terrane_match_value_2746 = holder.stage;
-        match __terrane_match_value_2746 {
+        let __terrane_match_value_2778 = holder.stage;
+        match __terrane_match_value_2778 {
             witness::Stage::Done => {
                 println!("{}", terrane_scalar_support::scalar_text(&9));
             }

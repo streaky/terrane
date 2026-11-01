@@ -155,13 +155,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("x-test"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = change(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = change(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -190,13 +192,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("x-test"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = read(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = read(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -225,13 +229,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("x-test"))
-                    .and_then(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = clear(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .and_then({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = clear(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -260,13 +266,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("x-test"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = read(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = read(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),

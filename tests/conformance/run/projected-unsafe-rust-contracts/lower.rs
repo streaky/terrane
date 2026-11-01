@@ -4,7 +4,20 @@ include!("lower.support.rs");
 // Namespace: app
 fn view<'view>(state: &'view String) -> witness::ScopedView<'view> {
     return __terrane_raised(
-        borrowed_view(&*state),
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| witness::borrowed_view(&*state)),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "witness",
+                        "witness::borrowed_view",
+                    ),
+                )
+            }
+        },
         0 /* terrane-site: src/main.trn:6:12-6:32 */,
     );
 }

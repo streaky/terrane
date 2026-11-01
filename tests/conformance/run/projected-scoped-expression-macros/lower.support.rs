@@ -509,24 +509,20 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 2] = ["/app::render", "/app::main"];
-    pub static SITES: [Site; 9] = [
+    pub static SITES: [Site; 7] = [
         /* terrane-site-row: site 0: /app::render (src/main.trn:9:134-9:150) */
         { Site { function: 0, file: 0, line: 9, column: 134, end_line: 9, end_column: 150 } },
         /* terrane-site-row: site 1: /app::render (src/main.trn:9:118-9:151) */
         { Site { function: 0, file: 0, line: 9, column: 118, end_line: 9, end_column: 151 } },
-        /* terrane-site-row: site 2: /app::render (src/main.trn:9:156-9:178) */
-        { Site { function: 0, file: 0, line: 9, column: 156, end_line: 9, end_column: 178 } },
-        /* terrane-site-row: site 3: /app::render (src/main.trn:9:31-9:179) */
+        /* terrane-site-row: site 2: /app::render (src/main.trn:9:31-9:179) */
         { Site { function: 0, file: 0, line: 9, column: 31, end_line: 9, end_column: 179 } },
-        /* terrane-site-row: site 4: /app::render (src/main.trn:9:12-9:180) */
-        { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 180 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:12:23-12:56) */
+        /* terrane-site-row: site 3: /app::main (src/main.trn:12:23-12:56) */
         { Site { function: 1, file: 0, line: 12, column: 23, end_line: 12, end_column: 56 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:13:23-13:57) */
+        /* terrane-site-row: site 4: /app::main (src/main.trn:13:23-13:57) */
         { Site { function: 1, file: 0, line: 13, column: 23, end_line: 13, end_column: 57 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:14:13-14:53) */
+        /* terrane-site-row: site 5: /app::main (src/main.trn:14:13-14:53) */
         { Site { function: 1, file: 0, line: 14, column: 13, end_line: 14, end_column: 53 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:15:13-15:35) */
+        /* terrane-site-row: site 6: /app::main (src/main.trn:15:13-15:35) */
         { Site { function: 1, file: 0, line: 15, column: 13, end_line: 15, end_column: 35 } },
     ];
     #[cold]
@@ -544,6 +540,7 @@ mod __terrane_trace {
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
 pub use witness::State;
+pub use witness::Text;
 pub fn terrane_static_trn_5374617465_branch(
     label_: String,
     children: terrane_collection_support::List<State>,

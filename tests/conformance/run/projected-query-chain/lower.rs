@@ -142,8 +142,49 @@ fn main() {
         __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
-                        let __terrane_call = terrane_query_witness::query(&insert_op)
-                            .bind(Vec::<u8>::from([102, 105, 114, 115, 116]))
+                        let __terrane_call = {
+                            let __terrane_native_input_0 = __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| terrane_query_witness::query(
+                                        &insert_op,
+                                    )),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane-query-witness",
+                                                "terrane_query_witness::query",
+                                            ),
+                                        )
+                                    }
+                                },
+                                4 /* terrane-site: src/main.trn:20:11-20:27 */,
+                            );
+                            let __terrane_native_input_1 = Vec::<
+                                u8,
+                            >::from([102, 105, 114, 115, 116]);
+                            __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| {
+                                        __terrane_native_input_0.bind(__terrane_native_input_1)
+                                    }),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane_query_witness",
+                                                "terrane_query_witness::Query::bind",
+                                            ),
+                                        )
+                                    }
+                                },
+                                5 /* terrane-site: src/main.trn:20:10-20:43 */,
+                            )
+                        }
                             .execute(&mut connection);
                         Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -178,18 +219,59 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            4 /* terrane-site: src/main.trn:20:9-20:64 */,
+                            6 /* terrane-site: src/main.trn:20:9-20:64 */,
                         )
                     }
                 })
                 .await,
-            4 /* terrane-site: src/main.trn:20:9-20:64 */,
+            6 /* terrane-site: src/main.trn:20:9-20:64 */,
         );
         __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
-                        let __terrane_call = terrane_query_witness::query(&insert_op)
-                            .bind(Vec::<u8>::from([115, 101, 99, 111, 110, 100]))
+                        let __terrane_call = {
+                            let __terrane_native_input_0 = __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| terrane_query_witness::query(
+                                        &insert_op,
+                                    )),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane-query-witness",
+                                                "terrane_query_witness::query",
+                                            ),
+                                        )
+                                    }
+                                },
+                                7 /* terrane-site: src/main.trn:21:11-21:27 */,
+                            );
+                            let __terrane_native_input_1 = Vec::<
+                                u8,
+                            >::from([115, 101, 99, 111, 110, 100]);
+                            __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| {
+                                        __terrane_native_input_0.bind(__terrane_native_input_1)
+                                    }),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane_query_witness",
+                                                "terrane_query_witness::Query::bind",
+                                            ),
+                                        )
+                                    }
+                                },
+                                8 /* terrane-site: src/main.trn:21:10-21:44 */,
+                            )
+                        }
                             .execute(&mut connection);
                         Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -224,17 +306,35 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            5 /* terrane-site: src/main.trn:21:9-21:65 */,
+                            9 /* terrane-site: src/main.trn:21:9-21:65 */,
                         )
                     }
                 })
                 .await,
-            5 /* terrane-site: src/main.trn:21:9-21:65 */,
+            9 /* terrane-site: src/main.trn:21:9-21:65 */,
         );
         rows = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
-                        let __terrane_call = terrane_query_witness::query(&first_op)
+                        let __terrane_call = __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| terrane_query_witness::query(
+                                        &first_op,
+                                    )),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane-query-witness",
+                                                "terrane_query_witness::query",
+                                            ),
+                                        )
+                                    }
+                                },
+                                10 /* terrane-site: src/main.trn:22:29-22:44 */,
+                            )
                             .fetch_all(&mut connection);
                         Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -271,12 +371,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            6 /* terrane-site: src/main.trn:22:28-22:67 */,
+                            11 /* terrane-site: src/main.trn:22:28-22:67 */,
                         )
                     }
                 })
                 .await,
-            6 /* terrane-site: src/main.trn:22:28-22:67 */,
+            11 /* terrane-site: src/main.trn:22:28-22:67 */,
         );
         println!(
             "{}",
@@ -286,7 +386,25 @@ fn main() {
         row = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
-                        let __terrane_call = terrane_query_witness::query(&first_op)
+                        let __terrane_call = __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| terrane_query_witness::query(
+                                        &first_op,
+                                    )),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane-query-witness",
+                                                "terrane_query_witness::query",
+                                            ),
+                                        )
+                                    }
+                                },
+                                12 /* terrane-site: src/main.trn:24:20-24:35 */,
+                            )
                             .fetch_one(&mut connection);
                         Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -321,12 +439,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            7 /* terrane-site: src/main.trn:24:19-24:58 */,
+                            13 /* terrane-site: src/main.trn:24:19-24:58 */,
                         )
                     }
                 })
                 .await,
-            7 /* terrane-site: src/main.trn:24:19-24:58 */,
+            13 /* terrane-site: src/main.trn:24:19-24:58 */,
         );
         body = __terrane_raised(
             match std::panic::catch_unwind(
@@ -357,18 +475,36 @@ fn main() {
                     )
                 }
             },
-            8 /* terrane-site: src/main.trn:25:16-25:41 */,
+            14 /* terrane-site: src/main.trn:25:16-25:41 */,
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&body,
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            9 /* terrane-site: src/main.trn:26:10-26:17 */)), 9 /* terrane-site: src/main.trn:26:10-26:17 */))
+            15 /* terrane-site: src/main.trn:26:10-26:17 */)), 15 /* terrane-site: src/main.trn:26:10-26:17 */))
         );
         second_row = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
-                        let __terrane_call = terrane_query_witness::query(&second_op)
+                        let __terrane_call = __terrane_raised(
+                                match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| terrane_query_witness::query(
+                                        &second_op,
+                                    )),
+                                ) {
+                                    Ok(value) => Ok(value),
+                                    Err(payload) => {
+                                        Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane-query-witness",
+                                                "terrane_query_witness::query",
+                                            ),
+                                        )
+                                    }
+                                },
+                                16 /* terrane-site: src/main.trn:27:27-27:43 */,
+                            )
                             .fetch_one(&mut connection);
                         Box::pin(async move {
                             match crate::__terrane_dependency_await_unwind(
@@ -403,12 +539,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            10 /* terrane-site: src/main.trn:27:26-27:66 */,
+                            17 /* terrane-site: src/main.trn:27:26-27:66 */,
                         )
                     }
                 })
                 .await,
-            10 /* terrane-site: src/main.trn:27:26-27:66 */,
+            17 /* terrane-site: src/main.trn:27:26-27:66 */,
         );
         second_body = __terrane_raised(
             match std::panic::catch_unwind(
@@ -439,20 +575,25 @@ fn main() {
                     )
                 }
             },
-            11 /* terrane-site: src/main.trn:28:23-28:49 */,
+            18 /* terrane-site: src/main.trn:28:23-28:49 */,
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::byte_at(&second_body,
             __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            12 /* terrane-site: src/main.trn:29:10-29:24 */)), 12 /* terrane-site: src/main.trn:29:10-29:24 */))
+            19 /* terrane-site: src/main.trn:29:10-29:24 */)), 19 /* terrane-site: src/main.trn:29:10-29:24 */))
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future = { let __terrane_call =
-                    terrane_query_witness::query(&invalid_op).execute(&mut connection);
-                    Box::pin(async move { match crate
+                    __terrane_raised_completion!(match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
+                    terrane_query_witness::query(&invalid_op))) { Ok(value) => Ok(value),
+                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                    "terrane-query-witness", "terrane_query_witness::query")) },
+                    20 /* terrane-site: src/main.trn:31:12-31:29 */) .execute(&mut
+                    connection); Box::pin(async move { match crate
                     ::__terrane_dependency_await_unwind(__terrane_call). await {
                     Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
                     ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
@@ -460,8 +601,8 @@ fn main() {
                     Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
                     "terrane_query_witness", "terrane_query_witness::Query::execute")) }
                     }) }; async move { __terrane_raised_err(__terrane_future. await,
-                    13 /* terrane-site: src/main.trn:31:11-31:50 */) } }). await,
-                    13 /* terrane-site: src/main.trn:31:11-31:50 */
+                    21 /* terrane-site: src/main.trn:31:11-31:50 */) } }). await,
+                    21 /* terrane-site: src/main.trn:31:11-31:50 */
                 );
                 TerraneCompletion::Normal
             }
@@ -535,12 +676,12 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            14 /* terrane-site: src/main.trn:34:9-34:26 */,
+                            22 /* terrane-site: src/main.trn:34:9-34:26 */,
                         )
                     }
                 })
                 .await,
-            14 /* terrane-site: src/main.trn:34:9-34:26 */,
+            22 /* terrane-site: src/main.trn:34:9-34:26 */,
         );
         println!("{}", String::from("complete"));
     });

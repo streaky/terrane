@@ -654,6 +654,7 @@ pub use http::HeaderName;
 pub use http::HeaderValue;
 pub use witness::Host;
 pub use witness::Request;
+pub type View<'view> = witness::View<'view>;
 pub fn terrane_static_trn_4865616465724d6170_new() -> Result<
     http::HeaderMap<http::HeaderValue>,
     crate::TerraneForeignError,
