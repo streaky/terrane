@@ -3880,11 +3880,10 @@ impl LogContext {
             let _ = &existing;
             value
                 .append_span(
-                    match &existing {
+                    match existing {
                         TerraneUnionF3S5342::Arm1(value) => value,
                         _ => unreachable!("flow-proven storage refinement"),
-                    }
-                        .clone(),
+                    },
                 );
         }
         return value;
@@ -3926,11 +3925,10 @@ impl LogContext {
             let _ = &existing;
             value
                 .append_span(
-                    match &existing {
+                    match existing {
                         TerraneUnionF3S5641::Arm1(value) => value,
                         _ => unreachable!("flow-proven storage refinement"),
-                    }
-                        .clone(),
+                    },
                 );
         }
         value.append_span(span);

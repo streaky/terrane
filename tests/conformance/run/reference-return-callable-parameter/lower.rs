@@ -8,7 +8,7 @@ fn main() {
     let value: String;
     let returned: &String;
     let borrowed_value: &String;
-    let snapshot: std::sync::Arc<dyn Fn() -> String + Send + Sync>;
+    let snapshot: std::boxed::Box<dyn Fn() -> String + '_>;
     flag = true;
     callback = {
         let flag = flag.clone();
@@ -25,7 +25,7 @@ fn main() {
     borrowed_value = &value;
     snapshot = {
         let borrowed_value = borrowed_value;
-        std::sync::Arc::new(move || -> String {
+        std::boxed::Box::new(move || -> String {
             return borrowed_value.clone();
         })
     };

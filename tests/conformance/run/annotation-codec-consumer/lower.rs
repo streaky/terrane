@@ -82,11 +82,10 @@ fn main() {
             => unreachable!("flow-proven storage refinement") } .nickname).is_none())
         );
         encoded = encode_account(
-            match &value {
+            match value {
                 Some(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
-            }
-                .clone(),
+            },
         );
         if encoded.failed {
             __terrane_uncaught(
