@@ -7,7 +7,7 @@ class source-holder
     mutable function bump;
         this.value = this.value + 1
 
-function increment; counter ref NativeCounter
+function increment; counter mutable ref NativeCounter
     rust
         let counter = &mut *counter;
         counter.increment();
@@ -34,7 +34,7 @@ async function main;
     print; (mixed;)
 
     callback-counter = NativeCounter::new; 20
-    callback = function; value ref NativeCounter
+    callback = function; value mutable ref NativeCounter
         increment; value
     callback; callback-counter
     print; (callback-counter.value;)

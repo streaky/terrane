@@ -5,6 +5,6 @@ from /deps/http import HeaderValue
 function read-sensitive bool; header ref HeaderValue
     return header.is_sensitive
 
-function mark-sensitive bool; header ref HeaderValue
+function mark-sensitive bool; header mutable ref HeaderValue
     header.set_sensitive; true
     return true

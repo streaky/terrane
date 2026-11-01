@@ -1,0 +1,113 @@
+namespace mutable-reference-callable-last-use
+
+function branch; condition bool
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function;
+        borrowed = borrowed + 1
+    if condition
+        callback;
+    else
+        callback;
+        callback;
+    print; value
+
+function loop;
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function;
+        borrowed = borrowed + 1
+    count = 0
+    while count < 3
+        callback;
+        count = count + 1
+    print; value
+
+function transferred;
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function;
+        borrowed = borrowed + 1
+    alias = callback
+    alias;
+    print; value
+
+function unused-transfer;
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function;
+        borrowed = borrowed + 1
+    alias = callback
+    print; value
+
+function handle-transfer;
+    value = 0
+    first = mutable ref value
+    second = first
+    second = 3
+    print; value
+
+function unused-observer;
+    value = 0
+    observer = ref value
+    exclusive = mutable ref value
+    exclusive = 2
+    print; value
+
+function two-captures;
+    left = 0
+    right = 0
+    left-borrow = mutable ref left
+    right-borrow = mutable ref right
+    callback = mutable function;
+        left-borrow = left-borrow + 1
+        right-borrow = right-borrow + 2
+    callback;
+    print; left
+    print; right
+
+function nested-branch; outer bool, inner bool
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function;
+        borrowed = borrowed + 1
+    if outer
+        if inner
+            callback;
+        else
+            callback;
+    print; value
+
+function readonly-carriers;
+    value = 0
+    observer = ref value
+    first = function int;
+        return observer
+    second = function int;
+        return observer
+    print; (first;)
+    print; (second;)
+    value = 7
+    print; value
+
+function returned-call int;
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function int;
+        borrowed = borrowed + 1
+        return borrowed
+    return callback;
+
+function main;
+    branch; true
+    branch; false
+    loop;
+    transferred;
+    unused-transfer;
+    handle-transfer;
+    unused-observer;
+    two-captures;
+    nested-branch; true, true
+    nested-branch; false, false
+    readonly-carriers;
+    print; (returned-call;)

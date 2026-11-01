@@ -1,10 +1,10 @@
 namespace app
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 
-function mark; header ref HeaderValue
+function mark; header mutable ref HeaderValue
     header.set_sensitive; true
 
-function change bool|none; header ref HeaderValue
+function change bool|none; header mutable ref HeaderValue
     mark; header
     return true
 

@@ -43,7 +43,24 @@ fn callable_adapter_parameters(
     (closure_parameters, names.join(", "), tuple_names)
 }
 
-fn callable_constructor(registry: &LoweringRegistry, mode: InvocationMode) -> &'static str {
+fn callable_constructor(
+    registry: &LoweringRegistry,
+    mode: InvocationMode,
+    borrowed_environment: bool,
+) -> &'static str {
+    if borrowed_environment {
+        return match mode {
+            InvocationMode::Shared => "std::boxed::Box::new",
+            InvocationMode::Mutable => {
+                registry.uses_borrowed_mutable_callable.set(true);
+                "TerraneBorrowedMutableCallable::new"
+            }
+            InvocationMode::Consuming => {
+                registry.uses_borrowed_consuming_callable.set(true);
+                "TerraneBorrowedConsumingCallable::new"
+            }
+        };
+    }
     match mode {
         InvocationMode::Shared => "std::sync::Arc::new",
         InvocationMode::Mutable => {
@@ -73,7 +90,9 @@ impl Emitter<'_> {
             crate::semantics::application_is_resource_owning(self.package, value_type)
                 || matches!(
                     value_type,
-                    ValueType::Reference(_) | ValueType::SharedReference(_)
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
                 );
         let fields = if contract.builtin.is_some() {
             String::new()
@@ -245,8 +264,14 @@ impl Emitter<'_> {
         if source_operator == "ref" {
             return match self.value_type(operand) {
                 Some(ValueType::Reference(_)) => self.expression(operand),
+                Some(ValueType::MutableReference(_)) => {
+                    format!("&*({})", self.expression(operand))
+                }
                 _ => self.reference_address_expression(operand),
             };
+        }
+        if source_operator == "mutable ref" {
+            return self.mutable_reference_address_expression(operand);
         }
         if source_operator == "shared ref" {
             return match self.value_type(operand) {
@@ -466,6 +491,21 @@ impl Emitter<'_> {
             return self.expression_as(grouped, value_type);
         }
         if !self.assignment_target
+            && let Some(ValueType::MutableReference(item)) = self.value_type(node)
+            && item.value_type() == value_type
+        {
+            let referent = item.value_type();
+            if rust_value_is_copy(&referent) {
+                return format!("*({})", self.expression(node));
+            }
+            if !self.value_type_owns_resource(&referent)
+                && !crate::semantics::value_type_contains_nonclone_foreign(self.unit, &referent)
+            {
+                return format!("(*({})).clone()", self.expression(node));
+            }
+            unreachable!("semantic analysis rejects copying a noncloneable mutable referent");
+        }
+        if !self.assignment_target
             && let Some(actual) = self.value_type(node)
             && let ValueType::Reference(item) | ValueType::SharedReference(item) = actual
             && item.value_type() == value_type
@@ -495,13 +535,20 @@ impl Emitter<'_> {
         }
         if !self.assignment_target
             && node.kind == SyntaxKind::MemberExpression
-            && !matches!(value_type, ValueType::Reference(_))
+            && !matches!(
+                value_type,
+                ValueType::Reference(_) | ValueType::MutableReference(_)
+            )
             && !self.value_type_owns_resource(&value_type)
             && self.value_type(node).as_ref() == Some(&value_type)
             && let Some(receiver) = node.children.first()
             && (matches!(
                 self.value_type(receiver),
-                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                Some(
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
             ) || self.reference_backed_name(receiver).is_some()
                 || self.shared_async_receiver && self.text(receiver) == "this"
                 || self.static_storage_name(receiver).is_some())
@@ -608,25 +655,37 @@ impl Emitter<'_> {
                 return self.map_constructor(arguments, kind, key, value);
             }
         }
+        let mut producer = node;
+        while producer.kind == SyntaxKind::GroupExpression && producer.children.len() == 1 {
+            producer = &producer.children[0];
+        }
         if let ValueType::InvocationScopedNative {
             rust_type: expected,
             concrete: true,
             ..
         } = &value_type
-            && let Some(ValueType::InvocationScopedNative {
-                rust_type: actual, ..
-            }) = self.value_type(node)
-            && !crate::rust_ir::rust_type_constructors_match(expected, &actual)
+            && match self.value_type(node) {
+                Some(ValueType::InvocationScopedNative {
+                    rust_type: actual, ..
+                }) => !crate::rust_ir::rust_type_constructors_match(expected, &actual),
+                None if self.unit.invocation_scoped_result_at(node.span).is_some() => {
+                    producer.kind == SyntaxKind::CallExpression
+                        && producer.children.first().is_some_and(|callee| {
+                            self.projected_function_for_call(
+                                callee,
+                                crate::syntax::call_is_unsafe(producer),
+                            )
+                            .is_some_and(|function| function.destination_result.is_some())
+                        })
+                }
+                _ => false,
+            }
         {
             let expected = crate::rust_ir::rust_lifetimes(expected)
                 .iter()
                 .fold(expected.clone(), |expected, lifetime| {
                     expected.replace(lifetime, "'_")
                 });
-            let mut producer = node;
-            while producer.kind == SyntaxKind::GroupExpression && producer.children.len() == 1 {
-                producer = &producer.children[0];
-            }
             let expected = if producer.kind == SyntaxKind::CallExpression
                 && let Some(callee) = producer.children.first()
                 && let Some(function) = self
@@ -679,6 +738,20 @@ impl Emitter<'_> {
             } else {
                 format!("Some({})", self.expression_as(node, *inner))
             };
+        }
+        if let ValueType::Reference(item) = &value_type
+            && let Some(ValueType::MutableReference(actual)) = self.value_type(node)
+            && actual.value_type_ref() == item.value_type_ref()
+        {
+            return format!("&*({})", self.expression(node));
+        }
+        if let ValueType::MutableReference(item) = &value_type {
+            if self.value_type(node) == Some(value_type.clone()) {
+                return self.expression(node);
+            }
+            if self.value_type(node).as_ref() == Some(item.value_type_ref()) {
+                return self.mutable_reference_address_expression(node);
+            }
         }
         if let ValueType::Reference(item) = &value_type {
             if node.kind == SyntaxKind::UnaryExpression
@@ -836,8 +909,11 @@ impl Emitter<'_> {
             return self.numeric_destination(node, source, destination);
         }
         if let ValueType::Scalar(expected) = &value_type
-            && let Some(ValueType::Reference(inner) | ValueType::SharedReference(inner)) =
-                self.value_type(node)
+            && let Some(
+                ValueType::Reference(inner)
+                | ValueType::MutableReference(inner)
+                | ValueType::SharedReference(inner),
+            ) = self.value_type(node)
             && inner.value_type_ref() == &ValueType::Scalar(*expected)
         {
             return format!("({}).clone()", self.expression(node));
@@ -1036,7 +1112,11 @@ impl Emitter<'_> {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
-                let constructor = callable_constructor(self.registry, expected_mode);
+                let constructor = callable_constructor(
+                    self.registry,
+                    expected_mode,
+                    expected_effects.borrowed_environment,
+                );
                 let send = if transferability == TaskTransferability::Local {
                     ""
                 } else {
@@ -1073,14 +1153,23 @@ impl Emitter<'_> {
                     && (!expected_throws || value_requires_throwing_abi)
                 {
                     let callable = self.expression(node);
-                    if expected_mode == InvocationMode::Consuming {
+                    if expected_mode == InvocationMode::Consuming
+                        || expected_effects.borrowed_environment
+                    {
                         callable
                     } else {
                         format!("({callable}).clone()")
                     }
                 } else {
                     let callable = self.expression(node);
-                    let capture = if actual_mode == InvocationMode::Consuming {
+                    let capture = if actual_mode == InvocationMode::Consuming
+                        || actual.as_ref().is_some_and(|value_type| {
+                            !crate::semantics::value_type_is_cloneable(
+                                self.package,
+                                self.unit,
+                                value_type,
+                            )
+                        }) {
                         callable
                     } else {
                         format!("({callable}).clone()")
@@ -1119,7 +1208,11 @@ impl Emitter<'_> {
                 });
                 let (declarations, arguments, _) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
-                let constructor = callable_constructor(self.registry, expected_mode);
+                let constructor = callable_constructor(
+                    self.registry,
+                    expected_mode,
+                    expected_effects.borrowed_environment,
+                );
                 let send = if transferability == TaskTransferability::Local {
                     ""
                 } else {
@@ -1202,7 +1295,11 @@ impl Emitter<'_> {
                 let argument_values = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>();
-                let constructor = callable_constructor(self.registry, expected_mode);
+                let constructor = callable_constructor(
+                    self.registry,
+                    expected_mode,
+                    expected_effects.borrowed_environment,
+                );
                 let mutable = if actual_mode == InvocationMode::Mutable {
                     "mut "
                 } else {
@@ -1267,6 +1364,7 @@ impl Emitter<'_> {
                                     && !matches!(
                                         parameter.value_type_ref(),
                                         ValueType::Reference(_)
+                                            | ValueType::MutableReference(_)
                                     )
                                 {
                                     format!("&{name}")
@@ -1300,7 +1398,11 @@ impl Emitter<'_> {
                 let expected_mode = expected_effects.modes.written;
                 let (declarations, arguments, tuple_arguments) =
                     callable_adapter_parameters(self.package, &parameters, expected_mode);
-                let constructor = callable_constructor(self.registry, expected_mode);
+                let constructor = callable_constructor(
+                    self.registry,
+                    expected_mode,
+                    expected_effects.borrowed_environment,
+                );
                 let expected_throws = expected_effects.requires_throwing_abi();
                 let actual = self.value_type(node);
                 let (actual_mode, value_requires_throwing_abi) = match &actual {
@@ -1335,14 +1437,23 @@ impl Emitter<'_> {
                     && (!expected_throws || value_requires_throwing_abi)
                 {
                     let callable = self.expression(node);
-                    if expected_mode == InvocationMode::Consuming {
+                    if expected_mode == InvocationMode::Consuming
+                        || expected_effects.borrowed_environment
+                    {
                         callable
                     } else {
                         format!("({callable}).clone()")
                     }
                 } else {
                     let callable = self.expression(node);
-                    let capture = if actual_mode == InvocationMode::Consuming {
+                    let capture = if actual_mode == InvocationMode::Consuming
+                        || actual.as_ref().is_some_and(|value_type| {
+                            !crate::semantics::value_type_is_cloneable(
+                                self.package,
+                                self.unit,
+                                value_type,
+                            )
+                        }) {
                         callable
                     } else {
                         format!("({callable}).clone()")
@@ -1378,8 +1489,19 @@ impl Emitter<'_> {
                 } else {
                     let (declarations, arguments, tuple_arguments) =
                         callable_adapter_parameters(self.package, &parameters, expected_mode);
-                    let constructor = callable_constructor(self.registry, expected_mode);
-                    let capture = if actual_mode == InvocationMode::Consuming {
+                    let constructor = callable_constructor(
+                        self.registry,
+                        expected_mode,
+                        expected_effects.borrowed_environment,
+                    );
+                    let capture = if actual_mode == InvocationMode::Consuming
+                        || actual.as_ref().is_some_and(|value_type| {
+                            !crate::semantics::value_type_is_cloneable(
+                                self.package,
+                                self.unit,
+                                value_type,
+                            )
+                        }) {
                         callable
                     } else {
                         format!("({callable}).clone()")
@@ -1422,7 +1544,11 @@ impl Emitter<'_> {
                 } else {
                     let (declarations, arguments, tuple_arguments) =
                         callable_adapter_parameters(self.package, &parameters, expected_mode);
-                    let constructor = callable_constructor(self.registry, expected_mode);
+                    let constructor = callable_constructor(
+                        self.registry,
+                        expected_mode,
+                        expected_effects.borrowed_environment,
+                    );
                     let capture = if actual_mode == InvocationMode::Consuming {
                         callable
                     } else {
@@ -1522,10 +1648,18 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let operator = self.unary_operator(node).unwrap_or_default();
-                if operator == "await" {
-                    self.await_expression(operand)
-                } else {
-                    format!("{operator}{}", self.adaptive_expression(operand))
+                match operator.as_str() {
+                    "await" => self.await_expression(operand),
+                    "move" if operand.kind == SyntaxKind::Name => {
+                        let value = self.moved_name(operand);
+                        if self.small_int_binding(operand).is_some() {
+                            format!("terrane_int_support::Int::from(({value}) as i128)")
+                        } else {
+                            value
+                        }
+                    }
+                    "move" => self.adaptive_expression(operand),
+                    _ => format!("{operator}{}", self.adaptive_expression(operand)),
                 }
             }
             SyntaxKind::BinaryExpression => self.adaptive_binary(node),

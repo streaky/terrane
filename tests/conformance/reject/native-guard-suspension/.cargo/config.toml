@@ -1,0 +1,2 @@
+[patch.crates-io]
+receiver-api = { path = "fixture-registry/receiver-api-0.1.0" }

@@ -75,6 +75,7 @@ pub(super) fn optional_owner(namespace: String) -> ProjectedItem {
             send: false,
             sync: false,
         },
+        borrow_lifetime: None,
         borrowed: false,
         mutable_borrow: false,
         generic_parameter: Some("F".to_owned()),
@@ -153,6 +154,7 @@ fn optional_method(
         enum_operation: None,
         error_optional_depth: 0,
         chain_role: Some(ChainRole::Terminal),
+        receiver_lifetime: None,
         receiver: Some(Receiver::Move),
     }
 }

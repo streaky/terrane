@@ -1,0 +1,17 @@
+namespace app
+function main;
+  value = 0
+  with scoped-access borrowed = (mutable ref value) (
+    count = 0
+    callback = mutable function;
+      count = count + 1
+      borrowed = count
+    callback;
+    callback;
+  )
+  print; value
+  other = 5
+  readonly = ref other
+  observer = function;
+    print; readonly
+  observer;

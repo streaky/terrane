@@ -25,6 +25,10 @@ pub(super) fn project_foreign_owner_impls(
     let mut additions: Vec<Vec<ProjectedTraitOperation>> =
         (0..projected.len()).map(|_| Vec::new()).collect();
     let mut declined: Vec<Vec<DeclinedItem>> = (0..projected.len()).map(|_| Vec::new()).collect();
+    let mut scoped_owner_keys: Vec<BTreeSet<String>> =
+        (0..projected.len()).map(|_| BTreeSet::new()).collect();
+    let mut scoped_owner_items: Vec<Vec<ProjectedItem>> =
+        (0..projected.len()).map(|_| Vec::new()).collect();
     let mut seen = BTreeSet::new();
     let mut owner_aliases = BTreeMap::new();
     for (document_index, (dependency, document, public_paths)) in rustdocs.iter().enumerate() {
@@ -173,6 +177,7 @@ pub(super) fn project_foreign_owner_impls(
                 }
                 let generics = BTreeMap::from([("Self".to_owned(), owner)]);
                 let (_, methods, _, failures) = project_methods(
+                    dependency,
                     &[*id],
                     &document.index,
                     &paths,
@@ -181,6 +186,8 @@ pub(super) fn project_foreign_owner_impls(
                     &generics,
                     false,
                     &mut source_constants,
+                    &mut scoped_owner_keys[document_index],
+                    &mut scoped_owner_items[document_index],
                 );
                 let namespace = owner_trait_namespace(&owner_item.namespace, &owner_item.name);
                 for (trait_path, _, _, docs, mut method) in methods {
@@ -213,6 +220,9 @@ pub(super) fn project_foreign_owner_impls(
                 }
             }
         }
+    }
+    for (dependency, owners) in projected.iter_mut().zip(scoped_owner_items) {
+        dependency.items.extend(owners);
     }
     for ((dependency, operations), failures) in projected.iter_mut().zip(additions).zip(declined) {
         dependency.declined.extend(failures);

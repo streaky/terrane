@@ -1,0 +1,5 @@
+namespace native-deref-readonly-mutation
+from /deps/receiver-api import readonly
+function main;
+    item = readonly; 1
+    item.set; 2

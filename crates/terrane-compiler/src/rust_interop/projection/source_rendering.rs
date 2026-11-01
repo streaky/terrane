@@ -390,7 +390,9 @@ pub(super) fn expanded_source_imports(
         for (rust_path, name) in collect_source_foreign(all_items, &selected, demanded_members) {
             let constructor = crate::rust_ir::rust_type_constructor(&rust_path);
             let owner_path = constructor.as_deref().unwrap_or(&rust_path);
-            if let Some(item) = projected_item_for_foreign(all_items, owner_path, &name) {
+            if let Some(item) = projected_item_for_foreign(all_items, &rust_path, &name)
+                .or_else(|| projected_item_for_foreign(all_items, owner_path, &name))
+            {
                 expanded
                     .entry(item.namespace.clone())
                     .or_default()
@@ -1228,7 +1230,9 @@ pub(super) fn render_function(
                 output,
                 "{} {}",
                 parameter.name,
-                if parameter.borrowed
+                if parameter.mutable_borrow {
+                    "mutable ref "
+                } else if parameter.borrowed
                     && matches!(function.result, ProjectedType::InvocationScoped { .. })
                 {
                     "ref "
@@ -1278,20 +1282,39 @@ fn projected_parameter_type_name(ty: &ProjectedType, aliases: &BTreeMap<String, 
             owned,
             expression_scoped: true,
             ..
-        } if !matches!(owned.as_ref(), ProjectedType::Optional(_)) => {
+        } if !owned.contains_open_generic()
+            && !matches!(owned.as_ref(), ProjectedType::Optional(_)) =>
+        {
             projected_parameter_type_name(owned, aliases)
         }
         _ => projected_type_name(ty, aliases),
     }
 }
 
+fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
+    projected_type_name_in_context(ty, foreign_aliases, false)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "projected source type rendering exhaustively covers one closed type model"
 )]
-fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
+fn projected_type_name_in_context(
+    ty: &ProjectedType,
+    foreign_aliases: &BTreeMap<String, String>,
+    callback_result: bool,
+) -> String {
+    let nested =
+        |ty: &ProjectedType| projected_type_name_in_context(ty, foreign_aliases, callback_result);
     match ty {
-        ProjectedType::Reference { inner, .. } => projected_type_name(inner, foreign_aliases),
+        // A callback result or still-open native family is supplied by native
+        // inference, not a source-owned monomorphic nominal descriptor.
+        ProjectedType::InvocationScoped { owned, .. }
+            if callback_result || owned.contains_open_generic() =>
+        {
+            "host-invocation-scoped-native".to_owned()
+        }
+        ProjectedType::Reference { inner, .. } => nested(inner),
         ProjectedType::Foreign {
             rust_path,
             base_rust_path,
@@ -1322,8 +1345,13 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             if matches!(owned.as_ref(), ProjectedType::Optional(_)) {
                 name.clone()
             } else {
-                projected_type_name(owned, foreign_aliases)
+                nested(owned)
             }
+        }
+        ProjectedType::InvocationScoped { owned, .. }
+            if matches!(owned.as_ref(), ProjectedType::Foreign { .. }) =>
+        {
+            nested(owned)
         }
         ProjectedType::InvocationScoped { .. } => "host-invocation-scoped-native".to_owned(),
         ProjectedType::BoxedInterface {
@@ -1344,16 +1372,13 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             })
         }
         ProjectedType::Optional(inner) => {
-            format!("{}|none", projected_type_name(inner, foreign_aliases))
+            format!("{}|none", nested(inner))
         }
         ProjectedType::AsyncIterationStep(inner) => {
-            format!(
-                "async-iteration-step of {}",
-                projected_type_name(inner, foreign_aliases)
-            )
+            format!("async-iteration-step of {}", nested(inner))
         }
         ProjectedType::Sequence { item, .. } => {
-            format!("list of {}", projected_type_name(item, foreign_aliases))
+            format!("list of {}", nested(item))
         }
         ProjectedType::Mapping {
             key,
@@ -1363,21 +1388,19 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
         } => format!(
             "{}map of {}, {}",
             if *ordered { "" } else { "unordered-" },
-            projected_type_name(key, foreign_aliases),
-            projected_type_name(value, foreign_aliases)
+            nested(key),
+            nested(value)
         ),
         ProjectedType::Set { item, ordered, .. } => format!(
             "{}set of {}",
             if *ordered { "" } else { "unordered-" },
-            projected_type_name(item, foreign_aliases)
+            nested(item)
         ),
-        ProjectedType::Tuple(items) => format!(
-            "tuple of {}",
-            projected_type_name(&items[0], foreign_aliases)
-        ),
+        ProjectedType::Tuple(items) => format!("tuple of {}", nested(&items[0])),
         ProjectedType::Callback {
             parameters,
             parameter_borrows,
+            parameter_rust_types,
             result,
             invocation_mode,
             is_async,
@@ -1398,7 +1421,10 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
                         .map(|(index, parameter)| format!(
                             "{}{}",
                             if parameter_borrows.get(index) == Some(&true) {
-                                "ref "
+                                if parameter_rust_types.get(index).is_some_and(|rust| matches!(
+                                    syn::parse_str::<syn::Type>(rust),
+                                    Ok(syn::Type::Reference(reference)) if reference.mutability.is_some()
+                                )) { "mutable ref " } else { "ref " }
                             } else {
                                 ""
                             },
@@ -1412,7 +1438,7 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             write!(
                 rendered,
                 " to {}",
-                projected_type_name(result, foreign_aliases)
+                projected_type_name_in_context(result, foreign_aliases, true)
             )
             .expect("writing to a string cannot fail");
             rendered

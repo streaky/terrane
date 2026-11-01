@@ -30,7 +30,7 @@ fn consume(__trn_5f76616c7565: &terrane_int_support::Int) {
 fn main() {
     let owner: Holder;
     let field: &terrane_int_support::Int;
-    let show_field: std::sync::Arc<dyn Fn() -> () + Send + Sync>;
+    let show_field: std::boxed::Box<dyn Fn() -> () + '_>;
     let values: terrane_collection_support::List<terrane_int_support::Int>;
     let element: &terrane_int_support::Int;
     let returned: &terrane_int_support::Int;
@@ -40,13 +40,14 @@ fn main() {
     field = &owner.value;
     show_field = {
         let field = field;
-        std::sync::Arc::new(move || -> () {
+        std::boxed::Box::new(move || -> () {
             consume(field);
             println!("{}", String::from("captured"));
             ()
         })
     };
     show_field();
+    drop(show_field);
     values = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(

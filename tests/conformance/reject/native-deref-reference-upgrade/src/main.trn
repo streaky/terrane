@@ -1,0 +1,7 @@
+namespace native-deref-reference-upgrade
+from /deps/receiver-api import RecordHandle, wrapped
+function write; item ref RecordHandle
+    item.set; 2
+function main;
+    item = wrapped; 1
+    write; item

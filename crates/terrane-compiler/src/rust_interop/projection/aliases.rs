@@ -357,6 +357,8 @@ pub(super) fn project_closed_alias_members(
     {
         let source_paths = &documents[document_index].1;
         let mut trait_operations = Vec::new();
+        let mut scoped_owner_keys = super::BTreeSet::new();
+        let mut scoped_owner_items = Vec::new();
         for (id, public_path) in public_paths {
             let Some(Item {
                 inner: ItemEnum::TypeAlias(alias),
@@ -513,6 +515,7 @@ pub(super) fn project_closed_alias_members(
                 })
                 .collect::<Vec<_>>();
             let (mut inherent, traits, projected_constants, declines) = project_methods(
+                dependency,
                 &impls,
                 &owner_document.index,
                 owner_paths,
@@ -521,6 +524,8 @@ pub(super) fn project_closed_alias_members(
                 &generics,
                 false,
                 &mut constants,
+                &mut scoped_owner_keys,
+                &mut scoped_owner_items,
             );
             let ProjectedKind::ForeignType {
                 methods,
@@ -576,6 +581,7 @@ pub(super) fn project_closed_alias_members(
                     reason,
                 }));
         }
+        projected[dependency_index].items.extend(scoped_owner_items);
         merge_projected_trait_operations(
             &mut projected[dependency_index].items,
             &mut projected[dependency_index].declined,

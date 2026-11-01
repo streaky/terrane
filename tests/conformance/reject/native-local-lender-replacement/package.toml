@@ -1,0 +1,8 @@
+package = "native-local-lender-replacement"
+
+[namespaces]
+native-local-lender-replacement = "src"
+
+[rust-dependencies.receiver-api]
+package = "receiver-api"
+version = "=0.1.0"

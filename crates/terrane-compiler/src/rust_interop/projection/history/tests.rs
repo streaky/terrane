@@ -58,6 +58,7 @@ fn checks_versions_keep_removed() {
                     enum_operation: None,
                     error_optional_depth: 0,
                     chain_role: None,
+                    receiver_lifetime: None,
                     receiver: Some(Receiver::Borrow),
                 }],
                 static_methods: vec![ProjectedFunction {
@@ -79,6 +80,7 @@ fn checks_versions_keep_removed() {
                     enum_operation: None,
                     error_optional_depth: 0,
                     chain_role: None,
+                    receiver_lifetime: None,
                     receiver: None,
                 }],
                 constants: Vec::new(),

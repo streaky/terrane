@@ -273,6 +273,19 @@ impl<T> List<T> {
             .cloned()
             .ok_or_else(|| IndexError::from_usize(index))
     }
+    /// Borrows an indexed item without cloning or detaching shared storage.
+    #[inline]
+    pub fn get_mut_unique(&mut self, index: usize) -> Option<&mut T> {
+        Arc::get_mut(&mut self.0)?.get_mut(index)
+    }
+    /// Borrows an indexed item, detaching value-semantic shared storage when required.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T>
+    where
+        T: Clone,
+    {
+        Arc::make_mut(&mut self.0).get_mut(index)
+    }
     /// Returns exclusive access to the backing vector after separating shared storage.
     ///
     /// Compiler-generated bulk mutation regions use this once before a loop so repeated
@@ -494,6 +507,13 @@ type FixedState = BuildHasherDefault<StableHasher>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Map<K: Eq + Hash, V>(Arc<indexmap::IndexMap<K, V, FixedState>>);
+impl<K: Eq + Hash, V> Map<K, V> {
+    /// Borrows a value without cloning or detaching shared storage.
+    #[inline]
+    pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
+        Arc::get_mut(&mut self.0)?.get_mut(key)
+    }
+}
 impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
@@ -510,6 +530,11 @@ impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     #[must_use]
     pub fn get(&self, key: &K) -> Option<&V> {
         self.0.get(key)
+    }
+    /// Borrows a value, separating value-semantic shared storage when required.
+    #[inline]
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        Arc::make_mut(&mut self.0).get_mut(key)
     }
     /// Returns the mapped value or an error when the key is absent.
     ///
@@ -659,6 +684,16 @@ impl<K: Eq + Hash, V: Eq> Eq for UnorderedMapData<K, V> {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnorderedMap<K: Eq + Hash, V>(Arc<UnorderedMapData<K, V>>);
+impl<K: Eq + Hash, V> UnorderedMap<K, V> {
+    /// Borrows a value without cloning or detaching shared storage.
+    #[inline]
+    pub fn get_mut_unique(&mut self, key: &K) -> Option<&mut V> {
+        Arc::get_mut(&mut self.0)?
+            .values
+            .get_mut(key)
+            .map(|(_, value)| value)
+    }
+}
 
 impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     #[must_use]
@@ -686,6 +721,14 @@ impl<K: Eq + Hash + Clone, V: Clone> UnorderedMap<K, V> {
     #[must_use]
     pub fn get(&self, key: &K) -> Option<&V> {
         self.0.values.get(key).map(|(_, value)| value)
+    }
+    /// Borrows a value, separating value-semantic shared storage when required.
+    #[inline]
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        Arc::make_mut(&mut self.0)
+            .values
+            .get_mut(key)
+            .map(|(_, value)| value)
     }
     /// Returns the mapped value or an error when the key is absent.
     ///

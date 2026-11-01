@@ -42,7 +42,6 @@ fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) ->
         | CanonicalDefault::EmptyUnorderedSet => rust_empty_collection(package, value_type),
     }
 }
-
 fn is_source_type_parameter(
     value_type: &ValueType,
     parameters: &[GenericParameterContract],
@@ -608,18 +607,30 @@ impl<'a> Emitter<'a> {
                 let has_destructor = methods.iter().any(|method| method.name == "destruct");
                 let has_required_fields = instance_fields.iter().any(|field| field.field.required);
                 let tracks_construction = has_destructor && has_required_fields;
+                let fields_cloneable = instance_fields.iter().all(|field| {
+                    crate::semantics::value_type_is_cloneable(
+                        self.package,
+                        self.unit,
+                        &field.field.value_type,
+                    )
+                });
                 let conditional_generic_clone = !has_destructor
                     && !object.generic_parameters.is_empty()
                     && instance_fields.iter().all(|field| {
-                        !crate::semantics::application_is_resource_owning(
+                        crate::semantics::value_type_is_cloneable(
                             self.package,
+                            self.unit,
                             &field.field.value_type,
                         ) || is_source_type_parameter(
                             &field.field.value_type,
                             &object.generic_parameters,
                         )
                     });
-                let can_clone = !object.resource_owning || conditional_generic_clone;
+                let can_clone = if conditional_generic_clone {
+                    true
+                } else {
+                    !object.resource_owning && fields_cloneable
+                };
 
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for field in &static_fields {

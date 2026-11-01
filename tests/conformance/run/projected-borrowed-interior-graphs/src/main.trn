@@ -53,7 +53,7 @@ function main;
     anonymous-reset bool|none = (headers.get_mut; 'forwarded').map; clear-sensitive
     if anonymous-reset != none
         print; anonymous-reset
-    anonymous-update = function bool; header ref HeaderValue
+    anonymous-update = function bool; header mutable ref HeaderValue
         header.set_sensitive; true
         return true
     anonymous-result bool|none = (headers.get_mut; 'forwarded').map; anonymous-update

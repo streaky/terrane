@@ -1,0 +1,14 @@
+namespace reference-replacement-across-await
+
+async function answer int;
+    return 42
+
+async function inspect;
+    value = 17
+    alias = ref value
+    await answer;
+    value = 23
+    print; alias
+
+async function main;
+    await inspect;

@@ -1,5 +1,9 @@
 use super::prelude::*;
 
+fn has_modifier_applications(node: &SyntaxNode) -> bool {
+    !node.modifier_applications.is_empty() || node.children.iter().any(has_modifier_applications)
+}
+
 fn collect_unsafe_rust_spans(node: &SyntaxNode, spans: &mut Vec<Span>) {
     if node.kind == SyntaxKind::UnsafeRustBlock {
         spans.push(node.span);
@@ -352,6 +356,7 @@ pub(super) fn parse_unit(
         required_init_proofs: BTreeMap::new(),
         reference_owner_spans: BTreeSet::new(),
         reference_provenance: BTreeMap::new(),
+        callable_drops_after: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
         builtin_descriptors: builtin_descriptor_contracts(),
@@ -630,10 +635,13 @@ fn augment_units_with_projection_inner(
     }
     let mut index = 0;
     while index < units.len() {
-        let targets = imports_in_tree(&units[index])?
+        let mut targets = imports_in_tree(&units[index])?
             .into_iter()
             .map(|import| import.target)
             .collect::<BTreeSet<_>>();
+        if units[index].prelude && has_modifier_applications(&units[index].tree.root) {
+            targets.insert("/core/modifiers".to_owned());
+        }
         for target in targets {
             let Some(bundled) = crate::bundled::source(&target) else {
                 continue;
@@ -1276,6 +1284,7 @@ fn analyze_parsed_with_projection(
         native_capabilities: BTreeMap::new(),
         binding_events: BTreeMap::new(),
         metadata_constant_reads: BTreeMap::new(),
+        declaration_modifiers: BTreeMap::new(),
         referenced_functions: BTreeSet::new(),
         import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
@@ -1328,9 +1337,8 @@ fn analyze_parsed_with_projection(
     );
     validate_shared_ownership_cycles(&semantic)?;
     validate_error_clauses(&semantic)?;
-    validate_moves(&semantic)?;
     analyze_reference_provenance(&mut semantic)?;
-    validate_referenced_replacements(&semantic)?;
+    super::scoped_regions::record_native_lender_owners(&mut semantic);
     infer_throwing_effects(&mut semantic)?;
     stage.finish();
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
@@ -1339,22 +1347,27 @@ fn analyze_parsed_with_projection(
     let stage =
         crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
+    super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
+    // Exact callable captures can make an environment noncopyable. Validate
+    // transfers only after effect inference has refreshed binding types.
+    validate_moves(&semantic)?;
     super::ownership::validate_native_captures(&semantic)?;
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
     validate_definite_assignment(&mut semantic)?;
-    validate_calls(&semantic)?;
-    super::reference_validation::validate_reference_writes(&semantic)?;
-    super::generic_recursion::validate(&semantic)?;
-    validate_discarded_temporary_mutations(&semantic)?;
-    super::initialization::validate(&mut semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
     validate_projected_callback_arguments(&semantic)?;
+    validate_calls(&semantic)?;
+    super::reference_validation::validate_reference_writes(&semantic)?;
+    validate_referenced_replacements(&semantic)?;
+    super::generic_recursion::validate(&semantic)?;
+    validate_discarded_temporary_mutations(&semantic)?;
+    super::initialization::validate(&mut semantic)?;
     validate_suspension_ownership(&semantic)?;
     validate_task_consumption(&semantic)?;
     super::task_groups::validate_task_groups(&semantic)?;
@@ -1366,6 +1379,8 @@ fn analyze_parsed_with_projection(
     }
     record_function_references(&mut semantic);
     super::annotations::populate_declaration_metadata(&mut semantic)?;
+    super::modifiers::resolve_declaration_modifiers(&mut semantic)?;
+    super::scoped_regions::validate_scoped_regions(&semantic)?;
     stage.finish();
     Ok(semantic)
 }
@@ -1744,6 +1759,7 @@ fn enqueue_value_type_object_dependencies(value_type: &ValueType, queue: &mut Ve
         | ValueType::TaskOutcome(item)
         | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
+        | ValueType::MutableReference(item)
         | ValueType::SharedReference(item) => {
             enqueue_value_type_object_dependencies(item.value_type_ref(), queue);
         }

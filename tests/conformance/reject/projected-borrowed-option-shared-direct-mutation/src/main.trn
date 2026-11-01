@@ -1,7 +1,7 @@
 namespace app
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 
-function change bool; header ref HeaderValue
+function change bool; header mutable ref HeaderValue
     header.set_sensitive; true
     return true
 

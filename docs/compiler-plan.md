@@ -1555,7 +1555,7 @@ The release pipeline must prove, from a clean checkout:
 - labels and `goto`;
 - user-replaceable core structural constructs, including `function`;
 - a truncating (C/Rust-style) signed integer division and remainder family alongside the specified default contract;
-- custom declaration modifiers and package-defined type constructors;
+- additional package-defined declaration-realization operations and package-defined type constructors; general typed `with` machinery and its compiler-defined `scoped-access` region are implemented;
 - custom importers and registries beyond the locked Cargo graph version one requires;
 - C ABI export and foreign-runtime adapters, including Python;
 - tracing, off-CPU/wall-clock attribution, hardware-counter interpretation, memory-access

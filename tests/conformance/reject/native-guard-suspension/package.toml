@@ -1,0 +1,8 @@
+package = "native-guard-suspension"
+
+[namespaces]
+native-guard-suspension = "src"
+
+[rust-dependencies.receiver-api]
+package = "receiver-api"
+version = "=0.1.0"

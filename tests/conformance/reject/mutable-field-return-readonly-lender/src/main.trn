@@ -1,0 +1,12 @@
+namespace app
+
+class box
+  value int = 0
+
+function pick mutable ref int; holder ref box
+  return holder.value
+
+function main;
+  owner = instance box;
+  borrowed = pick; owner
+  borrowed = 1

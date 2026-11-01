@@ -328,6 +328,37 @@ impl<'a> ProjectionOracle<'a> {
 }
 
 fn bound_probe_source(question: &BoundQuestion) -> String {
+    if !question.inferred_parameters.is_empty()
+        && question
+            .inferred_parameters
+            .iter()
+            .all(|parameter| parameter.trim_start().starts_with('\''))
+    {
+        // Tie the helper's lifetimes to the outer proof scope through an input.
+        // Explicit lifetime turbofish fails when unused parameters are late-bound.
+        let lifetime_marker = question
+            .inferred_parameters
+            .iter()
+            .map(|declaration| {
+                format!(
+                    "&{} ()",
+                    declaration
+                        .split(':')
+                        .next()
+                        .expect("lifetime declaration")
+                        .trim()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        return format!(
+            "fn assert_bound<{}, Value: {}>(_: std::marker::PhantomData<({lifetime_marker},)>) {{}}\nfn assert_lifetimes<{}>() {{ assert_bound::<{}>(std::marker::PhantomData::<({lifetime_marker},)>); }}\nfn main() {{}}\n",
+            question.inferred_parameters.join(", "),
+            question.rust_bound,
+            question.inferred_parameters.join(", "),
+            question.rust_type,
+        );
+    }
     if question.inferred_parameters.is_empty() {
         format!(
             "fn assert_bound<Value>() where Value: {} {{}}\nfn main() {{ assert_bound::<{}>(); }}\n",
@@ -468,6 +499,7 @@ fn batch_identity(identity: &str, questions: &[BoundQuestion]) -> Result<String,
     let mut hash = Sha256::new();
     hash.update(identity.as_bytes());
     hash.update([0]);
+    hash.update(b"bound-lifetime-scope-v3");
     hash.update(encoded);
     Ok(format!("{:x}", hash.finalize()))
 }

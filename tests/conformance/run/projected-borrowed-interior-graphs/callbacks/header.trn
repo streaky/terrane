@@ -2,17 +2,17 @@ namespace callbacks
 
 from /deps/http import HeaderValue
 
-function mark-sensitive bool; header ref HeaderValue
+function mark-sensitive bool; header mutable ref HeaderValue
     header.set_sensitive; true
     return true
 
-function clear-sensitive bool; header ref HeaderValue
+function clear-sensitive bool; header mutable ref HeaderValue
     header.set_sensitive; false
     return true
 
 function read-sensitive bool; header ref HeaderValue
     return header.is_sensitive;
 
-function clear-sensitive-optional bool|none; header ref HeaderValue
+function clear-sensitive-optional bool|none; header mutable ref HeaderValue
     header.set_sensitive; false
     return none

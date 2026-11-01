@@ -7,7 +7,7 @@ from /deps/witness/layout/macros import combine
 function contextual int;
     return sum; 20, 22
 
-function disable-record int; record ref Packet
+function disable-record int; record mutable ref Packet
     return disable; record
 
 function main;

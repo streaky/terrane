@@ -15,7 +15,6 @@ use crate::semantics::{
         TaskTransferability, TypedBinding, ValueType,
     },
     objects::effective_object_fields,
-    ownership::find_node_by_span,
 };
 
 pub(super) fn collect_suspension_points(
@@ -33,88 +32,51 @@ pub(super) fn collect_suspension_points(
     }
 }
 
-pub(super) fn moves_binding_between(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-    node: &SyntaxNode,
-    owner_span: Span,
-    after: usize,
-    before: usize,
-) -> bool {
-    if node.span.start >= after
-        && node.span.end <= before
-        && node.kind == SyntaxKind::UnaryExpression
-        && unary_operator_text(unit, node).as_deref() == Some("move")
-        && node.children.last().is_some_and(|operand| {
-            operand.kind == SyntaxKind::Name
-                && package
-                    .resolve_name_at(unit, operand.span.start, node_text(&unit.source, operand))
-                    .and_then(|symbol| symbol.declaration_span)
-                    == Some(owner_span)
-        })
-    {
-        return true;
-    }
-    node.children
-        .iter()
-        .any(|child| moves_binding_between(package, unit, child, owner_span, after, before))
-}
-
-pub(super) fn reference_has_stable_local_owner(
+pub(super) fn reference_has_stable_lender(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     contract: &FunctionContract,
     reference: &TypedBinding,
+    suspension: Span,
 ) -> bool {
-    let Some(declaration) = find_node_by_span(&unit.tree.root, reference.span) else {
-        return false;
-    };
-    let Some(initializer) = declaration.children.last() else {
-        return false;
-    };
-    if initializer.kind != SyntaxKind::UnaryExpression
-        || unary_operator_text(unit, initializer).as_deref() != Some("ref")
-    {
-        return false;
-    }
-    let Some(source) = initializer
-        .children
-        .last()
-        .filter(|source| source.kind == SyntaxKind::Name)
+    let parameter = contract.parameters.iter().any(|parameter| {
+        parameter.span.file == reference.span.file
+            && parameter.span.start <= reference.span.start
+            && reference.span.end <= parameter.span.end
+    });
+    let provenance = unit
+        .reference_provenance
+        .get(&(reference.span.start, reference.span.end));
+    let Some(owner_span) = provenance
+        .map(|provenance| provenance.owner)
+        .or_else(|| parameter.then_some(reference.span))
     else {
         return false;
     };
-    let Some(owner_span) = package
-        .resolve_name_at(unit, source.span.start, node_text(&unit.source, source))
-        .and_then(|symbol| symbol.declaration_span)
+    let Some(owner) = unit
+        .typed_bindings
+        .iter()
+        .find(|owner| owner.span == owner_span)
     else {
         return false;
     };
-    if !unit.typed_bindings.iter().any(|owner| {
-        owner.span == owner_span
-            && owner.span.start >= contract.span.start
-            && owner.span.end <= contract.span.end
-    }) {
-        return false;
-    }
-    !moves_binding_between(
-        package,
-        unit,
-        &unit.tree.root,
-        owner_span,
-        reference.visible_from,
-        contract.span.end,
-    ) && package
-        .binding_events
-        .get(&span_key(owner_span))
-        .is_none_or(|events| {
-            !events.iter().any(|event| {
-                matches!(
-                    event,
-                    BindingEvent::Write { span, .. } if span.start >= reference.visible_from
-                )
-            })
-        })
+    // Source parameters are external lenders retained by the async call's
+    // borrowed input contract. Local owners stay in the same pinned future.
+    // The ownership pass separately validates exclusivity and invalidation.
+    owner.scope.is_some_and(|scope| {
+        scope.file == suspension.file
+            && scope.start <= suspension.start
+            && suspension.end <= scope.end
+    }) && provenance.is_none_or(|provenance| {
+        provenance
+            .lifetime_end
+            .is_none_or(|end| suspension.end <= end.start)
+    }) && (contract.task_transferability == TaskTransferability::Local
+        || value_type_satisfies_auto_trait(
+            package,
+            &reference.value_type,
+            AutoTraitObligation::Send,
+        ))
 }
 
 #[derive(Clone, Copy)]
@@ -139,7 +101,24 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
         visiting: &mut BTreeSet<String>,
     ) -> bool {
         match value_type {
-            ValueType::Reference(_) => false,
+            ValueType::InvocationScopedNative {
+                rust_type,
+                concrete: true,
+                ..
+            } => package
+                .native_capabilities
+                .get(rust_type)
+                .is_some_and(|capability| match obligation {
+                    AutoTraitObligation::Send => capability.send,
+                    AutoTraitObligation::Sync => capability.sync,
+                }),
+            ValueType::InvocationScopedNative { .. } => false,
+            ValueType::Reference(inner) => satisfies(
+                package,
+                inner.value_type_ref(),
+                AutoTraitObligation::Sync,
+                visiting,
+            ),
             ValueType::Object(identity) => {
                 if let Some(capability) = package.native_capability(identity) {
                     return match obligation {
@@ -225,7 +204,8 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 result
             }
             ValueType::Optional(inner) => satisfies(package, inner, obligation, visiting),
-            ValueType::Iterator(inner)
+            ValueType::MutableReference(inner)
+            | ValueType::Iterator(inner)
             | ValueType::IterationStep(inner)
             | ValueType::List(inner)
             | ValueType::Set(inner)
@@ -277,7 +257,7 @@ pub(super) fn value_type_is_task_transferable(
     value_type: &ValueType,
 ) -> bool {
     match value_type {
-        ValueType::Reference(_) => false,
+        ValueType::Reference(_) | ValueType::MutableReference(_) => false,
         ValueType::Optional(inner) => value_type_is_task_transferable(package, inner),
         ValueType::Union(arms) => arms
             .iter()
@@ -321,7 +301,7 @@ pub(super) fn value_type_is_task_transferable(
 
 pub(in crate::semantics) fn value_type_is_owned_static(value_type: &ValueType) -> bool {
     match value_type {
-        ValueType::Reference(_) => false,
+        ValueType::Reference(_) | ValueType::MutableReference(_) => false,
         ValueType::Optional(inner) => value_type_is_owned_static(inner),
         ValueType::Union(arms) => arms.iter().all(value_type_is_owned_static),
         ValueType::Iterator(inner)
@@ -558,8 +538,10 @@ pub(in crate::semantics) fn validate_suspension_ownership(
         collect_suspension_points(unit, &unit.tree.root, &mut awaits);
         for contract in unit.local_functions().filter(|contract| contract.is_async) {
             for binding in unit.typed_bindings.iter().filter(|binding| {
-                matches!(binding.value_type, ValueType::Reference(_))
-                    && binding.span.file == contract.span.file
+                matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::MutableReference(_)
+                ) && binding.span.file == contract.span.file
                     && binding.span.start >= contract.span.start
                     && binding.span.end <= contract.span.end
             }) {
@@ -567,7 +549,9 @@ pub(in crate::semantics) fn validate_suspension_ownership(
                     continue;
                 };
                 if let Some(suspension) = awaits.iter().find(|suspension| {
-                    suspension.start >= binding.visible_from
+                    unit.containing_function(**suspension)
+                        .is_some_and(|owner| owner.span == contract.span)
+                        && suspension.start >= binding.visible_from
                         && suspension.end <= contract.span.end
                         && events.iter().any(|event| {
                             matches!(
@@ -575,7 +559,13 @@ pub(in crate::semantics) fn validate_suspension_ownership(
                                 BindingEvent::Read { span, .. } if span.start > suspension.end
                             )
                         })
-                        && !reference_has_stable_local_owner(package, unit, contract, binding)
+                        && !reference_has_stable_lender(
+                            package,
+                            unit,
+                            contract,
+                            binding,
+                            **suspension,
+                        )
                 }) {
                     return Err(failure(
                         &unit.source,

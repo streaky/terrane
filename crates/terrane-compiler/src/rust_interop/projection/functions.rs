@@ -37,6 +37,28 @@ fn borrowed_str_parameter(ty: &Type, index: &HashMap<Id, Item>) -> bool {
     matches!(inner, Type::Primitive(name) if name == "str")
 }
 
+fn outer_borrow_lifetime(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<String>, String> {
+    let expanded = match ty {
+        Type::ResolvedPath(path)
+            if index
+                .get(&path.id)
+                .is_some_and(|item| matches!(item.inner, ItemEnum::TypeAlias(_))) =>
+        {
+            expand_output_alias(ty.clone(), index, paths, generics.clone())?.0
+        }
+        _ => ty.clone(),
+    };
+    Ok(match expanded {
+        Type::BorrowedRef { lifetime, .. } => Some(lifetime.unwrap_or_else(|| "'_".to_owned())),
+        _ => None,
+    })
+}
+
 fn direct_future_output(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<Type> {
     let Type::ImplTrait(bounds) = ty else {
         return None;
@@ -346,8 +368,9 @@ pub(super) fn project_function_inner(
     {
         return Err("borrowed result values require an invocation-scoped lender".to_owned());
     }
-    let mut parameters: Vec<ProjectedParameter> = Vec::new();
     let mut receiver = None;
+    let mut receiver_lifetime = None;
+    let mut parameters: Vec<ProjectedParameter> = Vec::new();
     for (parameter_index, (name, ty)) in function.sig.inputs.iter().enumerate() {
         let requires_static_reference = match ty {
             Type::BorrowedRef {
@@ -375,6 +398,7 @@ pub(super) fn project_function_inner(
         }
         if name == "self" {
             receiver = Some(receiver_kind(ty, paths)?);
+            receiver_lifetime = outer_borrow_lifetime(ty, index, paths, &generic_types)?;
             continue;
         }
         if !matches!(ty, Type::BorrowedRef { .. }) && type_contains_borrowed_ref(ty) {
@@ -465,6 +489,7 @@ pub(super) fn project_function_inner(
             Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
             _ => (false, false),
         };
+        let borrow_lifetime = outer_borrow_lifetime(ty, index, paths, &generic_types)?;
         if mutable_borrow
             && !matches!(projected_type, ProjectedType::Foreign { .. })
             && !(matches!(projected_type, ProjectedType::Generic(_))
@@ -668,6 +693,7 @@ pub(super) fn project_function_inner(
             ty: projected_type,
             borrowed,
             mutable_borrow,
+            borrow_lifetime,
             generic_parameter,
             generic_interface,
             generic_bounds: rendered_generic_bounds,
@@ -725,7 +751,14 @@ pub(super) fn project_function_inner(
         if allow_lifetime_output && type_contains_lifetime_argument(ty) {
             project_invocation_scoped_type(ty, index, paths, &output_generic_types)
         } else {
-            project_type(ty, index, paths, &output_generic_types)
+            let projected = project_type(ty, index, paths, &output_generic_types)?;
+            if type_contains_lifetime_argument(ty) {
+                return Err(
+                    "lifetime-bearing native output requires a scoped owner/lender representation"
+                        .to_owned(),
+                );
+            }
+            Ok(projected)
         }
     };
     let result = if let Some(output) = effective_output.as_ref() {
@@ -796,6 +829,11 @@ pub(super) fn project_function_inner(
             }
         } else {
             project_output(output).or_else(|reason| {
+                // An open nominal fallback must not erase a lifetime contract
+                // rejected by the scoped-output classifier above.
+                if type_contains_lifetime_argument(output) {
+                    return Err(reason);
+                }
                 open_chain_result(output, index, paths, &output_generic_types)
                     .ok_or_else(|| format!("projected output: {reason}"))
             })?
@@ -977,6 +1015,7 @@ pub(super) fn project_function_inner(
         enum_operation: None,
         error_optional_depth,
         chain_role,
+        receiver_lifetime,
         receiver,
     })
 }

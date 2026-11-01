@@ -1,0 +1,4 @@
+package = "mutable-reference-await-capture"
+[namespaces]
+app = "src"
+worker = "src/worker"

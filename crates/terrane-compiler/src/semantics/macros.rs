@@ -6,6 +6,7 @@ pub(crate) fn macro_argument(
     unit: &SemanticUnit,
     value: &SyntaxNode,
     index: usize,
+    joint_native_graph: bool,
 ) -> Result<ProjectedParameter, SemanticFailure> {
     let mut value = value;
     while value.kind == SyntaxKind::GroupExpression && value.children.len() == 1 {
@@ -24,6 +25,30 @@ pub(crate) fn macro_argument(
             false,
         ));
     }
+    if joint_native_graph
+        && value.kind == SyntaxKind::CallExpression
+        && let Some(callee) = value.children.first()
+        && let Some(function) =
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(value))
+        && (matches!(function.result, ProjectedType::InvocationScoped { .. })
+            || matches!(
+                function.chain_role,
+                Some(
+                    crate::rust_interop::projection::ChainRole::Root
+                        | crate::rust_interop::projection::ChainRole::Continue
+                )
+            ))
+    {
+        // The enclosing callback proves this complete producer/macro expression.
+        // Do not demand a detached concrete type for an intermediate whose
+        // lifetime and generics are selected jointly by that native graph.
+        return Ok(parameter(
+            index,
+            ProjectedType::Generic("__MacroTokens".to_owned()),
+            false,
+            false,
+        ));
+    }
     let actual = infer_value_type(unit, value, &unit.typed_bindings)?.ok_or_else(|| {
         failure(
             &unit.source,
@@ -33,8 +58,10 @@ pub(crate) fn macro_argument(
         )
     })?;
     let (actual, borrowed, mutable) = match actual {
-        ValueType::Reference(item) => (item.value_type(), true, true),
-        ValueType::SharedReference(item) => (item.value_type(), true, false),
+        ValueType::Reference(item) | ValueType::SharedReference(item) => {
+            (item.value_type(), true, false)
+        }
+        ValueType::MutableReference(item) => (item.value_type(), true, true),
         actual => (actual, false, false),
     };
     let ty = if value.kind == SyntaxKind::Literal && actual == ValueType::Scalar(ScalarType::String)
@@ -72,6 +99,7 @@ fn parameter(
         name: format!("argument_{index}"),
         ty,
         borrowed,
+        borrow_lifetime: None,
         mutable_borrow,
         generic_parameter: None,
         generic_bounds: Vec::new(),
@@ -121,7 +149,7 @@ pub(super) fn macro_probe(
                 .collect::<Result<Vec<_>, _>>()?;
             return Ok(format!("{}!({})", item.rust_path, arguments.join(", ")));
         }
-        let parameter = macro_argument(package, unit, value, parameters.len())?;
+        let parameter = macro_argument(package, unit, value, parameters.len(), false)?;
         if value.kind == SyntaxKind::Literal {
             let token =
                 crate::lowering::helpers::native_macro_literal(node_text(&unit.source, value));

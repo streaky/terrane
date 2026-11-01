@@ -135,18 +135,20 @@ fn main() {
                 std::panic::AssertUnwindSafe(|| {
                     (&marker_cell)
                         .get()
-                        .map(move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = marker_value(borrowed_argument_0);
-                                Ok(
-                                    terrane_int_support::coerce::<i64>(&callback_value)
-                                        .map_err(|error| crate::TerraneForeignError(
-                                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                        ))?,
-                                )
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
+                        .map({
+                            move |borrowed_argument_0| {
+                                match || -> Result<_, crate::TerraneForeignError> {
+                                    let callback_value = marker_value(borrowed_argument_0);
+                                    Ok(
+                                        terrane_int_support::coerce::<i64>(&callback_value)
+                                            .map_err(|error| crate::TerraneForeignError(
+                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                            ))?,
+                                    )
+                                }() {
+                                    Ok(value) => value,
+                                    Err(error) => std::panic::panic_any(error.0),
+                                }
                             }
                         })
                 }),
@@ -566,18 +568,20 @@ fn main() {
                 std::panic::AssertUnwindSafe(|| {
                     (&async_free)
                         .get()
-                        .map(move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = marker_value(borrowed_argument_0);
-                                Ok(
-                                    terrane_int_support::coerce::<i64>(&callback_value)
-                                        .map_err(|error| crate::TerraneForeignError(
-                                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                        ))?,
-                                )
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
+                        .map({
+                            move |borrowed_argument_0| {
+                                match || -> Result<_, crate::TerraneForeignError> {
+                                    let callback_value = marker_value(borrowed_argument_0);
+                                    Ok(
+                                        terrane_int_support::coerce::<i64>(&callback_value)
+                                            .map_err(|error| crate::TerraneForeignError(
+                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                            ))?,
+                                    )
+                                }() {
+                                    Ok(value) => value,
+                                    Err(error) => std::panic::panic_any(error.0),
+                                }
                             }
                         })
                 }),
@@ -614,18 +618,20 @@ fn main() {
                 std::panic::AssertUnwindSafe(|| {
                     (&async_member)
                         .get()
-                        .map(move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = marker_value(borrowed_argument_0);
-                                Ok(
-                                    terrane_int_support::coerce::<i64>(&callback_value)
-                                        .map_err(|error| crate::TerraneForeignError(
-                                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                        ))?,
-                                )
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
+                        .map({
+                            move |borrowed_argument_0| {
+                                match || -> Result<_, crate::TerraneForeignError> {
+                                    let callback_value = marker_value(borrowed_argument_0);
+                                    Ok(
+                                        terrane_int_support::coerce::<i64>(&callback_value)
+                                            .map_err(|error| crate::TerraneForeignError(
+                                                crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                            ))?,
+                                    )
+                                }() {
+                                    Ok(value) => value,
+                                    Err(error) => std::panic::panic_any(error.0),
+                                }
                             }
                         })
                 }),

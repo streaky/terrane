@@ -19,7 +19,11 @@ impl Emitter<'_> {
         if self.reference_backed_name(node).is_some()
             && !matches!(
                 self.value_type(node),
-                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                Some(
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
             )
         {
             return format!("*({})", self.receiver_guard_expression(node));
@@ -31,7 +35,10 @@ impl Emitter<'_> {
         {
             return self.available_storage_reference(binding, node, false);
         }
-        if matches!(self.value_type(node), Some(ValueType::Reference(_))) {
+        if matches!(
+            self.value_type(node),
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+        ) {
             return self.receiver_guard_expression(node);
         }
         if matches!(self.receiver_value_type(node), Some(ValueType::Scalar(_))) {
@@ -75,7 +82,10 @@ impl Emitter<'_> {
                 self.display_receiver(node)
             };
             let mut display_type = &value_type;
-            while let ValueType::Reference(item) | ValueType::SharedReference(item) = display_type {
+            while let ValueType::Reference(item)
+            | ValueType::MutableReference(item)
+            | ValueType::SharedReference(item) = display_type
+            {
                 value = format!("*({value})");
                 display_type = item.value_type_ref();
             }
@@ -94,8 +104,14 @@ impl Emitter<'_> {
         output: &str,
     ) -> String {
         match value_type {
-            ValueType::Reference(item) | ValueType::SharedReference(item) => self
-                .write_display_value(node, item.value_type_ref(), &format!("*({value})"), output),
+            ValueType::Reference(item)
+            | ValueType::MutableReference(item)
+            | ValueType::SharedReference(item) => self.write_display_value(
+                node,
+                item.value_type_ref(),
+                &format!("*({value})"),
+                output,
+            ),
             ValueType::Optional(inner) => {
                 let present = self.write_display_value(node, inner, "__terrane_present", output);
                 format!(

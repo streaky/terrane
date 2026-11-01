@@ -531,6 +531,7 @@ mod __terrane_trace {
 }
 // Source: <terrane>/projected/deps/witness.trn
 // Namespace: deps/witness
+pub type ScopedView<'view> = witness::ScopedView<'view>;
 pub fn borrowed_view<'view>(
     value: &'view str,
 ) -> Result<witness::ScopedView<'view>, crate::TerraneForeignError> {

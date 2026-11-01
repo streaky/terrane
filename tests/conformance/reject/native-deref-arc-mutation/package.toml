@@ -1,0 +1,8 @@
+package = "native-deref-arc-mutation"
+
+[namespaces]
+native-deref-arc-mutation = "src"
+
+[rust-dependencies.receiver-api]
+package = "receiver-api"
+version = "=0.1.0"

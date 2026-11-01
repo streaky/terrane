@@ -12,7 +12,7 @@ function row-value int64; record ref native-row
     return rust
         ::sqlx::Row::try_get::<i64, _>(record, 0_usize).expect("SELECT 77 has one integer column")
 
-async function read-borrowed int64; native ref native-connection
+async function read-borrowed int64; native mutable ref native-connection
     arguments = native-arguments::default;
     sql = query-text;
     record native-row = await (native-query; sql, move arguments).fetch_one; native

@@ -262,6 +262,7 @@ pub(super) fn validate_call_nodes<'a>(
                 arguments.span,
             ));
         }
+        let mut borrows = Vec::new();
         for (index, argument) in arguments.children.iter().enumerate() {
             if argument.children.len() > 1 {
                 return Err(failure(
@@ -275,8 +276,23 @@ pub(super) fn validate_call_nodes<'a>(
                 .get(index)
                 .or_else(|| parameters.last())
                 .expect("validated callable argument has a parameter");
-            let value = argument.children.last().unwrap_or(argument);
             let expected_type = expected.value_type();
+            let value = argument.children.last().unwrap_or(argument);
+            if matches!(
+                expected_type,
+                ValueType::Reference(_) | ValueType::MutableReference(_)
+            ) && !matches!(
+                infer_value_type(unit, value, scoped_bindings)?,
+                Some(ValueType::SharedReference(_))
+            ) && let Some((owner, path)) = call_reference_origin(package, unit, value)
+            {
+                borrows.push((
+                    owner,
+                    path,
+                    matches!(expected_type, ValueType::MutableReference(_)),
+                    value.span,
+                ));
+            }
             reject_shared_weak_observer_argument(
                 package,
                 unit,
@@ -287,14 +303,24 @@ pub(super) fn validate_call_nodes<'a>(
                 false,
             )?;
             if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
+                if matches!(expected.value_type(), ValueType::MutableReference(_)) {
+                    validate_mutable_reference_argument(package, unit, value, &actual)?;
+                }
                 let expected_type = match expected.value_type() {
                     ValueType::Reference(inner) if inner.value_type_ref() == &actual => {
                         inner.value_type()
                     }
+                    ValueType::MutableReference(_)
+                        if matches!(actual, ValueType::MutableReference(_)) =>
+                    {
+                        expected.value_type()
+                    }
+                    ValueType::MutableReference(inner) => inner.value_type(),
                     ValueType::SharedReference(inner)
                         if !matches!(
                             &actual,
                             ValueType::Reference(_)
+                                | ValueType::MutableReference(_)
                                 | ValueType::SharedReference(_)
                                 | ValueType::InvocationScopedNative { .. }
                         ) =>
@@ -314,6 +340,7 @@ pub(super) fn validate_call_nodes<'a>(
                 )?;
             }
         }
+        validate_call_borrow_aliases(unit, &borrows)?;
     }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
@@ -465,6 +492,12 @@ pub(super) fn validate_call_nodes<'a>(
                     crate::syntax::call_is_unsafe(node),
                 )
                 .is_some(),
+                receiver_call_borrow(
+                    package,
+                    unit,
+                    callee,
+                    specialized.as_ref().unwrap_or(contract),
+                ),
             )?;
         }
     }
@@ -582,7 +615,8 @@ fn validate_projected_generic_arguments(
         );
         let source_interface = parameter.generic_interface.is_some() || boxed_interface;
         if parameter.generic_parameter.is_none()
-            || (!source_interface && !native_parameter.requires_mutable_reference())
+            && !source_interface
+            && !native_parameter.requires_mutable_reference()
         {
             continue;
         }
@@ -595,12 +629,26 @@ fn validate_projected_generic_arguments(
                 value.span,
             ));
         };
+        if native_parameter.requires_mutable_reference()
+            && !super::reference_validation::mutable_reference_creation_is_valid(
+                package, unit, value,
+            )
+        {
+            return Err(failure(
+                &unit.source,
+                "T0148",
+                "native mutable-reference argument requires a mutable place or explicit mutable reference",
+                value.span,
+            ));
+        }
         if !source_interface {
             continue;
         }
         let identity = match &actual {
             ValueType::Object(identity) => identity,
-            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+            ValueType::Reference(inner)
+            | ValueType::MutableReference(inner)
+            | ValueType::SharedReference(inner) => {
                 let ValueType::Object(identity) = inner.value_type_ref() else {
                     return Err(failure(
                         &unit.source,
@@ -910,6 +958,26 @@ pub(super) fn validate_resolved_assignment(
     else {
         return Ok(());
     };
+    let expected = match expected {
+        ValueType::MutableReference(inner) if node.kind == SyntaxKind::Assignment => {
+            if matches!(
+                &actual,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            ) && inner.value_type_ref() != &actual
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0149",
+                    "assignment through a mutable reference requires a payload value, not a new reference",
+                    initializer.span,
+                ));
+            }
+            inner.value_type()
+        }
+        _ => expected,
+    };
     if initializer.kind == SyntaxKind::Name
         && let Some(contract) = function_contract_for_call(package, unit, initializer)
         && !contract.generic_parameters.is_empty()
@@ -968,8 +1036,11 @@ pub(super) fn bind_projected_generics(
     match (expected, actual) {
         (
             ValueType::Reference(expected) | ValueType::SharedReference(expected),
-            ValueType::Reference(actual) | ValueType::SharedReference(actual),
+            ValueType::Reference(actual)
+            | ValueType::MutableReference(actual)
+            | ValueType::SharedReference(actual),
         )
+        | (ValueType::MutableReference(expected), ValueType::MutableReference(actual))
         | (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
@@ -1093,6 +1164,9 @@ pub(super) fn substitute_projected_value_generics(
             substitute_projected_value_generics(inner.value_type_ref(), bindings),
         )),
         ValueType::SharedReference(inner) => ValueType::SharedReference(ElementType::new(
+            substitute_projected_value_generics(inner.value_type_ref(), bindings),
+        )),
+        ValueType::MutableReference(inner) => ValueType::MutableReference(ElementType::new(
             substitute_projected_value_generics(inner.value_type_ref(), bindings),
         )),
         ValueType::Optional(inner) => ValueType::Optional(Box::new(
@@ -1330,18 +1404,6 @@ fn bind_destination_selected_callback(
     Ok(true)
 }
 
-fn defer_native_callback_borrow_validation(value: &mut ValueType, native_callback: bool) {
-    // The selected native callback ABI validator owns this borrow authority.
-    if native_callback
-        && let ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _) =
-            value
-    {
-        for parameter in parameters {
-            parameter.requires_mutable_reference = false;
-        }
-    }
-}
-
 fn shared_weak_observer_owner(
     unit: &SemanticUnit,
     value: &SyntaxNode,
@@ -1390,7 +1452,10 @@ fn reject_shared_weak_observer_argument(
     destination: &str,
     native_call: bool,
 ) -> Result<(), SemanticFailure> {
-    if !matches!(expected, ValueType::Reference(_)) {
+    if !matches!(
+        expected,
+        ValueType::Reference(_) | ValueType::MutableReference(_)
+    ) {
         return Ok(());
     }
     let actual = infer_value_type(unit, value, bindings)?;
@@ -1436,6 +1501,192 @@ fn reject_shared_weak_observer_argument(
     }
     Ok(())
 }
+fn validate_mutable_reference_argument(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    actual: &ValueType,
+) -> Result<(), SemanticFailure> {
+    if matches!(actual, ValueType::MutableReference(_))
+        || super::reference_validation::mutable_reference_creation_is_valid(package, unit, value)
+    {
+        return Ok(());
+    }
+    Err(failure(
+        &unit.source,
+        "T0148",
+        "mutable reference parameter requires an existing mutable reference or mutable place",
+        value.span,
+    ))
+}
+
+fn call_reference_origin(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Option<(Span, Vec<ReferenceProjection>)> {
+    match value.kind {
+        SyntaxKind::GroupExpression => {
+            call_reference_origin(package, unit, value.children.first()?)
+        }
+        SyntaxKind::MemberExpression => {
+            let [receiver, member] = value.children.as_slice() else {
+                return None;
+            };
+            let (owner, mut path) = call_reference_origin(package, unit, receiver)?;
+            path.push(ReferenceProjection::Field(
+                node_text(&unit.source, member).to_owned(),
+            ));
+            Some((owner, path))
+        }
+        SyntaxKind::IndexExpression => {
+            let receiver = value.children.first()?;
+            let (owner, mut path) = call_reference_origin(package, unit, receiver)?;
+            path.push(ReferenceProjection::Element);
+            Some((owner, path))
+        }
+        SyntaxKind::UnaryExpression => call_reference_origin(package, unit, value.children.last()?),
+        SyntaxKind::Name => {
+            let declaration = package
+                .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))?
+                .declaration_span?;
+            let binding = unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == declaration);
+            if binding.is_some_and(|binding| {
+                matches!(
+                    binding.value_type,
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
+            }) && let Some(provenance) = unit
+                .reference_provenance
+                .get(&(declaration.start, declaration.end))
+            {
+                return Some((provenance.owner, provenance.path.clone()));
+            }
+            Some((declaration, Vec::new()))
+        }
+        _ => None,
+    }
+}
+
+fn reference_paths_overlap(left: &[ReferenceProjection], right: &[ReferenceProjection]) -> bool {
+    for (left, right) in left.iter().zip(right) {
+        match (left, right) {
+            (ReferenceProjection::Field(left), ReferenceProjection::Field(right))
+                if left != right =>
+            {
+                return false;
+            }
+            (left, right) if left != right => return true,
+            _ => {}
+        }
+    }
+    true
+}
+
+fn receiver_call_borrow(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    contract: &FunctionContract,
+) -> Option<(Span, Vec<ReferenceProjection>, bool, Span)> {
+    let (receiver, value_type, member) = typed_member_call(unit, callee)?;
+    let mode = member_invocation_mode(package, unit, &value_type, &member);
+    if mode == InvocationMode::Consuming
+        || !contract.parameters.iter().any(|parameter| {
+            parameter.element_value_type().is_some_and(|ty| {
+                matches!(ty, ValueType::MutableReference(_))
+                    || (mode == InvocationMode::Mutable && matches!(ty, ValueType::Reference(_)))
+            })
+        })
+    {
+        return None;
+    }
+    let (owner, path) = call_reference_origin(package, unit, receiver)?;
+    // Checked shared cells keep their existing guarded reentry contract. These
+    // are not Rust borrows of the referent held across the invocation boundary.
+    if package.reference_owner_uses_shared_storage(unit, owner) {
+        return None;
+    }
+    Some((owner, path, mode == InvocationMode::Mutable, receiver.span))
+}
+
+fn validate_call_borrow_aliases(
+    unit: &SemanticUnit,
+    borrows: &[(Span, Vec<ReferenceProjection>, bool, Span)],
+) -> Result<(), SemanticFailure> {
+    for (index, (owner, path, exclusive, _)) in borrows.iter().enumerate() {
+        for (other_owner, other_path, other_exclusive, span) in &borrows[index + 1..] {
+            if owner == other_owner
+                && (*exclusive || *other_exclusive)
+                && reference_paths_overlap(path, other_path)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0149",
+                    "call arguments contain overlapping places while one requires an exclusive mutable reference",
+                    *span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_argument_destination(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    name: &str,
+    expected: &ValueType,
+    actual: &ValueType,
+    native_callback: bool,
+    generic_bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<(), SemanticFailure> {
+    let generic_failure = |generic| {
+        failure(
+            &unit.source,
+            "T0012",
+            format!("projected generic `{generic}` is inferred as incompatible argument types"),
+            value.span,
+        )
+    };
+    if bind_destination_selected_callback(expected, actual, generic_bindings)
+        .map_err(generic_failure)?
+    {
+        return Ok(());
+    }
+    let validation_expected = match (expected, actual) {
+        (
+            ValueType::Reference(_) | ValueType::SharedReference(_),
+            ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::SharedReference(_),
+        )
+        | (ValueType::MutableReference(_), ValueType::MutableReference(_)) => expected.clone(),
+        (ValueType::Reference(inner), _) if native_callback || inner.value_type_ref() == actual => {
+            inner.value_type()
+        }
+        (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _) => {
+            inner.value_type()
+        }
+        _ => expected.clone(),
+    };
+    bind_projected_generics(&validation_expected, actual, generic_bindings)
+        .map_err(generic_failure)?;
+    validate_value_destination(
+        &unit.source,
+        &unit.descriptors,
+        name,
+        &validation_expected,
+        actual,
+        value,
+        "T0012",
+    )
+}
 
 pub(super) fn validate_call_arguments(
     package: &SemanticPackage,
@@ -1444,7 +1695,12 @@ pub(super) fn validate_call_arguments(
     contract: &FunctionContract,
     bindings: &[TypedBinding],
     native_callback: bool,
+    receiver: Option<(Span, Vec<ReferenceProjection>, bool, Span)>,
 ) -> Result<(), SemanticFailure> {
+    let mut borrows = Vec::new();
+    if let Some(receiver) = receiver {
+        borrows.push(receiver);
+    }
     let mut bound = BTreeSet::new();
     let mut generic_bindings = BTreeMap::new();
     let mut positional = 0;
@@ -1471,6 +1727,24 @@ pub(super) fn validate_call_arguments(
             ));
         }
         let value = argument.children.last().unwrap_or(argument);
+        if let Some(expected) = parameter.element_value_type()
+            && matches!(
+                expected,
+                ValueType::Reference(_) | ValueType::MutableReference(_)
+            )
+            && !matches!(
+                infer_value_type(unit, value, bindings)?,
+                Some(ValueType::SharedReference(_))
+            )
+            && let Some((owner, path)) = call_reference_origin(package, unit, value)
+        {
+            borrows.push((
+                owner,
+                path,
+                matches!(expected, ValueType::MutableReference(_)),
+                value.span,
+            ));
+        }
         if let Some(expected) = parameter.element_value_type() {
             reject_shared_weak_observer_argument(
                 package,
@@ -1489,50 +1763,24 @@ pub(super) fn validate_call_arguments(
                     &parameter.name,
                     bindings,
                 )?;
-            } else if let Some(mut actual) = infer_value_type(unit, value, bindings)? {
-                defer_native_callback_borrow_validation(&mut actual, native_callback);
-                let generic_failure = |generic| {
-                    failure(
-                        &unit.source,
-                        "T0012",
-                        format!(
-                            "projected generic `{generic}` is inferred as incompatible argument types"
-                        ),
-                        value.span,
-                    )
-                };
-                if bind_destination_selected_callback(&expected, &actual, &mut generic_bindings)
-                    .map_err(generic_failure)?
-                {
-                    continue;
+            } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
+                if matches!(expected, ValueType::MutableReference(_)) {
+                    validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
-                let validation_expected = match (&expected, &actual) {
-                    (
-                        ValueType::Reference(_) | ValueType::SharedReference(_),
-                        ValueType::Reference(_) | ValueType::SharedReference(_),
-                    ) => expected.clone(),
-                    (ValueType::Reference(inner), _)
-                        if native_callback || inner.value_type_ref() == &actual =>
-                    {
-                        inner.value_type()
-                    }
-                    (ValueType::SharedReference(inner), _) => inner.value_type(),
-                    _ => expected.clone(),
-                };
-                bind_projected_generics(&validation_expected, &actual, &mut generic_bindings)
-                    .map_err(generic_failure)?;
-                validate_value_destination(
-                    &unit.source,
-                    &unit.descriptors,
-                    &parameter.name,
-                    &validation_expected,
-                    &actual,
+                validate_argument_destination(
+                    unit,
                     value,
-                    "T0012",
+                    &parameter.name,
+                    &expected,
+                    &actual,
+                    native_callback,
+                    &mut generic_bindings,
                 )?;
             }
         }
     }
+    validate_call_borrow_aliases(unit, &borrows)?;
+
     if let Some(missing) = contract.parameters.iter().find(|parameter| {
         !parameter.optional && !parameter.variadic && !bound.contains(parameter.name.as_str())
     }) {
@@ -1723,6 +1971,47 @@ pub(crate) fn selected_callable_contract(
     }
     canonicalize_selected_contract(package, &mut selected);
     Some(selected)
+}
+
+// A closed native adapter can supply an exclusive input even when the generic
+// projected declaration only exposed a borrow placeholder. Retain an author's
+// explicit mutable input only when that selected native ABI proves it; ordinary
+// source callable slots remain invariant, and observers keep read-only inputs.
+pub(super) fn refine_native_callback_access(
+    source: &mut ValueType,
+    native: &crate::rust_interop::projection::ProjectedType,
+    actual: &ValueType,
+) {
+    let crate::rust_interop::projection::ProjectedType::Callback {
+        parameter_rust_types,
+        ..
+    } = native
+    else {
+        return;
+    };
+    let (ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _)) =
+        source
+    else {
+        return;
+    };
+    let (ValueType::Function(actual_parameters, _, _)
+    | ValueType::AsyncFunction(actual_parameters, _, _, _)) = actual
+    else {
+        return;
+    };
+    for ((source, native), actual) in parameters
+        .iter_mut()
+        .zip(parameter_rust_types)
+        .zip(actual_parameters)
+    {
+        if matches!(syn::parse_str::<syn::Type>(native),
+            Ok(syn::Type::Reference(reference)) if reference.mutability.is_some())
+            && matches!(actual.value_type_ref(), ValueType::MutableReference(_))
+            && let ValueType::Reference(inner) = source.value_type_ref()
+        {
+            *source.value_type_mut() = ValueType::MutableReference(inner.clone());
+        }
+    }
 }
 
 fn canonicalize_selected_contract(package: &SemanticPackage, contract: &mut FunctionContract) {

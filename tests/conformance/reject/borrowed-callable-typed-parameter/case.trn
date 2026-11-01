@@ -1,0 +1,10 @@
+namespace app
+function run-twice; action function to none
+    action;
+    action;
+function main;
+    value = 3
+    observer = ref value
+    callback = function;
+        print; observer
+    run-twice; callback

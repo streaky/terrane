@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-scoped-guard-witness = { path = "fixture-registry/terrane-scoped-guard-witness-0.1.0" }

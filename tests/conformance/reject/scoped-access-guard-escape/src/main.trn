@@ -1,0 +1,13 @@
+namespace app
+
+from /core/modifiers import scoped-access
+from /deps/guard-api import Locks, Guard
+
+function leak Guard; locks Locks
+    with scoped-access guard = (locks.locked;) (
+        return guard
+    )
+
+function main;
+    locks = Locks::new; 1
+    leak; locks

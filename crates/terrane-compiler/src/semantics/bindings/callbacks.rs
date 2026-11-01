@@ -133,7 +133,7 @@ fn validate_projected_callback_contract(
                         .iter()
                         .find(|actual| actual.span == parameter.span)
                 })
-                .is_some_and(|source| source.mutable)
+                .is_some_and(super::super::model::ParameterContract::requires_mutable_reference)
         {
             return Err(failure(
                 &unit.source,
@@ -160,8 +160,12 @@ fn validate_projected_callback_contract(
     }
     if *retained
         && contract.captures.iter().any(|capture| {
-            captured_binding(package, unit, contract, capture)
-                .is_some_and(|binding| matches!(binding.value_type, ValueType::Reference(_)))
+            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
+                matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::MutableReference(_)
+                )
+            })
         })
     {
         return reject("T0083", "retained callback cannot capture a borrowed value");
@@ -289,6 +293,28 @@ fn projected_chain_role(
         projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))?;
     function.chain_role.or_else(|| {
         let receiver = callee.children.first()?;
+        let mut graph_receiver = receiver;
+        while graph_receiver.kind == SyntaxKind::GroupExpression {
+            graph_receiver = graph_receiver.children.first()?;
+        }
+        if matches!(
+            projected_chain_role(package, unit, graph_receiver),
+            Some(
+                crate::rust_interop::projection::ChainRole::Root
+                    | crate::rust_interop::projection::ChainRole::Continue
+            )
+        ) {
+            return Some(
+                if matches!(
+                    function.result,
+                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
+                ) {
+                    crate::rust_interop::projection::ChainRole::Continue
+                } else {
+                    crate::rust_interop::projection::ChainRole::Terminal
+                },
+            );
+        }
         matches!(
             infer_value_type(unit, receiver, &unit.typed_bindings)
                 .ok()
@@ -308,6 +334,19 @@ fn collect_chain_receivers(
     node: &SyntaxNode,
     receivers: &mut BTreeSet<(u32, usize, usize)>,
 ) {
+    if node.kind == SyntaxKind::ReturnStatement
+        && unit.invocation_scoped_result_at(node.span).is_some()
+    {
+        for value in &node.children {
+            let mut value = value;
+            while value.kind == SyntaxKind::GroupExpression && value.children.len() == 1 {
+                value = &value.children[0];
+            }
+            if projected_chain_role(package, unit, value).is_some() {
+                receivers.insert(span_key(value.span));
+            }
+        }
+    }
     if node.kind == SyntaxKind::Block {
         for statement in &node.children {
             let mut value = statement;
@@ -346,13 +385,12 @@ fn collect_chain_receivers(
         receivers.insert(span_key(receiver.span));
     }
     if node.kind == SyntaxKind::CallExpression
-        && projected_function_for_call(
-            package,
-            unit,
-            node.children.first().expect("call expression has a callee"),
-            crate::syntax::call_is_unsafe(node),
-        )
-        .is_some()
+        && node.children.first().is_some_and(|callee| {
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
+                .is_some()
+                || (unit.invocation_scoped_result_at(node.span).is_some()
+                    && projected_macro_for_call(package, unit, callee).is_some())
+        })
         && let Some(arguments) = node.children.get(1)
     {
         for argument in &arguments.children {
@@ -449,7 +487,9 @@ pub(in crate::semantics) fn projected_function_for_call<'a>(
             | ValueType::InvocationScopedNative {
                 family: identity, ..
             } => identity,
-            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+            ValueType::Reference(inner)
+            | ValueType::MutableReference(inner)
+            | ValueType::SharedReference(inner) => {
                 let ValueType::Object(identity) = inner.value_type() else {
                     return None;
                 };
@@ -502,6 +542,7 @@ fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRe
         | ValueType::ChannelReceiver(inner)
         | ValueType::ChannelReceiveOutcome(inner)
         | ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
         | ValueType::SharedReference(inner) => invocation_scoped_region(inner.value_type_ref()),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
@@ -510,6 +551,375 @@ fn invocation_scoped_region(value_type: &ValueType) -> Option<InvocationScopedRe
         ValueType::Tuple(item, _) => invocation_scoped_region(item.value_type_ref()),
         _ => None,
     }
+}
+fn projected_native_lifetimes(
+    projected: &crate::rust_interop::projection::ProjectedType,
+    lifetimes: &mut Vec<String>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    match projected {
+        ProjectedType::Reference {
+            inner, lifetime, ..
+        } => {
+            if let Some(lifetime) = lifetime {
+                lifetimes.push(lifetime.clone());
+            }
+            projected_native_lifetimes(inner, lifetimes);
+        }
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::Optional(item)
+        | ProjectedType::AsyncIterationStep(item) => projected_native_lifetimes(item, lifetimes),
+        ProjectedType::Mapping { key, value, .. } => {
+            projected_native_lifetimes(key, lifetimes);
+            projected_native_lifetimes(value, lifetimes);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                projected_native_lifetimes(item, lifetimes);
+            }
+        }
+        ProjectedType::InvocationScoped {
+            lifetimes: nested, ..
+        } => lifetimes.extend(nested.iter().cloned()),
+        _ => {}
+    }
+}
+
+fn call_for_scoped_native<'a>(
+    unit: &SemanticUnit,
+    node: &'a SyntaxNode,
+    rust_type: &str,
+) -> Option<&'a SyntaxNode> {
+    if unit
+        .projected_call_specializations
+        .get(&(node.span.file, node.span.start, node.span.end))
+        .is_some_and(|specialization| {
+            matches!(
+                &specialization.projected_result,
+                crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                    rust_type: result,
+                    ..
+                } if result == rust_type
+            )
+        })
+    {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| call_for_scoped_native(unit, child, rust_type))
+}
+
+fn scoped_native_lender_bindings(
+    unit: &SemanticUnit,
+    binding: &TypedBinding,
+    region: Span,
+) -> Option<Vec<Span>> {
+    scoped_native_lender_bindings_inner(unit, binding, region, &mut BTreeSet::new())
+}
+
+fn collect_scoped_receiver_lenders(
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    lifetimes: &[String],
+    region: Span,
+    visited: &mut BTreeSet<Span>,
+    lender_spans: &mut BTreeSet<Span>,
+    matched_lifetimes: &mut BTreeSet<String>,
+) -> Option<()> {
+    if let Some(receiver) = callee.children.first()
+        && let Some(ValueType::InvocationScopedNative {
+            lifetimes: receiver_lifetimes,
+            ..
+        }) = infer_value_type(unit, receiver, &unit.typed_bindings)
+            .ok()
+            .flatten()
+    {
+        for lifetime in lifetimes.iter().filter(|lifetime| {
+            lifetime.as_str() != "'static" && receiver_lifetimes.contains(lifetime)
+        }) {
+            matched_lifetimes.insert(lifetime.clone());
+            collect_transitive_lender_bindings(unit, receiver.span, region, visited, lender_spans)?;
+        }
+    }
+    Some(())
+}
+
+fn collect_scoped_call_receiver(
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    region: Span,
+    visited: &mut BTreeSet<Span>,
+    lender_spans: &mut BTreeSet<Span>,
+) -> Option<()> {
+    if let Some(receiver) = callee.children.first() {
+        collect_transitive_lender_bindings(unit, receiver.span, region, visited, lender_spans)?;
+    }
+    Some(())
+}
+
+fn scoped_native_lender_bindings_inner(
+    unit: &SemanticUnit,
+    binding: &TypedBinding,
+    region: Span,
+    visited: &mut BTreeSet<Span>,
+) -> Option<Vec<Span>> {
+    if !visited.insert(binding.span) {
+        return None;
+    }
+    let region_node = find_node_by_span(&unit.tree.root, region)?;
+    if !matches!(
+        region_node.kind,
+        SyntaxKind::WithRegion | SyntaxKind::FunctionDeclaration
+    ) {
+        return None;
+    }
+    let binding_node = find_node_by_span(&unit.tree.root, binding.span)?;
+    let expression = binding_node.children.last()?;
+    let ValueType::InvocationScopedNative {
+        rust_type,
+        lifetimes: output_lifetimes,
+        ..
+    } = &binding.value_type
+    else {
+        return None;
+    };
+    let mut lender_spans = BTreeSet::new();
+    if let Some(call) = call_for_scoped_native(unit, expression, rust_type) {
+        let specialization = unit.projected_call_specializations.get(&(
+            call.span.file,
+            call.span.start,
+            call.span.end,
+        ))?;
+        let crate::rust_interop::projection::ProjectedType::InvocationScoped { lifetimes, .. } =
+            &specialization.projected_result
+        else {
+            return None;
+        };
+        let callee = call.children.first()?;
+        let mut matched_lifetimes = BTreeSet::new();
+        if let Some(arguments) = call.children.get(1) {
+            for (parameter, argument) in specialization
+                .projected_parameters
+                .iter()
+                .zip(&arguments.children)
+            {
+                let mut parameter_lifetimes = Vec::new();
+                projected_native_lifetimes(&parameter.ty, &mut parameter_lifetimes);
+                if let Some(lifetime) = &parameter.borrow_lifetime {
+                    parameter_lifetimes.push(lifetime.clone());
+                }
+                for lifetime in lifetimes.iter().filter(|lifetime| {
+                    lifetime.as_str() != "'static"
+                        && parameter_lifetimes.contains(lifetime)
+                        && !(lifetime.as_str() == "'_"
+                            && specialization.projected_receiver_lifetime.as_deref() == Some("'_"))
+                }) {
+                    matched_lifetimes.insert(lifetime.clone());
+                    collect_transitive_lender_bindings(
+                        unit,
+                        argument.span,
+                        region,
+                        visited,
+                        &mut lender_spans,
+                    )?;
+                }
+            }
+        }
+        if let Some(receiver_lifetime) = &specialization.projected_receiver_lifetime {
+            for lifetime in lifetimes
+                .iter()
+                .filter(|lifetime| lifetime.as_str() != "'static" && *lifetime == receiver_lifetime)
+            {
+                matched_lifetimes.insert(lifetime.clone());
+                collect_scoped_call_receiver(unit, callee, region, visited, &mut lender_spans)?;
+            }
+        }
+        collect_scoped_receiver_lenders(
+            unit,
+            callee,
+            lifetimes,
+            region,
+            visited,
+            &mut lender_spans,
+            &mut matched_lifetimes,
+        )?;
+        if lifetimes
+            .iter()
+            .any(|lifetime| lifetime != "'static" && !matched_lifetimes.contains(lifetime))
+        {
+            return None;
+        }
+    } else {
+        collect_transitive_lender_bindings(
+            unit,
+            expression.span,
+            region,
+            visited,
+            &mut lender_spans,
+        )?;
+    }
+    (!output_lifetimes
+        .iter()
+        .any(|lifetime| lifetime != "'static")
+        || !lender_spans.is_empty())
+    .then(|| lender_spans.into_iter().collect())
+}
+
+fn collect_transitive_lender_bindings(
+    unit: &SemanticUnit,
+    source: Span,
+    region: Span,
+    visited: &mut BTreeSet<Span>,
+    lenders: &mut BTreeSet<Span>,
+) -> Option<()> {
+    let mut origins = BTreeSet::new();
+    collect_flow_lenders(unit, source, &mut origins);
+    if origins.is_empty() {
+        return None;
+    }
+    for origin in origins {
+        if let Some(binding) = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == origin)
+            && invocation_scoped_region(&binding.value_type).is_some()
+        {
+            let nested = scoped_native_lender_bindings_inner(unit, binding, region, visited)?;
+            lenders.extend(nested);
+        } else {
+            lenders.insert(origin);
+        }
+    }
+    Some(())
+}
+
+fn collect_flow_lenders(unit: &SemanticUnit, source: Span, lenders: &mut BTreeSet<Span>) {
+    for (&(file, start, end), origins) in &unit.flow_read_bindings {
+        if file == source.file && start >= source.start && end <= source.end {
+            lenders.extend(origins);
+        }
+    }
+}
+fn lender_is_transferable(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    span: Span,
+    borrower_region: Span,
+) -> bool {
+    let Some(binding) = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.span == span)
+    else {
+        return false;
+    };
+    let Some(scope) = binding.scope else {
+        return false;
+    };
+    if scope.file != borrower_region.file
+        || scope.start > borrower_region.start
+        || scope.end < borrower_region.end
+    {
+        return false;
+    }
+    match &binding.value_type {
+        ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+            super::async_tasks::value_type_satisfies_auto_trait(
+                package,
+                inner.value_type_ref(),
+                super::async_tasks::AutoTraitObligation::Sync,
+            )
+        }
+        ValueType::MutableReference(inner) => super::async_tasks::value_type_satisfies_auto_trait(
+            package,
+            inner.value_type_ref(),
+            super::async_tasks::AutoTraitObligation::Send,
+        ),
+        ValueType::InvocationScopedNative { .. } => {
+            super::async_tasks::value_type_satisfies_auto_trait(
+                package,
+                &binding.value_type,
+                super::async_tasks::AutoTraitObligation::Send,
+            )
+        }
+        value_type => {
+            super::async_tasks::value_type_satisfies_auto_trait(
+                package,
+                value_type,
+                super::async_tasks::AutoTraitObligation::Send,
+            ) && super::async_tasks::value_type_satisfies_auto_trait(
+                package,
+                value_type,
+                super::async_tasks::AutoTraitObligation::Sync,
+            )
+        }
+    }
+}
+
+fn scoped_native_transferable(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    binding: &TypedBinding,
+) -> bool {
+    let ValueType::InvocationScopedNative {
+        concrete: true,
+        region: Some((file, start, end)),
+        ..
+    } = &binding.value_type
+    else {
+        return false;
+    };
+    let Some(scope) = binding.scope else {
+        return false;
+    };
+    let Some(region) = nearest_scoped_access_region(&unit.tree.root, binding.span) else {
+        return false;
+    };
+    let lender_region = Span::new(*file, *start, *end);
+    if scope.file != region.file
+        || scope.start < region.start
+        || scope.end > region.end
+        || lender_region.file != region.file
+        || lender_region.start > region.start
+        || lender_region.end < region.end
+        || !super::async_tasks::value_type_satisfies_auto_trait(
+            package,
+            &binding.value_type,
+            super::async_tasks::AutoTraitObligation::Send,
+        )
+    {
+        return false;
+    }
+    let Some(lenders) = scoped_native_lender_bindings(unit, binding, region) else {
+        return false;
+    };
+    lenders
+        .iter()
+        .all(|lender| lender_is_transferable(package, unit, *lender, region))
+}
+
+fn nearest_scoped_access_region(root: &SyntaxNode, span: Span) -> Option<Span> {
+    fn visit(node: &SyntaxNode, span: Span, nearest: &mut Option<Span>) {
+        if matches!(
+            node.kind,
+            SyntaxKind::WithRegion | SyntaxKind::FunctionDeclaration
+        ) && node.span.file == span.file
+            && node.span.start <= span.start
+            && node.span.end >= span.end
+            && nearest
+                .is_none_or(|current| node.span.end - node.span.start < current.end - current.start)
+        {
+            *nearest = Some(node.span);
+        }
+        for child in &node.children {
+            visit(child, span, nearest);
+        }
+    }
+    let mut nearest = None;
+    visit(root, span, &mut nearest);
+    nearest
 }
 
 fn projected_native_name(projected: &crate::rust_interop::projection::ProjectedType) -> String {
@@ -534,35 +944,136 @@ fn visible_binding<'a>(
         .max_by_key(|binding| binding.visible_from)
 }
 
+fn lender_writes_before<'a>(
+    unit: &SemanticUnit,
+    node: &'a SyntaxNode,
+    binding: Span,
+    before: usize,
+    values: &mut Vec<&'a SyntaxNode>,
+) {
+    if node.span.start >= before
+        || matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        )
+    {
+        return;
+    }
+    if node.kind == SyntaxKind::Assignment
+        && let [target, value] = node.children.as_slice()
+        && target.kind == SyntaxKind::Name
+        && visible_binding(unit, target).is_some_and(|actual| actual.span == binding)
+    {
+        values.push(value);
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && receiver.kind == SyntaxKind::Name
+        && visible_binding(unit, receiver).is_some_and(|actual| {
+            actual.span == binding && matches!(actual.value_type, ValueType::List(_))
+        })
+        && matches!(node_text(&unit.source, member), "append" | "set")
+    {
+        values.extend(
+            arguments
+                .children
+                .iter()
+                .filter_map(|argument| argument.children.last()),
+        );
+    }
+    for child in &node.children {
+        lender_writes_before(unit, child, binding, before, values);
+    }
+}
+
 fn local_lender_name(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
     contract: &FunctionContract,
     function_span: Span,
+    visited: &mut BTreeSet<Span>,
 ) -> Option<(String, Span)> {
+    if node.kind == SyntaxKind::GroupExpression && node.children.len() == 1 {
+        return local_lender_name(
+            package,
+            unit,
+            &node.children[0],
+            contract,
+            function_span,
+            visited,
+        );
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && infer_value_type(unit, node, &unit.typed_bindings)
+            .ok()
+            .flatten()
+            .is_some_and(|value| {
+                !matches!(
+                    value,
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                        | ValueType::InvocationScopedNative { .. }
+                )
+            })
+    {
+        return Some(("temporary value".to_owned(), node.span));
+    }
     if node.kind == SyntaxKind::Name {
         let name = node_text(&unit.source, node);
         let binding = visible_binding(unit, node)?;
-        let externally_lent = unit
+        if contract.parameters.iter().any(|parameter| {
+            parameter.name == name
+                && matches!(
+                    parameter.value_type,
+                    Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+                )
+        }) || unit
             .reference_provenance
             .get(&(binding.span.start, binding.span.end))
             .is_some_and(|provenance| {
                 provenance.external_lender && provenance.lender_parameter.is_some()
-            });
-        if !externally_lent
-            && !contract
-                .parameters
-                .iter()
-                .any(|parameter| parameter.name == name)
-            && binding.scope == Some(function_span)
-            && invocation_scoped_region(&binding.value_type).is_none()
+            })
         {
+            return None;
+        }
+        if !binding.scope.is_some_and(|scope| {
+            scope.file == function_span.file
+                && function_span.start <= scope.start
+                && scope.end <= function_span.end
+        }) {
+            return None;
+        }
+        if invocation_scoped_region(&binding.value_type).is_none() {
             return Some((name.to_owned(), binding.span));
         }
+        if !visited.insert(binding.span) {
+            return None;
+        }
+        let declaration = declaration_node_with_name_span(&unit.tree.root, binding.span)
+            .or_else(|| find_node_by_span(&unit.tree.root, binding.span))?;
+        if let Some(initializer) = binding_initializer(declaration)
+            && let Some(lender) =
+                callback_return_lender(package, unit, initializer, contract, function_span, visited)
+        {
+            return Some(lender);
+        }
+        // A returned aggregate or reassigned view also retains dependencies
+        // introduced after its initializer. Resolve the receiver's binding,
+        // not just its spelling, and stay within this function and use point.
+        let function = find_node_by_span(&unit.tree.root, function_span)?;
+        let mut values = Vec::new();
+        for child in &function.children {
+            lender_writes_before(unit, child, binding.span, node.span.start, &mut values);
+        }
+        return values.into_iter().find_map(|value| {
+            callback_return_lender(package, unit, value, contract, function_span, visited)
+        });
     }
-    node.children
-        .iter()
-        .find_map(|child| local_lender_name(unit, child, contract, function_span))
+    callback_return_lender(package, unit, node, contract, function_span, visited)
 }
 
 fn local_lender_in_scoped_expression(
@@ -572,38 +1083,94 @@ fn local_lender_in_scoped_expression(
     contract: &FunctionContract,
     function_span: Span,
 ) -> Option<(String, Span)> {
+    callback_return_lender(
+        package,
+        unit,
+        node,
+        contract,
+        function_span,
+        &mut BTreeSet::new(),
+    )
+}
+
+fn callback_return_lender(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    contract: &FunctionContract,
+    function_span: Span,
+    visited: &mut BTreeSet<Span>,
+) -> Option<(String, Span)> {
+    if node.kind == SyntaxKind::Name {
+        return local_lender_name(package, unit, node, contract, function_span, visited);
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && (projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
-            .is_some_and(|function| {
-                matches!(
-                    function.result,
-                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-                )
-            })
-            || (callee.kind == SyntaxKind::Name
-                && resolved_function_contract(
-                    unit,
-                    node_text(&unit.source, callee),
-                    callee.span.start,
-                )
-                .is_some_and(|function| {
-                    matches!(
-                        function.return_type,
-                        Some(ValueType::InvocationScopedNative { .. })
-                    )
-                })))
     {
-        let lender = arguments
-            .children
-            .iter()
-            .find_map(|argument| local_lender_name(unit, argument, contract, function_span));
-        if lender.is_some() {
-            return lender;
+        if let Some(function) =
+            projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
+            && let crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                lifetimes: output_lifetimes,
+                ..
+            } = &function.result
+        {
+            if output_lifetimes
+                .iter()
+                .all(|lifetime| lifetime == "'static")
+            {
+                return None;
+            }
+            for (index, parameter) in function.parameters.iter().enumerate() {
+                let mut lifetimes = Vec::new();
+                projected_native_lifetimes(&parameter.ty, &mut lifetimes);
+                if let Some(lifetime) = &parameter.borrow_lifetime {
+                    lifetimes.push(lifetime.clone());
+                }
+                if lifetimes.iter().any(|lifetime| {
+                    lifetime != "'static"
+                        && output_lifetimes.contains(lifetime)
+                        && !(lifetime == "'_"
+                            && function.receiver_lifetime.as_deref() == Some("'_"))
+                }) && let Some(argument) =
+                    projected_argument_for_parameter(unit, &function.parameters, arguments, index)
+                    && let Some(lender) =
+                        local_lender_name(package, unit, argument, contract, function_span, visited)
+                {
+                    return Some(lender);
+                }
+            }
+            if function.receiver.is_some()
+                && callee.kind == SyntaxKind::MemberExpression
+                && let Some(receiver) = callee.children.first()
+                && let Some(lender) =
+                    local_lender_name(package, unit, receiver, contract, function_span, visited)
+            {
+                return Some(lender);
+            }
+            return None;
+        }
+        // A native owned result breaks the input loans. Do not mistake an
+        // owned conversion inside the returned graph for an escaping borrow.
+        if projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
+            .is_some()
+        {
+            return None;
+        }
+        if callee.kind == SyntaxKind::Name
+            && let Some(function) =
+                resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
+            && matches!(
+                function.return_type,
+                Some(ValueType::InvocationScopedNative { .. })
+            )
+        {
+            return arguments.children.iter().find_map(|argument| {
+                local_lender_name(package, unit, argument, contract, function_span, visited)
+            });
         }
     }
     node.children.iter().find_map(|child| {
-        local_lender_in_scoped_expression(package, unit, child, contract, function_span)
+        callback_return_lender(package, unit, child, contract, function_span, visited)
     })
 }
 
@@ -676,18 +1243,14 @@ fn validate_invocation_scoped_node(
             parameter.span,
         ));
     }
-    if node.kind == SyntaxKind::CallExpression
-        && let Some(function_span) = unit
-            .enclosing_function_spans
-            .get(&node.span.start)
-            .copied()
-            .flatten()
-        && let Some(contract) = unit
-            .functions
-            .iter()
-            .find(|contract| contract.span == function_span)
+    if node.kind == SyntaxKind::ReturnStatement
+        && let Some(contract) = unit.containing_function(node.span)
+        && matches!(
+            contract.return_type,
+            Some(ValueType::InvocationScopedNative { .. })
+        )
         && let Some((name, span)) =
-            local_lender_in_scoped_expression(package, unit, node, contract, function_span)
+            local_lender_in_scoped_expression(package, unit, node, contract, contract.span)
     {
         return Err(failure(
             &unit.source,
@@ -752,8 +1315,9 @@ fn validate_invocation_scoped_node(
         && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::Name
         && let Some(binding) = visible_binding(unit, target)
-        && let Some(declaration) = find_node_by_span(&unit.tree.root, binding.span)
-        && let Some(initializer) = declaration.children.last()
+        && let Some(declaration) = declaration_node_with_name_span(&unit.tree.root, binding.span)
+            .or_else(|| find_node_by_span(&unit.tree.root, binding.span))
+        && let Some(initializer) = binding_initializer(declaration)
         && let Some(initial_type) = infer_value_type(unit, initializer, &unit.typed_bindings)?
         && let Some(reassigned_type) = infer_value_type(unit, value, &unit.typed_bindings)?
         && let Ok(initial_projected) = destination_projected_type(package, &initial_type)
@@ -790,7 +1354,34 @@ fn validate_invocation_scoped_node(
             .get(&node.span.start)
             .copied()
             .flatten();
-        let local_region = local_span.map(|span| (span.file, span.start, span.end));
+        // An implicit assignment introduces its binding only after the
+        // initializer. Prefer that declaration before resolving a reassignment.
+        let destination = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == node.span)
+            .or_else(|| {
+                node.children
+                    .first()
+                    .filter(|target| target.kind == SyntaxKind::Name)
+                    .and_then(|target| {
+                        let name = node_text(&unit.source, target);
+                        unit.typed_bindings
+                            .iter()
+                            .filter(|binding| {
+                                binding.name == name
+                                    && binding.is_visible_at(unit.source.id(), target.span.start)
+                            })
+                            .max_by_key(|binding| binding.visible_from)
+                    })
+            });
+        let destination_region = destination
+            .and_then(|binding| binding.scope)
+            .map(|span| (span.file, span.start, span.end));
+        let destination_within_region = destination_region.is_some_and(|(file, start, end)| {
+            matches!(region, InvocationScopedRegion::Bound((lender_file, lender_start, lender_end))
+                if file == lender_file && start >= lender_start && end <= lender_end)
+        });
         let region_local_function = local_span.is_some_and(|span| {
             unit.functions.iter().any(|function| {
                 function.span == span
@@ -800,7 +1391,7 @@ fn validate_invocation_scoped_node(
                     )
             })
         });
-        if matches!(region, InvocationScopedRegion::Bound(region) if local_region != Some(region))
+        if (region != InvocationScopedRegion::Unbound && !destination_within_region)
             || (region == InvocationScopedRegion::Unbound && !region_local_function)
             || region == InvocationScopedRegion::Expression
         {
@@ -836,10 +1427,15 @@ fn validate_invocation_scoped_node(
     }
     if node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("await")
-        && let Some(binding) = unit.typed_bindings.iter().find(|binding| {
-            binding.is_visible_at(unit.source.id(), node.span.start)
-                && invocation_scoped_region(&binding.value_type).is_some()
-        })
+        && let Some(binding) = unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| binding.is_visible_at(unit.source.id(), node.span.start))
+            .max_by_key(|binding| binding.visible_from)
+            .filter(|binding| {
+                invocation_scoped_region(&binding.value_type).is_some()
+                    && !scoped_native_transferable(package, unit, binding)
+            })
     {
         return Err(failure(
             &unit.source,
@@ -854,9 +1450,9 @@ fn validate_invocation_scoped_node(
     Ok(())
 }
 
-fn projected_argument_for_parameter<'a>(
+pub(in crate::semantics) fn projected_argument_for_parameter<'a>(
     unit: &SemanticUnit,
-    function: &crate::rust_interop::projection::ProjectedFunction,
+    parameters: &[crate::rust_interop::projection::ProjectedParameter],
     arguments: &'a SyntaxNode,
     parameter_index: usize,
 ) -> Option<&'a SyntaxNode> {
@@ -873,8 +1469,7 @@ fn projected_argument_for_parameter<'a>(
                 current
             },
             |name| {
-                function
-                    .parameters
+                parameters
                     .iter()
                     .position(|candidate| candidate.name == node_text(&unit.source, name))
                     .unwrap_or(usize::MAX)
@@ -917,7 +1512,8 @@ fn validate_projected_callback_node(
             projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
     {
         for (index, parameter) in function.parameters.iter().enumerate() {
-            let Some(value) = projected_argument_for_parameter(unit, function, arguments, index)
+            let Some(value) =
+                projected_argument_for_parameter(unit, &function.parameters, arguments, index)
             else {
                 continue;
             };

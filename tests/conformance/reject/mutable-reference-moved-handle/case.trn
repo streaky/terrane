@@ -1,0 +1,7 @@
+namespace app
+function main;
+    value = 0
+    first = mutable ref value
+    second = first
+    second = 3
+    print; first

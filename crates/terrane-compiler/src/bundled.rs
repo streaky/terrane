@@ -121,6 +121,11 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/annotations.trn"),
     },
     BundledSource {
+        namespace: "/core/modifiers",
+        path: "core/modifiers.trn",
+        text: include_str!("core/modifiers.trn"),
+    },
+    BundledSource {
         namespace: "/core/testing",
         path: "core/testing.trn",
         text: include_str!("core/testing.trn"),

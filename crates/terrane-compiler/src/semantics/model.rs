@@ -84,6 +84,8 @@ pub struct SemanticPackage {
     pub units: Vec<SemanticUnit>,
     pub(super) binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
     pub(super) metadata_constant_reads: BTreeMap<(u32, usize, usize), Span>,
+    /// Ordered, typed modifier applications selected before region lowering.
+    pub(crate) declaration_modifiers: BTreeMap<Span, Vec<super::modifiers::ResolvedModifier>>,
     pub(super) referenced_functions: BTreeSet<(u32, usize, usize)>,
     pub(super) import_warnings: Vec<Diagnostic>,
     pub bootstrap_version: &'static str,
@@ -251,11 +253,19 @@ pub enum ReferenceProjection {
     CallResult,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReferenceAuthority {
+    ReadOnly,
+    Exclusive,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReferenceProvenance {
     pub owner: Span,
+    pub authority: ReferenceAuthority,
     pub external_lender: bool,
     pub lender_parameter: Option<Span>,
+    pub parent_observer: Option<Span>,
     pub path: Vec<ReferenceProjection>,
     pub lifetime_end: Option<Span>,
 }
@@ -740,6 +750,8 @@ pub struct CallableEffects {
     pub modes: CallableModes,
     pub upper_bound: Option<Box<ValueType>>,
     pub escaping: BTreeSet<String>,
+    /// This callable's environment contains a lexically borrowed reference.
+    pub borrowed_environment: bool,
 }
 
 impl CallableEffects {
@@ -748,6 +760,7 @@ impl CallableEffects {
             modes: CallableModes::shared(),
             upper_bound: None,
             escaping: BTreeSet::new(),
+            borrowed_environment: false,
         }
     }
     pub(crate) fn requires_throwing_abi(&self) -> bool {
@@ -772,6 +785,7 @@ impl CallableEffects {
             modes: CallableModes::from_contract(contract),
             upper_bound,
             escaping: contract.escaping_throwables.clone(),
+            borrowed_environment: false,
         }
     }
 }
@@ -838,6 +852,10 @@ impl CallableParameterType {
 
     pub(crate) fn requires_mutable_reference(&self) -> bool {
         self.requires_mutable_reference
+            || matches!(
+                self.value_type.value_type_ref(),
+                ValueType::MutableReference(_)
+            )
     }
 }
 
@@ -917,6 +935,7 @@ pub enum ValueType {
     PlatformResult,
     Object(ObjectIdentity),
     Reference(ElementType),
+    MutableReference(ElementType),
     SharedReference(ElementType),
 }
 
@@ -1033,6 +1052,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         | ValueType::PlatformResult
         | ValueType::Object(_)
         | ValueType::Reference(_)
+        | ValueType::MutableReference(_)
         | ValueType::SharedReference(_) => None,
     }
 }
@@ -1246,6 +1266,7 @@ impl std::fmt::Display for ValueType {
             Self::PlatformResourceHandle => formatter.write_str("platform-resource-handle"),
             Self::PlatformResult => formatter.write_str("platform-result"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
+            Self::MutableReference(item) => write!(formatter, "mutable ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
     }
@@ -1759,15 +1780,21 @@ impl ParameterContract {
         })
     }
 
+    pub(crate) fn requires_mutable_reference(&self) -> bool {
+        matches!(self.value_type, Some(ValueType::MutableReference(_)))
+    }
+
     pub(crate) fn requires_mutable_native_reference(&self) -> bool {
-        self.mutable
-            && matches!(&self.value_type, Some(ValueType::Reference(inner))
-                if inner.value_type_ref().is_mutable_native_reference_target())
+        matches!(
+            &self.value_type,
+            Some(ValueType::MutableReference(inner))
+                if inner.value_type_ref().is_mutable_native_reference_target()
+        )
     }
 
     pub(crate) fn callable_type(&self) -> Option<CallableParameterType> {
         self.value_type.clone().map(|value_type| {
-            let requires_mutable_reference = self.requires_mutable_native_reference();
+            let requires_mutable_reference = self.requires_mutable_reference();
             let element = ElementType::new(value_type);
             let mut parameter = if self.variadic {
                 CallableParameterType::variadic(element)
@@ -1837,6 +1864,8 @@ pub(crate) struct ProjectedCallSpecialization {
     pub substitutions: BTreeMap<String, crate::rust_interop::projection::ProjectedType>,
     pub generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
     pub projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
+    pub projected_receiver: Option<crate::rust_interop::projection::Receiver>,
+    pub projected_receiver_lifetime: Option<String>,
     pub direct_projected_call: bool,
     pub value_parameters: Vec<Option<ValueType>>,
     pub projected_result: crate::rust_interop::projection::ProjectedType,
@@ -2045,6 +2074,8 @@ pub struct SemanticUnit {
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
+    /// Borrowed callable carriers keyed by their last-use statement's cleanup boundary.
+    pub callable_drops_after: BTreeMap<(u32, usize, usize), Vec<Span>>,
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
@@ -2102,6 +2133,21 @@ impl SemanticUnit {
     pub(crate) fn containing_function(&self, span: Span) -> Option<&FunctionContract> {
         self.functions_containing(span)
             .min_by_key(|function| function.span.end - function.span.start)
+    }
+
+    /// A closed native result context, not an uninstantiated callback marker.
+    pub(crate) fn invocation_scoped_result_at(&self, span: Span) -> Option<&ValueType> {
+        let function = self.containing_function(span)?;
+        let result = self.invocation_scoped_function_results.get(&(
+            function.span.file,
+            function.span.start,
+            function.span.end,
+        ))?;
+        matches!(
+            result,
+            ValueType::InvocationScopedNative { concrete: true, .. }
+        )
+        .then_some(result)
     }
 
     pub(crate) fn type_parameter_at(

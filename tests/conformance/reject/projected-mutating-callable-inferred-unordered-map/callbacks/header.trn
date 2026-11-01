@@ -1,7 +1,0 @@
-namespace callbacks
-
-from /deps/http import HeaderValue
-
-function mark-sensitive bool; header ref HeaderValue
-    header.set_sensitive; true
-    return true

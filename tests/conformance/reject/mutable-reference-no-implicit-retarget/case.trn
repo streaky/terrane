@@ -1,0 +1,7 @@
+namespace mutable-reference-no-implicit-retarget
+function main;
+    first = 1
+    second = 2
+    selected = mutable ref first
+    selected = mutable ref second
+    print; selected

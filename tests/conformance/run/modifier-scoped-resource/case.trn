@@ -1,0 +1,113 @@
+namespace modifier-scoped-resource
+
+from /core/errors import arithmetic-overflow, throwable
+from /core/modifiers import scoped-access as access
+from /core/time import clock, duration
+
+class marker
+    name string
+    function construct; name string
+        this.name = name
+    consuming function destruct;
+        print; 'drop ', this.name
+
+function acquire marker; name string, fail bool = false
+    print; 'acquire ', name
+    if fail
+        throw arithmetic-overflow
+    return instance marker; move name
+
+function normal;
+    result string
+    with (access;) guard = (acquire; 'outer') (
+        result = guard.name
+        with access guard = (acquire; 'inner') (
+            print; 'inside ', guard.name
+        )
+        print; 'after inner ', guard.name
+    )
+    print; 'owned result ', result
+
+function borrowed;
+    with access parent = (acquire; 'borrow-parent') (
+        with access view = (ref parent) (
+            print; 'view ', view.name
+        )
+        print; 'parent ', parent.name
+    )
+
+function early string;
+    with access _guard = (acquire; 'return-outer') (
+        with access child = (acquire; 'return-inner') (
+            return child.name
+        )
+    )
+
+function failed;
+    try
+        with access _guard = (acquire; 'failure-outer') (
+            with access child = (acquire; 'failure-inner', true) (
+                print; child.name
+            )
+        )
+    catch arithmetic-overflow
+        print; 'caught outside'
+
+function recovered;
+    with access guard = (acquire; 'catch-outer') (
+        try
+            with access child = (acquire; 'catch-inner', true) (
+                print; child.name
+            )
+        catch arithmetic-overflow
+            print; 'caught inside ', guard.name
+        print; 'still held ', guard.name
+    )
+
+function loop-exits;
+    index = 0
+    while index < 2
+        index = index + 1
+        with access guard = (acquire; 'loop') (
+            print; 'iteration ', index, ' ', guard.name
+            if index == 1
+                continue
+            break
+        )
+    print; 'after loop'
+
+function ordinary-exits;
+    normal;
+    borrowed;
+    print; (early;)
+    failed;
+    recovered;
+    loop-exits;
+
+class readiness
+    ready bool = false
+
+async function hold none; observer shared ref readiness
+    with access outer = (acquire; 'cancel-outer') (
+        with access inner = (acquire; 'cancel-inner') (
+            print; 'holding ', outer.name, ' ', inner.name
+            observer.ready = true
+            _ = await clock::sleep; (duration::seconds; 30)
+        )
+    )
+    return none
+
+async function fail-when-ready none throws throwable; observer shared ref readiness
+    while not observer.ready
+        _ = await clock::sleep; (duration::milliseconds; 1)
+    throw arithmetic-overflow
+
+async function main;
+    ordinary-exits;
+    observer = shared ref (instance readiness;)
+    scope = task-scope;
+    pending = scope.spawn; (hold; observer)
+    failing = scope.spawn; (fail-when-ready; observer)
+    _ = await scope.join; failing
+    joined = await scope.join; pending
+    print; 'cancelled ', joined.cancelled

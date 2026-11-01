@@ -11,6 +11,22 @@ pub(crate) use free_values::{
     rust_free_value_identifiers, rust_mutably_borrowed_value_identifiers,
 };
 
+/// Derives an operation label from a Rust path, including UFCS receiver paths.
+pub(crate) fn rust_callable_origin(rust: &str) -> Option<(String, String)> {
+    let (receiver, mut path) = syn::parse_str::<syn::ExprPath>(rust)
+        .map(|expression| (expression.qself, expression.path))
+        .or_else(|_| syn::parse_str::<syn::TypePath>(rust).map(|path| (path.qself, path.path)))
+        .ok()?;
+    let method = path.segments.pop()?.into_value().ident;
+    path.segments.pop_punct();
+    let owner = receiver.map_or_else(
+        || rust_type_constructor(&path.to_token_stream().to_string()),
+        |receiver| rust_type_constructor(&receiver.ty.to_token_stream().to_string()),
+    )?;
+    let dependency = owner.split("::").next()?.trim().to_owned();
+    Some((dependency, format!("{owner}::{method}")))
+}
+
 /// Collects every identifier token from a Rust fragment without performing Rust name resolution.
 ///
 /// This is deliberately a conservative syntactic inventory: path segments, field names, macro

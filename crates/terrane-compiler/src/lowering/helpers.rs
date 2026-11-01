@@ -55,6 +55,7 @@ fn advanced_type(value_type: &ValueType) -> bool {
         | ValueType::Tuple(value, _)
         | ValueType::UnorderedSet(value)
         | ValueType::Reference(value)
+        | ValueType::MutableReference(value)
         | ValueType::SharedReference(value) => advanced_type(value.value_type_ref()),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
@@ -457,6 +458,12 @@ pub(super) const fn rust_value_is_copy(ty: &ValueType) -> bool {
 pub(super) fn rust_element_type(package: &SemanticPackage, ty: ElementType) -> String {
     rust_value_type(package, ty.value_type())
 }
+pub(super) fn rust_reference_element_type(package: &SemanticPackage, ty: &ElementType) -> String {
+    match ty.value_type() {
+        ValueType::Scalar(ScalarType::Int) => "terrane_int_support::Int".to_owned(),
+        value_type => rust_value_type(package, value_type),
+    }
+}
 
 pub(super) fn rust_empty_collection(
     package: &SemanticPackage,
@@ -500,8 +507,10 @@ fn rust_callable_parameter_type(
     if parameter.is_variadic() {
         rust_value_type(package, ValueType::List(parameter.element_type()))
     } else if parameter.requires_mutable_reference() {
-        let ValueType::Reference(item) = parameter.value_type_ref() else {
-            unreachable!("mutable native callback parameter must be a reference")
+        let (ValueType::Reference(item) | ValueType::MutableReference(item)) =
+            parameter.value_type_ref()
+        else {
+            unreachable!("mutable native callback parameter must be a reference");
         };
         format!("&mut {}", rust_element_type(package, item.clone()))
     } else {
@@ -655,6 +664,29 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             } else {
                 result
             };
+            if effects.borrowed_environment {
+                if effects.modes.written == InvocationMode::Shared {
+                    return format!(
+                        "std::boxed::Box<dyn Fn({}) -> {output} + '_>",
+                        parameters
+                            .iter()
+                            .map(|parameter| rust_callable_parameter_type(package, parameter))
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    );
+                }
+                let callable = match effects.modes.written {
+                    InvocationMode::Shared => {
+                        unreachable!("shared borrowed callable handled above")
+                    }
+                    InvocationMode::Mutable => "TerraneBorrowedMutableCallable",
+                    InvocationMode::Consuming => "TerraneBorrowedConsumingCallable",
+                };
+                return format!(
+                    "{callable}<'_, {}, {output}>",
+                    rust_callable_arguments(package, &parameters)
+                );
+            }
             match effects.modes.written {
                 InvocationMode::Shared => format!(
                     "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
@@ -683,13 +715,24 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 result
             };
             let future = format!(
-                "std::pin::Pin<Box<dyn Future<Output = {output}>{}>>",
+                "std::pin::Pin<Box<dyn Future<Output = {output}>{}{}>>",
                 if transferability == TaskTransferability::Local {
                     ""
                 } else {
                     " + Send"
+                },
+                if effects.borrowed_environment {
+                    " + '_"
+                } else {
+                    ""
                 }
             );
+            if effects.borrowed_environment {
+                return format!(
+                    "TerraneBorrowedConsumingCallable<'_, {}, {future}>",
+                    rust_callable_arguments(package, &parameters),
+                );
+            }
             match effects.modes.written {
                 InvocationMode::Shared => format!(
                     "std::sync::Arc<dyn Fn({}) -> {future} + Send + Sync>",
@@ -763,12 +806,17 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             rust_element_type(package, item)
         ),
         ValueType::Reference(item) => {
-            format!("&{}", rust_element_type(package, item))
+            format!("&{}", rust_reference_element_type(package, &item))
+        }
+        ValueType::MutableReference(item) => {
+            format!("&mut {}", rust_reference_element_type(package, &item))
         }
         ValueType::InvocationScopedNative {
             concrete: false, ..
         } => "_".to_owned(),
-        ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
+        ValueType::InvocationScopedNative { rust_type, .. } => {
+            crate::rust_interop::projection::source_storage_rust_type(rust_type)
+        }
         ValueType::InlineRust => unreachable!("inline Rust values require a source destination"),
         ValueType::ProjectedGeneric(name) => name.clone(),
         ValueType::ProjectedAssociated => "TerraneAssociated".to_owned(),

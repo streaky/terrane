@@ -1,4 +1,9 @@
 use super::prelude::*;
+mod exclusive_loans;
+use exclusive_loans::{
+    OwnerAccessWindow, first_owner_access_between, has_exclusive_lineage, owner_paths_overlap,
+    owner_place_path, reference_descends_from,
+};
 
 fn ungroup(mut node: &SyntaxNode) -> &SyntaxNode {
     while node.kind == SyntaxKind::GroupExpression {
@@ -17,10 +22,11 @@ fn is_nonclone_field(unit: &SemanticUnit, value: &SyntaxNode) -> Result<bool, Se
     }
     Ok(
         infer_value_type(unit, value, &unit.typed_bindings)?.is_some_and(|value_type| {
-            !matches!(
-                value_type,
-                ValueType::Reference(_) | ValueType::SharedReference(_)
-            ) && value_type_contains_nonclone_foreign(unit, &value_type)
+            matches!(value_type, ValueType::MutableReference(_))
+                || (!matches!(
+                    value_type,
+                    ValueType::Reference(_) | ValueType::SharedReference(_)
+                ) && value_type_contains_nonclone_foreign(unit, &value_type))
         }),
     )
 }
@@ -87,6 +93,38 @@ fn validate_async_receiver_field_borrow(
     Ok(())
 }
 
+fn moved_binding_failure(
+    unit: &SemanticUnit,
+    binding: usize,
+    span: Span,
+    already: bool,
+) -> SemanticFailure {
+    let binding = &unit.typed_bindings[binding];
+    if matches!(binding.value_type, ValueType::MutableReference(_)) {
+        return SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![
+                Diagnostic::error(
+                    "T0058",
+                    format!("`{}` was moved and is no longer available", binding.name),
+                    span,
+                )
+                .with_help("bind a new name with `mutable ref` to establish another loan"),
+            ],
+        };
+    }
+    let already = if already { "already " } else { "" };
+    failure(
+        &unit.source,
+        "T0058",
+        format!(
+            "`{}` was {already}moved and is unavailable until rebound",
+            binding.name
+        ),
+        span,
+    )
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "move provenance and its control-flow join remain one auditable analysis"
@@ -127,7 +165,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
         matches!(
             value_type,
-            ValueType::Task(_, _)
+            ValueType::MutableReference(_)
+                | ValueType::Task(_, _)
                 | ValueType::ScopedTask(_, _)
                 | ValueType::TaskGroup(_)
                 | ValueType::Iterator(_)
@@ -138,6 +177,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 | ValueType::AsyncFunction(_, _, _, effects)
                 if effects.modes.written == InvocationMode::Consuming
         ) || super::objects::application_is_resource_owning(package, value_type)
+            || !super::objects::value_type_is_cloneable(package, unit, value_type)
             || matches!(
                 value_type,
                 ValueType::Object(identity) if source_iterator_object(unit, identity)
@@ -145,12 +185,63 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     }
 
     fn noncopyable_binding(package: &SemanticPackage, unit: &SemanticUnit, binding: usize) -> bool {
-        let binding = &unit.typed_bindings[binding];
-        let value_type = unit
-            .flow_binding_types
-            .get(&binding.span)
-            .unwrap_or(&binding.value_type);
-        noncopyable_value_type(package, unit, value_type)
+        fn binding_is_noncopyable(
+            package: &SemanticPackage,
+            unit: &SemanticUnit,
+            binding_index: usize,
+            visiting: &mut BTreeSet<Span>,
+        ) -> bool {
+            let binding = &unit.typed_bindings[binding_index];
+            if !visiting.insert(binding.span) {
+                return true;
+            }
+            let value_type = unit
+                .flow_binding_types
+                .get(&binding.span)
+                .unwrap_or(&binding.value_type);
+            let noncopyable = noncopyable_value_type(package, unit, value_type)
+                || binding_source_initializer(unit, binding).is_some_and(|initializer| {
+                    initializer_captures_noncopyable(package, unit, initializer, visiting)
+                });
+            visiting.remove(&binding.span);
+            noncopyable
+        }
+
+        fn initializer_captures_noncopyable(
+            package: &SemanticPackage,
+            unit: &SemanticUnit,
+            node: &SyntaxNode,
+            visiting: &mut BTreeSet<Span>,
+        ) -> bool {
+            if node.kind == SyntaxKind::AnonymousFunction
+                && let Some(contract) = super::bindings::callback_contract(package, unit, node)
+                && contract.captures.iter().any(|capture| {
+                    package
+                        .resolve_name_at(unit, node.span.start, capture)
+                        .and_then(|symbol| symbol.declaration_span)
+                        .and_then(|span| {
+                            let captured_index = unit
+                                .typed_bindings
+                                .iter()
+                                .position(|binding| binding.span == span)?;
+                            Some(binding_is_noncopyable(
+                                package,
+                                unit,
+                                captured_index,
+                                visiting,
+                            ))
+                        })
+                        .unwrap_or(false)
+                })
+            {
+                return true;
+            }
+            node.children
+                .iter()
+                .any(|child| initializer_captures_noncopyable(package, unit, child, visiting))
+        }
+
+        binding_is_noncopyable(package, unit, binding, &mut BTreeSet::new())
     }
 
     fn resource_type(package: &SemanticPackage, value_type: &ValueType) -> bool {
@@ -271,7 +362,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         || parameter.element_value_type().is_some_and(|value_type| {
                             matches!(
                                 value_type,
-                                ValueType::Reference(_) | ValueType::SharedReference(_)
+                                ValueType::Reference(_)
+                                    | ValueType::MutableReference(_)
+                                    | ValueType::SharedReference(_)
                             )
                         });
                     if let Some(value) = argument_for_parameter(unit, arguments, contract, index) {
@@ -295,7 +388,19 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .filter_map(|identifier| {
                     crate::lowering::rust_value_binding_at(unit, node.span.start, identifier)
                 })
-                .find(|(binding_index, _)| noncopyable_binding(package, unit, *binding_index))
+                .find(|(binding_index, _)| {
+                    let binding = &unit.typed_bindings[*binding_index];
+                    let value_type = unit
+                        .flow_binding_types
+                        .get(&binding.span)
+                        .unwrap_or(&binding.value_type);
+                    !matches!(
+                        value_type,
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
+                    ) && noncopyable_binding(package, unit, *binding_index)
+                })
             {
                 return Err(failure(
                     &unit.source,
@@ -343,12 +448,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(binding) = binding_at(unit, name, operand.span.start)
                 && !moved.insert(binding)
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0058",
-                    format!("`{name}` was already moved and is unavailable until rebound"),
-                    operand.span,
-                ));
+                return Err(moved_binding_failure(unit, binding, operand.span, true));
             }
             return Ok(());
         }
@@ -643,12 +743,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(binding) = binding_at(unit, name, node.span.start)
                 && moved.contains(&binding)
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0058",
-                    format!("`{name}` was moved and is unavailable until rebound"),
-                    node.span,
-                ));
+                return Err(moved_binding_failure(unit, binding, node.span, false));
             }
             return Ok(());
         }
@@ -669,7 +764,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             for child in &node.children {
                 if !skipped_name && child.kind == SyntaxKind::Name {
                     skipped_name = true;
-                    continue;
+                    // Write-through assignment uses the reference handle, not a new binding.
+                    if node.kind != SyntaxKind::Assignment
+                        || !matches!(
+                            unit.inferred_value_type(child),
+                            Some(ValueType::MutableReference(_))
+                        )
+                    {
+                        continue;
+                    }
                 }
                 visit(package, unit, child, moved, false, resource_objects)?;
             }
@@ -787,7 +890,10 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             let explicit_move = scrutinee.kind == SyntaxKind::UnaryExpression
                 && unary_operator_text(unit, scrutinee).as_deref() == Some("move");
             let explicit_borrow = scrutinee.kind == SyntaxKind::UnaryExpression
-                && unary_operator_text(unit, scrutinee).as_deref() == Some("ref");
+                && matches!(
+                    unary_operator_text(unit, scrutinee).as_deref(),
+                    Some("ref" | "mutable ref")
+                );
             let operand = if explicit_move || explicit_borrow {
                 scrutinee.children.last().unwrap_or(scrutinee)
             } else {
@@ -797,7 +903,9 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 infer_value_type(unit, operand, &unit.typed_bindings)?.is_some_and(|value_type| {
                     matches!(
                         value_type,
-                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
                     )
                 });
             if !explicit_borrow
@@ -1062,7 +1170,8 @@ fn first_owner_lifetime_end(
     node: &SyntaxNode,
     owner: Span,
     after: usize,
-    lender_reference: bool,
+    provenances: &BTreeMap<(usize, usize), ReferenceProvenance>,
+    mutations_end_lifetime: bool,
 ) -> Option<Span> {
     fn root_name(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
         loop {
@@ -1076,25 +1185,6 @@ fn first_owner_lifetime_end(
         }
     }
 
-    fn mutating_call_receiver<'a>(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &'a SyntaxNode,
-    ) -> Option<&'a SyntaxNode> {
-        if node.kind != SyntaxKind::CallExpression {
-            return None;
-        }
-        let [callee, _arguments] = node.children.as_slice() else {
-            return None;
-        };
-        let (receiver, receiver_type, member) = typed_member_call(unit, callee)?;
-        let family = member
-            .split_once('.')
-            .map_or(member.as_str(), |(family, _)| family);
-        (member_invocation_mode(package, unit, &receiver_type, family) == InvocationMode::Mutable)
-            .then_some(receiver)
-    }
-
     let target = match node.kind {
         SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::PostfixExpression => {
             node.children.first()
@@ -1104,30 +1194,69 @@ fn first_owner_lifetime_end(
         {
             node.children.last()
         }
-        // A lender parameter is itself a live reference, not a dependent
-        // observer invalidated by mutation through that same reference.
-        // Observers created later still end at a mutable receiver call.
-        SyntaxKind::CallExpression if !lender_reference => {
-            mutating_call_receiver(package, unit, node)
+        SyntaxKind::CallExpression if mutations_end_lifetime => {
+            let lender_reference = unit.typed_bindings.iter().any(|binding| {
+                binding.span == owner
+                    && matches!(
+                        binding.value_type,
+                        ValueType::Reference(_) | ValueType::MutableReference(_)
+                    )
+            });
+            if lender_reference {
+                None
+            } else {
+                node.children.first().and_then(|callee| {
+                    let (receiver, ty, member) = typed_member_call(unit, callee)?;
+                    let family = member
+                        .split_once('.')
+                        .map_or(member.as_str(), |(family, _)| family);
+                    (member_invocation_mode(package, unit, &ty, family) == InvocationMode::Mutable)
+                        .then_some(receiver)
+                })
+            }
         }
         _ => None,
     };
-    if node.span.start > after
+    let target_root = target.and_then(root_name);
+    let target_declaration = target_root.and_then(|target| {
+        package
+            .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
+            .and_then(|symbol| symbol.declaration_span)
+    });
+    let target_path =
+        target.and_then(|target| owner_place_path(package, unit, target, owner, provenances));
+    let writes_through_reference = target_declaration
+        .and_then(|declaration| provenances.get(&(declaration.start, declaration.end)))
+        .is_some_and(|provenance| provenance.owner == owner);
+    let replaces_whole_owner = target_declaration == Some(owner)
+        && target_path
+            .as_deref()
+            .is_some_and(<[ReferenceProjection]>::is_empty);
+    let mutates_owner = mutations_end_lifetime
+        && target_root.is_some_and(|target| {
+            unit.flow_binding_ids
+                .get(&(target.span.file, target.span.start, target.span.end))
+                == Some(&owner)
+                || target_declaration == Some(owner)
+        });
+    if node.span.start >= after
+        && !writes_through_reference
         && (unit.flow_replacements.get(&node.span) == Some(&owner)
-            || target.and_then(root_name).is_some_and(|target| {
-                unit.flow_binding_ids
-                    .get(&(target.span.file, target.span.start, target.span.end))
-                    .is_some_and(|identity| *identity == owner)
-                    || package
-                        .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
-                        .and_then(|symbol| symbol.declaration_span)
-                        == Some(owner)
-            }))
+            || replaces_whole_owner
+            || mutates_owner)
     {
         return Some(node.span);
     }
     node.children.iter().find_map(|child| {
-        first_owner_lifetime_end(package, unit, child, owner, after, lender_reference)
+        first_owner_lifetime_end(
+            package,
+            unit,
+            child,
+            owner,
+            after,
+            provenances,
+            mutations_end_lifetime,
+        )
     })
 }
 
@@ -1227,7 +1356,10 @@ fn symbolic_lender_parameter(
             });
         }
         SyntaxKind::UnaryExpression
-            if unary_operator_text(unit, node).as_deref() == Some("ref") =>
+            if matches!(
+                unary_operator_text(unit, node).as_deref(),
+                Some("ref" | "mutable ref")
+            ) =>
         {
             return node.children.last().and_then(|child| {
                 symbolic_lender_parameter(package, unit, child, contract, known, visited_bindings)
@@ -1254,7 +1386,11 @@ fn symbolic_lender_parameter(
         parameter.name == binding.name
             && matches!(
                 parameter.value_type,
-                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                Some(
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
             )
     }) {
         return Some(index);
@@ -1311,8 +1447,10 @@ fn infer_reference_return_lenders(package: &SemanticPackage) -> BTreeMap<Functio
         let mut changed = false;
         for unit in &package.units {
             for contract in unit.local_functions() {
-                if !matches!(contract.return_type, Some(ValueType::Reference(_)))
-                    || known.contains_key(&contract_key(contract))
+                if !matches!(
+                    contract.return_type,
+                    Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+                ) || known.contains_key(&contract_key(contract))
                 {
                     continue;
                 }
@@ -1366,12 +1504,19 @@ pub(super) fn expression_provenance(
         return Some(provenance);
     }
     if node.kind == SyntaxKind::UnaryExpression
-        && unary_operator_text(unit, node).as_deref() == Some("ref")
+        && let Some(operator) = unary_operator_text(unit, node)
+        && matches!(operator.as_str(), "ref" | "mutable ref" | "shared ref")
     {
-        return node
+        let mut provenance = node
             .children
             .last()
-            .and_then(|operand| borrow_origin(package, unit, operand, proven, return_lenders));
+            .and_then(|operand| borrow_origin(package, unit, operand, proven, return_lenders))?;
+        provenance.authority = if operator == "mutable ref" {
+            ReferenceAuthority::Exclusive
+        } else {
+            ReferenceAuthority::ReadOnly
+        };
+        return Some(provenance);
     }
     if node.kind == SyntaxKind::GroupExpression {
         return node
@@ -1397,16 +1542,43 @@ fn borrow_origin(
     proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
     return_lenders: &BTreeMap<FunctionKey, usize>,
 ) -> Option<ReferenceProvenance> {
-    if let Some(existing) = expression_provenance(package, unit, node, proven, return_lenders) {
+    if let Some(binding) = binding_at(unit, node)
+        && let Some(existing) = proven.get(&(binding.span.start, binding.span.end))
+    {
+        let mut existing = existing.clone();
+        existing.parent_observer = Some(binding.span);
+        return Some(existing);
+    }
+    if let Some(mut existing) = expression_provenance(package, unit, node, proven, return_lenders) {
+        if let Some(binding) = binding_at(unit, node)
+            && matches!(
+                binding.value_type,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
+        {
+            existing.parent_observer = Some(binding.span);
+        }
         return Some(existing);
     }
     if let Some(binding) = binding_at(unit, node) {
         return Some(ReferenceProvenance {
             owner: binding.span,
+            authority: if matches!(binding.value_type, ValueType::MutableReference(_)) {
+                ReferenceAuthority::Exclusive
+            } else {
+                ReferenceAuthority::ReadOnly
+            },
             external_lender: owner_is_external_lender(unit, node.span.start, binding.span),
-            lender_parameter: (matches!(binding.value_type, ValueType::Reference(_))
-                && span_is_parameter(&unit.tree.root, binding.span))
+            lender_parameter: (matches!(
+                binding.value_type,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            ) && span_is_parameter(&unit.tree.root, binding.span))
             .then_some(binding.span),
+            parent_observer: None,
             path: Vec::new(),
             lifetime_end: None,
         });
@@ -1495,7 +1667,10 @@ pub(super) fn validate_reference_expression_sites(
                 expression = inner;
             }
             if expression.kind == SyntaxKind::UnaryExpression
-                && unary_operator_text(unit, expression).as_deref() == Some("ref")
+                && matches!(
+                    unary_operator_text(unit, expression).as_deref(),
+                    Some("ref" | "mutable ref")
+                )
             {
                 return Err(SemanticFailure {
                     source: unit.source.clone(),
@@ -1524,17 +1699,20 @@ pub(super) fn validate_reference_expression_sites(
                     value = inner;
                 }
                 if value.kind == SyntaxKind::UnaryExpression
-                    && unary_operator_text(unit, value).as_deref() == Some("ref")
+                    && matches!(
+                        unary_operator_text(unit, value).as_deref(),
+                        Some("ref" | "mutable ref")
+                    )
                 {
                     return Err(SemanticFailure {
                         source: unit.source.clone(),
                         diagnostics: vec![Diagnostic::error(
                             "T0146",
-                            "explicit `ref` is not allowed at a call argument",
+                            "explicit reference construction is not allowed at a call argument",
                             argument.span,
                         )
                         .with_help(
-                            "borrowing is determined by the selected function declaration; remove `ref`",
+                            "borrowing is determined by the selected function declaration; remove the reference operator",
                         )],
                     });
                 }
@@ -1558,7 +1736,7 @@ fn validate_generic_reference_return_type(
 ) -> Result<(), SemanticFailure> {
     if let Some(expected @ ValueType::TypeParameter(_)) =
         contract.and_then(|contract| contract.return_type.as_ref())
-        && let Some(ValueType::Reference(inner)) =
+        && let Some(ValueType::Reference(inner) | ValueType::MutableReference(inner)) =
             infer_value_type(unit, value, &unit.typed_bindings)?
         && inner.value_type_ref() == expected
     {
@@ -1576,6 +1754,137 @@ fn validate_generic_reference_return_type(
     Ok(())
 }
 
+fn value_type_contains_borrowed_callable(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+            effects.borrowed_environment
+        }
+        ValueType::Optional(inner) => value_type_contains_borrowed_callable(inner),
+        ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::ChannelPair(inner)
+        | ValueType::ChannelSender(inner)
+        | ValueType::ChannelReceiver(inner)
+        | ValueType::ChannelSendOutcome(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::DocumentDecodeOutcome(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
+        | ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner) => {
+            value_type_contains_borrowed_callable(inner.value_type_ref())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_contains_borrowed_callable(key.value_type_ref())
+                || value_type_contains_borrowed_callable(value.value_type_ref())
+        }
+        ValueType::Union(arms) => arms.iter().any(value_type_contains_borrowed_callable),
+        _ => false,
+    }
+}
+
+fn reject_borrowed_callable_escape(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    if !infer_value_type(unit, value, &unit.typed_bindings)?
+        .as_ref()
+        .is_some_and(value_type_contains_borrowed_callable)
+    {
+        return Ok(());
+    }
+    Err(SemanticFailure {
+        source: unit.source.clone(),
+        diagnostics: vec![Diagnostic::error(
+            "T0151",
+            "a callable that captures borrowed references cannot escape its lexical scope",
+            value.span,
+        ).with_help(
+            "invoke the callable before the borrowed owner leaves scope, or pass an explicit reference parameter",
+        )],
+    })
+}
+fn validate_borrowed_callable_storage(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Result<(), SemanticFailure> {
+    let (target, value) = match node.kind {
+        SyntaxKind::Binding | SyntaxKind::Assignment => {
+            (node.children.first(), node.children.last())
+        }
+        _ => return Ok(()),
+    };
+    let Some(value) = value else {
+        return Ok(());
+    };
+    if !infer_value_type(unit, value, &unit.typed_bindings)?
+        .as_ref()
+        .is_some_and(value_type_contains_borrowed_callable)
+    {
+        return Ok(());
+    }
+    let escapes = match node.kind {
+        SyntaxKind::Binding => unit.containing_function(node.span).is_none(),
+        SyntaxKind::Assignment => {
+            let Some(target) = target else {
+                return Ok(());
+            };
+            match target.kind {
+                SyntaxKind::Name => {
+                    unit.containing_function(node.span).is_none()
+                        || !package
+                            .resolve_name_at(
+                                unit,
+                                target.span.start,
+                                node_text(&unit.source, target),
+                            )
+                            .and_then(|symbol| symbol.declaration_span)
+                            .is_some_and(|declaration| {
+                                unit.typed_bindings
+                                    .iter()
+                                    .any(|binding| binding.span == declaration)
+                            })
+                }
+                _ => true,
+            }
+        }
+        _ => false,
+    };
+    if escapes {
+        reject_borrowed_callable_escape(unit, value)?;
+    }
+    Ok(())
+}
+
+fn reference_is_captured_closure_lender(
+    contract: Option<&FunctionContract>,
+    provenance: Option<&ReferenceProvenance>,
+) -> bool {
+    contract.is_some_and(|contract| {
+        contract.is_anonymous
+            && provenance.is_some_and(|provenance| {
+                provenance.external_lender
+                    && !provenance.lender_parameter.is_some_and(|lender| {
+                        contract.parameters.iter().any(|parameter| {
+                            parameter.span.file == lender.file
+                                && parameter.span.start <= lender.start
+                                && lender.end <= parameter.span.end
+                        })
+                    })
+            })
+    })
+}
+
 fn validate_reference_return(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1590,21 +1899,40 @@ fn validate_reference_return(
         return Ok(());
     };
     let contract = unit.containing_function(value.span);
+    reject_borrowed_callable_escape(unit, value)?;
     validate_generic_reference_return_type(unit, contract, value)?;
-    let reference_return = contract
-        .is_some_and(|contract| matches!(contract.return_type, Some(ValueType::Reference(_))));
+    if contract.is_some_and(|contract| {
+        matches!(contract.return_type, Some(ValueType::MutableReference(_)))
+    }) && !super::reference_validation::mutable_reference_creation_is_valid(package, unit, value)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0148",
+            "a mutable reference result requires an exclusive lender, not a read-only or shared reference",
+            value.span,
+        ));
+    }
+    let reference_return = contract.is_some_and(|contract| {
+        matches!(
+            contract.return_type,
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+        )
+    });
     if !reference_return
         && !matches!(
             infer_value_type(unit, value, &unit.typed_bindings)?,
-            Some(ValueType::Reference(_))
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
         )
     {
         return Ok(());
     }
     if let Some(expected @ ValueType::Scalar(_)) =
         contract.and_then(|contract| contract.return_type.as_ref())
-        && let Some(ValueType::Reference(inner) | ValueType::SharedReference(inner)) =
-            infer_value_type(unit, value, &unit.typed_bindings)?
+        && let Some(
+            ValueType::Reference(inner)
+            | ValueType::MutableReference(inner)
+            | ValueType::SharedReference(inner),
+        ) = infer_value_type(unit, value, &unit.typed_bindings)?
         && matches!(inner.value_type_ref(), ValueType::Scalar(_))
         && value_types_compatible(&unit.descriptors, expected, inner.value_type_ref())
     {
@@ -1630,29 +1958,18 @@ fn validate_reference_return(
                 .then(|| borrow_origin(package, unit, value, proven, return_lenders))
                 .flatten()
         });
+    let requires_exclusive = contract.is_some_and(|contract| {
+        matches!(contract.return_type, Some(ValueType::MutableReference(_)))
+    });
     let parameter_lender = expected_lender.is_some()
-        && provenance
-            .as_ref()
-            .and_then(|provenance| provenance.lender_parameter)
-            == expected_lender;
+        && provenance.as_ref().is_some_and(|provenance| {
+            provenance.lender_parameter == expected_lender
+                && (!requires_exclusive || provenance.authority == ReferenceAuthority::Exclusive)
+        });
     if parameter_lender {
         return Ok(());
     }
-    let closure_lender = contract.is_some_and(|contract| {
-        contract.is_anonymous
-            && provenance.as_ref().is_some_and(|provenance| {
-                provenance.external_lender
-                    // A declared reference parameter is external, but not an environment capture.
-                    && !provenance.lender_parameter.is_some_and(|lender| {
-                        contract.parameters.iter().any(|parameter| {
-                            parameter.span.file == lender.file
-                                && parameter.span.start <= lender.start
-                                && lender.end <= parameter.span.end
-                        })
-                    })
-            })
-    });
-    if closure_lender {
+    if reference_is_captured_closure_lender(contract, provenance.as_ref()) {
         return Err(SemanticFailure {
             source: unit.source.clone(),
             diagnostics: vec![
@@ -1686,11 +2003,22 @@ fn record_reference_assignment(
         && let [target, initializer] = node.children.as_slice()
         && target.kind == SyntaxKind::Name
         && let Some(binding) = binding_at(unit, target)
-        && matches!(binding.value_type, ValueType::Reference(_))
-        && let Some(provenance) =
+        && matches!(
+            binding.value_type,
+            ValueType::Reference(_)
+                | ValueType::MutableReference(_)
+                | ValueType::SharedReference(_)
+        )
+        && let Some(mut provenance) =
             expression_provenance(package, unit, initializer, proven, return_lenders)
     {
         let key = (binding.span.start, binding.span.end);
+        if let Some(source) = binding_at(unit, initializer)
+            && source.span != binding.span
+            && proven.contains_key(&(source.span.start, source.span.end))
+        {
+            provenance.parent_observer = Some(source.span);
+        }
         if let Some(initial) = proven.get(&key) {
             if package.reference_owner_uses_shared_storage(unit, initial.owner)
                 != package.reference_owner_uses_shared_storage(unit, provenance.owner)
@@ -1711,7 +2039,7 @@ fn record_reference_assignment(
     Ok(())
 }
 
-fn record_reference_provenance(
+fn record_unary_reference_provenance(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -1720,7 +2048,8 @@ fn record_reference_provenance(
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::UnaryExpression
         && let Some(operand) = node.children.last()
-        && unary_operator_text(unit, node).as_deref() == Some("ref")
+        && let Some(operator) = unary_operator_text(unit, node)
+        && matches!(operator.as_str(), "ref" | "mutable ref" | "shared ref")
     {
         validate_async_field_borrow(unit, operand)?;
         if let Some(ValueType::Object(identity)) =
@@ -1732,27 +2061,74 @@ fn record_reference_provenance(
         {
             validate_async_receiver_field_borrow(unit, operand)?;
         }
-        let Some(provenance) = borrow_origin(package, unit, operand, proven, return_lenders) else {
+        let mut provenance = if let Some(provenance) =
+            borrow_origin(package, unit, operand, proven, return_lenders)
+        {
+            provenance
+        } else if operator == "shared ref"
+            && ungroup(operand).kind == SyntaxKind::CallExpression
+            && infer_value_type(unit, operand, &unit.typed_bindings)?.is_some_and(|ty| {
+                !matches!(
+                    ty,
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
+            })
+        {
+            ReferenceProvenance {
+                owner: operand.span,
+                authority: ReferenceAuthority::ReadOnly,
+                external_lender: false,
+                lender_parameter: None,
+                parent_observer: None,
+                path: Vec::new(),
+                lifetime_end: None,
+            }
+        } else {
             return Err(failure(
                 &unit.source,
                 "T0064",
-                "`ref` requires a supported owner-proven name, field, or collection element",
+                format!(
+                    "`{operator}` requires a supported owner-proven name, field, or collection element"
+                ),
                 operand.span,
             ));
         };
+        provenance.authority = if operator == "mutable ref" {
+            ReferenceAuthority::Exclusive
+        } else {
+            ReferenceAuthority::ReadOnly
+        };
         proven.insert((node.span.start, node.span.end), provenance);
     }
+    Ok(())
+}
+
+fn record_reference_provenance(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &mut BTreeMap<(usize, usize), ReferenceProvenance>,
+    return_lenders: &BTreeMap<FunctionKey, usize>,
+) -> Result<(), SemanticFailure> {
+    record_unary_reference_provenance(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::Binding
         && let Some(binding) = unit
             .typed_bindings
             .iter()
             .find(|binding| binding.span == node.span)
-        && matches!(binding.value_type, ValueType::Reference(_))
+        && matches!(
+            binding.value_type,
+            ValueType::Reference(_)
+                | ValueType::MutableReference(_)
+                | ValueType::SharedReference(_)
+        )
         && let Some(initializer) = node
             .children
             .last()
             .filter(|child| child.kind != SyntaxKind::TypeExpression)
-        && let Some(provenance) =
+        && let Some(mut provenance) =
             expression_provenance(package, unit, initializer, proven, return_lenders)
                 .or_else(|| {
                     proven
@@ -1761,7 +2137,10 @@ fn record_reference_provenance(
                 })
                 .or_else(|| {
                     (initializer.kind == SyntaxKind::UnaryExpression
-                        && unary_operator_text(unit, initializer).as_deref() == Some("ref"))
+                        && matches!(
+                            unary_operator_text(unit, initializer).as_deref(),
+                            Some("ref" | "mutable ref" | "shared ref")
+                        ))
                     .then(|| initializer.children.last())
                     .flatten()
                     .and_then(|operand| {
@@ -1769,14 +2148,23 @@ fn record_reference_provenance(
                     })
                 })
     {
+        if let Some(source) = binding_at(unit, initializer)
+            && proven.contains_key(&(source.span.start, source.span.end))
+        {
+            provenance.parent_observer = Some(source.span);
+        }
         proven.insert((binding.span.start, binding.span.end), provenance);
     }
     record_reference_assignment(package, unit, node, proven, return_lenders)?;
+    validate_borrowed_callable_storage(package, unit, node)?;
     validate_reference_return(package, unit, node, proven, return_lenders)?;
     if node.kind == SyntaxKind::ForStatement
         && let [target, collection, _block] = node.children.as_slice()
         && collection.kind == SyntaxKind::UnaryExpression
-        && unary_operator_text(unit, collection).as_deref() == Some("ref")
+        && matches!(
+            unary_operator_text(unit, collection).as_deref(),
+            Some("ref" | "mutable ref")
+        )
         && let Some(mut provenance) =
             expression_provenance(package, unit, collection, proven, return_lenders)
     {
@@ -1786,7 +2174,9 @@ fn record_reference_provenance(
                 && binding.span.end <= target.span.end
                 && matches!(
                     binding.value_type,
-                    ValueType::Reference(_) | ValueType::SharedReference(_)
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
                 )
         }) {
             proven.insert((binding.span.start, binding.span.end), provenance.clone());
@@ -1842,7 +2232,10 @@ fn record_implicit_reference_owners(
             )
             .ok();
             if parameter.is_some_and(|parameter| {
-                matches!(parameter.value_type, Some(ValueType::Reference(_)))
+                matches!(
+                    parameter.value_type,
+                    Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+                )
             }) {
                 let value = argument.children.last().unwrap_or(argument);
                 if let Some(origin) = borrow_origin(package, unit, value, proven, return_lenders) {
@@ -1871,7 +2264,10 @@ fn record_implicit_reference_owners(
             });
             let value = argument.children.last().unwrap_or(argument);
             if parameter.is_some_and(|parameter| {
-                matches!(parameter.value_type_ref(), ValueType::Reference(_))
+                matches!(
+                    parameter.value_type_ref(),
+                    ValueType::Reference(_) | ValueType::MutableReference(_)
+                )
             }) && let Some(origin) = borrow_origin(package, unit, value, proven, return_lenders)
             {
                 owners.insert((origin.owner.start, origin.owner.end));
@@ -1896,17 +2292,33 @@ pub(super) fn analyze_reference_provenance(
             let mut proven = unit
                 .typed_bindings
                 .iter()
-                .filter(|binding| matches!(binding.value_type, ValueType::Reference(_)))
+                .filter(|binding| {
+                    matches!(
+                        binding.value_type,
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
+                    )
+                })
                 .filter(|binding| span_is_parameter(&unit.tree.root, binding.span))
                 .map(|binding| {
                     (
                         (binding.span.start, binding.span.end),
                         ReferenceProvenance {
+                            authority: if matches!(
+                                binding.value_type,
+                                ValueType::MutableReference(_)
+                            ) {
+                                ReferenceAuthority::Exclusive
+                            } else {
+                                ReferenceAuthority::ReadOnly
+                            },
                             owner: binding.span,
                             lender_parameter: Some(binding.span),
                             external_lender: true,
-                            path: Vec::new(),
+                            parent_observer: None,
                             lifetime_end: None,
+                            path: Vec::new(),
                         },
                     )
                 })
@@ -1918,18 +2330,35 @@ pub(super) fn analyze_reference_provenance(
                 &mut proven,
                 &return_lenders,
             )?;
-            for (&(created_at, created_end), provenance) in &mut proven {
-                let lender_reference = provenance
-                    .lender_parameter
-                    .is_some_and(|lender| (lender.start, lender.end) == (created_at, created_end));
-                provenance.lifetime_end = first_owner_lifetime_end(
-                    package,
-                    unit,
-                    &unit.tree.root,
-                    provenance.owner,
-                    created_at,
-                    lender_reference,
-                );
+            let lifetime_ends = proven
+                .iter()
+                .map(|(&key, provenance)| {
+                    let retained_shared = unit.typed_bindings.iter().any(|binding| {
+                        (binding.span.start, binding.span.end) == key
+                            && matches!(binding.value_type, ValueType::SharedReference(_))
+                    });
+                    (
+                        key,
+                        (!retained_shared)
+                            .then(|| {
+                                first_owner_lifetime_end(
+                                    package,
+                                    unit,
+                                    &unit.tree.root,
+                                    provenance.owner,
+                                    key.0,
+                                    &proven,
+                                    !has_exclusive_lineage(provenance, &proven),
+                                )
+                            })
+                            .flatten(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            for (key, lifetime_end) in lifetime_ends {
+                if let Some(provenance) = proven.get_mut(&key) {
+                    provenance.lifetime_end = lifetime_end;
+                }
             }
             let mut owners = BTreeSet::new();
             record_implicit_reference_owners(
@@ -1944,8 +2373,97 @@ pub(super) fn analyze_reference_provenance(
         };
         package.units[index].reference_provenance = proven.0;
         package.units[index].reference_owner_spans = proven.1;
+        package.units[index].callable_drops_after.clear();
     }
     Ok(())
+}
+
+fn callable_drop_facts(unit: &SemanticUnit) -> BTreeMap<(u32, usize, usize), Vec<Span>> {
+    let mut drops: BTreeMap<(u32, usize, usize), Vec<Span>> = BTreeMap::new();
+    for carrier in unit.typed_bindings.iter().filter(|binding| {
+        matches!(
+            &binding.value_type,
+            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects)
+                if effects.borrowed_environment && effects.modes.written != InvocationMode::Consuming
+        )
+    }) {
+        let last_use = last_callable_carrier_use(
+            unit, &unit.tree.root, carrier.span,
+            &mut BTreeSet::from([carrier.span]),
+        ).unwrap_or(carrier.span);
+        let final_carrier = unit.flow_binding_ids
+            .get(&(last_use.file, last_use.start, last_use.end))
+            .copied().unwrap_or(carrier.span);
+        let Some(boundary) = callable_cleanup_boundary(unit, last_use, final_carrier) else {
+            continue;
+        };
+        if !super::scope_validation::statement_may_fall_through(boundary) {
+            continue;
+        }
+        let boundary = boundary.span;
+        let carriers = drops.entry((boundary.file, boundary.start, boundary.end)).or_default();
+        if !carriers.contains(&final_carrier) {
+            carriers.push(final_carrier);
+        }
+    }
+    drops
+}
+
+pub(super) fn record_callable_drop_facts(package: &mut SemanticPackage) {
+    for index in 0..package.units.len() {
+        let drops = {
+            let unit = &package.units[index];
+            callable_drop_facts(unit)
+        };
+        package.units[index].callable_drops_after = drops;
+    }
+}
+
+fn callable_cleanup_boundary(
+    unit: &SemanticUnit,
+    use_span: Span,
+    carrier: Span,
+) -> Option<&SyntaxNode> {
+    fn enclosing_controls<'a>(
+        node: &'a SyntaxNode,
+        use_span: Span,
+        controls: &mut Vec<&'a SyntaxNode>,
+    ) {
+        if node.span.start > use_span.start || node.span.end < use_span.end {
+            return;
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::IfStatement
+                | SyntaxKind::WhileStatement
+                | SyntaxKind::ForStatement
+                | SyntaxKind::TryStatement
+                | SyntaxKind::SelectStatement
+                | SyntaxKind::SwitchStatement
+                | SyntaxKind::MatchStatement
+        ) {
+            controls.push(node);
+        }
+        for child in &node.children {
+            enclosing_controls(child, use_span, controls);
+        }
+    }
+    fn containing_statement(node: &SyntaxNode, use_span: Span) -> Option<&SyntaxNode> {
+        let child = node
+            .children
+            .iter()
+            .find(|child| child.span.start <= use_span.start && child.span.end >= use_span.end)?;
+        containing_statement(child, use_span)
+            .or_else(|| (node.kind == SyntaxKind::Block).then_some(child))
+    }
+
+    let mut controls = Vec::new();
+    enclosing_controls(&unit.tree.root, use_span, &mut controls);
+    controls
+        .into_iter()
+        .filter(|node| carrier.start < node.span.start)
+        .max_by_key(|node| node.span.end - node.span.start)
+        .map_or_else(|| containing_statement(&unit.tree.root, use_span), Some)
 }
 
 fn first_use_after(
@@ -1956,7 +2474,7 @@ fn first_use_after(
     position: usize,
 ) -> Option<Span> {
     if node.kind == SyntaxKind::Name
-        && node.span.start > position
+        && node.span.start >= position
         && package
             .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
             .and_then(|symbol| symbol.declaration_span)
@@ -1969,6 +2487,279 @@ fn first_use_after(
         .find_map(|child| first_use_after(package, unit, child, declaration, position))
 }
 
+fn last_use_of_binding(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    declaration: Span,
+    position: usize,
+) -> Option<Span> {
+    if node.kind == SyntaxKind::AnonymousFunction && declaration.start < node.span.start {
+        return None;
+    }
+    if node.kind == SyntaxKind::Name
+        && node.span.start >= position
+        && package
+            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+            .and_then(|symbol| symbol.declaration_span)
+            == Some(declaration)
+    {
+        return Some(node.span);
+    }
+    node.children
+        .iter()
+        .filter_map(|child| last_use_of_binding(package, unit, child, declaration, position))
+        .max_by_key(|span| span.start)
+}
+
+fn last_callable_carrier_use(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    carrier: Span,
+    visited: &mut BTreeSet<Span>,
+) -> Option<Span> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && let Some(source) = node
+            .children
+            .last()
+            .filter(|source| source.kind == SyntaxKind::Name)
+        && binding_at(unit, source).map(|binding| binding.span) == Some(carrier)
+        && let Some(target) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+        && let Some(target_span) = super::bindings::declared_bindings_at_node(unit, node)
+            .map(|binding| binding.span)
+            .next()
+            .or_else(|| binding_at(unit, target).map(|binding| binding.span))
+    {
+        return if visited.insert(target_span) {
+            last_callable_carrier_use(unit, &unit.tree.root, target_span, visited)
+                .or(Some(target.span))
+        } else {
+            Some(target.span)
+        };
+    }
+    if node.kind == SyntaxKind::Name
+        && node.span.start >= carrier.end
+        && binding_at(unit, node).map(|binding| binding.span) == Some(carrier)
+    {
+        return Some(node.span);
+    }
+    node.children
+        .iter()
+        .filter_map(|child| last_callable_carrier_use(unit, child, carrier, visited))
+        .max_by_key(|span| span.start)
+}
+
+fn closure_captures_binding(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    observer: &TypedBinding,
+) -> bool {
+    if node.kind == SyntaxKind::AnonymousFunction
+        && let Some(contract) = super::bindings::callback_contract(package, unit, node)
+        && contract.captures.iter().any(|capture| {
+            package
+                .resolve_name_at(unit, node.span.start, capture)
+                .and_then(|symbol| symbol.declaration_span)
+                == Some(observer.span)
+        })
+    {
+        return true;
+    }
+    node.children
+        .iter()
+        .any(|child| closure_captures_binding(package, unit, child, observer))
+}
+
+fn last_closure_carrier_use(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    observer: &TypedBinding,
+) -> Option<Span> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && closure_captures_binding(package, unit, node, observer)
+        && let Some(carrier) = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == node.span)
+    {
+        return last_callable_carrier_use(
+            unit,
+            &unit.tree.root,
+            carrier.span,
+            &mut BTreeSet::from([carrier.span]),
+        )
+        .or(Some(node.span));
+    }
+    node.children
+        .iter()
+        .filter_map(|child| last_closure_carrier_use(package, unit, child, observer))
+        .max_by_key(|span| span.start)
+}
+
+fn later_span(left: Option<Span>, right: Option<Span>) -> Option<Span> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(if left.start >= right.start {
+            left
+        } else {
+            right
+        }),
+        (Some(span), None) | (None, Some(span)) => Some(span),
+        (None, None) => None,
+    }
+}
+
+fn last_reference_dependent_use(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    observer: &TypedBinding,
+    provenances: &BTreeMap<(usize, usize), ReferenceProvenance>,
+    visited: &mut BTreeSet<(usize, usize)>,
+) -> Option<Span> {
+    let key = (observer.span.start, observer.span.end);
+    if !visited.insert(key) {
+        return None;
+    }
+    let mut last = last_use_of_binding(
+        package,
+        unit,
+        &unit.tree.root,
+        observer.span,
+        observer.span.end,
+    );
+    for (&(start, end), provenance) in provenances {
+        if provenance.parent_observer != Some(observer.span) {
+            continue;
+        }
+        if let Some(child) = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| (binding.span.start, binding.span.end) == (start, end))
+        {
+            last = later_span(
+                last,
+                last_reference_dependent_use(package, unit, child, provenances, visited),
+            );
+        }
+    }
+    let callable_use = last_closure_carrier_use(package, unit, &unit.tree.root, observer);
+    let last_use = later_span(last, callable_use)?;
+    if callable_use == Some(last_use)
+        && let Some(&(file, _, end)) = unit
+            .callable_drops_after
+            .keys()
+            .filter(|&&(file, start, end)| {
+                file == last_use.file && start <= last_use.start && last_use.end <= end
+            })
+            .max_by_key(|&&(_, start, end)| end - start)
+    {
+        return Some(Span {
+            file,
+            start: last_use.start,
+            end,
+        });
+    }
+    Some(last_use)
+}
+
+fn live_readonly_observer_conflict(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    observer: &TypedBinding,
+    provenance: &ReferenceProvenance,
+) -> Option<SemanticFailure> {
+    if provenance.authority != ReferenceAuthority::ReadOnly
+        || matches!(observer.value_type, ValueType::SharedReference(_))
+    {
+        return None;
+    }
+    let last_use = last_reference_dependent_use(
+        package,
+        unit,
+        observer,
+        &unit.reference_provenance,
+        &mut BTreeSet::new(),
+    )?;
+    let exclusive = unit.typed_bindings.iter().find(|candidate| {
+        candidate.span.start >= observer.span.end
+            && candidate.span.start <= last_use.end
+            && !reference_descends_from(candidate.span, observer.span, &unit.reference_provenance)
+            && last_reference_dependent_use(
+                package,
+                unit,
+                candidate,
+                &unit.reference_provenance,
+                &mut BTreeSet::new(),
+            )
+            .is_some()
+            && unit
+                .reference_provenance
+                .get(&(candidate.span.start, candidate.span.end))
+                .is_some_and(|loan| {
+                    loan.authority == ReferenceAuthority::Exclusive
+                        && loan.owner == provenance.owner
+                        && owner_paths_overlap(&loan.path, &provenance.path)
+                })
+    })?;
+    let owner_name = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.span == provenance.owner)
+        .map_or("<unknown>", |binding| binding.name.as_str());
+    Some(failure(
+        &unit.source,
+        "T0149",
+        format!("cannot access owner `{owner_name}` while an exclusive mutable reference is live"),
+        exclusive.span,
+    ))
+}
+
+fn expired_reference_use_failure(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    observer: &TypedBinding,
+    provenance: &ReferenceProvenance,
+) -> Option<SemanticFailure> {
+    let lifetime_end = provenance.lifetime_end?;
+    first_use_after(
+        package,
+        unit,
+        &unit.tree.root,
+        observer.span,
+        lifetime_end.end,
+    )?;
+    let owner_name = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.span == provenance.owner)
+        .map_or("<unknown>", |binding| binding.name.as_str());
+    let path = provenance
+        .path
+        .iter()
+        .fold(String::new(), |mut path, projection| {
+            match projection {
+                ReferenceProjection::Field(member) => {
+                    path.push('.');
+                    path.push_str(member);
+                }
+                ReferenceProjection::Element => path.push_str("[element]"),
+                ReferenceProjection::CallResult => path.push_str(" through call result"),
+            }
+            path
+        });
+    Some(failure(
+        &unit.source,
+        "T0059",
+        format!(
+            "reference to owner `{owner_name}{path}` remains in use after this mutation, move, or replacement"
+        ),
+        lifetime_end,
+    ))
+}
 pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -1978,52 +2769,62 @@ pub(super) fn validate_referenced_replacements(
                 (binding.span.start, binding.span.end) == observer_key
                     && matches!(
                         binding.value_type,
-                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
                     )
             }) else {
                 continue;
             };
-            let Some(lifetime_end) = provenance.lifetime_end else {
-                continue;
-            };
-            if first_use_after(
-                package,
-                unit,
-                &unit.tree.root,
-                observer.span,
-                lifetime_end.end,
-            )
-            .is_none()
+            if let Some(conflict) =
+                live_readonly_observer_conflict(package, unit, observer, provenance)
             {
-                continue;
+                return Err(conflict);
             }
-            let owner_name = unit
-                .typed_bindings
-                .iter()
-                .find(|binding| binding.span == provenance.owner)
-                .map_or("<unknown>", |binding| binding.name.as_str());
-            let path = provenance
-                .path
-                .iter()
-                .fold(String::new(), |mut path, projection| {
-                    match projection {
-                        ReferenceProjection::Field(member) => {
-                            path.push('.');
-                            path.push_str(member);
-                        }
-                        ReferenceProjection::Element => path.push_str("[element]"),
-                        ReferenceProjection::CallResult => path.push_str(" through call result"),
-                    }
-                    path
-                });
-            return Err(failure(
-                &unit.source,
-                "T0059",
-                format!(
-                    "reference to owner `{owner_name}{path}` remains in use after this mutation, move, or replacement"
-                ),
-                lifetime_end,
-            ));
+            if !matches!(observer.value_type, ValueType::SharedReference(_))
+                && has_exclusive_lineage(provenance, &unit.reference_provenance)
+                && provenance.owner != observer.span
+                && let Some(last_use) = last_reference_dependent_use(
+                    package,
+                    unit,
+                    observer,
+                    &unit.reference_provenance,
+                    &mut BTreeSet::new(),
+                )
+                && let Some(conflict) = first_owner_access_between(
+                    package,
+                    unit,
+                    &unit.tree.root,
+                    OwnerAccessWindow {
+                        owner: provenance.owner,
+                        borrowed_path: &provenance.path,
+                        observer: observer.span,
+                        provenances: &unit.reference_provenance,
+                        writes_only: provenance.authority == ReferenceAuthority::ReadOnly,
+                        start: observer.span.end,
+                        end: last_use.end,
+                    },
+                )
+            {
+                let owner_name = unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == provenance.owner)
+                    .map_or("<unknown>", |binding| binding.name.as_str());
+                return Err(failure(
+                    &unit.source,
+                    "T0149",
+                    format!(
+                        "cannot access owner `{owner_name}` while an exclusive mutable reference is live"
+                    ),
+                    conflict,
+                ));
+            }
+            if let Some(failure) =
+                expired_reference_use_failure(package, unit, observer, provenance)
+            {
+                return Err(failure);
+            }
         }
     }
     Ok(())
@@ -2424,7 +3225,12 @@ fn captured_native_value_move(
                 if native_parameter.is_some_and(
                     crate::rust_interop::projection::ProjectedParameter::borrows_argument,
                 ) || parameter.element_value_type().is_some_and(|ty| {
-                    matches!(ty, ValueType::Reference(_) | ValueType::SharedReference(_))
+                    matches!(
+                        ty,
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
+                    )
                 }) {
                     continue;
                 }
@@ -2472,6 +3278,21 @@ pub(super) fn validate_native_captures(package: &SemanticPackage) -> Result<(), 
                 }) else {
                     continue;
                 };
+                let mutably_lent = capture_is_mutably_lent(package, unit, closure, binding.span);
+                if matches!(binding.value_type, ValueType::MutableReference(_))
+                    && mutably_lent
+                    && contract.written_invocation_mode == InvocationMode::Shared
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0144",
+                        format!(
+                            "callable `{}` mutates captured exclusive reference `{capture}` and must be declared mutable",
+                            contract.name
+                        ),
+                        closure.span,
+                    ));
+                }
                 if super::objects::application_is_resource_owning(package, &binding.value_type)
                     && let Some(span) = captured_native_value_move(package, unit, closure, binding)
                 {
@@ -2489,7 +3310,6 @@ pub(super) fn validate_native_captures(package: &SemanticPackage) -> Result<(), 
                 if !value_type_contains_nonclone_foreign(unit, &binding.value_type) {
                     continue;
                 }
-                let mutably_lent = capture_is_mutably_lent(package, unit, closure, binding.span);
                 let mutable_environment =
                     contract.written_invocation_mode == InvocationMode::Mutable;
                 if !mutably_lent && !contract.is_async && !mutable_environment {

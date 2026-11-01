@@ -749,6 +749,10 @@ impl witness::Application for Application {
         __terrane_boundary.unwrap_or_else(|error| panic!("{}", error.render()))
     }
 }
+pub use witness::BorrowedButton;
+pub use witness::BorrowedGroup;
+pub use witness::BorrowedLabel;
+pub use witness::BorrowedValue;
 pub use witness::Button;
 pub use witness::Label;
 pub use witness::MutableState;

@@ -1,0 +1,15 @@
+namespace borrow-parameter-in-async-finally
+
+async function answer int;
+  return 42
+
+async function inspect int; observed ref int
+  try
+    return await answer;
+  finally
+    print; observed
+
+async function main;
+  value = 23
+  result = await inspect; value
+  print; result

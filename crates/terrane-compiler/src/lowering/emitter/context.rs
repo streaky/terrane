@@ -243,6 +243,10 @@ impl<'unit> Emitter<'unit> {
             .iter()
             .any(|(key, availability)| {
                 *availability == crate::semantics::FlowAvailability::MayBeUnassigned
+                    // Hoisted storage must be initialized before completion closures
+                    // capture it. Inline declarations already initialize their slots.
+                    && (self.active_function_bindings.contains(&binding.span)
+                        || (key.1, key.2) != (binding.span.start, binding.span.end))
                     && self.unit.flow_binding_ids.get(key) == Some(&binding.span)
             })
     }
@@ -395,12 +399,42 @@ impl<'unit> Emitter<'unit> {
             return self.operand_reference_parts(inner, mutable);
         }
         let prefix = if mutable { "&mut " } else { "&" };
+        if mutable
+            && matches!(
+                self.value_type(operand),
+                Some(ValueType::MutableReference(_))
+            )
+        {
+            return (
+                String::new(),
+                self.mutable_reference_address_expression(operand),
+            );
+        }
+        if mutable
+            && operand.kind == SyntaxKind::IndexExpression
+            && matches!(
+                operand
+                    .children
+                    .first()
+                    .and_then(|receiver| self.receiver_value_type(receiver)),
+                Some(ValueType::List(_) | ValueType::Map(_, _) | ValueType::UnorderedMap(_, _))
+            )
+        {
+            return (
+                String::new(),
+                self.mutable_reference_address_expression(operand),
+            );
+        }
         if operand.kind == SyntaxKind::MemberExpression
             && let [holder, member] = operand.children.as_slice()
         {
             let borrowed = matches!(
                 self.value_type(operand),
-                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                Some(
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
             ) || self.wrapped_object_field(holder, self.text(member))
                 || self.receiver_value_type(holder).is_some_and(|value| {
                     matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
@@ -439,7 +473,10 @@ impl<'unit> Emitter<'unit> {
                 "{prefix}*{}.{borrow}().expect(\"semantic optional narrowing\")",
                 self.raw_storage_name(operand)
             )
-        } else if matches!(self.value_type(operand), Some(ValueType::Reference(_))) {
+        } else if matches!(
+            self.value_type(operand),
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+        ) {
             format!(
                 "{prefix}{}",
                 self.native_receiver_expression(operand, mutable)
@@ -481,7 +518,11 @@ impl<'unit> Emitter<'unit> {
             && !self.value_type_owns_resource(&self.flow_binding_type(binding))
             && !matches!(
                 self.value_type(node),
-                Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                Some(
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
             )
         {
             self.moved_name(node)
@@ -1242,6 +1283,84 @@ impl<'unit> Emitter<'unit> {
         })
     }
 
+    pub(super) fn mutable_reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
+        if let [receiver, index] = operand.children.as_slice()
+            && operand.kind == SyntaxKind::IndexExpression
+            && let Some(ValueType::List(item)) = self.receiver_value_type(receiver)
+        {
+            let accessor = if crate::semantics::value_type_is_cloneable(
+                self.package,
+                self.unit,
+                item.value_type_ref(),
+            ) {
+                "get_mut"
+            } else {
+                "get_mut_unique"
+            };
+            let (setup, receiver) = self.live_receiver_parts(receiver);
+            let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+            let index = self.fallible(
+                format!("terrane_collection_support::index_from_int(&({index}))"),
+                operand,
+            );
+            let item = self.fallible(
+                format!("({receiver}).{accessor}(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index))"),
+                operand,
+            );
+            return format!("{{ {setup}let __terrane_index = {index}; {item} }}");
+        }
+        if let [receiver, key] = operand.children.as_slice()
+            && operand.kind == SyntaxKind::IndexExpression
+            && let Some(ValueType::Map(key_type, item) | ValueType::UnorderedMap(key_type, item)) =
+                self.receiver_value_type(receiver)
+        {
+            let accessor = if crate::semantics::value_type_is_cloneable(
+                self.package,
+                self.unit,
+                item.value_type_ref(),
+            ) {
+                "get_mut"
+            } else {
+                "get_mut_unique"
+            };
+            let key = self.expression_as(key, key_type.value_type());
+            let (setup, receiver) = self.live_receiver_parts(receiver);
+            let item = self.fallible(
+                format!("({receiver}).{accessor}(&(__terrane_key)).ok_or(terrane_collection_support::MissingKey)"),
+                operand,
+            );
+            return format!("{{ {setup}let __terrane_key = {key}; {item} }}");
+        }
+        if let [receiver, member] = operand.children.as_slice()
+            && operand.kind == SyntaxKind::MemberExpression
+            && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
+                operand,
+                receiver,
+                member,
+                true,
+                super::members::GuardScope::Place,
+            )
+        {
+            let address = if borrowed {
+                place
+            } else {
+                format!("&mut {place}")
+            };
+            return if setup.is_empty() {
+                address
+            } else {
+                format!("{{ {setup}{address} }}")
+            };
+        }
+        if matches!(
+            self.value_type(operand),
+            Some(ValueType::MutableReference(_))
+        ) {
+            return format!("&mut *({})", self.expression(operand));
+        }
+        format!("&mut {}", self.receiver_expression(operand))
+    }
+
     pub(super) fn reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
         if operand.kind == SyntaxKind::GroupExpression
             && let Some(inner) = operand.children.first()
@@ -1361,6 +1480,14 @@ impl<'unit> Emitter<'unit> {
     }
 
     pub(super) fn reference_uses_shared_storage(&self, node: &SyntaxNode) -> bool {
+        // Owning shared handles use the cell directly. Only an ordinary borrow
+        // of shared-backed storage is represented by a weak observer.
+        if matches!(
+            self.value_type(node),
+            Some(ValueType::SharedReference(_) | ValueType::MutableReference(_))
+        ) {
+            return false;
+        }
         let provenance = self
             .unit
             .reference_provenance
@@ -1440,8 +1567,10 @@ impl<'unit> Emitter<'unit> {
             .iter()
             .filter(|binding| {
                 let name = crate::lowering::binding_storage_rust_name(self.unit, binding);
-                !matches!(binding.value_type, ValueType::Reference(_))
-                    && !rust_value_is_copy(&binding.value_type)
+                !matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::MutableReference(_)
+                ) && !rust_value_is_copy(&binding.value_type)
                     && identifiers.contains(name)
                     && crate::lowering::rust_value_binding_at(self.unit, node.span.start, name)
                         .is_some_and(|(_, selected)| selected.span == binding.span)
@@ -1580,6 +1709,7 @@ impl<'unit> Emitter<'unit> {
             && !mutable
             && !shared
             && !copy
+            && !matches!(value_type, ValueType::MutableReference(_))
             && !self.value_type_owns_resource(value_type)
             && !self.binding_value_is_reused(node)
             && !self.non_consuming_capture_read(node);

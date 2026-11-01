@@ -1919,6 +1919,34 @@ fn resolves_slash_separated_root_and_nested_parent_paths() {
 }
 
 #[test]
+fn mutable_reference_cannot_upgrade_a_readonly_reference() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  borrowed = ref value\n  exclusive = mutable ref borrowed\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0148");
+}
+
+#[test]
+fn mutable_reference_rejects_owner_access_while_a_loan_is_live() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  borrowed = mutable ref value\n  value = 3\n  borrowed = 4\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_reference_rejects_a_second_live_exclusive_loan() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  first = mutable ref value\n  second = mutable ref value\n  first = 3\n  second = 4\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_reference_rejects_a_live_read_only_owner_alias() {
+    let source = "namespace app\nfunction observe int; value ref int\n  return value\nfunction main;\n  value = 1\n  value = 2\n  observer = ref value\n  exclusive = mutable ref value\n  result = observe; observer\n  exclusive = 3\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
 fn rejects_extracted_string_methods_as_values() {
     for member in ["concat", "join"] {
         let source = format!("namespace app\nfunction main;\n  formatter = ','.{member}\n");
@@ -1928,6 +1956,97 @@ fn rejects_extracted_string_methods_as_values() {
             failure.diagnostics[0]
                 .message
                 .contains("string methods are not storable values")
+        );
+    }
+}
+
+#[test]
+fn mutable_reference_rejects_access_to_the_same_field() {
+    let source = "namespace app\nclass point\n  left int = 0\n  right int = 0\nfunction main;\n  owner = instance point;\n  left = mutable ref owner.left\n  owner.left = 3\n  left = 4\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_call_arguments_reject_mutable_aliases() {
+    let source = "namespace app\nfunction update; first mutable ref int, second mutable ref int\n  first = 3\n  second = 4\nfunction main;\n  value = 1\n  value = 2\n  update; value, value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_call_argument_rejects_a_readonly_alias() {
+    let source = "namespace app\nfunction observe int; target mutable ref int, value ref int\n  target = 3\n  return value\nfunction main;\n  value = 1\n  value = 2\n  result = observe; value, value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_callable_parameters_preserve_exclusive_input_contracts() {
+    let source = "namespace app\nfunction main;\n  callback = function; first mutable ref int, second mutable ref int\n    first = 3\n    second = 4\n  value = 1\n  value = 2\n  callback; value, value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+#[test]
+fn moved_reference_recovery_requires_a_new_handle() {
+    for use_after_move in [
+        "print; first",
+        "first = 3",
+        "third = move first",
+        "first = mutable ref other",
+    ] {
+        let source = format!(
+            "namespace app\nfunction main;\n  value = 0\n  other = 0\n  first = mutable ref value\n  second = first\n  {use_after_move}\n"
+        );
+        let failure = analyze(&package(true, &[("main.trn", &source)])).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "T0058", "{use_after_move}");
+        assert!(
+            !diagnostic.message.contains("until rebound"),
+            "{use_after_move}"
+        );
+        assert!(
+            diagnostic.help.as_deref().is_some_and(|help| {
+                help.contains("new name") && help.contains("`mutable ref`")
+            }),
+            "{use_after_move}"
+        );
+    }
+}
+
+#[test]
+fn moved_owned_value_recovery_still_allows_rebinding() {
+    for use_after_move in ["print; first", "third = move first"] {
+        let source = format!(
+            "namespace app\nfunction main;\n  first = 1\n  second = move first\n  {use_after_move}\n"
+        );
+        let failure = analyze(&package(true, &[("main.trn", &source)])).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "T0058", "{use_after_move}");
+        assert!(
+            diagnostic.message.contains("until rebound"),
+            "{use_after_move}"
+        );
+        assert!(diagnostic.help.is_none(), "{use_after_move}");
+    }
+}
+
+#[test]
+fn mutable_reference_captures_move_with_their_closure_environment() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = mutable function;\n    borrowed = 3\n  alias = callback\n  callback;\n  alias;\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0058");
+}
+#[test]
+fn mutable_reference_capture_requires_mutable_invocation() {
+    for (mode, accepted) in [("function", false), ("mutable function", true)] {
+        let source = format!(
+            "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = {mode};\n    borrowed = 3\n  callback;\n"
+        );
+        assert_eq!(
+            analyze(&package(false, &[("main.trn", &source)])).is_ok(),
+            accepted,
+            "{mode}"
         );
     }
 }

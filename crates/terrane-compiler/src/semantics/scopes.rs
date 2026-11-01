@@ -120,6 +120,14 @@ pub(super) fn add_lexical_scope(
             }
         }
     }
+    if node.kind == SyntaxKind::WithRegion
+        && let Some(acquisition) = node.children.first()
+        && acquisition.kind == SyntaxKind::Assignment
+        && let Some(declaration) = declaration_from_syntax(unit, acquisition)
+        && declaration.name != "_"
+    {
+        insert_local(unit, scopes, index, declaration.name, acquisition.span)?;
+    }
     for child in &node.children {
         match child.kind {
             SyntaxKind::ParameterList => {}
@@ -248,6 +256,11 @@ pub(super) fn populate_node(
         }
         SyntaxKind::FunctionDeclaration => {
             // populate_scope predeclares every sibling in this block.
+            add_lexical_scope(unit, context, scopes, node, Some(index))?;
+        }
+        SyntaxKind::WithRegion => {
+            // A region is a real lexical/storage boundary: its acquisition binding
+            // and body share a child scope, while surrounding locals remain visible.
             add_lexical_scope(unit, context, scopes, node, Some(index))?;
         }
         SyntaxKind::AnonymousFunction => {
@@ -807,10 +820,15 @@ pub(super) fn find_binding_initializer(node: &SyntaxNode, name_span: Span) -> Op
 }
 
 pub(super) fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
-    const PRELUDE: [(&str, &str, &str); 8] = [
+    const PRELUDE: [(&str, &str, &str); 9] = [
         ("print", "/core/output::print", "/core/output"),
         ("task-scope", "/core/async::task-scope", "/core/async"),
         ("task-group", "/core/async::task-group", "/core/async"),
+        (
+            "scoped-access",
+            "/core/modifiers::scoped-access",
+            "/core/modifiers",
+        ),
         ("utf8", "/core/encodings::utf8", "/core/encodings"),
         ("utf16-le", "/core/encodings::utf16-le", "/core/encodings"),
         ("utf16-be", "/core/encodings::utf16-be", "/core/encodings"),
@@ -832,6 +850,8 @@ pub(super) fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                     constant: !matches!(name, "print" | "task-scope" | "task-group"),
                     kind: if matches!(name, "print" | "task-scope" | "task-group") {
                         SymbolKind::Function
+                    } else if name == "scoped-access" {
+                        SymbolKind::Class
                     } else {
                         SymbolKind::Binding
                     },

@@ -42,6 +42,7 @@ fn value_type_contains_callable(
         | ValueType::TaskOutcome(value)
         | ValueType::TaskGroup(value)
         | ValueType::Reference(value)
+        | ValueType::MutableReference(value)
         | ValueType::SharedReference(value) => {
             value_type_contains_callable(value.value_type_ref(), predicate)
         }
@@ -438,10 +439,18 @@ fn lower_with_tests(
                         })
                 })
         };
-    let has_mutable_callables =
-        package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Mutable);
-    let has_consuming_callables =
-        package_has_callable(&|_, effects| effects.modes.written == InvocationMode::Consuming);
+    let has_mutable_callables = package_has_callable(&|_, effects| {
+        !effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
+    });
+    let has_consuming_callables = package_has_callable(&|_, effects| {
+        !effects.borrowed_environment && effects.modes.written == InvocationMode::Consuming
+    });
+    let has_borrowed_mutable_callables = package_has_callable(&|_, effects| {
+        effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
+    });
+    let has_borrowed_consuming_callables = package_has_callable(&|_, effects| {
+        effects.borrowed_environment && effects.modes.written == InvocationMode::Consuming
+    });
     let has_channels = package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
             matches!(
@@ -1001,6 +1010,24 @@ fn lower_with_tests(
             source_files: vec!["consuming_callable.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/consuming_callable.rs"
+            ))],
+        });
+    }
+    if has_borrowed_mutable_callables || registry.uses_borrowed_mutable_callable.get() {
+        runtime.push(GeneratedModule {
+            name: "borrowed-mutable-callable",
+            source_files: vec!["borrowed_mutable_callable.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/borrowed_mutable_callable.rs"
+            ))],
+        });
+    }
+    if has_borrowed_consuming_callables || registry.uses_borrowed_consuming_callable.get() {
+        runtime.push(GeneratedModule {
+            name: "borrowed-consuming-callable",
+            source_files: vec!["borrowed_consuming_callable.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/borrowed_consuming_callable.rs"
             ))],
         });
     }

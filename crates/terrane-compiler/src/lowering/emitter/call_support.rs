@@ -694,7 +694,9 @@ impl Emitter<'_> {
                 | ValueType::InvocationScopedNative {
                     family: identity, ..
                 } => identity,
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => {
                     let ValueType::Object(identity) = item.value_type() else {
                         return None;
                     };
@@ -740,11 +742,7 @@ impl Emitter<'_> {
                 self.receiver_value_type(receiver).and_then(|value_type| {
                     let identity = match value_type {
                         ValueType::Object(identity) => identity,
-                        ValueType::InvocationScopedNative {
-                            family,
-                            expression_scoped: true,
-                            ..
-                        } => family,
+                        ValueType::InvocationScopedNative { family, .. } => family,
                         _ => return None,
                     };
                     self.unit.descriptors.iter().find(|object| {

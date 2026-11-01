@@ -17,11 +17,11 @@ function execute-local int64;
     bound = query; 'bound-local'
     return bound.fetch; connection
 
-function execute-reference int64; connection ref Connection
+function execute-reference int64; connection mutable ref Connection
     bound = query; 'bound-reference'
     return bound.fetch; connection
 
-function execute-formal-reference int64; connection ref Connection
+function execute-formal-reference int64; connection mutable ref Connection
     return advance; connection
 
 function execute-optional int64; flag bool
@@ -39,7 +39,7 @@ function execute-deferred int64; flag bool
     bound = query; 'deferred'
     return bound.fetch; late
 
-function execute-enum int64; stage ref Stage
+function execute-enum int64; stage mutable ref Stage
     return advance; stage
 
 function observe-native int64; connection ref Connection
@@ -67,7 +67,7 @@ function observe-outlives int64;
     first = reader;
     return first + (reader;)
 
-function execute-owner int64; connection ref Connection
+function execute-owner int64; connection mutable ref Connection
     return (owner_query; 'owner-forward').fetch; connection
 
 async function main;
@@ -102,5 +102,5 @@ async function main;
     print; (execute-outlives;)
     print; (observe-outlives;)
     print; ((owner_query; 'owner-direct').fetch; connection)
-    observer = ref connection
+    observer = mutable ref connection
     print; (execute-owner; observer)

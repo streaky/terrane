@@ -1,0 +1,11 @@
+namespace native-guard-suspension
+
+from /core/time import clock, duration
+from /deps/receiver-api import Locks
+
+async function main;
+    locks = Locks::new; 1
+    with scoped-access guard = (locks.locked;) (
+        await clock::sleep; (duration::milliseconds; 1)
+        print; (guard.value;)
+    )

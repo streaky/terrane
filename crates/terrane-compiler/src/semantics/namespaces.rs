@@ -951,17 +951,15 @@ pub(super) fn function_contract_for_call_with_safety<'a>(
                     .flatten()
             })? {
                 ValueType::Object(identity) => identity,
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => {
                     let ValueType::Object(identity) = item.value_type() else {
                         return None;
                     };
                     identity
                 }
-                ValueType::InvocationScopedNative {
-                    mut family,
-                    expression_scoped: true,
-                    ..
-                } => {
+                ValueType::InvocationScopedNative { mut family, .. } => {
                     family.native_projection = None;
                     family
                 }

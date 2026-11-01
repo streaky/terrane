@@ -1,0 +1,4 @@
+namespace app
+from /deps/terrane-boundary-reject-witness import boxed_string
+function main;
+  print; (boxed_string; 'hello')

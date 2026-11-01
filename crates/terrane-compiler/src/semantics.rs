@@ -14,6 +14,7 @@ mod bootstrap;
 mod namespaces;
 mod scope_flow;
 mod scope_validation;
+mod scoped_regions;
 mod scopes;
 mod task_groups;
 
@@ -29,6 +30,7 @@ mod documents;
 mod expressions;
 mod logging;
 mod macros;
+pub(crate) mod modifiers;
 pub(crate) use macros::macro_argument;
 mod member_inference;
 pub(crate) use member_inference::platform_result_member_type;
@@ -133,6 +135,7 @@ pub(crate) use model::{
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::application_is_resource_owning;
+pub(crate) use objects::value_type_is_cloneable;
 pub(crate) use objects::{
     EffectiveObjectField, bind_projected_requirement, destination_projected_type,
     effective_object_fields, effective_object_interfaces, projected_owned_field_type,

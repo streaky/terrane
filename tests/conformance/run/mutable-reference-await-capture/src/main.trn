@@ -1,0 +1,13 @@
+namespace app
+from /worker import reset
+from /core/time import clock, duration
+async function main;
+  value = 0
+  await reset; value
+  print; value
+  borrowed = mutable ref value
+  callback = consuming async function;
+    _ = await clock::sleep; (duration::milliseconds; 1)
+    borrowed = 9
+  await callback;
+  print; value

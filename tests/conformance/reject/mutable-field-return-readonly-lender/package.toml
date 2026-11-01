@@ -1,0 +1,3 @@
+package = "mutable-field-return-readonly-lender"
+[namespaces]
+app = "src"

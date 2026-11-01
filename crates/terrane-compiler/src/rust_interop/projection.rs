@@ -88,6 +88,9 @@ use callable::{
     render_generic_bounds, resolved_path_type_arguments, rust_bound_roots, rust_lifetimes,
     trait_bound_name, type_contains_lifetime_argument, type_mentions_generic,
 };
+#[path = "projection/deref.rs"]
+mod deref;
+
 use cargo_workspace::{
     CargoExecution, CargoToolchain, containment, persist_dependency_lock,
     resolved_dependency_metadata, run_cargo, seed_dependency_lock, write_workspace,
@@ -119,6 +122,10 @@ use methods::{
     alias_type_substitutions, expand_output_alias, project_chain_owner, project_methods,
     resolved_nominal_id,
 };
+pub(crate) use methods::{
+    bound_lifetime_occurrences, instantiate_receiver_lifetimes,
+    instantiate_receiver_result_lifetimes, lifetime_occurrences, source_storage_rust_type,
+};
 use namespace_overlays::{apply_namespace_overlays, namespace_overlays_from_metadata};
 use partial::{partial_projection, partial_projection_references};
 use reexports::{
@@ -148,7 +155,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "290";
+const PROJECTION_SCHEMA: &str = "314";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -563,6 +570,8 @@ pub struct ProjectedFunction {
     pub error_optional_depth: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain_role: Option<ChainRole>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receiver_lifetime: Option<String>,
     pub receiver: Option<Receiver>,
 }
 
@@ -608,6 +617,9 @@ pub enum RequirementKnowledge {
 pub struct ProjectedParameter {
     pub name: String,
     pub ty: ProjectedType,
+    /// The outer Rust borrow lifetime; `'_` represents an elided lifetime.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub borrow_lifetime: Option<String>,
     pub borrowed: bool,
     pub mutable_borrow: bool,
     /// The native operand is a string slice, not a reference to an owned String.
@@ -656,12 +668,14 @@ pub enum Receiver {
     MutableBorrow,
     Move,
     BoxedMove,
+    /// A proven owned dereference path; borrowing Deref alone cannot grant this.
+    DerefMove(usize),
 }
 
 impl Receiver {
     #[must_use]
     pub const fn consumes(self) -> bool {
-        matches!(self, Self::Move | Self::BoxedMove)
+        matches!(self, Self::Move | Self::BoxedMove | Self::DerefMove(_))
     }
 }
 
@@ -1894,6 +1908,9 @@ impl Projection {
                 return Some((item.namespace.clone(), item.name.clone()));
             }
             ProjectedKind::Function(function) => match &function.result {
+                ProjectedType::InvocationScoped { owned, .. } => {
+                    return self.borrowed_scope_owner(owned);
+                }
                 ProjectedType::Foreign {
                     rust_path,
                     base_rust_path,
@@ -1954,11 +1971,7 @@ impl Projection {
             _ => return None,
         };
         let result = match result {
-            ProjectedType::InvocationScoped {
-                owned,
-                expression_scoped: true,
-                ..
-            } => {
+            ProjectedType::InvocationScoped { owned, .. } => {
                 if matches!(owned.as_ref(), ProjectedType::Optional(_)) {
                     return self.borrowed_scope_owner(owned);
                 }
@@ -2017,23 +2030,10 @@ impl Projection {
             }
             _ => return None,
         };
-        let ProjectedType::InvocationScoped {
-            name, rust_type, ..
-        } = result
-        else {
+        let ProjectedType::InvocationScoped { owned, .. } = result else {
             return None;
         };
-        self.dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .filter(|candidate| candidate.name == *name)
-            .find(|candidate| {
-                projected_owner_path_matches(
-                    &self.canonical_native_type(&candidate.rust_path),
-                    &self.canonical_native_type(rust_type),
-                )
-            })
-            .map(|candidate| (candidate.namespace.clone(), candidate.name.clone()))
+        self.borrowed_scope_owner(owned)
     }
 
     pub(crate) fn item_ambiguity(&self, namespace: &str, name: &str) -> Option<String> {
@@ -2273,8 +2273,19 @@ impl Projection {
                                         owner.split_once('<').map_or(owner, |(base, _)| base);
                                     Self::unqualified_rust_type(native)
                                         == Self::unqualified_rust_type(owner)
-                                        || self.canonical_native_type(native)
-                                            == self.canonical_native_type(owner)
+                                        || crate::rust_ir::rust_type_constructors_match(
+                                            &self.canonical_native_type(native),
+                                            &self.canonical_native_type(owner),
+                                        )
+                                        // A fixed native path can target a different
+                                        // constructor after proven receiver forwarding.
+                                        // Same-constructor specializations still need
+                                        // the owner match above.
+                                        || (method.native_path.is_some()
+                                            && !crate::rust_ir::rust_type_constructors_match(
+                                                &self.canonical_native_type(native),
+                                                &self.canonical_native_type(&item.rust_path),
+                                            ))
                                 })
                             })
                     })

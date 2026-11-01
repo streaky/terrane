@@ -132,7 +132,7 @@ function borrowed-title host-invocation-scoped-native; title ref string
 function boot MutableState;
     return MutableState::new; 'ui'
 
-function update; state ref MutableState, message int
+function update; state mutable ref MutableState, message int
     if message == 1
         state.mark;
 

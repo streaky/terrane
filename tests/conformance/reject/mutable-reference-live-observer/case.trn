@@ -1,0 +1,7 @@
+namespace app
+function main;
+    value = 0
+    observer = ref value
+    exclusive = mutable ref value
+    exclusive = 2
+    print; observer

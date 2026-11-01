@@ -1,0 +1,5 @@
+namespace native-deref-arc-mutation
+from /deps/receiver-api import arc
+function main;
+    item = arc; 1
+    item.set; 2

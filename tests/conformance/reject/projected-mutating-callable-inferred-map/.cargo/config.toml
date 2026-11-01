@@ -1,2 +1,0 @@
-[patch.crates-io]
-terrane-borrowed-interior-witness = { path = "fixture-registry/terrane-borrowed-interior-witness-0.1.0" }

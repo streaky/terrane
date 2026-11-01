@@ -510,24 +510,26 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 9] = [
+    pub static SITES: [Site; 10] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:13-7:36) */
         { Site { function: 0, file: 0, line: 7, column: 13, end_line: 7, end_column: 36 } },
         /* terrane-site-row: site 1: /app::main (src/main.trn:8:22-8:38) */
         { Site { function: 0, file: 0, line: 8, column: 22, end_line: 8, end_column: 38 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:10:19-10:58) */
+        /* terrane-site-row: site 2: /app::main (src/main.trn:10:20-10:35) */
+        { Site { function: 0, file: 0, line: 10, column: 20, end_line: 10, end_column: 35 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:10:19-10:58) */
         { Site { function: 0, file: 0, line: 10, column: 19, end_line: 10, end_column: 58 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:11:16-11:41) */
+        /* terrane-site-row: site 4: /app::main (src/main.trn:11:16-11:41) */
         { Site { function: 0, file: 0, line: 11, column: 16, end_line: 11, end_column: 41 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:12:23-12:30) */
+        /* terrane-site-row: site 5: /app::main (src/main.trn:12:23-12:30) */
         { Site { function: 0, file: 0, line: 12, column: 23, end_line: 12, end_column: 30 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:12:32-12:39) */
+        /* terrane-site-row: site 6: /app::main (src/main.trn:12:32-12:39) */
         { Site { function: 0, file: 0, line: 12, column: 32, end_line: 12, end_column: 39 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:14:21-14:49) */
+        /* terrane-site-row: site 7: /app::main (src/main.trn:14:21-14:49) */
         { Site { function: 0, file: 0, line: 14, column: 21, end_line: 14, end_column: 49 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:19:26-19:52) */
+        /* terrane-site-row: site 8: /app::main (src/main.trn:19:26-19:52) */
         { Site { function: 0, file: 0, line: 19, column: 26, end_line: 19, end_column: 52 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:23:9-23:26) */
+        /* terrane-site-row: site 9: /app::main (src/main.trn:23:9-23:26) */
         { Site { function: 0, file: 0, line: 23, column: 9, end_line: 23, end_column: 26 } },
     ];
     #[cold]
@@ -931,6 +933,7 @@ fn __terrane_uninitialized_binding(
 // Namespace: deps/terrane-query-witness
 pub use terrane_query_witness::Connection;
 pub use terrane_query_witness::ConnectionOptions;
+pub type Query<'q> = terrane_query_witness::Query<'q>;
 pub use terrane_query_witness::Row;
 pub fn terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new() -> Result<
     ConnectionOptions,
@@ -946,6 +949,24 @@ pub fn terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new() -> Result<
                     payload,
                     "terrane-query-witness",
                     "terrane_query_witness::ConnectionOptions",
+                ),
+            )
+        }
+    }
+}
+pub fn query<'view>(
+    selector: &'view str,
+) -> Result<terrane_query_witness::Query<'view>, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_query_witness::query(selector)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-query-witness",
+                    "terrane_query_witness::query",
                 ),
             )
         }

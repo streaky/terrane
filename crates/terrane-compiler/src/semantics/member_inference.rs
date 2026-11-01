@@ -250,7 +250,9 @@ pub(super) fn infer_receiver_value_type(
 ) -> Result<Option<ValueType>, SemanticFailure> {
     Ok(
         infer_value_type(unit, receiver, bindings)?.map(|value_type| match value_type {
-            ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+            ValueType::Reference(item)
+            | ValueType::MutableReference(item)
+            | ValueType::SharedReference(item) => item.value_type(),
             value_type => value_type,
         }),
     )
@@ -1109,7 +1111,10 @@ pub(super) fn infer_unary_type(
             )),
         };
     }
-    if matches!(operator.as_str(), "ref" | "shared ref" | "move") {
+    if matches!(
+        operator.as_str(),
+        "ref" | "mutable ref" | "shared ref" | "move"
+    ) {
         let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
             return Err(operator_failure(
                 unit,
@@ -1117,7 +1122,12 @@ pub(super) fn infer_unary_type(
                 format!("operator `{operator}` requires a value operand"),
             ));
         };
-        if operator == "shared ref" && matches!(operand, ValueType::Reference(_)) {
+        if operator == "shared ref"
+            && matches!(
+                operand,
+                ValueType::Reference(_) | ValueType::MutableReference(_)
+            )
+        {
             return Err(operator_failure(
                 unit,
                 node,
@@ -1126,10 +1136,14 @@ pub(super) fn infer_unary_type(
         }
         return Ok(match operator.as_str() {
             "ref" => match operand {
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                    ValueType::Reference(item)
-                }
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => ValueType::Reference(item),
                 value_type => ValueType::Reference(ElementType::new(value_type)),
+            },
+            "mutable ref" => match operand {
+                ValueType::MutableReference(item) => ValueType::MutableReference(item),
+                value_type => ValueType::MutableReference(ElementType::new(value_type)),
             },
             "shared ref" => match operand {
                 ValueType::SharedReference(item) => ValueType::SharedReference(item),

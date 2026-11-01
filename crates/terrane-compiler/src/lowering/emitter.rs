@@ -54,6 +54,8 @@ pub(super) struct LoweringRegistry {
     pub(super) uses_mutable_callable: Cell<bool>,
     pub(super) uses_async_mutable_state: Cell<bool>,
     pub(super) uses_consuming_callable: Cell<bool>,
+    pub(super) uses_borrowed_mutable_callable: Cell<bool>,
+    pub(super) uses_borrowed_consuming_callable: Cell<bool>,
     pub(super) mutable_native_callback_parameters: RefCell<BTreeSet<CallbackParameterKey>>,
 }
 

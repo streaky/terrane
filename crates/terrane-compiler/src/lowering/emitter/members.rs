@@ -1,5 +1,5 @@
 #[derive(Clone, Copy)]
-enum GuardScope {
+pub(super) enum GuardScope {
     Expression,
     Place,
 }
@@ -239,7 +239,9 @@ impl Emitter<'_> {
     pub(super) fn receiver_value_type(&self, receiver: &SyntaxNode) -> Option<ValueType> {
         self.value_type(receiver)
             .map(|value_type| match value_type {
-                ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => item.value_type(),
                 value_type => value_type,
             })
     }
@@ -311,7 +313,10 @@ impl Emitter<'_> {
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+        if matches!(
+            self.value_type(receiver),
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+        ) {
             return format!("*({})", self.receiver_guard_expression(receiver));
         }
         if matches!(self.value_type(receiver), Some(ValueType::Object(_)))
@@ -344,7 +349,10 @@ impl Emitter<'_> {
         {
             return self.available_storage_reference(binding, receiver, true);
         }
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+        if matches!(
+            self.value_type(receiver),
+            Some(ValueType::MutableReference(_))
+        ) {
             return format!("&mut {}", self.native_receiver_expression(receiver, true));
         }
         format!("&mut {}", self.receiver_expression(receiver))
@@ -512,7 +520,49 @@ impl Emitter<'_> {
         }
     }
 
-    fn receiver_place_parts(
+    pub(super) fn projected_field_place_parts(
+        &mut self,
+        receiver: &SyntaxNode,
+        holder: &SyntaxNode,
+        member: &SyntaxNode,
+        mutable: bool,
+        scope: GuardScope,
+    ) -> Option<(String, String, bool)> {
+        if !(Self::intrinsic_physical_field(
+            self.receiver_value_type(holder).as_ref(),
+            self.text(member),
+        ) || matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
+            && !self.is_throwable_value(holder)
+            && self
+                .native_field_type(receiver)
+                .is_none_or(|field| {
+                    field.has_identity_representation()
+                        || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                            if item.has_identity_representation())
+                }))
+        {
+            return None;
+        }
+        let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
+        let field =
+            self.native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
+        let wrapped = self.wrapped_object_field(holder, self.text(member));
+        let required = self.receiver_value_type(holder).is_some_and(|value| {
+            matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
+        });
+        let suffix = if mutable { "_mut" } else { "" };
+        let borrow = if mutable { "as_mut" } else { "as_ref" };
+        let value = match (wrapped, required) {
+            (true, _) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
+            (false, true) => format!(
+                "({holder_value}).{field}.{borrow}().expect(\"required field initialized\")"
+            ),
+            (false, false) => format!("({holder_value}).{field}"),
+        };
+        Some((setup, value, wrapped || required))
+    }
+
+    pub(super) fn receiver_place_parts(
         &mut self,
         receiver: &SyntaxNode,
         mutable: bool,
@@ -550,34 +600,23 @@ impl Emitter<'_> {
         }
         if receiver.kind == SyntaxKind::MemberExpression
             && let [holder, member] = receiver.children.as_slice()
-            && (Self::intrinsic_physical_field(
-                self.receiver_value_type(holder).as_ref(),
-                self.text(member),
-            ) || matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
-                && !self.is_throwable_value(holder)
-                && self
-                    .native_field_type(receiver)
-                    .is_none_or(|field| field.has_identity_representation()
-                        || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
-                            if item.has_identity_representation())))
+            && let Some((setup, value, _)) =
+                self.projected_field_place_parts(receiver, holder, member, mutable, scope)
         {
-            let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
-            let field = self
-                .native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
-            let wrapped = self.wrapped_object_field(holder, self.text(member));
-            let required = self.receiver_value_type(holder).is_some_and(|value| {
-                matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
-            });
-            let suffix = if mutable { "_mut" } else { "" };
-            let borrow = if mutable { "as_mut" } else { "as_ref" };
-            let value = match (wrapped, required) {
-                (true, _) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
-                (false, true) => format!(
-                    "({holder_value}).{field}.{borrow}().expect(\"required field initialized\")"
-                ),
-                (false, false) => format!("({holder_value}).{field}"),
-            };
             return (setup, value);
+        }
+        if mutable
+            && receiver.kind == SyntaxKind::IndexExpression
+            && receiver.children.first().is_some_and(|collection| {
+                matches!(
+                    self.receiver_value_type(collection),
+                    Some(ValueType::List(_) | ValueType::Map(_, _) | ValueType::UnorderedMap(_, _))
+                )
+            })
+        {
+            let address = self.mutable_reference_address_expression(receiver);
+            let name = self.fresh_read_binding_name("receiver_place");
+            return (format!("let {name} = {address}; "), name);
         }
         if !mutable && let Some(parts) = self.borrowed_index_place_parts(receiver) {
             return parts;
@@ -594,8 +633,10 @@ impl Emitter<'_> {
             );
         }
         let value = if receiver.kind == SyntaxKind::Name
-            && !matches!(self.value_type(receiver), Some(ValueType::Reference(_)))
-        {
+            && !matches!(
+                self.value_type(receiver),
+                Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+            ) {
             self.narrowed_storage_name(receiver, false, mutable)
                 .unwrap_or_else(|| {
                     self.local_typed_binding(receiver)
@@ -700,7 +741,7 @@ impl Emitter<'_> {
             Some(ValueType::Reference(_)) if self.reference_uses_shared_storage(receiver) => {
                 "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
             }
-            Some(ValueType::Reference(_)) => self.expression(receiver),
+            Some(ValueType::MutableReference(_)) => self.expression(receiver),
             _ if self.reference_backed_name(receiver).is_some() => {
                 format!(
                     "{}.lock().expect(\"reference lock poisoned\")",
@@ -746,7 +787,11 @@ impl Emitter<'_> {
             format!("({}).name", self.borrowed_expression(node))
         } else if matches!(
             self.value_type(node),
-            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            Some(
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
         ) {
             self.receiver_expression(node)
         } else {
@@ -1084,7 +1129,11 @@ impl Emitter<'_> {
         let wrapped_field = self.wrapped_object_field(receiver, self.text(member));
         if (matches!(
             self.value_type(receiver),
-            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            Some(
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
         ) || self.reference_backed_name(receiver).is_some()
             || self.shared_async_receiver && self.text(receiver) == "this"
             || self.static_storage_name(receiver).is_some())
@@ -1339,7 +1388,11 @@ impl Emitter<'_> {
                         || self.wrapped_object_field(receiver, name)
                         || matches!(
                             self.value_type(receiver),
-                            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                            Some(
+                                ValueType::Reference(_)
+                                    | ValueType::MutableReference(_)
+                                    | ValueType::SharedReference(_)
+                            )
                         ))
             }
             _ => false,

@@ -331,7 +331,7 @@ pub(super) fn projected_interface_impl_question(
             source.push_str(match function.receiver {
                 Some(Receiver::Borrow) => "&self",
                 Some(Receiver::MutableBorrow) => "&mut self",
-                Some(Receiver::Move) => "self",
+                Some(Receiver::Move | Receiver::DerefMove(_)) => "self",
                 Some(Receiver::BoxedMove) => "self: Box<Self>",
                 None => "",
             });
@@ -468,8 +468,10 @@ fn attach_unique_trait_operation(
         && let Some(owner) = function.native_owner.as_deref()
     {
         let mut associated = function.clone();
-        associated.receiver = None;
+        let receiver_lifetime = function.receiver_lifetime.clone();
         let base = owner.split_once('<').map_or(owner, |(base, _)| base);
+        associated.receiver = None;
+        associated.receiver_lifetime = None;
         associated.parameters.insert(
             0,
             ProjectedParameter {
@@ -483,6 +485,7 @@ fn attach_unique_trait_operation(
                 },
                 borrowed: true,
                 mutable_borrow: receiver == Receiver::MutableBorrow,
+                borrow_lifetime: receiver_lifetime,
                 generic_parameter: None,
                 generic_bounds: Vec::new(),
                 generic_interface: None,
@@ -545,6 +548,8 @@ pub(super) fn merge_projected_trait_operations(
             && let Some(owner) = function.native_owner.as_deref()
         {
             let base_rust_path = owner.split_once('<').map_or(owner, |(base, _)| base);
+            let receiver_lifetime = function.receiver_lifetime.take();
+            function.receiver_lifetime = None;
             function.parameters.insert(
                 0,
                 ProjectedParameter {
@@ -566,6 +571,7 @@ pub(super) fn merge_projected_trait_operations(
                     associated_type: None,
                     borrowed: !receiver.consumes(),
                     mutable_borrow: receiver == Receiver::MutableBorrow,
+                    borrow_lifetime: receiver_lifetime,
                 },
             );
         }

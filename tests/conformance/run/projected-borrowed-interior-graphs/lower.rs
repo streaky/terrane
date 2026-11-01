@@ -112,7 +112,22 @@ fn request_view<'view>(request: &'view Request) -> witness::View<'view> {
     return {
         let __terrane_native_input_0 = &(&*request).extensions().entry();
         __terrane_raised(
-            make_view(__terrane_native_input_0),
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| witness::make_view(
+                    __terrane_native_input_0,
+                )),
+            ) {
+                Ok(value) => Ok(value),
+                Err(payload) => {
+                    Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::make_view",
+                        ),
+                    )
+                }
+            },
             5 /* terrane-site: src/main.trn:12:12-12:53 */,
         )
     };
@@ -224,18 +239,20 @@ fn main() {
                 (&request)
                     .extensions()
                     .get::<witness::Entry>()
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = entry_value(borrowed_argument_0);
-                            Ok(
-                                terrane_int_support::coerce::<i64>(&callback_value)
-                                    .map_err(|error| crate::TerraneForeignError(
-                                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                    ))?,
-                            )
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = entry_value(borrowed_argument_0);
+                                Ok(
+                                    terrane_int_support::coerce::<i64>(&callback_value)
+                                        .map_err(|error| crate::TerraneForeignError(
+                                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                        ))?,
+                                )
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -376,13 +393,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = mark_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = mark_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -433,13 +452,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = read_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = read_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -468,13 +489,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = mark_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = mark_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -503,13 +526,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = clear_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = clear_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -562,25 +587,18 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .map(
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            Ok({
-                                let callback = anonymous_update.clone();
-                                move |callback_argument_0: &mut http::HeaderValue| {
-                                    match || -> Result<_, crate::TerraneForeignError> {
-                                        let callback_value = callback(&mut *callback_argument_0);
-                                        Ok(callback_value)
-                                    }() {
-                                        Ok(value) => value,
-                                        Err(error) => std::panic::panic_any(error.0),
-                                    }
-                                }
-                            })
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error),
-                        },
-                    )
+                    .map({
+                        let borrowed_callback = &anonymous_update;
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = borrowed_callback(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
+                        }
+                    })
             }),
         ) {
             Ok(value) => Ok(value),
@@ -607,13 +625,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = read_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = read_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -661,13 +681,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = clear_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = clear_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -696,13 +718,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = read_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = read_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -746,25 +770,18 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("forwarded"))
-                    .map(
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            Ok({
-                                let callback = anonymous_read.clone();
-                                move |callback_argument_0: &http::HeaderValue| {
-                                    match || -> Result<_, crate::TerraneForeignError> {
-                                        let callback_value = callback(&*callback_argument_0);
-                                        Ok(callback_value)
-                                    }() {
-                                        Ok(value) => value,
-                                        Err(error) => std::panic::panic_any(error.0),
-                                    }
-                                }
-                            })
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error),
-                        },
-                    )
+                    .map({
+                        let borrowed_callback = &anonymous_read;
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = borrowed_callback(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
+                        }
+                    })
             }),
         ) {
             Ok(value) => Ok(value),
@@ -791,25 +808,18 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .map(
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            Ok({
-                                let callback = anonymous_read.clone();
-                                move |callback_argument_0: &mut http::HeaderValue| {
-                                    match || -> Result<_, crate::TerraneForeignError> {
-                                        let callback_value = callback(&mut *callback_argument_0);
-                                        Ok(callback_value)
-                                    }() {
-                                        Ok(value) => value,
-                                        Err(error) => std::panic::panic_any(error.0),
-                                    }
-                                }
-                            })
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error),
-                        },
-                    )
+                    .map({
+                        let borrowed_callback = &anonymous_read;
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = borrowed_callback(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
+                        }
+                    })
             }),
         ) {
             Ok(value) => Ok(value),
@@ -875,13 +885,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 let _ = headers
                     .get_mut(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = mark_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = mark_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     });
             }),
@@ -904,15 +916,17 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 headers
                     .get_mut(String::from("forwarded"))
-                    .and_then(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = clear_sensitive_optional(
-                                borrowed_argument_0,
-                            );
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .and_then({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = clear_sensitive_optional(
+                                    borrowed_argument_0,
+                                );
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),
@@ -936,13 +950,15 @@ fn main() {
             std::panic::AssertUnwindSafe(|| {
                 (&headers)
                     .get(String::from("forwarded"))
-                    .map(move |borrowed_argument_0| {
-                        match || -> Result<_, crate::TerraneForeignError> {
-                            let callback_value = read_sensitive(borrowed_argument_0);
-                            Ok(callback_value)
-                        }() {
-                            Ok(value) => value,
-                            Err(error) => std::panic::panic_any(error.0),
+                    .map({
+                        move |borrowed_argument_0| {
+                            match || -> Result<_, crate::TerraneForeignError> {
+                                let callback_value = read_sensitive(borrowed_argument_0);
+                                Ok(callback_value)
+                            }() {
+                                Ok(value) => value,
+                                Err(error) => std::panic::panic_any(error.0),
+                            }
                         }
                     })
             }),

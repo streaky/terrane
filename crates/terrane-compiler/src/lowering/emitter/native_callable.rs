@@ -42,7 +42,9 @@ impl Emitter<'_> {
                 if projected.preserves_borrowed_storage()
                     && !matches!(
                         parameter.value_type_ref(),
-                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
                     )
                 {
                     format!(
@@ -110,7 +112,7 @@ impl Emitter<'_> {
             format!("&{}", projected.ty.rust_type())
         } else if matches!(
             parameter.binding_value_type(),
-            Some(ValueType::Reference(_))
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
         ) {
             source
         } else {

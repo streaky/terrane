@@ -1,0 +1,14 @@
+namespace app
+
+from /core/modifiers import scoped-access
+from /deps/guard-api import Locks
+
+function main;
+    outer-lock = Locks::new; 1
+    inner-lock = Locks::new; 2
+    with scoped-access outer = (outer-lock.locked;) (
+        slot = outer
+        with scoped-access inner = (inner-lock.locked;) (
+            slot = inner
+        )
+    )

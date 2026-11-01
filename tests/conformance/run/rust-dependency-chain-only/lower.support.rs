@@ -510,13 +510,29 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 3] = [
+    pub static SITES: [Site; 11] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:5:20-5:36) */
         { Site { function: 0, file: 0, line: 5, column: 20, end_line: 5, end_column: 36 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:6:22-6:79) */
+        /* terrane-site-row: site 1: /app::main (src/main.trn:6:24-6:57) */
+        { Site { function: 0, file: 0, line: 6, column: 24, end_line: 6, end_column: 57 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:6:23-6:67) */
+        { Site { function: 0, file: 0, line: 6, column: 23, end_line: 6, end_column: 67 } },
+        /* terrane-site-row: site 3: /app::main (src/main.trn:6:22-6:79) */
         { Site { function: 0, file: 0, line: 6, column: 22, end_line: 6, end_column: 79 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:8:21-8:60) */
+        /* terrane-site-row: site 4: /app::main (src/main.trn:8:23-8:35) */
+        { Site { function: 0, file: 0, line: 8, column: 23, end_line: 8, end_column: 35 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:8:22-8:51) */
+        { Site { function: 0, file: 0, line: 8, column: 22, end_line: 8, end_column: 51 } },
+        /* terrane-site-row: site 6: /app::main (src/main.trn:8:21-8:60) */
         { Site { function: 0, file: 0, line: 8, column: 21, end_line: 8, end_column: 60 } },
+        /* terrane-site-row: site 7: /app::main (src/main.trn:11:13-11:25) */
+        { Site { function: 0, file: 0, line: 11, column: 13, end_line: 11, end_column: 25 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:12:13-12:39) */
+        { Site { function: 0, file: 0, line: 12, column: 13, end_line: 12, end_column: 39 } },
+        /* terrane-site-row: site 9: /app::main (src/main.trn:13:19-13:33) */
+        { Site { function: 0, file: 0, line: 13, column: 19, end_line: 13, end_column: 33 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:14:11-14:26) */
+        { Site { function: 0, file: 0, line: 14, column: 11, end_line: 14, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]
@@ -892,6 +908,49 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Source: <terrane>/projected/deps/terrane-chain-witness.trn
 // Namespace: deps/terrane-chain-witness
 pub use terrane_chain_witness::Database;
+pub type LineBuilder<'a> = terrane_chain_witness::LineBuilder<'a>;
+pub type ScalarLookup<'q> = terrane_chain_witness::ScalarLookup<'q>;
+pub fn line<'view>(
+    prefix: &'view str,
+) -> Result<terrane_chain_witness::LineBuilder<'view>, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_chain_witness::line(prefix)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-chain-witness",
+                    "terrane_chain_witness::line",
+                ),
+            )
+        }
+    }
+}
+pub fn lookup_scalar<'view>(
+    database: &'view Database,
+    key: String,
+) -> Result<terrane_chain_witness::ScalarLookup<'view>, crate::TerraneForeignError> {
+    let key = key;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| terrane_chain_witness::lookup_scalar(
+            database,
+            key,
+        )),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "terrane-chain-witness",
+                    "terrane_chain_witness::lookup_scalar",
+                ),
+            )
+        }
+    }
+}
 pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             terrane_chain_witness::memory_database(),

@@ -136,7 +136,7 @@ fn classify_node(
         SyntaxKind::TypeExpression => {
             classify_names(node, tokens, classified, HighlightKind::Type, false);
         }
-        SyntaxKind::AnnotationApplication => {
+        SyntaxKind::AnnotationApplication | SyntaxKind::ModifierApplication => {
             if let Some(name) = node.children.first() {
                 classify_names(name, tokens, classified, HighlightKind::Type, false);
             }

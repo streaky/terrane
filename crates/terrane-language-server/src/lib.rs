@@ -1767,6 +1767,7 @@ mod tests {
                 enum_operation: None,
                 error_optional_depth: 0,
                 chain_role: None,
+                receiver_lifetime: None,
                 receiver: None,
             }),
         };
@@ -1807,6 +1808,7 @@ mod tests {
                 enum_operation: None,
                 error_optional_depth: 0,
                 chain_role: None,
+                receiver_lifetime: None,
                 receiver: None,
             }),
         };
@@ -1847,6 +1849,7 @@ mod tests {
                 enum_operation: None,
                 error_optional_depth: 0,
                 chain_role: Some(ChainRole::Root),
+                receiver_lifetime: None,
                 receiver: None,
             }),
         };
