@@ -9,4 +9,7 @@ async function inspect int; observed ref int
   finally
     print; observed
 
-function main;
+async function main;
+  value = 23
+  result = await inspect; value
+  print; result

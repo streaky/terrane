@@ -1135,6 +1135,7 @@ fn first_owner_lifetime_end(
     owner: Span,
     after: usize,
     provenances: &BTreeMap<(usize, usize), ReferenceProvenance>,
+    mutations_end_lifetime: bool,
 ) -> Option<Span> {
     fn root_name(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
         loop {
@@ -1157,6 +1158,27 @@ fn first_owner_lifetime_end(
         {
             node.children.last()
         }
+        SyntaxKind::CallExpression if mutations_end_lifetime => {
+            let lender_reference = unit.typed_bindings.iter().any(|binding| {
+                binding.span == owner
+                    && matches!(
+                        binding.value_type,
+                        ValueType::Reference(_) | ValueType::MutableReference(_)
+                    )
+            });
+            if lender_reference {
+                None
+            } else {
+                node.children.first().and_then(|callee| {
+                    let (receiver, ty, member) = typed_member_call(unit, callee)?;
+                    let family = member
+                        .split_once('.')
+                        .map_or(member.as_str(), |(family, _)| family);
+                    (member_invocation_mode(package, unit, &ty, family) == InvocationMode::Mutable)
+                        .then_some(receiver)
+                })
+            }
+        }
         _ => None,
     };
     let target_root = target.and_then(root_name);
@@ -1172,16 +1194,32 @@ fn first_owner_lifetime_end(
         .is_some_and(|provenance| provenance.owner == owner);
     let replaces_whole_owner = target_declaration == Some(owner)
         && target_path.as_deref().is_some_and(|path| path.is_empty());
+    let mutates_owner = mutations_end_lifetime
+        && target_root.is_some_and(|target| {
+            unit.flow_binding_ids
+                .get(&(target.span.file, target.span.start, target.span.end))
+                == Some(&owner)
+                || target_declaration == Some(owner)
+        });
     if node.span.start > after
         && !writes_through_reference
-        && replaces_whole_owner
-        && unit.flow_replacements.get(&node.span) == Some(&owner)
+        && (unit.flow_replacements.get(&node.span) == Some(&owner)
+            || replaces_whole_owner
+            || mutates_owner)
     {
         return Some(node.span);
     }
-    node.children
-        .iter()
-        .find_map(|child| first_owner_lifetime_end(package, unit, child, owner, after, provenances))
+    node.children.iter().find_map(|child| {
+        first_owner_lifetime_end(
+            package,
+            unit,
+            child,
+            owner,
+            after,
+            provenances,
+            mutations_end_lifetime,
+        )
+    })
 }
 
 type FunctionKey = (u32, usize, usize);
@@ -1985,12 +2023,16 @@ fn record_reference_provenance(
             provenance
         } else if operator == "shared ref"
             && ungroup(operand).kind == SyntaxKind::CallExpression
-            && ungroup(operand)
-                .children
-                .first()
-                .is_some_and(|callee| callee.kind == SyntaxKind::ConstructionExpression)
+            && infer_value_type(unit, operand, &unit.typed_bindings)?.is_some_and(|ty| {
+                !matches!(
+                    ty,
+                    ValueType::Reference(_)
+                        | ValueType::MutableReference(_)
+                        | ValueType::SharedReference(_)
+                )
+            })
         {
-            // A constructor result is newly owned, not borrowed from a binding.
+            // Any newly owned call result can establish shared ownership.
             ReferenceProvenance {
                 owner: operand.span,
                 authority: ReferenceAuthority::ReadOnly,
@@ -2252,6 +2294,7 @@ pub(super) fn analyze_reference_provenance(
                                     provenance.owner,
                                     key.0,
                                     &proven,
+                                    !has_exclusive_lineage(provenance, &proven),
                                 )
                             })
                             .flatten(),
