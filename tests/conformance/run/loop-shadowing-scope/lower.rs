@@ -62,10 +62,11 @@ fn main() {
             String,
         >::new(vec![String::from("ab"), String::from("c")]),
     );
-    let __terrane_iterable_0 = match items {
+    let __terrane_iterable_0 = match &items {
         TerraneUnionF0S121::Arm0(value) => value,
         _ => unreachable!("flow-proven storage refinement"),
-    };
+    }
+        .clone();
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &__terrane_iterable_0,
     );

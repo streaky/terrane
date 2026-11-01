@@ -77,10 +77,12 @@ fn main() {
     );
     text_value = __terrane_raised(
         match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| match match text {
+            std::panic::AssertUnwindSafe(|| match match &text {
                 TerraneUnionF0S217::Arm0(value) => value,
                 _ => unreachable!("flow-proven storage refinement"),
-            } {
+            }
+                .clone()
+            {
                 terrane_payload_enum_witness::Event::Text(value) => Some(value),
                 _ => None,
             }),
