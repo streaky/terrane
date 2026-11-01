@@ -1988,6 +1988,50 @@ fn mutable_callable_parameters_preserve_exclusive_input_contracts() {
     assert_eq!(failure.diagnostics[0].code, "T0149");
 }
 #[test]
+fn moved_reference_recovery_requires_a_new_handle() {
+    for use_after_move in [
+        "print; first",
+        "first = 3",
+        "third = move first",
+        "first = mutable ref other",
+    ] {
+        let source = format!(
+            "namespace app\nfunction main;\n  value = 0\n  other = 0\n  first = mutable ref value\n  second = first\n  {use_after_move}\n"
+        );
+        let failure = analyze(&package(true, &[("main.trn", &source)])).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "T0058", "{use_after_move}");
+        assert!(
+            !diagnostic.message.contains("until rebound"),
+            "{use_after_move}"
+        );
+        assert!(
+            diagnostic.help.as_deref().is_some_and(|help| {
+                help.contains("new name") && help.contains("`mutable ref`")
+            }),
+            "{use_after_move}"
+        );
+    }
+}
+
+#[test]
+fn moved_owned_value_recovery_still_allows_rebinding() {
+    for use_after_move in ["print; first", "third = move first"] {
+        let source = format!(
+            "namespace app\nfunction main;\n  first = 1\n  second = move first\n  {use_after_move}\n"
+        );
+        let failure = analyze(&package(true, &[("main.trn", &source)])).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "T0058", "{use_after_move}");
+        assert!(
+            diagnostic.message.contains("until rebound"),
+            "{use_after_move}"
+        );
+        assert!(diagnostic.help.is_none(), "{use_after_move}");
+    }
+}
+
+#[test]
 fn mutable_reference_captures_move_with_their_closure_environment() {
     let source = "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = mutable function;\n    borrowed = 3\n  alias = callback\n  callback;\n  alias;\n";
     let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();

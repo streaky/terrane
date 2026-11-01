@@ -93,6 +93,38 @@ fn validate_async_receiver_field_borrow(
     Ok(())
 }
 
+fn moved_binding_failure(
+    unit: &SemanticUnit,
+    binding: usize,
+    span: Span,
+    already: bool,
+) -> SemanticFailure {
+    let binding = &unit.typed_bindings[binding];
+    if matches!(binding.value_type, ValueType::MutableReference(_)) {
+        return SemanticFailure {
+            source: unit.source.clone(),
+            diagnostics: vec![
+                Diagnostic::error(
+                    "T0058",
+                    format!("`{}` was moved and is no longer available", binding.name),
+                    span,
+                )
+                .with_help("bind a new name with `mutable ref` to establish another loan"),
+            ],
+        };
+    }
+    let already = if already { "already " } else { "" };
+    failure(
+        &unit.source,
+        "T0058",
+        format!(
+            "`{}` was {already}moved and is unavailable until rebound",
+            binding.name
+        ),
+        span,
+    )
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "move provenance and its control-flow join remain one auditable analysis"
@@ -416,12 +448,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(binding) = binding_at(unit, name, operand.span.start)
                 && !moved.insert(binding)
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0058",
-                    format!("`{name}` was already moved and is unavailable until rebound"),
-                    operand.span,
-                ));
+                return Err(moved_binding_failure(unit, binding, operand.span, true));
             }
             return Ok(());
         }
@@ -716,12 +743,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(binding) = binding_at(unit, name, node.span.start)
                 && moved.contains(&binding)
             {
-                return Err(failure(
-                    &unit.source,
-                    "T0058",
-                    format!("`{name}` was moved and is unavailable until rebound"),
-                    node.span,
-                ));
+                return Err(moved_binding_failure(unit, binding, node.span, false));
             }
             return Ok(());
         }
