@@ -3184,14 +3184,20 @@ impl Emitter<'_> {
                 (dependency, member)
             } else {
                 let native_path = method.native_path.clone().unwrap_or_else(|| {
-                    format!(
-                        "{}::{}",
-                        method
-                            .native_owner
-                            .as_deref()
-                            .unwrap_or("dependency::ForeignType"),
-                        method.name
-                    )
+                    let owner = method
+                        .native_owner
+                        .clone()
+                        .or_else(|| {
+                            self.projected_receiver_identity(&callee.children[0])
+                                .and_then(|identity| {
+                                    self.package
+                                        .projection
+                                        .foreign_rust_path(&identity.namespace, &identity.name)
+                                        .map(str::to_owned)
+                                })
+                        })
+                        .unwrap_or_else(|| "dependency::ForeignType".to_owned());
+                    format!("{owner}::{}", method.name)
                 });
                 crate::rust_ir::rust_callable_origin(&native_path).unwrap_or_else(|| {
                     (
@@ -3199,6 +3205,7 @@ impl Emitter<'_> {
                             .split("::")
                             .next()
                             .unwrap_or("dependency")
+                            .trim()
                             .to_owned(),
                         native_path,
                     )

@@ -30,4 +30,5 @@ fn main() {
         })
     };
     println!("{}", terrane_scalar_support::scalar_text(&snapshot()));
+    drop(snapshot);
 }

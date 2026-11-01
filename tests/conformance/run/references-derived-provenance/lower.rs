@@ -47,6 +47,7 @@ fn main() {
         })
     };
     show_field();
+    drop(show_field);
     values = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(

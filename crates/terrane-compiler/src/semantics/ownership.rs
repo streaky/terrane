@@ -2364,7 +2364,13 @@ fn callable_drop_facts(unit: &SemanticUnit) -> BTreeMap<(u32, usize, usize), Vec
         let final_carrier = unit.flow_binding_ids
             .get(&(last_use.file, last_use.start, last_use.end))
             .copied().unwrap_or(carrier.span);
-        let boundary = callable_cleanup_boundary(unit, last_use, final_carrier);
+        let Some(boundary) = callable_cleanup_boundary(unit, last_use, final_carrier) else {
+            continue;
+        };
+        if !super::scope_validation::statement_may_fall_through(boundary) {
+            continue;
+        }
+        let boundary = boundary.span;
         let carriers = drops.entry((boundary.file, boundary.start, boundary.end)).or_default();
         if !carriers.contains(&final_carrier) {
             carriers.push(final_carrier);
@@ -2383,7 +2389,11 @@ pub(super) fn record_callable_drop_facts(package: &mut SemanticPackage) {
     }
 }
 
-fn callable_cleanup_boundary(unit: &SemanticUnit, use_span: Span, carrier: Span) -> Span {
+fn callable_cleanup_boundary(
+    unit: &SemanticUnit,
+    use_span: Span,
+    carrier: Span,
+) -> Option<&SyntaxNode> {
     fn enclosing_controls<'a>(
         node: &'a SyntaxNode,
         use_span: Span,
@@ -2408,13 +2418,13 @@ fn callable_cleanup_boundary(unit: &SemanticUnit, use_span: Span, carrier: Span)
             enclosing_controls(child, use_span, controls);
         }
     }
-    fn containing_statement(node: &SyntaxNode, use_span: Span) -> Option<Span> {
+    fn containing_statement(node: &SyntaxNode, use_span: Span) -> Option<&SyntaxNode> {
         let child = node
             .children
             .iter()
             .find(|child| child.span.start <= use_span.start && child.span.end >= use_span.end)?;
         containing_statement(child, use_span)
-            .or_else(|| (node.kind == SyntaxKind::Block).then_some(child.span))
+            .or_else(|| (node.kind == SyntaxKind::Block).then_some(child))
     }
 
     let mut controls = Vec::new();
@@ -2423,10 +2433,7 @@ fn callable_cleanup_boundary(unit: &SemanticUnit, use_span: Span, carrier: Span)
         .into_iter()
         .filter(|node| carrier.start < node.span.start)
         .max_by_key(|node| node.span.end - node.span.start)
-        .map_or_else(
-            || containing_statement(&unit.tree.root, use_span).unwrap_or(use_span),
-            |node| node.span,
-        )
+        .map_or_else(|| containing_statement(&unit.tree.root, use_span), Some)
 }
 
 fn first_use_after(

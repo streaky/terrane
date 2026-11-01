@@ -180,6 +180,21 @@ fn readonly_carriers() {
     value = terrane_int_support::Int::from(7_i128);
     println!("{}", terrane_scalar_support::scalar_text(&value));
 }
+fn returned_call() -> terrane_int_support::Int {
+    let mut value: terrane_int_support::Int;
+    let borrowed: &mut terrane_int_support::Int;
+    let mut callback: TerraneBorrowedMutableCallable<'_, (), terrane_int_support::Int>;
+    value = terrane_int_support::Int::from(0_i128);
+    borrowed = &mut value;
+    callback = {
+        let borrowed = borrowed;
+        TerraneBorrowedMutableCallable::new(move |(): ()| -> terrane_int_support::Int {
+            *borrowed = (*borrowed).clone() + terrane_int_support::Int::from(1_i128);
+            return (*borrowed).clone();
+        })
+    };
+    return callback.call(());
+}
 fn main() {
     branch(true);
     branch(false);
@@ -192,4 +207,5 @@ fn main() {
     nested_branch(true, true);
     nested_branch(false, false);
     readonly_carriers();
+    println!("{}", terrane_scalar_support::scalar_text(&returned_call()));
 }

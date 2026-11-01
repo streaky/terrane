@@ -492,6 +492,10 @@ pub(super) fn block_may_fall_through(block: &SyntaxNode) -> bool {
     let Some(statement) = block.children.last() else {
         return true;
     };
+    statement_may_fall_through(statement)
+}
+
+pub(super) fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
     match statement.kind {
         SyntaxKind::ReturnStatement
         | SyntaxKind::ThrowStatement

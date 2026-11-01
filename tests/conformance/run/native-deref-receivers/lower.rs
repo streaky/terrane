@@ -92,7 +92,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "receiver_api ",
+                        "receiver_api",
                         "receiver_api::RecordView::nested",
                     ),
                 )
@@ -107,7 +107,7 @@ fn ordinary_view() -> terrane_int_support::Int {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "receiver_api ",
+                        "receiver_api",
                         "receiver_api::RecordView::value",
                     ),
                 )
@@ -236,7 +236,7 @@ async fn suspended_view() -> terrane_int_support::Int {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "receiver_api ",
+                        "receiver_api",
                         "receiver_api::RecordView::value",
                     ),
                 )
@@ -315,7 +315,7 @@ fn named_view() -> terrane_int_support::Int {
                 Err(
                     crate::__terrane_dependency_panic(
                         payload,
-                        "receiver_api ",
+                        "receiver_api",
                         "receiver_api::RecordView::value",
                     ),
                 )
@@ -758,8 +758,7 @@ fn pointers_and_guards() {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | copied.value())) {
             Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
             Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "receiver_api ", "receiver_api::RecordView::value")) },
-            57 /* terrane-site: src/main.trn:75:17-75:30 */))
+            "receiver_api", "receiver_api::RecordView::value")) }, 57 /* terrane-site: src/main.trn:75:17-75:30 */))
         );
         {
             let nested: receiver_api::RecordView<'_> = __terrane_raised(
@@ -771,7 +770,7 @@ fn pointers_and_guards() {
                         Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api ",
+                                "receiver_api",
                                 "receiver_api::RecordView::nested",
                             ),
                         )
@@ -788,7 +787,7 @@ fn pointers_and_guards() {
                         Err(
                             crate::__terrane_dependency_panic(
                                 payload,
-                                "receiver_api ",
+                                "receiver_api",
                                 "receiver_api::RecordView::value",
                             ),
                         )

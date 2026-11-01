@@ -90,6 +90,14 @@ function readonly-carriers;
     value = 7
     print; value
 
+function returned-call int;
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function int;
+        borrowed = borrowed + 1
+        return borrowed
+    return callback;
+
 function main;
     branch; true
     branch; false
@@ -102,3 +110,4 @@ function main;
     nested-branch; true, true
     nested-branch; false, false
     readonly-carriers;
+    print; (returned-call;)
