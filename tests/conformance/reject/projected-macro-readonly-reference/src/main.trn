@@ -1,0 +1,10 @@
+namespace app
+from /deps/witness import Packet
+from /deps/witness/macros import packet, disable
+
+function inspect int; record ref Packet
+    return disable; record
+
+function main;
+    record Packet = packet; 7, true
+    print; (inspect; record)

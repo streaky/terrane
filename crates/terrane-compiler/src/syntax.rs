@@ -35,8 +35,8 @@ pub const KEYWORDS: &[&str] = &[
     "is",
     "label",
     "match",
-    "switch",
     "move",
+    "mutable",
     "namespace",
     "not",
     "of",
@@ -51,6 +51,7 @@ pub const KEYWORDS: &[&str] = &[
     "self",
     "shared",
     "static",
+    "switch",
     "this",
     "throw",
     "throws",
@@ -63,6 +64,7 @@ pub const KEYWORDS: &[&str] = &[
     "uses",
     "when",
     "while",
+    "with",
     "yield",
 ];
 
@@ -95,6 +97,8 @@ pub enum SyntaxKind {
     DeclarationQualifier,
     EffectClause,
     AnnotationApplication,
+    ModifierApplication,
+    WithRegion,
     Binding,
     FieldMetadata,
     FieldMetadataEntry,
@@ -186,6 +190,11 @@ impl SyntaxKind {
         }
         match (self, child, index) {
             (_, Self::AnnotationApplication, _) => "annotation",
+            (_, Self::ModifierApplication, _) => "modifier",
+            (Self::ModifierApplication, Self::Name, _) => "modifier-type",
+            (Self::ModifierApplication, Self::ArgumentList, _) => "arguments",
+            (Self::WithRegion, _, 0) => "acquisition",
+            (Self::WithRegion, Self::Block, _) => "body",
             (Self::AnnotationApplication, Self::Name, _) => "annotation-type",
             (Self::AnnotationApplication, Self::ArgumentList, _) | (Self::CallExpression, _, 1) => {
                 "arguments"
@@ -273,6 +282,8 @@ pub struct SyntaxNode {
     pub children: Vec<SyntaxNode>,
     /// Metadata syntax is separate from executable declaration children.
     pub annotation_applications: Vec<SyntaxNode>,
+    /// Declaration realization/region requests; never runtime expressions.
+    pub modifier_applications: Vec<SyntaxNode>,
     pub documentation: Option<String>,
     pub(crate) is_unsafe_call: bool,
 }
@@ -290,6 +301,7 @@ impl SyntaxNode {
             token_range,
             children,
             annotation_applications: Vec::new(),
+            modifier_applications: Vec::new(),
             documentation: None,
             is_unsafe_call: false,
         }
@@ -338,6 +350,7 @@ impl SyntaxNode {
         self.children
             .iter()
             .chain(self.annotation_applications.iter())
+            .chain(self.modifier_applications.iter())
     }
 
     #[must_use]

@@ -1,0 +1,9 @@
+package = "scoped-access-guard-escape"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.guard-api]
+package = "terrane-scoped-guard-witness"
+version = "=0.1.0"
+effects = ["build"]

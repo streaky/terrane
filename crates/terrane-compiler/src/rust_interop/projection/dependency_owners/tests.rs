@@ -61,6 +61,7 @@ fn locked_transitive_owner() {
                 enum_operation: None,
                 error_optional_depth: 0,
                 chain_role: None,
+                receiver_lifetime: None,
                 receiver: None,
             }),
         }],

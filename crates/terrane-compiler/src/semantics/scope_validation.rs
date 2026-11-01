@@ -49,6 +49,63 @@ pub(super) fn validate_assignment_block(
                     assigned.insert(name);
                 }
             }
+            SyntaxKind::WithRegion => {
+                let Some((acquisition, body)) =
+                    statement.children.first().zip(statement.children.get(1))
+                else {
+                    continue;
+                };
+                let outer_declared = declared.clone();
+                let mut region_declared = declared.clone();
+                let mut region_assigned = assigned.clone();
+                match acquisition.kind {
+                    SyntaxKind::Binding => {
+                        if let Some(value) = super::ownership::binding_initializer(acquisition) {
+                            validate_assigned_reads(
+                                unit,
+                                value,
+                                &region_declared,
+                                &region_assigned,
+                            )?;
+                        }
+                        if let Some(name) = acquisition
+                            .children
+                            .iter()
+                            .find(|child| child.kind == SyntaxKind::Name)
+                        {
+                            region_declared.insert(node_text(&unit.source, name).to_owned());
+                            region_assigned.insert(node_text(&unit.source, name).to_owned());
+                        }
+                    }
+                    SyntaxKind::Assignment => {
+                        if let Some(value) = acquisition.children.get(1) {
+                            validate_assigned_reads(
+                                unit,
+                                value,
+                                &region_declared,
+                                &region_assigned,
+                            )?;
+                        }
+                        if let Some(target) = acquisition
+                            .children
+                            .first()
+                            .filter(|target| target.kind == SyntaxKind::Name)
+                        {
+                            let name = node_text(&unit.source, target).to_owned();
+                            region_declared.insert(name.clone());
+                            region_assigned.insert(name);
+                        }
+                    }
+                    _ => {}
+                }
+                validate_assignment_block(unit, body, &mut region_declared, &mut region_assigned)?;
+                assigned.retain(|name| outer_declared.contains(name));
+                assigned.extend(
+                    region_assigned
+                        .into_iter()
+                        .filter(|name| outer_declared.contains(name)),
+                );
+            }
             SyntaxKind::TryStatement => {
                 let incoming = assigned.clone();
                 let mut results = Vec::new();
@@ -518,6 +575,41 @@ pub(super) fn validate_flow_statement(
             }
             Ok(false)
         }
+        SyntaxKind::WithRegion => {
+            let Some(acquisition) = statement.children.first() else {
+                return Err(failure(
+                    &unit.source,
+                    "T0240",
+                    "scoped region requires an acquisition binding or assignment",
+                    statement.span,
+                ));
+            };
+            if !matches!(
+                acquisition.kind,
+                SyntaxKind::Binding | SyntaxKind::Assignment
+            ) {
+                return Err(failure(
+                    &unit.source,
+                    "T0240",
+                    "scoped region acquisition must be a binding or assignment",
+                    acquisition.span,
+                ));
+            }
+            if let Some(block) = statement
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Block)
+            {
+                validate_flow_block(unit, block, contract, bindings, loop_depth, unreachable)
+            } else {
+                Err(failure(
+                    &unit.source,
+                    "T0240",
+                    "scoped region requires a body block",
+                    statement.span,
+                ))
+            }
+        }
         SyntaxKind::IfStatement => {
             validate_if_flow(unit, statement, contract, bindings, loop_depth, unreachable)
         }
@@ -982,6 +1074,23 @@ pub(super) fn validate_return(
                 );
             }
             let Some(actual) = infer_value_type(unit, value, bindings)? else {
+                let mut expression = value;
+                while expression.kind == SyntaxKind::GroupExpression
+                    && expression.children.len() == 1
+                {
+                    expression = &expression.children[0];
+                }
+                if unit.invocation_scoped_result_at(statement.span).is_some()
+                    && matches!(expected, ValueType::InvocationScopedNative { .. })
+                    && super::expressions::is_destination_directed_projected_call(
+                        unit, expression, bindings,
+                    )?
+                {
+                    // This return is the terminal native destination: the
+                    // callback closes the complete graph and its Into result.
+                    // A detached source nominal type cannot describe it.
+                    return Ok(());
+                }
                 return Err(failure(
                     &unit.source,
                     "T0015",
@@ -996,7 +1105,9 @@ pub(super) fn validate_return(
             let actual =
                 post_if_initialized_member_type(unit, value, &actual, bindings)?.unwrap_or(actual);
             let expected = match &expected {
-                ValueType::Reference(inner) if inner.value_type_ref() == &actual => {
+                ValueType::Reference(inner) | ValueType::MutableReference(inner)
+                    if inner.value_type_ref() == &actual =>
+                {
                     inner.value_type()
                 }
                 _ => expected,

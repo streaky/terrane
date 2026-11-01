@@ -1,0 +1,16 @@
+namespace core/modifiers
+
+from /core/annotations import annotation, annotation-target
+from /core/collections import list
+
+/// Definition of a typed, compile-time declaration modifier contract.
+@[annotation; targets = (list; (instance annotation-target::class;))]
+class modifier
+    operation string
+    targets list of string = (list; 'binding')
+    structural bool = false
+    repeatable bool = false
+
+/// Bounds an acquired value and its dependent loans to an explicit region.
+@[modifier; operation = 'scoped-access', structural = true]
+class scoped-access

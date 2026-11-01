@@ -53,6 +53,7 @@ impl Emitter<'_> {
         self.statement_debug_point(node);
         let referenced_fresh_lists = self.statement_fresh_list_references(node);
         match node.kind {
+            SyntaxKind::WithRegion => self.with_region_statement(node),
             SyntaxKind::MatchStatement => self.enum_match_statement(node),
             SyntaxKind::SwitchStatement => self.switch_statement(node),
             SyntaxKind::Binding => {
@@ -133,6 +134,18 @@ impl Emitter<'_> {
             _ => {}
         }
         self.invalidate_fresh_lists(&referenced_fresh_lists);
+    }
+
+    fn with_region_statement(&mut self, node: &SyntaxNode) {
+        let [acquisition, body] = node.children.as_slice() else {
+            unreachable!("semantic analysis validates scoped-access region shape");
+        };
+        self.line("{");
+        self.indent += 1;
+        self.statement(acquisition);
+        self.block(body);
+        self.indent -= 1;
+        self.line("}");
     }
 
     pub(super) fn collection_mutation_statement(&mut self, node: &SyntaxNode) -> Option<String> {
@@ -307,6 +320,14 @@ impl Emitter<'_> {
         let [left, right] = node.children.as_slice() else {
             return;
         };
+        if let [left, right] = node.children.as_slice()
+            && let Some(ValueType::MutableReference(item)) = self.value_type(left)
+        {
+            let value = self.expression_as(right, item.value_type());
+            let target = self.expression(left);
+            self.line(&format!("*({target}) = {value};"));
+            return;
+        }
         let assigned_binding = self.assigned_binding(left);
         let union_binding = assigned_binding
             .as_ref()
@@ -1163,16 +1184,6 @@ impl Emitter<'_> {
         let storage_type =
             storage_binding.and_then(|binding| self.binding_scalar_storage_type(binding));
         let initializer = binding_initializer(node, name_index);
-        let native_mutable_reference = binding.is_some_and(|binding| {
-            binding.mutable
-                && matches!(&binding.value_type, ValueType::Reference(inner)
-                    if inner.value_type_ref().is_mutable_native_reference_target())
-                && self
-                    .unit
-                    .reference_provenance
-                    .get(&(binding.span.start, binding.span.end))
-                    .is_none_or(|loan| !self.reference_owner_uses_shared_storage(loan.owner))
-        });
         if initializer.is_some_and(|initializer| initializer.kind == SyntaxKind::AnonymousFunction)
             && binding.is_some_and(|binding| {
                 matches!(
@@ -1273,20 +1284,7 @@ impl Emitter<'_> {
             });
         }
         let mut value = initializer.map(|initializer| {
-            let value = if native_mutable_reference
-                && initializer.kind == SyntaxKind::UnaryExpression
-                && self.unary_operator(initializer).as_deref() == Some("ref")
-                && let Some(operand) = initializer.children.last()
-            {
-                let mut setup = String::new();
-                let reference =
-                    self.staged_native_argument_reference(operand, true, &mut setup, &mut 0);
-                if setup.is_empty() {
-                    reference
-                } else {
-                    format!("{{ {setup}{reference} }}")
-                }
-            } else if let Some(binding) = storage_binding
+            let value = if let Some(binding) = storage_binding
                 && (!binding.destination_arms.is_empty()
                     || matches!(self.flow_binding_type(binding), ValueType::Union(_)))
             {

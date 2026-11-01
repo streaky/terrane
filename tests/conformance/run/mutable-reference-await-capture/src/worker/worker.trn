@@ -1,0 +1,5 @@
+namespace worker
+from /core/time import clock, duration
+async function reset; value mutable ref int
+  _ = await clock::sleep; (duration::milliseconds; 1)
+  value = 8

@@ -19,7 +19,7 @@ function parse-twice int; text string
 function sensitive bool; header ref HeaderValue
     return header.is_sensitive;
 
-function mark-sensitive; header ref HeaderValue
+function mark-sensitive; header mutable ref HeaderValue
     header.set_sensitive; true
 
 function main;

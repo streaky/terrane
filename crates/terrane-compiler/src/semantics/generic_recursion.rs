@@ -20,7 +20,9 @@ fn nested_parameter(value: &ValueType, name: &str, nested: bool) -> Option<bool>
         ValueType::TypeParameter(found) if found == name => Some(nested),
         ValueType::Object(id) => id.type_arguments.iter().find_map(child),
         ValueType::Optional(x) => child(x),
-        ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+        ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner) => {
             nested_parameter(inner.value_type_ref(), name, nested)
         }
         ValueType::List(x)
@@ -107,7 +109,10 @@ fn owner_contract(
         .find(|descriptor| descriptor.identity.base() == owner.base())?;
     let mut receiver =
         infer_value_type(unit, callee.children.first()?, &unit.typed_bindings).ok()??;
-    while let ValueType::Reference(inner) | ValueType::SharedReference(inner) = receiver {
+    while let ValueType::Reference(inner)
+    | ValueType::MutableReference(inner)
+    | ValueType::SharedReference(inner) = receiver
+    {
         receiver = inner.value_type();
     }
     let template = owner.clone().with_type_arguments(

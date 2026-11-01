@@ -749,3 +749,44 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
     let block = parsed.tree.root.children[0].children.last().unwrap();
     assert_eq!(block.children.len(), 2);
 }
+
+#[test]
+fn scoped_regions_preserve_nested_statement_and_call_boundaries() {
+    let tree = parse_source(
+        "function main;\n    with scoped-access guard = (acquire; (1, 2)) (\n        inspect; guard\n        with (local-scope;) child = (borrow; guard) (\n            inspect; child\n        )\n        inspect; guard\n    )\n    after;\n",
+    );
+    let body = tree.root.children[0].children.last().unwrap();
+    assert_eq!(body.children.len(), 2);
+    let region = &body.children[0];
+    assert_eq!(region.kind, SyntaxKind::WithRegion);
+    assert_eq!(region.modifier_applications.len(), 1);
+    let acquisition = region.children[0].children.last().unwrap();
+    let call = acquisition.children.first().unwrap();
+    assert_eq!(call.kind, SyntaxKind::CallExpression);
+    assert_eq!(call.children[1].children.len(), 2);
+    let inner = &region.children[1].children[1];
+    assert_eq!(inner.kind, SyntaxKind::WithRegion);
+    assert_eq!(inner.children[1].children.len(), 1);
+    assert_eq!(region.children[1].children.len(), 3);
+    assert_eq!(body.children[1].kind, SyntaxKind::CallExpression);
+}
+
+#[test]
+fn declaration_modifiers_keep_typed_arguments_separate_from_initializer() {
+    let tree = parse_source("with first, (second; 64, enabled = true) global count int = 3\n");
+    let declaration = &tree.root.children[0];
+    assert_eq!(declaration.kind, SyntaxKind::Binding);
+    assert_eq!(declaration.modifier_applications.len(), 2);
+    let arguments = &declaration.modifier_applications[1].children[1];
+    assert_eq!(arguments.children.len(), 2);
+    assert_eq!(arguments.children[1].children.len(), 2);
+    assert_eq!(
+        declaration.children.last().unwrap().kind,
+        SyntaxKind::Literal
+    );
+}
+
+#[test]
+fn rejects_structural_keyword_in_modifier_position() {
+    rejected("with scoped-access, global item = 1\n", "S1120");
+}

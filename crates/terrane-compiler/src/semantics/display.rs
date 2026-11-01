@@ -13,9 +13,9 @@ pub(crate) fn display_method<'a>(
     at: usize,
 ) -> Option<&'a FunctionContract> {
     match value_type {
-        ValueType::Reference(item) | ValueType::SharedReference(item) => {
-            display_method(unit, item.value_type_ref(), at)
-        }
+        ValueType::Reference(item)
+        | ValueType::MutableReference(item)
+        | ValueType::SharedReference(item) => display_method(unit, item.value_type_ref(), at),
         ValueType::TypeParameter(parameter) => {
             let bound = unit.type_parameter_at(at, parameter)?.bound.as_ref()?;
             display_method(unit, &ValueType::Object(bound.clone()), at)
@@ -43,9 +43,9 @@ pub(crate) fn supports_display(unit: &SemanticUnit, value_type: &ValueType, at: 
     match value_type {
         ValueType::Scalar(scalar) => *scalar != ScalarType::Bytes,
         ValueType::Descriptor(_) => true,
-        ValueType::Reference(item) | ValueType::SharedReference(item) => {
-            supports_display(unit, item.value_type_ref(), at)
-        }
+        ValueType::Reference(item)
+        | ValueType::MutableReference(item)
+        | ValueType::SharedReference(item) => supports_display(unit, item.value_type_ref(), at),
         ValueType::Union(arms) => arms.iter().all(|arm| supports_display(unit, arm, at)),
         ValueType::Optional(inner) => supports_display(unit, inner, at),
         _ => display_method(unit, value_type, at).is_some(),

@@ -1,0 +1,3 @@
+package = "mutable-reference-readonly-upgrade"
+[namespaces]
+app = "src"

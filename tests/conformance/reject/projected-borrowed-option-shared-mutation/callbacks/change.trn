@@ -1,13 +1,13 @@
 namespace callbacks
 from /deps/http import HeaderValue
 
-function mark; header ref HeaderValue
+function mark; header mutable ref HeaderValue
     header.set_sensitive; true
 
-function forward; header ref HeaderValue
+function forward; header mutable ref HeaderValue
     operation = mark
     operation; header
 
-function change bool; header ref HeaderValue
+function change bool; header mutable ref HeaderValue
     forward; header
     return true

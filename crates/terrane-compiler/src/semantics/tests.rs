@@ -410,6 +410,7 @@ fn source_map_application_does_not_select_unrelated_native_map() {
             enum_operation: None,
             error_optional_depth: 0,
             chain_role: None,
+            receiver_lifetime: None,
             receiver: None,
         }),
     }];

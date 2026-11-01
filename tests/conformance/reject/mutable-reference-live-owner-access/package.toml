@@ -1,0 +1,3 @@
+package = "mutable-reference-live-owner-access"
+[namespaces]
+app = "src"

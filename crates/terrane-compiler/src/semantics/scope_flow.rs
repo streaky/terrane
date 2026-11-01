@@ -423,6 +423,115 @@ fn analyze_nested_function_flow(unit: &mut SemanticUnit, node: &SyntaxNode, capt
     }
 }
 
+fn flow_region(
+    unit: &mut SemanticUnit,
+    region: &SyntaxNode,
+    state: FlowEnv,
+    paths: &mut FlowStates,
+) {
+    let Some(acquisition) = region.children.first() else {
+        paths.insert(FlowExit::Normal, state);
+        return;
+    };
+    let outer = state.clone();
+    let mut acquired = FlowStates::new();
+    flow_assignment(unit, acquisition, state, &mut acquired);
+    let region_binding = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.span == acquisition.span && binding.scope == Some(region.span))
+        .cloned();
+    let body = region
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Block);
+    let locals = unit
+        .typed_bindings
+        .iter()
+        .filter(|binding| binding.scope == Some(region.span))
+        .map(|binding| (binding.name.clone(), binding.span))
+        .collect::<Vec<_>>();
+    for (exit, mut env) in acquired {
+        if exit == FlowExit::Normal
+            && let Some(binding) = &region_binding
+        {
+            env.binding_ids.insert(binding.name.clone(), binding.span);
+            env.origins
+                .insert(binding.name.clone(), BTreeSet::from([binding.span]));
+            env.carrier_types.remove(&binding.name);
+            env.uncertain.remove(&binding.name);
+            unit.flow_binding_types.insert(
+                binding.span,
+                env.types
+                    .get(&binding.name)
+                    .cloned()
+                    .unwrap_or_else(|| binding.value_type.clone()),
+            );
+            unit.flow_replacements.remove(&acquisition.span);
+            unit.flow_binding_ids.insert(
+                (
+                    acquisition.span.file,
+                    acquisition.span.start,
+                    acquisition.span.end,
+                ),
+                binding.span,
+            );
+            if let Some(target) = acquisition
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+            {
+                unit.flow_binding_ids.insert(
+                    (target.span.file, target.span.start, target.span.end),
+                    binding.span,
+                );
+            }
+        }
+        if exit == FlowExit::Normal {
+            if let Some(body) = body {
+                for (body_exit, body_env) in flow_block(unit, body, env) {
+                    let body_env = leave_region(body_env, &outer, &locals);
+                    merge_into_paths(
+                        unit,
+                        region.span,
+                        paths,
+                        FlowStates::from([(body_exit, body_env)]),
+                    );
+                }
+                continue;
+            }
+        }
+        let env = leave_region(env, &outer, &locals);
+        merge_into_paths(unit, region.span, paths, FlowStates::from([(exit, env)]));
+    }
+}
+
+fn leave_region(mut env: FlowEnv, outer: &FlowEnv, locals: &[(String, Span)]) -> FlowEnv {
+    for (name, _) in locals {
+        env.types.remove(name);
+        env.binding_ids.remove(name);
+        env.carrier_types.remove(name);
+        env.uncertain.remove(name);
+        env.origins.remove(name);
+        if let Some(value) = outer.types.get(name) {
+            env.types.insert(name.clone(), value.clone());
+        }
+        if let Some(value) = outer.binding_ids.get(name) {
+            env.binding_ids.insert(name.clone(), *value);
+        }
+        if let Some(value) = outer.carrier_types.get(name) {
+            env.carrier_types.insert(name.clone(), value.clone());
+        }
+        if outer.uncertain.contains(name) {
+            env.uncertain.insert(name.clone());
+        }
+        if let Some(value) = outer.origins.get(name) {
+            env.origins.insert(name.clone(), value.clone());
+        }
+    }
+    env
+}
+
 fn flow_block(unit: &mut SemanticUnit, block: &SyntaxNode, initial: FlowEnv) -> FlowStates {
     let mut paths = FlowStates::from([(FlowExit::Normal, initial)]);
     for statement in &block.children {
@@ -440,6 +549,9 @@ fn flow_block(unit: &mut SemanticUnit, block: &SyntaxNode, initial: FlowEnv) -> 
             | SyntaxKind::MatchStatement
             | SyntaxKind::SwitchStatement => {
                 flow_cases(unit, statement, &state, &mut paths);
+            }
+            SyntaxKind::WithRegion => {
+                flow_region(unit, statement, state, &mut paths);
             }
             SyntaxKind::WhileStatement | SyntaxKind::ForStatement => {
                 flow_loop(unit, statement, state, &mut paths);
@@ -1169,6 +1281,26 @@ fn assignment_destination_type(
     }
 }
 
+fn is_region_acquisition(unit: &SemanticUnit, statement: &SyntaxNode) -> bool {
+    let Some(binding) = unit
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.span == statement.span)
+    else {
+        return false;
+    };
+    binding
+        .scope
+        .and_then(|scope| super::ownership::find_node_by_span(&unit.tree.root, scope))
+        .is_some_and(|region| {
+            region.kind == SyntaxKind::WithRegion
+                && region
+                    .children
+                    .first()
+                    .is_some_and(|acquisition| acquisition.span == statement.span)
+        })
+}
+
 fn assignment_flow_value(
     unit: &SemanticUnit,
     statement: &SyntaxNode,
@@ -1177,12 +1309,14 @@ fn assignment_flow_value(
     state: &FlowEnv,
 ) -> (String, bool, Option<ValueType>) {
     let name = node_text(&unit.source, target).to_owned();
-    let plain_assignment = statement.kind == SyntaxKind::Assignment
-        || (state.binding_ids.contains_key(&name)
-            && !statement
-                .children
-                .iter()
-                .any(|child| child.kind == SyntaxKind::TypeExpression));
+    let region_acquisition = is_region_acquisition(unit, statement);
+    let plain_assignment = !region_acquisition
+        && (statement.kind == SyntaxKind::Assignment
+            || (state.binding_ids.contains_key(&name)
+                && !statement
+                    .children
+                    .iter()
+                    .any(|child| child.kind == SyntaxKind::TypeExpression)));
     let value_type = value.and_then(|value| {
         plain_assignment
             .then(|| assignment_destination_type(unit, state, &name))
@@ -1202,6 +1336,27 @@ fn assignment_flow_value(
     (name, plain_assignment, value_type)
 }
 
+fn assignment_writes_through_reference(
+    unit: &SemanticUnit,
+    statement: &SyntaxNode,
+    state: &FlowEnv,
+) -> bool {
+    if statement.kind != SyntaxKind::Assignment {
+        return false;
+    }
+    let Some(target) = statement.children.first() else {
+        return false;
+    };
+    state
+        .binding_ids
+        .get(node_text(&unit.source, target))
+        .is_some_and(|declaration| *declaration != statement.span)
+        && matches!(
+            assignment_destination_type(unit, state, node_text(&unit.source, target)),
+            Some(ValueType::MutableReference(_))
+        )
+}
+
 fn record_assignment_reads(
     unit: &mut SemanticUnit,
     statement: &SyntaxNode,
@@ -1210,10 +1365,11 @@ fn record_assignment_reads(
 ) {
     if statement.kind == SyntaxKind::Assignment
         && let Some(destination) = statement.children.first()
-        && destination.kind != SyntaxKind::Name
+        && (destination.kind != SyntaxKind::Name
+            || assignment_writes_through_reference(unit, statement, state))
     {
-        // A compound destination reads its receiver/index, even though the
-        // selected field or element is written rather than read.
+        // Evaluate a destination's receiver/index or exclusive handle without
+        // treating replacement of its payload as replacement of that handle.
         record_flow_reads(unit, destination, state);
     }
     if let Some(value) = value {
@@ -1246,6 +1402,17 @@ fn flow_assignment(
         statement.children.get(1)
     };
     record_assignment_reads(unit, statement, value, &state);
+    // Writing through an exclusive handle reads that handle; it does not
+    // replace its identity, initialization state, or reference provenance.
+    if assignment_writes_through_reference(unit, statement, &state) {
+        merge_into_paths(
+            unit,
+            statement.span,
+            paths,
+            FlowStates::from([(FlowExit::Normal, state)]),
+        );
+        return;
+    }
     if let Some(target) = target.filter(|target| node_text(&unit.source, target) != "_") {
         let (name, plain_assignment, value_type) =
             assignment_flow_value(unit, statement, target, value, &state);

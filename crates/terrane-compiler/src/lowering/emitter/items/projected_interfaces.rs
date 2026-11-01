@@ -230,7 +230,8 @@ impl Emitter<'_> {
                         ),
                         Some(
                             crate::rust_interop::projection::Receiver::Move
-                            | crate::rust_interop::projection::Receiver::BoxedMove,
+                            | crate::rust_interop::projection::Receiver::BoxedMove
+                            | crate::rust_interop::projection::Receiver::DerefMove(_),
                         ) => format!(
                             "__terrane_projected_async_entry(async move {{ {terrane_call} }}).await"
                         ),

@@ -280,7 +280,7 @@ impl Emitter<'_> {
                 format!("terrane_collection_support::slice_iterator(&{source})")
             }
             Some(ValueType::Iterator(_)) => format!("&mut {source}"),
-            Some(ValueType::Reference(item))
+            Some(ValueType::Reference(item) | ValueType::MutableReference(item))
                 if matches!(
                     item.value_type(),
                     ValueType::List(_) | ValueType::Tuple(_, _)

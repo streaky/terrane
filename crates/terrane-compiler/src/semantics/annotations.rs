@@ -609,6 +609,20 @@ fn construct_payload(
     Ok(CompileTimeValue::Map(payload))
 }
 
+/// Reuse the immutable schema binder for non-executing declaration modifiers.
+pub(super) fn application_payload(
+    semantic: &SemanticPackage,
+    unit: &SemanticUnit,
+    application: &SyntaxNode,
+    identity: &str,
+    reads: &mut BTreeMap<(u32, usize, usize), Span>,
+) -> Result<CompileTimeValue, SemanticFailure> {
+    let mut stack = EvaluationStack::default();
+    let payload = construct_payload(semantic, unit, application, identity, &mut stack)?;
+    reads.extend(stack.reads);
+    Ok(payload)
+}
+
 fn definition(
     semantic: &SemanticPackage,
     unit: &SemanticUnit,

@@ -366,6 +366,42 @@ pub(super) fn collect_typed_bindings(
         collect_typed_bindings(unit, matches, block, visible_bindings, bindings, scope)?;
         return Ok(());
     }
+    if node.kind == SyntaxKind::WithRegion {
+        if let [acquisition, body] = node.children.as_slice() {
+            let mut region_bindings = visible_bindings.clone();
+            if acquisition.kind == SyntaxKind::Assignment
+                && let Some(target) = acquisition
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                && let Some(initializer) = acquisition.children.last()
+            {
+                let name = node_text(&unit.source, target);
+                if let Some(previous) = region_bindings
+                    .iter_mut()
+                    .filter(|binding| {
+                        binding.name == name
+                            && binding.is_visible_at(unit.source.id(), target.span.start)
+                    })
+                    .max_by_key(|binding| binding.visible_from)
+                {
+                    previous.visible_from = initializer.span.start;
+                }
+            }
+            let prior_len = region_bindings.len();
+            analyze_binding_node(unit, acquisition, &mut region_bindings, Some(node.span))?;
+            bindings.extend_from_slice(&region_bindings[prior_len..]);
+            collect_typed_bindings(
+                unit,
+                matches,
+                body,
+                &mut region_bindings,
+                bindings,
+                Some(node.span),
+            )?;
+        }
+        return Ok(());
+    }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
         let prior_len = visible_bindings.len();
         analyze_binding_node(unit, node, visible_bindings, scope)?;

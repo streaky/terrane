@@ -1,0 +1,89 @@
+namespace native-deref-receivers
+
+from /deps/receiver-api import arc, same_arc, rc, boxed, chain, nested_box, wrapped, view_from, RecordHandle, Locks
+from /core/time import clock, duration
+
+function bump; handle mutable ref RecordHandle
+    handle.set; 19
+
+function ordinary-view int;
+    owner = wrapped; 31
+    view = owner.view;
+    copied = view.clone;
+    nested = copied.nested;
+    return nested.value;
+
+function ordinary-guard int;
+    locks = Locks::new; 32
+    guard = locks.locked;
+    guard.set; 33
+    return guard.value;
+
+async function suspended-view int;
+    owner = wrapped; 41
+    view = owner.view;
+    await clock::sleep; (duration::milliseconds; 1)
+    return view.value;
+
+function named-view int;
+    ignored = wrapped; 50
+    owner = wrapped; 51
+    view = view_from; owner = owner, ignored = ignored
+    ignored.set; 52
+    return view.value;
+
+function pointers-and-guards;
+    shared = arc; 7
+    print; (shared.value;)
+    twin = shared.clone;
+    print; (same_arc; shared, twin)
+    print; ((arc; 8).value;)
+    local = rc; 9
+    print; (local.value;)
+    print; ((chain; 10).value;)
+    owned = boxed; 11
+    owned.set; 12
+    print; (owned.value;)
+    print; (owned.take;)
+    print; ((boxed; 13).boxed;)
+    print; ((nested_box; 14).take;)
+    custom = wrapped; 15
+    custom.set; 16
+    print; (custom.value;)
+    bump; custom
+    print; (custom.value;)
+    locks = Locks::new; 20
+    with scoped-access guard = (locks.locked;) (
+        print; (locks.available;)
+        guard.set; 21
+        print; (guard.value;)
+        with scoped-access read = (locks.read;) (
+            print; (read.value;)
+            print; (locks.writable;)
+        )
+        print; (locks.writable;)
+    )
+    print; (locks.available;)
+    with scoped-access write = (locks.write;) (
+        write.set; 22
+        print; (write.value;)
+    )
+    print; (locks.writable;)
+    view_value int
+    with scoped-access view = (custom.view;) (
+        copied = view.clone;
+        print; (copied.value;)
+        with scoped-access nested = (view.nested;) (
+            view_value = nested.value;
+        )
+    )
+    custom.set; 23
+    print; view_value
+    print; (custom.value;)
+    print; (ordinary-view;)
+    print; (ordinary-guard;)
+
+async function main;
+    pointers-and-guards;
+    print; await (suspended-view;)
+    print; (named-view;)

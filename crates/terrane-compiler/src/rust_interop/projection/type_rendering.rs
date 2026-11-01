@@ -81,6 +81,12 @@ pub(super) fn canonicalize_rust_path(path: &str) -> String {
         "core::net::ip_addr::IpAddr" | "core::net::IpAddr" => "std::net::IpAddr".to_owned(),
         "core::net::ip_addr::Ipv4Addr" | "core::net::Ipv4Addr" => "std::net::Ipv4Addr".to_owned(),
         "core::net::ip_addr::Ipv6Addr" | "core::net::Ipv6Addr" => "std::net::Ipv6Addr".to_owned(),
+        "std::sync::poison::mutex::Mutex" => "std::sync::Mutex".to_owned(),
+        "std::sync::poison::mutex::MutexGuard" => "std::sync::MutexGuard".to_owned(),
+        "std::sync::poison::rwlock::RwLock" => "std::sync::RwLock".to_owned(),
+        "std::sync::poison::rwlock::RwLockReadGuard" => "std::sync::RwLockReadGuard".to_owned(),
+        "std::sync::poison::rwlock::RwLockWriteGuard" => "std::sync::RwLockWriteGuard".to_owned(),
+        "std::sync::poison::PoisonError" => "std::sync::PoisonError".to_owned(),
         path => path
             .strip_prefix("alloc::")
             .map_or_else(|| path.to_owned(), |path| format!("std::{path}")),

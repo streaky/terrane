@@ -81,11 +81,16 @@ pub(super) fn native_receiver_call(
     source.push('(');
     if native_path.is_some() {
         let receiver_argument = match function.receiver {
-            Some(crate::rust_interop::projection::Receiver::Move) => "receiver",
-            Some(crate::rust_interop::projection::Receiver::MutableBorrow) => "&mut receiver",
-            _ => "&receiver",
+            Some(crate::rust_interop::projection::Receiver::Move) => "receiver".to_owned(),
+            Some(crate::rust_interop::projection::Receiver::DerefMove(depth)) => {
+                format!("{}receiver", "*".repeat(depth))
+            }
+            Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
+                "&mut receiver".to_owned()
+            }
+            _ => "&receiver".to_owned(),
         };
-        source.push_str(receiver_argument);
+        source.push_str(&receiver_argument);
     }
     for (index, parameter) in function.parameters.iter().enumerate() {
         let borrow = if parameter.borrowed {

@@ -334,22 +334,37 @@ pub(super) fn rebind_method_owner(
 }
 
 fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &ProjectedType) {
-    let same_owner = match (&*ty, native) {
-        (
-            ProjectedType::Foreign {
-                rust_path: left, ..
-            },
-            ProjectedType::Foreign {
-                rust_path: right, ..
-            },
-        ) => left == right,
-        _ => ty == native,
-    };
+    let same_owner = same_projected_owner(ty, native);
     if same_owner {
         ty.clone_from(facade);
         return;
     }
     match ty {
+        ProjectedType::InvocationScoped {
+            rust_type,
+            lifetimes,
+            owned,
+            ..
+        } => {
+            if same_projected_owner(owned, native) {
+                if let ProjectedType::InvocationScoped {
+                    rust_type: facade_rust_type,
+                    lifetimes: facade_lifetimes,
+                    owned: facade_owned,
+                    ..
+                } = facade
+                    && lifetimes
+                        .iter()
+                        .any(|lifetime| facade_lifetimes.contains(lifetime))
+                {
+                    *rust_type = facade_rust_type.clone();
+                    *lifetimes = facade_lifetimes.clone();
+                    owned.clone_from(facade_owned);
+                }
+            } else {
+                rebind_owner_type(owned, native, facade);
+            }
+        }
         ProjectedType::Optional(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. }
@@ -369,7 +384,43 @@ fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &Pr
             rebind_owner_type(key, native, facade);
             rebind_owner_type(value, native, facade);
         }
+        ProjectedType::Callback {
+            parameters,
+            result,
+            native_substitutions,
+            ..
+        } => {
+            for parameter in parameters {
+                rebind_owner_type(parameter, native, facade);
+            }
+            rebind_owner_type(result, native, facade);
+            for substitution in native_substitutions.values_mut() {
+                rebind_owner_type(substitution, native, facade);
+            }
+        }
+        ProjectedType::BoxedInterface {
+            associated_type: Some(associated),
+            ..
+        } => rebind_owner_type(&mut associated.ty, native, facade),
         _ => {}
+    }
+}
+
+fn same_projected_owner(left: &ProjectedType, right: &ProjectedType) -> bool {
+    match (left, right) {
+        (
+            ProjectedType::Foreign {
+                rust_path: left_path,
+                arguments: left_arguments,
+                ..
+            },
+            ProjectedType::Foreign {
+                rust_path: right_path,
+                arguments: right_arguments,
+                ..
+            },
+        ) => left_path == right_path && left_arguments == right_arguments,
+        _ => left == right,
     }
 }
 

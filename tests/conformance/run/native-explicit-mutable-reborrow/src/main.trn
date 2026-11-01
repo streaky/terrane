@@ -4,15 +4,15 @@ from /core/collections import list
 from /core/errors import integer-conversion-overflow
 from /deps/witness import Counter as NativeCounter, OpaqueValue, OpaqueRow, rows, checksum, sum as sum-values, optional_counter as optional-counter
 
-function advance-optional; counter ref (NativeCounter|none)
+function advance-optional; counter mutable ref (NativeCounter|none)
     rust
         let counter = &mut *counter;
         counter.as_mut().unwrap().increment();
 
-function forward-optional; counter ref (NativeCounter|none)
+function forward-optional; counter mutable ref (NativeCounter|none)
     advance-optional; counter
 
-function advance int64; counter ref NativeCounter
+function advance int64; counter mutable ref NativeCounter
     result int64 = rust
         {
             let counter = &mut *counter;
@@ -40,7 +40,7 @@ function shadow-read int64; first ref NativeCounter, second ref NativeCounter
 function read-row int64; record ref OpaqueRow
     return record.value;
 
-async function forward-async; native ref NativeCounter
+async function forward-async; native mutable ref NativeCounter
     await increment-async; native
 
 async function main;
@@ -50,13 +50,13 @@ async function main;
     print; (optional-counter-value; optional-counter)
     forward-optional; optional-counter
     print; (optional-counter-value; optional-counter)
-    bump = function; counter ref (NativeCounter|none)
+    bump = function; counter mutable ref (NativeCounter|none)
         rust
             let counter = &mut *counter;
             counter.as_mut().unwrap().increment();
     bump; optional-counter
     print; (optional-counter-value; optional-counter)
-    bump-native = function; counter ref NativeCounter
+    bump-native = function; counter mutable ref NativeCounter
         rust
             let counter = &mut *counter;
             counter.increment();

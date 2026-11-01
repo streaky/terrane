@@ -158,6 +158,7 @@ pub(super) fn project_rustdoc(
     let mut partial_declines = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
+    let mut scoped_owner_keys = BTreeSet::new();
     let mut source_constants = SourceConstantCache::new();
     let mut enum_payload_items = Vec::new();
     for (id, path) in candidates {
@@ -216,6 +217,24 @@ pub(super) fn project_rustdoc(
                 true,
             )
             .and_then(|mut projected_function| {
+                // Open native producers without a declared input lender stay
+                // inside their existing joint-inference expression graph.
+                // They are not independently proven local native loans.
+                let mut expression_graph = false;
+                if let ProjectedType::InvocationScoped {
+                    owned,
+                    expression_scoped,
+                    ..
+                } = &mut projected_function.result
+                    && owned.contains_open_generic()
+                    && !projected_function
+                        .parameters
+                        .iter()
+                        .any(|parameter| parameter.borrowed)
+                {
+                    *expression_scoped = true;
+                    expression_graph = true;
+                }
                 let candidate_result = match &projected_function.result {
                     ProjectedType::InvocationScoped { owned, .. } => owned.as_ref().clone(),
                     result => result.clone(),
@@ -223,12 +242,17 @@ pub(super) fn project_rustdoc(
                 let mut chain_owner = project_chain_owner(
                     dependency,
                     function,
-                    &candidate_result,
-                    false,
+                    &projected_function.result,
+                    matches!(
+                        projected_function.result,
+                        ProjectedType::InvocationScoped { .. }
+                    ),
                     index,
                     paths,
                     public_paths,
                     &mut source_constants,
+                    &mut scoped_owner_keys,
+                    &mut projected_associated_items,
                 );
                 let has_external_terminal_conversion =
                     function.sig.output.as_ref().is_some_and(|output| {
@@ -350,19 +374,21 @@ pub(super) fn project_rustdoc(
                     chain_owner = project_chain_owner(
                         dependency,
                         function,
-                        &candidate_result,
+                        &projected_function.result,
                         true,
                         index,
                         paths,
                         public_paths,
                         &mut source_constants,
+                        &mut scoped_owner_keys,
+                        &mut projected_associated_items,
                     );
                 }
+                if ordinary_chain_owner && !invocation_scoped_chain || expression_graph {
+                    projected_function.result = candidate_result;
+                    projected_function.chain_role = Some(ChainRole::Root);
+                }
                 if let Some(chain_owner) = chain_owner {
-                    if ordinary_chain_owner {
-                        projected_function.result = candidate_result;
-                        projected_function.chain_role = Some(ChainRole::Root);
-                    }
                     projected_associated_items.push(chain_owner);
                 } else if matches!(
                     projected_function.result,
@@ -553,6 +579,7 @@ pub(super) fn project_rustdoc(
                     };
                     let (projected_methods, trait_methods, projected_constants, method_declines) =
                         project_methods(
+                            dependency,
                             projected_impls,
                             index,
                             paths,
@@ -561,6 +588,8 @@ pub(super) fn project_rustdoc(
                             &owner_generics,
                             false,
                             &mut source_constants,
+                            &mut scoped_owner_keys,
+                            &mut projected_associated_items,
                         );
                     let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
                         .into_iter()
@@ -707,6 +736,7 @@ pub(super) fn project_rustdoc(
                     let enum_type = owner_generics["Self"].clone();
                     let (projected_methods, trait_methods, projected_constants, method_declines) =
                         project_methods(
+                            dependency,
                             &enumeration.impls,
                             index,
                             paths,
@@ -715,6 +745,8 @@ pub(super) fn project_rustdoc(
                             &owner_generics,
                             false,
                             &mut source_constants,
+                            &mut scoped_owner_keys,
+                            &mut projected_associated_items,
                         );
                     let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
                         .into_iter()
@@ -933,6 +965,7 @@ pub(super) fn project_rustdoc(
                                     ty: constructor_type,
                                     borrowed: false,
                                     mutable_borrow: false,
+                                    borrow_lifetime: None,
                                     generic_parameter: None,
                                     generic_bounds: Vec::new(),
                                     generic_interface: None,
@@ -958,6 +991,7 @@ pub(super) fn project_rustdoc(
                             }),
                             error_optional_depth: 0,
                             chain_role: None,
+                            receiver_lifetime: None,
                             receiver: None,
                         });
                         if extraction_type != ProjectedType::None
@@ -987,6 +1021,7 @@ pub(super) fn project_rustdoc(
                                 }),
                                 error_optional_depth: 0,
                                 chain_role: None,
+                                receiver_lifetime: None,
                                 receiver: Some(Receiver::Move),
                             });
                         }
@@ -1017,6 +1052,7 @@ pub(super) fn project_rustdoc(
                             }),
                             error_optional_depth: 0,
                             chain_role: None,
+                            receiver_lifetime: None,
                             receiver: Some(Receiver::Borrow),
                         });
                     }

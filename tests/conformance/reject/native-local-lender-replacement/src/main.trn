@@ -1,0 +1,9 @@
+namespace native-local-lender-replacement
+
+from /deps/receiver-api import wrapped
+
+function main;
+    owner = wrapped; 1
+    view = owner.view;
+    owner = wrapped; 2
+    print; (view.value;)

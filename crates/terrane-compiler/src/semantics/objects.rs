@@ -685,7 +685,9 @@ pub(crate) fn application_is_resource_owning(
         visiting: &mut BTreeSet<(ObjectIdentity, Vec<bool>)>,
     ) -> bool {
         match value_type {
-            ValueType::Reference(_) | ValueType::SharedReference(_) => return false,
+            ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::SharedReference(_) => return false,
             ValueType::TypeParameter(name) => return parameters.get(name).copied().unwrap_or(true),
             _ => {}
         }
@@ -846,6 +848,125 @@ pub(crate) fn application_is_resource_owning(
         &BTreeMap::new(),
         &mut BTreeSet::new(),
     )
+}
+
+pub(crate) fn value_type_is_cloneable(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value_type: &ValueType,
+) -> bool {
+    fn cloneable(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        value_type: &ValueType,
+        visiting: &mut BTreeSet<ObjectIdentity>,
+    ) -> bool {
+        match value_type {
+            ValueType::MutableReference(_) | ValueType::TypeParameter(_) => false,
+            ValueType::Reference(_) | ValueType::SharedReference(_) => true,
+            ValueType::Union(arms) => arms
+                .iter()
+                .all(|arm| cloneable(package, unit, arm, visiting)),
+            ValueType::Optional(inner) => cloneable(package, unit, inner, visiting),
+            ValueType::Task(_, _)
+            | ValueType::ScopedTask(_, _)
+            | ValueType::TaskGroup(_)
+            | ValueType::Iterator(_)
+            | ValueType::InvocationScopedNative { .. }
+            | ValueType::PlatformStreamHandle
+            | ValueType::PlatformResourceHandle
+            | ValueType::ChannelPair(_)
+            | ValueType::ChannelSender(_)
+            | ValueType::ChannelReceiver(_) => false,
+            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+                !effects.borrowed_environment && effects.modes.written != InvocationMode::Consuming
+            }
+            ValueType::Object(identity) => {
+                if let Some(capability) = package.native_capability(identity) {
+                    return capability.cloneable;
+                }
+                if let Some(cloneable) = package
+                    .projection
+                    .foreign_is_cloneable(&identity.namespace, &identity.name)
+                {
+                    return cloneable;
+                }
+                let Some(descriptor) = package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.descriptors)
+                    .find(|descriptor| descriptor.identity.base() == identity.base())
+                else {
+                    return false;
+                };
+                if application_is_resource_owning(package, value_type) {
+                    return false;
+                }
+                if !visiting.insert(identity.clone()) {
+                    return true;
+                }
+                let substitutions = descriptor
+                    .generic_parameters
+                    .iter()
+                    .zip(&identity.type_arguments)
+                    .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+                    .collect::<BTreeMap<_, _>>();
+                let fields_cloneable = if descriptor.kind == ObjectKind::Enum {
+                    package
+                        .units
+                        .iter()
+                        .flat_map(|unit| &unit.source_enums)
+                        .find(|enumeration| enumeration.identity.base() == identity.base())
+                        .is_some_and(|enumeration| {
+                            enumeration
+                                .variants
+                                .iter()
+                                .flat_map(|variant| &variant.payload)
+                                .all(|field| {
+                                    let field_type = super::generics::substitute_value_type(
+                                        &field.value_type,
+                                        &substitutions,
+                                    );
+                                    cloneable(package, unit, &field_type, visiting)
+                                })
+                        })
+                } else {
+                    effective_object_fields(package, descriptor)
+                        .into_iter()
+                        .filter(|field| !field.field.is_static)
+                        .all(|field| {
+                            let field_type = super::generics::substitute_value_type(
+                                &field.field.value_type,
+                                &substitutions,
+                            );
+                            cloneable(package, unit, &field_type, visiting)
+                        })
+                };
+                visiting.remove(identity);
+                fields_cloneable
+            }
+            ValueType::List(inner)
+            | ValueType::Set(inner)
+            | ValueType::Tuple(inner, _)
+            | ValueType::UnorderedSet(inner)
+            | ValueType::IterationStep(inner)
+            | ValueType::AsyncIterationStep(inner)
+            | ValueType::ChannelSendOutcome(inner)
+            | ValueType::ChannelReceiveOutcome(inner)
+            | ValueType::DocumentDecodeOutcome(inner) => {
+                cloneable(package, unit, inner.value_type_ref(), visiting)
+            }
+            ValueType::Map(key, value)
+            | ValueType::Entry(key, value)
+            | ValueType::UnorderedMap(key, value) => {
+                cloneable(package, unit, key.value_type_ref(), visiting)
+                    && cloneable(package, unit, value.value_type_ref(), visiting)
+            }
+            _ => true,
+        }
+    }
+
+    cloneable(package, unit, value_type, &mut BTreeSet::new())
 }
 pub(super) fn propagate_resource_ownership(
     package: &mut SemanticPackage,
@@ -2842,8 +2963,10 @@ fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticF
 fn populate_projected_call_result_types(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
+    let mut defer_unresolved_lenders = true;
     loop {
         let mut additions = Vec::new();
+        let mut pending_lenders = false;
         for (unit_index, unit) in package.units.iter().enumerate() {
             collect_projected_call_result_types(
                 package,
@@ -2851,16 +2974,25 @@ fn populate_projected_call_result_types(
                 &unit.tree.root,
                 unit_index,
                 &mut additions,
+                defer_unresolved_lenders,
+                &mut pending_lenders,
             )?;
         }
         let mut changed = false;
         for (unit_index, key, value_type) in additions {
-            changed |= package.units[unit_index]
-                .selected_expression_types
-                .insert(key, value_type)
-                .is_none();
+            let results = &mut package.units[unit_index].selected_expression_types;
+            if results.get(&key) != Some(&value_type) {
+                results.insert(key, value_type);
+                changed = true;
+            }
         }
         if !changed {
+            if pending_lenders {
+                // Stored receivers can depend on another call's result. Settle
+                // those producer facts before diagnosing unresolved contracts.
+                defer_unresolved_lenders = false;
+                continue;
+            }
             return Ok(());
         }
         rebuild_typed_bindings(package)?;
@@ -2939,6 +3071,230 @@ fn projected_constructor_result(
     Ok(closed_projected_value_type(package, &result))
 }
 
+fn enclosing_scoped_acquisition_region(root: &SyntaxNode, span: Span) -> Option<Span> {
+    if root.kind == SyntaxKind::WithRegion {
+        let [acquisition, body] = root.children.as_slice() else {
+            return None;
+        };
+        if acquisition.span.file == span.file
+            && acquisition.span.start <= span.start
+            && span.end <= acquisition.span.end
+        {
+            return Some(root.span);
+        }
+        if body.span.file == span.file && body.span.start <= span.start && span.end <= body.span.end
+        {
+            return enclosing_scoped_acquisition_region(body, span);
+        }
+        return None;
+    }
+    root.children.iter().find_map(|child| {
+        (child.span.file == span.file
+            && child.span.start <= span.start
+            && span.end <= child.span.end)
+            .then(|| enclosing_scoped_acquisition_region(child, span))
+            .flatten()
+    })
+}
+
+fn projected_lifetime_set(rust_type: &str) -> BTreeSet<String> {
+    crate::rust_interop::projection::lifetime_occurrences(rust_type)
+        .unwrap_or_default()
+        .into_iter()
+        .collect()
+}
+
+fn scoped_receiver_result(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    function: &crate::rust_interop::projection::ProjectedFunction,
+    mut projected: crate::rust_interop::projection::ProjectedType,
+) -> crate::rust_interop::projection::ProjectedType {
+    use crate::rust_interop::projection::ProjectedType;
+    let Some(receiver) = callee.children.first() else {
+        return projected;
+    };
+    let Some(receiver_type) = infer_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+    else {
+        return projected;
+    };
+    if let Some(owner) = &function.native_owner
+        && let Ok(receiver) = destination_projected_type(package, &receiver_type)
+    {
+        let arguments = projected_call_owner_substitutions(package, unit, callee)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(name, ty)| (name, ty.rust_type()))
+            .collect();
+        if crate::rust_interop::projection::instantiate_receiver_result_lifetimes(
+            &mut projected,
+            owner,
+            &receiver.rust_type(),
+            &arguments,
+        )
+        .is_err()
+        {
+            // Provisional result lookup may precede final receiver selection.
+            // The final call plan reports an unresolved or contradictory lender.
+            return projected;
+        }
+    }
+    let ProjectedType::Foreign {
+        rust_path,
+        base_rust_path,
+        arguments,
+        ..
+    } = &projected
+    else {
+        return projected;
+    };
+    let ValueType::InvocationScopedNative {
+        family,
+        expression_scoped,
+        ..
+    } = &receiver_type
+    else {
+        return projected;
+    };
+    let Some(family_path) = family.native_projection.as_deref() else {
+        return projected;
+    };
+    let result_path = if base_rust_path.is_empty() {
+        rust_path
+            .split_once('<')
+            .map_or(rust_path.as_str(), |(path, _)| path)
+    } else {
+        base_rust_path
+    };
+    if result_path != family_path {
+        return projected;
+    }
+    let lifetimes = projected_lifetime_set(rust_path);
+    if !lifetimes.iter().any(|lifetime| lifetime != "'static")
+        || arguments.len() != family.native_parameters.len()
+    {
+        return projected;
+    }
+    for (parameter, argument) in family.native_parameters.iter().zip(arguments) {
+        let Some(value) = family.native_arguments.get(parameter) else {
+            return projected;
+        };
+        let Ok(expected) = destination_projected_type(package, value) else {
+            return projected;
+        };
+        if !projected_types_share_concrete_rust_representation(&expected, argument) {
+            return projected;
+        }
+    }
+    let Ok(ProjectedType::InvocationScoped { owned, .. }) =
+        destination_projected_type(package, &receiver_type)
+    else {
+        return projected;
+    };
+    ProjectedType::InvocationScoped {
+        rust_type: rust_path.clone(),
+        name: family.name.clone(),
+        lifetimes: lifetimes.into_iter().collect(),
+        expression_scoped: *expression_scoped,
+        owned,
+    }
+}
+
+fn projected_lifetimes(
+    value_type: &crate::rust_interop::projection::ProjectedType,
+    lifetimes: &mut Vec<String>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    match value_type {
+        ProjectedType::Reference {
+            inner, lifetime, ..
+        } => {
+            if let Some(lifetime) = lifetime {
+                lifetimes.push(lifetime.clone());
+            }
+            projected_lifetimes(inner, lifetimes);
+        }
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::AsyncIterationStep(item) => projected_lifetimes(item, lifetimes),
+        ProjectedType::Mapping { key, value, .. } => {
+            projected_lifetimes(key, lifetimes);
+            projected_lifetimes(value, lifetimes);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                projected_lifetimes(item, lifetimes);
+            }
+        }
+        ProjectedType::InvocationScoped {
+            lifetimes: nested, ..
+        } => lifetimes.extend(nested.iter().cloned()),
+        _ => {}
+    }
+}
+
+fn invocation_scoped_bound_regions(
+    value_type: &ValueType,
+    lifetimes: &[String],
+    regions: &mut Vec<(u32, usize, usize)>,
+) {
+    match value_type {
+        ValueType::InvocationScopedNative {
+            expression_scoped: false,
+            lifetimes: bound_lifetimes,
+            region: Some(region),
+            ..
+        } if bound_lifetimes
+            .iter()
+            .any(|lifetime| lifetimes.contains(lifetime)) =>
+        {
+            regions.push(*region);
+        }
+        ValueType::Optional(inner) => invocation_scoped_bound_regions(inner, lifetimes, regions),
+        ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner) => {
+            invocation_scoped_bound_regions(inner.value_type_ref(), lifetimes, regions)
+        }
+        ValueType::Union(items) => {
+            for item in items {
+                invocation_scoped_bound_regions(item, lifetimes, regions);
+            }
+        }
+        ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::TaskGroup(inner)
+        | ValueType::ChannelPair(inner)
+        | ValueType::ChannelSender(inner)
+        | ValueType::ChannelReceiver(inner)
+        | ValueType::ChannelSendOutcome(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::DocumentDecodeOutcome(inner) => {
+            invocation_scoped_bound_regions(inner.value_type_ref(), lifetimes, regions)
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            invocation_scoped_bound_regions(key.value_type_ref(), lifetimes, regions);
+            invocation_scoped_bound_regions(value.value_type_ref(), lifetimes, regions);
+        }
+        ValueType::Tuple(item, _) => {
+            invocation_scoped_bound_regions(item.value_type_ref(), lifetimes, regions)
+        }
+        _ => {}
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one recursive refinement pass keeps projected call-result correlation atomic"
@@ -2949,9 +3305,19 @@ fn collect_projected_call_result_types(
     node: &SyntaxNode,
     unit_index: usize,
     additions: &mut Vec<(usize, (u32, usize, usize), ValueType)>,
+    defer_unresolved_lenders: bool,
+    pending_lenders: &mut bool,
 ) -> Result<(), SemanticFailure> {
     for child in &node.children {
-        collect_projected_call_result_types(package, unit, child, unit_index, additions)?;
+        collect_projected_call_result_types(
+            package,
+            unit,
+            child,
+            unit_index,
+            additions,
+            defer_unresolved_lenders,
+            pending_lenders,
+        )?;
     }
     if node.kind != SyntaxKind::CallExpression
         || unit.selected_expression_types.contains_key(&(
@@ -3021,6 +3387,35 @@ fn collect_projected_call_result_types(
         }
         return Ok(());
     }
+    let owner_substitutions = projected_call_owner_substitutions(package, unit, designator)
+        .map_err(|reason| failure(&unit.source, "T0118", reason, node.span))?;
+    let receiver = designator
+        .children
+        .first()
+        .and_then(|receiver| {
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten()
+        })
+        .and_then(|ty| destination_projected_type(package, &ty).ok());
+    let instantiated = receiver
+        .as_ref()
+        .map_or_else(
+            || Ok(std::borrow::Cow::Borrowed(function)),
+            |receiver| {
+                let arguments = owner_substitutions
+                    .iter()
+                    .map(|(name, ty)| (name.clone(), ty.rust_type()))
+                    .collect();
+                crate::rust_interop::projection::instantiate_receiver_lifetimes(
+                    function,
+                    &receiver.rust_type(),
+                    &arguments,
+                )
+            },
+        )
+        .map_err(|reason| failure(&unit.source, "T0119", reason, node.span))?;
+    let function = instantiated.as_ref();
     if function.chain_role == Some(crate::rust_interop::projection::ChainRole::Continue)
         && let Some(receiver) = callee.children.first()
         && let Some(ValueType::InvocationScopedNative {
@@ -3073,13 +3468,13 @@ fn collect_projected_call_result_types(
         return Ok(());
     }
 
-    let owner_substitutions = projected_call_owner_substitutions(package, unit, designator)
-        .map_err(|reason| failure(&unit.source, "T0118", reason, node.span))?;
     let projected_result = owner_substitutions
         .iter()
         .fold(function.result.clone(), |result, (name, projected)| {
             substitute_projected_generic(&result, name, projected)
         });
+    let projected_result =
+        scoped_receiver_result(package, unit, callee, function, projected_result);
     match &projected_result {
         crate::rust_interop::projection::ProjectedType::InvocationScoped {
             rust_type,
@@ -3088,21 +3483,122 @@ fn collect_projected_call_result_types(
             expression_scoped,
             owned,
         } => {
-            let region = package.units[unit_index]
-                .enclosing_function_spans
-                .get(&node.span.start)
-                .copied()
-                .flatten()
-                .filter(|span| {
-                    package.units[unit_index].functions.iter().any(|function| {
-                        function.span == *span
-                            && matches!(
-                                function.return_type,
-                                Some(ValueType::InvocationScopedNative { .. })
-                            )
-                    })
+            let mut lender_regions = Vec::new();
+            let mut matched_lifetimes = BTreeSet::new();
+            if let Some(receiver_lifetime) = &function.receiver_lifetime {
+                matched_lifetimes.extend(
+                    lifetimes
+                        .iter()
+                        .filter(|lifetime| {
+                            lifetime.as_str() != "'static" && *lifetime == receiver_lifetime
+                        })
+                        .cloned(),
+                );
+            }
+            let receiver_type = callee
+                .children
+                .first()
+                .and_then(|receiver| infer_value_type(unit, receiver, &unit.typed_bindings).ok())
+                .flatten();
+            if let Some(ValueType::InvocationScopedNative {
+                region,
+                lifetimes: receiver_lifetimes,
+                ..
+            }) = receiver_type.as_ref()
+            {
+                for lifetime in lifetimes.iter().filter(|lifetime| {
+                    lifetime.as_str() != "'static" && receiver_lifetimes.contains(lifetime)
+                }) {
+                    matched_lifetimes.insert(lifetime.clone());
+                }
+                if let Some(region) = region {
+                    lender_regions.push(*region);
+                }
+            }
+            if let Some(arguments) = node.children.get(1) {
+                for (index, parameter) in function.parameters.iter().enumerate() {
+                    let Some(argument) = super::bindings::projected_argument_for_parameter(
+                        unit,
+                        &function.parameters,
+                        arguments,
+                        index,
+                    ) else {
+                        continue;
+                    };
+                    let mut input_lifetimes = Vec::new();
+                    projected_lifetimes(&parameter.ty, &mut input_lifetimes);
+                    if let Some(lifetime) = &parameter.borrow_lifetime {
+                        input_lifetimes.push(lifetime.clone());
+                    }
+                    let matching = lifetimes
+                        .iter()
+                        .filter(|lifetime| {
+                            lifetime.as_str() != "'static" && input_lifetimes.contains(lifetime)
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if matching.is_empty() {
+                        continue;
+                    }
+                    matched_lifetimes.extend(matching.iter().cloned());
+                    if let Some(value_type) = infer_value_type(unit, argument, &unit.typed_bindings)
+                        .ok()
+                        .flatten()
+                    {
+                        invocation_scoped_bound_regions(
+                            &value_type,
+                            &matching,
+                            &mut lender_regions,
+                        );
+                    }
+                }
+            }
+            let callback_scoped = unit.functions.iter().any(|contract| {
+                contract.span.start <= node.span.start
+                    && node.span.end <= contract.span.end
+                    && matches!(
+                        contract.return_type,
+                        Some(ValueType::InvocationScopedNative { .. })
+                    )
+            });
+            if !expression_scoped
+                && !callback_scoped
+                && lifetimes
+                    .iter()
+                    .any(|lifetime| lifetime != "'static" && !matched_lifetimes.contains(lifetime))
+            {
+                if defer_unresolved_lenders {
+                    *pending_lenders = true;
+                    return Ok(());
+                }
+                return Err(failure(
+                    &unit.source,
+                    "T0119",
+                    "invocation-scoped native result has an unresolved lender lifetime",
+                    node.span,
+                ));
+            }
+            lender_regions
+                .sort_unstable_by_key(|region| (region.0, region.2.saturating_sub(region.1)));
+            lender_regions.dedup();
+            let region = lender_regions
+                .iter()
+                .find(|(file, start, end)| {
+                    *file == node.span.file && *start <= node.span.start && node.span.end <= *end
                 })
-                .map(|span| (span.file, span.start, span.end));
+                .copied()
+                .or_else(|| {
+                    enclosing_scoped_acquisition_region(&unit.tree.root, node.span)
+                        .map(|span| (span.file, span.start, span.end))
+                })
+                .or_else(|| {
+                    package.units[unit_index]
+                        .enclosing_function_spans
+                        .get(&node.span.start)
+                        .copied()
+                        .flatten()
+                        .map(|span| (span.file, span.start, span.end))
+                });
             let region = (!expression_scoped).then_some(region).flatten();
             let (family_namespace, family_name) = package
                 .projection
@@ -3145,10 +3641,7 @@ fn collect_projected_call_result_types(
                     ) {
                         "std::option::Option".to_owned()
                     } else {
-                        owned
-                            .rust_type()
-                            .split_once('<')
-                            .map_or(owned.rust_type(), |(base, _)| base.to_owned())
+                        owned.rust_type()
                     },
                 );
             }
@@ -3160,7 +3653,7 @@ fn collect_projected_call_result_types(
                     concrete: true,
                     family,
                     lifetimes: lifetimes.clone(),
-                    expression_scoped: *expression_scoped,
+                    expression_scoped: *expression_scoped && region.is_none(),
                     region,
                 },
             ));
@@ -3283,6 +3776,8 @@ struct PendingProjectedSpecialization {
     generic_arguments: Vec<crate::rust_interop::projection::ProjectedType>,
     projected_result: crate::rust_interop::projection::ProjectedType,
     projected_parameters: Vec<crate::rust_interop::projection::ProjectedParameter>,
+    projected_receiver: Option<crate::rust_interop::projection::Receiver>,
+    projected_receiver_lifetime: Option<String>,
     direct_projected_call: bool,
     value_parameters: Vec<Option<ValueType>>,
     value_type: ValueType,
@@ -3356,6 +3851,15 @@ fn receiver_input_bounds(
     let rust_bound = crate::rust_ir::instantiate_rust_generics(&original_bounds, &replacements);
     let (rust_bound, mut inferred_parameters) =
         crate::rust_ir::scope_callable_bound_lifetimes(rust_bound, callable_lifetimes);
+    for lifetime in crate::rust_interop::projection::bound_lifetime_occurrences(&rust_bound)
+        .expect("projected receiver bounds have valid Rust syntax")
+    {
+        if !matches!(lifetime.as_str(), "'_" | "'static")
+            && !inferred_parameters.contains(&lifetime)
+        {
+            inferred_parameters.push(lifetime);
+        }
+    }
     if names_loan {
         inferred_parameters.push(lifetime.to_owned());
     }
@@ -3641,6 +4145,7 @@ fn specialize_projected_result_batch(
                 specialization.value_type,
                 ValueType::InvocationScopedNative { .. }
             )
+            && unit.invocation_scoped_result_at(node.span).is_none()
         {
             let (expansion, result) =
                 super::macros::macro_probe(package, unit, node, &specialization.projected_result)?;
@@ -3900,6 +4405,8 @@ fn specialize_projected_result_batch(
                     projected_result: specialization.projected_result,
                     value_type: specialization.value_type,
                     projected_parameters: specialization.projected_parameters,
+                    projected_receiver: specialization.projected_receiver,
+                    projected_receiver_lifetime: specialization.projected_receiver_lifetime,
                     direct_projected_call: specialization.direct_projected_call,
                     value_parameters: specialization.value_parameters,
                 },
@@ -4213,8 +4720,9 @@ fn projected_call_result<'a>(
     let [callee, _] = node.children.as_slice() else {
         return None;
     };
-    projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node))
-        .map(|function| function.result.clone())
+    projected_function_for_call(package, unit, callee, crate::syntax::call_is_unsafe(node)).map(
+        |function| scoped_receiver_result(package, unit, callee, function, function.result.clone()),
+    )
 }
 
 #[derive(Clone)]
@@ -4877,6 +5385,13 @@ fn collect_projected_destinations(
                     unit,
                     argument.children.last().unwrap_or(argument),
                     index,
+                    matches!(
+                        destination,
+                        ValueType::InvocationScopedNative { concrete: true, .. }
+                    ) || matches!(
+                        function_return,
+                        Some(ValueType::InvocationScopedNative { concrete: true, .. })
+                    ),
                 )
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -4890,6 +5405,8 @@ fn collect_projected_destinations(
             value_type: destination.clone(),
             value_parameters: vec![None; projected_parameters.len()],
             projected_parameters,
+            projected_receiver: None,
+            projected_receiver_lifetime: None,
             direct_projected_call: true,
             bounds: Vec::new(),
         });
@@ -4907,6 +5424,9 @@ fn collect_projected_destinations(
         if matches!(
             destination,
             ValueType::InvocationScopedNative { concrete: true, .. }
+        ) || matches!(
+            function_return,
+            Some(ValueType::InvocationScopedNative { concrete: true, .. })
         ) {
             // The native callback closes producer lifetimes jointly with the macro.
             // A detached higher-ranked assertion would demand an unrelated lifetime.
@@ -4932,6 +5452,27 @@ fn collect_projected_destinations(
             .generic_parameters
             .iter()
             .any(|generic| generic.input_selected)
+            || matches!(
+                function.result,
+                crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                    expression_scoped: false,
+                    ..
+                }
+            )
+            || callee.children.first().is_some_and(|receiver| {
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|receiver| {
+                        matches!(
+                            receiver,
+                            ValueType::InvocationScopedNative {
+                                expression_scoped: false,
+                                ..
+                            }
+                        )
+                    })
+            })
             || function.parameters.iter().any(|parameter| {
                 matches!(
                     parameter.ty,
@@ -4948,6 +5489,13 @@ fn collect_projected_destinations(
             crate::syntax::call_is_unsafe(node),
         )
         && (function.chain_role.is_none()
+            || matches!(
+                function.result,
+                crate::rust_interop::projection::ProjectedType::InvocationScoped {
+                    expression_scoped: false,
+                    ..
+                }
+            )
             || function.parameters.iter().any(|parameter| {
                 parameter.generic_parameter.is_some()
                     && matches!(
@@ -4989,7 +5537,6 @@ fn collect_projected_destinations(
                         })
                 }))
     {
-        let mut function = (*function).clone();
         let owner_substitutions = projected_call_owner_substitutions(package, unit, callee)
             .map_err(|reason| failure(&unit.source, "T0129", reason, callee.span))?;
         let specialize_owner = |template: &crate::rust_interop::projection::ProjectedType| {
@@ -5004,6 +5551,31 @@ fn collect_projected_destinations(
             .iter()
             .map(|(name, projected)| (name.clone(), projected.rust_type()))
             .collect::<BTreeMap<_, _>>();
+        let designator = if callee.kind == SyntaxKind::AppliedType {
+            callee.children.first().unwrap_or(callee)
+        } else {
+            callee
+        };
+        let receiver = designator
+            .children
+            .first()
+            .and_then(|receiver| {
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+            })
+            .and_then(|ty| destination_projected_type(package, &ty).ok());
+        let mut function = if let Some(receiver) = receiver {
+            crate::rust_interop::projection::instantiate_receiver_lifetimes(
+                function,
+                &receiver.rust_type(),
+                &owner_rust_replacements,
+            )
+            .map_err(|reason| failure(&unit.source, "T0119", reason, node.span))?
+            .into_owned()
+        } else {
+            function.clone()
+        };
         function.result = specialize_owner(&function.result);
         function.rust_generic_arguments = function
             .rust_generic_arguments
@@ -5393,9 +5965,9 @@ fn collect_projected_destinations(
                     && parameter.generic_interface.is_some()
             }) && value_bindings.get(&generic.name).is_some_and(|actual| {
                 let actual = match actual {
-                    ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
-                        inner.value_type_ref()
-                    }
+                    ValueType::Reference(inner)
+                    | ValueType::MutableReference(inner)
+                    | ValueType::SharedReference(inner) => inner.value_type_ref(),
                     actual => actual,
                 };
                 let ValueType::Object(identity) = actual else {
@@ -5428,6 +6000,7 @@ fn collect_projected_destinations(
                         ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
                             (inner.value_type_ref(), Some(false))
                         }
+                        ValueType::MutableReference(inner) => (inner.value_type_ref(), Some(true)),
                         actual => (actual, None),
                     };
                     destination_projected_type(package, actual_projection)
@@ -5634,10 +6207,55 @@ fn collect_projected_destinations(
                             )
                         })
                     })
+                    .map(|mut selected| {
+                        if matches!(
+                            projected_parameters[index].ty,
+                            crate::rust_interop::projection::ProjectedType::Callback { .. }
+                        ) && let Some(argument) =
+                            super::bindings::projected_argument_for_parameter(
+                                unit,
+                                &projected_parameters,
+                                arguments,
+                                index,
+                            )
+                            && let Some(actual) =
+                                infer_value_type(unit, argument, &unit.typed_bindings)
+                                    .ok()
+                                    .flatten()
+                        {
+                            super::calls::refine_native_callback_access(
+                                &mut selected,
+                                &projected_parameters[index].ty,
+                                &actual,
+                            );
+                        }
+                        selected
+                    })
             })
             .collect();
         let mut projected_result = specialize(&function.result);
-        let result = if callee.kind == SyntaxKind::ConstructionExpression {
+        let selected = unit
+            .selected_expression_types
+            .get(&span_key(node.span))
+            .map(|selected| match selected {
+                ValueType::Task(result, _) | ValueType::ScopedTask(result, _) => {
+                    result.value_type_ref()
+                }
+                selected => selected,
+            })
+            .filter(|selected| {
+                matches!(
+                    selected,
+                    ValueType::InvocationScopedNative { concrete: true, .. }
+                )
+            });
+        let result = if let Some(selected) = selected {
+            // Binding/result inference has already retained the lender region.
+            // A concrete native call plan must not erase it back to unbound.
+            projected_result = destination_projected_type(package, selected)
+                .map_err(|reason| failure(&unit.source, "T0119", reason, node.span))?;
+            selected.clone()
+        } else if callee.kind == SyntaxKind::ConstructionExpression {
             closed_projected_value_type(package, &projected_result).ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -5824,6 +6442,17 @@ fn collect_projected_destinations(
                             .collect::<BTreeSet<_>>();
                         collect_projected_generic_names(projected, &mut inferred_parameters);
                         inferred_parameters.extend(invocation_lifetimes);
+                        // Tokenized identifiers omit the apostrophe in lifetime
+                        // parameters. Collect free lifetimes structurally, without
+                        // lifting genuine higher-ranked binders into this question.
+                        inferred_parameters.extend(
+                            crate::rust_interop::projection::bound_lifetime_occurrences(&rust_bound)
+                                .expect("projected bounds have valid Rust syntax")
+                                .into_iter()
+                                .chain(crate::rust_interop::projection::lifetime_occurrences(&rust_type)
+                                    .expect("selected native input has valid Rust type syntax"))
+                                .filter(|name| !matches!(name.as_str(), "'_" | "'static")),
+                        );
                         let inferred_declarations = inferred_parameters
                             .iter()
                             .map(|name| {
@@ -5957,6 +6586,8 @@ fn collect_projected_destinations(
             substitutions: specialization_substitutions,
             projected_result,
             projected_parameters,
+            projected_receiver: function.receiver,
+            projected_receiver_lifetime: function.receiver_lifetime.clone(),
             direct_projected_call: true,
             value_parameters,
             value_type,
@@ -6111,6 +6742,8 @@ fn collect_projected_destinations(
             || projected_result.clone(),
             |expected| align_projected_result_representation(&projected_result, expected),
         );
+        let projected_result =
+            scoped_receiver_result(package, unit, callee, function, projected_result);
         let destination_arguments = destination_result
             .parameters
             .iter()
@@ -6234,6 +6867,8 @@ fn collect_projected_destinations(
             value_parameters: function.parameters.iter().map(|_| None).collect(),
             bounds,
             projected_parameters,
+            projected_receiver: function.receiver,
+            projected_receiver_lifetime: function.receiver_lifetime.clone(),
             direct_projected_call: true,
         });
     }
@@ -7866,7 +8501,6 @@ pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
         }
         match node.kind {
             SyntaxKind::Binding
-            | SyntaxKind::Assignment
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::AnonymousFunction => {
                 let mut skipped_name = false;

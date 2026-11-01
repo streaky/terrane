@@ -441,6 +441,21 @@ pub(super) fn emit_dependency_imports(
                 write_owned_borrowed_struct(output, rust_name, native_path, fields);
             } else if let Some((_, fields)) = package.projection.enum_payload(path) {
                 write_enum_payload(output, rust_name, path, fields);
+            } else if let Some(native_view) = package
+                .projection
+                .dependencies
+                .iter()
+                .flat_map(|dependency| &dependency.items)
+                .find_map(|item| match &item.kind {
+                    crate::rust_interop::projection::ProjectedKind::ForeignType {
+                        borrowed_view: false,
+                        native_view_type: Some(native),
+                        ..
+                    } if item.rust_path == *path => Some(native),
+                    _ => None,
+                })
+            {
+                write_scoped_foreign_import(output, native_view, rust_name, generic_parameters);
             } else {
                 write_foreign_import(output, path, rust_name, generic_parameters);
             }
@@ -703,6 +718,63 @@ fn canonical_foreign_import_path(path: &str) -> std::borrow::Cow<'_, str> {
     } else {
         path.into()
     }
+}
+fn write_scoped_foreign_import(
+    output: &mut String,
+    path: &str,
+    rust_name: &str,
+    generic_parameters: &[String],
+) {
+    use syn::fold::Fold;
+    struct AliasLifetimes<'a> {
+        source: &'a str,
+        names: BTreeSet<String>,
+        next: usize,
+    }
+    impl Fold for AliasLifetimes<'_> {
+        fn fold_lifetime(&mut self, lifetime: syn::Lifetime) -> syn::Lifetime {
+            if lifetime.ident != "_" {
+                return lifetime;
+            }
+            loop {
+                let name = format!("'__terrane_view_{}", self.next);
+                self.next += 1;
+                if !self.source.contains(&name) {
+                    self.names.insert(name.clone());
+                    return syn::Lifetime::new(&name, lifetime.apostrophe);
+                }
+            }
+        }
+    }
+    // A nominal support alias must bind its native lifetimes rather than erase
+    // them. Anonymous occurrences are independent; named relationships survive.
+    let names = crate::rust_interop::projection::lifetime_occurrences(path)
+        .expect("projected native view has a valid Rust type")
+        .into_iter()
+        .filter(|name| name != "'_" && name != "'static")
+        .collect();
+    let mut lifetimes = AliasLifetimes {
+        source: path,
+        names,
+        next: 0,
+    };
+    let ty = lifetimes.fold_type(syn::parse_str(path).expect("projected native view type"));
+    let parameters = lifetimes
+        .names
+        .into_iter()
+        .chain(generic_parameters.iter().cloned())
+        .collect::<Vec<_>>();
+    let parameters = if parameters.is_empty() {
+        String::new()
+    } else {
+        format!("<{}>", parameters.join(", "))
+    };
+    writeln!(
+        output,
+        "pub type {rust_name}{parameters} = {};",
+        quote::ToTokens::to_token_stream(&ty)
+    )
+    .expect("writing to a string cannot fail");
 }
 
 pub(super) fn write_foreign_import(

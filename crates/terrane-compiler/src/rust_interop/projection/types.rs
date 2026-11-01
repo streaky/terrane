@@ -608,13 +608,11 @@ fn project_resolved_type(
             inner, index, paths, generics,
         )?)));
     }
-    if matches!(resolved.as_str(), "alloc::boxed::Box" | "std::boxed::Box") {
-        let inner = arguments
-            .first()
-            .ok_or_else(|| "Box has no value type".to_owned())?;
-        let Type::DynTrait(dynamic) = inner else {
-            return Err("only owning projected interface boxes are supported".to_owned());
-        };
+    let boxed = matches!(resolved.as_str(), "alloc::boxed::Box" | "std::boxed::Box");
+    if boxed && arguments.is_empty() {
+        return Err("Box has no value type".to_owned());
+    }
+    if boxed && let Some(Type::DynTrait(dynamic)) = arguments.first().copied() {
         let ProjectedType::BoxedInterface {
             rust_path: dynamic,
             trait_path,

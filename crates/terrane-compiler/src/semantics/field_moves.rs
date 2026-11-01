@@ -80,7 +80,9 @@ fn field_owner(
     let mut ty = &ty;
     loop {
         match ty {
-            ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
+            ValueType::Reference(inner)
+            | ValueType::MutableReference(inner)
+            | ValueType::SharedReference(inner) => {
                 ty = inner.value_type_ref();
             }
             ValueType::Optional(inner) => ty = inner,
@@ -106,9 +108,10 @@ fn destructive_move(
         None => infer_value_type(unit, access, &unit.typed_bindings)?,
     };
     let Some(ty) = ty else { return Ok(false) };
-    if matches!(ty, ValueType::Reference(_) | ValueType::SharedReference(_))
-        || !value_type_contains_nonclone_foreign(unit, &ty)
-    {
+    if matches!(
+        ty,
+        ValueType::Reference(_) | ValueType::MutableReference(_) | ValueType::SharedReference(_)
+    ) {
         return Ok(false);
     }
     // Native fields move directly. Only authored optional fields leave a `none` slot.

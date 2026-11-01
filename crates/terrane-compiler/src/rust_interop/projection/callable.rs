@@ -65,7 +65,7 @@ pub(super) fn future_output_from_generics(
             Some(output)
         });
         return output
-            .map(|output| project_type(output, index, paths, generics))
+            .map(|output| project_invocation_scoped_type(output, index, paths, generics))
             .transpose();
     }
     Ok(None)
@@ -111,22 +111,21 @@ pub(super) fn project_callback_generic(
         .map(|input| project_type(input, index, paths, known))
         .collect::<Result<Vec<_>, _>>()?;
     let direct_output = output.clone().unwrap_or(Type::Tuple(Vec::new()));
-    let (result, is_async) =
-        if !generic_params.is_empty() && type_contains_lifetime_argument(&direct_output) {
-            (
-                project_invocation_scoped_type(&direct_output, index, paths, known)
-                    .map_err(|reason| format!("callback result: {reason}"))?,
-                false,
-            )
-        } else if let Type::Generic(future) = &direct_output {
-            if let Some(output) = future_output(future, function, index, paths, known)? {
-                (output, true)
-            } else {
-                (project_type(&direct_output, index, paths, known)?, false)
-            }
+    let (result, is_async) = if type_contains_lifetime_argument(&direct_output) {
+        (
+            project_invocation_scoped_type(&direct_output, index, paths, known)
+                .map_err(|reason| format!("callback result: {reason}"))?,
+            false,
+        )
+    } else if let Type::Generic(future) = &direct_output {
+        if let Some(output) = future_output(future, function, index, paths, known)? {
+            (output, true)
         } else {
             (project_type(&direct_output, index, paths, known)?, false)
-        };
+        }
+    } else {
+        (project_type(&direct_output, index, paths, known)?, false)
+    };
     let has_trait = |name: &str| {
         bounds.iter().any(|bound| {
             trait_bound_name(bound)

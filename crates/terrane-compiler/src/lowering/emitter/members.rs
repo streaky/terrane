@@ -239,7 +239,9 @@ impl Emitter<'_> {
     pub(super) fn receiver_value_type(&self, receiver: &SyntaxNode) -> Option<ValueType> {
         self.value_type(receiver)
             .map(|value_type| match value_type {
-                ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => item.value_type(),
                 value_type => value_type,
             })
     }
@@ -311,7 +313,10 @@ impl Emitter<'_> {
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+        if matches!(
+            self.value_type(receiver),
+            Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+        ) {
             return format!("*({})", self.receiver_guard_expression(receiver));
         }
         if matches!(self.value_type(receiver), Some(ValueType::Object(_)))
@@ -344,7 +349,10 @@ impl Emitter<'_> {
         {
             return self.available_storage_reference(binding, receiver, true);
         }
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+        if matches!(
+            self.value_type(receiver),
+            Some(ValueType::MutableReference(_))
+        ) {
             return format!("&mut {}", self.native_receiver_expression(receiver, true));
         }
         format!("&mut {}", self.receiver_expression(receiver))
@@ -579,6 +587,19 @@ impl Emitter<'_> {
             };
             return (setup, value);
         }
+        if mutable
+            && receiver.kind == SyntaxKind::IndexExpression
+            && receiver.children.first().is_some_and(|collection| {
+                matches!(
+                    self.receiver_value_type(collection),
+                    Some(ValueType::List(_) | ValueType::Map(_, _) | ValueType::UnorderedMap(_, _))
+                )
+            })
+        {
+            let address = self.mutable_reference_address_expression(receiver);
+            let name = self.fresh_read_binding_name("receiver_place");
+            return (format!("let {name} = {address}; "), name);
+        }
         if !mutable && let Some(parts) = self.borrowed_index_place_parts(receiver) {
             return parts;
         }
@@ -594,8 +615,10 @@ impl Emitter<'_> {
             );
         }
         let value = if receiver.kind == SyntaxKind::Name
-            && !matches!(self.value_type(receiver), Some(ValueType::Reference(_)))
-        {
+            && !matches!(
+                self.value_type(receiver),
+                Some(ValueType::Reference(_) | ValueType::MutableReference(_))
+            ) {
             self.narrowed_storage_name(receiver, false, mutable)
                 .unwrap_or_else(|| {
                     self.local_typed_binding(receiver)
@@ -700,7 +723,7 @@ impl Emitter<'_> {
             Some(ValueType::Reference(_)) if self.reference_uses_shared_storage(receiver) => {
                 "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
             }
-            Some(ValueType::Reference(_)) => self.expression(receiver),
+            Some(ValueType::MutableReference(_)) => self.expression(receiver),
             _ if self.reference_backed_name(receiver).is_some() => {
                 format!(
                     "{}.lock().expect(\"reference lock poisoned\")",
@@ -746,7 +769,11 @@ impl Emitter<'_> {
             format!("({}).name", self.borrowed_expression(node))
         } else if matches!(
             self.value_type(node),
-            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            Some(
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
         ) {
             self.receiver_expression(node)
         } else {
@@ -1084,7 +1111,11 @@ impl Emitter<'_> {
         let wrapped_field = self.wrapped_object_field(receiver, self.text(member));
         if (matches!(
             self.value_type(receiver),
-            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+            Some(
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
         ) || self.reference_backed_name(receiver).is_some()
             || self.shared_async_receiver && self.text(receiver) == "this"
             || self.static_storage_name(receiver).is_some())
@@ -1339,7 +1370,11 @@ impl Emitter<'_> {
                         || self.wrapped_object_field(receiver, name)
                         || matches!(
                             self.value_type(receiver),
-                            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                            Some(
+                                ValueType::Reference(_)
+                                    | ValueType::MutableReference(_)
+                                    | ValueType::SharedReference(_)
+                            )
                         ))
             }
             _ => false,

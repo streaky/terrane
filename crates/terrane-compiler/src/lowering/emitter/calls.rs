@@ -57,7 +57,9 @@ impl Emitter<'_> {
             .map(|object| object.identity.clone())
             .or_else(|| match self.value_type(receiver)? {
                 ValueType::Object(identity) => Some(identity),
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => {
                     let ValueType::Object(identity) = item.value_type() else {
                         return None;
                     };
@@ -68,7 +70,7 @@ impl Emitter<'_> {
             })
     }
 
-    fn native_macro_expression(&mut self, node: &SyntaxNode) -> String {
+    fn native_macro_expression(&mut self, node: &SyntaxNode, joint_native_graph: bool) -> String {
         use crate::rust_interop::projection::ProjectedType;
         let mut node = node;
         while node.kind == SyntaxKind::GroupExpression && node.children.len() == 1 {
@@ -84,13 +86,20 @@ impl Emitter<'_> {
                 .children
                 .iter()
                 .map(|argument| {
-                    self.native_macro_expression(argument.children.last().unwrap_or(argument))
+                    self.native_macro_expression(
+                        argument.children.last().unwrap_or(argument),
+                        joint_native_graph,
+                    )
                 })
                 .collect::<Vec<_>>();
             return format!("{path}!({})", values.join(", "));
         }
-        let parameter = crate::semantics::macro_argument(self.package, self.unit, node, 0)
-            .expect("semantic macro proof records a concrete native argument");
+        let parameter =
+            crate::semantics::macro_argument(self.package, self.unit, node, 0, joint_native_graph)
+                .expect("semantic macro proof records a concrete native argument");
+        if matches!(&parameter.ty, ProjectedType::Generic(name) if name == "__MacroTokens") {
+            return self.expression(node);
+        }
         if node.kind == SyntaxKind::Literal {
             let token = native_macro_literal(self.text(node));
             return match parameter.ty {
@@ -1692,11 +1701,23 @@ impl Emitter<'_> {
                 return self.compose_text(&parts, None);
             }
         }
+        let joint_macro_graph = native_macro_path.is_some()
+            && (self
+                .unit
+                .projected_call_specializations
+                .get(&(node.span.file, node.span.start, node.span.end))
+                .is_some_and(|selection| {
+                    matches!(
+                        selection.value_type,
+                        ValueType::InvocationScopedNative { concrete: true, .. }
+                    )
+                })
+                || self.unit.invocation_scoped_result_at(node.span).is_some());
         let mut values = argument_values
             .into_iter()
             .map(|value| {
                 if native_macro_path.is_some() {
-                    self.native_macro_expression(value)
+                    self.native_macro_expression(value, joint_macro_graph)
                 } else {
                     self.expression(value)
                 }
@@ -1740,7 +1761,25 @@ impl Emitter<'_> {
         ));
         let projected_function = self
             .projected_function_for_call(source_callee, is_unsafe)
-            .cloned();
+            .map(|function| {
+                let receiver = source_callee
+                    .children
+                    .first()
+                    .and_then(|receiver| self.value_type(receiver));
+                let Some(ValueType::InvocationScopedNative { rust_type, .. }) = receiver else {
+                    return function.clone();
+                };
+                let arguments = specialization
+                    .into_iter()
+                    .flat_map(|specialization| &specialization.substitutions)
+                    .map(|(name, ty)| (name.clone(), ty.rust_type()))
+                    .collect();
+                crate::rust_interop::projection::instantiate_receiver_lifetimes(
+                    function, &rust_type, &arguments,
+                )
+                .expect("analyzed native receiver lifetime instantiation")
+                .into_owned()
+            });
         let (projected_parameters, projected_chain_role, projected_error) = projected_function
             .as_ref()
             .map_or((None, None, false), |function| {
@@ -1761,12 +1800,12 @@ impl Emitter<'_> {
             .and_then(|receiver| self.value_type(receiver))
             .and_then(|value_type| match value_type {
                 ValueType::Object(identity) => Some(identity),
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                    match item.value_type() {
-                        ValueType::Object(identity) => Some(identity),
-                        _ => None,
-                    }
-                }
+                ValueType::Reference(item)
+                | ValueType::MutableReference(item)
+                | ValueType::SharedReference(item) => match item.value_type() {
+                    ValueType::Object(identity) => Some(identity),
+                    _ => None,
+                },
                 _ => None,
             })
             .is_some_and(|identity| {
@@ -2194,26 +2233,17 @@ impl Emitter<'_> {
                 .last()
                 .filter(|parameter| parameter.is_variadic());
             let fixed = parameters.len() - usize::from(variadic.is_some());
-            let callable = crate::semantics::callback_contract(self.package, self.unit, callee);
             values = arguments
                 .children
                 .iter()
                 .take(fixed)
                 .zip(&parameters)
-                .enumerate()
-                .map(|(index, (argument, parameter))| {
+                .map(|(argument, parameter)| {
                     let value = argument.children.last().unwrap_or(argument);
-                    let mutable_native_reference = callable.is_some_and(|contract| {
-                        index < contract.parameters.len()
-                            && self.mutable_native_reference_parameter(
-                                contract,
-                                index,
-                                Some(parameter.value_type_ref()),
-                            )
-                    });
+                    let mutable_native_reference = parameter.requires_mutable_reference();
                     if mutable_native_reference {
                         let receiver = if value.kind == SyntaxKind::UnaryExpression
-                            && self.unary_operator(value).as_deref() == Some("ref")
+                            && self.unary_operator(value).as_deref() == Some("mutable ref")
                         {
                             value.children.last().unwrap_or(value)
                         } else {
@@ -2472,6 +2502,13 @@ impl Emitter<'_> {
                 Some(crate::rust_interop::projection::Receiver::Move) => {
                     self.consuming_native_receiver_expression(receiver)
                 }
+                Some(crate::rust_interop::projection::Receiver::DerefMove(depth)) => {
+                    format!(
+                        "{}({})",
+                        "*".repeat(depth),
+                        self.consuming_native_receiver_expression(receiver)
+                    )
+                }
                 Some(crate::rust_interop::projection::Receiver::BoxedMove) => {
                     format!(
                         "Box::new({})",
@@ -2544,7 +2581,9 @@ impl Emitter<'_> {
                 .value_type(receiver)
                 .and_then(|value_type| match value_type {
                     ValueType::Object(identity) => Some(identity),
-                    ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    ValueType::Reference(item)
+                    | ValueType::MutableReference(item)
+                    | ValueType::SharedReference(item) => {
                         let ValueType::Object(identity) = item.value_type() else {
                             return None;
                         };
@@ -2589,6 +2628,10 @@ impl Emitter<'_> {
                 if projected_receiver == Some(crate::rust_interop::projection::Receiver::BoxedMove)
                 {
                     format!("Box::new({owned})")
+                } else if let Some(crate::rust_interop::projection::Receiver::DerefMove(depth)) =
+                    projected_receiver
+                {
+                    format!("{}({owned})", "*".repeat(depth))
                 } else {
                     owned
                 }
@@ -3013,7 +3056,9 @@ impl Emitter<'_> {
                         .map(|object| object.identity.clone())
                         .or_else(|| match self.value_type(receiver)? {
                             ValueType::Object(identity) => Some(identity),
-                            ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                            ValueType::Reference(item)
+                            | ValueType::MutableReference(item)
+                            | ValueType::SharedReference(item) => {
                                 let ValueType::Object(identity) = item.value_type() else {
                                     return None;
                                 };

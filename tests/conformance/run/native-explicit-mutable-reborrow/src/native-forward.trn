@@ -2,7 +2,7 @@ namespace app
 
 from /deps/witness import Counter as NativeCounter
 
-async function increment-async; native ref NativeCounter
+async function increment-async; native mutable ref NativeCounter
     rust
         let native = &mut *native;
         native.increment();

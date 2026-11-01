@@ -1,0 +1,8 @@
+package = "native-deref-reference-upgrade"
+
+[namespaces]
+native-deref-reference-upgrade = "src"
+
+[rust-dependencies.receiver-api]
+package = "receiver-api"
+version = "=0.1.0"

@@ -1,0 +1,3 @@
+package = "mutable-reference-closure-borrow"
+[namespaces]
+app = "src"

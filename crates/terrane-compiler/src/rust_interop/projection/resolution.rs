@@ -369,6 +369,13 @@ pub fn resolve(
         &canonical_public_paths,
         false,
     );
+    super::deref::project_deref_receivers(
+        &mut projected,
+        &rustdocs,
+        &workspace,
+        &identity,
+        sandbox,
+    )?;
     normalize_projected_round(
         &mut projected,
         dependencies,

@@ -1,0 +1,6 @@
+namespace app
+function main;
+  value = 1
+  borrowed = mutable ref value
+  print; value
+  borrowed = 4

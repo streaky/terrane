@@ -3,7 +3,7 @@ namespace app
 from /deps/witness import Overridden, Wrapped, Mutator
 from /core/errors import throwable
 
-function update-twice uint8; mutator ref Mutator
+function update-twice uint8; mutator mutable ref Mutator
     print; (mutator.update; 2)
     print; (mutator.update; 3)
     return mutator.value;

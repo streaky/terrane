@@ -1,31 +1,31 @@
 namespace app
 from /deps/http import HeaderMap, HeaderName, HeaderValue
 
-function mark; header ref HeaderValue
+function mark; header mutable ref HeaderValue
     header.set_sensitive; true
 
-function forward; header ref HeaderValue
+function forward; header mutable ref HeaderValue
     operation = mark
     operation; header
 
-function change bool; header ref HeaderValue
+function change bool; header mutable ref HeaderValue
     forward; header
     return true
 
-function clear bool|none; header ref HeaderValue
+function clear bool|none; header mutable ref HeaderValue
     header.set_sensitive; false
     return true
 
 function read bool; header ref HeaderValue
     return header.is_sensitive;
 
-function walk-left; header ref HeaderValue, count int
+function walk-left; header mutable ref HeaderValue, count int
     if count > 0
         walk-right; header, count - 1
     else
         mark; header
 
-function walk-right; header ref HeaderValue, count int
+function walk-right; header mutable ref HeaderValue, count int
     walk-left; header, count
 
 function main;

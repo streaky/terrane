@@ -1919,6 +1919,46 @@ fn resolves_slash_separated_root_and_nested_parent_paths() {
 }
 
 #[test]
+fn mutable_reference_construction_and_scalar_write_through_are_accepted() {
+    let source = "namespace app\nfrom /core/collections import list\nclass point\n  value int = 0\nfunction main;\n  value = 1\n  value = 2\n  borrowed = mutable ref value\n  borrowed = 3\n  owner = instance point;\n  owner.value = 4\n  field = mutable ref owner.value\n  field = 5\n  replacement = instance point;\n  whole = mutable ref owner\n  whole = replacement\n  values list of int = list; 6, 7\n  element = mutable ref values[0]\n  element = 8\n";
+    analyze(&package(false, &[("main.trn", source)])).unwrap();
+}
+
+#[test]
+fn mutable_reference_cannot_upgrade_a_readonly_reference() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  borrowed = ref value\n  exclusive = mutable ref borrowed\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0148");
+}
+
+#[test]
+fn mutable_reference_rejects_owner_access_while_a_loan_is_live() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  borrowed = mutable ref value\n  value = 3\n  borrowed = 4\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_reference_rejects_a_second_live_exclusive_loan() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  first = mutable ref value\n  second = mutable ref value\n  first = 3\n  second = 4\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_reference_rejects_a_live_read_only_owner_alias() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  observer = ref value\n  exclusive = mutable ref value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_references_allow_proven_disjoint_field_borrows() {
+    let source = "namespace app\nclass point\n  left int = 0\n  right int = 0\nfunction main;\n  owner = instance point;\n  left = mutable ref owner.left\n  right = mutable ref owner.right\n  left = 3\n  right = 4\n";
+    analyze(&package(false, &[("main.trn", source)])).unwrap();
+}
+
+#[test]
 fn rejects_extracted_string_methods_as_values() {
     for member in ["concat", "join"] {
         let source = format!("namespace app\nfunction main;\n  formatter = ','.{member}\n");
@@ -1930,6 +1970,81 @@ fn rejects_extracted_string_methods_as_values() {
                 .contains("string methods are not storable values")
         );
     }
+}
+
+#[test]
+fn mutable_reference_rejects_access_to_the_same_field() {
+    let source = "namespace app\nclass point\n  left int = 0\n  right int = 0\nfunction main;\n  owner = instance point;\n  left = mutable ref owner.left\n  owner.left = 3\n  left = 4\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_reference_contracts_cross_source_units() {
+    let main = "namespace app\nfunction main;\n  value = 1\n  value = 2\n  set-value; value\n";
+    let library = "namespace app\npublic function set-value; value mutable ref int\n  value = 8\n";
+    analyze(&package(
+        false,
+        &[("main.trn", main), ("library.trn", library)],
+    ))
+    .unwrap();
+}
+
+#[test]
+fn mutable_call_arguments_reject_mutable_aliases() {
+    let source = "namespace app\nfunction update; first mutable ref int, second mutable ref int\n  first = 3\n  second = 4\nfunction main;\n  value = 1\n  value = 2\n  update; value, value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_call_argument_rejects_a_readonly_alias() {
+    let source = "namespace app\nfunction observe; target mutable ref int, value ref int\n  print; value\nfunction main;\n  value = 1\n  value = 2\n  observe; value, value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+
+#[test]
+fn mutable_callable_parameters_preserve_exclusive_input_contracts() {
+    let source = "namespace app\nfunction main;\n  callback = function; first mutable ref int, second mutable ref int\n    first = 3\n    second = 4\n  value = 1\n  value = 2\n  callback; value, value\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0149");
+}
+#[test]
+fn mutable_reference_captures_move_with_their_closure_environment() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = mutable function;\n    borrowed = 3\n  alias = callback\n  callback\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0058");
+}
+#[test]
+fn mutable_reference_capture_requires_mutable_invocation() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = function;\n    borrowed = 3\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0144");
+}
+
+#[test]
+fn mutable_reference_capture_can_be_called_repeatedly() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = mutable function;\n    borrowed = 3\n  callback;\n  callback\n  print; value\n";
+    analyze(&package(false, &[("main.trn", source)])).unwrap();
+}
+
+#[test]
+fn mutable_reference_forwarding_and_read_reborrows_are_accepted() {
+    let source = "namespace app\nfunction set-value; target mutable ref int\n  target = 7\nfunction forward; target mutable ref int\n  set-value; target\nfunction observe; target ref int\n  print; target\nfunction main;\n  value = 1\n  value = 2\n  borrowed = mutable ref value\n  observe; borrowed\n  forward; borrowed\n";
+    analyze(&package(false, &[("main.trn", source)])).unwrap();
+}
+#[test]
+fn read_only_reference_capture_uses_a_shared_callable() {
+    let source = "namespace app\nfunction main;\n  value = 1\n  borrowed = mutable ref value\n  callback = function;\n    print; borrowed\n  callback\n";
+    analyze(&package(false, &[("main.trn", source)])).unwrap();
+}
+
+#[test]
+fn borrowed_reference_async_closure_is_rejected_at_source() {
+    let source = "namespace app\nasync function main;\n  value = 1\n  borrowed = mutable ref value\n  callback = async function;\n    print; borrowed\n";
+    let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
+    assert_eq!(failure.diagnostics[0].code, "T0150");
 }
 
 #[test]

@@ -1,0 +1,5 @@
+namespace native-deref-rc-consume
+from /deps/receiver-api import rc
+function main;
+    item = rc; 1
+    print; (item.take;)

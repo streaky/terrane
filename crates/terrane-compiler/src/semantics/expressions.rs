@@ -123,7 +123,7 @@ fn constant_duration_factory_value(
     }
 }
 
-fn is_destination_directed_projected_call(
+pub(super) fn is_destination_directed_projected_call(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
@@ -231,7 +231,37 @@ fn infer_nonbinary_value_type(
                 .clone()
                 .unwrap_or(ValueType::Scalar(ScalarType::None)),
         );
-        let effects = CallableEffects::from_contract(contract);
+        let effects = CallableEffects {
+            borrowed_environment: contract.captures.iter().any(|capture| {
+                bindings
+                    .iter()
+                    .rev()
+                    .find(|binding| {
+                        binding.name == *capture
+                            && binding.is_visible_at(unit.source.id(), node.span.start)
+                    })
+                    .is_some_and(|binding| {
+                        matches!(
+                            unit.flow_binding_types
+                                .get(&binding.span)
+                                .unwrap_or(&binding.value_type),
+                            ValueType::Reference(_) | ValueType::MutableReference(_)
+                        )
+                    })
+            }),
+            ..CallableEffects::from_contract(contract)
+        };
+        if contract.is_async
+            && effects.borrowed_environment
+            && contract.written_invocation_mode != InvocationMode::Consuming
+        {
+            return Err(failure(
+                &unit.source,
+                "T0150",
+                "repeatable async callables cannot retain borrowed environments; use a consuming async function or explicit reference parameters",
+                node.span,
+            ));
+        }
         return Ok(Some(if contract.is_async {
             ValueType::AsyncFunction(parameters, result, contract.task_transferability, effects)
         } else {

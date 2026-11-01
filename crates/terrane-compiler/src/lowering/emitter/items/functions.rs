@@ -5,9 +5,8 @@ use crate::{
     lowering::{
         emitter::Emitter,
         helpers::{
-            block_may_fall_through, function_name, rust_element_type,
-            rust_generic_parameter_declarations, rust_name, rust_value_type,
-            union_type_name_for_span,
+            block_may_fall_through, function_name, rust_generic_parameter_declarations, rust_name,
+            rust_reference_element_type, rust_value_type, union_type_name_for_span,
         },
     },
     semantics::{
@@ -335,7 +334,11 @@ impl Emitter<'_> {
             && (parameter.variadic
                 || !matches!(
                     parameter.value_type,
-                    Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+                    Some(
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
+                    )
                 ))
     }
 
@@ -507,7 +510,7 @@ impl Emitter<'_> {
             }
             let binding_type = parameter.binding_value_type();
             let native_mutable_reference =
-                self.mutable_native_reference_parameter(contract, index, binding_type.as_ref());
+                matches!(binding_type, Some(ValueType::MutableReference(_)));
             let mutable_storage = parameter.mutable
                 && !self.parameter_needs_shared_storage(parameter)
                 && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
@@ -519,7 +522,7 @@ impl Emitter<'_> {
                         false,
                     ));
             let ty = match (&binding_type, reference_lender == Some(index)) {
-                (Some(ValueType::Reference(item)), _) if native_mutable_reference => {
+                (Some(ValueType::MutableReference(item)), _) if native_mutable_reference => {
                     format!(
                         "&{}mut {}",
                         if reference_lender == Some(index) {
@@ -529,14 +532,18 @@ impl Emitter<'_> {
                         } else {
                             ""
                         },
-                        rust_element_type(self.package, item.clone()),
+                        rust_reference_element_type(self.package, item.clone()),
                     )
                 }
-                (Some(ValueType::Reference(item)), true) => {
-                    format!("&'a {}", rust_element_type(self.package, item.clone()))
-                }
+                (Some(ValueType::Reference(item)), true) => format!(
+                    "&'a {}",
+                    rust_reference_element_type(self.package, item.clone())
+                ),
                 (Some(ValueType::Reference(item)), false) if scoped_lifetime == Some("'view") => {
-                    format!("&'view {}", rust_element_type(self.package, item.clone()))
+                    format!(
+                        "&'view {}",
+                        rust_reference_element_type(self.package, item.clone())
+                    )
                 }
                 _ => binding_type.map_or_else(
                     || "i128".to_owned(),
@@ -558,8 +565,15 @@ impl Emitter<'_> {
                 || "()".to_owned(),
                 |value_type| match value_type {
                     ValueType::Reference(item) if reference_lender.is_some() => {
-                        format!("&'a {}", rust_element_type(self.package, item))
+                        format!("&'a {}", rust_reference_element_type(self.package, item))
                     }
+                    ValueType::MutableReference(item) if reference_lender.is_some() => {
+                        format!(
+                            "&'a mut {}",
+                            rust_reference_element_type(self.package, item)
+                        )
+                    }
+                    ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
                     value_type => rust_value_type(self.package, value_type),
                 },
             );
@@ -569,8 +583,15 @@ impl Emitter<'_> {
         {
             let return_type = match return_type {
                 ValueType::Reference(item) if reference_lender.is_some() => {
-                    format!("&'a {}", rust_element_type(self.package, item))
+                    format!("&'a {}", rust_reference_element_type(self.package, item))
                 }
+                ValueType::MutableReference(item) if reference_lender.is_some() => {
+                    format!(
+                        "&'a mut {}",
+                        rust_reference_element_type(self.package, item)
+                    )
+                }
+                ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
                 return_type => rust_value_type(self.package, return_type),
             };
             write!(self.output, " -> {return_type}").unwrap();
@@ -788,28 +809,6 @@ impl Emitter<'_> {
         }
     }
 
-    pub(in crate::lowering::emitter) fn mutable_native_reference_parameter(
-        &self,
-        contract: &FunctionContract,
-        index: usize,
-        binding_type: Option<&ValueType>,
-    ) -> bool {
-        (contract.parameters[index].mutable
-            && matches!(
-                binding_type,
-                Some(ValueType::Reference(item))
-                    if item.value_type_ref().is_mutable_native_reference_target()
-            ))
-            || self
-                .registry
-                .mutable_native_callback_parameters
-                .borrow()
-                .contains(&(
-                    (contract.span.file, contract.span.start, contract.span.end),
-                    index,
-                ))
-    }
-
     #[expect(
         clippy::too_many_lines,
         reason = "closure ownership, contracts, captures, and body lowering form one emission path"
@@ -824,11 +823,10 @@ impl Emitter<'_> {
         let parameter_layout = contract
             .parameters
             .iter()
-            .enumerate()
-            .map(|(index, parameter)| {
+            .map(|parameter| {
                 let binding_type = parameter.binding_value_type();
                 let native_mutable_reference =
-                    self.mutable_native_reference_parameter(contract, index, binding_type.as_ref());
+                    matches!(binding_type, Some(ValueType::MutableReference(_)));
                 let mutable_storage = parameter.mutable
                     && !self.parameter_needs_shared_storage(parameter)
                     && (!matches!(binding_type, Some(ValueType::SharedReference(_)))
@@ -840,8 +838,8 @@ impl Emitter<'_> {
                             false,
                         ));
                 let ty = match binding_type {
-                    Some(ValueType::Reference(item)) if native_mutable_reference => {
-                        format!("&mut {}", rust_element_type(self.package, item))
+                    Some(ValueType::MutableReference(item)) if native_mutable_reference => {
+                        format!("&mut {}", rust_reference_element_type(self.package, item))
                     }
                     Some(value_type) => rust_value_type(self.package, value_type),
                     None => "i128".to_owned(),
@@ -990,15 +988,45 @@ impl Emitter<'_> {
             } else {
                 ""
             };
-        let constructor = match contract.written_invocation_mode {
-            InvocationMode::Shared => "std::sync::Arc::new",
-            InvocationMode::Mutable => {
-                self.registry.uses_mutable_callable.set(true);
-                "TerraneMutableCallable::new"
+        let borrowed_environment = contract.captures.iter().any(|capture| {
+            self.unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|binding| {
+                    binding.name == *capture
+                        && binding.is_visible_at(self.source.id(), node.span.start)
+                })
+                .is_some_and(|binding| {
+                    matches!(
+                        binding.value_type,
+                        ValueType::Reference(_) | ValueType::MutableReference(_)
+                    )
+                })
+        });
+        let constructor = if borrowed_environment {
+            match contract.written_invocation_mode {
+                InvocationMode::Shared => "std::boxed::Box::new",
+                InvocationMode::Mutable => {
+                    self.registry.uses_borrowed_mutable_callable.set(true);
+                    "TerraneBorrowedMutableCallable::new"
+                }
+                InvocationMode::Consuming => {
+                    self.registry.uses_borrowed_consuming_callable.set(true);
+                    "TerraneBorrowedConsumingCallable::new"
+                }
             }
-            InvocationMode::Consuming => {
-                self.registry.uses_consuming_callable.set(true);
-                "TerraneConsumingCallable::new"
+        } else {
+            match contract.written_invocation_mode {
+                InvocationMode::Shared => "std::sync::Arc::new",
+                InvocationMode::Mutable => {
+                    self.registry.uses_mutable_callable.set(true);
+                    "TerraneMutableCallable::new"
+                }
+                InvocationMode::Consuming => {
+                    self.registry.uses_consuming_callable.set(true);
+                    "TerraneConsumingCallable::new"
+                }
             }
         };
         let closure_parameters = if contract.written_invocation_mode == InvocationMode::Shared {
@@ -1007,8 +1035,15 @@ impl Emitter<'_> {
             stateful_parameters
         };
         if contract.is_async {
+            let lifetime = if borrowed_environment { " + '_" } else { "" };
+            let send =
+                if contract.task_transferability == crate::semantics::TaskTransferability::Local {
+                    ""
+                } else {
+                    " + Send"
+                };
             format!(
-                "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{invocation_guard}{body}{}}}) }}) }}",
+                "{{ {captures}{constructor}(move |{closure_parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}>{send}{lifetime}>> {{ {invocation_captures}Box::pin(async move {{\n{invocation_guard}{body}{}}}) }}) }}",
                 "    ".repeat(outer_indent)
             )
         } else {
@@ -1036,14 +1071,15 @@ impl Emitter<'_> {
             );
             let mutable = if contract.written_invocation_mode != InvocationMode::Shared
                 && binding.is_some_and(|binding| {
-                    crate::semantics::binding_span_is_mutated_in(
-                        self.package,
-                        self.unit,
-                        node,
-                        binding.span,
-                        true,
-                        crate::semantics::ClosureWrites::Include,
-                    )
+                    !matches!(binding.value_type, ValueType::MutableReference(_))
+                        && crate::semantics::binding_span_is_mutated_in(
+                            self.package,
+                            self.unit,
+                            node,
+                            binding.span,
+                            true,
+                            crate::semantics::ClosureWrites::Include,
+                        )
                 }) {
                 "mut "
             } else {
@@ -1053,14 +1089,16 @@ impl Emitter<'_> {
             let transfer =
                 binding.is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
             let borrowed = binding.is_some_and(|binding| {
-                matches!(binding.value_type, ValueType::Reference(_))
-                    && self
-                        .unit
-                        .reference_provenance
-                        .get(&(binding.span.start, binding.span.end))
-                        .is_some_and(|provenance| {
-                            !self.reference_owner_uses_shared_storage(provenance.owner)
-                        })
+                matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::MutableReference(_)
+                ) && self
+                    .unit
+                    .reference_provenance
+                    .get(&(binding.span.start, binding.span.end))
+                    .is_some_and(|provenance| {
+                        !self.reference_owner_uses_shared_storage(provenance.owner)
+                    })
             });
             if contract.is_async && contract.written_invocation_mode == InvocationMode::Mutable {
                 self.registry.uses_async_mutable_state.set(true);
@@ -1080,7 +1118,25 @@ impl Emitter<'_> {
                 write!(captures, "let {mutable}{name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
-            if borrowed {
+            if borrowed
+                && matches!(
+                    binding.map(|binding| &binding.value_type),
+                    Some(ValueType::MutableReference(_))
+                )
+                && contract.written_invocation_mode == InvocationMode::Mutable
+            {
+                write!(invocation_captures, "let mut {name} = &mut *{name}; ")
+                    .expect("writing to a String cannot fail");
+            } else if borrowed
+                && matches!(
+                    binding.map(|binding| &binding.value_type),
+                    Some(ValueType::MutableReference(_))
+                )
+                && contract.written_invocation_mode == InvocationMode::Shared
+            {
+                write!(invocation_captures, "let {name} = &*{name}; ")
+                    .expect("writing to a String cannot fail");
+            } else if borrowed {
                 write!(invocation_captures, "let {mutable}{name} = {name}; ")
                     .expect("writing to a String cannot fail");
             } else {

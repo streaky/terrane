@@ -18,14 +18,24 @@ pub(super) fn populate_native_capabilities(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     let mut native_types = BTreeMap::<String, (usize, Span)>::new();
+    let mut scoped_native_types = BTreeSet::new();
     for (unit_index, unit) in package.units.iter().enumerate() {
         visit_unit_types(unit, &mut |value_type, span| {
+            if let ValueType::InvocationScopedNative {
+                rust_type,
+                concrete: true,
+                ..
+            } = value_type
+            {
+                scoped_native_types.insert(rust_type.clone());
+            }
             collect_native_types(value_type, span, unit_index, &mut native_types);
         });
     }
     native_types.retain(|rust_type, _| {
         !package.native_capabilities.contains_key(rust_type)
-            && !is_borrowed_native_type(&package.projection, rust_type)
+            && (scoped_native_types.contains(rust_type)
+                || !is_borrowed_native_type(&package.projection, rust_type))
     });
     prove_native_capabilities(package, &native_types)?;
     // Nominal facts still apply when there are no fresh concrete proofs to request.
@@ -118,6 +128,68 @@ fn visit_unit_types<'a>(
     }
 }
 
+fn quantified_native_type(rust_type: &str) -> (String, Vec<String>) {
+    let bytes = rust_type.as_bytes();
+    let mut replacements = BTreeMap::<String, String>::new();
+    let mut offset = 0;
+    while offset < bytes.len() {
+        if bytes[offset] != b'\'' || offset + 1 == bytes.len() {
+            let character = rust_type[offset..]
+                .chars()
+                .next()
+                .expect("offset remains within native type");
+            offset += character.len_utf8();
+            continue;
+        }
+        let first = bytes[offset + 1];
+        if first != b'_' && !first.is_ascii_alphabetic() {
+            offset += 1;
+            continue;
+        }
+        let mut end = offset + 2;
+        while end < bytes.len() && (bytes[end] == b'_' || bytes[end].is_ascii_alphanumeric()) {
+            end += 1;
+        }
+        let lifetime = &rust_type[offset..end];
+        if lifetime != "'static" {
+            let index = replacements.len();
+            replacements
+                .entry(lifetime.to_owned())
+                .or_insert_with(|| format!("'__terrane_scoped_{index}"));
+        }
+        offset = end;
+    }
+    if replacements.is_empty() {
+        return (rust_type.to_owned(), Vec::new());
+    }
+    let mut quantified = String::with_capacity(rust_type.len());
+    offset = 0;
+    while offset < bytes.len() {
+        if bytes[offset] == b'\'' {
+            let end = (offset + 1..bytes.len())
+                .find(|&index| !(bytes[index] == b'_' || bytes[index].is_ascii_alphanumeric()))
+                .unwrap_or(bytes.len());
+            if end > offset + 1 {
+                let lifetime = &rust_type[offset..end];
+                if let Some(replacement) = replacements.get(lifetime) {
+                    quantified.push_str(replacement);
+                } else {
+                    quantified.push_str(lifetime);
+                }
+                offset = end;
+                continue;
+            }
+        }
+        let character = rust_type[offset..]
+            .chars()
+            .next()
+            .expect("offset remains within native type");
+        quantified.push(character);
+        offset += character.len_utf8();
+    }
+    (quantified, replacements.into_values().collect::<Vec<_>>())
+}
+
 fn prove_native_capabilities(
     package: &mut SemanticPackage,
     native_types: &BTreeMap<String, (usize, Span)>,
@@ -125,22 +197,26 @@ fn prove_native_capabilities(
     if native_types.is_empty() {
         return Ok(());
     }
-    let mut questions = BTreeSet::new();
+    let mut questions = BTreeMap::<BoundQuestion, BTreeSet<String>>::new();
     for rust_type in native_types.keys() {
+        let (proof_type, lifetime_parameters) = quantified_native_type(rust_type);
         for rust_bound in [
             "core::clone::Clone",
             "core::marker::Send",
             "core::marker::Sync",
         ] {
-            questions.insert(BoundQuestion {
-                rust_type: rust_type.clone(),
-                rust_bound: rust_bound.to_owned(),
-                inferred_parameters: Vec::new(),
-            });
+            questions
+                .entry(BoundQuestion {
+                    rust_type: proof_type.clone(),
+                    rust_bound: rust_bound.to_owned(),
+                    inferred_parameters: lifetime_parameters.clone(),
+                })
+                .or_default()
+                .insert(rust_type.clone());
         }
     }
     let projected_names = questions
-        .iter()
+        .keys()
         .flat_map(|question| [&question.rust_type, &question.rust_bound])
         .flat_map(|rust| {
             rust.split(|character: char| !character.is_alphanumeric() && character != '_')
@@ -153,18 +229,20 @@ fn prove_native_capabilities(
                 .map(|item| (name.to_owned(), item.rust_path.clone()))
         })
         .collect::<BTreeMap<_, _>>();
-    let mut qualified_types = BTreeMap::new();
+    let mut question_types = BTreeMap::<BoundQuestion, BTreeSet<String>>::new();
     let questions = questions
         .into_iter()
-        .map(|mut question| {
-            let original = question.rust_type.clone();
+        .map(|(mut question, original_types)| {
             question.rust_type =
                 super::objects::qualify_projected_rust_names(&question.rust_type, &projected_names);
-            qualified_types.insert(question.rust_type.clone(), original);
             question.rust_bound = super::objects::qualify_projected_rust_names(
                 &question.rust_bound,
                 &projected_names,
             );
+            question_types
+                .entry(question.clone())
+                .or_default()
+                .extend(original_types);
             question
         })
         .collect::<Vec<_>>();
@@ -191,19 +269,21 @@ fn prove_native_capabilities(
         )
     })?;
     for evidence in report.evidence {
-        let Some(rust_type) = qualified_types.get(&evidence.question.rust_type) else {
+        let Some(rust_types) = question_types.get(&evidence.question) else {
             continue;
         };
-        let capability = package
-            .native_capabilities
-            .entry(rust_type.clone())
-            .or_default();
         let satisfied = evidence.answer == ProbeAnswer::Yes;
-        match evidence.question.rust_bound.as_str() {
-            "core::clone::Clone" => capability.cloneable = satisfied,
-            "core::marker::Send" => capability.send = satisfied,
-            "core::marker::Sync" => capability.sync = satisfied,
-            _ => {}
+        for rust_type in rust_types {
+            let capability = package
+                .native_capabilities
+                .entry(rust_type.clone())
+                .or_default();
+            match evidence.question.rust_bound.as_str() {
+                "core::clone::Clone" => capability.cloneable = satisfied,
+                "core::marker::Send" => capability.send = satisfied,
+                "core::marker::Sync" => capability.sync = satisfied,
+                _ => {}
+            }
         }
     }
     Ok(())
@@ -215,15 +295,24 @@ fn collect_native_types(
     unit_index: usize,
     types: &mut BTreeMap<String, (usize, Span)>,
 ) {
-    walk_value_type(value_type, &mut |value_type| {
-        if let ValueType::Object(identity) = value_type
-            && let Some(native) = &identity.native_projection
-            && identity.application.as_deref().is_none_or(is_closed)
-            && identity.type_arguments.iter().all(is_closed)
-            && identity.native_arguments.values().all(is_closed)
+    walk_value_type(value_type, &mut |value_type| match value_type {
+        ValueType::Object(identity)
+            if identity.application.as_deref().is_none_or(is_closed)
+                && identity.type_arguments.iter().all(is_closed)
+                && identity.native_arguments.values().all(is_closed) =>
         {
-            types.entry(native.clone()).or_insert((unit_index, span));
+            if let Some(native) = &identity.native_projection {
+                types.entry(native.clone()).or_insert((unit_index, span));
+            }
         }
+        ValueType::InvocationScopedNative {
+            rust_type,
+            concrete: true,
+            ..
+        } => {
+            types.entry(rust_type.clone()).or_insert((unit_index, span));
+        }
+        _ => {}
     });
 }
 
@@ -268,6 +357,7 @@ fn walk_value_type<'a>(value_type: &'a ValueType, visit: &mut impl FnMut(&'a Val
         | ValueType::TaskOutcome(inner)
         | ValueType::TaskGroup(inner)
         | ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
         | ValueType::SharedReference(inner) => walk_value_type(inner.value_type_ref(), visit),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)

@@ -8,3 +8,7 @@ async function main;
   rendered string = ((line; prefix).number; answer).finish;
   print; answer
   print; rendered
+  builder = line; prefix
+  builder = builder.number; answer + 1
+  resumed = await builder.pause;
+  print; (resumed.finish;)

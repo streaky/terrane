@@ -6,7 +6,7 @@ function apply-header bool; action function from ref HeaderValue to bool, header
     return action; header
 
 function main;
-    update = function bool; header ref HeaderValue
+    update = function bool; header mutable ref HeaderValue
         header.set_sensitive; true
         return true
     value = HeaderValue::from_str; 'value'

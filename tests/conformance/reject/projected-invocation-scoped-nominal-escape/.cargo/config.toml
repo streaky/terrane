@@ -1,2 +1,0 @@
-[patch.crates-io]
-terrane-invocation-scoped-witness = { path = "fixture-registry/terrane-invocation-scoped-witness-0.1.0" }

@@ -8,6 +8,18 @@ pub struct LexOutput {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// Only a completed, explicitly grouped `with` initializer may precede a
+/// parenthesized statement region. Ordinary parentheses retain expression layout.
+#[derive(Default)]
+enum WithLayout {
+    #[default]
+    None,
+    Modifiers,
+    Initializer,
+    Grouped(usize),
+    Complete,
+}
+
 /// Tokenizes one UTF-8 Terrane source file.
 ///
 /// # Errors
@@ -42,6 +54,8 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut indent_style = None;
     let mut indent_stack = vec![0];
     let mut parenthesis_depth = 0usize;
+    let mut with_layout = WithLayout::default();
+    let mut parenthesis_kinds = Vec::new();
     for raw in text.split_inclusive('\n') {
         let line = raw.trim_end_matches(['\n', '\r']);
         logical_lines.push((offset, line.to_owned()));
@@ -164,11 +178,40 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 &mut diagnostics,
                 &mut block_comment_start,
             );
-            for token in &tokens[token_count..] {
+            for (index, token) in tokens[token_count..].iter().enumerate() {
+                if index == 0 && parenthesis_depth == 0 && token.text == "with" {
+                    with_layout = WithLayout::Modifiers;
+                }
                 match token.kind {
-                    TokenKind::OpenParen => parenthesis_depth += 1,
+                    TokenKind::Assign if parenthesis_depth == 0 => {
+                        if matches!(with_layout, WithLayout::Modifiers) {
+                            with_layout = WithLayout::Initializer;
+                        }
+                    }
+                    TokenKind::OpenParen => {
+                        let region =
+                            parenthesis_depth == 0 && matches!(with_layout, WithLayout::Complete);
+                        parenthesis_kinds.push(region);
+                        if region {
+                            with_layout = WithLayout::None;
+                        } else {
+                            parenthesis_depth += 1;
+                            if matches!(with_layout, WithLayout::Initializer) {
+                                with_layout = WithLayout::Grouped(parenthesis_depth);
+                            }
+                        }
+                    }
                     TokenKind::CloseParen => {
-                        parenthesis_depth = parenthesis_depth.saturating_sub(1);
+                        if !parenthesis_kinds.pop().unwrap_or(false) {
+                            if matches!(with_layout, WithLayout::Grouped(depth) if depth == parenthesis_depth)
+                            {
+                                with_layout = WithLayout::Complete;
+                            }
+                            parenthesis_depth = parenthesis_depth.saturating_sub(1);
+                        }
+                    }
+                    _ if matches!(with_layout, WithLayout::Initializer | WithLayout::Complete) => {
+                        with_layout = WithLayout::None;
                     }
                     _ => {}
                 }
@@ -196,6 +239,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     Attachment::Detached,
                 );
             }
+            with_layout = WithLayout::None;
         }
         offset += raw.len();
     }

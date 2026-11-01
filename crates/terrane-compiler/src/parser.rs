@@ -8,6 +8,9 @@ mod documentation;
 #[path = "parser/control_flow.rs"]
 mod control_flow;
 
+#[path = "parser/modifiers.rs"]
+mod modifiers;
+
 /// The recovered syntax tree and any source-oriented syntax diagnostics.
 #[derive(Clone, Debug)]
 pub struct ParseOutput {
@@ -152,6 +155,7 @@ impl Parser<'_> {
 
     fn parse_unannotated_statement(&mut self) -> SyntaxNode {
         match self.text() {
+            "with" => self.parse_with(),
             "namespace" => self.parse_namespace(),
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
@@ -1317,22 +1321,26 @@ impl Parser<'_> {
         }
         if matches!(self.text(), "not" | "ref" | "move" | "await")
             || (self.text() == "shared" && self.peek_text(1) == Some("ref"))
+            || (self.text() == "mutable" && self.peek_text(1) == Some("ref"))
             || (self.at(TokenKind::Operator) && matches!(self.text(), "-" | "~"))
         {
             let start = self.position;
-            let operator_text = if self.text() == "shared" {
-                "shared ref".to_owned()
+            let operator_text = if self.text() == "shared" || self.text() == "mutable" {
+                format!("{} ref", self.text())
             } else {
                 self.text().to_owned()
             };
-            if self.text() == "shared" {
+            if matches!(self.text(), "shared" | "mutable") {
                 self.bump();
             }
             self.bump();
             let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
             let operand = if operator_text == "await" {
                 self.parse_prefix(true)
-            } else if matches!(operator_text.as_str(), "ref" | "move" | "shared ref") {
+            } else if matches!(
+                operator_text.as_str(),
+                "ref" | "mutable ref" | "move" | "shared ref"
+            ) {
                 self.parse_postfix(false)
             } else {
                 self.parse_prefix(allow_call)
@@ -1677,6 +1685,12 @@ impl Parser<'_> {
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
         }
         if self.at_text("shared") && self.peek_text(1) == Some("ref") {
+            self.bump();
+            self.bump();
+            let inner = self.parse_prefix_type();
+            return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
+        }
+        if self.at_text("mutable") && self.peek_text(1) == Some("ref") {
             self.bump();
             self.bump();
             let inner = self.parse_prefix_type();

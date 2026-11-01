@@ -14,6 +14,7 @@ pub(super) fn project_macro(name: &str) -> ProjectedFunction {
             name: "arguments".to_owned(),
             ty: ProjectedType::Generic("__MacroArgument".to_owned()),
             borrowed: false,
+            borrow_lifetime: None,
             mutable_borrow: false,
             borrowed_str: false,
             generic_parameter: None,
@@ -40,6 +41,7 @@ pub(super) fn project_macro(name: &str) -> ProjectedFunction {
         enum_operation: None,
         error_optional_depth: 0,
         chain_role: None,
+        receiver_lifetime: None,
         receiver: None,
     }
 }

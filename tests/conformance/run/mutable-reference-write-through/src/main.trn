@@ -1,0 +1,58 @@
+namespace app
+from /core/collections import list
+
+class point
+  value int = 0
+  other int = 0
+
+class payload
+  value int = 0
+  consuming function destruct;
+    print; 'destroyed ' + this.value
+
+function reset int; value mutable ref int
+  value = 8
+  return value
+
+function forward; value mutable ref int
+  reset; value
+function replace; target mutable ref point, replacement point
+  target = replacement
+function replace-payload; target mutable ref payload, replacement payload
+  target = move replacement
+function main;
+  scalar = 2
+  reset; scalar
+  borrowed = mutable ref scalar
+  reset; borrowed
+  print; borrowed
+  callback = consuming function;
+    borrowed = 9
+  callback;
+  print; scalar
+  forward; scalar
+  print; scalar
+  owner = instance point;
+  owner.value = 4
+  reset; owner.value
+  print; owner.value
+  field_alias = mutable ref owner.value
+  owner.other = 5
+  field_alias = 6
+  print; owner.value
+  print; owner.other
+  values list of int = list; 2, 4
+  reset; values[0]
+  print; values[0]
+  replacement = instance point;
+  replace; owner, replacement
+  owner_alias = mutable ref owner
+  replace; owner_alias, replacement
+  replacement.value = 12
+  print; owner.value
+  old_payload = instance payload;
+  old_payload.value = 6
+  new_payload = instance payload;
+  new_payload.value = 12
+  replace-payload; old_payload, move new_payload
+  print; old_payload.value

@@ -131,6 +131,7 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
         | ValueType::TaskOutcome(inner)
         | ValueType::TaskGroup(inner)
         | ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
         | ValueType::SharedReference(inner) => {
             value_type_contains_throwable(inner.value_type_ref())
         }

@@ -483,7 +483,11 @@ pub(crate) fn member_invocation_mode(
     receiver_type: &ValueType,
     member_name: &str,
 ) -> InvocationMode {
-    if let ValueType::Object(identity) = receiver_type {
+    if let ValueType::Object(identity)
+    | ValueType::InvocationScopedNative {
+        family: identity, ..
+    } = receiver_type
+    {
         if let Some(
             ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
         ) = object_field_type(unit, identity, member_name, false)
@@ -606,8 +610,35 @@ fn source_call_mutates_binding(
     let [callee, arguments] = call.children.as_slice() else {
         return false;
     };
+    let names_binding = |argument: &SyntaxNode| {
+        root_name(argument).is_some_and(|root| {
+            package
+                .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+        })
+    };
     let Some(contract) = super::bindings::callback_contract(package, unit, callee) else {
-        return false;
+        let Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        ) = unit.inferred_value_type(callee)
+        else {
+            return false;
+        };
+        return arguments
+            .children
+            .iter()
+            .enumerate()
+            .any(|(index, argument)| {
+                parameters
+                    .get(index)
+                    .or_else(|| {
+                        parameters
+                            .last()
+                            .filter(|parameter| parameter.is_variadic())
+                    })
+                    .is_some_and(|parameter| parameter.requires_mutable_reference())
+                    && names_binding(argument)
+            });
     };
     let declaration = contract.span;
     let contract = package
@@ -638,16 +669,11 @@ fn source_call_mutates_binding(
             },
         );
         contract.parameters.get(index).is_some_and(|parameter| {
-            parameter.mutable
-                && matches!(
-                    parameter.binding_value_type(),
-                    Some(ValueType::Reference(_))
-                )
-        }) && root_name(argument).is_some_and(|root| {
-            package
-                .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
-                .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
-        })
+            matches!(
+                parameter.binding_value_type(),
+                Some(ValueType::MutableReference(_))
+            )
+        }) && names_binding(argument)
     })
 }
 
@@ -666,6 +692,10 @@ fn object_mutation_root<'a>(unit: &SemanticUnit, node: &'a SyntaxNode) -> Option
                 .first()
                 .and_then(|receiver| object_mutation_root(unit, receiver))
         }
+        SyntaxKind::IndexExpression => node
+            .children
+            .first()
+            .and_then(|child| object_mutation_root(unit, child)),
         SyntaxKind::GroupExpression => node
             .children
             .first()
@@ -811,6 +841,17 @@ fn binding_mutation_count(
         && projected_call_mutates_binding(package, unit, node, declaration_span);
     let source_argument_write = node.kind == SyntaxKind::CallExpression
         && source_call_mutates_binding(package, unit, node, declaration_span);
+    let exclusive_address = node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("mutable ref")
+        && node.children.last().is_some_and(resolves_to_binding);
+    let borrowed_callable_call = node.kind == SyntaxKind::CallExpression
+        && node.children.first().is_some_and(|callee| {
+            matches!(
+                unit.inferred_value_type(callee),
+                Some(ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects))
+                    if effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
+            ) && resolves_to_binding(callee)
+        });
     let resource_field_move = node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("move")
         && node.children.last().is_some_and(|target| {
@@ -852,6 +893,8 @@ fn binding_mutation_count(
             || iterator_advance
             || projected_argument_write
             || source_argument_write
+            || exclusive_address
+            || borrowed_callable_call
             || resource_field_move,
     );
     let mut child_counts = node.children.iter().map(|child| {
@@ -987,7 +1030,9 @@ pub(super) fn unary_operator_text(unit: &SemanticUnit, node: &SyntaxNode) -> Opt
 
 pub(super) fn transparent_value_type(value_type: Option<ValueType>) -> Option<ValueType> {
     value_type.map(|value_type| match value_type {
-        ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+        ValueType::Reference(item)
+        | ValueType::MutableReference(item)
+        | ValueType::SharedReference(item) => item.value_type(),
         value_type => value_type,
     })
 }

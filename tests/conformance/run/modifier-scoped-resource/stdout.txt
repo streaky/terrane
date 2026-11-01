@@ -1,0 +1,38 @@
+acquire outer
+acquire inner
+inside inner
+drop inner
+after inner outer
+drop outer
+owned result outer
+acquire borrow-parent
+view borrow-parent
+parent borrow-parent
+drop borrow-parent
+acquire return-outer
+acquire return-inner
+drop return-inner
+drop return-outer
+return-inner
+acquire failure-outer
+acquire failure-inner
+drop failure-outer
+caught outside
+acquire catch-outer
+acquire catch-inner
+caught inside catch-outer
+still held catch-outer
+drop catch-outer
+acquire loop
+iteration 1 loop
+drop loop
+acquire loop
+iteration 2 loop
+drop loop
+after loop
+acquire cancel-outer
+acquire cancel-inner
+holding cancel-outer cancel-inner
+drop cancel-inner
+drop cancel-outer
+cancelled true

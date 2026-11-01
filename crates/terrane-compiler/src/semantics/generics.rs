@@ -254,10 +254,12 @@ pub(super) fn select_unit_callable_contract_result(
                 }
             }
             let expected = match expected {
-                ValueType::Reference(inner)
+                ValueType::Reference(inner) | ValueType::MutableReference(inner)
                     if !matches!(
                         actual,
-                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                        ValueType::Reference(_)
+                            | ValueType::MutableReference(_)
+                            | ValueType::SharedReference(_)
                     ) =>
                 {
                     inner.value_type()
@@ -685,8 +687,8 @@ fn bind_generic_type_inner(
         | (ValueType::Set(l), ValueType::Set(r))
         | (ValueType::UnorderedSet(l), ValueType::UnorderedSet(r))
         | (ValueType::Reference(l), ValueType::Reference(r))
+        | (ValueType::MutableReference(l), ValueType::MutableReference(r))
         | (ValueType::SharedReference(l), ValueType::SharedReference(r))
-        | (ValueType::Iterator(l), ValueType::Iterator(r))
         | (ValueType::IterationStep(l), ValueType::IterationStep(r))
         | (ValueType::AsyncIterationStep(l), ValueType::AsyncIterationStep(r))
         | (ValueType::ChannelPair(l), ValueType::ChannelPair(r))
@@ -815,6 +817,9 @@ pub(crate) fn substitute_value_type(
         }
         ValueType::Tuple(item, count) => ValueType::Tuple(element(item, substitutions), *count),
         ValueType::Reference(item) => ValueType::Reference(element(item, substitutions)),
+        ValueType::MutableReference(item) => {
+            ValueType::MutableReference(element(item, substitutions))
+        }
         ValueType::SharedReference(item) => {
             ValueType::SharedReference(element(item, substitutions))
         }

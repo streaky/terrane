@@ -23,7 +23,10 @@ pub(super) use async_tasks::{
     value_type_is_owned_static, value_type_satisfies_auto_trait,
 };
 pub(crate) use callbacks::{callback_contract, projected_macro_for_call};
-pub(super) use callbacks::{projected_function_for_call, validate_projected_callback_arguments};
+pub(super) use callbacks::{
+    projected_argument_for_parameter, projected_function_for_call,
+    validate_projected_callback_arguments,
+};
 
 pub(super) fn validate_constant_reassignment(
     package: &SemanticPackage,
@@ -589,6 +592,12 @@ pub(super) fn binding_event_child_region(
             arm: Some(index),
         });
     }
+    if node.kind == SyntaxKind::WithRegion {
+        return Some(ControlRegion {
+            statement: node.span,
+            arm: None,
+        });
+    }
     if child.kind != SyntaxKind::Block {
         return None;
     }
@@ -770,9 +779,13 @@ pub(super) fn collect_binding_events(
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
     ) && !declares_binding
     {
-        node.children
-            .first()
-            .filter(|target| target.kind == SyntaxKind::Name)
+        node.children.first().filter(|target| {
+            target.kind == SyntaxKind::Name
+                && !matches!(
+                    unit.inferred_value_type(target),
+                    Some(ValueType::MutableReference(_))
+                )
+        })
     } else {
         None
     };
@@ -877,18 +890,24 @@ pub(crate) fn binding_requires_mutable_storage(
 ) -> bool {
     if unit.typed_bindings.iter().any(|binding| {
         binding.span == declaration_span
-            && matches!(binding.value_type, ValueType::SharedReference(_))
+            && matches!(
+                binding.value_type,
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
     }) {
         return binding_storage_is_replaced(package, unit, declaration_span, closure_writes, false);
     }
     if unit.typed_bindings.iter().any(|binding| {
-        binding.mutable
-            && matches!(&binding.value_type, ValueType::Reference(inner)
-                if inner.value_type_ref().is_mutable_native_reference_target())
+        matches!(binding.value_type, ValueType::MutableReference(_))
             && unit
                 .reference_provenance
                 .get(&(binding.span.start, binding.span.end))
-                .is_some_and(|loan| loan.owner == declaration_span)
+                .is_some_and(|loan| {
+                    loan.owner == declaration_span
+                        && loan.authority == super::model::ReferenceAuthority::Exclusive
+                })
     }) {
         return true;
     }
@@ -905,7 +924,9 @@ pub(crate) fn binding_requires_mutable_storage(
             == declaration_span
             && !matches!(
                 binding.value_type,
-                ValueType::Reference(_) | ValueType::SharedReference(_)
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
             )
             && binding_span_has_interior_mutation(package, unit, binding.span, closure_writes)
     }) {

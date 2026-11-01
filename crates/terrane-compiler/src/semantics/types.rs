@@ -345,6 +345,9 @@ pub(super) fn analyze_binding_node(
             } else {
                 declared_type
             };
+            let value_type = inferred.as_ref().map_or(value_type.clone(), |actual| {
+                merge_callable_destination_effects(value_type, actual)
+            });
             if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
                 validate_value_destination(
                     &unit.source,
@@ -362,9 +365,6 @@ pub(super) fn analyze_binding_node(
         } else {
             return Ok(());
         };
-    let value_type = inferred.as_ref().map_or(value_type.clone(), |actual| {
-        merge_callable_destination_effects(value_type, actual)
-    });
     let destination_arms = if matches!(value_type, ValueType::Optional(_)) {
         Vec::new()
     } else {
@@ -462,17 +462,15 @@ pub(super) fn declared_value_type_with_visible_objects(
             aliases,
             visible_objects,
         )?);
-        return Ok(
-            if node_text(&unit.source, shape)
-                .split_whitespace()
-                .take(2)
-                .eq(["shared", "ref"])
-            {
-                ValueType::SharedReference(inner)
-            } else {
-                ValueType::Reference(inner)
-            },
-        );
+        let reference_kind = node_text(&unit.source, shape)
+            .split_whitespace()
+            .take(2)
+            .collect::<Vec<_>>();
+        return Ok(match reference_kind.as_slice() {
+            ["shared", "ref"] => ValueType::SharedReference(inner),
+            ["mutable", "ref"] => ValueType::MutableReference(inner),
+            _ => ValueType::Reference(inner),
+        });
     }
     if shape.kind == SyntaxKind::FunctionType {
         let function = shape;
@@ -555,6 +553,7 @@ pub(super) fn declared_value_type_with_visible_objects(
             },
             upper_bound: upper_bound.clone().map(Box::new),
             escaping: BTreeSet::new(),
+            borrowed_environment: false,
         };
         if let Some(bound) = &upper_bound {
             let throwable = ValueType::Object(ObjectIdentity::new("/core/errors", "throwable"));
@@ -924,6 +923,11 @@ pub(super) fn parse_declared_value_type(
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Option<ValueType> {
     let type_name = type_name.trim();
+    if let Some(referent) = type_name.strip_prefix("mutable ref ") {
+        return Some(ValueType::MutableReference(ElementType::new(
+            parse_declared_value_type(referent, aliases)?,
+        )));
+    }
     if let Some(inner) = type_name
         .strip_prefix('(')
         .and_then(|type_name| type_name.strip_suffix(')'))
@@ -1236,6 +1240,7 @@ pub(super) fn diagnostic_value_type(
         ValueType::TaskOutcome(result) => format!("task-outcome of {}", nested(result)),
         ValueType::TaskGroup(result) => format!("task-group of {}", nested(result)),
         ValueType::Reference(item) => format!("ref {}", nested(item)),
+        ValueType::MutableReference(item) => format!("mutable ref {}", nested(item)),
         ValueType::SharedReference(item) => format!("shared ref {}", nested(item)),
         _ => value_type.to_string(),
     }
@@ -1249,6 +1254,7 @@ fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -
         ) => {
             effects.escaping.clone_from(&actual_effects.escaping);
             effects.modes.exact = actual_effects.modes.exact;
+            effects.borrowed_environment = actual_effects.borrowed_environment;
             ValueType::Function(parameters, result, effects)
         }
         (
@@ -1257,6 +1263,7 @@ fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -
         ) => {
             effects.escaping.clone_from(&actual_effects.escaping);
             effects.modes.exact = actual_effects.modes.exact;
+            effects.borrowed_environment = actual_effects.borrowed_environment;
             ValueType::AsyncFunction(parameters, result, transferability, effects)
         }
         (expected, _) => expected,
@@ -1273,6 +1280,11 @@ fn callable_effects_compatible(
     expected: &CallableEffects,
     actual: &CallableEffects,
 ) -> bool {
+    // An owning, copyable callable slot cannot retain a lexically borrowed,
+    // noncopyable environment. Local initializers retain their actual ABI above.
+    if actual.borrowed_environment && !expected.borrowed_environment {
+        return false;
+    }
     // Every inferred escaping identity is a throwable, even when an opaque native
     // error has not been imported as a value type into this unit.
     if matches!(
@@ -1330,7 +1342,9 @@ pub(super) fn validate_value_destination(
     }
     if let ValueType::Scalar(expected) = destination {
         let actual = match supplied {
-            ValueType::Reference(inner) | ValueType::SharedReference(inner)
+            ValueType::Reference(inner)
+            | ValueType::MutableReference(inner)
+            | ValueType::SharedReference(inner)
                 if inner.value_type_ref() == &ValueType::Scalar(*expected) =>
             {
                 inner.value_type()
@@ -1611,14 +1625,29 @@ pub(super) fn value_types_compatible(
             ValueType::InvocationScopedNative {
                 concrete: false, ..
             },
-        )
-        | (
-            ValueType::InvocationScopedNative { region: None, .. },
+        ) => true,
+        (
             ValueType::InvocationScopedNative {
-                region: Some(_), ..
+                rust_type: expected,
+                concrete: true,
+                ..
             },
-        )
-        | (ValueType::ProjectedGeneric(_), _)
+            ValueType::InvocationScopedNative {
+                rust_type: actual,
+                concrete: true,
+                ..
+            },
+        ) if expected == actual || {
+            let expected =
+                crate::rust_interop::projection::source_storage_rust_type(expected.clone());
+            let actual = crate::rust_interop::projection::source_storage_rust_type(actual.clone());
+            matches!((syn::parse_str::<syn::Type>(&expected), syn::parse_str::<syn::Type>(&actual)),
+                    (Ok(expected), Ok(actual)) if expected == actual)
+        } =>
+        {
+            true
+        }
+        (ValueType::ProjectedGeneric(_), _)
         | (_, ValueType::ProjectedGeneric(_))
         | (ValueType::IterationStep(_), ValueType::IterationEnd)
         | (ValueType::Object(_), ValueType::ProjectedAssociated) => true,

@@ -19,7 +19,7 @@ fn match_value_type(
     let operator = (scrutinee.kind == SyntaxKind::UnaryExpression)
         .then(|| unary_operator_text(unit, scrutinee))
         .flatten();
-    let explicit_borrow = operator.as_deref() == Some("ref");
+    let explicit_borrow = matches!(operator.as_deref(), Some("ref" | "mutable ref"));
     let consuming = operator.as_deref() == Some("move");
     let operand = if explicit_borrow || consuming {
         scrutinee.children.last()
@@ -35,11 +35,15 @@ fn match_value_type(
     let borrowed = explicit_borrow
         || matches!(
             &value_type,
-            ValueType::Reference(_) | ValueType::SharedReference(_)
+            ValueType::Reference(_)
+                | ValueType::MutableReference(_)
+                | ValueType::SharedReference(_)
         );
     let value_type = loop {
         match value_type {
-            ValueType::Reference(item) | ValueType::SharedReference(item) => {
+            ValueType::Reference(item)
+            | ValueType::MutableReference(item)
+            | ValueType::SharedReference(item) => {
                 value_type = item.value_type();
             }
             other => break other,
@@ -55,9 +59,9 @@ fn enum_identity(value_type: &ValueType) -> Option<(ObjectIdentity, bool)> {
             ValueType::Object(identity) => Some((identity.clone(), true)),
             _ => None,
         },
-        ValueType::Reference(inner) | ValueType::SharedReference(inner) => {
-            enum_identity(&inner.value_type())
-        }
+        ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner) => enum_identity(&inner.value_type()),
         _ => None,
     }
 }
@@ -334,8 +338,10 @@ fn validate_match(
                     (name_node.span.start, name_node.span.end),
                     ReferenceProvenance {
                         owner: borrowed_owner,
+                        authority: ReferenceAuthority::ReadOnly,
                         external_lender: false,
                         lender_parameter: None,
+                        parent_observer: None,
                         path: Vec::new(),
                         lifetime_end: function_scope,
                     },

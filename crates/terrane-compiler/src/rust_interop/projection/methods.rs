@@ -189,12 +189,631 @@ fn disambiguate_static_method_owner_generics(
     generics
 }
 
+/// Lifetime-bearing native results retain their source-derived lender graph so
+/// ordinary local bindings can use the lender until the enclosing function exits.
+fn project_method_function(
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+    name: Option<&str>,
+    generics: &BTreeMap<String, ProjectedType>,
+    allow_lifetime_output: bool,
+) -> Result<ProjectedFunction, String> {
+    match project_function_with_generics(
+        function,
+        index,
+        paths,
+        public_paths,
+        name,
+        generics,
+        allow_lifetime_output,
+    ) {
+        Ok(function) => Ok(function),
+        Err(reason) => {
+            let lifetime_bearing_output = function.sig.output.as_ref().is_some_and(|output| {
+                expand_output_alias(output.clone(), index, paths, generics.clone()).is_ok_and(
+                    |(effective_output, _)| {
+                        callable::type_contains_lifetime_argument(&effective_output)
+                    },
+                )
+            });
+            if allow_lifetime_output || !lifetime_bearing_output {
+                return Err(reason);
+            }
+            let scoped = project_function_with_generics(
+                function,
+                index,
+                paths,
+                public_paths,
+                name,
+                generics,
+                true,
+            )?;
+            if !matches!(scoped.result, ProjectedType::InvocationScoped { .. }) {
+                return Err(reason);
+            }
+            Ok(scoped)
+        }
+    }
+}
+
+fn scoped_self_matches_owner(scoped: &ProjectedType, owner: &ProjectedType) -> bool {
+    let ProjectedType::InvocationScoped { owned, .. } = scoped else {
+        return false;
+    };
+    matches!(
+        (owned.as_ref(), owner),
+        (
+            ProjectedType::Foreign {
+                rust_path: left_path,
+                arguments: left_arguments,
+                ..
+            },
+            ProjectedType::Foreign {
+                rust_path: right_path,
+                arguments: right_arguments,
+                ..
+            }
+        ) if left_path == right_path && left_arguments == right_arguments
+    )
+}
+
+fn implementation_lifetime_substitutions(
+    implementation: &Impl,
+    self_type: &Type,
+    scoped_self: Option<&ProjectedType>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> BTreeMap<String, String> {
+    let binders = implementation
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match &parameter.kind {
+            GenericParamDefKind::Lifetime { .. } => Some(normalize_lifetime_name(&parameter.name)),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let replacement = scoped_self
+        .filter(|ty| matches!(ty, ProjectedType::InvocationScoped { .. }))
+        .and_then(|scoped| {
+            let source = render_rust_type(self_type, index, paths, &BTreeMap::new()).ok()?;
+            let source_lifetimes = lifetime_occurrences(&source)?;
+            let target_lifetimes = lifetime_occurrences(&scoped.rust_type())?;
+            (source_lifetimes.len() == target_lifetimes.len()).then_some(
+                source_lifetimes
+                    .into_iter()
+                    .zip(target_lifetimes)
+                    .collect::<Vec<_>>(),
+            )
+        });
+    let mut substitutions = BTreeMap::new();
+    if let Some(replacements) = replacement {
+        for (source, target) in replacements {
+            if binders.contains(&source) {
+                if substitutions
+                    .get(&source)
+                    .is_some_and(|existing| existing != &target)
+                {
+                    return BTreeMap::new();
+                }
+                substitutions.insert(source, target);
+            }
+        }
+    }
+    // Rustdoc may spell `Self` with its nominal declaration's lifetimes
+    // even for `impl Owner<'_>`, whose impl has no named lifetime binders.
+    // Map those declaration slots to the same receiver view as the impl slots.
+    if let (Type::ResolvedPath(path), Some(scoped)) = (self_type, scoped_self)
+        && let Some(item) = index.get(&path.id)
+    {
+        let parameters = match &item.inner {
+            ItemEnum::Struct(declaration) => Some(&declaration.generics.params),
+            ItemEnum::Enum(declaration) => Some(&declaration.generics.params),
+            _ => None,
+        };
+        if let (Some(parameters), Some(targets)) =
+            (parameters, lifetime_occurrences(&scoped.rust_type()))
+        {
+            let declarations = parameters
+                .iter()
+                .filter_map(|parameter| match parameter.kind {
+                    GenericParamDefKind::Lifetime { .. } => {
+                        Some(normalize_lifetime_name(&parameter.name))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if declarations.len() == targets.len() {
+                for (declaration, target) in declarations.into_iter().zip(targets) {
+                    substitutions.entry(declaration).or_insert(target);
+                }
+            }
+        }
+    }
+    substitutions
+}
+
+fn normalize_lifetime_name(name: &str) -> String {
+    if name.starts_with('\'') {
+        name.to_owned()
+    } else {
+        format!("'{name}")
+    }
+}
+
+/// A higher-ranked binder scopes its entire node, not just its declaration.
+/// Keep collection and replacement on the same hygienic traversal.
+struct FreeLifetimeFold<F> {
+    action: F,
+    bound: Vec<BTreeSet<String>>,
+}
+
+impl<F> FreeLifetimeFold<F> {
+    fn enter(&mut self, binders: Option<&syn::BoundLifetimes>) -> bool {
+        let Some(binders) = binders else {
+            return false;
+        };
+        self.bound.push(
+            binders
+                .lifetimes
+                .iter()
+                .filter_map(|parameter| match parameter {
+                    syn::GenericParam::Lifetime(parameter) => Some(parameter.lifetime.to_string()),
+                    _ => None,
+                })
+                .collect(),
+        );
+        true
+    }
+
+    fn leave(&mut self, entered: bool) {
+        if entered {
+            self.bound.pop();
+        }
+    }
+}
+
+impl<F: FnMut(syn::Lifetime, String) -> syn::Lifetime> syn::fold::Fold for FreeLifetimeFold<F> {
+    fn fold_lifetime(&mut self, lifetime: syn::Lifetime) -> syn::Lifetime {
+        let name = lifetime.to_string();
+        if self.bound.iter().rev().any(|scope| scope.contains(&name)) {
+            lifetime
+        } else {
+            (self.action)(lifetime, name)
+        }
+    }
+
+    fn fold_trait_bound(&mut self, node: syn::TraitBound) -> syn::TraitBound {
+        let entered = self.enter(node.lifetimes.as_ref());
+        let node = syn::fold::fold_trait_bound(self, node);
+        self.leave(entered);
+        node
+    }
+
+    fn fold_type_bare_fn(&mut self, node: syn::TypeBareFn) -> syn::TypeBareFn {
+        let entered = self.enter(node.lifetimes.as_ref());
+        let node = syn::fold::fold_type_bare_fn(self, node);
+        self.leave(entered);
+        node
+    }
+
+    fn fold_predicate_type(&mut self, node: syn::PredicateType) -> syn::PredicateType {
+        let entered = self.enter(node.lifetimes.as_ref());
+        let node = syn::fold::fold_predicate_type(self, node);
+        self.leave(entered);
+        node
+    }
+
+    fn fold_expr_closure(&mut self, node: syn::ExprClosure) -> syn::ExprClosure {
+        let entered = self.enter(node.lifetimes.as_ref());
+        let node = syn::fold::fold_expr_closure(self, node);
+        self.leave(entered);
+        node
+    }
+}
+
+pub(crate) fn lifetime_occurrences(rust_type: &str) -> Option<Vec<String>> {
+    let ty = syn::parse_str::<syn::Type>(rust_type).ok()?;
+    let mut occurrences = Vec::new();
+    syn::fold::Fold::fold_type(
+        &mut FreeLifetimeFold {
+            action: |lifetime: syn::Lifetime, name| {
+                occurrences.push(name);
+                lifetime
+            },
+            bound: Vec::new(),
+        },
+        ty,
+    );
+    Some(occurrences)
+}
+
+pub(crate) fn bound_lifetime_occurrences(rust_bound: &str) -> Option<Vec<String>> {
+    let parameter = syn::parse_str::<syn::TypeParam>(&format!("__Native: {rust_bound}")).ok()?;
+    let mut occurrences = Vec::new();
+    syn::fold::Fold::fold_type_param(
+        &mut FreeLifetimeFold {
+            action: |lifetime: syn::Lifetime, name| {
+                occurrences.push(name);
+                lifetime
+            },
+            bound: Vec::new(),
+        },
+        parameter,
+    );
+    Some(occurrences)
+}
+
+/// Native binder names remain in semantic lender contracts, but source storage
+/// has no Rust lifetime declarations. Infer its free lifetimes at the use site;
+/// preserve static lifetimes and higher-ranked binders in nested native types.
+pub(crate) fn source_storage_rust_type(rust_type: String) -> String {
+    let ty = syn::parse_str::<syn::Type>(&rust_type)
+        .expect("concrete projected storage has a valid native Rust type");
+    let mut changed = false;
+    let ty = syn::fold::Fold::fold_type(
+        &mut FreeLifetimeFold {
+            action: |lifetime: syn::Lifetime, name: String| {
+                if matches!(name.as_str(), "'static" | "'_") {
+                    lifetime
+                } else {
+                    changed = true;
+                    syn::Lifetime::new("'_", lifetime.apostrophe)
+                }
+            },
+            bound: Vec::new(),
+        },
+        ty,
+    );
+    if changed {
+        quote::ToTokens::to_token_stream(&ty).to_string()
+    } else {
+        rust_type
+    }
+}
+
+fn substitute_rust_lifetimes(rust_type: &str, substitutions: &BTreeMap<String, String>) -> String {
+    if substitutions.is_empty() {
+        return rust_type.to_owned();
+    }
+    let mut substitution = FreeLifetimeFold {
+        action: |lifetime: syn::Lifetime, name| {
+            substitutions
+                .get(&name)
+                .and_then(|replacement| syn::parse_str(replacement).ok())
+                .unwrap_or(lifetime)
+        },
+        bound: Vec::new(),
+    };
+    use quote::ToTokens as _;
+    if let Ok(ty) = syn::parse_str::<syn::Type>(rust_type) {
+        syn::fold::Fold::fold_type(&mut substitution, ty)
+            .to_token_stream()
+            .to_string()
+    } else if let Ok(expression) = syn::parse_str::<syn::Expr>(rust_type) {
+        syn::fold::Fold::fold_expr(&mut substitution, expression)
+            .to_token_stream()
+            .to_string()
+    } else if let Ok(bound) = syn::parse_str::<syn::TypeParamBound>(rust_type) {
+        syn::fold::Fold::fold_type_param_bound(&mut substitution, bound)
+            .to_token_stream()
+            .to_string()
+    } else if let Ok(predicate) = syn::parse_str::<syn::WherePredicate>(rust_type) {
+        syn::fold::Fold::fold_where_predicate(&mut substitution, predicate)
+            .to_token_stream()
+            .to_string()
+    } else {
+        rust_type.to_owned()
+    }
+}
+
+fn bound_lifetimes(rust_type: &str) -> BTreeSet<String> {
+    struct Lifetimes(BTreeSet<String>);
+    impl syn::fold::Fold for Lifetimes {
+        fn fold_bound_lifetimes(&mut self, bound: syn::BoundLifetimes) -> syn::BoundLifetimes {
+            self.0.extend(
+                bound
+                    .lifetimes
+                    .iter()
+                    .filter_map(|parameter| match parameter {
+                        syn::GenericParam::Lifetime(parameter) => {
+                            Some(parameter.lifetime.to_string())
+                        }
+                        _ => None,
+                    }),
+            );
+            syn::fold::fold_bound_lifetimes(self, bound)
+        }
+    }
+    let Ok(ty) = syn::parse_str::<syn::Type>(rust_type) else {
+        return BTreeSet::new();
+    };
+    let mut lifetimes = Lifetimes(BTreeSet::new());
+    syn::fold::Fold::fold_type(&mut lifetimes, ty);
+    lifetimes.0
+}
+
+fn without_lifetimes(
+    substitutions: &BTreeMap<String, String>,
+    excluded: &BTreeSet<String>,
+) -> BTreeMap<String, String> {
+    substitutions
+        .iter()
+        .filter(|(name, _)| !excluded.contains(*name))
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect()
+}
+
+fn substitute_projected_lifetimes(
+    ty: &mut ProjectedType,
+    substitutions: &BTreeMap<String, String>,
+) {
+    match ty {
+        ProjectedType::InvocationScoped {
+            rust_type,
+            lifetimes,
+            owned,
+            ..
+        } => {
+            *rust_type = substitute_rust_lifetimes(rust_type, substitutions);
+            let mut projected_lifetimes = Vec::new();
+            for lifetime in lifetime_occurrences(rust_type)
+                .unwrap_or_else(|| callable::rust_lifetimes(rust_type))
+            {
+                if lifetime != "'static" && !projected_lifetimes.contains(&lifetime) {
+                    projected_lifetimes.push(lifetime);
+                }
+            }
+            *lifetimes = projected_lifetimes;
+            substitute_projected_lifetimes(owned, substitutions);
+        }
+        ProjectedType::Reference {
+            inner, lifetime, ..
+        } => {
+            if let Some(lifetime) = lifetime
+                && let Some(replacement) = substitutions.get(lifetime)
+            {
+                *lifetime = replacement.clone();
+            }
+            substitute_projected_lifetimes(inner, substitutions);
+        }
+        ProjectedType::Optional(inner)
+        | ProjectedType::Sequence { item: inner, .. }
+        | ProjectedType::Set { item: inner, .. }
+        | ProjectedType::AsyncIterationStep(inner) => {
+            substitute_projected_lifetimes(inner, substitutions);
+        }
+        ProjectedType::Mapping { key, value, .. } => {
+            substitute_projected_lifetimes(key, substitutions);
+            substitute_projected_lifetimes(value, substitutions);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                substitute_projected_lifetimes(item, substitutions);
+            }
+        }
+        ProjectedType::Foreign { arguments, .. } => {
+            for argument in arguments {
+                substitute_projected_lifetimes(argument, substitutions);
+            }
+        }
+        ProjectedType::Callback {
+            rust_name,
+            parameters,
+            result,
+            parameter_rust_types,
+            native_bound,
+            native_method,
+            native_result,
+            native_substitutions,
+            ..
+        } => {
+            let callback_substitutions =
+                without_lifetimes(substitutions, &bound_lifetimes(rust_name));
+            *rust_name = substitute_rust_lifetimes(rust_name, substitutions);
+            for parameter_type in parameter_rust_types {
+                *parameter_type =
+                    substitute_rust_lifetimes(parameter_type, &callback_substitutions);
+            }
+            for native in [native_bound, native_method, native_result]
+                .into_iter()
+                .flatten()
+            {
+                *native = substitute_rust_lifetimes(native, &callback_substitutions);
+            }
+            for value in native_substitutions.values_mut() {
+                substitute_projected_lifetimes(value, &callback_substitutions);
+            }
+            for parameter in parameters {
+                substitute_projected_lifetimes(parameter, &callback_substitutions);
+            }
+            substitute_projected_lifetimes(result, &callback_substitutions);
+        }
+        _ => {}
+    }
+}
+
+fn substitute_projected_function_lifetimes(
+    function: &mut ProjectedFunction,
+    source: &Function,
+    implementation: &Impl,
+    substitutions: &BTreeMap<String, String>,
+) {
+    let implementation_binders = implementation
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match &parameter.kind {
+            GenericParamDefKind::Lifetime { .. } => Some(normalize_lifetime_name(&parameter.name)),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let method_binders = source
+        .generics
+        .params
+        .iter()
+        .filter_map(|parameter| match &parameter.kind {
+            GenericParamDefKind::Lifetime { .. } => Some(normalize_lifetime_name(&parameter.name)),
+            _ => None,
+        })
+        .filter(|name| !implementation_binders.contains(name))
+        .collect::<BTreeSet<_>>();
+    let substitutions = substitutions
+        .iter()
+        .filter(|(name, _)| !method_binders.contains(*name))
+        .map(|(name, value)| (name.clone(), value.clone()))
+        .collect::<BTreeMap<_, _>>();
+    apply_function_lifetime_substitutions(function, &substitutions);
+}
+
+fn apply_function_lifetime_substitutions(
+    function: &mut ProjectedFunction,
+    substitutions: &BTreeMap<String, String>,
+) {
+    substitute_projected_lifetimes(&mut function.result, substitutions);
+    for parameter in &mut function.generic_parameters {
+        for bound in &mut parameter.rust_bounds {
+            *bound = substitute_rust_lifetimes(bound, &substitutions);
+        }
+        if let Some(default) = &mut parameter.default {
+            substitute_projected_lifetimes(default, &substitutions);
+        }
+    }
+    for parameter in &mut function.operation_owner_generics {
+        for bound in &mut parameter.rust_bounds {
+            *bound = substitute_rust_lifetimes(bound, &substitutions);
+        }
+        if let Some(default) = &mut parameter.default {
+            substitute_projected_lifetimes(default, &substitutions);
+        }
+    }
+    for bound in &mut function.receiver_bounds {
+        *bound = substitute_rust_lifetimes(bound, &substitutions);
+    }
+    for argument in &mut function.rust_generic_arguments {
+        substitute_projected_lifetimes(argument, &substitutions);
+    }
+    if let Some(destination) = &mut function.destination_result {
+        for parameter in &mut destination.parameters {
+            for bound in &mut parameter.rust_bounds {
+                *bound = substitute_rust_lifetimes(bound, &substitutions);
+            }
+        }
+    }
+    for parameter in &mut function.parameters {
+        if let Some(lifetime) = &mut parameter.borrow_lifetime
+            && let Some(replacement) = substitutions.get(lifetime)
+        {
+            *lifetime = replacement.clone();
+        }
+        substitute_projected_lifetimes(&mut parameter.ty, &substitutions);
+    }
+    if let Some(lifetime) = &mut function.receiver_lifetime
+        && let Some(replacement) = substitutions.get(lifetime)
+    {
+        *lifetime = replacement.clone();
+    }
+}
+
+fn receiver_lifetime_substitutions(
+    declared_owner: &str,
+    receiver: &str,
+    owner_arguments: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, String>, String> {
+    let declared_owner = crate::rust_ir::instantiate_rust_generics(declared_owner, owner_arguments);
+    let (Ok(declared), Ok(actual)) = (
+        syn::parse_str::<syn::Type>(&declared_owner),
+        syn::parse_str::<syn::Type>(receiver),
+    ) else {
+        return Err("cannot parse the projected receiver's lifetime contract".to_owned());
+    };
+    let erased = |ty| {
+        syn::fold::Fold::fold_type(
+            &mut FreeLifetimeFold {
+                action: |lifetime: syn::Lifetime, _| syn::Lifetime::new("'_", lifetime.apostrophe),
+                bound: Vec::new(),
+            },
+            ty,
+        )
+    };
+    let declared_shape = erased(declared);
+    let actual_shape = erased(actual);
+    if quote::ToTokens::to_token_stream(&declared_shape).to_string()
+        != quote::ToTokens::to_token_stream(&actual_shape).to_string()
+    {
+        return Ok(BTreeMap::new());
+    }
+    let (Some(source), Some(target)) = (
+        lifetime_occurrences(&declared_owner),
+        lifetime_occurrences(receiver),
+    ) else {
+        return Err("cannot inspect the projected receiver's lifetime contract".to_owned());
+    };
+    let mut substitutions = BTreeMap::new();
+    for (source, target) in source.into_iter().zip(target) {
+        if source == "'static" && target != "'static" {
+            return Err("the receiver does not satisfy its owner's static lifetime".to_owned());
+        }
+        if source == "'_" || source == "'static" {
+            continue;
+        }
+        if substitutions
+            .get(&source)
+            .is_some_and(|previous| previous != &target)
+        {
+            return Err(
+                "one receiver owner lifetime would bind to distinct lender lifetimes".to_owned(),
+            );
+        }
+        substitutions.insert(source, target);
+    }
+    substitutions.retain(|source, target| source != target);
+    Ok(substitutions)
+}
+
+pub(crate) fn instantiate_receiver_lifetimes<'a>(
+    function: &'a ProjectedFunction,
+    receiver: &str,
+    owner_arguments: &BTreeMap<String, String>,
+) -> Result<std::borrow::Cow<'a, ProjectedFunction>, String> {
+    let Some(owner) = &function.native_owner else {
+        return Ok(std::borrow::Cow::Borrowed(function));
+    };
+    let substitutions = receiver_lifetime_substitutions(owner, receiver, owner_arguments)?;
+    if substitutions.is_empty() {
+        return Ok(std::borrow::Cow::Borrowed(function));
+    }
+    let mut instantiated = function.clone();
+    apply_function_lifetime_substitutions(&mut instantiated, &substitutions);
+    if let Some(owner) = &mut instantiated.native_owner {
+        *owner = substitute_rust_lifetimes(owner, &substitutions);
+    }
+    if let Some(path) = &mut instantiated.native_path {
+        *path = substitute_rust_lifetimes(path, &substitutions);
+    }
+    Ok(std::borrow::Cow::Owned(instantiated))
+}
+
+pub(crate) fn instantiate_receiver_result_lifetimes(
+    result: &mut ProjectedType,
+    declared_owner: &str,
+    receiver: &str,
+    owner_arguments: &BTreeMap<String, String>,
+) -> Result<(), String> {
+    let substitutions = receiver_lifetime_substitutions(declared_owner, receiver, owner_arguments)?;
+    substitute_projected_lifetimes(result, &substitutions);
+    Ok(())
+}
+
 #[expect(
     clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "rustdoc impl traversal keeps one shared context for trait, inherent, and source-backed member decisions"
 )]
 pub(super) fn project_methods(
+    dependency: &RustDependency,
     impl_ids: &[Id],
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
@@ -203,6 +822,8 @@ pub(super) fn project_methods(
     owner_generics: &BTreeMap<String, ProjectedType>,
     allow_lifetime_output: bool,
     source_constants: &mut SourceConstantCache,
+    scoped_owner_keys: &mut BTreeSet<String>,
+    scoped_owners: &mut Vec<ProjectedItem>,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
     let mut trait_methods = Vec::new();
@@ -238,8 +859,20 @@ pub(super) fn project_methods(
             } if !inherent => type_.as_ref(),
             _ => &implementation.for_,
         };
+        let mut scoped_lifetime_substitutions = BTreeMap::new();
         if let Ok(owner) = project_type(self_type, index, paths, &implementation_generics) {
-            implementation_generics.insert("Self".to_owned(), owner);
+            let scoped_self = owner_generics
+                .get("Self")
+                .filter(|scoped| scoped_self_matches_owner(scoped, &owner));
+            scoped_lifetime_substitutions = implementation_lifetime_substitutions(
+                implementation,
+                self_type,
+                scoped_self,
+                index,
+                paths,
+            );
+            implementation_generics
+                .insert("Self".to_owned(), scoped_self.cloned().unwrap_or(owner));
         }
         if let Some(Type::Generic(generic)) = &implementation.blanket_impl
             && let Some(owner) = owner_generics.get("Self")
@@ -403,7 +1036,7 @@ pub(super) fn project_methods(
                     || trait_path.clone(),
                     |start| format!("{trait_path}{}", &rendered_trait[start..]),
                 );
-                match project_function_with_generics(
+                match project_method_function(
                     function,
                     index,
                     paths,
@@ -413,6 +1046,12 @@ pub(super) fn project_methods(
                     allow_lifetime_output,
                 ) {
                     Ok(mut method) => {
+                        substitute_projected_function_lifetimes(
+                            &mut method,
+                            function,
+                            implementation,
+                            &scoped_lifetime_substitutions,
+                        );
                         data::rebind_method_owner(
                             &mut method,
                             implementation,
@@ -420,7 +1059,10 @@ pub(super) fn project_methods(
                             paths,
                             &implementation_generics,
                         );
-                        method.native_owner = Some(native_owner.clone());
+                        method.native_owner = Some(substitute_rust_lifetimes(
+                            &native_owner,
+                            &scoped_lifetime_substitutions,
+                        ));
                         let trait_rust_path = if local_trait {
                             let package_root = trait_implementation_path
                                 .split("::")
@@ -436,18 +1078,26 @@ pub(super) fn project_methods(
                         } else {
                             trait_implementation_path.replace('-', "_")
                         };
-                        let trait_rust_path = canonicalize_rust_path(&trait_rust_path);
+                        let mut call_lifetimes = scoped_lifetime_substitutions.clone();
+                        if call_lifetimes.is_empty() {
+                            for parameter in &implementation.generics.params {
+                                if matches!(&parameter.kind, GenericParamDefKind::Lifetime { .. }) {
+                                    call_lifetimes.insert(
+                                        normalize_lifetime_name(&parameter.name),
+                                        "'_".to_owned(),
+                                    );
+                                }
+                            }
+                        }
+                        let native_owner =
+                            substitute_rust_lifetimes(&native_owner, &call_lifetimes);
+                        let trait_rust_path = substitute_rust_lifetimes(
+                            &canonicalize_rust_path(&trait_rust_path),
+                            &call_lifetimes,
+                        );
                         let invocation = format!("<{native_owner} as {trait_rust_path}>::{name}");
-                        let lifetimes = crate::rust_ir::rust_lifetimes(&invocation)
-                            .into_iter()
-                            .filter(|lifetime| lifetime != "'static" && lifetime != "'_")
-                            .map(|lifetime| (lifetime, "'_".to_owned()))
-                            .collect::<BTreeMap<_, _>>();
-                        method.native_path = Some(if lifetimes.is_empty() {
-                            invocation
-                        } else {
-                            crate::rust_ir::instantiate_rust_generics(&invocation, &lifetimes)
-                        });
+                        method.native_path =
+                            Some(substitute_rust_lifetimes(&invocation, &call_lifetimes));
                         if implementation.blanket_impl.is_some()
                             && !(method.destination_result.is_some()
                                 && method.receiver.is_some_and(Receiver::consumes)
@@ -455,6 +1105,17 @@ pub(super) fn project_methods(
                         {
                             continue;
                         }
+                        collect_method_scoped_owner(
+                            dependency,
+                            function,
+                            &method.result,
+                            index,
+                            paths,
+                            public_paths,
+                            source_constants,
+                            scoped_owner_keys,
+                            scoped_owners,
+                        );
                         trait_methods.push((
                             trait_implementation_path,
                             public_trait_path,
@@ -490,10 +1151,17 @@ pub(super) fn project_methods(
             let method_native_owner = if static_owner_generics {
                 render_rust_type(&implementation.for_, index, paths, &method_generics)
                     .unwrap_or_else(|_| native_owner.clone())
+            } else if let Some(scoped @ ProjectedType::InvocationScoped { .. }) =
+                method_generics.get("Self")
+            {
+                // An `impl Owner<'_>` can return `Self` spelled with the
+                // nominal owner's binder by Rustdoc. Keep one receiver binder
+                // vocabulary so call-site instantiation also closes that result.
+                scoped.rust_type()
             } else {
                 native_owner.clone()
             };
-            match project_function_with_generics(
+            match project_method_function(
                 function,
                 index,
                 paths,
@@ -503,6 +1171,12 @@ pub(super) fn project_methods(
                 allow_lifetime_output,
             ) {
                 Ok(mut method) => {
+                    substitute_projected_function_lifetimes(
+                        &mut method,
+                        function,
+                        implementation,
+                        &scoped_lifetime_substitutions,
+                    );
                     data::rebind_method_owner(
                         &mut method,
                         implementation,
@@ -510,7 +1184,21 @@ pub(super) fn project_methods(
                         paths,
                         &method_generics,
                     );
-                    method.native_owner = Some(method_native_owner);
+                    method.native_owner = Some(substitute_rust_lifetimes(
+                        &method_native_owner,
+                        &scoped_lifetime_substitutions,
+                    ));
+                    collect_method_scoped_owner(
+                        dependency,
+                        function,
+                        &method.result,
+                        index,
+                        paths,
+                        public_paths,
+                        source_constants,
+                        scoped_owner_keys,
+                        scoped_owners,
+                    );
                     match project_operation_owner_generics(
                         implementation,
                         index,
@@ -580,18 +1268,61 @@ pub(super) fn project_chain_owner(
     paths: &HashMap<Id, ItemSummary>,
     public_paths: &BTreeMap<Id, String>,
     source_constants: &mut SourceConstantCache,
+    scoped_owner_keys: &mut BTreeSet<String>,
+    scoped_owners: &mut Vec<ProjectedItem>,
 ) -> Option<ProjectedItem> {
     let output = function.sig.output.as_ref()?;
-    project_chain_owner_item(
+    let owned_result = match result {
+        ProjectedType::InvocationScoped { owned, .. } => owned.as_ref(),
+        result => result,
+    };
+    let owner = project_chain_owner_item(
         dependency,
         output,
+        owned_result,
         result,
         invocation_scoped,
         index,
         paths,
         public_paths,
         source_constants,
-    )
+        scoped_owner_keys,
+        scoped_owners,
+    )?;
+    Some(owner)
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "method-result owner collection reuses the shared projection context"
+)]
+fn collect_method_scoped_owner(
+    dependency: &RustDependency,
+    function: &Function,
+    result: &ProjectedType,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+    source_constants: &mut SourceConstantCache,
+    scoped_owner_keys: &mut BTreeSet<String>,
+    scoped_owners: &mut Vec<ProjectedItem>,
+) {
+    let invocation_scoped = matches!(result, ProjectedType::InvocationScoped { .. });
+    let owner = project_chain_owner(
+        dependency,
+        function,
+        result,
+        invocation_scoped,
+        index,
+        paths,
+        public_paths,
+        source_constants,
+        scoped_owner_keys,
+        scoped_owners,
+    );
+    if let Some(owner) = owner {
+        scoped_owners.push(owner);
+    }
 }
 
 #[expect(
@@ -602,11 +1333,14 @@ fn project_chain_owner_item(
     dependency: &RustDependency,
     output: &Type,
     result: &ProjectedType,
+    scoped_self: &ProjectedType,
     invocation_scoped: bool,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     public_paths: &BTreeMap<Id, String>,
     source_constants: &mut SourceConstantCache,
+    scoped_owner_keys: &mut BTreeSet<String>,
+    scoped_owners: &mut Vec<ProjectedItem>,
 ) -> Option<ProjectedItem> {
     let Type::ResolvedPath(path) = output else {
         return None;
@@ -638,7 +1372,6 @@ fn project_chain_owner_item(
         return None;
     }
     let mut owner_generics = BTreeMap::new();
-    owner_generics.insert("Self".to_owned(), result.clone());
     for (parameter, argument) in structure
         .generics
         .params
@@ -648,7 +1381,68 @@ fn project_chain_owner_item(
     {
         owner_generics.insert(parameter.name.clone(), argument.clone());
     }
-    let (mut methods, _, _, _) = project_methods(
+    // A source family describes its declaration, not the spelling of a
+    // particular producer's lifetime arguments. Otherwise Foo<'_> and Foo<'a>
+    // produce conflicting associated owners with the same source identity.
+    let canonical_self;
+    let scoped_self = if matches!(scoped_self, ProjectedType::InvocationScoped { .. }) {
+        let mut canonical_output = output.clone();
+        if let Type::ResolvedPath(path) = &mut canonical_output
+            && let Some(rustdoc_types::GenericArgs::AngleBracketed { args, .. }) =
+                path.args.as_deref_mut()
+        {
+            let declared = structure.generics.params.iter().filter_map(|parameter| {
+                matches!(parameter.kind, GenericParamDefKind::Lifetime { .. })
+                    .then_some(&parameter.name)
+            });
+            for (argument, declared) in args
+                .iter_mut()
+                .filter_map(|argument| match argument {
+                    rustdoc_types::GenericArg::Lifetime(lifetime) => Some(lifetime),
+                    _ => None,
+                })
+                .zip(declared)
+            {
+                argument.clone_from(declared);
+            }
+        }
+        let mut owner = scoped_self.clone();
+        if let ProjectedType::InvocationScoped {
+            rust_type,
+            lifetimes,
+            ..
+        } = &mut owner
+        {
+            *rust_type = render_rust_type(&canonical_output, index, paths, &owner_generics).ok()?;
+            *lifetimes = lifetime_occurrences(rust_type)?
+                .into_iter()
+                .filter(|lifetime| lifetime != "'static")
+                .collect();
+        }
+        canonical_self = owner;
+        &canonical_self
+    } else {
+        scoped_self
+    };
+    let owner_key = canonicalize_rust_path(&scoped_self.rust_type());
+    if !scoped_owner_keys.insert(owner_key) {
+        return None;
+    }
+    owner_generics.insert("Self".to_owned(), scoped_self.clone());
+    let generic_parameters = super::items::projected_nominal_generic_parameters(
+        &structure.generics,
+        &owner_generics,
+        index,
+        paths,
+    )
+    .ok()?;
+    let has_type_parameters = structure
+        .generics
+        .params
+        .iter()
+        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }));
+    let (mut methods, scoped_methods, _, _) = project_methods(
+        dependency,
         &structure.impls,
         index,
         paths,
@@ -657,16 +1451,51 @@ fn project_chain_owner_item(
         &owner_generics,
         true,
         source_constants,
+        scoped_owner_keys,
+        scoped_owners,
     );
+    let projected_clone_method = scoped_methods.iter().any(
+        |(trait_implementation_path, public_trait_path, _, _, method)| {
+            let trait_path = canonicalize_rust_path(trait_implementation_path);
+            method.name == "clone"
+                && (trait_path == "Clone"
+                    || trait_path.ends_with("::clone::Clone")
+                    || public_trait_path == "Clone"
+                    || public_trait_path.ends_with("::clone::Clone"))
+        },
+    );
+    let cloneable = !has_type_parameters
+        && projected_clone_method
+        && super::rustdoc_support::implements_trait(
+            &structure.impls,
+            index,
+            paths,
+            "core::clone::Clone",
+        );
+    methods.extend(
+        scoped_methods
+            .into_iter()
+            .map(|(_, _, _, _, method)| method),
+    );
+    let expression_only = !invocation_scoped
+        || matches!(
+            scoped_self,
+            ProjectedType::InvocationScoped {
+                expression_scoped: true,
+                ..
+            }
+        );
     methods.retain_mut(|method| {
         if method.receiver.is_none() {
             return false;
         }
-        method.chain_role = Some(if method.result == *result {
-            ChainRole::Continue
-        } else {
-            ChainRole::Terminal
-        });
+        if expression_only {
+            method.chain_role = Some(if method.result == *scoped_self {
+                ChainRole::Continue
+            } else {
+                ChainRole::Terminal
+            });
+        }
         true
     });
     if !invocation_scoped
@@ -685,7 +1514,14 @@ fn project_chain_owner_item(
         namespace,
         name: name.clone(),
         rust_path: rust_path.clone(),
-        docs: Some("chain-only; value must terminate within one expression".to_owned()),
+        docs: Some(
+            if expression_only {
+                "chain-only; value must terminate within one expression"
+            } else {
+                "native lifetime-bearing owner; each call retains its actual lenders"
+            }
+            .to_owned(),
+        ),
         kind: ProjectedKind::ForeignType {
             constructor: None,
             methods,
@@ -694,11 +1530,11 @@ fn project_chain_owner_item(
             boundary: ProjectedBoundaryCapabilities::default(),
             fields: Vec::new(),
             borrowed_view: false,
-            native_view_type: None,
+            native_view_type: invocation_scoped.then(|| scoped_self.rust_type()),
             enum_payload: None,
-            generic_parameters: Vec::new(),
+            generic_parameters,
             displayable: false,
-            cloneable: false,
+            cloneable,
             send: false,
             sync: false,
         },

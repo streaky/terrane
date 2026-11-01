@@ -109,6 +109,23 @@ impl Emitter<'_> {
             NativeArgumentMode::NativeValue => self.owned_native_argument(context.operand),
             NativeArgumentMode::ForwardReference => self.expression(context.operand),
             NativeArgumentMode::SourceValue => match context.semantic_type {
+                Some(ValueType::MutableReference(_))
+                    if matches!(
+                        self.value_type(context.operand),
+                        Some(ValueType::MutableReference(_))
+                    ) =>
+                {
+                    if context.operand.kind == SyntaxKind::UnaryExpression
+                        && self.unary_operator(context.operand).as_deref() == Some("mutable ref")
+                    {
+                        self.expression(context.operand)
+                    } else {
+                        format!("&mut *({})", self.expression(context.operand))
+                    }
+                }
+                Some(ValueType::MutableReference(_)) => {
+                    self.mutable_reference_address_expression(context.operand)
+                }
                 Some(value_type) => self.expression_as(context.operand, value_type.clone()),
                 None => self.expression(context.operand),
             },
@@ -158,12 +175,9 @@ impl Emitter<'_> {
             return NativeArgumentMode::Borrow { mutable: false };
         }
         if projected.is_some_and(ProjectedParameter::requires_mutable_reference)
-            || self.mutable_native_reference_parameter(
-                context.contract,
-                context.parameter_index,
-                context.contract.parameters[context.parameter_index]
-                    .binding_value_type()
-                    .as_ref(),
+            || matches!(
+                context.contract.parameters[context.parameter_index].binding_value_type(),
+                Some(ValueType::MutableReference(_))
             )
         {
             return NativeArgumentMode::Borrow { mutable: true };
@@ -191,7 +205,7 @@ impl Emitter<'_> {
         NativeArgumentMode::SourceValue
     }
     fn borrowed_native_callback_adapter(
-        &self,
+        &mut self,
         value: &SyntaxNode,
         projected: &crate::rust_interop::projection::ProjectedType,
     ) -> Option<String> {
@@ -217,8 +231,30 @@ impl Emitter<'_> {
         {
             return None;
         }
-        let contract = self.contract_for_call(value, false)?;
-        let function = function_name(self.package, contract);
+        let (setup, function, throws) = if let Some(contract) = self.contract_for_call(value, false)
+        {
+            (
+                String::new(),
+                function_name(self.package, contract),
+                self.contract_requires_throwing_abi(contract, false),
+            )
+        } else {
+            let ValueType::Function(_, _, effects) = self.value_type(value)? else {
+                return None;
+            };
+            if effects.modes.written != InvocationMode::Shared {
+                return None;
+            }
+            let throws = effects.requires_throwing_abi();
+            // Invoke the source callable directly: erasing its borrowed input into
+            // a tuple-based consuming carrier would pin an invocation lifetime
+            // outside the native closure and make that borrow appear to escape.
+            (
+                format!("let borrowed_callback = &{};", self.expression(value)),
+                "borrowed_callback".to_owned(),
+                throws,
+            )
+        };
         let declarations = parameter_rust_types
             .iter()
             .enumerate()
@@ -238,14 +274,14 @@ impl Emitter<'_> {
             .collect::<Vec<_>>()
             .join(", ");
         let call = format!("{function}({arguments})");
-        let call = if self.contract_requires_throwing_abi(contract, false) {
+        let call = if throws {
             format!("{call}.map_err(crate::TerraneForeignError)?")
         } else {
             call
         };
         let result = projected_callback_output_expression("callback_value", result);
         Some(format!(
-            "move |{declarations}| {{ match (|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {call}; Ok({result}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }} }}"
+            "{{ {setup} move |{declarations}| {{ match (|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {call}; Ok({result}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }} }} }}"
         ))
     }
 
