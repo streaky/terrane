@@ -508,13 +508,13 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/app::main"];
+    pub static FUNCTIONS: [&str; 1] = ["/app::check-attribution"];
     pub static SITES: [Site; 3] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:5:13-5:24) */
+        /* terrane-site-row: site 0: /app::check-attribution (src/main.trn:5:13-5:24) */
         { Site { function: 0, file: 0, line: 5, column: 13, end_line: 5, end_column: 24 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:6:33-6:46) */
+        /* terrane-site-row: site 1: /app::check-attribution (src/main.trn:6:33-6:46) */
         { Site { function: 0, file: 0, line: 6, column: 33, end_line: 6, end_column: 46 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:8:21-8:33) */
+        /* terrane-site-row: site 2: /app::check-attribution (src/main.trn:8:21-8:33) */
         { Site { function: 0, file: 0, line: 8, column: 21, end_line: 8, end_column: 33 } },
     ];
     #[cold]

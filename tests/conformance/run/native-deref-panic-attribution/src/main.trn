@@ -1,7 +1,7 @@
 namespace app
 from /deps/panic-api import Locks
 from /core/errors import dependency-panic
-function main;
+function check-attribution;
     locks = Locks::new;
     with scoped-access guard = (locks.locked;) (
         try
@@ -10,3 +10,5 @@ function main;
             message = failure.message
             print; (message.contains; 'panic_api::Record::value')
     )
+function main;
+    check-attribution;

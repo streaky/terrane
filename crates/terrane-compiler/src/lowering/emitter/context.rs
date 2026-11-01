@@ -243,9 +243,10 @@ impl<'unit> Emitter<'unit> {
             .iter()
             .any(|(key, availability)| {
                 *availability == crate::semantics::FlowAvailability::MayBeUnassigned
-                    // Declaration facts describe the state before its first write;
-                    // only later uses can require an optional storage slot.
-                    && (key.1, key.2) != (binding.span.start, binding.span.end)
+                    // Hoisted storage must be initialized before completion closures
+                    // capture it. Inline declarations already initialize their slots.
+                    && (self.active_function_bindings.contains(&binding.span)
+                        || (key.1, key.2) != (binding.span.start, binding.span.end))
                     && self.unit.flow_binding_ids.get(key) == Some(&binding.span)
             })
     }

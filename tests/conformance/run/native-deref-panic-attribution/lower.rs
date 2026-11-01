@@ -2,7 +2,7 @@
 include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
-fn main() {
+fn check_attribution() {
     let locks: Locks;
     locks = __terrane_raised(
         terrane_static_trn_4c6f636b73_new(),
@@ -78,4 +78,7 @@ fn main() {
             }
         }
     }
+}
+fn main() {
+    check_attribution();
 }
