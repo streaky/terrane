@@ -180,7 +180,7 @@ fn native_generic_contracts_survive_projection_cache_reloads() {
     let expected_output = fs::read_to_string(package.0.join("stdout.txt")).unwrap();
     let implicit_reference = r"namespace app
 from /deps/witness import Connection, query
-function implicit int64; connection ref Connection
+function implicit int64; connection mutable ref Connection
     bound = query; 'implicit'
     return bound.fetch; connection
 function main;
