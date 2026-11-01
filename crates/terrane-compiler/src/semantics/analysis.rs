@@ -1336,7 +1336,6 @@ fn analyze_parsed_with_projection(
     );
     validate_shared_ownership_cycles(&semantic)?;
     validate_error_clauses(&semantic)?;
-    validate_moves(&semantic)?;
     analyze_reference_provenance(&mut semantic)?;
     super::scoped_regions::record_native_lender_owners(&mut semantic);
     validate_referenced_replacements(&semantic)?;
@@ -1350,6 +1349,9 @@ fn analyze_parsed_with_projection(
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
+    // Exact callable captures can make an environment noncopyable. Validate
+    // transfers only after effect inference has refreshed binding types.
+    validate_moves(&semantic)?;
     super::ownership::validate_native_captures(&semantic)?;
     analyze_selections(&mut semantic)?;
     validate_class_field_initializers(&semantic)?;
