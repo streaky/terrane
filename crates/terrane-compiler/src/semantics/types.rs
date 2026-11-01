@@ -318,53 +318,63 @@ pub(super) fn analyze_binding_node(
             initializer.expect("inferred value has an initializer").span,
         ));
     }
-    let value_type =
-        if let (Some(type_node), Some(declared_type)) = (declared, declared_value.clone()) {
-            let value_type = if let (ValueType::Object(declared), Some(ValueType::Object(actual))) =
-                (&declared_type, &inferred)
-                && declared.base() == actual.base()
-                && declared.native_projection.is_none()
-                && (declared.type_arguments.is_empty()
-                    || declared.type_arguments == actual.type_arguments)
-                && (!actual.native_arguments.is_empty() || !actual.type_arguments.is_empty())
-            {
-                ValueType::Object(actual.clone())
-            } else if matches!(declared_type, ValueType::Optional(_)) {
-                declared_type
-            } else if let (Some(inferred), Some(initializer), Ok(_)) = (
-                inferred.clone(),
+    let value_type = if let (Some(type_node), Some(declared_type)) =
+        (declared, declared_value.clone())
+    {
+        let mut value_type = if let (ValueType::Object(declared), Some(ValueType::Object(actual))) =
+            (&declared_type, &inferred)
+            && declared.base() == actual.base()
+            && declared.native_projection.is_none()
+            && (declared.type_arguments.is_empty()
+                || declared.type_arguments == actual.type_arguments)
+            && (!actual.native_arguments.is_empty() || !actual.type_arguments.is_empty())
+        {
+            ValueType::Object(actual.clone())
+        } else if matches!(declared_type, ValueType::Optional(_)) {
+            declared_type
+        } else if let (Some(inferred), Some(initializer), Ok(_)) = (
+            inferred.clone(),
+            initializer,
+            union_destination_candidates(unit, type_node),
+        ) {
+            ValueType::Scalar(select_union_destination(
+                unit,
+                type_node,
                 initializer,
-                union_destination_candidates(unit, type_node),
-            ) {
-                ValueType::Scalar(select_union_destination(
-                    unit,
-                    type_node,
-                    initializer,
-                    inferred,
-                )?)
-            } else {
-                declared_type
-            };
-            let value_type = inferred.as_ref().map_or(value_type.clone(), |actual| {
-                merge_callable_destination_effects(value_type, actual)
-            });
-            if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
-                validate_value_destination(
-                    &unit.source,
-                    &unit.descriptors,
-                    &name,
-                    &value_type,
-                    &inferred,
-                    initializer,
-                    "T0002",
-                )?;
-            }
-            value_type
-        } else if let Some(inferred) = inferred.clone() {
-            inferred
+                inferred,
+            )?)
         } else {
-            return Ok(());
+            declared_type
         };
+        // A local callable keeps its borrowed storage ABI, but inferred
+        // throws must not grant permissions before checking the declared bound.
+        match (&mut value_type, &inferred) {
+            (ValueType::Function(_, _, expected), Some(ValueType::Function(_, _, actual)))
+            | (
+                ValueType::AsyncFunction(_, _, _, expected),
+                Some(ValueType::AsyncFunction(_, _, _, actual)),
+            ) => expected.borrowed_environment = actual.borrowed_environment,
+            _ => {}
+        }
+        if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
+            validate_value_destination(
+                &unit.source,
+                &unit.descriptors,
+                &name,
+                &value_type,
+                &inferred,
+                initializer,
+                "T0002",
+            )?;
+        }
+        inferred.as_ref().map_or(value_type.clone(), |actual| {
+            merge_callable_destination_effects(value_type, actual)
+        })
+    } else if let Some(inferred) = inferred.clone() {
+        inferred
+    } else {
+        return Ok(());
+    };
     let destination_arms = if matches!(value_type, ValueType::Optional(_)) {
         Vec::new()
     } else {
