@@ -1635,7 +1635,11 @@ pub(super) fn value_types_compatible(
             ValueType::InvocationScopedNative {
                 concrete: false, ..
             },
-        ) => true,
+        )
+        | (ValueType::ProjectedGeneric(_), _)
+        | (_, ValueType::ProjectedGeneric(_))
+        | (ValueType::IterationStep(_), ValueType::IterationEnd)
+        | (ValueType::Object(_), ValueType::ProjectedAssociated) => true,
         (
             ValueType::InvocationScopedNative {
                 rust_type: expected,
@@ -1657,10 +1661,6 @@ pub(super) fn value_types_compatible(
         {
             true
         }
-        (ValueType::ProjectedGeneric(_), _)
-        | (_, ValueType::ProjectedGeneric(_))
-        | (ValueType::IterationStep(_), ValueType::IterationEnd)
-        | (ValueType::Object(_), ValueType::ProjectedAssociated) => true,
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))

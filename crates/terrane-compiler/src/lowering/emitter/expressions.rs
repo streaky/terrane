@@ -1153,14 +1153,23 @@ impl Emitter<'_> {
                     && (!expected_throws || value_requires_throwing_abi)
                 {
                     let callable = self.expression(node);
-                    if expected_mode == InvocationMode::Consuming {
+                    if expected_mode == InvocationMode::Consuming
+                        || expected_effects.borrowed_environment
+                    {
                         callable
                     } else {
                         format!("({callable}).clone()")
                     }
                 } else {
                     let callable = self.expression(node);
-                    let capture = if actual_mode == InvocationMode::Consuming {
+                    let capture = if actual_mode == InvocationMode::Consuming
+                        || actual.as_ref().is_some_and(|value_type| {
+                            !crate::semantics::value_type_is_cloneable(
+                                self.package,
+                                self.unit,
+                                value_type,
+                            )
+                        }) {
                         callable
                     } else {
                         format!("({callable}).clone()")
@@ -1428,14 +1437,23 @@ impl Emitter<'_> {
                     && (!expected_throws || value_requires_throwing_abi)
                 {
                     let callable = self.expression(node);
-                    if expected_mode == InvocationMode::Consuming {
+                    if expected_mode == InvocationMode::Consuming
+                        || expected_effects.borrowed_environment
+                    {
                         callable
                     } else {
                         format!("({callable}).clone()")
                     }
                 } else {
                     let callable = self.expression(node);
-                    let capture = if actual_mode == InvocationMode::Consuming {
+                    let capture = if actual_mode == InvocationMode::Consuming
+                        || actual.as_ref().is_some_and(|value_type| {
+                            !crate::semantics::value_type_is_cloneable(
+                                self.package,
+                                self.unit,
+                                value_type,
+                            )
+                        }) {
                         callable
                     } else {
                         format!("({callable}).clone()")
@@ -1476,7 +1494,14 @@ impl Emitter<'_> {
                         expected_mode,
                         expected_effects.borrowed_environment,
                     );
-                    let capture = if actual_mode == InvocationMode::Consuming {
+                    let capture = if actual_mode == InvocationMode::Consuming
+                        || actual.as_ref().is_some_and(|value_type| {
+                            !crate::semantics::value_type_is_cloneable(
+                                self.package,
+                                self.unit,
+                                value_type,
+                            )
+                        }) {
                         callable
                     } else {
                         format!("({callable}).clone()")

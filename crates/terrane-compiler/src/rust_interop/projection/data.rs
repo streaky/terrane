@@ -357,8 +357,8 @@ fn rebind_owner_type(ty: &mut ProjectedType, native: &ProjectedType, facade: &Pr
                         .iter()
                         .any(|lifetime| facade_lifetimes.contains(lifetime))
                 {
-                    *rust_type = facade_rust_type.clone();
-                    *lifetimes = facade_lifetimes.clone();
+                    rust_type.clone_from(facade_rust_type);
+                    lifetimes.clone_from(facade_lifetimes);
                     owned.clone_from(facade_owned);
                 }
             } else {

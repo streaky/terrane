@@ -1,0 +1,11 @@
+namespace app
+function main;
+    value = 0
+    borrowed = mutable ref value
+    callback = mutable function;
+        borrowed = borrowed + 1
+    count = 0
+    while count < 2
+        callback;
+        print; value
+        count = count + 1

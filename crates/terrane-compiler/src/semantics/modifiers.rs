@@ -42,6 +42,65 @@ fn declaration_target(node: &SyntaxNode) -> Option<&'static str> {
     }
 }
 
+fn resolve_operation(
+    unit: &SemanticUnit,
+    declaration: &SyntaxNode,
+    application: &SyntaxNode,
+    definition: &CompileTimeValue,
+    payload: &CompileTimeValue,
+    name: Span,
+) -> Result<ModifierOperation, SemanticFailure> {
+    let Some(CompileTimeValue::String(operation)) = field(definition, "operation") else {
+        return Err(error(
+            unit,
+            name,
+            "modifier definition requires an operation identity",
+        ));
+    };
+    let structural = matches!(
+        field(definition, "structural"),
+        Some(CompileTimeValue::Boolean(true))
+    );
+    let operation = match operation.as_str() {
+        "scoped-access" if structural => ModifierOperation::ScopedAccess,
+        "scoped-access" => {
+            return Err(error(
+                unit,
+                application.span,
+                "scoped-access requires the compiler-defined structural contract",
+            ));
+        }
+        _ => {
+            return Err(error(
+                unit,
+                application.span,
+                format!(
+                    "modifier operation `{operation}` has no implemented lowering; no realization property is applied"
+                ),
+            ));
+        }
+    };
+    match operation {
+        ModifierOperation::ScopedAccess => {
+            if declaration.kind != SyntaxKind::WithRegion {
+                return Err(error(
+                    unit,
+                    declaration.span,
+                    "scoped-access requires an explicitly delimited region and acquired local binding",
+                ));
+            }
+            if !matches!(payload, CompileTimeValue::Map(fields) if fields.is_empty()) {
+                return Err(error(
+                    unit,
+                    application.span,
+                    "the scoped-access operation does not accept configuration fields",
+                ));
+            }
+        }
+    }
+    Ok(operation)
+}
+
 fn resolve_application(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -119,54 +178,14 @@ fn resolve_application(
         &symbol.identity,
         reads,
     )?;
-    let Some(CompileTimeValue::String(operation)) = field(&definition.payload, "operation") else {
-        return Err(error(
-            unit,
-            name.span,
-            "modifier definition requires an operation identity",
-        ));
-    };
-    let structural = matches!(
-        field(&definition.payload, "structural"),
-        Some(CompileTimeValue::Boolean(true))
-    );
-    let operation = match operation.as_str() {
-        "scoped-access" if structural => ModifierOperation::ScopedAccess,
-        "scoped-access" => {
-            return Err(error(
-                unit,
-                application.span,
-                "scoped-access requires the compiler-defined structural contract",
-            ));
-        }
-        _ => {
-            return Err(error(
-                unit,
-                application.span,
-                format!(
-                    "modifier operation `{operation}` has no implemented lowering; no realization property is applied"
-                ),
-            ));
-        }
-    };
-    match operation {
-        ModifierOperation::ScopedAccess => {
-            if declaration.kind != SyntaxKind::WithRegion {
-                return Err(error(
-                    unit,
-                    declaration.span,
-                    "scoped-access requires an explicitly delimited region and acquired local binding",
-                ));
-            }
-            if !matches!(&payload, CompileTimeValue::Map(fields) if fields.is_empty()) {
-                return Err(error(
-                    unit,
-                    application.span,
-                    "the scoped-access operation does not accept configuration fields",
-                ));
-            }
-        }
-    }
+    let operation = resolve_operation(
+        unit,
+        declaration,
+        application,
+        &definition.payload,
+        &payload,
+        name.span,
+    )?;
     Ok(ResolvedModifier {
         identity: symbol.identity.clone(),
         span: MetadataSpan {

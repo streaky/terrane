@@ -2074,6 +2074,8 @@ pub struct SemanticUnit {
     /// Owner bindings used by declaration-directed implicit source-reference arguments.
     pub reference_owner_spans: BTreeSet<(usize, usize)>,
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
+    /// Borrowed callable carriers keyed by their last-use statement's cleanup boundary.
+    pub callable_drops_after: BTreeMap<(u32, usize, usize), Vec<Span>>,
     pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,

@@ -1,0 +1,8 @@
+package = "native-deref-panic-attribution"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.panic-api]
+package = "native-deref-panic-witness"
+version = "=0.1.1"

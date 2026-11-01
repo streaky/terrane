@@ -1,0 +1,2 @@
+[patch.crates-io]
+native-deref-panic-witness = { path = "fixture-registry/native-deref-panic-witness-0.1.1" }

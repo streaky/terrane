@@ -192,13 +192,10 @@ impl SyntaxKind {
             (_, Self::AnnotationApplication, _) => "annotation",
             (_, Self::ModifierApplication, _) => "modifier",
             (Self::ModifierApplication, Self::Name, _) => "modifier-type",
-            (Self::ModifierApplication, Self::ArgumentList, _) => "arguments",
+            (Self::ModifierApplication | Self::AnnotationApplication, Self::ArgumentList, _)
+            | (Self::CallExpression, _, 1) => "arguments",
             (Self::WithRegion, _, 0) => "acquisition",
-            (Self::WithRegion, Self::Block, _) => "body",
             (Self::AnnotationApplication, Self::Name, _) => "annotation-type",
-            (Self::AnnotationApplication, Self::ArgumentList, _) | (Self::CallExpression, _, 1) => {
-                "arguments"
-            }
             (Self::TypeParameterList, Self::TypeParameter, _) => "parameter",
             (Self::TypeParameter, Self::TypeExpression, _) => "bound",
             (Self::EnumDeclaration, Self::Block, _) => "variants",
@@ -239,7 +236,7 @@ impl SyntaxKind {
                 Self::FunctionDeclaration
                 | Self::IfStatement
                 | Self::WhileStatement
-                | Self::MatchCase
+                | Self::WithRegion
                 | Self::SwitchCase,
                 Self::Block,
                 _,

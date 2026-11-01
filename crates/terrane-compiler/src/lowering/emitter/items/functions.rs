@@ -532,18 +532,14 @@ impl Emitter<'_> {
                         } else {
                             ""
                         },
-                        rust_reference_element_type(self.package, item.clone()),
+                        rust_reference_element_type(self.package, item),
                     )
                 }
-                (Some(ValueType::Reference(item)), true) => format!(
-                    "&'a {}",
-                    rust_reference_element_type(self.package, item.clone())
-                ),
+                (Some(ValueType::Reference(item)), true) => {
+                    format!("&'a {}", rust_reference_element_type(self.package, item))
+                }
                 (Some(ValueType::Reference(item)), false) if scoped_lifetime == Some("'view") => {
-                    format!(
-                        "&'view {}",
-                        rust_reference_element_type(self.package, item.clone())
-                    )
+                    format!("&'view {}", rust_reference_element_type(self.package, item))
                 }
                 _ => binding_type.map_or_else(
                     || "i128".to_owned(),
@@ -565,12 +561,12 @@ impl Emitter<'_> {
                 || "()".to_owned(),
                 |value_type| match value_type {
                     ValueType::Reference(item) if reference_lender.is_some() => {
-                        format!("&'a {}", rust_reference_element_type(self.package, item))
+                        format!("&'a {}", rust_reference_element_type(self.package, &item))
                     }
                     ValueType::MutableReference(item) if reference_lender.is_some() => {
                         format!(
                             "&'a mut {}",
-                            rust_reference_element_type(self.package, item)
+                            rust_reference_element_type(self.package, &item)
                         )
                     }
                     ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
@@ -583,12 +579,12 @@ impl Emitter<'_> {
         {
             let return_type = match return_type {
                 ValueType::Reference(item) if reference_lender.is_some() => {
-                    format!("&'a {}", rust_reference_element_type(self.package, item))
+                    format!("&'a {}", rust_reference_element_type(self.package, &item))
                 }
                 ValueType::MutableReference(item) if reference_lender.is_some() => {
                     format!(
                         "&'a mut {}",
-                        rust_reference_element_type(self.package, item)
+                        rust_reference_element_type(self.package, &item)
                     )
                 }
                 ValueType::InvocationScopedNative { rust_type, .. } => rust_type,
@@ -839,7 +835,7 @@ impl Emitter<'_> {
                         ));
                 let ty = match binding_type {
                     Some(ValueType::MutableReference(item)) if native_mutable_reference => {
-                        format!("&mut {}", rust_reference_element_type(self.package, item))
+                        format!("&mut {}", rust_reference_element_type(self.package, &item))
                     }
                     Some(value_type) => rust_value_type(self.package, value_type),
                     None => "i128".to_owned(),

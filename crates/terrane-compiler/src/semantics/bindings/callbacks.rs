@@ -133,7 +133,7 @@ fn validate_projected_callback_contract(
                         .iter()
                         .find(|actual| actual.span == parameter.span)
                 })
-                .is_some_and(|source| source.requires_mutable_reference())
+                .is_some_and(super::super::model::ParameterContract::requires_mutable_reference)
         {
             return Err(failure(
                 &unit.source,
@@ -619,6 +619,46 @@ fn scoped_native_lender_bindings(
     scoped_native_lender_bindings_inner(unit, binding, region, &mut BTreeSet::new())
 }
 
+fn collect_scoped_receiver_lenders(
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    lifetimes: &[String],
+    region: Span,
+    visited: &mut BTreeSet<Span>,
+    lender_spans: &mut BTreeSet<Span>,
+    matched_lifetimes: &mut BTreeSet<String>,
+) -> Option<()> {
+    if let Some(receiver) = callee.children.first()
+        && let Some(ValueType::InvocationScopedNative {
+            lifetimes: receiver_lifetimes,
+            ..
+        }) = infer_value_type(unit, receiver, &unit.typed_bindings)
+            .ok()
+            .flatten()
+    {
+        for lifetime in lifetimes.iter().filter(|lifetime| {
+            lifetime.as_str() != "'static" && receiver_lifetimes.contains(lifetime)
+        }) {
+            matched_lifetimes.insert(lifetime.clone());
+            collect_transitive_lender_bindings(unit, receiver.span, region, visited, lender_spans)?;
+        }
+    }
+    Some(())
+}
+
+fn collect_scoped_call_receiver(
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+    region: Span,
+    visited: &mut BTreeSet<Span>,
+    lender_spans: &mut BTreeSet<Span>,
+) -> Option<()> {
+    if let Some(receiver) = callee.children.first() {
+        collect_transitive_lender_bindings(unit, receiver.span, region, visited, lender_spans)?;
+    }
+    Some(())
+}
+
 fn scoped_native_lender_bindings_inner(
     unit: &SemanticUnit,
     binding: &TypedBinding,
@@ -693,38 +733,18 @@ fn scoped_native_lender_bindings_inner(
                 .filter(|lifetime| lifetime.as_str() != "'static" && *lifetime == receiver_lifetime)
             {
                 matched_lifetimes.insert(lifetime.clone());
-                if let Some(receiver) = callee.children.first() {
-                    collect_transitive_lender_bindings(
-                        unit,
-                        receiver.span,
-                        region,
-                        visited,
-                        &mut lender_spans,
-                    )?;
-                }
+                collect_scoped_call_receiver(unit, callee, region, visited, &mut lender_spans)?;
             }
         }
-        if let Some(receiver) = callee.children.first()
-            && let Some(ValueType::InvocationScopedNative {
-                lifetimes: receiver_lifetimes,
-                ..
-            }) = infer_value_type(unit, receiver, &unit.typed_bindings)
-                .ok()
-                .flatten()
-        {
-            for lifetime in lifetimes.iter().filter(|lifetime| {
-                lifetime.as_str() != "'static" && receiver_lifetimes.contains(lifetime)
-            }) {
-                matched_lifetimes.insert(lifetime.clone());
-                collect_transitive_lender_bindings(
-                    unit,
-                    receiver.span,
-                    region,
-                    visited,
-                    &mut lender_spans,
-                )?;
-            }
-        }
+        collect_scoped_receiver_lenders(
+            unit,
+            callee,
+            lifetimes,
+            region,
+            visited,
+            &mut lender_spans,
+            &mut matched_lifetimes,
+        )?;
         if lifetimes
             .iter()
             .any(|lifetime| lifetime != "'static" && !matched_lifetimes.contains(lifetime))
@@ -924,6 +944,50 @@ fn visible_binding<'a>(
         .max_by_key(|binding| binding.visible_from)
 }
 
+fn lender_writes_before<'a>(
+    unit: &SemanticUnit,
+    node: &'a SyntaxNode,
+    binding: Span,
+    before: usize,
+    values: &mut Vec<&'a SyntaxNode>,
+) {
+    if node.span.start >= before
+        || matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        )
+    {
+        return;
+    }
+    if node.kind == SyntaxKind::Assignment
+        && let [target, value] = node.children.as_slice()
+        && target.kind == SyntaxKind::Name
+        && visible_binding(unit, target).is_some_and(|actual| actual.span == binding)
+    {
+        values.push(value);
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && receiver.kind == SyntaxKind::Name
+        && visible_binding(unit, receiver).is_some_and(|actual| {
+            actual.span == binding && matches!(actual.value_type, ValueType::List(_))
+        })
+        && matches!(node_text(&unit.source, member), "append" | "set")
+    {
+        values.extend(
+            arguments
+                .children
+                .iter()
+                .filter_map(|argument| argument.children.last()),
+        );
+    }
+    for child in &node.children {
+        lender_writes_before(unit, child, binding, before, values);
+    }
+}
+
 fn local_lender_name(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1000,53 +1064,10 @@ fn local_lender_name(
         // A returned aggregate or reassigned view also retains dependencies
         // introduced after its initializer. Resolve the receiver's binding,
         // not just its spelling, and stay within this function and use point.
-        fn writes<'a>(
-            unit: &SemanticUnit,
-            node: &'a SyntaxNode,
-            binding: Span,
-            before: usize,
-            values: &mut Vec<&'a SyntaxNode>,
-        ) {
-            if node.span.start >= before
-                || matches!(
-                    node.kind,
-                    SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
-                )
-            {
-                return;
-            }
-            if node.kind == SyntaxKind::Assignment
-                && let [target, value] = node.children.as_slice()
-                && target.kind == SyntaxKind::Name
-                && visible_binding(unit, target).is_some_and(|actual| actual.span == binding)
-            {
-                values.push(value);
-            }
-            if node.kind == SyntaxKind::CallExpression
-                && let [callee, arguments] = node.children.as_slice()
-                && callee.kind == SyntaxKind::MemberExpression
-                && let [receiver, member] = callee.children.as_slice()
-                && receiver.kind == SyntaxKind::Name
-                && visible_binding(unit, receiver).is_some_and(|actual| {
-                    actual.span == binding && matches!(actual.value_type, ValueType::List(_))
-                })
-                && matches!(node_text(&unit.source, member), "append" | "set")
-            {
-                values.extend(
-                    arguments
-                        .children
-                        .iter()
-                        .filter_map(|argument| argument.children.last()),
-                );
-            }
-            for child in &node.children {
-                writes(unit, child, binding, before, values);
-            }
-        }
         let function = find_node_by_span(&unit.tree.root, function_span)?;
         let mut values = Vec::new();
         for child in &function.children {
-            writes(unit, child, binding.span, node.span.start, &mut values);
+            lender_writes_before(unit, child, binding.span, node.span.start, &mut values);
         }
         return values.into_iter().find_map(|value| {
             callback_return_lender(package, unit, value, contract, function_span, visited)

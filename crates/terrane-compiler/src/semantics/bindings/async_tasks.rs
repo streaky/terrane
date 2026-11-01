@@ -119,9 +119,6 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 AutoTraitObligation::Sync,
                 visiting,
             ),
-            ValueType::MutableReference(inner) => {
-                satisfies(package, inner.value_type_ref(), obligation, visiting)
-            }
             ValueType::Object(identity) => {
                 if let Some(capability) = package.native_capability(identity) {
                     return match obligation {
@@ -207,7 +204,8 @@ pub(in crate::semantics) fn value_type_satisfies_auto_trait(
                 result
             }
             ValueType::Optional(inner) => satisfies(package, inner, obligation, visiting),
-            ValueType::Iterator(inner)
+            ValueType::MutableReference(inner)
+            | ValueType::Iterator(inner)
             | ValueType::IterationStep(inner)
             | ValueType::List(inner)
             | ValueType::Set(inner)

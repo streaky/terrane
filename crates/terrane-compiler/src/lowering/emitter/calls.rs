@@ -3167,30 +3167,7 @@ impl Emitter<'_> {
                         )
                     }));
         let call = if let Some(method) = foreign_method {
-            let (dependency, member) = if direct_projected_call && callee.kind != SyntaxKind::Name {
-                let method = foreign_method.expect("direct projected call has projected method");
-                let receiver = callee.children.first();
-                let identity = receiver.and_then(|receiver| {
-                    self.class_designator(receiver)
-                        .map(|object| object.identity.clone())
-                        .or_else(|| self.projected_receiver_identity(receiver))
-                });
-                let type_path = identity
-                    .as_ref()
-                    .and_then(|identity| {
-                        self.package
-                            .projection
-                            .foreign_rust_path(&identity.namespace, &identity.name)
-                    })
-                    .or(method.native_owner.as_deref())
-                    .unwrap_or("dependency::ForeignType");
-                let dependency = type_path
-                    .split("::")
-                    .next()
-                    .unwrap_or("dependency")
-                    .to_owned();
-                (dependency, format!("{type_path}::{}", method.name))
-            } else if callee.kind == SyntaxKind::Name {
+            let (dependency, member) = if callee.kind == SyntaxKind::Name {
                 let dependency = self
                     .package
                     .resolve_name_at(self.unit, callee.span.start, self.text(callee))
@@ -3206,25 +3183,26 @@ impl Emitter<'_> {
                 });
                 (dependency, member)
             } else {
-                let [receiver, _member] = callee.children.as_slice() else {
-                    unreachable!("projected methods have a receiver")
-                };
-                let identity = self
-                    .projected_receiver_identity(receiver)
-                    .expect("projected method receiver has an object type");
-                let type_path = self
-                    .package
-                    .projection
-                    .foreign_rust_path(&identity.namespace, &identity.name)
-                    .expect("foreign method owner has a projected Rust path");
-                (
-                    type_path
-                        .split("::")
-                        .next()
-                        .unwrap_or("dependency")
-                        .to_owned(),
-                    format!("{type_path}::{}", method.name),
-                )
+                let native_path = method.native_path.clone().unwrap_or_else(|| {
+                    format!(
+                        "{}::{}",
+                        method
+                            .native_owner
+                            .as_deref()
+                            .unwrap_or("dependency::ForeignType"),
+                        method.name
+                    )
+                });
+                crate::rust_ir::rust_callable_origin(&native_path).unwrap_or_else(|| {
+                    (
+                        native_path
+                            .split("::")
+                            .next()
+                            .unwrap_or("dependency")
+                            .to_owned(),
+                        native_path,
+                    )
+                })
             };
             let member = crate::rust_ir::rust_type_constructor(&member).unwrap_or(member);
             let call = if method.is_unsafe {

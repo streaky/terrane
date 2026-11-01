@@ -1,5 +1,5 @@
 #[derive(Clone, Copy)]
-enum GuardScope {
+pub(super) enum GuardScope {
     Expression,
     Place,
 }
@@ -520,7 +520,49 @@ impl Emitter<'_> {
         }
     }
 
-    fn receiver_place_parts(
+    pub(super) fn projected_field_place_parts(
+        &mut self,
+        receiver: &SyntaxNode,
+        holder: &SyntaxNode,
+        member: &SyntaxNode,
+        mutable: bool,
+        scope: GuardScope,
+    ) -> Option<(String, String, bool)> {
+        if !(Self::intrinsic_physical_field(
+            self.receiver_value_type(holder).as_ref(),
+            self.text(member),
+        ) || matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
+            && !self.is_throwable_value(holder)
+            && self
+                .native_field_type(receiver)
+                .is_none_or(|field| {
+                    field.has_identity_representation()
+                        || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
+                            if item.has_identity_representation())
+                }))
+        {
+            return None;
+        }
+        let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
+        let field =
+            self.native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
+        let wrapped = self.wrapped_object_field(holder, self.text(member));
+        let required = self.receiver_value_type(holder).is_some_and(|value| {
+            matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
+        });
+        let suffix = if mutable { "_mut" } else { "" };
+        let borrow = if mutable { "as_mut" } else { "as_ref" };
+        let value = match (wrapped, required) {
+            (true, _) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
+            (false, true) => format!(
+                "({holder_value}).{field}.{borrow}().expect(\"required field initialized\")"
+            ),
+            (false, false) => format!("({holder_value}).{field}"),
+        };
+        Some((setup, value, wrapped || required))
+    }
+
+    pub(super) fn receiver_place_parts(
         &mut self,
         receiver: &SyntaxNode,
         mutable: bool,
@@ -558,33 +600,9 @@ impl Emitter<'_> {
         }
         if receiver.kind == SyntaxKind::MemberExpression
             && let [holder, member] = receiver.children.as_slice()
-            && (Self::intrinsic_physical_field(
-                self.receiver_value_type(holder).as_ref(),
-                self.text(member),
-            ) || matches!(self.receiver_value_type(holder), Some(ValueType::Object(_)))
-                && !self.is_throwable_value(holder)
-                && self
-                    .native_field_type(receiver)
-                    .is_none_or(|field| field.has_identity_representation()
-                        || matches!(field, crate::rust_interop::projection::ProjectedType::Sequence { item, .. }
-                            if item.has_identity_representation())))
+            && let Some((setup, value, _)) =
+                self.projected_field_place_parts(receiver, holder, member, mutable, scope)
         {
-            let (setup, holder_value) = self.receiver_place_parts(holder, mutable, scope);
-            let field = self
-                .native_field_name(self.receiver_value_type(holder).as_ref(), self.text(member));
-            let wrapped = self.wrapped_object_field(holder, self.text(member));
-            let required = self.receiver_value_type(holder).is_some_and(|value| {
-                matches!(value, ValueType::Object(identity) if source_field_is_required(self.package, &identity, self.text(member)))
-            });
-            let suffix = if mutable { "_mut" } else { "" };
-            let borrow = if mutable { "as_mut" } else { "as_ref" };
-            let value = match (wrapped, required) {
-                (true, _) => format!("({holder_value}).terrane_field_{field}{suffix}()"),
-                (false, true) => format!(
-                    "({holder_value}).{field}.{borrow}().expect(\"required field initialized\")"
-                ),
-                (false, false) => format!("({holder_value}).{field}"),
-            };
             return (setup, value);
         }
         if mutable

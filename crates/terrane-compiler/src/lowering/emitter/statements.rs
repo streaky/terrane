@@ -133,6 +133,7 @@ impl Emitter<'_> {
             }
             _ => {}
         }
+        self.emit_callable_drops_after(node);
         self.invalidate_fresh_lists(&referenced_fresh_lists);
     }
 
@@ -146,6 +147,27 @@ impl Emitter<'_> {
         self.block(body);
         self.indent -= 1;
         self.line("}");
+    }
+
+    fn emit_callable_drops_after(&mut self, node: &SyntaxNode) {
+        let key = (node.span.file, node.span.start, node.span.end);
+        let drops = self
+            .unit
+            .callable_drops_after
+            .get(&key)
+            .into_iter()
+            .flatten()
+            .filter_map(|span| {
+                self.unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == *span)
+            })
+            .map(|binding| self.binding_storage_name(binding).to_owned())
+            .collect::<Vec<_>>();
+        for binding in drops {
+            self.line(&format!("drop({binding});"));
+        }
     }
 
     pub(super) fn collection_mutation_statement(&mut self, node: &SyntaxNode) -> Option<String> {
@@ -1156,7 +1178,7 @@ impl Emitter<'_> {
             .unit
             .typed_bindings
             .iter()
-            .find(|binding| binding.span == node.span);
+            .find(|binding| binding.span == node.span || binding.span == name_node.span);
         let canonical_span = self
             .unit
             .flow_binding_ids
@@ -1373,7 +1395,11 @@ impl Emitter<'_> {
         }
         if !discard
             && initializer.is_some()
-            && !binding_store_value_is_read(self.package, node.span, node.span)
+            && !binding_store_value_is_read(
+                self.package,
+                binding.map_or(node.span, |binding| binding.span),
+                node.span,
+            )
         {
             let borrow = if mutable && !deferred { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));

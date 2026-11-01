@@ -458,7 +458,7 @@ pub(super) const fn rust_value_is_copy(ty: &ValueType) -> bool {
 pub(super) fn rust_element_type(package: &SemanticPackage, ty: ElementType) -> String {
     rust_value_type(package, ty.value_type())
 }
-pub(super) fn rust_reference_element_type(package: &SemanticPackage, ty: ElementType) -> String {
+pub(super) fn rust_reference_element_type(package: &SemanticPackage, ty: &ElementType) -> String {
     match ty.value_type() {
         ValueType::Scalar(ScalarType::Int) => "terrane_int_support::Int".to_owned(),
         value_type => rust_value_type(package, value_type),
@@ -507,9 +507,10 @@ fn rust_callable_parameter_type(
     if parameter.is_variadic() {
         rust_value_type(package, ValueType::List(parameter.element_type()))
     } else if parameter.requires_mutable_reference() {
-        let item = match parameter.value_type_ref() {
-            ValueType::Reference(item) | ValueType::MutableReference(item) => item,
-            _ => unreachable!("mutable native callback parameter must be a reference"),
+        let (ValueType::Reference(item) | ValueType::MutableReference(item)) =
+            parameter.value_type_ref()
+        else {
+            unreachable!("mutable native callback parameter must be a reference");
         };
         format!("&mut {}", rust_element_type(package, item.clone()))
     } else {
@@ -805,10 +806,10 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             rust_element_type(package, item)
         ),
         ValueType::Reference(item) => {
-            format!("&{}", rust_reference_element_type(package, item))
+            format!("&{}", rust_reference_element_type(package, &item))
         }
         ValueType::MutableReference(item) => {
-            format!("&mut {}", rust_reference_element_type(package, item))
+            format!("&mut {}", rust_reference_element_type(package, &item))
         }
         ValueType::InvocationScopedNative {
             concrete: false, ..

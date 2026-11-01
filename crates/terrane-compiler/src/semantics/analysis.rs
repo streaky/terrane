@@ -356,6 +356,7 @@ pub(super) fn parse_unit(
         required_init_proofs: BTreeMap::new(),
         reference_owner_spans: BTreeSet::new(),
         reference_provenance: BTreeMap::new(),
+        callable_drops_after: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
         builtin_descriptors: builtin_descriptor_contracts(),
@@ -1338,7 +1339,6 @@ fn analyze_parsed_with_projection(
     validate_error_clauses(&semantic)?;
     analyze_reference_provenance(&mut semantic)?;
     super::scoped_regions::record_native_lender_owners(&mut semantic);
-    validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
     stage.finish();
     apply_projected_method_contracts(&mut semantic.units, &semantic.projection);
@@ -1347,6 +1347,7 @@ fn analyze_parsed_with_projection(
     let stage =
         crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
+    super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);
     // Exact callable captures can make an environment noncopyable. Validate
@@ -1363,6 +1364,7 @@ fn analyze_parsed_with_projection(
     validate_projected_callback_arguments(&semantic)?;
     validate_calls(&semantic)?;
     super::reference_validation::validate_reference_writes(&semantic)?;
+    validate_referenced_replacements(&semantic)?;
     super::generic_recursion::validate(&semantic)?;
     validate_discarded_temporary_mutations(&semantic)?;
     super::initialization::validate(&mut semantic)?;

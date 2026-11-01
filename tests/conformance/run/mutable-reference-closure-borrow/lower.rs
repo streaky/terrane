@@ -22,6 +22,7 @@ fn main() {
         };
         callback.call(());
         callback.call(());
+        drop(callback);
     }
     println!("{}", terrane_scalar_support::scalar_text(&value));
     other = terrane_int_support::Int::from(5_i128);
@@ -34,4 +35,5 @@ fn main() {
         })
     };
     observer();
+    drop(observer);
 }

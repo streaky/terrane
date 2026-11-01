@@ -850,123 +850,126 @@ pub(crate) fn application_is_resource_owning(
     )
 }
 
+fn cloneable_object(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    value_type: &ValueType,
+    visiting: &mut BTreeSet<ObjectIdentity>,
+) -> bool {
+    if let Some(capability) = package.native_capability(identity) {
+        return capability.cloneable;
+    }
+    if let Some(cloneable) = package
+        .projection
+        .foreign_is_cloneable(&identity.namespace, &identity.name)
+    {
+        return cloneable;
+    }
+    let Some(descriptor) = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|descriptor| descriptor.identity.base() == identity.base())
+    else {
+        return false;
+    };
+    if application_is_resource_owning(package, value_type) {
+        return false;
+    }
+    if !visiting.insert(identity.clone()) {
+        return true;
+    }
+    let substitutions = descriptor
+        .generic_parameters
+        .iter()
+        .zip(&identity.type_arguments)
+        .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let fields_cloneable = if descriptor.kind == ObjectKind::Enum {
+        package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.source_enums)
+            .find(|enumeration| enumeration.identity.base() == identity.base())
+            .is_some_and(|enumeration| {
+                enumeration
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.payload)
+                    .all(|field| {
+                        let field_type = super::generics::substitute_value_type(
+                            &field.value_type,
+                            &substitutions,
+                        );
+                        cloneable_value_type(package, &field_type, visiting)
+                    })
+            })
+    } else {
+        effective_object_fields(package, descriptor)
+            .into_iter()
+            .filter(|field| !field.field.is_static)
+            .all(|field| {
+                let field_type =
+                    super::generics::substitute_value_type(&field.field.value_type, &substitutions);
+                cloneable_value_type(package, &field_type, visiting)
+            })
+    };
+    visiting.remove(identity);
+    fields_cloneable
+}
+
+fn cloneable_value_type(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    visiting: &mut BTreeSet<ObjectIdentity>,
+) -> bool {
+    match value_type {
+        ValueType::MutableReference(_)
+        | ValueType::TypeParameter(_)
+        | ValueType::Task(_, _)
+        | ValueType::ScopedTask(_, _)
+        | ValueType::TaskGroup(_)
+        | ValueType::Iterator(_)
+        | ValueType::InvocationScopedNative { .. }
+        | ValueType::PlatformStreamHandle
+        | ValueType::PlatformResourceHandle
+        | ValueType::ChannelPair(_)
+        | ValueType::ChannelSender(_)
+        | ValueType::ChannelReceiver(_) => false,
+        ValueType::Union(arms) => arms
+            .iter()
+            .all(|arm| cloneable_value_type(package, arm, visiting)),
+        ValueType::Optional(inner) => cloneable_value_type(package, inner, visiting),
+        ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
+            !effects.borrowed_environment && effects.modes.written != InvocationMode::Consuming
+        }
+        ValueType::Object(identity) => cloneable_object(package, identity, value_type, visiting),
+        ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::AsyncIterationStep(inner)
+        | ValueType::ChannelSendOutcome(inner)
+        | ValueType::ChannelReceiveOutcome(inner)
+        | ValueType::DocumentDecodeOutcome(inner) => {
+            cloneable_value_type(package, inner.value_type_ref(), visiting)
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            cloneable_value_type(package, key.value_type_ref(), visiting)
+                && cloneable_value_type(package, value.value_type_ref(), visiting)
+        }
+        _ => true,
+    }
+}
 pub(crate) fn value_type_is_cloneable(
     package: &SemanticPackage,
-    unit: &SemanticUnit,
+    _unit: &SemanticUnit,
     value_type: &ValueType,
 ) -> bool {
-    fn cloneable(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        value_type: &ValueType,
-        visiting: &mut BTreeSet<ObjectIdentity>,
-    ) -> bool {
-        match value_type {
-            ValueType::MutableReference(_) | ValueType::TypeParameter(_) => false,
-            ValueType::Reference(_) | ValueType::SharedReference(_) => true,
-            ValueType::Union(arms) => arms
-                .iter()
-                .all(|arm| cloneable(package, unit, arm, visiting)),
-            ValueType::Optional(inner) => cloneable(package, unit, inner, visiting),
-            ValueType::Task(_, _)
-            | ValueType::ScopedTask(_, _)
-            | ValueType::TaskGroup(_)
-            | ValueType::Iterator(_)
-            | ValueType::InvocationScopedNative { .. }
-            | ValueType::PlatformStreamHandle
-            | ValueType::PlatformResourceHandle
-            | ValueType::ChannelPair(_)
-            | ValueType::ChannelSender(_)
-            | ValueType::ChannelReceiver(_) => false,
-            ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
-                !effects.borrowed_environment && effects.modes.written != InvocationMode::Consuming
-            }
-            ValueType::Object(identity) => {
-                if let Some(capability) = package.native_capability(identity) {
-                    return capability.cloneable;
-                }
-                if let Some(cloneable) = package
-                    .projection
-                    .foreign_is_cloneable(&identity.namespace, &identity.name)
-                {
-                    return cloneable;
-                }
-                let Some(descriptor) = package
-                    .units
-                    .iter()
-                    .flat_map(|unit| &unit.descriptors)
-                    .find(|descriptor| descriptor.identity.base() == identity.base())
-                else {
-                    return false;
-                };
-                if application_is_resource_owning(package, value_type) {
-                    return false;
-                }
-                if !visiting.insert(identity.clone()) {
-                    return true;
-                }
-                let substitutions = descriptor
-                    .generic_parameters
-                    .iter()
-                    .zip(&identity.type_arguments)
-                    .map(|(parameter, argument)| (parameter.name.clone(), argument.clone()))
-                    .collect::<BTreeMap<_, _>>();
-                let fields_cloneable = if descriptor.kind == ObjectKind::Enum {
-                    package
-                        .units
-                        .iter()
-                        .flat_map(|unit| &unit.source_enums)
-                        .find(|enumeration| enumeration.identity.base() == identity.base())
-                        .is_some_and(|enumeration| {
-                            enumeration
-                                .variants
-                                .iter()
-                                .flat_map(|variant| &variant.payload)
-                                .all(|field| {
-                                    let field_type = super::generics::substitute_value_type(
-                                        &field.value_type,
-                                        &substitutions,
-                                    );
-                                    cloneable(package, unit, &field_type, visiting)
-                                })
-                        })
-                } else {
-                    effective_object_fields(package, descriptor)
-                        .into_iter()
-                        .filter(|field| !field.field.is_static)
-                        .all(|field| {
-                            let field_type = super::generics::substitute_value_type(
-                                &field.field.value_type,
-                                &substitutions,
-                            );
-                            cloneable(package, unit, &field_type, visiting)
-                        })
-                };
-                visiting.remove(identity);
-                fields_cloneable
-            }
-            ValueType::List(inner)
-            | ValueType::Set(inner)
-            | ValueType::Tuple(inner, _)
-            | ValueType::UnorderedSet(inner)
-            | ValueType::IterationStep(inner)
-            | ValueType::AsyncIterationStep(inner)
-            | ValueType::ChannelSendOutcome(inner)
-            | ValueType::ChannelReceiveOutcome(inner)
-            | ValueType::DocumentDecodeOutcome(inner) => {
-                cloneable(package, unit, inner.value_type_ref(), visiting)
-            }
-            ValueType::Map(key, value)
-            | ValueType::Entry(key, value)
-            | ValueType::UnorderedMap(key, value) => {
-                cloneable(package, unit, key.value_type_ref(), visiting)
-                    && cloneable(package, unit, value.value_type_ref(), visiting)
-            }
-            _ => true,
-        }
-    }
-
-    cloneable(package, unit, value_type, &mut BTreeSet::new())
+    cloneable_value_type(package, value_type, &mut BTreeSet::new())
 }
 pub(super) fn propagate_resource_ownership(
     package: &mut SemanticPackage,
@@ -3254,17 +3257,15 @@ fn invocation_scoped_bound_regions(
             regions.push(*region);
         }
         ValueType::Optional(inner) => invocation_scoped_bound_regions(inner, lifetimes, regions),
-        ValueType::Reference(inner)
-        | ValueType::MutableReference(inner)
-        | ValueType::SharedReference(inner) => {
-            invocation_scoped_bound_regions(inner.value_type_ref(), lifetimes, regions)
-        }
         ValueType::Union(items) => {
             for item in items {
                 invocation_scoped_bound_regions(item, lifetimes, regions);
             }
         }
-        ValueType::Iterator(inner)
+        ValueType::Reference(inner)
+        | ValueType::MutableReference(inner)
+        | ValueType::SharedReference(inner)
+        | ValueType::Iterator(inner)
         | ValueType::IterationStep(inner)
         | ValueType::AsyncIterationStep(inner)
         | ValueType::List(inner)
@@ -3280,7 +3281,7 @@ fn invocation_scoped_bound_regions(
         | ValueType::ChannelSendOutcome(inner)
         | ValueType::ChannelReceiveOutcome(inner)
         | ValueType::DocumentDecodeOutcome(inner) => {
-            invocation_scoped_bound_regions(inner.value_type_ref(), lifetimes, regions)
+            invocation_scoped_bound_regions(inner.value_type_ref(), lifetimes, regions);
         }
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
@@ -3289,7 +3290,7 @@ fn invocation_scoped_bound_regions(
             invocation_scoped_bound_regions(value.value_type_ref(), lifetimes, regions);
         }
         ValueType::Tuple(item, _) => {
-            invocation_scoped_bound_regions(item.value_type_ref(), lifetimes, regions)
+            invocation_scoped_bound_regions(item.value_type_ref(), lifetimes, regions);
         }
         _ => {}
     }

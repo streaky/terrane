@@ -4,13 +4,29 @@
 use super::*;
 use quote::ToTokens;
 
+#[derive(Clone, Copy)]
+#[repr(u8)]
+enum Access {
+    Shared = 1 << 0,
+    Mutable = 1 << 1,
+    MoveTarget = 1 << 2,
+    BoxedTarget = 1 << 3,
+    CloneOwner = 1 << 4,
+}
+
 #[derive(Clone, Copy, Default)]
-struct Access {
-    shared: bool,
-    mutable: bool,
-    move_target: bool,
-    boxed_target: bool,
-    clone_owner: bool,
+struct AccessCapabilities(u8);
+
+impl AccessCapabilities {
+    fn insert_if(&mut self, condition: bool, capability: Access) {
+        if condition {
+            self.0 |= capability as u8;
+        }
+    }
+
+    fn contains(self, capability: Access) -> bool {
+        self.0 & capability as u8 != 0
+    }
 }
 
 fn key(rust: &str) -> Option<String> {
@@ -188,10 +204,27 @@ pub(super) fn project_deref_receivers(
     identity: &str,
     sandbox: Containment,
 ) -> Result<(), ProjectionError> {
+    let (types, namespaces, native_views) = collect_projected_types(dependencies);
+    let pairs = discover_receiver_pairs(&types, rustdocs);
+    if pairs.is_empty() {
+        return Ok(());
+    }
+    let access = prove_receiver_access(&pairs, workspace, identity, sandbox)?;
+    apply_receiver_methods(dependencies, &pairs, &access, &namespaces, &native_views);
+    Ok(())
+}
+
+fn collect_projected_types(
+    dependencies: &[ProjectedDependency],
+) -> (
+    BTreeMap<String, ProjectedType>,
+    BTreeMap<String, String>,
+    BTreeMap<String, String>,
+) {
     let mut types = BTreeMap::new();
     let mut namespaces = BTreeMap::new();
     let mut native_views = BTreeMap::new();
-    for dependency in dependencies.iter() {
+    for dependency in dependencies {
         let namespace = format!("/deps/{}", dependency.name);
         for item in &dependency.items {
             for function in source_rendering::projected_item_functions(item) {
@@ -224,14 +257,21 @@ pub(super) fn project_deref_receivers(
                 }
             }
         }
-        for (identity, _) in &types {
+        for identity in types.keys() {
             namespaces
                 .entry(identity.clone())
                 .or_insert_with(|| namespace.clone());
         }
     }
+    (types, namespaces, native_views)
+}
+
+fn discover_receiver_pairs(
+    types: &BTreeMap<String, ProjectedType>,
+    rustdocs: &[(&RustDependency, RustdocCrate, BTreeMap<Id, String>)],
+) -> BTreeMap<(String, String), (ProjectedType, ProjectedType)> {
     let mut pairs = BTreeMap::new();
-    for (owner_key, owner) in &types {
+    for (owner_key, owner) in types {
         let ProjectedType::Foreign { arguments, .. } = owner else {
             continue;
         };
@@ -250,12 +290,18 @@ pub(super) fn project_deref_receivers(
             }
         }
     }
-    if pairs.is_empty() {
-        return Ok(());
-    }
+    pairs
+}
+
+fn prove_receiver_access(
+    pairs: &BTreeMap<(String, String), (ProjectedType, ProjectedType)>,
+    workspace: &Path,
+    identity: &str,
+    sandbox: Containment,
+) -> Result<BTreeMap<(String, String), AccessCapabilities>, ProjectionError> {
     let mut questions = Vec::new();
     let mut calls = Vec::new();
-    for ((owner_key, target_key), (owner, target)) in &pairs {
+    for ((owner_key, target_key), (owner, target)) in pairs {
         for bound in [
             format!("core::ops::Deref<Target = {}>", target.rust_type()),
             "core::ops::DerefMut".to_owned(),
@@ -302,7 +348,7 @@ pub(super) fn project_deref_receivers(
         .map(|entry| entry.question.label.as_str())
         .collect::<BTreeSet<_>>();
     let mut access = BTreeMap::new();
-    for ((owner_key, target_key), (owner, target)) in &pairs {
+    for ((owner_key, target_key), (owner, target)) in pairs {
         let owner_rust = owner.rust_type();
         let shared = yes.contains(&(
             owner_rust.as_str(),
@@ -311,19 +357,77 @@ pub(super) fn project_deref_receivers(
         if !shared {
             continue;
         }
-        access.insert(
-            (owner_key.clone(), target_key.clone()),
-            Access {
-                shared,
-                mutable: yes.contains(&(owner_rust.as_str(), "core::ops::DerefMut")),
-                clone_owner: yes.contains(&(owner_rust.as_str(), "core::clone::Clone")),
-                move_target: move_yes
-                    .contains(format!("receiver-move:{owner_key}:{target_key}").as_str()),
-                boxed_target: move_yes
-                    .contains(format!("receiver-boxed:{owner_key}:{target_key}").as_str()),
-            },
+        let mut capabilities = AccessCapabilities::default();
+        capabilities.insert_if(shared, Access::Shared);
+        capabilities.insert_if(
+            yes.contains(&(owner_rust.as_str(), "core::ops::DerefMut")),
+            Access::Mutable,
         );
+        capabilities.insert_if(
+            yes.contains(&(owner_rust.as_str(), "core::clone::Clone")),
+            Access::CloneOwner,
+        );
+        capabilities.insert_if(
+            move_yes.contains(format!("receiver-move:{owner_key}:{target_key}").as_str()),
+            Access::MoveTarget,
+        );
+        capabilities.insert_if(
+            move_yes.contains(format!("receiver-boxed:{owner_key}:{target_key}").as_str()),
+            Access::BoxedTarget,
+        );
+        access.insert((owner_key.clone(), target_key.clone()), capabilities);
     }
+    Ok(access)
+}
+
+fn forwarded_receiver_methods(
+    owner: &ProjectedType,
+    target: &ProjectedType,
+    target_methods: &[ProjectedFunction],
+    capabilities: AccessCapabilities,
+) -> Vec<ProjectedFunction> {
+    let mut methods = if capabilities.contains(Access::CloneOwner) {
+        vec![owner_clone(owner)]
+    } else {
+        Vec::new()
+    };
+    for method in target_methods {
+        if method.name == "clone" && capabilities.contains(Access::CloneOwner) {
+            continue;
+        }
+        let receiver = match method.receiver {
+            Some(Receiver::Borrow) if capabilities.contains(Access::Shared) => Receiver::Borrow,
+            Some(Receiver::MutableBorrow) if capabilities.contains(Access::Mutable) => {
+                Receiver::MutableBorrow
+            }
+            Some(Receiver::Move) if capabilities.contains(Access::MoveTarget) => {
+                Receiver::DerefMove(1)
+            }
+            Some(Receiver::DerefMove(depth)) if capabilities.contains(Access::MoveTarget) => {
+                Receiver::DerefMove(depth + 1)
+            }
+            Some(Receiver::BoxedMove) if capabilities.contains(Access::BoxedTarget) => {
+                Receiver::Move
+            }
+            _ => continue,
+        };
+        let mut method = method.clone();
+        method.receiver = Some(receiver);
+        if method.native_path.is_none() {
+            method.native_path = Some(format!("<{}>::{}", target.rust_type(), method.name));
+        }
+        methods.push(method);
+    }
+    methods
+}
+
+fn apply_receiver_methods(
+    dependencies: &mut [ProjectedDependency],
+    pairs: &BTreeMap<(String, String), (ProjectedType, ProjectedType)>,
+    access: &BTreeMap<(String, String), AccessCapabilities>,
+    namespaces: &BTreeMap<String, String>,
+    native_views: &BTreeMap<String, String>,
+) {
     // A fixed point preserves direct-owner precedence and supports nested pointer
     // chains. No method is copied until its exact native receiver path is proven.
     loop {
@@ -333,7 +437,7 @@ pub(super) fn project_deref_receivers(
             .cloned()
             .collect::<Vec<_>>();
         let mut changed = false;
-        for ((owner_key, target_key), selected) in &access {
+        for ((owner_key, target_key), capabilities) in access {
             let (owner, target) = &pairs[&(owner_key.clone(), target_key.clone())];
             let Some(target_item) = snapshot
                 .iter()
@@ -341,37 +445,18 @@ pub(super) fn project_deref_receivers(
             else {
                 continue;
             };
-            let target_methods = match &target_item.kind {
-                ProjectedKind::ForeignType { methods, .. }
-                | ProjectedKind::Enum { methods, .. } => methods,
-                _ => continue,
-            };
-            let mut methods = if selected.clone_owner {
-                vec![owner_clone(owner)]
-            } else {
-                Vec::new()
-            };
-            for method in target_methods {
-                if method.name == "clone" && selected.clone_owner {
-                    continue;
-                }
-                let receiver = match method.receiver {
-                    Some(Receiver::Borrow) if selected.shared => Receiver::Borrow,
-                    Some(Receiver::MutableBorrow) if selected.mutable => Receiver::MutableBorrow,
-                    Some(Receiver::Move) if selected.move_target => Receiver::DerefMove(1),
-                    Some(Receiver::DerefMove(depth)) if selected.move_target => {
-                        Receiver::DerefMove(depth + 1)
-                    }
-                    Some(Receiver::BoxedMove) if selected.boxed_target => Receiver::Move,
-                    _ => continue,
-                };
-                let mut method = method.clone();
-                method.receiver = Some(receiver);
-                if method.native_path.is_none() {
-                    method.native_path = Some(format!("<{}>::{}", target.rust_type(), method.name));
-                }
-                methods.push(method);
+            let (ProjectedKind::ForeignType {
+                methods: target_methods,
+                ..
             }
+            | ProjectedKind::Enum {
+                methods: target_methods,
+                ..
+            }) = &target_item.kind
+            else {
+                continue;
+            };
+            let methods = forwarded_receiver_methods(owner, target, target_methods, *capabilities);
             if methods.is_empty() {
                 continue;
             }
@@ -419,7 +504,7 @@ pub(super) fn project_deref_receivers(
                         native_view_type: native_views.get(owner_key).cloned(),
                         enum_payload: None,
                         displayable: false,
-                        cloneable: selected.clone_owner,
+                        cloneable: capabilities.contains(Access::CloneOwner),
                         send: false,
                         sync: false,
                         generic_parameters: Vec::new(),
@@ -432,5 +517,4 @@ pub(super) fn project_deref_receivers(
             break;
         }
     }
-    Ok(())
 }

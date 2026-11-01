@@ -636,7 +636,7 @@ fn source_call_mutates_binding(
                             .last()
                             .filter(|parameter| parameter.is_variadic())
                     })
-                    .is_some_and(|parameter| parameter.requires_mutable_reference())
+                    .is_some_and(super::model::CallableParameterType::requires_mutable_reference)
                     && names_binding(argument)
             });
     };

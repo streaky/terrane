@@ -58,9 +58,10 @@ pub(crate) fn macro_argument(
         )
     })?;
     let (actual, borrowed, mutable) = match actual {
-        ValueType::Reference(item) => (item.value_type(), true, false),
+        ValueType::Reference(item) | ValueType::SharedReference(item) => {
+            (item.value_type(), true, false)
+        }
         ValueType::MutableReference(item) => (item.value_type(), true, true),
-        ValueType::SharedReference(item) => (item.value_type(), true, false),
         actual => (actual, false, false),
     };
     let ty = if value.kind == SyntaxKind::Literal && actual == ValueType::Scalar(ScalarType::String)

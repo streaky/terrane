@@ -112,7 +112,7 @@ fn validate_function_native_lenders(
             .iter()
             .find_map(|child| find_binding_initializer(unit, child, binding))
     }
-    fn find_function<'a>(node: &'a SyntaxNode, function: Span) -> Option<&'a SyntaxNode> {
+    fn find_function(node: &SyntaxNode, function: Span) -> Option<&SyntaxNode> {
         if node.kind == SyntaxKind::FunctionDeclaration && node.span == function {
             return Some(node);
         }
@@ -345,14 +345,14 @@ fn validate_local_lender_destinations(
         let declared = declared_bindings_at_node(unit, node)
             .map(|binding| binding.span)
             .collect::<Vec<_>>();
-        let destination_spans = if !declared.is_empty() {
-            declared
-        } else {
+        let destination_spans = if declared.is_empty() {
             node.children
                 .first()
                 .and_then(|target| binding_identity_at(unit, target))
                 .into_iter()
                 .collect()
+        } else {
+            declared
         };
         if let Some(value) = node.children.last()
             && (infer_value_type(unit, value, &unit.typed_bindings)
@@ -442,6 +442,85 @@ fn directly_uses_owner(unit: &SemanticUnit, node: &SyntaxNode, owners: &[Span]) 
     }
 }
 
+fn fixed_call_uses_lender_incompatibly(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    guard: Option<Span>,
+    owners: &[Span],
+) -> bool {
+    let is_lender = |expression: &SyntaxNode| {
+        direct_name_identity(unit, expression)
+            .is_some_and(|identity| Some(identity) == guard || owners.contains(&identity))
+    };
+    let is_owner = |expression: &SyntaxNode| {
+        direct_name_identity(unit, expression).is_some_and(|identity| owners.contains(&identity))
+    };
+    if node
+        .children
+        .first()
+        .and_then(|callee| super::diagnostics::typed_member_call(unit, callee))
+        .is_some_and(|(receiver, ty, member)| {
+            let mode = super::diagnostics::member_invocation_mode(package, unit, &ty, &member);
+            (mode == InvocationMode::Mutable && is_owner(receiver))
+                || (mode == InvocationMode::Consuming && is_lender(receiver))
+        })
+    {
+        return true;
+    }
+    let Some(contract) = super::calls::selected_callable_contract(
+        package,
+        unit,
+        node,
+        crate::syntax::call_is_unsafe(node),
+    ) else {
+        return false;
+    };
+    let mut next_positional = 0;
+    node.children.get(1).is_some_and(|arguments| {
+        arguments.children.iter().any(|argument| {
+            let (name, expression) = if argument.kind == SyntaxKind::Argument
+                && argument.children.len() > 1
+                && argument.children[0].kind == SyntaxKind::Name
+            {
+                (
+                    Some(node_text(&unit.source, &argument.children[0]).to_owned()),
+                    argument.children.last().unwrap(),
+                )
+            } else {
+                let expression = if argument.kind == SyntaxKind::Argument {
+                    argument.children.last().unwrap_or(argument)
+                } else {
+                    argument
+                };
+                let index = next_positional;
+                next_positional += 1;
+                (
+                    contract.parameters.get(index).map(|p| p.name.clone()),
+                    expression,
+                )
+            };
+            let parameter = name
+                .as_deref()
+                .and_then(|name| contract.parameters.iter().find(|p| p.name == name));
+            parameter.is_some_and(|parameter| {
+                let borrowed = parameter.value_type.as_ref().is_some_and(|value_type| {
+                    matches!(
+                        value_type,
+                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                    )
+                });
+                let mutable = parameter
+                    .value_type
+                    .as_ref()
+                    .is_some_and(|value_type| matches!(value_type, ValueType::MutableReference(_)));
+                (mutable && is_owner(expression))
+                    || (!borrowed && !mutable && is_lender(expression))
+            })
+        })
+    })
+}
+
 fn call_uses_lender_incompatibly(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -464,70 +543,7 @@ fn call_uses_lender_incompatibly(
     };
     let key = (node.span.file, node.span.start, node.span.end);
     let Some(specialization) = unit.projected_call_specializations.get(&key) else {
-        // Fixed-signature calls need no specialization, but their receiver
-        // authority is still part of the active native loan contract.
-        if node
-            .children
-            .first()
-            .and_then(|callee| super::diagnostics::typed_member_call(unit, callee))
-            .is_some_and(|(receiver, ty, member)| {
-                let mode = super::diagnostics::member_invocation_mode(package, unit, &ty, &member);
-                (mode == InvocationMode::Mutable && is_owner(receiver))
-                    || (mode == InvocationMode::Consuming && is_lender(receiver))
-            })
-        {
-            return true;
-        }
-        let Some(contract) = super::calls::selected_callable_contract(
-            package,
-            unit,
-            node,
-            crate::syntax::call_is_unsafe(node),
-        ) else {
-            return false;
-        };
-        let mut next_positional = 0;
-        return node.children.get(1).is_some_and(|arguments| {
-            arguments.children.iter().any(|argument| {
-                let (name, expression) = if argument.kind == SyntaxKind::Argument
-                    && argument.children.len() > 1
-                    && argument.children[0].kind == SyntaxKind::Name
-                {
-                    (
-                        Some(node_text(&unit.source, &argument.children[0]).to_owned()),
-                        argument.children.last().unwrap(),
-                    )
-                } else {
-                    let expression = if argument.kind == SyntaxKind::Argument {
-                        argument.children.last().unwrap_or(argument)
-                    } else {
-                        argument
-                    };
-                    let index = next_positional;
-                    next_positional += 1;
-                    (
-                        contract.parameters.get(index).map(|p| p.name.clone()),
-                        expression,
-                    )
-                };
-                let parameter = name
-                    .as_deref()
-                    .and_then(|name| contract.parameters.iter().find(|p| p.name == name));
-                parameter.is_some_and(|parameter| {
-                    let borrowed = parameter.value_type.as_ref().is_some_and(|value_type| {
-                        matches!(
-                            value_type,
-                            ValueType::Reference(_) | ValueType::SharedReference(_)
-                        )
-                    });
-                    let mutable = parameter.value_type.as_ref().is_some_and(|value_type| {
-                        matches!(value_type, ValueType::MutableReference(_))
-                    });
-                    (mutable && is_owner(expression))
-                        || (!borrowed && !mutable && is_lender(expression))
-                })
-            })
-        });
+        return fixed_call_uses_lender_incompatibly(package, unit, node, guard, owners);
     };
     let callee = node.children.first();
     let receiver = callee.and_then(|callee| callee.children.first());
@@ -1037,6 +1053,65 @@ fn collection_stores_lender(
     }
     Ok(false)
 }
+fn validate_lender_binding_destination(
+    unit: &SemanticUnit,
+    region: Span,
+    node: &SyntaxNode,
+    value: &SyntaxNode,
+    value_type: &ValueType,
+    lenders: &mut Vec<Span>,
+    acquired_type: Option<&ValueType>,
+) -> Result<(), SemanticFailure> {
+    let region_id = (region.file, region.start, region.end);
+    let carries_lender = scoped_region(value_type) == Some(region_id)
+        || directly_uses_lender(unit, value, lenders)
+        || (references_lender(unit, value, lenders)
+            && (scoped_region(value_type).is_some()
+                || expression_has_lender_provenance(unit, value, lenders)
+                || acquired_type.is_some_and(|lender| contains_nested_type(value_type, lender))));
+    if !carries_lender {
+        return Ok(());
+    }
+    let destination = declared_bindings_at_node(unit, node).next().or_else(|| {
+        node.children
+            .first()
+            .filter(|target| target.kind == SyntaxKind::Name)
+            .and_then(|target| {
+                let name = node_text(&unit.source, target);
+                unit.typed_bindings
+                    .iter()
+                    .filter(|binding| {
+                        binding.name == name
+                            && binding.is_visible_at(unit.source.id(), target.span.start)
+                    })
+                    .max_by_key(|binding| binding.visible_from)
+            })
+    });
+    let Some(destination) = destination else {
+        return Err(failure(
+            &unit.source,
+            "T0240",
+            "scoped-access guard or dependent value cannot be stored through an outer place",
+            node.span,
+        ));
+    };
+    let destination_within_lender = destination.scope.is_some_and(|scope| {
+        scope.file == region.file && scope.start >= region.start && scope.end <= region.end
+    });
+    if !destination_within_lender {
+        return Err(failure(
+            &unit.source,
+            "T0240",
+            "scoped-access guard or dependent value cannot escape its region",
+            value.span,
+        ));
+    }
+    if !lenders.contains(&destination.span) {
+        lenders.push(destination.span);
+    }
+    Ok(())
+}
+
 fn validate_region_escape_node(
     unit: &SemanticUnit,
     region: Span,
@@ -1120,52 +1195,15 @@ fn validate_region_escape_node(
         && let Some(value) = node.children.last()
         && let Some(value_type) = infer_lender_related_value_type(unit, value, lenders)?
     {
-        let carries_lender = scoped_region(&value_type) == Some(region_id)
-            || directly_uses_lender(unit, value, lenders)
-            || (references_lender(unit, value, lenders)
-                && (scoped_region(&value_type).is_some()
-                    || expression_has_lender_provenance(unit, value, lenders)
-                    || acquired_type
-                        .is_some_and(|lender| contains_nested_type(&value_type, lender))));
-        if carries_lender {
-            let destination = declared_bindings_at_node(unit, node).next().or_else(|| {
-                node.children
-                    .first()
-                    .filter(|target| target.kind == SyntaxKind::Name)
-                    .and_then(|target| {
-                        let name = node_text(&unit.source, target);
-                        unit.typed_bindings
-                            .iter()
-                            .filter(|binding| {
-                                binding.name == name
-                                    && binding.is_visible_at(unit.source.id(), target.span.start)
-                            })
-                            .max_by_key(|binding| binding.visible_from)
-                    })
-            });
-            let Some(destination) = destination else {
-                return Err(failure(
-                    &unit.source,
-                    "T0240",
-                    "scoped-access guard or dependent value cannot be stored through an outer place",
-                    node.span,
-                ));
-            };
-            let destination_within_lender = destination.scope.is_some_and(|scope| {
-                scope.file == region.file && scope.start >= region.start && scope.end <= region.end
-            });
-            if !destination_within_lender {
-                return Err(failure(
-                    &unit.source,
-                    "T0240",
-                    "scoped-access guard or dependent value cannot escape its region",
-                    value.span,
-                ));
-            }
-            if !lenders.contains(&destination.span) {
-                lenders.push(destination.span);
-            }
-        }
+        validate_lender_binding_destination(
+            unit,
+            region,
+            node,
+            value,
+            &value_type,
+            lenders,
+            acquired_type,
+        )?;
     }
     for child in &node.children {
         validate_region_escape_node(unit, region, child, lenders)?;

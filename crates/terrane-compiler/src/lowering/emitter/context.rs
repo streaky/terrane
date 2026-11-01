@@ -243,6 +243,9 @@ impl<'unit> Emitter<'unit> {
             .iter()
             .any(|(key, availability)| {
                 *availability == crate::semantics::FlowAvailability::MayBeUnassigned
+                    // Declaration facts describe the state before its first write;
+                    // only later uses can require an optional storage slot.
+                    && (key.1, key.2) != (binding.span.start, binding.span.end)
                     && self.unit.flow_binding_ids.get(key) == Some(&binding.span)
             })
     }
@@ -1326,6 +1329,27 @@ impl<'unit> Emitter<'unit> {
                 operand,
             );
             return format!("{{ {setup}let __terrane_key = {key}; {item} }}");
+        }
+        if let [receiver, member] = operand.children.as_slice()
+            && operand.kind == SyntaxKind::MemberExpression
+            && let Some((setup, place, borrowed)) = self.projected_field_place_parts(
+                operand,
+                receiver,
+                member,
+                true,
+                super::members::GuardScope::Place,
+            )
+        {
+            let address = if borrowed {
+                place
+            } else {
+                format!("&mut {place}")
+            };
+            return if setup.is_empty() {
+                address
+            } else {
+                format!("{{ {setup}{address} }}")
+            };
         }
         if matches!(
             self.value_type(operand),

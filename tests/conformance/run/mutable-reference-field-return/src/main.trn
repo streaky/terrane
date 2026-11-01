@@ -1,0 +1,51 @@
+namespace app
+
+class inner
+  value int = 0
+
+class box
+  scalar int = 0
+  item inner = instance inner;
+
+class derived-box extends box
+  extra int = 0
+
+class required-box
+  item inner
+  function construct; item inner
+    this.item = item
+
+function scalar-field mutable ref int; holder mutable ref box
+  return holder.scalar
+
+function object-field mutable ref inner; holder mutable ref box
+  return holder.item
+
+function inherited-field mutable ref int; holder mutable ref derived-box
+  return holder.scalar
+
+function required-field mutable ref inner; holder mutable ref required-box
+  return holder.item
+
+function nested-field mutable ref int; holder mutable ref required-box
+  return holder.item.value
+
+function main;
+  original = instance box;
+  scalar-alias = scalar-field; original
+  scalar-alias = 21
+  print; original.scalar
+  object-alias = object-field; original
+  object-alias.value = 34
+  print; original.item.value
+  derived = instance derived-box;
+  inherited-alias = inherited-field; derived
+  inherited-alias = 55
+  print; derived.scalar
+  required = instance required-box; (instance inner;)
+  required-alias = required-field; required
+  required-alias.value = 89
+  print; required.item.value
+  nested-alias = nested-field; required
+  nested-alias = 144
+  print; required.item.value

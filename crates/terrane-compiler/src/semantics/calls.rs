@@ -1561,13 +1561,11 @@ fn call_reference_origin(
                         | ValueType::MutableReference(_)
                         | ValueType::SharedReference(_)
                 )
-            }) {
-                if let Some(provenance) = unit
-                    .reference_provenance
-                    .get(&(declaration.start, declaration.end))
-                {
-                    return Some((provenance.owner, provenance.path.clone()));
-                }
+            }) && let Some(provenance) = unit
+                .reference_provenance
+                .get(&(declaration.start, declaration.end))
+            {
+                return Some((provenance.owner, provenance.path.clone()));
             }
             Some((declaration, Vec::new()))
         }
@@ -1637,6 +1635,57 @@ fn validate_call_borrow_aliases(
         }
     }
     Ok(())
+}
+
+fn validate_argument_destination(
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    name: &str,
+    expected: &ValueType,
+    actual: &ValueType,
+    native_callback: bool,
+    generic_bindings: &mut BTreeMap<String, ValueType>,
+) -> Result<(), SemanticFailure> {
+    let generic_failure = |generic| {
+        failure(
+            &unit.source,
+            "T0012",
+            format!("projected generic `{generic}` is inferred as incompatible argument types"),
+            value.span,
+        )
+    };
+    if bind_destination_selected_callback(expected, actual, generic_bindings)
+        .map_err(generic_failure)?
+    {
+        return Ok(());
+    }
+    let validation_expected = match (expected, actual) {
+        (
+            ValueType::Reference(_) | ValueType::SharedReference(_),
+            ValueType::Reference(_)
+            | ValueType::MutableReference(_)
+            | ValueType::SharedReference(_),
+        )
+        | (ValueType::MutableReference(_), ValueType::MutableReference(_)) => expected.clone(),
+        (ValueType::Reference(inner), _) if native_callback || inner.value_type_ref() == actual => {
+            inner.value_type()
+        }
+        (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _) => {
+            inner.value_type()
+        }
+        _ => expected.clone(),
+    };
+    bind_projected_generics(&validation_expected, actual, generic_bindings)
+        .map_err(generic_failure)?;
+    validate_value_destination(
+        &unit.source,
+        &unit.descriptors,
+        name,
+        &validation_expected,
+        actual,
+        value,
+        "T0012",
+    )
 }
 
 pub(super) fn validate_call_arguments(
@@ -1718,50 +1767,14 @@ pub(super) fn validate_call_arguments(
                 if matches!(expected, ValueType::MutableReference(_)) {
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
-                let generic_failure = |generic| {
-                    failure(
-                        &unit.source,
-                        "T0012",
-                        format!(
-                            "projected generic `{generic}` is inferred as incompatible argument types"
-                        ),
-                        value.span,
-                    )
-                };
-                if bind_destination_selected_callback(&expected, &actual, &mut generic_bindings)
-                    .map_err(generic_failure)?
-                {
-                    continue;
-                }
-                let validation_expected = match (&expected, &actual) {
-                    (
-                        ValueType::Reference(_) | ValueType::SharedReference(_),
-                        ValueType::Reference(_)
-                        | ValueType::MutableReference(_)
-                        | ValueType::SharedReference(_),
-                    ) => expected.clone(),
-                    (ValueType::MutableReference(_), ValueType::MutableReference(_)) => {
-                        expected.clone()
-                    }
-                    (ValueType::MutableReference(inner), _) => inner.value_type(),
-                    (ValueType::Reference(inner), _)
-                        if native_callback || inner.value_type_ref() == &actual =>
-                    {
-                        inner.value_type()
-                    }
-                    (ValueType::SharedReference(inner), _) => inner.value_type(),
-                    _ => expected.clone(),
-                };
-                bind_projected_generics(&validation_expected, &actual, &mut generic_bindings)
-                    .map_err(generic_failure)?;
-                validate_value_destination(
-                    &unit.source,
-                    &unit.descriptors,
-                    &parameter.name,
-                    &validation_expected,
-                    &actual,
+                validate_argument_destination(
+                    unit,
                     value,
-                    "T0012",
+                    &parameter.name,
+                    &expected,
+                    &actual,
+                    native_callback,
+                    &mut generic_bindings,
                 )?;
             }
         }

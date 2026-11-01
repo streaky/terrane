@@ -487,19 +487,19 @@ fn flow_region(
                 );
             }
         }
-        if exit == FlowExit::Normal {
-            if let Some(body) = body {
-                for (body_exit, body_env) in flow_block(unit, body, env) {
-                    let body_env = leave_region(body_env, &outer, &locals);
-                    merge_into_paths(
-                        unit,
-                        region.span,
-                        paths,
-                        FlowStates::from([(body_exit, body_env)]),
-                    );
-                }
-                continue;
+        if exit == FlowExit::Normal
+            && let Some(body) = body
+        {
+            for (body_exit, body_env) in flow_block(unit, body, env) {
+                let body_env = leave_region(body_env, &outer, &locals);
+                merge_into_paths(
+                    unit,
+                    region.span,
+                    paths,
+                    FlowStates::from([(body_exit, body_env)]),
+                );
             }
+            continue;
         }
         let env = leave_region(env, &outer, &locals);
         merge_into_paths(unit, region.span, paths, FlowStates::from([(exit, env)]));
@@ -1377,14 +1377,9 @@ fn record_assignment_reads(
     }
 }
 
-fn flow_assignment(
-    unit: &mut SemanticUnit,
+fn assignment_target_and_value(
     statement: &SyntaxNode,
-    state: FlowEnv,
-    paths: &mut FlowStates,
-) {
-    let mut outcomes = Vec::new();
-    analyze_nested_function_flow(unit, statement, &state);
+) -> (Option<&SyntaxNode>, Option<&SyntaxNode>) {
     let target = if statement.kind == SyntaxKind::Binding {
         statement
             .children
@@ -1401,6 +1396,18 @@ fn flow_assignment(
     } else {
         statement.children.get(1)
     };
+    (target, value)
+}
+
+fn flow_assignment(
+    unit: &mut SemanticUnit,
+    statement: &SyntaxNode,
+    state: FlowEnv,
+    paths: &mut FlowStates,
+) {
+    let mut outcomes = Vec::new();
+    analyze_nested_function_flow(unit, statement, &state);
+    let (target, value) = assignment_target_and_value(statement);
     record_assignment_reads(unit, statement, value, &state);
     // Writing through an exclusive handle reads that handle; it does not
     // replace its identity, initialization state, or reference provenance.
