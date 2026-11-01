@@ -742,7 +742,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             for child in &node.children {
                 if !skipped_name && child.kind == SyntaxKind::Name {
                     skipped_name = true;
-                    continue;
+                    // Write-through assignment uses the reference handle, not a new binding.
+                    if node.kind != SyntaxKind::Assignment
+                        || !matches!(
+                            unit.inferred_value_type(child),
+                            Some(ValueType::MutableReference(_))
+                        )
+                    {
+                        continue;
+                    }
                 }
                 visit(package, unit, child, moved, false, resource_objects)?;
             }

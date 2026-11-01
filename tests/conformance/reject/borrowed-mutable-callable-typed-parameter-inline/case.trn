@@ -1,0 +1,9 @@
+namespace app
+function run-twice; action mutable function to none
+    action;
+    action;
+function main;
+    value = 3
+    borrowed = mutable ref value
+    run-twice; mutable function;
+        borrowed = borrowed + 1

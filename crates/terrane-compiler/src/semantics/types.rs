@@ -1243,7 +1243,12 @@ pub(super) fn diagnostic_value_type(
                 },
                 |bound| format!(" throws {}", diagnostic_value_type(objects, bound)),
             );
-            format!("{prefix}{from} to {}{throws}", nested(result))
+            let captures = if effects.borrowed_environment {
+                " (captures borrowed references)"
+            } else {
+                ""
+            };
+            format!("{prefix}{from} to {}{throws}{captures}", nested(result))
         }
         ValueType::Task(result, _) => format!("task of {}", nested(result)),
         ValueType::ScopedTask(result, _) => format!("scoped task of {}", nested(result)),
