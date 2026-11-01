@@ -1,0 +1,36 @@
+namespace integer-move
+
+function compact;
+    owned = 1
+    transferred = move owned
+    print; transferred
+
+function reassigned;
+    owned = 1
+    transferred = move owned
+    owned = 2
+    print; transferred
+    print; owned
+
+function large;
+    owned = 340282366920938463463374607431768211456
+    transferred = move owned
+    owned = 340282366920938463463374607431768211457
+    print; transferred
+    print; owned
+
+function narrowed;
+    owned int|none = 3
+    if owned != none
+        transferred = move owned
+        print; transferred
+
+function from-parameter int; owned int
+    return move owned
+
+function main;
+    compact;
+    reassigned;
+    large;
+    narrowed;
+    print; (from-parameter; 5)

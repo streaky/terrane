@@ -1648,10 +1648,18 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let operator = self.unary_operator(node).unwrap_or_default();
-                if operator == "await" {
-                    self.await_expression(operand)
-                } else {
-                    format!("{operator}{}", self.adaptive_expression(operand))
+                match operator.as_str() {
+                    "await" => self.await_expression(operand),
+                    "move" if operand.kind == SyntaxKind::Name => {
+                        let value = self.moved_name(operand);
+                        if self.small_int_binding(operand).is_some() {
+                            format!("terrane_int_support::Int::from(({value}) as i128)")
+                        } else {
+                            value
+                        }
+                    }
+                    "move" => self.adaptive_expression(operand),
+                    _ => format!("{operator}{}", self.adaptive_expression(operand)),
                 }
             }
             SyntaxKind::BinaryExpression => self.adaptive_binary(node),
