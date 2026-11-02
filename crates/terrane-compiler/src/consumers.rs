@@ -540,7 +540,14 @@ impl WaitWithInput for std::process::Child {
                 )
             })?;
         let write_result = writer.join();
-        if !matches!(write_result, Ok(Ok(()))) && status.success() {
+        // A successful tool may use external inputs and never read the request.
+        // Closing its input early must not invalidate an otherwise valid response.
+        let write_failed = match write_result {
+            Ok(Ok(())) => false,
+            Ok(Err(error)) => error.kind() != std::io::ErrorKind::BrokenPipe,
+            Err(_) => true,
+        };
+        if status.success() && write_failed {
             return Err(failure(
                 package,
                 fallback,
@@ -1242,6 +1249,59 @@ mod tests {
         .expect("the consumer exits unsuccessfully");
         assert_eq!(error.diagnostics[0].code.as_ref(), "S2060");
         assert!(error.diagnostics[0].message.contains("47"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn early_stdin_close_keeps_response_and_exit_validation() {
+        let (package, root) = temporary_package();
+        // Larger than the pipe buffer: the child closes stdin before producing
+        // output, so request delivery must fail regardless of scheduling.
+        let input = vec![b' '; 2 * 1024 * 1024];
+        for (script, expected) in [
+            (
+                r#"exec 0<&-; printf '%s' '{"format":1,"generated_sources":[{"identity":"answer","source":"namespace generated\npublic constant answer = 42\n"}],"diagnostics":[]}'"#,
+                None,
+            ),
+            (
+                "exec 0<&-; printf 'invalid JSON'",
+                Some("malformed protocol JSON"),
+            ),
+            ("exec 0<&-; exit 47", Some("47")),
+        ] {
+            let config = crate::package::ConsumerConfig {
+                name: "early-close".to_owned(),
+                executable: crate::package::ConsumerExecutable::Command {
+                    executable: "sh".into(),
+                    arguments: vec!["-c".to_owned(), script.to_owned()],
+                },
+                declarations: Vec::new(),
+                interfaces: Vec::new(),
+            };
+            let result = execute_consumer(
+                &package,
+                &config,
+                std::path::Path::new("sh"),
+                &input,
+                fallback_span(&package),
+            );
+            if let Some(expected) = expected {
+                let failure = result.err().expect("response or exit status must reject");
+                assert_eq!(failure.diagnostics[0].code.as_ref(), "S2060");
+                assert!(
+                    failure.diagnostics[0].message.contains(expected),
+                    "{failure:?}"
+                );
+            } else {
+                let response = result.expect("successful tools need not read stdin");
+                assert_eq!(response.generated_sources[0].identity, "answer");
+                assert_eq!(
+                    response.generated_sources[0].source,
+                    "namespace generated\npublic constant answer = 42\n"
+                );
+            }
+        }
         std::fs::remove_dir_all(root).unwrap();
     }
 
