@@ -832,22 +832,20 @@ impl Emitter<'_> {
                 return self.reference_address_expression(node);
             }
         }
-        if matches!(value_type, ValueType::SharedReference(_)) {
+        if let ValueType::SharedReference(expected) = &value_type {
             if node.kind == SyntaxKind::UnaryExpression {
                 return self.expression(node);
             }
-            let existing_storage = match node.kind {
-                SyntaxKind::Name
-                | SyntaxKind::MemberExpression
-                | SyntaxKind::StaticMemberExpression
-                | SyntaxKind::IndexExpression
-                | SyntaxKind::CallExpression => self.value_type(node) == Some(value_type.clone()),
-                SyntaxKind::GroupExpression => node
-                    .children
-                    .first()
-                    .is_some_and(|child| self.value_type(child) == Some(value_type.clone())),
-                _ => false,
-            };
+            let existing_storage = self.value_type(node).is_some_and(|actual| {
+                let ValueType::SharedReference(actual) = actual else {
+                    return false;
+                };
+                crate::semantics::reference_target_types_equal(
+                    self.package,
+                    expected.value_type_ref(),
+                    actual.value_type_ref(),
+                )
+            });
             return if existing_storage {
                 format!("({}).clone()", self.expression(node))
             } else {

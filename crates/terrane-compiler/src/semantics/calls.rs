@@ -1950,51 +1950,22 @@ pub(crate) fn selected_callable_contract(
     } else {
         callee
     };
-    let contract = function_contract_for_call_with_safety(package, unit, designator, is_unsafe)?;
+    let Some(contract) =
+        function_contract_for_call_with_safety(package, unit, designator, is_unsafe)
+    else {
+        return (!is_unsafe)
+            .then(|| {
+                super::native_constructors::implicit_record_constructor(package, unit, designator)
+            })
+            .flatten();
+    };
     if contract.generic_parameters.is_empty() {
         if callee.kind == SyntaxKind::AppliedType {
             return None;
         }
-        let mut selected = contract.clone();
-        if callee.kind == SyntaxKind::ConstructionExpression
-            && let Some(ValueType::Object(identity)) =
-                infer_value_type(unit, call, &unit.typed_bindings)
-                    .ok()
-                    .flatten()
-            && let Some(descriptor) = unit
-                .descriptors
-                .iter()
-                .find(|item| item.identity.base() == identity.base())
-        {
-            let substitutions = descriptor
-                .generic_parameters
-                .iter()
-                .zip(&identity.type_arguments)
-                .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
-                .collect();
-            for parameter in &mut selected.parameters {
-                parameter.value_type = parameter
-                    .value_type
-                    .as_ref()
-                    .map(|value_type| substitute_value_type(value_type, &substitutions));
-            }
-            selected.return_type = Some(ValueType::Object(identity));
-        }
-        if callee.kind == SyntaxKind::MemberExpression
-            && let Some(
-                ValueType::Function(parameters, result, _)
-                | ValueType::AsyncFunction(parameters, result, _, _),
-            ) = infer_member_value_type(unit, callee, &unit.typed_bindings)
-                .ok()
-                .flatten()
-        {
-            for (parameter, callable) in selected.parameters.iter_mut().zip(parameters) {
-                parameter.value_type = Some(callable.value_type());
-            }
-            selected.return_type = Some(result.value_type());
-        }
-        canonicalize_selected_contract(package, &mut selected);
-        return Some(selected);
+        return Some(close_non_generic_contract(
+            package, unit, call, callee, contract,
+        ));
     }
     let (mut selected, substitutions) = super::generics::select_unit_callable_contract(
         Some(package),
@@ -2031,6 +2002,55 @@ pub(crate) fn selected_callable_contract(
     }
     canonicalize_selected_contract(package, &mut selected);
     Some(selected)
+}
+
+fn close_non_generic_contract(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    callee: &SyntaxNode,
+    contract: &FunctionContract,
+) -> FunctionContract {
+    let mut selected = contract.clone();
+    if callee.kind == SyntaxKind::ConstructionExpression
+        && let Some(ValueType::Object(identity)) =
+            infer_value_type(unit, call, &unit.typed_bindings)
+                .ok()
+                .flatten()
+        && let Some(descriptor) = unit
+            .descriptors
+            .iter()
+            .find(|item| item.identity.base() == identity.base())
+    {
+        let substitutions = descriptor
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
+            .collect();
+        for parameter in &mut selected.parameters {
+            parameter.value_type = parameter
+                .value_type
+                .as_ref()
+                .map(|value_type| substitute_value_type(value_type, &substitutions));
+        }
+        selected.return_type = Some(ValueType::Object(identity));
+    }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let Some(
+            ValueType::Function(parameters, result, _)
+            | ValueType::AsyncFunction(parameters, result, _, _),
+        ) = infer_member_value_type(unit, callee, &unit.typed_bindings)
+            .ok()
+            .flatten()
+    {
+        for (parameter, callable) in selected.parameters.iter_mut().zip(parameters) {
+            parameter.value_type = Some(callable.value_type());
+        }
+        selected.return_type = Some(result.value_type());
+    }
+    canonicalize_selected_contract(package, &mut selected);
+    selected
 }
 
 // A closed native adapter can supply an exclusive input even when the generic

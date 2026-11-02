@@ -27,11 +27,13 @@ function main;
   named-value Event-Named|none = named.into-Named;
   if named-value != none
     print; 'named'
-  optional-payload Event-Optional = instance Event-Optional; value = 42, label = 'ok'
+  optional-payload Event-Optional = instance Event-Optional; value = 42, label-value = 'ok'
   optional Event = Event::Optional; optional-payload
   optional-value Event-Optional|none = optional.into-Optional;
   if optional-value != none
     print; 'optional'
+  if optional-value != none
+    print; optional-value.label-value
   owned OwnedEvent|none = OwnedEvent::Payload; (non_clone_payload; 'owned')
   if owned != none
     payload NonClonePayload|none = (move owned).into-Payload;

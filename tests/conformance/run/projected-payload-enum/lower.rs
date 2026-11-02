@@ -195,7 +195,34 @@ fn main() {
         ::__terrane_dependency_panic(payload, "terrane_payload_enum_witness",
         "terrane_payload_enum_witness::Event::variant-name")) }, 7 /* terrane-site: src/main.trn:17:11-17:29 */))
     );
-    pair_payload = EventPair::terrane_construct(20, 22);
+    pair_payload = EventPair::terrane_construct(
+        match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                terrane_int_support::coerce::<
+                    i64,
+                >(&terrane_int_support::Int::from(20_i128))
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        },
+        match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                terrane_int_support::coerce::<
+                    i64,
+                >(&terrane_int_support::Int::from(22_i128))
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        },
+    );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(pair_payload.item_n0.clone() +
         pair_payload.item_n1.clone()))
@@ -250,7 +277,21 @@ fn main() {
     if (&pair_value).is_some() {
         println!("{}", String::from("pair"));
     }
-    named_payload = EventNamed::terrane_construct(42);
+    named_payload = EventNamed::terrane_construct(
+        match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                terrane_int_support::coerce::<
+                    i64,
+                >(&terrane_int_support::Int::from(42_i128))
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        },
+    );
     println!("{}", terrane_scalar_support::scalar_text(&named_payload.value));
     named = __terrane_raised(
         match std::panic::catch_unwind(
@@ -303,7 +344,34 @@ fn main() {
     if (&named_value).is_some() {
         println!("{}", String::from("named"));
     }
-    optional_payload = EventOptional::terrane_construct(42, None::<String>);
+    optional_payload = EventOptional::terrane_construct(
+        match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                {
+                    let __terrane_field_argument: Option<terrane_int_support::Int> = Some(
+                        terrane_int_support::Int::from(42_i128),
+                    );
+                    __terrane_field_argument
+                }
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(
+                            terrane_int_support::coerce::<u32>(&value)
+                                .map_err(|error| crate::TerraneForeignError(
+                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                ))?,
+                        )
+                    })
+                    .transpose()?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        },
+        {
+            let __terrane_field_argument: Option<String> = Some(String::from("ok"));
+            __terrane_field_argument
+        },
+    );
     optional = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| {
@@ -360,10 +428,20 @@ fn main() {
     if (&optional_value).is_some() {
         println!("{}", String::from("optional"));
     }
+    if (&optional_value).is_some() {
+        println!(
+            "{}", { let mut __terrane_text = String::new(); match &match &optional_value
+            { Some(value) => value, _ => unreachable!("flow-proven storage refinement") }
+            .label_value { Some(__terrane_present) => {
+            terrane_scalar_support::ScalarDisplay::write_scalar(&__terrane_present, &mut
+            __terrane_text); }, None => __terrane_text.push_str("none"), } __terrane_text
+            }
+        );
+    }
     owned = Some({
         let __terrane_native_input_0 = __terrane_raised(
             non_clone_payload(String::from("owned")),
-            14 /* terrane-site: src/main.trn:35:49-35:75 */,
+            14 /* terrane-site: src/main.trn:37:49-37:75 */,
         );
         __terrane_raised(
             match std::panic::catch_unwind(
@@ -382,7 +460,7 @@ fn main() {
                     )
                 }
             },
-            15 /* terrane-site: src/main.trn:35:27-35:76 */,
+            15 /* terrane-site: src/main.trn:37:27-37:76 */,
         )
     });
     if (&owned).is_some() {
@@ -408,24 +486,24 @@ fn main() {
                     )
                 }
             },
-            16 /* terrane-site: src/main.trn:37:36-37:62 */,
+            16 /* terrane-site: src/main.trn:39:36-39:62 */,
         );
         if (&payload).is_some() {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_raised(consume_payload(payload
-                .expect("semantic optional narrowing")), 17 /* terrane-site: src/main.trn:39:15-39:44 */))
+                .expect("semantic optional narrowing")), 17 /* terrane-site: src/main.trn:41:15-41:44 */))
             );
         }
     }
     future = __terrane_raised(
         future_event(),
-        18 /* terrane-site: src/main.trn:40:22-40:35 */,
+        18 /* terrane-site: src/main.trn:42:22-42:35 */,
     );
-    let __terrane_match_value_1589 = future.clone();
-    match __terrane_match_value_1589 {
-        terrane_payload_enum_witness::OpenEvent::Known(__terrane_pattern_1606_text) => {
-            text_2 = __terrane_pattern_1606_text;
+    let __terrane_match_value_1661 = future.clone();
+    match __terrane_match_value_1661 {
+        terrane_payload_enum_witness::OpenEvent::Known(__terrane_pattern_1678_text) => {
+            text_2 = __terrane_pattern_1678_text;
             println!("{}", terrane_scalar_support::scalar_text(&text_2));
         }
         _ => {

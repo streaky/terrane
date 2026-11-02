@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-native-record = { path = "fixture-registry/terrane-native-record-0.1.0" }

@@ -1255,21 +1255,24 @@ fn main() {
             Ok(value) => value,
             Err(error) => std::panic::panic_any(error),
         },
-        children: {
-            let value: Option<terrane_collection_support::List<witness::Tree>> = None;
-            match || -> Result<_, crate::TerraneForeignError> {
-                Ok(
-                    value
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
-                            Ok(value.into_vec())
-                        })
-                        .transpose()?,
-                )
-            }() {
-                Ok(value) => value,
-                Err(error) => std::panic::panic_any(error),
-            }
-        },
+        children: match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                {
+                    let __terrane_field_argument: Option<
+                        terrane_collection_support::List<Tree>,
+                    > = None;
+                    __terrane_field_argument
+                }
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(value.into_vec())
+                    })
+                    .transpose()?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        }
+            .into(),
     };
     println!("{}", terrane_scalar_support::scalar_text(&leaf.value));
     branch = witness::Tree {
@@ -1286,23 +1289,24 @@ fn main() {
             Ok(value) => value,
             Err(error) => std::panic::panic_any(error),
         },
-        children: {
-            let value: Option<terrane_collection_support::List<witness::Tree>> = Some(
-                terrane_collection_support::List::<Tree>::new(vec![leaf]),
-            );
-            match || -> Result<_, crate::TerraneForeignError> {
-                Ok(
-                    value
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
-                            Ok(value.into_vec())
-                        })
-                        .transpose()?,
-                )
-            }() {
-                Ok(value) => value,
-                Err(error) => std::panic::panic_any(error),
-            }
-        },
+        children: match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                {
+                    let __terrane_field_argument: Option<
+                        terrane_collection_support::List<Tree>,
+                    > = Some(terrane_collection_support::List::<Tree>::new(vec![leaf]));
+                    __terrane_field_argument
+                }
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(value.into_vec())
+                    })
+                    .transpose()?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        }
+            .into(),
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(child_count(&branch),
@@ -1689,8 +1693,16 @@ fn check_numeric_fields() {
     let absent: Option<terrane_int_support::Int>;
     let invalid: Option<terrane_int_support::Int>;
     fields = witness::NumericFields {
-        quality: None,
-        ratio: None,
+        quality: {
+            let __terrane_field_argument: Option<u32> = None;
+            __terrane_field_argument
+        }
+            .into(),
+        ratio: {
+            let __terrane_field_argument: Option<f64> = None;
+            __terrane_field_argument
+        }
+            .into(),
     };
     selected = optional_number(true, terrane_int_support::Int::from(73_i128));
     {

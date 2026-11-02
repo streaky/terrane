@@ -128,9 +128,7 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        view = RequestBuilderOwner::terrane_construct(
-            std::sync::Arc::new(TerraneSharedCell::new(builder)),
-        );
+        view = RequestBuilderOwner::terrane_construct(builder.clone());
         view.set_method(String::from("POST"));
         println!("{}", terrane_scalar_support::scalar_text(&view.read_method()));
     }
@@ -147,9 +145,7 @@ fn main() {
             0 /* terrane-site: src/main.trn:53:13-53:24 */,
         )
         .clone();
-    original = RequestBuilderOwner::terrane_construct(
-        std::sync::Arc::new(TerraneSharedCell::new(first)),
-    );
+    original = RequestBuilderOwner::terrane_construct(first.clone());
     copied = original.clone();
     copied.set_method(String::from("PATCH"));
     println!("{}", terrane_scalar_support::scalar_text(&original.read_method()));
@@ -167,9 +163,7 @@ fn main() {
             1 /* terrane-site: src/main.trn:59:14-59:25 */,
         )
         .clone();
-    other_view = RequestBuilderOwner::terrane_construct(
-        std::sync::Arc::new(TerraneSharedCell::new(second)),
-    );
+    other_view = RequestBuilderOwner::terrane_construct(second.clone());
     println!("{}", terrane_scalar_support::scalar_text(&other_view.read_method()));
     owner_resource = std::sync::Arc::new(
         TerraneSharedCell::new(Resource::terrane_construct()),
