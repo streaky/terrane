@@ -1119,7 +1119,7 @@ fn associated_cycles_and_finite_chains() {
     );
 }
 #[test]
-fn associated_normalization_rejects_distinct_applicable_results() {
+fn associated_results_reject_ambiguity() {
     let mut projection = associated_reply_projection();
     let owner = ProjectedType::Foreign {
         rust_path: "provider::protocol::Request<u32>".to_owned(),
