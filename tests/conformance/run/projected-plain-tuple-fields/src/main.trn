@@ -1,0 +1,14 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Plain, Nested, plain_sum, nested_sum
+from /core/collections import tuple, list
+function main;
+    first uint32 = 1
+    second uint32 = 2
+    good = tuple; first, second
+    print; (plain_sum; (instance Plain; size = good))
+    print; (plain_sum; (instance Plain; size = good))
+    print; (plain_sum; (instance Plain; size = (tuple; 3, 4)))
+    print; (nested_sum; (instance Nested; size = good, rows = (list; good)))
+    print; (nested_sum; (instance Nested; rows = (list; good)))
+    owner = instance Plain; size = (tuple; 1, 2)
+    print; (owner.add; (tuple; 4, 5))

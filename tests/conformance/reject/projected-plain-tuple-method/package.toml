@@ -1,0 +1,7 @@
+package = "projected-plain-tuple-method"
+
+[namespaces]
+app = "."
+
+[rust-dependencies.terrane-recursive-descriptor-witness]
+version = "=0.1.0"

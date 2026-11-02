@@ -61,11 +61,18 @@ pub(super) fn implicit_record_constructor(
                 .fields
                 .iter()
                 .find(|field| field.name == projected.name)?;
+            // Plain records store native fields directly, so their constructor
+            // parameters retain native tuple arity just like ordinary native inputs.
+            // Descriptor views instead accept owned source backing and validate its
+            // shape through their existing fallible conversion boundary.
+            let native_type = (!borrowed_view)
+                .then(|| closed_projected_value_type(package, &projected.ty))
+                .flatten();
             Some(ParameterContract {
                 name: field.name.clone(),
                 span: field.span,
                 value_type: Some(super::generics::substitute_value_type(
-                    &field.value_type,
+                    native_type.as_ref().unwrap_or(&field.value_type),
                     &substitutions,
                 )),
                 optional: matches!(projected.ty, ProjectedType::Optional(_)),

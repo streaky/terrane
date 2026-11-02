@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Plain, Nested
+from /core/collections import tuple, list
+function inspect; values tuple of int
+    owner = instance Plain; size = (tuple; 1, 2)
+    owner.add; values
+function main;
+    return

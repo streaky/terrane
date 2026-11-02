@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Plain, Nested
+from /core/collections import tuple, list
+function main;
+    first uint32 = 1
+    bad = tuple; first, first, first
+    record = instance Plain; size = bad

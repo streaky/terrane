@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Plain, Nested
+from /core/collections import tuple, list
+function make Plain; values tuple of uint32
+    return instance Plain; size = values
+function main;
+    return
