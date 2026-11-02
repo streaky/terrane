@@ -406,10 +406,35 @@ impl Parser<'_> {
         ) {
             self.associated_body_depth = self.block_depth + 1;
         }
-        children.push(self.parse_block());
+        children.push(self.parse_object_body());
         self.class_body_depth = previous_class_body_depth;
         self.associated_body_depth = previous_associated_body_depth;
         self.node(kind, start, self.position, children)
+    }
+
+    fn parse_object_body(&mut self) -> SyntaxNode {
+        let body = self.parse_block();
+        for member in &body.children {
+            if !matches!(
+                member.kind,
+                SyntaxKind::Binding
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::AssociatedTypeDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::TraitDeclaration
+                    | SyntaxKind::EnumDeclaration
+                    | SyntaxKind::Error
+                    | SyntaxKind::Unsupported
+            ) {
+                self.error_at(
+                    member.token_range.start,
+                    "S1043",
+                    "object bodies require member declarations, not executable statements",
+                );
+            }
+        }
+        body
     }
 
     fn parse_type_parameter_list(&mut self) -> SyntaxNode {
@@ -1958,11 +1983,13 @@ impl Parser<'_> {
             && (bare_discard
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
                 || (self.peek_kind(offset + 1) == Some(TokenKind::OpenParen)
-                    && !matches!(
-                        self.peek_text(offset),
-                        Some("not" | "ref" | "move" | "await")
-                    )
-                    && self.grouped_binding_type_has_declaration_boundary(offset + 1))
+                    && self.grouped_binding_type_has_declaration_boundary(
+                        offset + 1,
+                        !matches!(
+                            self.peek_text(offset),
+                            Some("not" | "ref" | "move" | "await")
+                        ),
+                    ))
                 || (has_prefix
                     && matches!(
                         self.peek_kind(offset + 1),
@@ -1970,7 +1997,11 @@ impl Parser<'_> {
                     )))
     }
 
-    fn grouped_binding_type_has_declaration_boundary(&self, offset: usize) -> bool {
+    fn grouped_binding_type_has_declaration_boundary(
+        &self,
+        offset: usize,
+        allow_uninitialized: bool,
+    ) -> bool {
         // Parentheses alone are not evidence of a binding type: calls such as
         // `show(5)` can otherwise be consumed as grouped types before statement parsing.
         // A type-shaped group followed by a declaration boundary is valid in
@@ -1995,15 +2026,14 @@ impl Parser<'_> {
                         {
                             cursor += 2;
                         }
-                        return matches!(
-                            self.peek_kind(cursor),
-                            Some(
-                                TokenKind::Assign
-                                    | TokenKind::Newline
-                                    | TokenKind::Dedent
-                                    | TokenKind::Eof
-                            )
-                        ) || self.peek_text(cursor) == Some("metadata");
+                        // An initializer disambiguates even a prefix-word name;
+                        // without one, `ref (value)` remains an expression.
+                        return self.peek_kind(cursor) == Some(TokenKind::Assign)
+                            || allow_uninitialized
+                                && (matches!(
+                                    self.peek_kind(cursor),
+                                    Some(TokenKind::Newline | TokenKind::Dedent | TokenKind::Eof)
+                                ) || self.peek_text(cursor) == Some("metadata"));
                     }
                 }
                 TokenKind::Newline | TokenKind::Eof => return false,
