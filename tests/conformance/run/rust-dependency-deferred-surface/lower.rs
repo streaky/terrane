@@ -78,5 +78,9 @@ fn main() {
         terrane_int_support::Int::from(0_i128)))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(&candidate).is_some()));
-    println!("{}", terrane_scalar_support::scalar_text(&(data != io)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
+        data; let __terrane_comparison_right = io; < Category as std::cmp::PartialEq >
+        ::ne(&__terrane_comparison_left, &__terrane_comparison_right) })
+    );
 }

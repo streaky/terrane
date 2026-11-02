@@ -1,0 +1,4 @@
+namespace contract
+public interface request of (Input)
+    associated type response
+    function dispatch response; input Input

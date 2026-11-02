@@ -1,0 +1,26 @@
+namespace app
+class item
+    value int = 7
+function maybe item|none; present bool
+    if present
+        return instance item;
+    return none
+function show; present bool
+    owner = maybe; present
+    borrowed = ref owner
+    if borrowed != none
+        print; borrowed.value
+    else
+        print; 'absent'
+function show-shared; present bool
+    owner = shared ref (maybe; present)
+    borrowed = ref owner
+    if borrowed != none
+        print; borrowed.value
+    else
+        print; 'absent-shared'
+function main;
+    show; true
+    show; false
+    show-shared; true
+    show-shared; false

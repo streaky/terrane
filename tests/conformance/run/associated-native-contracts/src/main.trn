@@ -1,0 +1,225 @@
+namespace app
+from /deps/witness import Alpha, AlphaReply, Beta, AliasedReply, Maybe, Echo, EchoReply, Unique, UniqueReply, Tagged, TaggedReply, Executor, SharedExecutor, shared_executor, execute, alternate
+from /deps/witness import Tree, TreeRequest, child_count
+from /deps/witness import Mode, mode
+from /deps/witness import NumericFields
+from /deps/witness import Batch, batch, Marked, marked, BorrowedOutput, borrowed_output
+from /deps/witness import set_batch, mapped_batch
+from /core/errors import integer-conversion-overflow
+from /core/collections import list
+from /core/errors import throwable
+from /deps/protocol import Failure
+
+interface command
+    associated type request
+    associated type response
+    associated type transport
+    function dispatch response throws throwable; service ref transport, input request
+
+class alpha-command implements command
+    associated type request = Alpha
+    associated type response = AlphaReply
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+    function free-dispatch response; input request
+        return execute; move input
+    function static-dispatch response; input request
+        return Executor::send; move input
+
+class beta-command implements command
+    associated type request = Beta
+    associated type response = AliasedReply
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class shared-command implements command
+    associated type request = Alpha
+    associated type response = AlphaReply
+    associated type transport = SharedExecutor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class nested-command implements command
+    associated type request = Maybe
+    associated type response = (list of AlphaReply)|none
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class echo-command implements command
+    associated type request = Echo of string
+    associated type response = EchoReply of string
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class alternate-command implements command
+    associated type request = Alpha
+    associated type response = AliasedReply
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return alternate; move input
+
+class unique-command implements command
+    associated type request = Unique
+    associated type response = UniqueReply
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class tagged-command implements command
+    associated type request = Tagged
+    associated type response = TaggedReply
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class tree-command implements command
+    associated type request = TreeRequest
+    associated type response = Tree
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+private owning interface retained-provider
+    associated type response
+    function read response;
+
+private class retained-resource implements retained-provider
+    associated type response = string
+    payload Unique
+    function construct; value Unique
+        this.payload = move value
+    function read response;
+        payload = ref this.payload
+        return payload.text
+
+function main;
+    executor = Executor::new;
+    alpha = instance alpha-command;
+    first = alpha.dispatch; executor, (instance Alpha; value = 40)
+    print; first.value
+    beta = instance beta-command;
+    second = beta.dispatch; executor, (instance Beta; text = 'selected')
+    print; second.native-label
+    third = alpha.free-dispatch; (instance Alpha; value = 41)
+    print; third.value
+    fourth = alpha.static-dispatch; (instance Alpha; value = 42)
+    print; fourth.value
+    shared = shared_executor;
+    pointer = instance shared-command;
+    through-pointer = pointer.dispatch; shared, (instance Alpha; value = 43)
+    print; through-pointer.value
+    nested = instance nested-command;
+    values = nested.dispatch; executor, (instance Maybe; value = 44)
+    if values != none
+        print; values[0].value
+    missing = nested.dispatch; executor, (instance Maybe; value = -1)
+    print; missing == none
+    echo = instance echo-command;
+    generic = echo.dispatch; executor, (instance Echo; value = 'generic')
+    print; generic.value
+    other = instance alternate-command;
+    differently-bound = other.dispatch; executor, (instance Alpha; value = 45)
+    print; differently-bound.native-label
+    unique = instance unique-command;
+    owned-result = unique.dispatch; executor, (instance Unique; text = 'unique')
+    print; owned-result.text
+    reusable = instance Alpha; value = 46
+    inferred = execute; reusable
+    print; inferred.value
+    print; reusable.value
+    tagged = instance tagged-command;
+    with-type-field = tagged.dispatch; executor, (instance Tagged; value = 48)
+    print; with-type-field.type
+    held retained-provider of string = instance retained-resource; value = (instance Unique; text = 'held')
+    print; (held.read;)
+    print; (held.read;)
+    tree-command-value = instance tree-command;
+    tree-result = tree-command-value.dispatch; executor, (instance TreeRequest; value = 49)
+    print; tree-result.value
+    leaf = instance Tree; value = -2, children = none
+    print; leaf.value
+    branch = instance Tree; value = 50, children = (list; leaf)
+    print; (child_count; branch)
+    children = branch.children
+    if children != none
+        print; children[0].value
+    absent = instance Tree; value = 51
+    print; (child_count; absent)
+    try
+        alpha.dispatch; executor, (instance Alpha; value = -1)
+    catch Failure as failure
+        print; failure.message
+    selected-mode = mode; true
+    if selected-mode != none
+        print; selected-mode == (Mode::First;)
+        print; (Mode::First;) == selected-mode
+        print; selected-mode != (Mode::Last;)
+    missing-mode = mode; false
+    print; missing-mode == none
+    check-numeric-fields;
+    check-recipe-selection; executor
+
+class batch-command implements command
+    associated type request = Batch of (list of string)
+    associated type response = string
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class marked-command implements command
+    associated type request = Marked
+    associated type response = bool
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+class borrowed-output-command implements command
+    associated type request = BorrowedOutput
+    associated type response = AlphaReply
+    associated type transport = Executor
+    function dispatch response throws throwable; service ref transport, input request
+        return service.call; move input
+
+function optional-number int|none; present bool, value int
+    if present
+        return value
+    return none
+
+function check-numeric-fields;
+    fields = instance NumericFields; quality = none, ratio = none
+    selected = optional-number; true, 73
+    fields.quality = selected
+    fields.ratio = selected
+    print; fields.quality
+    print; fields.ratio
+    absent = optional-number; false, 0
+    fields.quality = absent
+    print; fields.quality == none
+    fields.quality = selected
+    invalid = optional-number; true, -1
+    try
+        fields.quality = invalid
+    catch integer-conversion-overflow
+        print; fields.quality
+
+function check-recipe-selection; executor ref Executor
+    batching = instance batch-command;
+    print; (batching.dispatch; executor, (batch;))
+    marked-value = instance marked-command;
+    print; (marked-value.dispatch; executor, (marked;))
+    borrowed-value = instance borrowed-output-command;
+    result = borrowed-value.dispatch; executor, (borrowed_output;)
+    print; result.value
+    borrowed-input = instance Alpha; value = 93
+    borrowed-loan = ref borrowed-input
+    borrowed-result = execute; borrowed-loan
+    print; borrowed-result.native-label
+    set-request = set_batch;
+    print; (execute; move set-request)
+    map-request = mapped_batch;
+    map-result = execute; move map-request
+    print; map-result.value

@@ -787,6 +787,7 @@ mod tests {
                     .into_iter()
                     .map(|(path, alias)| (path.to_owned(), alias))
                     .collect(),
+                associated_implementations: Vec::new(),
                 partial_declines: Vec::new(),
             }],
             native_owner_aliases: BTreeMap::new(),

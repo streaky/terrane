@@ -6,9 +6,9 @@ fn main() {
     __terrane_run(async move {
         let address: String;
         let chosen: String;
-        let listener: TcpListener;
-        let client: TcpStream;
-        let mut occupied: Option<TcpListener> = None;
+        let listener: tokio::net::TcpListener;
+        let client: tokio::net::TcpStream;
+        let mut occupied: Option<tokio::net::TcpListener> = None;
         address = __terrane_raised(
             available_loopback_address(),
             0 /* terrane-site: src/main.trn:9:13-9:40 */,

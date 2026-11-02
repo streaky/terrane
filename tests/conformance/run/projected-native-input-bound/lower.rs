@@ -13,7 +13,7 @@ fn main() {
         0 /* terrane-site: src/main.trn:6:22-6:34 */,
     );
     radius = terrane_native_bound_witness::Radius {
-        value: 4.0,
+        value: 4.0_f32,
     };
     first = __terrane_raised(
         match std::panic::catch_unwind(

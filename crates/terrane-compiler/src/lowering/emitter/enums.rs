@@ -465,7 +465,12 @@ impl<'a> Emitter<'a> {
                         .fields
                         .iter()
                         .zip(values)
-                        .map(|(field, value)| format!("{}: {value}", field.rust_name))
+                        .map(|(field, value)| {
+                            format!(
+                                "{}: {value}",
+                                crate::rust_ir::native_member_name(&field.rust_name)
+                            )
+                        })
                         .collect::<Vec<_>>()
                         .join(", ");
                     format!("{path} {{ {fields} }}")
@@ -824,7 +829,12 @@ impl<'a> Emitter<'a> {
                                         if name == field.rust_name {
                                             name
                                         } else {
-                                            format!("{}: {name}", field.rust_name)
+                                            format!(
+                                                "{}: {name}",
+                                                crate::rust_ir::native_member_name(
+                                                    &field.rust_name
+                                                )
+                                            )
                                         }
                                     })
                                     .collect::<Vec<_>>()

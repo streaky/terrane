@@ -554,7 +554,12 @@ fn write_owned_borrowed_struct(
                 format!("{source}.as_deref()")
             }
         };
-        writeln!(output, "        {}: {value},", field.rust_name).expect("writing cannot fail");
+        writeln!(
+            output,
+            "        {}: {value},",
+            crate::rust_ir::native_member_name(&field.rust_name)
+        )
+        .expect("writing cannot fail");
     }
     writeln!(output, "    }} }}\n}}\n").expect("writing cannot fail");
 }

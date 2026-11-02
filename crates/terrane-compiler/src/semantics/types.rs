@@ -813,6 +813,35 @@ pub(super) fn declared_value_type_with_visible_objects(
         .and_then(|value| value.strip_suffix(')'))
         .unwrap_or(type_name)
         .trim();
+    if let Some(owner) = unit
+        .tree
+        .root
+        .children
+        .iter()
+        .find(|declaration| {
+            matches!(
+                declaration.kind,
+                SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
+            ) && declaration.span.start <= type_node.span.start
+                && type_node.span.end <= declaration.span.end
+        })
+        .and_then(|declaration| declaration_name(declaration, &unit.source))
+        && let Some(slot) = unit
+            .descriptors
+            .iter()
+            .find(|descriptor| descriptor.name == owner)
+            .and_then(|descriptor| {
+                descriptor
+                    .associated_types
+                    .iter()
+                    .find(|slot| slot.name == type_name)
+            })
+    {
+        return Ok(slot
+            .value_type
+            .clone()
+            .unwrap_or_else(|| ValueType::TypeParameter(slot.name.clone())));
+    }
     if super::generics::lexical_type_parameter(unit, type_node.span.start, type_name) {
         return Ok(ValueType::TypeParameter(type_name.to_owned()));
     }
@@ -1573,6 +1602,84 @@ pub(super) fn object_types_compatible(
     })
 }
 
+/// Loan classification permits native aliases/provenance of the same storage,
+/// not the owned-value inheritance or container conversions used at assignments.
+pub(crate) fn reference_target_types_equal(
+    package: &SemanticPackage,
+    expected: &ValueType,
+    actual: &ValueType,
+) -> bool {
+    if expected == actual {
+        return true;
+    }
+    let mut expected = expected.clone();
+    let mut actual = actual.clone();
+    super::objects::canonicalize_native_value_type(package, &mut expected);
+    super::objects::canonicalize_native_value_type(package, &mut actual);
+    reference_storage_types_equal(&expected, &actual)
+}
+
+fn reference_storage_types_equal(expected: &ValueType, actual: &ValueType) -> bool {
+    if expected == actual {
+        return true;
+    }
+    match (expected, actual) {
+        (ValueType::Object(expected), ValueType::Object(actual)) => {
+            object_types_compatible(&[], expected, actual)
+        }
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            reference_storage_types_equal(expected, actual)
+        }
+        (ValueType::List(expected), ValueType::List(actual))
+        | (ValueType::Set(expected), ValueType::Set(actual))
+        | (ValueType::Iterator(expected), ValueType::Iterator(actual))
+        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
+        | (ValueType::AsyncIterationStep(expected), ValueType::AsyncIterationStep(actual))
+        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
+        | (ValueType::Reference(expected), ValueType::Reference(actual))
+        | (ValueType::MutableReference(expected), ValueType::MutableReference(actual))
+        | (ValueType::SharedReference(expected), ValueType::SharedReference(actual)) => {
+            reference_storage_types_equal(expected.value_type_ref(), actual.value_type_ref())
+        }
+        (
+            ValueType::Map(expected_key, expected_value),
+            ValueType::Map(actual_key, actual_value),
+        )
+        | (
+            ValueType::UnorderedMap(expected_key, expected_value),
+            ValueType::UnorderedMap(actual_key, actual_value),
+        )
+        | (
+            ValueType::Entry(expected_key, expected_value),
+            ValueType::Entry(actual_key, actual_value),
+        ) => {
+            reference_storage_types_equal(
+                expected_key.value_type_ref(),
+                actual_key.value_type_ref(),
+            ) && reference_storage_types_equal(
+                expected_value.value_type_ref(),
+                actual_value.value_type_ref(),
+            )
+        }
+        (ValueType::Tuple(expected, expected_len), ValueType::Tuple(actual, actual_len)) => {
+            expected_len == actual_len
+                && reference_storage_types_equal(expected.value_type_ref(), actual.value_type_ref())
+        }
+        (
+            ValueType::Task(expected, expected_transfer),
+            ValueType::Task(actual, actual_transfer),
+        )
+        | (
+            ValueType::ScopedTask(expected, expected_transfer),
+            ValueType::ScopedTask(actual, actual_transfer),
+        ) => {
+            expected_transfer == actual_transfer
+                && reference_storage_types_equal(expected.value_type_ref(), actual.value_type_ref())
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn reconcile_projected_native_arguments(
     left: &ObjectIdentity,
     right: &ObjectIdentity,
@@ -1796,6 +1903,12 @@ pub(crate) const fn is_numeric(ty: ScalarType) -> bool {
 pub(super) fn optional_inner(value_type: ValueType) -> Option<ValueType> {
     match value_type {
         ValueType::Optional(inner) => Some(*inner),
+        ValueType::Reference(inner) => match inner.value_type_ref() {
+            ValueType::Optional(present) => Some(ValueType::Reference(ElementType::new(
+                present.as_ref().clone(),
+            ))),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -1980,7 +2093,9 @@ pub(crate) fn narrowed_value_type(
         return None;
     }
     match value_type {
-        ValueType::Optional(inner) => Some(*inner),
+        value_type @ (ValueType::Optional(_) | ValueType::Reference(_)) => {
+            optional_inner(value_type)
+        }
         ValueType::Union(arms) => {
             let mut narrowed = arms
                 .into_iter()

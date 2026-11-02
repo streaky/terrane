@@ -421,6 +421,44 @@ fn forwarded_receiver_methods(
     methods
 }
 
+fn copy_forwarded_methods_to_native_aliases(
+    dependencies: &mut [ProjectedDependency],
+    owner: &ProjectedType,
+    methods: &[ProjectedFunction],
+) -> bool {
+    let mut changed = false;
+    for dependency in dependencies {
+        let aliases = dependency
+            .native_alias_identities
+            .iter()
+            .filter(|(_, alias)| alias.native_type == *owner)
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
+        for path in aliases {
+            let Some(item) = dependency
+                .items
+                .iter_mut()
+                .find(|item| item.rust_path == path)
+            else {
+                continue;
+            };
+            let ProjectedKind::ForeignType {
+                methods: existing, ..
+            } = &mut item.kind
+            else {
+                continue;
+            };
+            for method in methods {
+                if !existing.iter().any(|entry| entry.name == method.name) {
+                    existing.push(method.clone());
+                    changed = true;
+                }
+            }
+        }
+    }
+    changed
+}
+
 fn apply_receiver_methods(
     dependencies: &mut [ProjectedDependency],
     pairs: &BTreeMap<(String, String), (ProjectedType, ProjectedType)>,
@@ -460,6 +498,7 @@ fn apply_receiver_methods(
             if methods.is_empty() {
                 continue;
             }
+            changed |= copy_forwarded_methods_to_native_aliases(dependencies, owner, &methods);
             if let Some(item) = dependencies
                 .iter_mut()
                 .flat_map(|dependency| &mut dependency.items)

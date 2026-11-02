@@ -3081,6 +3081,7 @@ pub(super) fn validate_references(package: &SemanticPackage) -> Result<(), Seman
             | SyntaxKind::Parameter
             | SyntaxKind::TypeParameterList
             | SyntaxKind::TypeParameter
+            | SyntaxKind::AssociatedTypeDeclaration
             | SyntaxKind::ForTarget
             | SyntaxKind::TypeExpression
             | SyntaxKind::UnionType

@@ -1,0 +1,14 @@
+namespace app
+from /core/errors import throwable
+from /deps/witness import Executor, Alpha, AliasedReply
+interface command
+    associated type response
+    function dispatch response throws throwable; service ref Executor, input Alpha
+class wrong-command implements command
+    associated type response = AliasedReply
+    function dispatch response throws throwable; service ref Executor, input Alpha
+        return service.call; move input
+function main;
+    service = Executor::new;
+    command = instance wrong-command;
+    command.dispatch; service, (instance Alpha; value = 1)

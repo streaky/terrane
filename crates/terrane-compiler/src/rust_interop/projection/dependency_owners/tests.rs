@@ -66,6 +66,7 @@ fn locked_transitive_owner() {
             }),
         }],
         declined: Vec::new(),
+        associated_implementations: Vec::new(),
         partial_declines: Vec::new(),
     };
 

@@ -17,7 +17,21 @@ fn main() {
     let flag: witness::Envelope<bool>;
     let explicit: witness::Envelope<witness::Address>;
     let selected: witness::Frame<witness::Address>;
-    address = witness::Address { port: 8080 };
+    address = witness::Address {
+        port: match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                terrane_int_support::coerce::<
+                    i64,
+                >(&terrane_int_support::Int::from(8080_i128))
+                    .map_err(|error| crate::TerraneForeignError(
+                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                    ))?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        },
+    };
     envelope = __terrane_raised(
         match std::panic::catch_unwind(
             std::panic::AssertUnwindSafe(|| witness::Envelope::<witness::Address> {
@@ -44,7 +58,21 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&envelope.payload.port));
     {
-        let __terrane_value = witness::Address { port: 8081 };
+        let __terrane_value = witness::Address {
+            port: match || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    terrane_int_support::coerce::<
+                        i64,
+                    >(&terrane_int_support::Int::from(8081_i128))
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }() {
+                Ok(value) => value,
+                Err(error) => std::panic::panic_any(error),
+            },
+        };
         envelope.payload = __terrane_value;
     }
     println!(

@@ -1,0 +1,10 @@
+namespace source-associated-open-signature
+
+interface request
+    associated type response
+
+function forward request; input request
+    return move input
+
+function main;
+    print; 0

@@ -1,0 +1,11 @@
+namespace source-associated-duplicate-binding
+
+interface request
+    associated type response
+    function dispatch response;
+
+class duplicate implements request
+    associated type response = int
+    associated type response = string
+    function dispatch int;
+        return 1

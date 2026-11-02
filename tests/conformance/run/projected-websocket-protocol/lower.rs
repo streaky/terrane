@@ -315,7 +315,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = exercise(
                         std::sync::Arc::new(move |
-                            argument_0: WebSocket,
+                            argument_0: terrane_websocket_peer_witness::WebSocket,
                         | -> std::pin::Pin<Box<dyn Future<Output = _> + Send>> {
                             Box::pin(socket_session(argument_0))
                         }),

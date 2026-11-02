@@ -1,0 +1,6 @@
+namespace app
+from /deps/witness import Executor, UniqueReply, AlphaReply
+function main;
+    service = Executor::new;
+    input = instance UniqueReply; text = 'not a request'
+    result AlphaReply = service.call; move input

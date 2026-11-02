@@ -283,6 +283,87 @@ fn collect_demanded_projected_members(
     }
 }
 
+fn collect_associated_projected_member_demands(
+    source: &SourceFile,
+    node: &SyntaxNode,
+    imported: &BTreeMap<String, ProjectedOwner>,
+    demanded: &mut BTreeMap<ProjectedOwner, BTreeSet<String>>,
+    demand_sites: &mut crate::rust_interop::projection::ProjectionDemandSites,
+    projection: &crate::rust_interop::projection::Projection,
+) {
+    if node.kind == SyntaxKind::ClassDeclaration {
+        let associated = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+            .into_iter()
+            .flat_map(|block| &block.children)
+            .filter(|child| child.kind == SyntaxKind::AssociatedTypeDeclaration)
+            .filter_map(|association| {
+                let name = association
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)?;
+                let ty = association
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeExpression)?;
+                let owner = imported.get(projected_name(source, ty)?)?;
+                Some((
+                    source.text()[name.span.start..name.span.end].to_owned(),
+                    owner.clone(),
+                ))
+            })
+            .collect::<BTreeMap<_, _>>();
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            for method in block
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
+            {
+                let mut scoped_imports = imported.clone();
+                scoped_imports.extend(
+                    associated
+                        .iter()
+                        .map(|(alias, owner)| (alias.clone(), owner.clone())),
+                );
+                let mut scoped_bindings = BTreeMap::new();
+                collect_projected_binding_owners(
+                    source,
+                    method,
+                    &scoped_imports,
+                    &mut scoped_bindings,
+                    projection,
+                );
+                collect_demanded_projected_members(
+                    source,
+                    method,
+                    &scoped_imports,
+                    &scoped_bindings,
+                    demanded,
+                    demand_sites,
+                    projection,
+                );
+            }
+        }
+        return;
+    }
+    for child in &node.children {
+        collect_associated_projected_member_demands(
+            source,
+            child,
+            imported,
+            demanded,
+            demand_sites,
+            projection,
+        );
+    }
+}
+
 pub(super) fn parse_unit(
     source: &SourceFile,
     source_path: String,
@@ -596,6 +677,16 @@ fn augment_units_with_projection_inner(
             &unit.tree.root,
             &imported_types,
             &binding_owners,
+            &mut demanded_members,
+            &mut demand_sites,
+            projection,
+        );
+    }
+    for unit in &units {
+        collect_associated_projected_member_demands(
+            &unit.source,
+            &unit.tree.root,
+            &imported_types,
             &mut demanded_members,
             &mut demand_sites,
             projection,
@@ -1347,6 +1438,7 @@ fn analyze_parsed_with_projection(
     let stage =
         crate::compilation_progress::start("final semantic validation", package.root.display());
     refresh_typed_bindings_after_effect_inference(&mut semantic)?;
+    super::objects::validate_closed_interface_bindings(&semantic)?;
     super::ownership::record_callable_drop_facts(&mut semantic);
     // Refreshing inferred types rebuilds bindings; restore their mutation facts.
     record_binding_mutability(&mut semantic);

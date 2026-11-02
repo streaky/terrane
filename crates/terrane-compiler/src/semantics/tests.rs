@@ -34,6 +34,7 @@ fn ambiguous_projection() -> Projection {
             },
         }],
         declined: Vec::new(),
+        associated_implementations: Vec::new(),
         partial_declines: Vec::new(),
     };
     Projection {
@@ -199,6 +200,7 @@ fn unavailable_projection() -> Projection {
                 rust_path: "shared::Missing".to_owned(),
                 reason: "requires a compiler capability".to_owned(),
             }],
+            associated_implementations: Vec::new(),
             partial_declines: Vec::new(),
         }],
         bound_dependencies: Vec::new(),

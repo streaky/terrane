@@ -89,6 +89,7 @@ fn unproven_bounds_decline_functions() {
             },
         ],
         declined: Vec::new(),
+        associated_implementations: Vec::new(),
         partial_declines: Vec::new(),
     }];
     let evidence = vec![crate::rust_interop::ImplProbeEvidence {

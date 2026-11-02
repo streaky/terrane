@@ -7,21 +7,24 @@ use rustdoc_types::{
     ItemSummary, Type, VariantKind, Visibility,
 };
 
+use super::types::project_type_template;
+
 use super::{
-    ChainRole, DeclinedItem, PartialProjectionRecord, ProjectedDependency, ProjectedEnumOperation,
-    ProjectedEnumPayloadConversion, ProjectedEnumPayloadStyle, ProjectedFunction,
-    ProjectedGenericParameter, ProjectedItem, ProjectedKind, ProjectedParameter,
-    ProjectedTraitOperation, ProjectedType, Receiver, RustDependency, RustdocPath,
-    SourceConstantCache, borrowed_graph, callable, canonicalize_rust_path, data,
-    dependency_namespace, enum_payload, extern_rust_path, implements_trait, macros,
-    merge_projected_trait_operations, normalize_projected_items, owner_trait_namespace,
-    partial_projection, partial_projection_references, project_boundary_capabilities,
-    project_chain_owner, project_enum_payload, project_function, project_interface, project_macro,
-    project_methods, project_multi_enum_payload, project_struct_fields, project_type,
-    promote_async_endpoint_methods, render_generic_bound, render_rust_type, resolved_nominal_id,
-    resolved_path_name, resolved_path_type_arguments, rewrite_projected_function_root,
-    rewrite_projected_rust_root, rewrite_rust_bound_root, rust_lifetimes, trait_fallback_namespace,
-    trait_operation_docs, type_contains_lifetime_argument,
+    ChainRole, DeclinedItem, PartialProjectionRecord, ProjectedAssociatedImplementation,
+    ProjectedDependency, ProjectedEnumOperation, ProjectedEnumPayloadConversion,
+    ProjectedEnumPayloadStyle, ProjectedFunction, ProjectedGenericParameter, ProjectedItem,
+    ProjectedKind, ProjectedParameter, ProjectedTraitOperation, ProjectedType, Receiver,
+    RustDependency, RustdocPath, SourceConstantCache, borrowed_graph, callable,
+    canonicalize_rust_path, data, dependency_namespace, enum_payload, extern_rust_path,
+    implements_trait, macros, merge_projected_trait_operations, normalize_projected_items,
+    owner_trait_namespace, partial_projection, partial_projection_references,
+    project_boundary_capabilities, project_chain_owner, project_enum_payload, project_function,
+    project_interface, project_macro, project_methods, project_multi_enum_payload,
+    project_struct_fields, project_type, promote_async_endpoint_methods, render_generic_bound,
+    render_rust_type, resolved_nominal_id, resolved_path_name, resolved_path_type_arguments,
+    rewrite_projected_function_root, rewrite_projected_rust_root, rewrite_rust_bound_root,
+    rust_lifetimes, trait_fallback_namespace, trait_operation_docs,
+    type_contains_lifetime_argument,
 };
 
 pub(super) fn projected_nominal_generic_parameters(
@@ -87,6 +90,240 @@ fn nominal_generic_instantiation(
         substitutions.insert(parameter.name.clone(), projected);
     }
     Ok(substitutions)
+}
+pub(super) fn project_owner_template(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    match ty {
+        Type::BorrowedRef {
+            lifetime,
+            is_mutable,
+            type_,
+        } => Ok(ProjectedType::Reference {
+            inner: Box::new(project_owner_template(type_, index, paths, generics)?),
+            mutable: *is_mutable,
+            lifetime: lifetime.clone(),
+        }),
+        Type::Tuple(items) => items
+            .iter()
+            .map(|item| project_owner_template(item, index, paths, generics))
+            .collect::<Result<Vec<_>, _>>()
+            .map(ProjectedType::Tuple),
+        Type::RawPointer { .. } | Type::Array { .. } | Type::Slice(_) => {
+            Err(format!("unsupported impl owner shape `{ty:?}`"))
+        }
+        Type::ResolvedPath(path) => {
+            let mut projected = project_type_template(ty, index, paths, generics)?;
+            let arguments = resolved_path_type_arguments(path)
+                .into_iter()
+                .map(|argument| project_owner_template(argument, index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?;
+            match &mut projected {
+                ProjectedType::Foreign {
+                    arguments: projected,
+                    ..
+                } => *projected = arguments,
+                ProjectedType::Sequence { item, .. }
+                | ProjectedType::Set { item, .. }
+                | ProjectedType::Optional(item) => {
+                    if let Some(argument) = arguments.into_iter().next() {
+                        **item = argument;
+                    }
+                }
+                ProjectedType::Mapping { key, value, .. } => {
+                    if let Some(argument) = arguments.first() {
+                        **key = argument.clone();
+                    }
+                    if let Some(argument) = arguments.get(1) {
+                        **value = argument.clone();
+                    }
+                }
+                _ => {}
+            }
+            Ok(projected)
+        }
+        _ => project_type_template(ty, index, paths, generics),
+    }
+}
+
+fn base_owner_path(ty: &ProjectedType) -> String {
+    match ty {
+        ProjectedType::Foreign { base_rust_path, .. } => base_rust_path.clone(),
+        ProjectedType::Reference { inner, .. }
+        | ProjectedType::InvocationScoped { owned: inner, .. } => base_owner_path(inner),
+        _ => ty.rust_type(),
+    }
+}
+fn normalize_impl_lifetime(lifetime: &mut Option<String>, declaration: &Generics) {
+    let Some(name) = lifetime.as_deref() else {
+        return;
+    };
+    if name.trim_start_matches('\'') == "_" {
+        *lifetime = None;
+        return;
+    }
+    let Some(inline) = declaration.params.iter().find_map(|parameter| {
+        if parameter.name.trim_start_matches('\'') != name.trim_start_matches('\'') {
+            return None;
+        }
+        match &parameter.kind {
+            GenericParamDefKind::Lifetime { outlives } => Some(outlives),
+            _ => None,
+        }
+    }) else {
+        return;
+    };
+    let where_bounds = declaration
+        .where_predicates
+        .iter()
+        .filter_map(|predicate| match predicate {
+            rustdoc_types::WherePredicate::LifetimePredicate { lifetime, outlives }
+                if lifetime.trim_start_matches('\'') == name.trim_start_matches('\'') =>
+            {
+                Some(outlives)
+            }
+            _ => None,
+        })
+        .flatten();
+    let (is_static, restricted) =
+        inline
+            .iter()
+            .chain(where_bounds)
+            .fold((false, false), |(is_static, _), bound| {
+                (
+                    is_static || bound.trim_start_matches('\'') == "static",
+                    true,
+                )
+            });
+    if is_static {
+        *lifetime = Some("'static".to_owned());
+    } else if !restricted {
+        // An unconstrained impl binder matches a source loan with elided lifetime.
+        // Other outlives relationships remain explicit, not invented as wildcards.
+        *lifetime = None;
+    }
+}
+
+fn normalize_impl_owner_lifetimes(ty: &mut ProjectedType, declaration: &Generics) {
+    match ty {
+        ProjectedType::Reference {
+            inner, lifetime, ..
+        } => {
+            normalize_impl_lifetime(lifetime, declaration);
+            normalize_impl_owner_lifetimes(inner, declaration);
+        }
+        ProjectedType::Foreign { arguments, .. } | ProjectedType::Tuple(arguments) => {
+            for argument in arguments {
+                normalize_impl_owner_lifetimes(argument, declaration);
+            }
+        }
+        ProjectedType::Sequence { item, .. }
+        | ProjectedType::Set { item, .. }
+        | ProjectedType::Optional(item)
+        | ProjectedType::AsyncIterationStep(item) => {
+            normalize_impl_owner_lifetimes(item, declaration);
+        }
+        ProjectedType::Mapping { key, value, .. } => {
+            normalize_impl_owner_lifetimes(key, declaration);
+            normalize_impl_owner_lifetimes(value, declaration);
+        }
+        _ => {}
+    }
+}
+fn project_associated_implementations(
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Vec<ProjectedAssociatedImplementation> {
+    let mut recipes = Vec::new();
+    for (impl_id, item) in index {
+        let ItemEnum::Impl(implementation) = &item.inner else {
+            continue;
+        };
+        if implementation.is_negative || implementation.is_synthetic {
+            continue;
+        }
+        let Some(trait_) = &implementation.trait_ else {
+            continue;
+        };
+        let mut generics = BTreeMap::new();
+        for parameter in &implementation.generics.params {
+            if matches!(parameter.kind, GenericParamDefKind::Type { .. }) {
+                generics.insert(
+                    parameter.name.clone(),
+                    ProjectedType::Generic(format!(
+                        "__associated_impl_{}_{}",
+                        impl_id.0, parameter.name
+                    )),
+                );
+            }
+        }
+        let Ok(mut owner_pattern) =
+            project_owner_template(&implementation.for_, index, paths, &generics)
+        else {
+            continue;
+        };
+        normalize_impl_owner_lifetimes(&mut owner_pattern, &implementation.generics);
+        let owner_rust_path = base_owner_path(&owner_pattern);
+        generics.insert("Self".to_owned(), owner_pattern.clone());
+        let Some(trait_path) = paths.get(&trait_.id).map(|summary| summary.path.join("::")) else {
+            continue;
+        };
+        let Ok(trait_arguments) = resolved_path_type_arguments(trait_)
+            .into_iter()
+            .map(|argument| project_owner_template(argument, index, paths, &generics))
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            continue;
+        };
+        for associated_id in &implementation.items {
+            let Some(Item {
+                name: Some(member),
+                inner:
+                    ItemEnum::AssocType {
+                        type_: Some(ty), ..
+                    },
+                ..
+            }) = index.get(associated_id)
+            else {
+                continue;
+            };
+            if let Ok(ty) = project_type_template(ty, index, paths, &generics) {
+                recipes.push(ProjectedAssociatedImplementation {
+                    owner_rust_path: owner_rust_path.clone(),
+                    owner_pattern: owner_pattern.clone(),
+                    trait_rust_path: trait_path.clone(),
+                    trait_arguments: trait_arguments.clone(),
+                    member: member.clone(),
+                    ty,
+                    requires_native_selection: !implementation.generics.where_predicates.is_empty()
+                        || implementation
+                            .generics
+                            .params
+                            .iter()
+                            .any(|parameter| match &parameter.kind {
+                                GenericParamDefKind::Type { bounds, .. } => !bounds.is_empty(),
+                                GenericParamDefKind::Lifetime { outlives } => !outlives.is_empty(),
+                                GenericParamDefKind::Const { .. } => true,
+                            }),
+                });
+            }
+        }
+    }
+    recipes.sort_by_key(|recipe| {
+        (
+            recipe.owner_rust_path.clone(),
+            format!("{:?}", recipe.owner_pattern),
+            recipe.trait_rust_path.clone(),
+            format!("{:?}", recipe.trait_arguments),
+            recipe.member.clone(),
+            format!("{:?}", recipe.ty),
+        )
+    });
+    recipes.dedup();
+    recipes
 }
 #[expect(
     clippy::too_many_lines,
@@ -1340,5 +1577,6 @@ pub(super) fn project_rustdoc(
             .unwrap_or_else(|| dependency.version.clone()),
         items,
         declined,
+        associated_implementations: project_associated_implementations(index, paths),
     }
 }

@@ -1,0 +1,6 @@
+namespace app
+from /deps/witness import Input, execute
+function main;
+    owner = instance Input; value = 96
+    loan = ref owner
+    result = execute; loan

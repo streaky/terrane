@@ -25,6 +25,7 @@
 //! - `rustdoc_support.rs`: Rustdoc path resolution, type inspection, and boundary capabilities.
 //! - `source_rendering.rs`: Terrane declaration rendering and import closure.
 //! - `type_rendering.rs`: Rust type spelling and instantiated nominal names.
+//! - `associated_types.rs`: canonical associated-result normalization and equality obligations.
 //! - `types.rs`: value-type admission.
 //!
 //! Shared public-metadata fixtures for owner-local tests live in test-only `test_support.rs`.
@@ -47,6 +48,7 @@ use crate::{InvocationMode, RustDependency};
 
 mod aliases;
 mod artifacts;
+mod associated_types;
 mod borrowed_graph;
 mod cache_identity;
 mod callable;
@@ -145,6 +147,7 @@ use source_rendering::{
     render_foreign_declaration, render_required_projected_declarations,
     render_unavailable_projection, source_foreign_aliases, unavailable_member_map,
 };
+pub(crate) use type_rendering::instantiate_projected_container;
 use type_rendering::{
     canonicalize_rust_path, instantiated_nominal_name, instantiated_type_name, nominal_generics,
     render_resolved_path, render_rust_type,
@@ -155,7 +158,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "314";
+const PROJECTION_SCHEMA: &str = "323";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -257,6 +260,8 @@ pub struct ProjectedDependency {
     pub declined: Vec<DeclinedItem>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub native_alias_identities: BTreeMap<String, ProjectedNativeAlias>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub associated_implementations: Vec<ProjectedAssociatedImplementation>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) partial_declines: Vec<PartialProjectionRecord>,
 }
@@ -686,9 +691,58 @@ pub struct ProjectedAssociatedBinding {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedAssociatedTypeRef {
+    /// Generic owner binder (`Self`, `T`, etc.) or canonical owner Rust path.
+    pub owner: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_type: Option<Box<ProjectedType>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub owner_arguments: Vec<ProjectedType>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trait_rust_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trait_arguments: Vec<ProjectedType>,
+    pub member: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedAssociatedImplementation {
+    pub owner_rust_path: String,
+    pub owner_pattern: ProjectedType,
+    pub trait_rust_path: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trait_arguments: Vec<ProjectedType>,
+    pub member: String,
+    pub ty: ProjectedType,
+    /// Conditional impls must have their complete equation selected by rustc;
+    /// structural owner matching alone does not establish applicability.
+    #[serde(default)]
+    pub requires_native_selection: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedAssociatedEqualityObligation {
+    pub owner: ProjectedType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_parameter: Option<String>,
+    pub trait_rust_path: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trait_arguments: Vec<ProjectedType>,
+    pub member: String,
+    pub result: ProjectedType,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum AssociatedNormalizationError {
+    Unknown,
+    Ambiguous,
+    Unsupported,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
     None,
-    Associated(String),
+    Associated(ProjectedAssociatedTypeRef),
     Generic(String),
     Opaque {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -780,6 +834,7 @@ pub enum ProjectedType {
     },
     Optional(Box<ProjectedType>),
 }
+pub use associated_types::normalize_associated_result;
 
 impl ProjectedType {
     fn is_terrane_scalar(&self) -> bool {
@@ -811,10 +866,45 @@ impl ProjectedType {
             Self::None => "()".to_owned(),
             Self::Bool | Self::AsyncSinkOutcome => "bool".to_owned(),
             Self::Int => "i64".to_owned(),
-            Self::Generic(name)
-            | Self::Associated(name)
-            | Self::FixedInt(name)
-            | Self::RustInt(name) => name.clone(),
+            Self::Generic(name) | Self::FixedInt(name) | Self::RustInt(name) => name.clone(),
+            Self::Associated(associated) => associated.trait_rust_path.as_ref().map_or_else(
+                || format!("{}::{}", associated.owner, associated.member),
+                |trait_path| {
+                    let trait_path = if associated.trait_arguments.is_empty() {
+                        trait_path.clone()
+                    } else {
+                        format!(
+                            "{}<{}>",
+                            trait_path,
+                            associated
+                                .trait_arguments
+                                .iter()
+                                .map(Self::rust_type)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    };
+                    format!(
+                        "<{} as {trait_path}>::{}",
+                        associated.owner_type.as_ref().map_or_else(
+                            || if associated.owner_arguments.is_empty() {
+                                associated.owner.clone()
+                            } else {
+                                instantiate_projected_container(
+                                    &associated.owner,
+                                    &associated
+                                        .owner_arguments
+                                        .iter()
+                                        .map(Self::rust_type)
+                                        .collect::<Vec<_>>(),
+                                )
+                            },
+                            |owner| owner.rust_type(),
+                        ),
+                        associated.member
+                    )
+                },
+            ),
             Self::Opaque { .. } => "_".to_owned(),
             Self::Float => "f64".to_owned(),
             Self::Float32 => "f32".to_owned(),
@@ -855,33 +945,37 @@ impl ProjectedType {
             Self::Optional(inner) => format!("Option<{}>", inner.rust_type()),
         }
     }
-    pub(crate) fn bind_associated(&mut self, replacement: &Self) {
+    pub(crate) fn bind_associated(
+        &mut self,
+        reference: &ProjectedAssociatedTypeRef,
+        replacement: &Self,
+    ) {
         match self {
-            Self::Associated(_) => *self = replacement.clone(),
+            Self::Associated(candidate) if candidate == reference => *self = replacement.clone(),
             Self::Sequence { item, .. }
             | Self::Set { item, .. }
             | Self::AsyncIterationStep(item)
             | Self::Optional(item)
-            | Self::Reference { inner: item, .. } => item.bind_associated(replacement),
+            | Self::Reference { inner: item, .. } => item.bind_associated(reference, replacement),
             Self::Mapping { key, value, .. } => {
-                key.bind_associated(replacement);
-                value.bind_associated(replacement);
+                key.bind_associated(reference, replacement);
+                value.bind_associated(reference, replacement);
             }
             Self::Tuple(items) => {
                 for item in items {
-                    item.bind_associated(replacement);
+                    item.bind_associated(reference, replacement);
                 }
             }
             Self::Foreign { arguments, .. } => {
                 for argument in arguments {
-                    argument.bind_associated(replacement);
+                    argument.bind_associated(reference, replacement);
                 }
             }
-            Self::InvocationScoped { owned, .. } => owned.bind_associated(replacement),
+            Self::InvocationScoped { owned, .. } => owned.bind_associated(reference, replacement),
             Self::BoxedInterface {
                 associated_type: Some(associated),
                 ..
-            } => associated.ty.bind_associated(replacement),
+            } => associated.ty.bind_associated(reference, replacement),
             _ => {}
         }
     }
@@ -1053,7 +1147,7 @@ impl ProjectedType {
                 format!("async-iteration-step of {}", inner.terrane_name())
             }
             Self::AsyncSinkOutcome => "async-sink-outcome".to_owned(),
-            Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
+            Self::Optional(inner) => format!("({})|none", inner.terrane_name()),
         }
     }
 
@@ -1234,6 +1328,44 @@ fn projected_item_for_native_owner<'a>(
 }
 
 impl Projection {
+    /// Resolves associated outputs from retained, canonical per-dependency impl recipes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AssociatedNormalizationError::Unknown`] when no implementation matches,
+    /// [`AssociatedNormalizationError::Ambiguous`] when multiple results match, or
+    /// [`AssociatedNormalizationError::Unsupported`] for unresolved substitutions, cycles,
+    /// or unsupported associated references.
+    pub fn normalize_associated_result(
+        &self,
+        operation: &ProjectedFunction,
+        substitutions: &BTreeMap<String, ProjectedType>,
+        oracle: Option<&crate::rust_interop::ProjectionOracle<'_>>,
+    ) -> Result<ProjectedType, AssociatedNormalizationError> {
+        normalize_associated_result(
+            operation,
+            substitutions,
+            self.dependencies
+                .iter()
+                .flat_map(|dependency| dependency.associated_implementations.iter()),
+            oracle,
+        )
+    }
+    /// Builds exact native equality proofs for each associated leaf in an operation result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an associated-normalization error when a leaf is unknown, ambiguous,
+    /// cyclic, or otherwise unsupported.
+    pub fn associated_equality_obligations(
+        &self,
+        operation: &ProjectedFunction,
+        substitutions: &BTreeMap<String, ProjectedType>,
+        oracle: Option<&crate::rust_interop::ProjectionOracle<'_>>,
+    ) -> Result<Vec<ProjectedAssociatedEqualityObligation>, AssociatedNormalizationError> {
+        associated_types::associated_equality_obligations(self, operation, substitutions, oracle)
+    }
+
     /// Renders imported projected source units with requested members.
     ///
     /// # Errors

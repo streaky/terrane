@@ -23,6 +23,26 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
+fn protocol_transfer_bounds(
+    object: &DescriptorContract,
+    native_traits: Option<(bool, bool)>,
+    has_async_method: bool,
+) -> &'static str {
+    if native_traits.is_none_or(|(send, sync)| send && sync)
+        || object.identity.namespace == "/core/logging" && object.identity.name == "log-value"
+    {
+        "Send + Sync"
+    } else if native_traits.is_some_and(|(send, _)| send) {
+        "Send"
+    } else if native_traits.is_some_and(|(_, sync)| sync) {
+        "Sync"
+    } else if object.resource_owning && has_async_method {
+        "Send + Sync"
+    } else {
+        ""
+    }
+}
+
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
     match canonical_default(value_type)? {
         CanonicalDefault::BoolFalse => Some("false".to_owned()),
@@ -341,27 +361,22 @@ impl<'a> Emitter<'a> {
                     (false, false) => format!("<TerraneAssociated, {source_use}>"),
                 };
                 let protocol_use = format!("{protocol}{generic_use}");
-                let transfer_bounds = if projected_requirements
-                    .is_none_or(|item| item.send && item.sync)
-                    || object.identity.namespace == "/core/logging"
-                        && object.identity.name == "log-value"
-                {
-                    " : Send + Sync"
-                } else if projected_requirements.is_some_and(|item| item.send) {
-                    " : Send"
-                } else if projected_requirements.is_some_and(|item| item.sync) {
-                    " : Sync"
-                } else if object.resource_owning && methods.iter().any(|method| method.is_async) {
-                    " : Send + Sync"
-                } else {
+                let transfer_bounds = protocol_transfer_bounds(
+                    object,
+                    projected_requirements.map(|item| (item.send, item.sync)),
+                    methods.iter().any(|method| method.is_async),
+                );
+                let transfer_separator = if transfer_bounds.is_empty() {
                     ""
+                } else {
+                    " : "
                 };
                 let has_unsafe_methods = methods.iter().any(|method| method.is_unsafe);
                 if object.is_unsafe || has_unsafe_methods {
                     self.line("#[allow(unsafe_code)]");
                 }
                 self.line(&format!(
-                    "pub {}trait {protocol}{generic_declaration}{transfer_bounds} {{",
+                    "pub {}trait {protocol}{generic_declaration}{transfer_separator}{transfer_bounds} {{",
                     if object.is_unsafe { "unsafe " } else { "" }
                 ));
                 self.indent += 1;
@@ -816,12 +831,45 @@ impl<'a> Emitter<'a> {
                 }
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for method in &methods {
-                    let method_node = find_node(
-                        &self.unit.tree.root,
-                        SyntaxKind::FunctionDeclaration,
-                        method.span,
-                    )
-                    .expect("object method contract must retain its syntax");
+                    let package = self.package;
+                    let source_owner = method
+                        .owner_identity
+                        .as_ref()
+                        .unwrap_or(&object.identity)
+                        .base();
+                    let (method_unit, method_node) = package
+                        .units
+                        .iter()
+                        .find_map(|unit| {
+                            let owner_is_declared_here = unit
+                                .descriptors
+                                .iter()
+                                .any(|descriptor| descriptor.identity.base() == source_owner);
+                            let contract_is_declared_here = unit.functions.iter().any(|contract| {
+                                contract.span == method.span
+                                    && contract
+                                        .owner_identity
+                                        .as_ref()
+                                        .is_some_and(|owner| owner.base() == source_owner)
+                            });
+                            (owner_is_declared_here && contract_is_declared_here)
+                                .then(|| {
+                                    find_node(
+                                        &unit.tree.root,
+                                        SyntaxKind::FunctionDeclaration,
+                                        method.span,
+                                    )
+                                })
+                                .flatten()
+                                .map(|node| (unit, node))
+                        })
+                        .expect(
+                            "object method contract must retain syntax in its canonical owner unit",
+                        );
+                    let previous_unit = self.unit;
+                    let previous_source = self.source;
+                    self.unit = method_unit;
+                    self.source = &method_unit.source;
                     self.object_method(method_node);
                     if method.is_async
                         && matches!(
@@ -831,16 +879,38 @@ impl<'a> Emitter<'a> {
                     {
                         self.object_shared_async_method(method_node);
                     }
+                    self.unit = previous_unit;
+                    self.source = previous_source;
                 }
                 if descendants.is_empty() {
                     for method in &static_methods {
-                        let method_node = find_node(
-                            &self.unit.tree.root,
-                            SyntaxKind::FunctionDeclaration,
-                            method.span,
-                        )
-                        .expect("static object method must have a syntax node");
+                        let package = self.package;
+                        let source_owner = method
+                            .owner_identity
+                            .as_ref()
+                            .unwrap_or(&object.identity)
+                            .base();
+                        let (method_unit, method_node) = package.units.iter().find_map(|unit| {
+                            let owner_is_declared_here = unit.descriptors.iter().any(|descriptor| {
+                                descriptor.identity.base() == source_owner
+                            });
+                            let contract_is_declared_here = unit.functions.iter().any(|contract| {
+                                contract.span == method.span
+                                    && contract.is_static
+                                    && contract.owner_identity.as_ref().is_some_and(|owner| owner.base() == source_owner)
+                            });
+                            (owner_is_declared_here && contract_is_declared_here)
+                                .then(|| find_node(&unit.tree.root, SyntaxKind::FunctionDeclaration, method.span))
+                                .flatten()
+                                .map(|node| (unit, node))
+                        }).expect("static method contract must retain syntax in its canonical owner unit");
+                        let previous_unit = self.unit;
+                        let previous_source = self.source;
+                        self.unit = method_unit;
+                        self.source = &method_unit.source;
                         self.object_static_method(method_node);
+                        self.unit = previous_unit;
+                        self.source = previous_source;
                     }
                 }
                 let destructors = object_destructor_chain(self.unit, object);
@@ -1314,7 +1384,41 @@ impl<'a> Emitter<'a> {
                             )
                         }
                     );
-                    let class_type = rust_object_type_name(self.package, &object.identity);
+                    let native_traits = self
+                        .package
+                        .projection
+                        .item(&interface.identity.namespace, &interface.identity.name)
+                        .and_then(|item| match &item.kind {
+                            crate::rust_interop::projection::ProjectedKind::Interface(
+                                interface,
+                            ) => Some((interface.send, interface.sync)),
+                            _ => None,
+                        });
+                    let transfer_bounds = protocol_transfer_bounds(
+                        interface,
+                        native_traits,
+                        effective_object_methods(interface_unit, interface)
+                            .iter()
+                            .any(|method| method.is_async),
+                    );
+                    let implementation_bounds = if object.generic_parameters.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            " where {class_type}: {}{}{}'static",
+                            if interface.resource_owning {
+                                ""
+                            } else {
+                                "Clone + "
+                            },
+                            transfer_bounds,
+                            if transfer_bounds.is_empty() {
+                                ""
+                            } else {
+                                " + "
+                            },
+                        )
+                    };
                     if interface.is_unsafe
                         || effective_object_methods(interface_unit, interface)
                             .iter()
@@ -1323,7 +1427,7 @@ impl<'a> Emitter<'a> {
                         self.line("#[allow(unsafe_code)]");
                     }
                     self.line(&format!(
-                        "{}impl {protocol} for {class_type} {{",
+                        "{}impl{generic_declaration} {protocol} for {class_type}{implementation_bounds} {{",
                         if interface.is_unsafe { "unsafe " } else { "" }
                     ));
                     self.indent += 1;
@@ -1453,7 +1557,7 @@ impl<'a> Emitter<'a> {
                                 }
                             };
                             let call = format!(
-                                "{class_type}::{}({receiver}, {arguments})",
+                                "{class_name}::{}({receiver}, {arguments})",
                                 function_name(self.package, implementation),
                             );
                             let call = if implementation.is_unsafe {
@@ -1478,7 +1582,7 @@ impl<'a> Emitter<'a> {
                                 .projection
                                 .item(&interface.identity.namespace, &interface.identity.name)
                                 .expect("projected default interface");
-                            let projected_method = self
+                            let mut projected_method = self
                                 .package
                                 .projection
                                 .interface_method(
@@ -1486,7 +1590,43 @@ impl<'a> Emitter<'a> {
                                     &interface.identity.name,
                                     &method.name,
                                 )
+                                .cloned()
                                 .expect("projected default method");
+                            if let (Some(application), Some(projected_item)) = (
+                                interface_identity.application.as_deref(),
+                                self.package
+                                    .projection
+                                    .item(&interface_identity.namespace, &interface_identity.name),
+                            ) && let crate::rust_interop::projection::ProjectedKind::Interface(
+                                projected_interface,
+                            ) = &projected_item.kind
+                                && let Some(associated) = &projected_interface.associated_type
+                            {
+                                let application = crate::semantics::destination_projected_type(
+                                    self.package,
+                                    application,
+                                )
+                                .expect("validated projected associated type");
+                                let reference =
+                                    crate::rust_interop::projection::ProjectedAssociatedTypeRef {
+                                        owner: "Self".to_owned(),
+                                        owner_type: None,
+                                        owner_arguments: Vec::new(),
+                                        trait_rust_path: associated
+                                            .rust_path
+                                            .rsplit_once("::")
+                                            .map(|(owner, _)| owner.to_owned()),
+                                        trait_arguments: Vec::new(),
+                                        member: associated.name.clone(),
+                                    };
+                                for parameter in &mut projected_method.function.parameters {
+                                    parameter.ty.bind_associated(&reference, &application);
+                                }
+                                projected_method
+                                    .function
+                                    .result
+                                    .bind_associated(&reference, &application);
+                            }
                             let rust_arguments = projected_method
                                 .function
                                 .parameters
@@ -1583,7 +1723,7 @@ impl<'a> Emitter<'a> {
                     self.indent -= 1;
                     self.line("}");
                     self.line(&format!(
-                        "impl From<{class_type}> for {interface_type} {{ fn from(value: {class_type}) -> Self {{ Self(Box::new(value)) }} }}"
+                        "impl{generic_declaration} From<{class_type}> for {interface_type}{implementation_bounds} {{ fn from(value: {class_type}) -> Self {{ Self(Box::new(value)) }} }}"
                     ));
                     self.projected_interface_implementation(object, interface_identity);
                 }

@@ -99,6 +99,7 @@ pub enum SyntaxKind {
     AnnotationApplication,
     ModifierApplication,
     WithRegion,
+    AssociatedTypeDeclaration,
     Binding,
     FieldMetadata,
     FieldMetadataEntry,
@@ -212,6 +213,8 @@ impl SyntaxKind {
                 Self::StaticMemberExpression | Self::Name | Self::MatchCatchAll,
                 0,
             ) => "variant",
+            (Self::AssociatedTypeDeclaration, Self::Name, _) => "associated-name",
+            (Self::AssociatedTypeDeclaration, Self::TypeExpression, _) => "associated-binding",
             (Self::Binding, Self::TypeExpression, _) => "type",
             (Self::Binding, _, _)
             | (Self::Assignment, _, 1)

@@ -148,7 +148,7 @@ async fn exercise() -> Result<(), TerraneError> {
     Ok(())
 }
 fn present(value: &Option<Builder>) -> bool {
-    return (&value).is_some();
+    return value.is_some();
 }
 pub struct Receiver {
     pub value: Option<Builder>,
@@ -588,9 +588,10 @@ fn main() {
                     let __terrane_try_1: TerraneCompletion<()> = async {
                         __terrane_traced_completion!(
                             __terrane_await(invoke(std::sync::Arc::new(move | argument_0
-                            : Option < Builder >| -> std::pin::Pin < Box < dyn Future <
-                            Output = _ > + Send >> { Box::pin(rejected_free(argument_0))
-                            }))). await, 29 /* terrane-site: src/main.trn:70:15-70:36 */
+                            : Option < terrane_borrowed_future_witness::Builder >| ->
+                            std::pin::Pin < Box < dyn Future < Output = _ > + Send >> {
+                            Box::pin(rejected_free(argument_0)) }))). await,
+                            29 /* terrane-site: src/main.trn:70:15-70:36 */
                         );
                         TerraneCompletion::Normal
                     }

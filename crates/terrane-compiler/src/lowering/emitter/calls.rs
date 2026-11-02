@@ -1841,17 +1841,26 @@ impl Emitter<'_> {
             }
             contract
         });
-        let native_struct_construction = callee.kind == SyntaxKind::ConstructionExpression
-            && callee
-                .children
-                .first()
-                .and_then(|designator| self.class_designator(designator))
-                .and_then(|object| {
-                    self.package
-                        .projection
-                        .projected_struct(&object.identity.namespace, &object.identity.name)
-                })
-                .is_some();
+        let native_struct_view = (callee.kind == SyntaxKind::ConstructionExpression)
+            .then(|| {
+                let designator = callee.children.first()?;
+                let object = self.class_designator(designator)?;
+                let ValueType::Object(identity) = self.value_type(node)? else {
+                    return None;
+                };
+                (identity.namespace == object.identity.namespace
+                    && identity.name == object.identity.name
+                    && identity.is_unsafe == object.identity.is_unsafe)
+                    .then(|| {
+                        self.package
+                            .projection
+                            .projected_struct(&object.identity.namespace, &object.identity.name)
+                    })
+                    .flatten()
+                    .map(|(_, _, borrowed_view)| borrowed_view)
+            })
+            .flatten();
+        let native_struct_construction = native_struct_view.is_some();
         let shared_async_method = contract.as_ref().is_some_and(|contract| {
             projected_function.is_none()
                 && contract.owner.is_some()
@@ -1949,11 +1958,11 @@ impl Emitter<'_> {
             );
         }
         let mut native_field_values = None;
-        let mut native_optional_arguments = Vec::new();
+        let mut native_field_converted = Vec::new();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
             if native_struct_construction {
-                native_optional_arguments.resize(contract.parameters.len(), false);
+                native_field_converted.resize(contract.parameters.len(), false);
             }
             let mut variadic_values = Vec::new();
             let variadic_index = contract
@@ -2075,9 +2084,13 @@ impl Emitter<'_> {
                             && (specialization.is_some_and(|specialization| {
                                 specialization.direct_projected_call
                             }) || projected_chain_role.is_some()
-                                || callee.kind == SyntaxKind::MemberExpression)
+                                || callee.kind == SyntaxKind::MemberExpression
+                                || native_struct_view == Some(false))
                     })
                 {
+                    if native_struct_construction {
+                        native_field_converted[index] = true;
+                    }
                     let sequence_conversion = match (&projected.ty, self.value_type(value)) {
                         (
                             crate::rust_interop::projection::ProjectedType::Sequence {
@@ -2196,10 +2209,6 @@ impl Emitter<'_> {
                     variadic_values.push(expression);
                 } else {
                     ordered[index] = Some(expression);
-                    if native_struct_construction {
-                        native_optional_arguments[index] =
-                            matches!(self.value_type(value), Some(ValueType::Optional(_)));
-                    }
                 }
             }
             if let Some(index) = variadic_index {
@@ -2223,6 +2232,51 @@ impl Emitter<'_> {
             } else {
                 values = ordered.into_iter().flatten().collect();
             }
+        } else if native_struct_construction {
+            let designator = &callee.children[0];
+            let object = self
+                .class_designator(designator)
+                .expect("native construction has a descriptor");
+            let (_, fields, _) = self
+                .package
+                .projection
+                .projected_struct(&object.identity.namespace, &object.identity.name)
+                .expect("native construction has projected fields");
+            let mut ordered = vec![None; fields.len()];
+            let mut positional = 0;
+            for argument in &arguments.children {
+                let named = argument
+                    .children
+                    .first()
+                    .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+                let index = named.map_or_else(
+                    || {
+                        let index = positional;
+                        positional += 1;
+                        index
+                    },
+                    |name| {
+                        fields
+                            .iter()
+                            .position(|field| field.name == self.text(name))
+                            .expect("validated native field argument")
+                    },
+                );
+                let source_type = self
+                    .class_designator(designator)
+                    .and_then(|object| {
+                        object
+                            .fields
+                            .iter()
+                            .find(|field| field.name == fields[index].name)
+                    })
+                    .map(|field| field.value_type.clone())
+                    .expect("native field has a source type");
+                let value = argument.children.last().unwrap_or(argument);
+                ordered[index] = Some(self.expression_as(value, source_type));
+            }
+            native_field_values = Some(ordered);
+            values.clear();
         } else if native_macro_path.is_none()
             && let Some(
                 ValueType::Function(parameters, _, _)
@@ -2872,17 +2926,22 @@ impl Emitter<'_> {
                 });
         let projected_native_construction = (callee.kind == SyntaxKind::ConstructionExpression)
             .then(|| {
-                callee
-                    .children
-                    .first()
-                    .and_then(|designator| self.class_designator(designator))
+                let designator = callee.children.first()?;
+                let object = self.class_designator(designator)?;
+                let ValueType::Object(identity) = self.value_type(node)? else {
+                    return None;
+                };
+                (identity.namespace == object.identity.namespace
+                    && identity.name == object.identity.name
+                    && identity.is_unsafe == object.identity.is_unsafe)
+                    .then(|| {
+                        self.package
+                            .projection
+                            .projected_struct(&object.identity.namespace, &object.identity.name)
+                    })
+                    .flatten()
             })
-            .flatten()
-            .and_then(|object| {
-                self.package
-                    .projection
-                    .projected_struct(&object.identity.namespace, &object.identity.name)
-            });
+            .flatten();
         let call = if let Some((native_path, fields, borrowed_view)) = projected_native_construction
         {
             let selected_native = self.value_type(node).and_then(|value| match value {
@@ -2933,45 +2992,59 @@ impl Emitter<'_> {
                     let value = value_for(&field.name);
                     match (&field.ty, value) {
                         (crate::rust_interop::projection::ProjectedType::Optional(inner), None) => {
-                            format!(
-                                "None::<{}>",
-                                super::super::dependencies::projected_field_abi_type(inner)
-                            )
+                            format!("None::<{}>", inner.rust_type())
+                        }
+                        (
+                            crate::rust_interop::projection::ProjectedType::Optional(_),
+                            Some(value),
+                        ) if !borrowed_view && native_field_converted.get(index) == Some(&true) => {
+                            format!("({value}).into()")
                         }
                         (_, Some(value))
                             if borrowed_view
-                                || (projected_function.is_some()
-                                    && !(matches!(
-                                        &field.ty,
-                                        crate::rust_interop::projection::ProjectedType::Optional(_)
-                                    ) && native_optional_arguments.get(index)
-                                        != Some(&true))) =>
+                                || native_field_converted.get(index) == Some(&true) =>
                         {
                             value
                         }
                         (
                             crate::rust_interop::projection::ProjectedType::Optional(_),
                             Some(value),
-                        ) if native_optional_arguments.get(index) == Some(&true) => self.fallible(
-                            format!(
-                                "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({}) }})()",
-                                projected_argument_expression(&value, &field.ty)
-                            ),
-                            node,
-                        ),
-                        (
-                            crate::rust_interop::projection::ProjectedType::Sequence { .. },
-                            Some(value),
                         ) => {
-                            format!("{value}.into_vec()")
+                            if field.ty.has_identity_representation() {
+                                value
+                            } else {
+                                let mut source_type = contract
+                                    .as_ref()
+                                    .and_then(|contract| contract.parameters.get(index))
+                                    .and_then(crate::ParameterContract::element_value_type)
+                                    .or_else(|| {
+                                        callee
+                                            .children
+                                            .first()
+                                            .and_then(|designator| {
+                                                self.class_designator(designator)
+                                            })
+                                            .and_then(|object| {
+                                                object
+                                                    .fields
+                                                    .iter()
+                                                    .find(|candidate| candidate.name == field.name)
+                                                    .map(|field| field.value_type.clone())
+                                            })
+                                    })
+                                    .expect("native struct field has a source parameter type");
+                                crate::semantics::canonicalize_native_value_type(
+                                    self.package,
+                                    &mut source_type,
+                                );
+                                format!(
+                                    "{{ let value: {} = {value}; {} }}",
+                                    rust_value_type(self.package, source_type),
+                                    projected_chain_argument_expression("value", &field.ty),
+                                )
+                            }
                         }
-                        (
-                            crate::rust_interop::projection::ProjectedType::Optional(_),
-                            Some(value),
-                        ) => {
-                            format!("{value}.into()")
-                        }
-                        (_, Some(value)) => value,
+                        (_, Some(value)) => projected_chain_argument_expression(&value, &field.ty),
                         (_, None) => unreachable!(
                             "semantics requires projected struct field `{}`",
                             field.name
@@ -2986,15 +3059,7 @@ impl Emitter<'_> {
                     .iter()
                     .zip(projected_values)
                     .map(|(field, value)| {
-                        let field_name = if field
-                            .rust_name
-                            .chars()
-                            .all(|character| character.is_ascii_digit())
-                        {
-                            field.rust_name.clone()
-                        } else {
-                            rust_name(&field.rust_name)
-                        };
+                        let field_name = crate::rust_ir::native_member_name(&field.rust_name);
                         format!("{field_name}: {value}")
                     })
                     .collect::<Vec<_>>()

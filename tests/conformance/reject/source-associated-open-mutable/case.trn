@@ -1,0 +1,8 @@
+namespace app
+interface request
+    associated type response
+    function read response;
+function consume; input mutable ref (list of request)
+    return
+function main;
+    return

@@ -1,0 +1,19 @@
+namespace contract
+public interface operation
+    associated type response
+    function dispatch response; value response
+
+public class base implements operation
+    associated type response = int
+    function dispatch response; value response
+        return move value
+    static function associated-value response;
+        return 16
+
+public class generic of (T) implements operation
+    associated type response = T
+    evidence T
+    function construct; evidence T
+        this.evidence = move evidence
+    function dispatch response; value response
+        return move value

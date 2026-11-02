@@ -2189,6 +2189,24 @@ fn resolve_semantic_target(
     {
         return member_target(semantic, unit, parent, name);
     }
+    if let Some(slot) = unit.associated_type_at(name_node.span.start, name) {
+        return Some(SemanticTarget {
+            name: slot.name.clone(),
+            identity: format!(
+                "{}::associated-type@{}:{}",
+                slot.owner, slot.span.file, slot.span.start
+            ),
+            declaration_span: Some(slot.span),
+            descriptor_identity: None,
+            value_type: Some(
+                slot.value_type
+                    .clone()
+                    .unwrap_or_else(|| crate::ValueType::TypeParameter(slot.name.clone())),
+            ),
+            function: None,
+            descriptor: None,
+        });
+    }
     if let Some(parameter) = unit.type_parameter_at(name_node.span.start, name) {
         return Some(SemanticTarget {
             name: parameter.name.clone(),

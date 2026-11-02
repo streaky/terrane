@@ -97,10 +97,7 @@ fn owned_field_is_directly_constructible(ty: &ProjectedType) -> bool {
         ProjectedType::Sequence { rust_path, item } => {
             rust_path.contains("Vec<") && owned_field_is_directly_constructible(item)
         }
-        ProjectedType::Optional(inner) => {
-            !matches!(inner.as_ref(), ProjectedType::Sequence { .. })
-                && owned_field_is_directly_constructible(inner)
-        }
+        ProjectedType::Optional(inner) => owned_field_is_directly_constructible(inner),
         _ => false,
     }
 }

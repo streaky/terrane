@@ -1,4 +1,7 @@
 use super::prelude::*;
+use crate::rust_interop::projection::instantiate_projected_container;
+
+mod native_associated;
 
 #[derive(Clone, Copy)]
 pub(crate) struct EffectiveObjectField<'a> {
@@ -217,7 +220,15 @@ pub(super) fn analyze_descriptor_contracts(
                 node.span,
             )
         })?;
-        let generic_parameters = super::generics::generic_parameters(unit, node, &visible)?;
+        let mut generic_parameters = super::generics::generic_parameters(unit, node, &visible)?;
+        let associated_types = super::source_associated::declarations(
+            unit,
+            node,
+            kind,
+            &visible,
+            visible_objects,
+            &mut generic_parameters,
+        )?;
         let clause_identities = |clause_kind| -> Result<Vec<ObjectIdentity>, SemanticFailure> {
             let Some(clause) = node.children.iter().find(|child| child.kind == clause_kind) else {
                 return Ok(Vec::new());
@@ -387,6 +398,10 @@ pub(super) fn analyze_descriptor_contracts(
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
                 )
             }),
+            ObjectKind::Interface => node.children.iter().any(|child| {
+                child.kind == SyntaxKind::DeclarationQualifier
+                    && node_text(&unit.source, child) == "owning"
+            }),
             _ => false,
         };
         let methods = unit
@@ -443,6 +458,7 @@ pub(super) fn analyze_descriptor_contracts(
             interfaces,
             traits,
             fields,
+            associated_types,
         });
     }
     for object in &descriptors {
@@ -515,7 +531,7 @@ pub(super) fn value_type_owns_resource(
         ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects) => {
             effects.modes.written == InvocationMode::Consuming
         }
-        ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
+        ValueType::Object(identity) => resource_identities.contains(&identity.qualified_base()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
         ValueType::Union(arms) => arms
             .iter()
@@ -697,7 +713,7 @@ pub(crate) fn application_is_resource_owning(
                 if let Some(capability) = package.native_capability(identity) {
                     return !capability.cloneable;
                 }
-                if resources.contains(&identity.qualified())
+                if resources.contains(&identity.qualified_base())
                     || value_type_contains_nonclone_foreign(package, value_type)
                 {
                     return true;
@@ -989,7 +1005,7 @@ pub(super) fn propagate_resource_ownership(
                 let owns_base_resource = object
                     .base
                     .as_ref()
-                    .is_some_and(|base| resource_identities.contains(&base.qualified()));
+                    .is_some_and(|base| resource_identities.contains(&base.qualified_base()));
                 if owns_field_resource || owns_base_resource {
                     newly_resource_owning.push((unit_index, object_index));
                 }
@@ -1010,7 +1026,7 @@ pub(super) fn propagate_resource_ownership(
             let has_copyable_object_contract = object.base.is_some()
                 || !object.traits.is_empty()
                 || object.interfaces.iter().any(|interface| {
-                    if resource_identities.contains(&interface.qualified()) {
+                    if resource_identities.contains(&interface.qualified_base()) {
                         return false;
                     }
                     !package
@@ -1202,24 +1218,90 @@ pub(crate) fn bind_projected_requirement(
 pub(super) fn validate_object_conformance(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
-    fn implementation_satisfies_requirement(
+    fn canonical_type(
+        package: &SemanticPackage,
+        value_type: Option<&ValueType>,
+    ) -> Option<ValueType> {
+        value_type.map(|value_type| {
+            let mut canonical = value_type.clone();
+            canonicalize_native_value_type(package, &mut canonical);
+            canonical
+        })
+    }
+
+    fn implementation_mismatch(
+        package: &SemanticPackage,
         requirement: &FunctionContract,
         implementation: &FunctionContract,
-    ) -> bool {
-        requirement.parameters.len() == implementation.parameters.len()
-            && requirement
-                .parameters
-                .iter()
-                .zip(&implementation.parameters)
-                .all(|(left, right)| {
-                    left.value_type == right.value_type && left.variadic == right.variadic
-                })
-            && requirement.return_type == implementation.return_type
-            && (!implementation.throws || requirement.throws)
-            && requirement.is_async == implementation.is_async
-            && requirement
-                .written_invocation_mode
-                .accepts(implementation.written_invocation_mode)
+    ) -> Option<String> {
+        if requirement.parameters.len() != implementation.parameters.len() {
+            return Some(format!(
+                "expected {} parameters, found {}",
+                requirement.parameters.len(),
+                implementation.parameters.len()
+            ));
+        }
+        for (index, (required, actual)) in requirement
+            .parameters
+            .iter()
+            .zip(&implementation.parameters)
+            .enumerate()
+        {
+            let required_type = canonical_type(package, required.value_type.as_ref());
+            let actual_type = canonical_type(package, actual.value_type.as_ref());
+            if required_type != actual_type {
+                let actual_name = actual_type
+                    .as_ref()
+                    .map_or_else(|| "unknown".to_owned(), ToString::to_string);
+                let required_name = required_type
+                    .as_ref()
+                    .map_or_else(|| "unknown".to_owned(), ToString::to_string);
+                let detail = if actual_name == required_name {
+                    format!(
+                        "parameter {} has an incompatible canonical identity for `{actual_name}`",
+                        index + 1
+                    )
+                } else {
+                    format!(
+                        "parameter {} type is `{actual_name}`, expected `{required_name}`",
+                        index + 1
+                    )
+                };
+                return Some(detail);
+            }
+            if required.variadic != actual.variadic {
+                return Some(format!(
+                    "parameter {} has a different variadic contract",
+                    index + 1
+                ));
+            }
+        }
+        let required_result = canonical_type(package, requirement.return_type.as_ref());
+        let actual_result = canonical_type(package, implementation.return_type.as_ref());
+        if required_result != actual_result {
+            return Some(format!(
+                "result type is `{}`, expected `{}`",
+                actual_result
+                    .as_ref()
+                    .map_or_else(|| "unit".to_owned(), ToString::to_string),
+                required_result
+                    .as_ref()
+                    .map_or_else(|| "unit".to_owned(), ToString::to_string),
+            ));
+        }
+        if implementation.throws && !requirement.throws {
+            return Some("implementation may throw but the interface does not".to_owned());
+        }
+        if requirement.is_async != implementation.is_async {
+            return Some("async contract differs".to_owned());
+        }
+        if !requirement
+            .written_invocation_mode
+            .accepts(implementation.written_invocation_mode)
+        {
+            return Some("invocation mode differs".to_owned());
+        }
+        None
     }
 
     fn effective_method<'a>(
@@ -1625,12 +1707,14 @@ pub(super) fn validate_object_conformance(
                         written_invocation_mode: InvocationMode::Shared,
                         exact_invocation_mode: InvocationMode::Shared,
                     };
-                    if !implementation_satisfies_requirement(&required_render, render) {
+                    if let Some(mismatch) =
+                        implementation_mismatch(package, &required_render, render)
+                    {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0067",
                             format!(
-                                "class `{}` implements `throwable.render` with an incompatible signature",
+                                "class `{}` implements `throwable.render` with an incompatible signature: {mismatch}",
                                 object.name
                             ),
                             render.span,
@@ -1764,12 +1848,12 @@ pub(super) fn validate_object_conformance(
                             actual.span,
                         ));
                     }
-                    if !implementation_satisfies_requirement(required, actual) {
+                    if let Some(mismatch) = implementation_mismatch(package, required, actual) {
                         return Err(failure(
                             &declaration_unit.source,
                             "T0067",
                             format!(
-                                "class `{}` implements `{}.{}` with an incompatible signature",
+                                "class `{}` implements `{}.{}` with an incompatible signature: {mismatch}",
                                 object.name, interface.name, required.name
                             ),
                             actual.span,
@@ -2353,21 +2437,48 @@ pub(super) fn infer_and_validate_invocation_modes(
     Ok(())
 }
 
-fn open_projected_interface<'a>(
-    projection: &'a crate::rust_interop::projection::Projection,
-    value_type: &ValueType,
-) -> Option<&'a crate::rust_interop::projection::ProjectedItem> {
+fn open_interface_name(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
     match value_type {
-        ValueType::Object(identity) if identity.application.is_none() => projection
-            .item(&identity.namespace, &identity.name)
-            .filter(|item| {
-                matches!(
+        ValueType::Object(identity) => {
+            if identity.application.is_none()
+                && let Some(item) = package.projection.item(&identity.namespace, &identity.name)
+                && matches!(
                     &item.kind,
                     crate::rust_interop::projection::ProjectedKind::Interface(interface)
                         if interface.associated_type.is_some()
                 )
-            }),
-        ValueType::Optional(inner) => open_projected_interface(projection, inner),
+            {
+                return Some(format!("projected interface `{}`", item.name));
+            }
+            let open = package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(|descriptor| {
+                    descriptor.kind == ObjectKind::Interface
+                        && descriptor.identity.base() == identity.base()
+                        && !descriptor.associated_types.is_empty()
+                        && identity.type_arguments.len()
+                            + usize::from(
+                                identity.type_arguments.is_empty()
+                                    && identity.application.is_some(),
+                            )
+                            < descriptor.generic_parameters.len()
+                })
+                .map(|descriptor| format!("interface `{}`", descriptor.name));
+            open.or_else(|| {
+                identity
+                    .type_arguments
+                    .iter()
+                    .chain(identity.application.as_deref())
+                    .chain(identity.native_arguments.values())
+                    .find_map(|argument| open_interface_name(package, argument))
+            })
+        }
+        ValueType::Union(arms) => arms
+            .iter()
+            .find_map(|arm| open_interface_name(package, arm)),
+        ValueType::Optional(inner) => open_interface_name(package, inner),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::AsyncIterationStep(item)
@@ -2386,20 +2497,23 @@ fn open_projected_interface<'a>(
         | ValueType::TaskOutcome(item)
         | ValueType::TaskGroup(item)
         | ValueType::Reference(item)
-        | ValueType::SharedReference(item) => {
-            open_projected_interface(projection, item.value_type_ref())
-        }
+        | ValueType::MutableReference(item)
+        | ValueType::SharedReference(item) => open_interface_name(package, item.value_type_ref()),
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
-        | ValueType::UnorderedMap(key, value) => {
-            open_projected_interface(projection, key.value_type_ref())
-                .or_else(|| open_projected_interface(projection, value.value_type_ref()))
-        }
-        ValueType::Function(parameters, result, _)
-        | ValueType::AsyncFunction(parameters, result, _, _) => parameters
+        | ValueType::UnorderedMap(key, value) => open_interface_name(package, key.value_type_ref())
+            .or_else(|| open_interface_name(package, value.value_type_ref())),
+        ValueType::Function(parameters, result, effects)
+        | ValueType::AsyncFunction(parameters, result, _, effects) => parameters
             .iter()
-            .find_map(|parameter| open_projected_interface(projection, parameter.value_type_ref()))
-            .or_else(|| open_projected_interface(projection, result.value_type_ref())),
+            .find_map(|parameter| open_interface_name(package, parameter.value_type_ref()))
+            .or_else(|| open_interface_name(package, result.value_type_ref()))
+            .or_else(|| {
+                effects
+                    .upper_bound
+                    .as_deref()
+                    .and_then(|bound| open_interface_name(package, bound))
+            }),
         _ => None,
     }
 }
@@ -2411,14 +2525,11 @@ fn validate_closed_projected_types(package: &SemanticPackage) -> Result<(), Sema
         .filter(|unit| !unit.namespace.starts_with("/deps/"))
     {
         for field in unit.descriptors.iter().flat_map(|object| &object.fields) {
-            if let Some(item) = open_projected_interface(&package.projection, &field.value_type) {
+            if let Some(name) = open_interface_name(package, &field.value_type) {
                 return Err(failure(
                     &unit.source,
                     "T0127",
-                    format!(
-                        "projected interface `{}` requires one closed associated type",
-                        item.name
-                    ),
+                    format!("{name} requires one closed associated type"),
                     field.span,
                 ));
             }
@@ -2430,16 +2541,34 @@ fn validate_closed_projected_types(package: &SemanticPackage) -> Result<(), Sema
                 .filter_map(|parameter| parameter.value_type.as_ref())
                 .chain(function.return_type.as_ref())
                 .chain(&function.thrown_types)
-                .find_map(|value_type| open_projected_interface(&package.projection, value_type));
-            if let Some(item) = open {
+                .find_map(|value_type| open_interface_name(package, value_type));
+            if let Some(name) = open {
                 return Err(failure(
                     &unit.source,
                     "T0127",
-                    format!(
-                        "projected interface `{}` requires one closed associated type",
-                        item.name
-                    ),
+                    format!("{name} requires one closed associated type"),
                     function.span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+pub(super) fn validate_closed_interface_bindings(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    for unit in package
+        .units
+        .iter()
+        .filter(|unit| !unit.namespace.starts_with("/deps/"))
+    {
+        for binding in &unit.typed_bindings {
+            if let Some(name) = open_interface_name(package, &binding.value_type) {
+                return Err(failure(
+                    &unit.source,
+                    "T0127",
+                    format!("{name} requires one closed associated type"),
+                    binding.span,
                 ));
             }
         }
@@ -2726,6 +2855,7 @@ fn analyze_source_enums(
             interfaces: Vec::new(),
             traits: Vec::new(),
             fields: Vec::new(),
+            associated_types: Vec::new(),
         });
         result.push(SourceEnumContract {
             identity: ObjectIdentity::new(&unit.namespace, &name),
@@ -2798,6 +2928,7 @@ pub(super) fn prepare_type_declarations(
         };
         package.units[index].descriptors = descriptors;
     }
+    super::source_associated::close_class_interfaces(package)?;
     prepare_source_enums(package)?;
     populate_object_aliases(package);
     for unit in &mut package.units {
@@ -2854,7 +2985,7 @@ pub(super) fn prepare_type_declarations(
     for unit in &mut package.units {
         for descriptor in &mut unit.descriptors {
             if descriptor.kind == ObjectKind::Interface {
-                descriptor.resource_owning = unit.functions.iter().any(|method| {
+                descriptor.resource_owning |= unit.functions.iter().any(|method| {
                     method.owner_identity.as_ref() == Some(&descriptor.identity)
                         && method.written_invocation_mode == InvocationMode::Consuming
                 });
@@ -6234,7 +6365,15 @@ fn collect_projected_destinations(
                     })
             })
             .collect();
-        let mut projected_result = specialize(&function.result);
+        let native_workspace = package.root.join(".trn/dependencies");
+        let native_oracle = crate::rust_interop::ProjectionOracle::new(
+            &native_workspace,
+            &package.projection.cache_identity,
+            package.projection.containment,
+        );
+        let joint_result = function.chain_role
+            == Some(crate::rust_interop::projection::ChainRole::Terminal)
+            || native_associated::requires_joint_selection(&function, &projected_bindings);
         let selected = unit
             .selected_expression_types
             .get(&span_key(node.span))
@@ -6250,11 +6389,28 @@ fn collect_projected_destinations(
                     ValueType::InvocationScopedNative { concrete: true, .. }
                 )
             });
+        // An invocation-scoped terminal specialization already carries the
+        // concrete result selected for this expression graph. Its associated
+        // output is intentionally inferred jointly by Rust, not by a detached
+        // per-call recipe lookup.
+        let mut projected_result = if let Some(selected) = selected.as_ref() {
+            destination_projected_type(package, selected)
+                .map_err(|reason| failure(&unit.source, "T0119", reason, node.span))?
+        } else if joint_result {
+            // The receiver graph and executor jointly select this output.
+            // Its existing native call question proves the complete graph;
+            // an isolated associated-owner query cannot infer its binders.
+            specialize(&function.result)
+        } else {
+            package
+                .projection
+                .normalize_associated_result(&function, &projected_bindings, Some(&native_oracle))
+                .map_err(|reason| {
+                    native_associated::normalization_failure(unit, node.span, reason)
+                })?
+        };
         let result = if let Some(selected) = selected {
             // Binding/result inference has already retained the lender region.
-            // A concrete native call plan must not erase it back to unbound.
-            projected_result = destination_projected_type(package, selected)
-                .map_err(|reason| failure(&unit.source, "T0119", reason, node.span))?;
             selected.clone()
         } else if callee.kind == SyntaxKind::ConstructionExpression {
             closed_projected_value_type(package, &projected_result).ok_or_else(|| {
@@ -6519,6 +6675,16 @@ fn collect_projected_destinations(
             &projected_bindings,
             &callable_lifetimes,
         ));
+        if !joint_result {
+            bounds.extend(native_associated::equality_bounds(
+                package,
+                unit,
+                node.span,
+                &function,
+                &projected_bindings,
+                &bounds,
+            )?);
+        }
         if let Some(destination_result) = &function.destination_result {
             for parameter in &destination_result.parameters {
                 let Some(projected) = specialization_substitutions.get(&parameter.name) else {
@@ -7356,19 +7522,52 @@ fn closed_projected_value_type_with_context(
 }
 
 /// Rebuild native representations after source-generic substitution.
-pub(super) fn canonicalize_native_value_type(
+pub(crate) fn canonicalize_native_value_type(
     package: &SemanticPackage,
     value_type: &mut ValueType,
 ) {
     match value_type {
-        ValueType::Object(identity)
-            if super::native_constructors::source_abi_nominal(package, identity) =>
-        {
-            *identity = super::native_constructors::canonical_source_nominal(package, identity);
-        }
-        ValueType::Object(identity)
-            if identity.native_projection.is_some() || !identity.native_arguments.is_empty() =>
-        {
+        ValueType::Object(identity) => {
+            let mut type_arguments = identity.type_arguments.clone();
+            for argument in &mut type_arguments {
+                canonicalize_native_value_type(package, argument);
+            }
+            let mut native_arguments = identity.native_arguments.clone();
+            for argument in native_arguments.values_mut() {
+                canonicalize_native_value_type(package, argument);
+            }
+            let application = identity
+                .application
+                .as_deref()
+                .cloned()
+                .map(|mut application| {
+                    canonicalize_native_value_type(package, &mut application);
+                    application
+                });
+            *identity = identity
+                .clone()
+                .with_type_arguments(type_arguments)
+                .with_native_arguments(native_arguments);
+            if let Some(application) = application {
+                *identity = identity.clone().with_application(application);
+            }
+            // An interface value is the source protocol carrier, not its native
+            // Box<dyn Trait<...>> crossing. Keep its associated application intact.
+            if package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .is_some_and(|item| {
+                    matches!(
+                        item.kind,
+                        crate::rust_interop::projection::ProjectedKind::Interface(_)
+                    )
+                })
+            {
+                return;
+            }
+            if let Some(closed) = close_written_native_nominal(package, identity) {
+                *identity = closed;
+            }
             if let Ok(projected) = destination_projected_object(package, identity) {
                 let native = package
                     .projection
@@ -8450,13 +8649,6 @@ pub(super) fn substitute_projected_generic(
         }
         other => other.clone(),
     }
-}
-
-fn instantiate_projected_container(template: &str, arguments: &[String]) -> String {
-    let constructor = template
-        .split_once('<')
-        .map_or(template, |(constructor, _)| constructor);
-    format!("{constructor}<{}>", arguments.join(", "))
 }
 
 pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {

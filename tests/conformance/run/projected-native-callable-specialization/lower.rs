@@ -180,7 +180,21 @@ fn main() {
             );
         }
         println!("{}", terrane_scalar_support::scalar_text(&(&selected).is_some()));
-        marker = witness::Marker { 0: 7 };
+        marker = witness::Marker {
+            0: match || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    terrane_int_support::coerce::<
+                        i64,
+                    >(&terrane_int_support::Int::from(7_i128))
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }() {
+                Ok(value) => value,
+                Err(error) => std::panic::panic_any(error),
+            },
+        };
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |

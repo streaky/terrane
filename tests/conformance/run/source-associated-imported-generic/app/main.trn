@@ -1,0 +1,11 @@
+namespace app
+from /contract import request
+
+class text-request implements request of string
+    associated type response = int
+    function dispatch int; input string
+        return 42
+
+function main;
+    value request of (string, int) = instance text-request;
+    print; (value.dispatch; 'input')

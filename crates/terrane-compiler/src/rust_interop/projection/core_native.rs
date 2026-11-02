@@ -61,6 +61,7 @@ pub(crate) fn augment(projection: &mut Projection) {
         items,
         declined: Vec::new(),
         native_alias_identities: BTreeMap::new(),
+        associated_implementations: Vec::new(),
         partial_declines: Vec::new(),
     });
     projection.content_hash = super::artifacts::projection_content_hash(projection)

@@ -133,6 +133,27 @@ fn classify_node(
         SyntaxKind::NamespaceDeclaration | SyntaxKind::NamespacePath => {
             classify_names(node, tokens, classified, HighlightKind::Namespace, false);
         }
+        SyntaxKind::AssociatedTypeDeclaration => {
+            for index in node.token_range.clone() {
+                if matches!(tokens[index].text.as_str(), "associated" | "type") {
+                    classified[index] = Some((HighlightKind::Keyword, false));
+                }
+            }
+            if let Some(name) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+            {
+                classify_names(name, tokens, classified, HighlightKind::Type, true);
+            }
+            if let Some(binding) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::TypeExpression)
+            {
+                classify_names(binding, tokens, classified, HighlightKind::Type, false);
+            }
+        }
         SyntaxKind::TypeExpression => {
             classify_names(node, tokens, classified, HighlightKind::Type, false);
         }

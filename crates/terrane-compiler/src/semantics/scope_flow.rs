@@ -267,6 +267,34 @@ fn merge_union_carrier(
     }
 }
 
+fn joined_flow_value_type(unit: &SemanticUnit, envs: &[FlowEnv], name: &str) -> Option<ValueType> {
+    let value_type = union_flow_types(envs.iter().filter_map(|env| env.types.get(name).cloned()))?;
+    let ValueType::Union(arms) = &value_type else {
+        return Some(value_type);
+    };
+    let first = envs.first()?;
+    let identity = first.binding_ids.get(name);
+    if envs.iter().any(|env| {
+        env.binding_ids.get(name) != identity || env.origins.get(name) != first.origins.get(name)
+    }) {
+        return Some(value_type);
+    }
+    let physical = identity.and_then(|identity| unit.flow_binding_types.get(identity));
+    if let Some(physical @ ValueType::Reference(target)) = physical
+        && let ValueType::Optional(present) = target.value_type_ref()
+        && arms.iter().all(|arm| {
+            arm == physical
+                || matches!(
+                    arm, ValueType::Reference(target) if target.value_type_ref() == present.as_ref()
+                )
+        })
+    {
+        // Refining one observer does not change its physical &Option<T> carrier.
+        return Some(physical.clone());
+    }
+    Some(value_type)
+}
+
 fn merge_flow_states(
     unit: &mut SemanticUnit,
     span: Span,
@@ -296,8 +324,7 @@ fn merge_flow_states(
                 .collect::<BTreeSet<_>>();
             let mut merged = FlowEnv::new(BTreeMap::new());
             for name in names {
-                let value_type =
-                    union_flow_types(envs.iter().filter_map(|env| env.types.get(&name).cloned()));
+                let value_type = joined_flow_value_type(unit, &envs, &name);
                 let prior_carriers = envs
                     .iter()
                     .filter_map(|env| env.carrier_types.get(&name).cloned())
@@ -651,7 +678,9 @@ fn narrow_present_env(unit: &SemanticUnit, condition: &SyntaxNode, env: &mut Flo
             continue;
         }
         let narrowed = match value_type {
-            ValueType::Optional(inner) => Some(*inner),
+            value_type @ (ValueType::Optional(_) | ValueType::Reference(_)) => {
+                super::types::optional_inner(value_type)
+            }
             ValueType::Union(arms) => {
                 union_flow_types(arms.into_iter().filter_map(|arm| match arm {
                     ValueType::Optional(inner) => Some(*inner),

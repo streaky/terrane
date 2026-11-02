@@ -706,8 +706,48 @@ impl Emitter<'_> {
             );
         }
         if let ValueType::Optional(inner) = value_type {
+            // A typed Rust block supplies the complete destination ABI, including
+            // its Option carrier; its opaque body is not a scalar to lift.
+            if matches!(
+                node.kind,
+                SyntaxKind::RustBlock | SyntaxKind::UnsafeRustBlock
+            ) {
+                return self.expression(node);
+            }
             let actual = self.value_type(node);
-            return if actual == Some(ValueType::Optional(inner.clone())) {
+            let same_transport = actual.as_ref().is_some_and(|actual| {
+                let ValueType::Optional(actual_inner) = actual else {
+                    return false;
+                };
+                if actual_inner == &inner {
+                    return true;
+                }
+                // Native aliases/provenance do not create another optional layer.
+                let mut actual = actual.clone();
+                let mut expected = ValueType::Optional(inner.clone());
+                crate::semantics::canonicalize_native_value_type(self.package, &mut actual);
+                crate::semantics::canonicalize_native_value_type(self.package, &mut expected);
+                rust_value_type(self.package, actual) == rust_value_type(self.package, expected)
+            });
+            if !same_transport
+                && let Some(ValueType::Optional(actual_inner)) = &actual
+                && let (ValueType::Scalar(source), ValueType::Scalar(destination)) =
+                    (actual_inner.as_ref(), inner.as_ref())
+                && is_numeric(*source)
+                && is_numeric(*destination)
+            {
+                let expression = self.expression_as(node, actual.clone().unwrap());
+                let converted = self.numeric_destination_value(
+                    node,
+                    "__terrane_optional_value",
+                    *source,
+                    *destination,
+                );
+                return format!(
+                    "match {expression} {{ Some(__terrane_optional_value) => Some({converted}), None => None }}"
+                );
+            }
+            return if same_transport {
                 let expression = self.expression(node);
                 let reused = match node.kind {
                     SyntaxKind::Name => {
@@ -741,7 +781,11 @@ impl Emitter<'_> {
         }
         if let ValueType::Reference(item) = &value_type
             && let Some(ValueType::MutableReference(actual)) = self.value_type(node)
-            && actual.value_type_ref() == item.value_type_ref()
+            && crate::semantics::reference_target_types_equal(
+                self.package,
+                actual.value_type_ref(),
+                item.value_type_ref(),
+            )
         {
             return format!("&*({})", self.expression(node));
         }
@@ -749,7 +793,13 @@ impl Emitter<'_> {
             if self.value_type(node) == Some(value_type.clone()) {
                 return self.expression(node);
             }
-            if self.value_type(node).as_ref() == Some(item.value_type_ref()) {
+            if self.value_type(node).as_ref().is_some_and(|actual| {
+                crate::semantics::reference_target_types_equal(
+                    self.package,
+                    item.value_type_ref(),
+                    actual,
+                )
+            }) {
                 return self.mutable_reference_address_expression(node);
             }
         }
@@ -772,7 +822,13 @@ impl Emitter<'_> {
                 }
                 return self.expression(node);
             }
-            if self.value_type(node).as_ref() == Some(item.value_type_ref()) {
+            if self.value_type(node).as_ref().is_some_and(|actual| {
+                crate::semantics::reference_target_types_equal(
+                    self.package,
+                    item.value_type_ref(),
+                    actual,
+                )
+            }) {
                 return self.reference_address_expression(node);
             }
         }
@@ -836,7 +892,10 @@ impl Emitter<'_> {
                 .unit
                 .descriptors
                 .iter()
-                .find(|object| object.identity == *expected)
+                .find(|object| {
+                    object.identity.namespace == expected.namespace
+                        && object.identity.name == expected.name
+                })
                 .or_else(|| {
                     self.package
                         .resolve_name_at(self.unit, node.span.start, &expected.name)
@@ -855,7 +914,9 @@ impl Emitter<'_> {
                 .or_else(|| {
                     self.package.units.iter().find_map(|unit| {
                         unit.descriptors.iter().find(|object| {
-                            object.identity == *expected && object.kind == ObjectKind::Interface
+                            object.identity.namespace == expected.namespace
+                                && object.identity.name == expected.name
+                                && object.kind == ObjectKind::Interface
                         })
                     })
                 })
@@ -1781,6 +1842,23 @@ impl Emitter<'_> {
             _ => None,
         }
     }
+    fn borrowed_optional_presence_check(&mut self, place: &SyntaxNode, operator: &str) -> String {
+        let (setup, value) = self.borrowed_receiver_parts(place);
+        let presence = format!(
+            "({value}).{}()",
+            if operator == "==" {
+                "is_none"
+            } else {
+                "is_some"
+            }
+        );
+        if setup.is_empty() {
+            presence
+        } else {
+            format!("{{ {setup} {presence} }}")
+        }
+    }
+
     pub(super) fn optional_presence_check(
         &mut self,
         operand: &SyntaxNode,
@@ -1791,6 +1869,16 @@ impl Emitter<'_> {
             && let Some(inner) = place.children.first()
         {
             place = inner;
+        }
+        if matches!(
+            self.value_type(place),
+            Some(
+                ValueType::Reference(_)
+                    | ValueType::MutableReference(_)
+                    | ValueType::SharedReference(_)
+            )
+        ) {
+            return self.borrowed_optional_presence_check(place, operator);
         }
         if place.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = place.children.as_slice()
@@ -2004,6 +2092,29 @@ impl Emitter<'_> {
             let left = self.string_comparison_operand(left);
             let right = self.string_comparison_operand(right);
             return format!("({left} {source_operator} {right})");
+        }
+        if comparison && let Some(value_type @ ValueType::Object(_)) = self.value_type(left) {
+            // Native enum values can be read through a narrowed borrowed carrier.
+            // The concrete Self type lets Rust coerce both owned and borrowed
+            // observations to the same referent without an extra value conversion.
+            let (trait_name, method) = match source_operator {
+                "==" => ("PartialEq", "eq"),
+                "!=" => ("PartialEq", "ne"),
+                "<" => ("PartialOrd", "lt"),
+                "<=" => ("PartialOrd", "le"),
+                ">" => ("PartialOrd", "gt"),
+                ">=" => ("PartialOrd", "ge"),
+                _ => unreachable!("comparison operator checked above"),
+            };
+            let rust_type = rust_value_type(self.package, value_type);
+            let left = self.receiver_expression(left);
+            let right = self.receiver_expression(right);
+            return format!(
+                "{{ let __terrane_comparison_left = {left}; \
+                 let __terrane_comparison_right = {right}; \
+                 <{rust_type} as std::cmp::{trait_name}>::{method}(\
+                 &__terrane_comparison_left, &__terrane_comparison_right) }}"
+            );
         }
         let left_is_small = self.small_int_binding(left).is_some()
             || matches!(

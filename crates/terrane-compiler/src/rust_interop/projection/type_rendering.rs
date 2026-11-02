@@ -160,6 +160,13 @@ pub(super) fn render_resolved_path(
     }
 }
 
+pub(crate) fn instantiate_projected_container(template: &str, arguments: &[String]) -> String {
+    let constructor = template
+        .split_once('<')
+        .map_or(template, |(constructor, _)| constructor);
+    format!("{constructor}<{}>", arguments.join(", "))
+}
+
 pub(super) fn render_rust_type(
     ty: &Type,
     index: &HashMap<Id, Item>,
