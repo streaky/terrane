@@ -42,6 +42,7 @@ pub(super) fn generic_parameters(
     unit: &SemanticUnit,
     declaration: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
+    visible_objects: &BTreeMap<String, ObjectIdentity>,
 ) -> Result<Vec<GenericParameterContract>, SemanticFailure> {
     let Some(list) = declaration
         .children
@@ -90,8 +91,23 @@ pub(super) fn generic_parameters(
                 .iter()
                 .find(|child| child.kind == SyntaxKind::TypeExpression)
             {
-                match super::types::declared_value_type(unit, node, aliases)? {
-                    ValueType::Object(identity) => Some(identity),
+                match super::types::declared_value_type_with_visible_objects(
+                    unit,
+                    node,
+                    aliases,
+                    visible_objects,
+                )? {
+                    ValueType::Object(identity) => {
+                        if !identity.type_arguments.is_empty() || identity.application.is_some() {
+                            return Err(failure(
+                                &unit.source,
+                                "T0001",
+                                "type parameter bounds must name an unapplied nominal interface",
+                                node.span,
+                            ));
+                        }
+                        Some(identity)
+                    }
                     _ => {
                         return Err(failure(
                             &unit.source,

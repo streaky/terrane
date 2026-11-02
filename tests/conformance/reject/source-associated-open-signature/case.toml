@@ -1,4 +1,3 @@
 phase = "check"
 status = "reject"
 code = "T0127"
-contains = "requires one closed associated type"

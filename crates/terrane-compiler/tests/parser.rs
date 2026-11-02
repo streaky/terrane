@@ -242,6 +242,28 @@ fn calls_distinguish_names_zero_arguments_and_grouped_nesting() {
 }
 
 #[test]
+fn grouped_binding_lookahead_requires_type_evidence() {
+    for source in [
+        "function main;\n  show(5)\n",
+        "function main;\n  show (6)\n",
+        "function main;\n  show(value)\n",
+    ] {
+        let source = SourceFile::new(0, "case.trn".into(), source.to_owned());
+        let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+        assert_eq!(diagnostics[0].code, "S1025");
+    }
+
+    let tree = parse_source("class record\n  value (string | none)\n");
+    assert!(contains(&tree.root, SyntaxKind::Binding));
+    assert!(contains(&tree.root, SyntaxKind::UnionType));
+
+    let tree = parse_source("function main;\n  value (string | none) = none\n");
+    assert!(contains(&tree.root, SyntaxKind::Binding));
+    assert!(contains(&tree.root, SyntaxKind::UnionType));
+}
+
+#[test]
 fn distinguishes_construction_instance_members_and_static_members() {
     let tree = parse_source(
         "made = instance widget;\nchanged = value.reset;\nshared = widget::default;\n",

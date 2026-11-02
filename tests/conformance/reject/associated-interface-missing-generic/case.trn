@@ -1,0 +1,11 @@
+namespace app
+interface request of (Input)
+    associated type response
+    function dispatch response; input Input
+class selected implements request
+    associated type response = int
+    function dispatch int; input string
+        return 7
+function main;
+    value = instance selected;
+    print; (value.dispatch; 'input')

@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-conditional-response = { path = "fixture-registry/terrane-conditional-response-0.1.0" }

@@ -2008,6 +2008,17 @@ impl Emitter<'_> {
         }
     }
 
+    fn object_comparison_operand(&mut self, node: &SyntaxNode) -> (String, String) {
+        if self.contains_guarded_read(node) {
+            // Value lowering materializes guarded fields inside their own bounded
+            // scope. Release that guard before evaluating a sibling, which may
+            // reach the same owner through either the original handle or an alias.
+            (String::new(), self.expression(node))
+        } else {
+            self.borrowed_receiver_parts(node)
+        }
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "binary lowering keeps operand effects and operator selection in source order"
@@ -2092,9 +2103,8 @@ impl Emitter<'_> {
             return format!("({left} {source_operator} {right})");
         }
         if comparison && let Some(value_type @ ValueType::Object(_)) = self.value_type(left) {
-            // Keep canonical operand places and their guards alive through the
-            // comparison. Both owned values and narrowed native observations
-            // must be borrowed, not moved or snapshotted just to compare them.
+            // Borrow stable operands without moving them. Guarded reads instead
+            // produce bounded snapshots before sibling evaluation.
             let (trait_name, method) = match source_operator {
                 "==" => ("PartialEq", "eq"),
                 "!=" => ("PartialEq", "ne"),
@@ -2105,8 +2115,8 @@ impl Emitter<'_> {
                 _ => unreachable!("comparison operator checked above"),
             };
             let rust_type = rust_value_type(self.package, value_type);
-            let (left_setup, left) = self.borrowed_receiver_parts(left);
-            let (right_setup, right) = self.borrowed_receiver_parts(right);
+            let (left_setup, left) = self.object_comparison_operand(left);
+            let (right_setup, right) = self.object_comparison_operand(right);
             return format!(
                 "{{ {left_setup} let __terrane_comparison_left = &({left}); \
                  {right_setup} let __terrane_comparison_right = &({right}); \

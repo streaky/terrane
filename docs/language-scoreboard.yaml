@@ -1049,10 +1049,13 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/classes/interfaces.yaml
-  notes: Declared interface identity is nominal while its dispatch contract is checked and lowered statically.
+  notes: Nominal interface identity, static dispatch, source associated-type declarations and class bindings, multi-slot contracts, and owning interfaces are implemented; same-named slots across implemented interfaces share one class binding.
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
   - docs/compiler-plan.md#Completed portion of Milestone 16
+  - tests/conformance/run/source-associated-interface/case.trn
+  - tests/conformance/run/associated-native-contracts/src/main.trn
+  - tests/conformance/run/same-named-associated-interface-slots/case.trn
 - id: traits
   name: Trait reuse and conflict resolution
   category: objects

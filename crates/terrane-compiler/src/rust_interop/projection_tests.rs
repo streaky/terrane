@@ -1118,6 +1118,55 @@ fn associated_cycles_and_finite_chains() {
         Ok(ProjectedType::Bool),
     );
 }
+#[test]
+fn associated_normalization_rejects_distinct_applicable_results() {
+    let mut projection = associated_reply_projection();
+    let owner = ProjectedType::Foreign {
+        rust_path: "provider::protocol::Request<u32>".to_owned(),
+        base_rust_path: "provider::protocol::Request".to_owned(),
+        name: "Request".to_owned(),
+        arguments: vec![ProjectedType::Int],
+    };
+    for ty in [ProjectedType::Bool, ProjectedType::String] {
+        projection.dependencies[0].associated_implementations.push(
+            ProjectedAssociatedImplementation {
+                owner_rust_path: "provider::protocol::Request".to_owned(),
+                owner_pattern: ProjectedType::Foreign {
+                    rust_path: "provider::protocol::Request".to_owned(),
+                    base_rust_path: "provider::protocol::Request".to_owned(),
+                    name: "Request".to_owned(),
+                    arguments: vec![ProjectedType::Generic("R".to_owned())],
+                },
+                trait_rust_path: "provider::text::Reply".to_owned(),
+                trait_arguments: vec![ProjectedType::Generic("R".to_owned())],
+                member: "Response".to_owned(),
+                ty,
+                requires_native_selection: false,
+            },
+        );
+    }
+    let ProjectedKind::Function(mut operation) =
+        projected_function_item("/deps/provider", "dispatch", "provider::dispatch").kind
+    else {
+        unreachable!()
+    };
+    operation.result = ProjectedType::Associated(ProjectedAssociatedTypeRef {
+        owner: "T".to_owned(),
+        owner_type: None,
+        owner_arguments: Vec::new(),
+        trait_rust_path: Some("provider::text::Reply".to_owned()),
+        trait_arguments: vec![ProjectedType::Int],
+        member: "Response".to_owned(),
+    });
+    assert_eq!(
+        projection.normalize_associated_result(
+            &operation,
+            &BTreeMap::from([("T".to_owned(), owner)]),
+            None,
+        ),
+        Err(AssociatedNormalizationError::Ambiguous)
+    );
+}
 
 fn associated_reply_projection() -> Projection {
     let recipe = |trait_rust_path: &str, ty| ProjectedAssociatedImplementation {

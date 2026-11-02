@@ -230,7 +230,7 @@ pub(super) fn analyze_binding_node(
         return Err(failure(
             &unit.source,
             "T0127",
-            "a projected interface annotation requires one closed associated type",
+            "a projected interface annotation requires all associated types to be closed",
             declared
                 .expect("declared value type has a syntax node")
                 .span,

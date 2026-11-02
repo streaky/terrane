@@ -1,0 +1,8 @@
+namespace app
+interface request
+    associated type response
+    function dispatch response;
+function accept of (T implements request); value T
+    return
+function main;
+    return

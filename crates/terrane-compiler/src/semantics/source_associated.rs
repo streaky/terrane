@@ -242,17 +242,29 @@ fn close_one_class_interfaces(
             interface.generic_parameters.len() - interface.associated_types.len();
         let mut arguments = identity.type_arguments.clone();
         if arguments.is_empty()
-            && source_generic_count == 1
             && let Some(application) = &identity.application
         {
             arguments.push(application.as_ref().clone());
+        }
+        if arguments.len() < source_generic_count {
+            return Err(failure(
+                source,
+                "T0002",
+                format!(
+                    "interface `{}` requires {} explicit type argument{} before its associated type bindings",
+                    interface.name,
+                    source_generic_count,
+                    if source_generic_count == 1 { "" } else { "s" }
+                ),
+                class.span,
+            ));
         }
         if arguments.len() > source_generic_count {
             return Err(failure(
                 source,
                 "T0132",
                 format!(
-                    "associated types for `{}` are bound with `type Name = Type` in the class",
+                    "associated types for `{}` are bound with `associated type Name = Type` in the class",
                     interface.name
                 ),
                 class.span,

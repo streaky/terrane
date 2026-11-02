@@ -220,7 +220,8 @@ pub(super) fn analyze_descriptor_contracts(
                 node.span,
             )
         })?;
-        let mut generic_parameters = super::generics::generic_parameters(unit, node, &visible)?;
+        let mut generic_parameters =
+            super::generics::generic_parameters(unit, node, &visible, visible_objects)?;
         let associated_types = super::source_associated::declarations(
             unit,
             node,
@@ -1448,7 +1449,7 @@ pub(super) fn validate_object_conformance(
                                 &declaration_unit.source,
                                 "T0127",
                                 format!(
-                                    "projected interface `{}` requires one closed associated type",
+                                    "projected interface `{}` requires all associated types to be closed",
                                     resolved_interface.name
                                 ),
                                 object.span,
@@ -2524,12 +2525,37 @@ fn validate_closed_projected_types(package: &SemanticPackage) -> Result<(), Sema
         .iter()
         .filter(|unit| !unit.namespace.starts_with("/deps/"))
     {
+        for parameter in unit
+            .functions
+            .iter()
+            .flat_map(|function| &function.generic_parameters)
+            .chain(
+                unit.descriptors
+                    .iter()
+                    .flat_map(|descriptor| &descriptor.generic_parameters),
+            )
+        {
+            if let Some(name) = parameter
+                .bound
+                .as_ref()
+                .and_then(|bound| open_interface_name(package, &ValueType::Object(bound.clone())))
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0127",
+                    format!(
+                        "{name} in a type parameter bound requires all associated types to be closed"
+                    ),
+                    parameter.span,
+                ));
+            }
+        }
         for field in unit.descriptors.iter().flat_map(|object| &object.fields) {
             if let Some(name) = open_interface_name(package, &field.value_type) {
                 return Err(failure(
                     &unit.source,
                     "T0127",
-                    format!("{name} requires one closed associated type"),
+                    format!("{name} requires all associated types to be closed"),
                     field.span,
                 ));
             }
@@ -2546,7 +2572,7 @@ fn validate_closed_projected_types(package: &SemanticPackage) -> Result<(), Sema
                 return Err(failure(
                     &unit.source,
                     "T0127",
-                    format!("{name} requires one closed associated type"),
+                    format!("{name} requires all associated types to be closed"),
                     function.span,
                 ));
             }
@@ -2567,7 +2593,7 @@ pub(super) fn validate_closed_interface_bindings(
                 return Err(failure(
                     &unit.source,
                     "T0127",
-                    format!("{name} requires one closed associated type"),
+                    format!("{name} requires all associated types to be closed"),
                     binding.span,
                 ));
             }
@@ -2780,7 +2806,8 @@ fn analyze_source_enums(
                 )
             })?;
         let name = node_text(&unit.source, name_node).to_owned();
-        let generic_parameters = super::generics::generic_parameters(unit, node, aliases)?;
+        let generic_parameters =
+            super::generics::generic_parameters(unit, node, aliases, &BTreeMap::new())?;
         let mut variants = Vec::new();
         if let Some(block) = node
             .children
