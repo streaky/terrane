@@ -3,6 +3,8 @@ namespace app
 from /deps/terrane-recursive-descriptor-witness import Descriptor, inspect, inspect_shared, consume, fail_early, Factory, path_value, timeout_value
 from /deps/terrane-recursive-descriptor-witness import UniqueDescriptor, ticket, take_unique, ticket_drops, fail_unique
 from /deps/terrane-recursive-descriptor-witness import MixedDescriptor, Observed, reset_clones, take_mixed
+from /deps/terrane-recursive-descriptor-witness import pair_sum, window_sum, inspect_mixed, borrow_name
+from /deps/terrane-recursive-descriptor-witness import take_pair
 from /core/errors import dependency-error
 from /core/collections import list, tuple, unordered-map
 
@@ -13,6 +15,9 @@ function configuration Descriptor;
     nested tuple of (uint32|none) = tuple; 2, 3
     window tuple of uint32 = tuple; 800, 600
     return instance Descriptor; window-size = window, nested = nested, path = (path_value;), timeout = (timeout_value;), labels = (unordered-map; mode='fast', speed='quick'), args = (list; 'alpha'), names = (list; 'one', 'two'), note = 'ready', strings = (list; 'left', 'right')
+
+function configuration-for Descriptor; window tuple of uint32
+    return instance Descriptor; window-size = window, nested = none, path = (path_value;), timeout = (timeout_value;), labels = none, args = (list; 'alpha'), names = (list; 'kept'), note = none, strings = (list; 'left')
 
 function main;
     config Descriptor = configuration;
@@ -48,5 +53,32 @@ function main;
     first = instance Observed; name = 'one'
     second = instance Observed; name = 'two'
     mixed = instance MixedDescriptor; pair = pair, rows = rows, items = (unordered-map; first=first, second=second)
+    print; (inspect_mixed; mixed)
+    print; rows.length
     reset_clones;
     print; (take_mixed; move mixed)
+    window tuple of uint32 = tuple; 800, 600
+    reused Descriptor = configuration-for; window
+    repeated Descriptor = configuration-for; window
+    print; (inspect; reused)
+    retained-name = borrow_name; reused
+    print; (consume; move reused)
+    print; retained-name
+    print; (consume; move repeated)
+    numbers = tuple; 800, 600
+    print; (pair_sum; numbers)
+    print; (pair_sum; numbers)
+    print; (window_sum; numbers)
+    print; (window_sum; numbers)
+    too-short tuple of uint32 = tuple; 800
+    try
+        configuration-for; too-short
+    catch dependency-error
+        print; 'short-constructor-caught'
+    too-long tuple of uint32 = tuple; 800, 600, 400
+    try
+        configuration-for; too-long
+    catch dependency-error
+        print; 'long-constructor-caught'
+    tickets = tuple; (ticket;), (ticket;)
+    print; (take_pair; move tickets)

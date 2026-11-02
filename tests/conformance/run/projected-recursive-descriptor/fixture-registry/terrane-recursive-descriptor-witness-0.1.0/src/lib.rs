@@ -64,3 +64,13 @@ pub fn take_mixed(value: MixedDescriptor<'_>) -> String {
     names.sort();
     format!("{}:{}:{}:{}:{}:{}", pair.0, pair.1, value.rows[0].0, value.rows[0].1, names.join(","), OBSERVED_CLONES.load(std::sync::atomic::Ordering::SeqCst))
 }
+pub fn pair_sum(value: (i64, i64)) -> i64 { value.0 + value.1 }
+pub fn window_sum(value: (u32, u32)) -> u32 { value.0 + value.1 }
+pub fn inspect_mixed(value: &MixedDescriptor<'_>) -> String {
+    format!("{}:{}:{}:{}", value.pair.as_ref().unwrap().0, value.rows[0].0, value.rows[0].1, value.items.len())
+}
+pub fn take_pair(value: (Ticket, Ticket)) -> usize {
+    let (first, second) = value;
+    drop((first, second));
+    2
+}

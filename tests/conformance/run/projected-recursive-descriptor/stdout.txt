@@ -12,4 +12,17 @@ unique-failure
 2
 captured
 true
+borrowed:row:data:2
+1
 borrowed:owned:row:data:one,two:0
+800x600:outer-none:/tmp/example:25:0:alpha:kept:none:left
+800x600:outer-none:/tmp/example:25:0:alpha:kept:none:left
+kept
+800x600:outer-none:/tmp/example:25:0:alpha:kept:none:left
+1400
+1400
+1400
+1400
+short-constructor-caught
+long-constructor-caught
+2

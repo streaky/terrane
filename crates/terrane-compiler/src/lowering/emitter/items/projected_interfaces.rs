@@ -256,8 +256,11 @@ impl Emitter<'_> {
                 } else {
                     terrane_call
                 };
-                let converted =
-                    projected_callback_output_expression("__terrane_value", &method.result);
+                let converted = projected_callback_output_expression(
+                    "__terrane_value",
+                    &method.result,
+                    self.package,
+                );
                 if method.is_async {
                     self.line(&format!(
                     "let __terrane_boundary: Result<{rust_result}, crate::TerraneForeignError> = async {{ let __terrane_value = {terrane_call}; Ok({converted}) }}.await;"

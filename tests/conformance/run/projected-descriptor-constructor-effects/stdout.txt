@@ -1,0 +1,6 @@
+empty:none
+shape-caught
+coercion-caught
+Ω
+nested-shape-caught
+rows:1:2

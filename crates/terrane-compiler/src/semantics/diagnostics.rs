@@ -852,7 +852,7 @@ fn binding_mutation_count(
                     if effects.borrowed_environment && effects.modes.written == InvocationMode::Mutable
             ) && resolves_to_binding(callee)
         });
-    let resource_field_move = node.kind == SyntaxKind::UnaryExpression
+    let field_extraction = node.kind == SyntaxKind::UnaryExpression
         && unary_operator_text(unit, node).as_deref() == Some("move")
         && node.children.last().is_some_and(|target| {
             target.kind == SyntaxKind::MemberExpression
@@ -896,7 +896,7 @@ fn binding_mutation_count(
             || source_argument_write
             || exclusive_address
             || borrowed_callable_call
-            || resource_field_move,
+            || field_extraction,
     );
     let mut child_counts = node.children.iter().map(|child| {
         binding_mutation_count(

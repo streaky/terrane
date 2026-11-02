@@ -509,20 +509,24 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 7] = [
-        /* terrane-site-row: site 0: /app::main (src/main.trn:9:20-9:41) */
+    pub static SITES: [Site; 9] = [
+        /* terrane-site-row: site 0: /app::main (src/main.trn:7:29-7:152) */
+        { Site { function: 0, file: 0, line: 7, column: 29, end_line: 7, end_column: 152 } },
+        /* terrane-site-row: site 1: /app::main (src/main.trn:9:20-9:41) */
         { Site { function: 0, file: 0, line: 9, column: 20, end_line: 9, end_column: 41 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:11:25-11:47) */
+        /* terrane-site-row: site 2: /app::main (src/main.trn:11:25-11:47) */
         { Site { function: 0, file: 0, line: 11, column: 25, end_line: 11, end_column: 47 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:11:74-11:93) */
+        /* terrane-site-row: site 3: /app::main (src/main.trn:11:74-11:93) */
         { Site { function: 0, file: 0, line: 11, column: 74, end_line: 11, end_column: 93 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:13:13-13:32) */
+        /* terrane-site-row: site 4: /app::main (src/main.trn:12:27-12:107) */
+        { Site { function: 0, file: 0, line: 12, column: 27, end_line: 12, end_column: 107 } },
+        /* terrane-site-row: site 5: /app::main (src/main.trn:13:13-13:32) */
         { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 32 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:15:13-15:37) */
+        /* terrane-site-row: site 6: /app::main (src/main.trn:15:13-15:37) */
         { Site { function: 0, file: 0, line: 15, column: 13, end_line: 15, end_column: 37 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:17:13-17:35) */
+        /* terrane-site-row: site 7: /app::main (src/main.trn:17:13-17:35) */
         { Site { function: 0, file: 0, line: 17, column: 13, end_line: 17, end_column: 35 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:19:13-19:34) */
+        /* terrane-site-row: site 8: /app::main (src/main.trn:19:13-19:34) */
         { Site { function: 0, file: 0, line: 19, column: 13, end_line: 19, end_column: 34 } },
     ];
     #[cold]
@@ -553,45 +557,29 @@ impl Descriptor {
         offset: u32,
         note: impl Into<Option<String>>,
         extra: impl Into<Option<terrane_collection_support::List<String>>>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, crate::TerraneForeignError> {
+        Ok(Self {
             native_label: native_label,
-            values: match || -> Result<_, crate::TerraneForeignError> {
-                Ok(
-                    values
-                        .into_iter()
-                        .map(|item| -> Result<_, crate::TerraneForeignError> {
-                            Ok(item)
-                        })
-                        .collect::<Result<Vec<String>, _>>()?,
-                )
-            }() {
-                Ok(value) => value,
-                Err(error) => std::panic::panic_any(error),
-            },
+            values: values
+                .into_iter()
+                .map(|item| -> Result<_, crate::TerraneForeignError> { Ok(item) })
+                .collect::<Result<Vec<String>, _>>()?,
             offset: offset,
             note: note.into(),
-            extra: match || -> Result<_, crate::TerraneForeignError> {
-                Ok(
-                    extra
-                        .into()
-                        .map(|value| -> Result<_, crate::TerraneForeignError> {
-                            Ok(
-                                value
-                                    .into_iter()
-                                    .map(|item| -> Result<_, crate::TerraneForeignError> {
-                                        Ok(item)
-                                    })
-                                    .collect::<Result<Vec<String>, _>>()?,
-                            )
-                        })
-                        .transpose()?,
-                )
-            }() {
-                Ok(value) => value,
-                Err(error) => std::panic::panic_any(error),
-            },
-        }
+            extra: extra
+                .into()
+                .map(|value| -> Result<_, crate::TerraneForeignError> {
+                    Ok(
+                        value
+                            .into_iter()
+                            .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                Ok(item)
+                            })
+                            .collect::<Result<Vec<String>, _>>()?,
+                    )
+                })
+                .transpose()?,
+        })
     }
 }
 pub use terrane_borrowed_struct_witness::Owned;

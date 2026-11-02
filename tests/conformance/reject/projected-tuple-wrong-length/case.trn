@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import pair_sum
+from /core/collections import tuple
+function main;
+    values = tuple; 1, 2, 3
+    pair_sum; values

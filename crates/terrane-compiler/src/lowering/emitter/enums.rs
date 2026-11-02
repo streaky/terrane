@@ -396,7 +396,8 @@ impl<'a> Emitter<'a> {
                 ));
                 let projected_type = substitute_projected_generic(&field.ty, &selected_types);
                 let expression = if field.ty.contains_open_generic() {
-                    let conversion = projected_argument_expression(&input, &projected_type);
+                    let conversion =
+                        projected_argument_expression(&input, &projected_type, self.package);
                     self.fallible(
                         format!(
                             "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({conversion}) }})()"
@@ -407,7 +408,11 @@ impl<'a> Emitter<'a> {
                     match field.conversion {
                         crate::rust_interop::projection::ProjectedFieldConversion::Identity
                             if !projected_type.has_identity_representation() => {
-                                let conversion = projected_argument_expression(&input, &projected_type);
+                                let conversion = projected_argument_expression(
+                                    &input,
+                                    &projected_type,
+                                    self.package,
+                                );
                                 self.fallible(
                                     format!("(|| -> Result<_, crate::TerraneForeignError> {{ Ok({conversion}) }})()"),
                                     result,

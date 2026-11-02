@@ -126,7 +126,7 @@ impl Emitter<'_> {
             );
         }
         let value = self.expression(node);
-        projected_chain_argument_expression(&value, &parameter.ty)
+        projected_chain_argument_expression(&value, &parameter.ty, self.package)
     }
 
     fn typed_document_decode_call(
@@ -2174,7 +2174,7 @@ impl Emitter<'_> {
                         _ => None,
                     };
                     sequence_conversion.unwrap_or_else(|| {
-                        projected_chain_argument_expression(&expression, &projected.ty)
+                        projected_chain_argument_expression(&expression, &projected.ty, self.package)
                     })
                 } else {
                     expression
@@ -3074,11 +3074,17 @@ impl Emitter<'_> {
                                 format!(
                                     "{{ let value: {} = {value}; {} }}",
                                     rust_value_type(self.package, source_type),
-                                    projected_chain_argument_expression("value", &field.ty),
+                                    projected_chain_argument_expression(
+                                        "value",
+                                        &field.ty,
+                                        self.package,
+                                    ),
                                 )
                             }
                         }
-                        (_, Some(value)) => projected_chain_argument_expression(&value, &field.ty),
+                        (_, Some(value)) => {
+                            projected_chain_argument_expression(&value, &field.ty, self.package)
+                        }
                         (_, None) => unreachable!(
                             "semantics requires projected struct field `{}`",
                             field.name
@@ -3251,7 +3257,8 @@ impl Emitter<'_> {
         }
         let direct_projected_call =
             specialization.is_some_and(|specialization| specialization.direct_projected_call);
-        let foreign_error = direct_projected_call
+        let foreign_error = native_struct_view == Some(true)
+            || direct_projected_call
             || foreign_method.is_some()
             || (callee.kind == SyntaxKind::Name
                 && self

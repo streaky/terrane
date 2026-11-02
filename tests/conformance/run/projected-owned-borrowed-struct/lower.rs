@@ -10,14 +10,21 @@ fn main() {
     let indexed: Owned;
     let noted: Owned;
     let zero: Owned;
-    descriptor = Descriptor::terrane_construct(
-        String::from("main"),
-        terrane_collection_support::List::<
-            String,
-        >::new(vec![String::from("ab"), String::from("c")]),
-        35,
-        Some(String::from("ready")),
-        Some(terrane_collection_support::List::<String>::new(vec![String::from("five")])),
+    descriptor = __terrane_raised(
+        Descriptor::terrane_construct(
+            String::from("main"),
+            terrane_collection_support::List::<
+                String,
+            >::new(vec![String::from("ab"), String::from("c")]),
+            35,
+            Some(String::from("ready")),
+            Some(
+                terrane_collection_support::List::<
+                    String,
+                >::new(vec![String::from("five")]),
+            ),
+        ),
+        0 /* terrane-site: src/main.trn:7:29-7:152 */,
     );
     owned = terrane_borrowed_struct_witness::Owned {
         label: String::from("owned"),
@@ -27,7 +34,7 @@ fn main() {
     };
     first = __terrane_raised(
         summarize(&descriptor),
-        0 /* terrane-site: src/main.trn:9:20-9:41 */,
+        1 /* terrane-site: src/main.trn:9:20-9:41 */,
     );
     {
         let __terrane_value = 36;
@@ -36,21 +43,24 @@ fn main() {
     println!(
         "{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&first), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&owned),
-        1 /* terrane-site: src/main.trn:11:25-11:47 */)), String::from(":"),
+        2 /* terrane-site: src/main.trn:11:25-11:47 */)), String::from(":"),
         terrane_scalar_support::scalar_text(&owned.count), String::from(":"),
         terrane_scalar_support::scalar_text(&__terrane_raised(consume(descriptor),
-        2 /* terrane-site: src/main.trn:11:74-11:93 */))
+        3 /* terrane-site: src/main.trn:11:74-11:93 */))
     );
-    defaults = Descriptor::terrane_construct(
-        String::from("defaults"),
-        terrane_collection_support::List::<String>::new(vec![String::from("x")]),
-        1,
-        None::<String>,
-        None::<terrane_collection_support::List<String>>,
+    defaults = __terrane_raised(
+        Descriptor::terrane_construct(
+            String::from("defaults"),
+            terrane_collection_support::List::<String>::new(vec![String::from("x")]),
+            1,
+            None::<String>,
+            None::<terrane_collection_support::List<String>>,
+        ),
+        4 /* terrane-site: src/main.trn:12:27-12:107 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(summarize(&defaults),
-        3 /* terrane-site: src/main.trn:13:13-13:32 */))
+        5 /* terrane-site: src/main.trn:13:13-13:32 */))
     );
     indexed = terrane_borrowed_struct_witness::Owned {
         label: String::from("indexed"),
@@ -83,7 +93,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&indexed),
-        4 /* terrane-site: src/main.trn:15:13-15:37 */))
+        6 /* terrane-site: src/main.trn:15:13-15:37 */))
     );
     noted = terrane_borrowed_struct_witness::Owned {
         label: String::from("noted"),
@@ -100,7 +110,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&noted),
-        5 /* terrane-site: src/main.trn:17:13-17:35 */))
+        7 /* terrane-site: src/main.trn:17:13-17:35 */))
     );
     zero = terrane_borrowed_struct_witness::Owned {
         label: String::from("zero"),
@@ -137,6 +147,6 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(summarize_owned(&zero),
-        6 /* terrane-site: src/main.trn:19:13-19:34 */))
+        8 /* terrane-site: src/main.trn:19:13-19:34 */))
     );
 }

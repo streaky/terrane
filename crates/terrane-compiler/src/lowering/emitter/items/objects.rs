@@ -1644,6 +1644,7 @@ impl<'a> Emitter<'a> {
                                         &self
                                             .parameter_source_name(&parameter.name, parameter.span),
                                         &projected.ty,
+                                        self.package,
                                     );
                                     if projected.borrowed {
                                         format!(

@@ -1,0 +1,35 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Descriptor, Marked, Rows, mark_text
+from /deps/terrane-recursive-descriptor-witness import describe, describe_rows
+from /core/collections import tuple, list
+from /core/errors import dependency-error, coercion-error
+function absent Descriptor throws coercion-error;
+    return instance Descriptor; window = none, text = 'empty'
+function choose Descriptor throws dependency-error; values tuple of uint32
+    return instance Descriptor; window = values, text = 'held'
+function mark-config Marked throws coercion-error; mark string
+    return instance Marked; mark = mark, text = 'marked'
+function rows-config Rows throws dependency-error; values list of (tuple of uint32)
+    return instance Rows; rows = values, text = 'rows'
+function main;
+    empty = absent;
+    print; (describe; empty)
+    invalid tuple of uint32 = tuple; 1
+    try
+        choose; invalid
+    catch dependency-error
+        print; 'shape-caught'
+    try
+        mark-config; 'ab'
+    catch coercion-error
+        print; 'coercion-caught'
+    marked = mark-config; 'Ω'
+    print; (mark_text; marked)
+    invalid-rows list of (tuple of uint32) = list; (tuple; 1)
+    try
+        rows-config; invalid-rows
+    catch dependency-error
+        print; 'nested-shape-caught'
+    valid-rows list of (tuple of uint32) = list; (tuple; 1, 1)
+    good-rows = rows-config; valid-rows
+    print; (describe_rows; good-rows)

@@ -1,4 +1,4 @@
-package = "projected-recursive-descriptor-move"
+package = "projected-recursive-descriptor-shared"
 
 [namespaces]
 app = "."

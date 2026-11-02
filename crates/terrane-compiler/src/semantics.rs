@@ -136,6 +136,7 @@ pub(crate) use model::{
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::application_is_resource_owning;
+pub(crate) use objects::projected_type_is_cloneable;
 pub(crate) use objects::value_type_is_cloneable;
 pub(crate) use objects::{
     EffectiveObjectField, bind_projected_requirement, canonicalize_native_value_type,
