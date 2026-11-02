@@ -26,9 +26,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_query_witness",
+                                    "terrane_query_witness::ConnectionOptions::connect",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -36,15 +41,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_query_witness",
-                                            "terrane_query_witness::ConnectionOptions::connect",
                                         ),
                                     )
                                 }
@@ -66,22 +62,28 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = __terrane_raised(
-                                match std::panic::catch_unwind(
-                                    std::panic::AssertUnwindSafe(|| terrane_query_witness::query(
-                                        &selector,
-                                    )),
-                                ) {
-                                    Ok(value) => Ok(value),
-                                    Err(payload) => {
-                                        Err(
-                                            crate::__terrane_dependency_panic(
-                                                payload,
-                                                "terrane-query-witness",
-                                                "terrane_query_witness::query",
-                                            ),
-                                        )
+                                || -> Result<_, crate::TerraneForeignError> {
+                                    {
+                                        let value = match std::panic::catch_unwind(
+                                            std::panic::AssertUnwindSafe(|| -> Result<
+                                                _,
+                                                crate::TerraneForeignError,
+                                            > { Ok(terrane_query_witness::query(&selector)) }),
+                                        ) {
+                                            Ok(result) => result?,
+                                            Err(payload) => {
+                                                return Err(
+                                                    crate::__terrane_dependency_panic(
+                                                        payload,
+                                                        "terrane-query-witness",
+                                                        "terrane_query_witness::query",
+                                                    ),
+                                                );
+                                            }
+                                        };
+                                        Ok::<_, crate::TerraneForeignError>(value)
                                     }
-                                },
+                                }(),
                                 2 /* terrane-site: src/main.trn:10:20-10:35 */,
                             )
                             .fetch_one(&mut connection);
@@ -90,9 +92,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_query_witness",
+                                    "terrane_query_witness::Query::fetch_one",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -100,15 +107,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_query_witness",
-                                            "terrane_query_witness::Query::fetch_one",
                                         ),
                                     )
                                 }
@@ -126,34 +124,45 @@ fn main() {
             3 /* terrane-site: src/main.trn:10:19-10:58 */,
         );
         body = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
-                    &row,
-                    "body",
-                )),
-            ) {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            <terrane_query_witness::Row as terrane_query_contract::RowAccess>::try_get(
+                                &row,
+                                "body",
                             ),
-                        ),
-                    )
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_query_witness",
+                                "terrane_query_witness::Row::try_get",
+                            ),
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_query_witness",
-                            "terrane_query_witness::Row::try_get",
-                        ),
-                    )
-                }
-            },
+            }(),
             4 /* terrane-site: src/main.trn:11:16-11:41 */,
         );
         println!(
@@ -170,17 +179,19 @@ fn main() {
                 let _ = missing
                     .insert(
                         __terrane_raised_completion!(
-                            match
-                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| <
+                            | | -> Result < _, crate ::TerraneForeignError > { match
+                            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|
+                            | -> Result < _, crate ::TerraneForeignError > { Ok(<
                             terrane_query_witness::Row as
                             terrane_query_contract::RowAccess > ::try_get(&row,
-                            "missing"))) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
-                            Err(crate ::TerraneForeignError(crate
-                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload,
+                            "missing")) })) { Ok(result) => result ?, Err(payload) =>
+                            return Err(crate ::__terrane_dependency_panic(payload,
                             "terrane_query_witness",
-                            "terrane_query_witness::Row::try_get")) },
+                            "terrane_query_witness::Row::try_get")) } { Ok(value) =>
+                            Ok(value), Err(error) => Err(crate
+                            ::TerraneForeignError(crate
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                             7 /* terrane-site: src/main.trn:14:21-14:49 */
                         ),
                     );
@@ -231,17 +242,19 @@ fn main() {
                 let _ = incompatible
                     .insert(
                         __terrane_raised_completion!(
-                            match
-                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| <
+                            | | -> Result < _, crate ::TerraneForeignError > { match
+                            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|
+                            | -> Result < _, crate ::TerraneForeignError > { Ok(<
                             terrane_query_witness::Row as
-                            terrane_query_contract::RowAccess > ::try_get(&row,
-                            "count"))) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
-                            Err(crate ::TerraneForeignError(crate
-                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                            terrane_query_contract::RowAccess > ::try_get(&row, "count"))
+                            })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
                             "terrane_query_witness",
-                            "terrane_query_witness::Row::try_get")) },
+                            "terrane_query_witness::Row::try_get")) } { Ok(value) =>
+                            Ok(value), Err(error) => Err(crate
+                            ::TerraneForeignError(crate
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                             8 /* terrane-site: src/main.trn:19:26-19:52 */
                         ),
                     );
@@ -296,9 +309,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_query_witness",
+                                    "terrane_query_witness::Connection::close",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -306,15 +324,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_query_witness",
-                                            "terrane_query_witness::Connection::close",
                                         ),
                                     )
                                 }

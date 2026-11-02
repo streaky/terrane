@@ -509,24 +509,32 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 9] = [
+    pub static SITES: [Site; 13] = [
         /* terrane-site-row: site 0: /app::main (src/main.trn:7:29-7:152) */
         { Site { function: 0, file: 0, line: 7, column: 29, end_line: 7, end_column: 152 } },
-        /* terrane-site-row: site 1: /app::main (src/main.trn:9:20-9:41) */
+        /* terrane-site-row: site 1: /app::main (src/main.trn:8:19-8:68) */
+        { Site { function: 0, file: 0, line: 8, column: 19, end_line: 8, end_column: 68 } },
+        /* terrane-site-row: site 2: /app::main (src/main.trn:9:20-9:41) */
         { Site { function: 0, file: 0, line: 9, column: 20, end_line: 9, end_column: 41 } },
-        /* terrane-site-row: site 2: /app::main (src/main.trn:11:25-11:47) */
+        /* terrane-site-row: site 3: /app::main (src/main.trn:11:25-11:47) */
         { Site { function: 0, file: 0, line: 11, column: 25, end_line: 11, end_column: 47 } },
-        /* terrane-site-row: site 3: /app::main (src/main.trn:11:74-11:93) */
+        /* terrane-site-row: site 4: /app::main (src/main.trn:11:74-11:93) */
         { Site { function: 0, file: 0, line: 11, column: 74, end_line: 11, end_column: 93 } },
-        /* terrane-site-row: site 4: /app::main (src/main.trn:12:27-12:107) */
+        /* terrane-site-row: site 5: /app::main (src/main.trn:12:27-12:107) */
         { Site { function: 0, file: 0, line: 12, column: 27, end_line: 12, end_column: 107 } },
-        /* terrane-site-row: site 5: /app::main (src/main.trn:13:13-13:32) */
+        /* terrane-site-row: site 6: /app::main (src/main.trn:13:13-13:32) */
         { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 32 } },
-        /* terrane-site-row: site 6: /app::main (src/main.trn:15:13-15:37) */
+        /* terrane-site-row: site 7: /app::main (src/main.trn:14:21-14:84) */
+        { Site { function: 0, file: 0, line: 14, column: 21, end_line: 14, end_column: 84 } },
+        /* terrane-site-row: site 8: /app::main (src/main.trn:15:13-15:37) */
         { Site { function: 0, file: 0, line: 15, column: 13, end_line: 15, end_column: 37 } },
-        /* terrane-site-row: site 7: /app::main (src/main.trn:17:13-17:35) */
+        /* terrane-site-row: site 9: /app::main (src/main.trn:16:19-16:87) */
+        { Site { function: 0, file: 0, line: 16, column: 19, end_line: 16, end_column: 87 } },
+        /* terrane-site-row: site 10: /app::main (src/main.trn:17:13-17:35) */
         { Site { function: 0, file: 0, line: 17, column: 13, end_line: 17, end_column: 35 } },
-        /* terrane-site-row: site 8: /app::main (src/main.trn:19:13-19:34) */
+        /* terrane-site-row: site 11: /app::main (src/main.trn:18:18-18:93) */
+        { Site { function: 0, file: 0, line: 18, column: 18, end_line: 18, end_column: 93 } },
+        /* terrane-site-row: site 12: /app::main (src/main.trn:19:13-19:34) */
         { Site { function: 0, file: 0, line: 19, column: 13, end_line: 19, end_column: 34 } },
     ];
     #[cold]

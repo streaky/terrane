@@ -446,58 +446,69 @@ fn main() {
     >;
     let maybe_applied: Option<Sequence<terrane_int_support::Int>>;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        terrane_associated_witness::sequence_total(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok(Ints::terrane_construct()) } () { Ok(value) =>
-        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        Ints::terrane_construct(); __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > {
+        Ok(terrane_associated_witness::sequence_total(__terrane_conversion_input_0)) }))
+        { Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "terrane-associated-witness",
-        "terrane_associated_witness::sequence_total")) }, 0 /* terrane-site: src/main.trn:47:13-47:45 */))
+        "terrane_associated_witness::sequence_total")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 0 /* terrane-site: src/main.trn:47:13-47:45 */) })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        terrane_associated_witness::nested_total(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok(NestedValues::terrane_construct()) } () { Ok(value)
-        => value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        NestedValues::terrane_construct(); __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > {
+        Ok(terrane_associated_witness::nested_total(__terrane_conversion_input_0)) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "terrane-associated-witness",
-        "terrane_associated_witness::nested_total")) }, 1 /* terrane-site: src/main.trn:48:13-48:52 */))
+        "terrane_associated_witness::nested_total")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 1 /* terrane-site: src/main.trn:48:13-48:52 */) })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        terrane_associated_witness::named_total(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok(NamedInts::terrane_construct()) } () { Ok(value) =>
-        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        NamedInts::terrane_construct(); __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > {
+        Ok(terrane_associated_witness::named_total(__terrane_conversion_input_0)) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "terrane-associated-witness",
-        "terrane_associated_witness::named_total")) }, 2 /* terrane-site: src/main.trn:49:13-49:48 */))
+        "terrane_associated_witness::named_total")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 2 /* terrane-site: src/main.trn:49:13-49:48 */) })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(Ints::terrane_construct()),
-        3 /* terrane-site: src/main.trn:50:13-50:43 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        Ints::terrane_construct();
+        __terrane_raised(erased_total(__terrane_conversion_input_0),
+        3 /* terrane-site: src/main.trn:50:13-50:43 */) })
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(NamedInts::terrane_construct()),
-        4 /* terrane-site: src/main.trn:51:13-51:49 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        NamedInts::terrane_construct();
+        __terrane_raised(erased_total(__terrane_conversion_input_0),
+        4 /* terrane-site: src/main.trn:51:13-51:49 */) })
     );
     applied = <Sequence<terrane_int_support::Int>>::from(Ints::terrane_construct());
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied),
-        5 /* terrane-site: src/main.trn:53:13-53:34 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        applied; __terrane_raised(erased_total(__terrane_conversion_input_0),
+        5 /* terrane-site: src/main.trn:53:13-53:34 */) })
     );
     applied_named = <NamedSequence<
         terrane_int_support::Int,
     >>::from(NamedInts::terrane_construct());
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(erased_total(applied_named),
-        6 /* terrane-site: src/main.trn:55:13-55:40 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        applied_named; __terrane_raised(erased_total(__terrane_conversion_input_0),
+        6 /* terrane-site: src/main.trn:55:13-55:40 */) })
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&interface_length(< Sequence <
@@ -522,23 +533,29 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&(&maybe_applied).is_some()));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        terrane_associated_witness::sequence_total(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok(MoreInts::terrane_construct()) } () { Ok(value) =>
-        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        MoreInts::terrane_construct(); __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > {
+        Ok(terrane_associated_witness::sequence_total(__terrane_conversion_input_0)) }))
+        { Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "terrane-associated-witness",
-        "terrane_associated_witness::sequence_total")) }, 7 /* terrane-site: src/main.trn:62:13-62:50 */))
+        "terrane_associated_witness::sequence_total")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 7 /* terrane-site: src/main.trn:62:13-62:50 */) })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        terrane_associated_witness::list_total(match | | -> Result < _, crate
-        ::TerraneForeignError > { Ok(Lists::terrane_construct()) } () { Ok(value) =>
-        value, Err(error) => std::panic::panic_any(error) }))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) => Err(crate
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        Lists::terrane_construct(); __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > {
+        Ok(terrane_associated_witness::list_total(__terrane_conversion_input_0)) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "terrane-associated-witness",
-        "terrane_associated_witness::list_total")) }, 8 /* terrane-site: src/main.trn:63:13-63:42 */))
+        "terrane_associated_witness::list_total")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 8 /* terrane-site: src/main.trn:63:13-63:42 */) })
     );
 }

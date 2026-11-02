@@ -13,25 +13,40 @@ fn main() {
             available_loopback_address(),
             0 /* terrane-site: src/main.trn:9:13-9:40 */,
         );
-        chosen = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| terrane_static_witness::GenericFactory::open(
-                    address,
-                )),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_static_witness",
-                            "terrane_static_witness::GenericFactory::open",
-                        ),
-                    )
-                }
-            },
-            1 /* terrane-site: src/main.trn:10:12-10:41 */,
-        );
+        chosen = {
+            let __terrane_conversion_input_0 = address;
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    terrane_static_witness::GenericFactory::open(
+                                        __terrane_conversion_input_0,
+                                    ),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_static_witness",
+                                        "terrane_static_witness::GenericFactory::open",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                1 /* terrane-site: src/main.trn:10:12-10:41 */,
+            )
+        };
         listener = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
@@ -43,9 +58,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "tokio",
+                                    "tokio::net::TcpListener::bind",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -53,15 +73,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "tokio",
-                                            "tokio::net::TcpListener::bind",
                                         ),
                                     )
                                 }
@@ -90,9 +101,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "tokio",
+                                    "tokio::net::TcpStream::connect",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -100,15 +116,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "tokio",
-                                            "tokio::net::TcpStream::connect",
                                         ),
                                     )
                                 }
@@ -126,13 +133,16 @@ fn main() {
             3 /* terrane-site: src/main.trn:12:18-12:44 */,
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&client)
-            .nodelay())) { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-            ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-            ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
-            Err(payload) => Err(crate ::__terrane_dependency_panic(payload, "tokio",
-            "tokio::net::TcpStream::nodelay")) }, 4 /* terrane-site: src/main.trn:13:11-13:26 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
+            _, crate ::TerraneForeignError > { match match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&client).nodelay()) })) { Ok(result) =>
+            result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "tokio",
+            "tokio::net::TcpStream::nodelay")) } { Ok(value) => Ok(value), Err(error) =>
+            Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+            ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))) } } (),
+            4 /* terrane-site: src/main.trn:13:11-13:26 */))
         );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
@@ -142,13 +152,13 @@ fn main() {
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = tokio::net::TcpListener::bind(chosen); Box::pin(async move
                             { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                            ::TerraneForeignError(crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload, "tokio",
+                            "tokio::net::TcpListener::bind")) ? { Ok(value) => Ok(value),
+                            Err(error) => Err(crate ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload, "tokio",
-                            "tokio::net::TcpListener::bind")) } }) }; async move {
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
                             __terrane_raised_err(__terrane_future. await,
                             5 /* terrane-site: src/main.trn:15:22-15:47 */) } }).
                             await, 5 /* terrane-site: src/main.trn:15:22-15:47 */
@@ -156,15 +166,19 @@ fn main() {
                     );
                 println!(
                     "{}",
-                    terrane_scalar_support::scalar_text(&__terrane_raised_completion!(match
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&occupied
-                    .as_ref().expect("flow-proven available binding")).ttl())) {
-                    Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as
-                    u128)), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                    .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) => Err(crate
+                    terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
+                    -> Result < _, crate ::TerraneForeignError > { match match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result <
+                    _, crate ::TerraneForeignError > { Ok((&occupied.as_ref()
+                    .expect("flow-proven available binding")).ttl()) })) { Ok(result) =>
+                    result ?, Err(payload) => return Err(crate
                     ::__terrane_dependency_panic(payload, "tokio",
-                    "tokio::net::TcpListener::ttl")) }, 6 /* terrane-site: src/main.trn:16:13-16:26 */))
+                    "tokio::net::TcpListener::ttl")) } { Ok(value) =>
+                    Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) =>
+                    Err(crate ::TerraneForeignError(crate
+                    ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                    .to_string(), crate ::TERRANE_NO_SITE))) } } (),
+                    6 /* terrane-site: src/main.trn:16:13-16:26 */))
                 );
                 TerraneCompletion::Normal
             }

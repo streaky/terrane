@@ -417,11 +417,14 @@ fn main() {
             31 /* terrane-site: src/main.trn:50:12-50:26 */)), 31 /* terrane-site: src/main.trn:50:12-50:26 */))
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            witness::same_generic(&text, &text))) { Ok(value) => Ok(value), Err(payload)
-            => Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::same_generic")) }, 32 /* terrane-site: src/main.trn:51:13-51:37 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
+            _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(witness::same_generic(&text, &text)) })) {
+            Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness", "witness::same_generic")) };
+            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
+            32 /* terrane-site: src/main.trn:51:13-51:37 */))
         );
         native = __terrane_raised(
             terrane_static_trn_5265636f7264_new(),
@@ -432,10 +435,13 @@ fn main() {
             .text, &native.text), 34 /* terrane-site: src/main.trn:53:13-53:48 */))
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&native)
-            .same(&native.text))) { Ok(value) => Ok(value), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "witness", "witness::Record::same")) },
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
+            _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&native).same(&native.text)) })) {
+            Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness", "witness::Record::same")) };
+            Ok:: < _, crate ::TerraneForeignError > (value) } } (),
             35 /* terrane-site: src/main.trn:54:13-54:37 */))
         );
         println!(
@@ -450,29 +456,40 @@ fn main() {
         );
         copy = native.clone();
         __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = native.update();
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "witness",
-                            "witness::Record::update",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = native.update();
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "witness",
+                                    "witness::Record::update",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
                 }
-            },
+            }(),
             38 /* terrane-site: src/main.trn:58:5-58:19 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&native.text));
         println!("{}", terrane_scalar_support::scalar_text(&copy.text));
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(owned_text(text
-            .clone()), 39 /* terrane-site: src/main.trn:61:13-61:29 */))
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0
+            = text.clone(); __terrane_raised(owned_text(__terrane_conversion_input_0),
+            39 /* terrane-site: src/main.trn:61:13-61:29 */) })
         );
         println!("{}", terrane_scalar_support::scalar_text(&text));
         {
@@ -588,11 +605,9 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_snapshot_0
             = { let __terrane_snapshot_42 = (* &native.text).clone();
-            __terrane_snapshot_42 }; let __terrane_native_input_0 =
-            &__terrane_native_snapshot_0; let __terrane_native_input_1 =
-            &__terrane_raised(take_text(&mut native), 48 /* terrane-site: src/main.trn:87:38-87:55 */);
-            __terrane_raised(join_text(__terrane_native_input_0,
-            __terrane_native_input_1), 49 /* terrane-site: src/main.trn:87:13-87:56 */) })
+            __terrane_snapshot_42 };
+            __terrane_raised(join_text(&__terrane_native_snapshot_0,
+            &__terrane_raised(take_text(&mut native), 48 /* terrane-site: src/main.trn:87:38-87:55 */)), 49 /* terrane-site: src/main.trn:87:13-87:56 */) })
         );
         {
             let __terrane_value = String::from("old receiver");
@@ -710,10 +725,11 @@ fn main() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({
             let __terrane_future = { let __terrane_call = (&native)
-            .echo_after_yield(&method_input); Box::pin(async move { match crate
-            ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(value) =>
-            Ok(value), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "witness", "witness::Record::echo_after_yield")) } }) }; async move {
+            .echo_after_yield(&method_input); Box::pin(async move { { let value = crate
+            ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(| payload
+            | crate ::__terrane_dependency_panic(payload, "witness",
+            "witness::Record::echo_after_yield")) ?; Ok:: < _, crate
+            ::TerraneForeignError > (value) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 60 /* terrane-site: src/main.trn:111:18-111:55 */) } }). await, 60 /* terrane-site: src/main.trn:111:18-111:55 */))
         );
         method_input = String::from("after method");
@@ -725,11 +741,13 @@ fn main() {
             .expect("shared reference lock poisoned").text.clone(); __terrane_snapshot };
             let __terrane_native_future_receiver = &native; async move { let
             __terrane_future = { let __terrane_call = __terrane_native_future_receiver
-            .echo_after_yield(&__terrane_native_value_0); Box::pin(async move { match
-            crate ::__terrane_dependency_await_unwind(__terrane_call). await { Ok(value)
-            => Ok(value), Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "witness", "witness::Record::echo_after_yield")) } }) };
-            __terrane_raised_err(__terrane_future. await, 61 /* terrane-site: src/main.trn:115:18-115:54 */) } }). await, 61 /* terrane-site: src/main.trn:115:18-115:54 */))
+            .echo_after_yield(&__terrane_native_value_0); Box::pin(async move { { let
+            value = crate ::__terrane_dependency_await_unwind(__terrane_call). await
+            .map_err(| payload | crate ::__terrane_dependency_panic(payload, "witness",
+            "witness::Record::echo_after_yield")) ?; Ok:: < _, crate
+            ::TerraneForeignError > (value) } }) }; __terrane_raised_err(__terrane_future
+            . await, 61 /* terrane-site: src/main.trn:115:18-115:54 */) } }). await,
+            61 /* terrane-site: src/main.trn:115:18-115:54 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&native.text));
         println!(

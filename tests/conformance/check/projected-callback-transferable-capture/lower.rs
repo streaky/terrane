@@ -12,10 +12,13 @@ fn main() {
                     Box<dyn Future<Output = terrane_int_support::Int> + Send>,
                 > + Send + Sync,
         >;
-        marker = __terrane_raised(
-            make_marker(terrane_int_support::Int::from(2_i128)),
-            0 /* terrane-site: src/main.trn:4:14-4:28 */,
-        );
+        marker = {
+            let __terrane_conversion_input_0 = terrane_int_support::Int::from(2_i128);
+            __terrane_raised(
+                make_marker(__terrane_conversion_input_0),
+                0 /* terrane-site: src/main.trn:4:14-4:28 */,
+            )
+        };
         callback = {
             let marker = marker.clone();
             std::sync::Arc::new(move |
@@ -27,22 +30,31 @@ fn main() {
                 Box::pin(async move {
                     let observed: terrane_int_support::Int;
                     observed = __terrane_raised(
-                        match std::panic::catch_unwind(
-                            std::panic::AssertUnwindSafe(|| (&marker).value()),
-                        ) {
-                            Ok(value) => {
-                                Ok(terrane_int_support::Int::from(i128::from(value)))
+                        || -> Result<_, crate::TerraneForeignError> {
+                            {
+                                let value = match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| -> Result<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    > { Ok((&marker).value()) }),
+                                ) {
+                                    Ok(result) => result?,
+                                    Err(payload) => {
+                                        return Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "terrane_callback_witness",
+                                                "terrane_callback_witness::Marker::value",
+                                            ),
+                                        );
+                                    }
+                                };
+                                Ok::<
+                                    _,
+                                    crate::TerraneForeignError,
+                                >(terrane_int_support::Int::from(i128::from(value)))
                             }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_callback_witness",
-                                        "terrane_callback_witness::Marker::value",
-                                    ),
-                                )
-                            }
-                        },
+                        }(),
                         1 /* terrane-site: src/main.trn:6:25-6:38 */,
                     );
                     let _ = &observed;

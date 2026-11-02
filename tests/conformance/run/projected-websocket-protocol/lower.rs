@@ -17,15 +17,16 @@ async fn socket_session(mut socket: WebSocket) {
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = (&mut socket).recv(); Box::pin(async move { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
+                            "terrane_websocket_peer_witness",
+                            "terrane_websocket_peer_witness::WebSocket::recv")) ? {
+                            Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
-                            "terrane_websocket_peer_witness::WebSocket::recv")) } }) };
-                            async move { __terrane_raised_err(__terrane_future. await,
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
                             0 /* terrane-site: src/main.trn:9:36-9:48 */) } }). await,
                             0 /* terrane-site: src/main.trn:9:36-9:48 */
                         ),
@@ -34,12 +35,14 @@ async fn socket_session(mut socket: WebSocket) {
                     let _ = kind
                         .insert(
                             __terrane_raised_completion!(
-                                match
-                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                match &match message.as_ref()
-                                .expect("flow-proven available binding") { Some(value) =>
-                                value, _ => unreachable!("flow-proven storage refinement") }
-                                { terrane_websocket_peer_witness::Message::Text { .. } =>
+                                | | -> Result < _, crate ::TerraneForeignError > { { let
+                                value = match
+                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                Result < _, crate ::TerraneForeignError > { Ok(match &match
+                                message.as_ref().expect("flow-proven available binding") {
+                                Some(value) => value, _ =>
+                                unreachable!("flow-proven storage refinement") } {
+                                terrane_websocket_peer_witness::Message::Text { .. } =>
                                 "Text".to_owned(),
                                 terrane_websocket_peer_witness::Message::Binary { .. } =>
                                 "Binary".to_owned(),
@@ -48,11 +51,12 @@ async fn socket_session(mut socket: WebSocket) {
                                 terrane_websocket_peer_witness::Message::Pong { .. } =>
                                 "Pong".to_owned(),
                                 terrane_websocket_peer_witness::Message::Close { .. } =>
-                                "Close".to_owned() })) { Ok(value) => Ok(value),
-                                Err(payload) => Err(crate
+                                "Close".to_owned() }) })) { Ok(result) => result ?,
+                                Err(payload) => return Err(crate
                                 ::__terrane_dependency_panic(payload,
                                 "terrane_websocket_peer_witness",
-                                "terrane_websocket_peer_witness::Message::variant-name")) },
+                                "terrane_websocket_peer_witness::Message::variant-name")) };
+                                Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                 1 /* terrane-site: src/main.trn:11:23-11:44 */
                             ),
                         );
@@ -65,17 +69,20 @@ async fn socket_session(mut socket: WebSocket) {
                         let _ = value
                             .insert(
                                 __terrane_raised_completion!(
+                                    | | -> Result < _, crate ::TerraneForeignError > { match
                                     match
-                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                    message.take().expect("flow-proven availability")
-                                    .expect("semantic optional narrowing").into_text())) {
-                                    Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                    Result < _, crate ::TerraneForeignError > { Ok(message
+                                    .take().expect("flow-proven availability")
+                                    .expect("semantic optional narrowing").into_text()) })) {
+                                    Ok(result) => result ?, Err(payload) => return Err(crate
+                                    ::__terrane_dependency_panic(payload,
+                                    "terrane_websocket_peer_witness",
+                                    "terrane_websocket_peer_witness::Message::into_text")) } {
+                                    Ok(value) => Ok(value), Err(error) => Err(crate
                                     ::TerraneForeignError(crate
                                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                                    .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                                    Err(crate ::__terrane_dependency_panic(payload,
-                                    "terrane_websocket_peer_witness",
-                                    "terrane_websocket_peer_witness::Message::into_text")) },
+                                    .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                                     2 /* terrane-site: src/main.trn:13:26-13:51 */
                                 ),
                             );
@@ -88,25 +95,30 @@ async fn socket_session(mut socket: WebSocket) {
                             println!("{}", String::from("close-sent"));
                             __terrane_traced_completion!(
                                 __terrane_await({ let __terrane_future = { let
-                                __terrane_call = (&mut socket)
-                                .send(__terrane_raised_completion!(match
-                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                                terrane_websocket_peer_witness::Message::Close(None))) {
-                                Ok(value) => Ok(value), Err(payload) => Err(crate
-                                ::__terrane_dependency_panic(payload,
-                                "terrane_websocket_peer_witness",
-                                "terrane_websocket_peer_witness::Message::Close")) },
-                                3 /* terrane-site: src/main.trn:16:34-16:54 */));
-                                Box::pin(async move { match crate
-                                ::__terrane_dependency_await_unwind(__terrane_call). await {
-                                Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                                ::TerraneForeignError(crate
-                                ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                                .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                                __terrane_call = (&mut socket).send({ let
+                                __terrane_conversion_input_0 = None;
+                                __terrane_raised_completion!(| | -> Result < _, crate
+                                ::TerraneForeignError > { { let value = match
+                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                Result < _, crate ::TerraneForeignError > {
+                                Ok(terrane_websocket_peer_witness::Message::Close(__terrane_conversion_input_0))
+                                })) { Ok(result) => result ?, Err(payload) => return
                                 Err(crate ::__terrane_dependency_panic(payload,
                                 "terrane_websocket_peer_witness",
-                                "terrane_websocket_peer_witness::WebSocket::send")) } }) };
-                                async move { __terrane_raised_err(__terrane_future. await,
+                                "terrane_websocket_peer_witness::Message::Close")) }; Ok:: <
+                                _, crate ::TerraneForeignError > (value) } } (),
+                                3 /* terrane-site: src/main.trn:16:34-16:54 */) });
+                                Box::pin(async move { match crate
+                                ::__terrane_dependency_await_unwind(__terrane_call). await
+                                .map_err(| payload | crate
+                                ::__terrane_dependency_panic(payload,
+                                "terrane_websocket_peer_witness",
+                                "terrane_websocket_peer_witness::WebSocket::send")) ? {
+                                Ok(value) => Ok(value), Err(error) => Err(crate
+                                ::TerraneForeignError(crate
+                                ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                                .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
+                                { __terrane_raised_err(__terrane_future. await,
                                 4 /* terrane-site: src/main.trn:16:20-16:55 */) } }).
                                 await, 5 /* terrane-site: src/main.trn:16:19-16:56 */
                             );
@@ -119,20 +131,22 @@ async fn socket_session(mut socket: WebSocket) {
                         );
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
-                            = (&mut socket)
-                            .send(__terrane_raised_completion!(terrane_static_trn_4d657373616765_text(value
-                            .as_ref().expect("flow-proven available binding").clone()),
-                            6 /* terrane-site: src/main.trn:19:32-19:52 */));
+                            = (&mut socket).send({ let __terrane_conversion_input_0 =
+                            value.as_ref().expect("flow-proven available binding")
+                            .clone();
+                            __terrane_raised_completion!(terrane_static_trn_4d657373616765_text(__terrane_conversion_input_0),
+                            6 /* terrane-site: src/main.trn:19:32-19:52 */) });
                             Box::pin(async move { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
+                            "terrane_websocket_peer_witness",
+                            "terrane_websocket_peer_witness::WebSocket::send")) ? {
+                            Ok(value) => Ok(value), Err(error) => Err(crate
                             ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
-                            "terrane_websocket_peer_witness::WebSocket::send")) } }) };
-                            async move { __terrane_raised_err(__terrane_future. await,
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
                             7 /* terrane-site: src/main.trn:19:18-19:53 */) } }).
                             await, 8 /* terrane-site: src/main.trn:19:17-19:54 */
                         );
@@ -145,14 +159,17 @@ async fn socket_session(mut socket: WebSocket) {
                         let _ = payload
                             .insert(
                                 __terrane_raised_completion!(
-                                    match
-                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                    message.take().expect("flow-proven availability")
-                                    .expect("semantic optional narrowing").into_data())) {
-                                    Ok(value) => Ok(value), Err(payload) => Err(crate
+                                    | | -> Result < _, crate ::TerraneForeignError > { { let
+                                    value = match
+                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                    Result < _, crate ::TerraneForeignError > { Ok(message
+                                    .take().expect("flow-proven availability")
+                                    .expect("semantic optional narrowing").into_data()) })) {
+                                    Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
                                     "terrane_websocket_peer_witness",
-                                    "terrane_websocket_peer_witness::Message::into_data")) },
+                                    "terrane_websocket_peer_witness::Message::into_data")) };
+                                    Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                     9 /* terrane-site: src/main.trn:21:21-21:46 */
                                 ),
                             );
@@ -164,25 +181,30 @@ async fn socket_session(mut socket: WebSocket) {
                         );
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
-                            = (&mut socket).send(__terrane_raised_completion!(match
-                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            terrane_websocket_peer_witness::Message::Binary(payload
-                            .take().expect("flow-proven availability")))) { Ok(value) =>
-                            Ok(value), Err(payload) => Err(crate
-                            ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
-                            "terrane_websocket_peer_witness::Message::Binary")) },
-                            10 /* terrane-site: src/main.trn:23:32-23:61 */));
-                            Box::pin(async move { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                            ::TerraneForeignError(crate
-                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                            = (&mut socket).send({ let __terrane_conversion_input_0 =
+                            payload.take().expect("flow-proven availability");
+                            __terrane_raised_completion!(| | -> Result < _, crate
+                            ::TerraneForeignError > { { let value = match
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                            Result < _, crate ::TerraneForeignError > {
+                            Ok(terrane_websocket_peer_witness::Message::Binary(__terrane_conversion_input_0))
+                            })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
                             "terrane_websocket_peer_witness",
-                            "terrane_websocket_peer_witness::WebSocket::send")) } }) };
-                            async move { __terrane_raised_err(__terrane_future. await,
+                            "terrane_websocket_peer_witness::Message::Binary")) }; Ok:: <
+                            _, crate ::TerraneForeignError > (value) } } (),
+                            10 /* terrane-site: src/main.trn:23:32-23:61 */) });
+                            Box::pin(async move { match crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
+                            "terrane_websocket_peer_witness",
+                            "terrane_websocket_peer_witness::WebSocket::send")) ? {
+                            Ok(value) => Ok(value), Err(error) => Err(crate
+                            ::TerraneForeignError(crate
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
                             11 /* terrane-site: src/main.trn:23:18-23:62 */) } }).
                             await, 12 /* terrane-site: src/main.trn:23:17-23:63 */
                         );
@@ -195,14 +217,17 @@ async fn socket_session(mut socket: WebSocket) {
                         let _ = payload
                             .insert(
                                 __terrane_raised_completion!(
-                                    match
-                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                    message.take().expect("flow-proven availability")
-                                    .expect("semantic optional narrowing").into_data())) {
-                                    Ok(value) => Ok(value), Err(payload) => Err(crate
+                                    | | -> Result < _, crate ::TerraneForeignError > { { let
+                                    value = match
+                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                    Result < _, crate ::TerraneForeignError > { Ok(message
+                                    .take().expect("flow-proven availability")
+                                    .expect("semantic optional narrowing").into_data()) })) {
+                                    Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
                                     "terrane_websocket_peer_witness",
-                                    "terrane_websocket_peer_witness::Message::into_data")) },
+                                    "terrane_websocket_peer_witness::Message::into_data")) };
+                                    Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                     13 /* terrane-site: src/main.trn:25:21-25:46 */
                                 ),
                             );
@@ -214,25 +239,30 @@ async fn socket_session(mut socket: WebSocket) {
                         );
                         __terrane_traced_completion!(
                             __terrane_await({ let __terrane_future = { let __terrane_call
-                            = (&mut socket).send(__terrane_raised_completion!(match
-                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            terrane_websocket_peer_witness::Message::Pong(payload.take()
-                            .expect("flow-proven availability")))) { Ok(value) =>
-                            Ok(value), Err(payload) => Err(crate
-                            ::__terrane_dependency_panic(payload,
-                            "terrane_websocket_peer_witness",
-                            "terrane_websocket_peer_witness::Message::Pong")) },
-                            14 /* terrane-site: src/main.trn:27:32-27:59 */));
-                            Box::pin(async move { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                            ::TerraneForeignError(crate
-                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                            = (&mut socket).send({ let __terrane_conversion_input_0 =
+                            payload.take().expect("flow-proven availability");
+                            __terrane_raised_completion!(| | -> Result < _, crate
+                            ::TerraneForeignError > { { let value = match
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                            Result < _, crate ::TerraneForeignError > {
+                            Ok(terrane_websocket_peer_witness::Message::Pong(__terrane_conversion_input_0))
+                            })) { Ok(result) => result ?, Err(payload) => return
                             Err(crate ::__terrane_dependency_panic(payload,
                             "terrane_websocket_peer_witness",
-                            "terrane_websocket_peer_witness::WebSocket::send")) } }) };
-                            async move { __terrane_raised_err(__terrane_future. await,
+                            "terrane_websocket_peer_witness::Message::Pong")) }; Ok:: <
+                            _, crate ::TerraneForeignError > (value) } } (),
+                            14 /* terrane-site: src/main.trn:27:32-27:59 */) });
+                            Box::pin(async move { match crate
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
+                            "terrane_websocket_peer_witness",
+                            "terrane_websocket_peer_witness::WebSocket::send")) ? {
+                            Ok(value) => Ok(value), Err(error) => Err(crate
+                            ::TerraneForeignError(crate
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
                             15 /* terrane-site: src/main.trn:27:18-27:60 */) } }).
                             await, 16 /* terrane-site: src/main.trn:27:17-27:61 */
                         );
@@ -245,14 +275,17 @@ async fn socket_session(mut socket: WebSocket) {
                         let _ = payload
                             .insert(
                                 __terrane_raised_completion!(
-                                    match
-                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                                    message.take().expect("flow-proven availability")
-                                    .expect("semantic optional narrowing").into_data())) {
-                                    Ok(value) => Ok(value), Err(payload) => Err(crate
+                                    | | -> Result < _, crate ::TerraneForeignError > { { let
+                                    value = match
+                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                                    Result < _, crate ::TerraneForeignError > { Ok(message
+                                    .take().expect("flow-proven availability")
+                                    .expect("semantic optional narrowing").into_data()) })) {
+                                    Ok(result) => result ?, Err(payload) => return Err(crate
                                     ::__terrane_dependency_panic(payload,
                                     "terrane_websocket_peer_witness",
-                                    "terrane_websocket_peer_witness::Message::into_data")) },
+                                    "terrane_websocket_peer_witness::Message::into_data")) };
+                                    Ok:: < _, crate ::TerraneForeignError > (value) } } (),
                                     17 /* terrane-site: src/main.trn:29:21-29:46 */
                                 ),
                             );

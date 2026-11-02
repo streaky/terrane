@@ -1364,6 +1364,7 @@ pub(super) fn escaping_throwables(
     {
         local_errors.extend(contract.escaping_throwables);
     }
+    super::macros::input_conversion_errors(package, unit, node, &mut local_errors);
     for method in super::display::implicit_display_methods(package, unit, node) {
         local_errors.extend(
             inferred

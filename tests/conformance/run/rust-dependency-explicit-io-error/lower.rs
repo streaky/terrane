@@ -12,26 +12,37 @@ fn main() {
         0 /* terrane-site: case.trn:5:16-5:27 */,
     );
     kind = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&original).kind()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "io_witness",
-                        "io_witness::Error::kind",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&original).kind()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "io_witness",
+                                "io_witness::Error::kind",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         1 /* terrane-site: case.trn:6:12-6:26 */,
     );
-    occupied = __terrane_raised(
-        is_occupied(kind),
-        2 /* terrane-site: case.trn:7:16-7:33 */,
-    );
+    occupied = {
+        let __terrane_conversion_input_0 = kind;
+        __terrane_raised(
+            is_occupied(__terrane_conversion_input_0),
+            2 /* terrane-site: case.trn:7:16-7:33 */,
+        )
+    };
     println!("{}", terrane_scalar_support::scalar_text(&occupied));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {

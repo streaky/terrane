@@ -518,7 +518,7 @@ mod __terrane_trace {
         "/app::destruct",
         "/app::main",
     ];
-    pub static SITES: [Site; 43] = [
+    pub static SITES: [Site; 44] = [
         /* terrane-site-row: site 0: /app::stay-pending (src/main.trn:20:24-20:44) */
         { Site { function: 0, file: 0, line: 20, column: 24, end_line: 20, end_column: 44 } },
         /* terrane-site-row: site 1: /app::run-retained (src/main.trn:25:22-25:51) */
@@ -603,7 +603,9 @@ mod __terrane_trace {
         { Site { function: 7, file: 0, line: 149, column: 38, end_line: 149, end_column: 58 } },
         /* terrane-site-row: site 41: /app::main (src/main.trn:150:13-150:55) */
         { Site { function: 7, file: 0, line: 150, column: 13, end_line: 150, end_column: 55 } },
-        /* terrane-site-row: site 42: /app::main (src/main.trn:151:19-151:72) */
+        /* terrane-site-row: site 42: /app::main (src/main.trn:151:40-151:71) */
+        { Site { function: 7, file: 0, line: 151, column: 40, end_line: 151, end_column: 71 } },
+        /* terrane-site-row: site 43: /app::main (src/main.trn:151:19-151:72) */
         { Site { function: 7, file: 0, line: 151, column: 19, end_line: 151, end_column: 72 } },
     ];
     #[cold]

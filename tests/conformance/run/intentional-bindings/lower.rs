@@ -6,23 +6,32 @@ fn main() {
     let __trn_5f6775617264: Probe;
     let __trn_5f75736564: i64;
     {
-        let _: Probe = __terrane_raised(
-            probe(String::from("untyped")),
-            0 /* terrane-site: src/main.trn:6:7-6:23 */,
-        );
+        let _: Probe = {
+            let __terrane_conversion_input_0 = String::from("untyped");
+            __terrane_raised(
+                probe(__terrane_conversion_input_0),
+                0 /* terrane-site: src/main.trn:6:7-6:23 */,
+            )
+        };
     }
     println!("{}", String::from("after-untyped"));
     {
-        let _: Probe = __terrane_raised(
-            probe(String::from("typed")),
-            1 /* terrane-site: src/main.trn:8:13-8:27 */,
-        );
+        let _: Probe = {
+            let __terrane_conversion_input_0 = String::from("typed");
+            __terrane_raised(
+                probe(__terrane_conversion_input_0),
+                1 /* terrane-site: src/main.trn:8:13-8:27 */,
+            )
+        };
     }
     println!("{}", String::from("after-typed"));
-    __trn_5f6775617264 = __terrane_raised(
-        probe(String::from("retained")),
-        2 /* terrane-site: src/main.trn:10:12-10:29 */,
-    );
+    __trn_5f6775617264 = {
+        let __terrane_conversion_input_0 = String::from("retained");
+        __terrane_raised(
+            probe(__terrane_conversion_input_0),
+            2 /* terrane-site: src/main.trn:10:12-10:29 */,
+        )
+    };
     let _ = &__trn_5f6775617264;
     println!("{}", String::from("after-retained"));
     __trn_5f75736564 = 7;

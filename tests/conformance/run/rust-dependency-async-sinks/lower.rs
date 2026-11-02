@@ -30,15 +30,20 @@ async fn send_blocked(
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::send",
+                                ))?
                             {
-                                Ok(Ok(value)) => {
+                                Ok(value) => {
                                     Ok(
                                         terrane_collection_support::AsyncSinkOutcome::from_accepted(
                                             value,
                                         ),
                                     )
                                 }
-                                Ok(Err(error)) => {
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -46,15 +51,6 @@ async fn send_blocked(
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::send",
                                         ),
                                     )
                                 }
@@ -100,92 +96,116 @@ fn main() {
         let queued: terrane_collection_support::AsyncSinkOutcome;
         let queue_flushed: terrane_int_support::Int;
         let queue_closed: String;
-        whole = __terrane_raised(
-            duplex(terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: src/main.trn:11:11-11:20 */,
-        );
+        whole = {
+            let __terrane_conversion_input_0 = terrane_int_support::Int::from(1_i128);
+            __terrane_raised(
+                duplex(__terrane_conversion_input_0),
+                2 /* terrane-site: src/main.trn:11:11-11:20 */,
+            )
+        };
         halves = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| whole.split()),
-            ) {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(whole.split()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sink_witness",
+                                "terrane_sink_witness::Duplex::split",
                             ),
-                        ),
-                    )
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_sink_witness",
-                            "terrane_sink_witness::Duplex::split",
-                        ),
-                    )
-                }
-            },
+            }(),
             3 /* terrane-site: src/main.trn:12:12-12:24 */,
         );
         incoming = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| halves.take_incoming()),
-            ) {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(halves.take_incoming()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sink_witness",
+                                "terrane_sink_witness::SplitEndpoints::take_incoming",
                             ),
-                        ),
-                    )
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_sink_witness",
-                            "terrane_sink_witness::SplitEndpoints::take_incoming",
-                        ),
-                    )
-                }
-            },
+            }(),
             4 /* terrane-site: src/main.trn:13:14-13:35 */,
         );
         outgoing = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| halves.take_outgoing()),
-            ) {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(halves.take_outgoing()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sink_witness",
+                                "terrane_sink_witness::SplitEndpoints::take_outgoing",
                             ),
-                        ),
-                    )
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_sink_witness",
-                            "terrane_sink_witness::SplitEndpoints::take_outgoing",
-                        ),
-                    )
-                }
-            },
+            }(),
             5 /* terrane-site: src/main.trn:14:14-14:35 */,
         );
         scope = TerraneTaskScope::new(None);
@@ -216,15 +236,20 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::send",
+                                ))?
                             {
-                                Ok(Ok(value)) => {
+                                Ok(value) => {
                                     Ok(
                                         terrane_collection_support::AsyncSinkOutcome::from_accepted(
                                             value,
                                         ),
                                     )
                                 }
-                                Ok(Err(error)) => {
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -232,15 +257,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::send",
                                         ),
                                     )
                                 }
@@ -266,15 +282,20 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::send",
+                                ))?
                             {
-                                Ok(Ok(value)) => {
+                                Ok(value) => {
                                     Ok(
                                         terrane_collection_support::AsyncSinkOutcome::from_accepted(
                                             value,
                                         ),
                                     )
                                 }
-                                Ok(Err(error)) => {
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -282,15 +303,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::send",
                                         ),
                                     )
                                 }
@@ -321,9 +333,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::flush",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -331,15 +348,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::flush",
                                         ),
                                     )
                                 }
@@ -365,9 +373,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::close",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -375,15 +388,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::close",
                                         ),
                                     )
                                 }
@@ -426,15 +430,20 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::send",
+                                ))?
                             {
-                                Ok(Ok(value)) => {
+                                Ok(value) => {
                                     Ok(
                                         terrane_collection_support::AsyncSinkOutcome::from_accepted(
                                             value,
                                         ),
                                     )
                                 }
-                                Ok(Err(error)) => {
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -442,15 +451,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::send",
                                         ),
                                     )
                                 }
@@ -480,9 +480,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::Outgoing::close",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -490,15 +495,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::Outgoing::close",
                                         ),
                                     )
                                 }
@@ -557,15 +553,20 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sink_witness",
+                                    "terrane_sink_witness::QueueSink::send",
+                                ))?
                             {
-                                Ok(Ok(value)) => {
+                                Ok(value) => {
                                     Ok(
                                         terrane_collection_support::AsyncSinkOutcome::from_accepted(
                                             value,
                                         ),
                                     )
                                 }
-                                Ok(Err(error)) => {
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -573,15 +574,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sink_witness",
-                                            "terrane_sink_witness::QueueSink::send",
                                         ),
                                     )
                                 }
@@ -603,60 +595,74 @@ fn main() {
             terrane_scalar_support::scalar_text(&queued.closed)
         );
         queue_flushed = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| queue.flush()),
-            ) {
-                Ok(Ok(value)) => Ok(terrane_int_support::Int::from(i128::from(value))),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(queue.flush()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sink_witness",
+                                "terrane_sink_witness::QueueSink::flush",
                             ),
-                        ),
-                    )
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_sink_witness",
-                            "terrane_sink_witness::QueueSink::flush",
-                        ),
-                    )
-                }
-            },
+            }(),
             17 /* terrane-site: src/main.trn:41:23-41:35 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&queue_flushed));
         queue_closed = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| queue.close()),
-            ) {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(queue.close()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sink_witness",
+                                "terrane_sink_witness::QueueSink::close",
                             ),
-                        ),
-                    )
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_sink_witness",
-                            "terrane_sink_witness::QueueSink::close",
-                        ),
-                    )
-                }
-            },
+            }(),
             18 /* terrane-site: src/main.trn:43:25-43:37 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&queue_closed));

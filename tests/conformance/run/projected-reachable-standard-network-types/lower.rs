@@ -25,46 +25,65 @@ fn main() {
         terrane_static_trn_497041646472_from_str("192.0.2.44"),
         0 /* terrane-site: src/main.trn:10:22-10:52 */,
     );
-    socket = __terrane_raised(
-        terrane_static_trn_54657272616e654e7344657073546f6b696f4e6574536f636b6574416464724964656e7469747932463634363537303733324637343646364236393646324636453635373430303533364636333642363537343431363436343732_new(
-            address,
-            terrane_int_support::Int::from(3210_i128),
-        ),
-        1 /* terrane-site: src/main.trn:11:25-11:55 */,
-    );
+    socket = {
+        let __terrane_conversion_input_0 = address;
+        let __terrane_conversion_input_1 = terrane_int_support::Int::from(3210_i128);
+        __terrane_raised(
+            terrane_static_trn_54657272616e654e7344657073546f6b696f4e6574536f636b6574416464724964656e7469747932463634363537303733324637343646364236393646324636453635373430303533364636333642363537343431363436343732_new(
+                __terrane_conversion_input_0,
+                __terrane_conversion_input_1,
+            ),
+            1 /* terrane-site: src/main.trn:11:25-11:55 */,
+        )
+    };
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&socket).port())) {
-        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload)
-        => Err(crate ::__terrane_dependency_panic(payload, "std",
-        "std::net::SocketAddr::port")) }, 2 /* terrane-site: src/main.trn:12:13-12:25 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&socket).port()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "std",
+        "std::net::SocketAddr::port")) }; Ok:: < _, crate ::TerraneForeignError >
+        (terrane_int_support::Int::from_u128(value as u128)) } } (),
+        2 /* terrane-site: src/main.trn:12:13-12:25 */))
     );
     network = __terrane_raised(
         terrane_static_trn_49704e6574_from_str("192.0.2.44/32"),
         3 /* terrane-site: src/main.trn:13:21-13:53 */,
     );
     payload = __terrane_raised(
-        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (&socket).ip())) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "std",
-                        "std::net::SocketAddr::ip",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&socket).ip()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "std",
+                                "std::net::SocketAddr::ip",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         4 /* terrane-site: src/main.trn:14:22-14:32 */,
     );
     borrowed_payload = &payload;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&network).contains(&*
-        borrowed_payload))) { Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "ipnet", "ipnet::IpNet::contains")) },
-        5 /* terrane-site: src/main.trn:16:13-16:47 */))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&network).contains(&* borrowed_payload)) })) {
+        Ok(result) => result ?, Err(payload) => return Err(crate
+        ::__terrane_dependency_panic(payload, "ipnet", "ipnet::IpNet::contains")) }; Ok::
+        < _, crate ::TerraneForeignError > (value) } } (), 5 /* terrane-site: src/main.trn:16:13-16:47 */))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {

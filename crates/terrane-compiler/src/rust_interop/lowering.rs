@@ -1134,20 +1134,6 @@ pub(super) fn projected_argument_expression(
     }
 }
 
-pub(super) fn projected_chain_argument_expression(
-    name: &str,
-    ty: &crate::rust_interop::projection::ProjectedType,
-    package: &SemanticPackage,
-) -> String {
-    if ty.has_identity_representation() {
-        return name.to_owned();
-    }
-    let converted = projected_argument_expression(name, ty, package);
-    format!(
-        "match (|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error) }}"
-    )
-}
-
 pub(super) fn projected_result_expression(
     value: &str,
     ty: &crate::rust_interop::projection::ProjectedType,

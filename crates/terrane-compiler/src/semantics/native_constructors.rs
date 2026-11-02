@@ -35,10 +35,9 @@ pub(super) fn implicit_record_constructor(
         return None;
     }
     let identity = super::namespaces::class_designator_identity(unit, callee.children.first()?)?;
-    let (native_path, fields, borrowed_view) = package
+    let (_, fields, borrowed_view) = package
         .projection
         .projected_struct(&identity.namespace, &identity.name)?;
-    let descriptor_view = borrowed_view && package.projection.enum_payload(native_path).is_none();
     let object = package
         .units
         .iter()
@@ -104,9 +103,7 @@ pub(super) fn implicit_record_constructor(
         exact_invocation_mode: InvocationMode::Shared,
         execution_requirements: crate::execution::ExecutionRequirements::default(),
     };
-    if descriptor_view {
-        set_native_constructor_effects(unit, call, fields, &mut contract);
-    }
+    set_native_constructor_effects(unit, call, fields, &mut contract);
     Some(contract)
 }
 
@@ -142,7 +139,7 @@ fn set_native_constructor_effects(
         let actual = super::expressions::infer_value_type(unit, value, &unit.typed_bindings)
             .ok()
             .flatten();
-        native_field_errors(&field.ty, actual.as_ref(), &mut errors);
+        native_conversion_errors(&field.ty, actual.as_ref(), &mut errors);
     }
     contract.throws = !errors.is_empty();
     contract.thrown_types = errors
@@ -155,7 +152,7 @@ fn set_native_constructor_effects(
     contract.escaping_throwables = errors;
 }
 
-fn native_field_errors(
+pub(super) fn native_conversion_errors(
     ty: &crate::rust_interop::projection::ProjectedType,
     actual: Option<&ValueType>,
     errors: &mut BTreeSet<String>,
@@ -171,9 +168,9 @@ fn native_field_errors(
         ProjectedType::Optional(inner) => match actual {
             Some(ValueType::Scalar(crate::ScalarType::None)) => {}
             Some(ValueType::Optional(present)) => {
-                native_field_errors(inner, Some(present), errors);
+                native_conversion_errors(inner, Some(present), errors);
             }
-            _ => native_field_errors(inner, actual, errors),
+            _ => native_conversion_errors(inner, actual, errors),
         },
         ProjectedType::Tuple(items) => {
             let (element, length) = match actual {
@@ -186,7 +183,7 @@ fn native_field_errors(
                 errors.insert("/core/errors::dependency-error".to_owned());
             }
             for item in items {
-                native_field_errors(item, element, errors);
+                native_conversion_errors(item, element, errors);
             }
         }
         ProjectedType::Sequence { item, .. } | ProjectedType::Set { item, .. } => {
@@ -199,7 +196,7 @@ fn native_field_errors(
                 ) => Some(element.value_type_ref()),
                 _ => None,
             };
-            native_field_errors(item, element, errors);
+            native_conversion_errors(item, element, errors);
         }
         ProjectedType::Mapping { key, value, .. } => {
             let (actual_key, actual_value) = match actual {
@@ -208,8 +205,8 @@ fn native_field_errors(
                 }
                 _ => (None, None),
             };
-            native_field_errors(key, actual_key, errors);
-            native_field_errors(value, actual_value, errors);
+            native_conversion_errors(key, actual_key, errors);
+            native_conversion_errors(value, actual_value, errors);
         }
         _ => {}
     }

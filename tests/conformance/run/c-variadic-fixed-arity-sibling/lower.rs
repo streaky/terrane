@@ -4,9 +4,12 @@ include!("lower.support.rs");
 // Namespace: app
 fn main() {
     let value: terrane_int_support::Int;
-    value = __terrane_raised(
-        fixed_value(terrane_int_support::Int::from(4_i128)),
-        0 /* terrane-site: case.trn:6:13-6:27 */,
-    );
+    value = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(4_i128);
+        __terrane_raised(
+            fixed_value(__terrane_conversion_input_0),
+            0 /* terrane-site: case.trn:6:13-6:27 */,
+        )
+    };
     println!("{}", terrane_scalar_support::scalar_text(&value));
 }

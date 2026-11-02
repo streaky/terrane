@@ -78,22 +78,31 @@ fn execute_local() -> Result<i64, TerraneError> {
                 i64,
             >(
                 &__terrane_raised_err(
-                    match std::panic::catch_unwind(
-                        std::panic::AssertUnwindSafe(|| bound.fetch(&mut connection)),
-                    ) {
-                        Ok(value) => {
-                            Ok(terrane_int_support::Int::from(i128::from(value)))
+                    || -> Result<_, crate::TerraneForeignError> {
+                        {
+                            let value = match std::panic::catch_unwind(
+                                std::panic::AssertUnwindSafe(|| -> Result<
+                                    _,
+                                    crate::TerraneForeignError,
+                                > { Ok(bound.fetch(&mut connection)) }),
+                            ) {
+                                Ok(result) => result?,
+                                Err(payload) => {
+                                    return Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "witness",
+                                            "witness::Query::fetch",
+                                        ),
+                                    );
+                                }
+                            };
+                            Ok::<
+                                _,
+                                crate::TerraneForeignError,
+                            >(terrane_int_support::Int::from(i128::from(value)))
                         }
-                        Err(payload) => {
-                            Err(
-                                crate::__terrane_dependency_panic(
-                                    payload,
-                                    "witness",
-                                    "witness::Query::fetch",
-                                ),
-                            )
-                        }
-                    },
+                    }(),
                     2 /* terrane-site: src/main.trn:18:12-18:35 */,
                 )?,
             ),
@@ -113,22 +122,31 @@ fn execute_reference(connection: &mut Connection) -> Result<i64, TerraneError> {
                 i64,
             >(
                 &__terrane_raised_err(
-                    match std::panic::catch_unwind(
-                        std::panic::AssertUnwindSafe(|| bound.fetch(&mut *connection)),
-                    ) {
-                        Ok(value) => {
-                            Ok(terrane_int_support::Int::from(i128::from(value)))
+                    || -> Result<_, crate::TerraneForeignError> {
+                        {
+                            let value = match std::panic::catch_unwind(
+                                std::panic::AssertUnwindSafe(|| -> Result<
+                                    _,
+                                    crate::TerraneForeignError,
+                                > { Ok(bound.fetch(&mut *connection)) }),
+                            ) {
+                                Ok(result) => result?,
+                                Err(payload) => {
+                                    return Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "witness",
+                                            "witness::Query::fetch",
+                                        ),
+                                    );
+                                }
+                            };
+                            Ok::<
+                                _,
+                                crate::TerraneForeignError,
+                            >(terrane_int_support::Int::from(i128::from(value)))
                         }
-                        Err(payload) => {
-                            Err(
-                                crate::__terrane_dependency_panic(
-                                    payload,
-                                    "witness",
-                                    "witness::Query::fetch",
-                                ),
-                            )
-                        }
-                    },
+                    }(),
                     4 /* terrane-site: src/main.trn:22:12-22:35 */,
                 )?,
             ),
@@ -143,24 +161,31 @@ fn execute_formal_reference(connection: &mut Connection) -> Result<i64, TerraneE
                 i64,
             >(
                 &__terrane_raised_err(
-                    match std::panic::catch_unwind(
-                        std::panic::AssertUnwindSafe(|| witness::advance(
-                            &mut *connection,
-                        )),
-                    ) {
-                        Ok(value) => {
-                            Ok(terrane_int_support::Int::from(i128::from(value)))
+                    || -> Result<_, crate::TerraneForeignError> {
+                        {
+                            let value = match std::panic::catch_unwind(
+                                std::panic::AssertUnwindSafe(|| -> Result<
+                                    _,
+                                    crate::TerraneForeignError,
+                                > { Ok(witness::advance(&mut *connection)) }),
+                            ) {
+                                Ok(result) => result?,
+                                Err(payload) => {
+                                    return Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "witness",
+                                            "witness::advance",
+                                        ),
+                                    );
+                                }
+                            };
+                            Ok::<
+                                _,
+                                crate::TerraneForeignError,
+                            >(terrane_int_support::Int::from(i128::from(value)))
                         }
-                        Err(payload) => {
-                            Err(
-                                crate::__terrane_dependency_panic(
-                                    payload,
-                                    "witness",
-                                    "witness::advance",
-                                ),
-                            )
-                        }
-                    },
+                    }(),
                     5 /* terrane-site: src/main.trn:25:12-25:31 */,
                 )?,
             ),
@@ -191,30 +216,41 @@ fn execute_optional(flag: bool) -> Result<i64, TerraneError> {
                     i64,
                 >(
                     &__terrane_raised_err(
-                        match std::panic::catch_unwind(
-                            std::panic::AssertUnwindSafe(|| {
-                                bound
-                                    .fetch(
-                                        match &mut maybe {
-                                            Some(value) => value,
-                                            _ => unreachable!("flow-proven storage refinement"),
-                                        },
-                                    )
-                            }),
-                        ) {
-                            Ok(value) => {
-                                Ok(terrane_int_support::Int::from(i128::from(value)))
+                        || -> Result<_, crate::TerraneForeignError> {
+                            {
+                                let value = match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| -> Result<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    > {
+                                        Ok(
+                                            bound
+                                                .fetch(
+                                                    match &mut maybe {
+                                                        Some(value) => value,
+                                                        _ => unreachable!("flow-proven storage refinement"),
+                                                    },
+                                                ),
+                                        )
+                                    }),
+                                ) {
+                                    Ok(result) => result?,
+                                    Err(payload) => {
+                                        return Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "witness",
+                                                "witness::Query::fetch",
+                                            ),
+                                        );
+                                    }
+                                };
+                                Ok::<
+                                    _,
+                                    crate::TerraneForeignError,
+                                >(terrane_int_support::Int::from(i128::from(value)))
                             }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "witness",
-                                        "witness::Query::fetch",
-                                    ),
-                                )
-                            }
-                        },
+                        }(),
                         8 /* terrane-site: src/main.trn:33:16-33:34 */,
                     )?,
                 ),
@@ -246,34 +282,45 @@ fn execute_deferred(flag: bool) -> Result<i64, TerraneError> {
                 i64,
             >(
                 &__terrane_raised_err(
-                    match std::panic::catch_unwind(
-                        std::panic::AssertUnwindSafe(|| {
-                            bound
-                                .fetch(
-                                    late
-                                        .as_mut()
-                                        .unwrap_or_else(|| __terrane_uninitialized_binding(
-                                            "late",
-                                            "main.trn",
-                                            40,
-                                            25,
-                                        )),
-                                )
-                        }),
-                    ) {
-                        Ok(value) => {
-                            Ok(terrane_int_support::Int::from(i128::from(value)))
+                    || -> Result<_, crate::TerraneForeignError> {
+                        {
+                            let value = match std::panic::catch_unwind(
+                                std::panic::AssertUnwindSafe(|| -> Result<
+                                    _,
+                                    crate::TerraneForeignError,
+                                > {
+                                    Ok(
+                                        bound
+                                            .fetch(
+                                                late
+                                                    .as_mut()
+                                                    .unwrap_or_else(|| __terrane_uninitialized_binding(
+                                                        "late",
+                                                        "main.trn",
+                                                        40,
+                                                        25,
+                                                    )),
+                                            ),
+                                    )
+                                }),
+                            ) {
+                                Ok(result) => result?,
+                                Err(payload) => {
+                                    return Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "witness",
+                                            "witness::Query::fetch",
+                                        ),
+                                    );
+                                }
+                            };
+                            Ok::<
+                                _,
+                                crate::TerraneForeignError,
+                            >(terrane_int_support::Int::from(i128::from(value)))
                         }
-                        Err(payload) => {
-                            Err(
-                                crate::__terrane_dependency_panic(
-                                    payload,
-                                    "witness",
-                                    "witness::Query::fetch",
-                                ),
-                            )
-                        }
-                    },
+                    }(),
                     11 /* terrane-site: src/main.trn:40:12-40:29 */,
                 )?,
             ),
@@ -288,22 +335,31 @@ fn execute_enum(stage: &mut Stage) -> Result<i64, TerraneError> {
                 i64,
             >(
                 &__terrane_raised_err(
-                    match std::panic::catch_unwind(
-                        std::panic::AssertUnwindSafe(|| witness::advance(&mut *stage)),
-                    ) {
-                        Ok(value) => {
-                            Ok(terrane_int_support::Int::from(i128::from(value)))
+                    || -> Result<_, crate::TerraneForeignError> {
+                        {
+                            let value = match std::panic::catch_unwind(
+                                std::panic::AssertUnwindSafe(|| -> Result<
+                                    _,
+                                    crate::TerraneForeignError,
+                                > { Ok(witness::advance(&mut *stage)) }),
+                            ) {
+                                Ok(result) => result?,
+                                Err(payload) => {
+                                    return Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "witness",
+                                            "witness::advance",
+                                        ),
+                                    );
+                                }
+                            };
+                            Ok::<
+                                _,
+                                crate::TerraneForeignError,
+                            >(terrane_int_support::Int::from(i128::from(value)))
                         }
-                        Err(payload) => {
-                            Err(
-                                crate::__terrane_dependency_panic(
-                                    payload,
-                                    "witness",
-                                    "witness::advance",
-                                ),
-                            )
-                        }
-                    },
+                    }(),
                     12 /* terrane-site: src/main.trn:43:12-43:26 */,
                 )?,
             ),
@@ -318,22 +374,31 @@ fn observe_native(connection: &Connection) -> Result<i64, TerraneError> {
                 i64,
             >(
                 &__terrane_raised_err(
-                    match std::panic::catch_unwind(
-                        std::panic::AssertUnwindSafe(|| witness::observed(&*connection)),
-                    ) {
-                        Ok(value) => {
-                            Ok(terrane_int_support::Int::from(i128::from(value)))
+                    || -> Result<_, crate::TerraneForeignError> {
+                        {
+                            let value = match std::panic::catch_unwind(
+                                std::panic::AssertUnwindSafe(|| -> Result<
+                                    _,
+                                    crate::TerraneForeignError,
+                                > { Ok(witness::observed(&*connection)) }),
+                            ) {
+                                Ok(result) => result?,
+                                Err(payload) => {
+                                    return Err(
+                                        crate::__terrane_dependency_panic(
+                                            payload,
+                                            "witness",
+                                            "witness::observed",
+                                        ),
+                                    );
+                                }
+                            };
+                            Ok::<
+                                _,
+                                crate::TerraneForeignError,
+                            >(terrane_int_support::Int::from(i128::from(value)))
                         }
-                        Err(payload) => {
-                            Err(
-                                crate::__terrane_dependency_panic(
-                                    payload,
-                                    "witness",
-                                    "witness::observed",
-                                ),
-                            )
-                        }
-                    },
+                    }(),
                     13 /* terrane-site: src/main.trn:46:12-46:32 */,
                 )?,
             ),
@@ -358,24 +423,31 @@ fn observe_captured() -> Result<i64, TerraneError> {
                         i64,
                     >(
                         &__terrane_raised_err(
-                            match std::panic::catch_unwind(
-                                std::panic::AssertUnwindSafe(|| witness::observed(
-                                    &connection,
-                                )),
-                            ) {
-                                Ok(value) => {
-                                    Ok(terrane_int_support::Int::from(i128::from(value)))
+                            || -> Result<_, crate::TerraneForeignError> {
+                                {
+                                    let value = match std::panic::catch_unwind(
+                                        std::panic::AssertUnwindSafe(|| -> Result<
+                                            _,
+                                            crate::TerraneForeignError,
+                                        > { Ok(witness::observed(&connection)) }),
+                                    ) {
+                                        Ok(result) => result?,
+                                        Err(payload) => {
+                                            return Err(
+                                                crate::__terrane_dependency_panic(
+                                                    payload,
+                                                    "witness",
+                                                    "witness::observed",
+                                                ),
+                                            );
+                                        }
+                                    };
+                                    Ok::<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    >(terrane_int_support::Int::from(i128::from(value)))
                                 }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "witness",
-                                            "witness::observed",
-                                        ),
-                                    )
-                                }
-                            },
+                            }(),
                             15 /* terrane-site: src/main.trn:51:16-51:36 */,
                         )?,
                     ),
@@ -415,20 +487,31 @@ fn execute_outlives() -> Result<i64, TerraneError> {
         20 /* terrane-site: src/main.trn:57:13-57:34 */,
     )?;
     first = __terrane_raised_err(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| bound.fetch_outlives(&mut connection)),
-        ) {
-            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::Query::fetch_outlives",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(bound.fetch_outlives(&mut connection)) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::Query::fetch_outlives",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(terrane_int_support::Int::from(i128::from(value)))
             }
-        },
+        }(),
         21 /* terrane-site: src/main.trn:58:13-58:45 */,
     )?;
     second = {
@@ -436,24 +519,34 @@ fn execute_outlives() -> Result<i64, TerraneError> {
             query("region-direct"),
             22 /* terrane-site: src/main.trn:59:15-59:37 */,
         )?;
-        let __terrane_native_input_1 = &mut connection;
         __terrane_raised_err(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    __terrane_native_input_0.fetch_outlives(__terrane_native_input_1)
-                }),
-            ) {
-                Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "witness",
-                            "witness::Query::fetch_outlives",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let value = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok(__terrane_native_input_0.fetch_outlives(&mut connection))
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "witness",
+                                    "witness::Query::fetch_outlives",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<
+                        _,
+                        crate::TerraneForeignError,
+                    >(terrane_int_support::Int::from(i128::from(value)))
                 }
-            },
+            }(),
             23 /* terrane-site: src/main.trn:59:14-59:65 */,
         )?
     };
@@ -483,24 +576,31 @@ fn observe_outlives() -> Result<i64, TerraneError> {
                         i64,
                     >(
                         &__terrane_raised_err(
-                            match std::panic::catch_unwind(
-                                std::panic::AssertUnwindSafe(|| witness::outlives(
-                                    &*observer,
-                                )),
-                            ) {
-                                Ok(value) => {
-                                    Ok(terrane_int_support::Int::from(i128::from(value)))
+                            || -> Result<_, crate::TerraneForeignError> {
+                                {
+                                    let value = match std::panic::catch_unwind(
+                                        std::panic::AssertUnwindSafe(|| -> Result<
+                                            _,
+                                            crate::TerraneForeignError,
+                                        > { Ok(witness::outlives(&*observer)) }),
+                                    ) {
+                                        Ok(result) => result?,
+                                        Err(payload) => {
+                                            return Err(
+                                                crate::__terrane_dependency_panic(
+                                                    payload,
+                                                    "witness",
+                                                    "witness::outlives",
+                                                ),
+                                            );
+                                        }
+                                    };
+                                    Ok::<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    >(terrane_int_support::Int::from(i128::from(value)))
                                 }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "witness",
-                                            "witness::outlives",
-                                        ),
-                                    )
-                                }
-                            },
+                            }(),
                             26 /* terrane-site: src/main.trn:66:16-66:34 */,
                         )?,
                     ),
@@ -537,26 +637,32 @@ fn execute_owner(connection: &mut Connection) -> Result<i64, TerraneError> {
                         owner_query("owner-forward"),
                         30 /* terrane-site: src/main.trn:71:13-71:41 */,
                     )?;
-                    let __terrane_native_input_1 = &mut *connection;
                     __terrane_raised_err(
-                        match std::panic::catch_unwind(
-                            std::panic::AssertUnwindSafe(|| {
-                                __terrane_native_input_0.fetch(__terrane_native_input_1)
-                            }),
-                        ) {
-                            Ok(value) => {
-                                Ok(terrane_int_support::Int::from(i128::from(value)))
+                        || -> Result<_, crate::TerraneForeignError> {
+                            {
+                                let value = match std::panic::catch_unwind(
+                                    std::panic::AssertUnwindSafe(|| -> Result<
+                                        _,
+                                        crate::TerraneForeignError,
+                                    > { Ok(__terrane_native_input_0.fetch(&mut *connection)) }),
+                                ) {
+                                    Ok(result) => result?,
+                                    Err(payload) => {
+                                        return Err(
+                                            crate::__terrane_dependency_panic(
+                                                payload,
+                                                "witness",
+                                                "witness::OwnerQuery::fetch",
+                                            ),
+                                        );
+                                    }
+                                };
+                                Ok::<
+                                    _,
+                                    crate::TerraneForeignError,
+                                >(terrane_int_support::Int::from(i128::from(value)))
                             }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "witness",
-                                        "witness::OwnerQuery::fetch",
-                                    ),
-                                )
-                            }
-                        },
+                        }(),
                         31 /* terrane-site: src/main.trn:71:12-71:60 */,
                     )?
                 },
@@ -587,13 +693,15 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
-            __terrane_raised(query("direct"), 35 /* terrane-site: src/main.trn:77:14-77:29 */); let __terrane_native_input_1 = &mut connection;
-            __terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            __terrane_native_input_0.fetch(__terrane_native_input_1))) { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::Query::fetch")) }, 36 /* terrane-site: src/main.trn:77:13-77:48 */) })
+            __terrane_raised(query("direct"), 35 /* terrane-site: src/main.trn:77:14-77:29 */); __terrane_raised(| | -> Result < _, crate
+            ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(__terrane_native_input_0.fetch(&mut
+            connection)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness", "witness::Query::fetch")) };
+            Ok:: < _, crate ::TerraneForeignError >
+            (terrane_int_support::Int::from(i128::from(value))) } } (),
+            36 /* terrane-site: src/main.trn:77:13-77:48 */) })
         );
         println!(
             "{}",
@@ -601,12 +709,15 @@ fn main() {
             connection), 37 /* terrane-site: src/main.trn:78:13-78:49 */))
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&connection)
-            .executions())) { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::Connection::executions")) }, 38 /* terrane-site: src/main.trn:79:13-79:35 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
+            _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok((&connection).executions()) })) {
+            Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness",
+            "witness::Connection::executions")) }; Ok:: < _, crate ::TerraneForeignError
+            > (terrane_int_support::Int::from(i128::from(value))) } } (),
+            38 /* terrane-site: src/main.trn:79:13-79:35 */))
         );
         println!(
             "{}",
@@ -625,12 +736,15 @@ fn main() {
         );
         source = SourceCounter::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            witness::advance(&mut source))) { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::advance")) }, 42 /* terrane-site: src/main.trn:84:13-84:28 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
+            _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(witness::advance(&mut source)) })) {
+            Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness", "witness::advance")) }; Ok::
+            < _, crate ::TerraneForeignError >
+            (terrane_int_support::Int::from(i128::from(value))) } } (),
+            42 /* terrane-site: src/main.trn:84:13-84:28 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&source.count));
         stage = witness::Stage::Idle;
@@ -653,12 +767,15 @@ fn main() {
         );
         holder = EnumHolder::terrane_construct();
         println!(
-            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            witness::advance(&mut holder.stage))) { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::advance")) }, 45 /* terrane-site: src/main.trn:95:13-95:34 */))
+            "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result <
+            _, crate ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(witness::advance(&mut holder.stage)) })) {
+            Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness", "witness::advance")) }; Ok::
+            < _, crate ::TerraneForeignError >
+            (terrane_int_support::Int::from(i128::from(value))) } } (),
+            45 /* terrane-site: src/main.trn:95:13-95:34 */))
         );
         let __terrane_match_value_2778 = holder.stage;
         match __terrane_match_value_2778 {
@@ -686,13 +803,15 @@ fn main() {
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_native_input_0 =
-            __terrane_raised(owner_query("owner-direct"), 49 /* terrane-site: src/main.trn:104:14-104:41 */); let __terrane_native_input_1 = &mut
-            connection; __terrane_raised(match
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-            __terrane_native_input_0.fetch(__terrane_native_input_1))) { Ok(value) =>
-            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
-            Err(crate ::__terrane_dependency_panic(payload, "witness",
-            "witness::OwnerQuery::fetch")) }, 50 /* terrane-site: src/main.trn:104:13-104:60 */) })
+            __terrane_raised(owner_query("owner-direct"), 49 /* terrane-site: src/main.trn:104:14-104:41 */); __terrane_raised(| | -> Result < _, crate
+            ::TerraneForeignError > { { let value = match
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _,
+            crate ::TerraneForeignError > { Ok(__terrane_native_input_0.fetch(&mut
+            connection)) })) { Ok(result) => result ?, Err(payload) => return Err(crate
+            ::__terrane_dependency_panic(payload, "witness",
+            "witness::OwnerQuery::fetch")) }; Ok:: < _, crate ::TerraneForeignError >
+            (terrane_int_support::Int::from(i128::from(value))) } } (),
+            50 /* terrane-site: src/main.trn:104:13-104:60 */) })
         );
         observer = &mut connection;
         println!(

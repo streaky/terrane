@@ -14,21 +14,17 @@ fn main() {
                             String::from("generic-output"),
                         );
                         Box::pin(async move {
-                            match crate::__terrane_dependency_await_unwind(
-                                    std::future::IntoFuture::into_future(__terrane_call),
-                                )
-                                .await
                             {
-                                Ok(value) => Ok(value),
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane-into-future-witness",
-                                            "terrane_into_future_witness::ready_value",
-                                        ),
+                                let value = crate::__terrane_dependency_await_unwind(
+                                        std::future::IntoFuture::into_future(__terrane_call),
                                     )
-                                }
+                                    .await
+                                    .map_err(|payload| crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane-into-future-witness",
+                                        "terrane_into_future_witness::ready_value",
+                                    ))?;
+                                Ok::<_, crate::TerraneForeignError>(value)
                             }
                         })
                     };

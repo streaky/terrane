@@ -10,32 +10,43 @@ fn check_attribution() {
     );
     {
         let guard: std::sync::MutexGuard<'_, panic_api::Record> = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| (&locks).locked()),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "panic_api",
-                            "panic_api::Locks::locked",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let value = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > { Ok((&locks).locked()) }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "panic_api",
+                                    "panic_api::Locks::locked",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(value)
                 }
-            },
+            }(),
             1 /* terrane-site: src/main.trn:6:33-6:46 */,
         );
         let __terrane_completion_0: TerraneCompletion<()> = (|| {
             let __terrane_try_0: TerraneCompletion<()> = (|| {
                 println!(
                     "{}",
-                    terrane_scalar_support::scalar_text(&__terrane_raised_completion!(match
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| <
-                    panic_api::Record > ::value(&guard))) { Ok(value) =>
-                    Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload)
-                    => Err(crate ::__terrane_dependency_panic(payload, "panic_api",
-                    "panic_api::Record::value")) }, 2 /* terrane-site: src/main.trn:8:21-8:33 */))
+                    terrane_scalar_support::scalar_text(&__terrane_raised_completion!(| |
+                    -> Result < _, crate ::TerraneForeignError > { { let value = match
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result <
+                    _, crate ::TerraneForeignError > { Ok(< panic_api::Record >
+                    ::value(&guard)) })) { Ok(result) => result ?, Err(payload) => return
+                    Err(crate ::__terrane_dependency_panic(payload, "panic_api",
+                    "panic_api::Record::value")) }; Ok:: < _, crate ::TerraneForeignError
+                    > (terrane_int_support::Int::from(i128::from(value))) } } (),
+                    2 /* terrane-site: src/main.trn:8:21-8:33 */))
                 );
                 TerraneCompletion::Normal
             })();

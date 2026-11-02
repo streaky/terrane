@@ -180,15 +180,15 @@ impl Application {
                                     .expect("flow-proven available binding"), data.as_ref()
                                     .expect("flow-proven available binding")); Box::pin(async
                                     move { match crate
-                                    ::__terrane_dependency_await_unwind(__terrane_call). await {
-                                    Ok(Ok(value)) =>
+                                    ::__terrane_dependency_await_unwind(__terrane_call). await
+                                    .map_err(| payload | crate
+                                    ::__terrane_dependency_panic(payload, "witness",
+                                    "witness::Native::inspect")) ? { Ok(value) =>
                                     Ok(terrane_int_support::Int::from(i128::from(value))),
-                                    Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
+                                    Err(error) => Err(crate ::TerraneForeignError(crate
                                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                                    .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                                    Err(crate ::__terrane_dependency_panic(payload, "witness",
-                                    "witness::Native::inspect")) } }) }; async move {
-                                    __terrane_raised_err(__terrane_future. await,
+                                    .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
+                                    { __terrane_raised_err(__terrane_future. await,
                                     4 /* terrane-site: src/main.trn:41:30-41:56 */) } }).
                                     await, 4 /* terrane-site: src/main.trn:41:30-41:56 */
                                 ),
@@ -272,15 +272,15 @@ impl Application {
                                     .expect("flow-proven available binding"), data.as_ref()
                                     .expect("flow-proven available binding")); Box::pin(async
                                     move { match crate
-                                    ::__terrane_dependency_await_unwind(__terrane_call). await {
-                                    Ok(Ok(value)) =>
+                                    ::__terrane_dependency_await_unwind(__terrane_call). await
+                                    .map_err(| payload | crate
+                                    ::__terrane_dependency_panic(payload, "witness",
+                                    "witness::Native::inspect")) ? { Ok(value) =>
                                     Ok(terrane_int_support::Int::from(i128::from(value))),
-                                    Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
+                                    Err(error) => Err(crate ::TerraneForeignError(crate
                                     ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                                    .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                                    Err(crate ::__terrane_dependency_panic(payload, "witness",
-                                    "witness::Native::inspect")) } }) }; async move {
-                                    __terrane_raised_err(__terrane_future. await,
+                                    .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move
+                                    { __terrane_raised_err(__terrane_future. await,
                                     4 /* terrane-site: src/main.trn:41:30-41:56 */) } }).
                                     await, 4 /* terrane-site: src/main.trn:41:30-41:56 */
                                 ),

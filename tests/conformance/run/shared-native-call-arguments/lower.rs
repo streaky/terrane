@@ -7,84 +7,102 @@ fn inspect(
 ) {
     {
         let __terrane_owner_3 = value.clone();
-        let __terrane_shared_argument_0 = match || -> Result<
-            _,
-            crate::TerraneForeignError,
-        > {
-            Ok(
-                terrane_int_support::coerce::<
-                    usize,
-                >(
-                        &{
-                            let __terrane_owner_5 = value.clone();
-                            let __terrane_call_result = __terrane_raised(
-                                match std::panic::catch_unwind(
-                                    std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner_5
-                                            .lock()
-                                            .expect("shared reference lock poisoned")
-                                            .len()
-                                    }),
-                                ) {
-                                    Ok(value) => {
-                                        Ok(terrane_int_support::Int::from_u128(value as u128))
-                                    }
-                                    Err(payload) => {
-                                        Err(
-                                            crate::__terrane_dependency_panic(
-                                                payload,
-                                                "http",
-                                                "http::HeaderMap::len",
-                                            ),
-                                        )
-                                    }
-                                },
-                                0 /* terrane-site: src/main.trn:5:21-5:31 */,
-                            );
-                            __terrane_call_result
-                        },
-                    )
-                    .map_err(|error| crate::TerraneForeignError(
-                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                    ))?,
-            )
-        }() {
-            Ok(value) => value,
-            Err(error) => std::panic::panic_any(error),
+        let __terrane_source_input_0 = {
+            let __terrane_owner_5 = value.clone();
+            let __terrane_call_result = __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    __terrane_owner_5
+                                        .lock()
+                                        .expect("shared reference lock poisoned")
+                                        .len(),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "http",
+                                        "http::HeaderMap::len",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<
+                            _,
+                            crate::TerraneForeignError,
+                        >(terrane_int_support::Int::from_u128(value as u128))
+                    }
+                }(),
+                0 /* terrane-site: src/main.trn:5:21-5:31 */,
+            );
+            __terrane_call_result
         };
+        let __terrane_shared_argument_0 = __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    terrane_int_support::coerce::<usize>(&__terrane_source_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }(),
+            0 /* terrane-site: src/main.trn:5:21-5:31 */,
+        );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
         let __terrane_native_input_0 = &mut __terrane_owner_3
             .lock()
             .expect("shared reference lock poisoned");
-        let __terrane_native_input_1 = __terrane_shared_argument_1;
         let __terrane_call_result = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = __terrane_native_input_0.reserve(__terrane_native_input_1);
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "http",
-                            "http::HeaderMap::reserve",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = __terrane_native_input_0
+                                    .reserve(__terrane_shared_argument_1);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderMap::reserve",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
                 }
-            },
+            }(),
             1 /* terrane-site: src/main.trn:5:5-5:32 */,
         );
         __terrane_call_result
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_7 = value
-        .clone(); let __terrane_call_result = __terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner_7
-        .lock().expect("shared reference lock poisoned").len())) { Ok(value) =>
-        Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "http", "http::HeaderMap::len")) },
+        .clone(); let __terrane_call_result = __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(__terrane_owner_7.lock()
+        .expect("shared reference lock poisoned").len()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "http",
+        "http::HeaderMap::len")) }; Ok:: < _, crate ::TerraneForeignError >
+        (terrane_int_support::Int::from_u128(value as u128)) } } (),
         2 /* terrane-site: src/main.trn:6:13-6:23 */); __terrane_call_result })
     );
 }
@@ -103,222 +121,267 @@ fn main() {
     held = headers.clone();
     {
         let __terrane_owner_11 = held.clone();
-        let __terrane_shared_argument_0 = match || -> Result<
-            _,
-            crate::TerraneForeignError,
-        > {
-            Ok(
-                terrane_int_support::coerce::<
-                    usize,
-                >(
-                        &({
-                            let __terrane_owner_13 = held.clone();
-                            let __terrane_call_result = __terrane_raised(
-                                match std::panic::catch_unwind(
-                                    std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner_13
-                                            .lock()
-                                            .expect("shared reference lock poisoned")
-                                            .len()
-                                    }),
-                                ) {
-                                    Ok(value) => {
-                                        Ok(terrane_int_support::Int::from_u128(value as u128))
-                                    }
-                                    Err(payload) => {
-                                        Err(
-                                            crate::__terrane_dependency_panic(
-                                                payload,
-                                                "http",
-                                                "http::HeaderMap::len",
-                                            ),
-                                        )
-                                    }
-                                },
-                                3 /* terrane-site: src/main.trn:14:20-14:29 */,
-                            );
-                            __terrane_call_result
-                        } + terrane_int_support::Int::from(1_i128)),
-                    )
-                    .map_err(|error| crate::TerraneForeignError(
-                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                    ))?,
-            )
-        }() {
-            Ok(value) => value,
-            Err(error) => std::panic::panic_any(error),
-        };
+        let __terrane_source_input_0 = {
+            let __terrane_owner_13 = held.clone();
+            let __terrane_call_result = __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    __terrane_owner_13
+                                        .lock()
+                                        .expect("shared reference lock poisoned")
+                                        .len(),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "http",
+                                        "http::HeaderMap::len",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<
+                            _,
+                            crate::TerraneForeignError,
+                        >(terrane_int_support::Int::from_u128(value as u128))
+                    }
+                }(),
+                3 /* terrane-site: src/main.trn:14:20-14:29 */,
+            );
+            __terrane_call_result
+        } + terrane_int_support::Int::from(1_i128);
+        let __terrane_shared_argument_0 = __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    terrane_int_support::coerce::<usize>(&__terrane_source_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }(),
+            4 /* terrane-site: src/main.trn:14:19-14:34 */,
+        );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
         let __terrane_native_input_0 = &mut __terrane_owner_11
             .lock()
             .expect("shared reference lock poisoned");
-        let __terrane_native_input_1 = __terrane_shared_argument_1;
         let __terrane_call_result = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = __terrane_native_input_0.reserve(__terrane_native_input_1);
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "http",
-                            "http::HeaderMap::reserve",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = __terrane_native_input_0
+                                    .reserve(__terrane_shared_argument_1);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderMap::reserve",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
                 }
-            },
-            4 /* terrane-site: src/main.trn:14:5-14:34 */,
+            }(),
+            5 /* terrane-site: src/main.trn:14:5-14:34 */,
         );
         __terrane_call_result
     };
     alias = held.clone();
     {
         let __terrane_owner_17 = alias.clone();
-        let __terrane_shared_argument_0 = match || -> Result<
-            _,
-            crate::TerraneForeignError,
-        > {
-            Ok(
-                terrane_int_support::coerce::<
-                    usize,
-                >(
-                        &{
-                            let __terrane_owner_19 = held.clone();
-                            let __terrane_call_result = __terrane_raised(
-                                match std::panic::catch_unwind(
-                                    std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner_19
-                                            .lock()
-                                            .expect("shared reference lock poisoned")
-                                            .len()
-                                    }),
-                                ) {
-                                    Ok(value) => {
-                                        Ok(terrane_int_support::Int::from_u128(value as u128))
-                                    }
-                                    Err(payload) => {
-                                        Err(
-                                            crate::__terrane_dependency_panic(
-                                                payload,
-                                                "http",
-                                                "http::HeaderMap::len",
-                                            ),
-                                        )
-                                    }
-                                },
-                                5 /* terrane-site: src/main.trn:16:21-16:30 */,
-                            );
-                            __terrane_call_result
-                        },
-                    )
-                    .map_err(|error| crate::TerraneForeignError(
-                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                    ))?,
-            )
-        }() {
-            Ok(value) => value,
-            Err(error) => std::panic::panic_any(error),
+        let __terrane_source_input_0 = {
+            let __terrane_owner_19 = held.clone();
+            let __terrane_call_result = __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    __terrane_owner_19
+                                        .lock()
+                                        .expect("shared reference lock poisoned")
+                                        .len(),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "http",
+                                        "http::HeaderMap::len",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<
+                            _,
+                            crate::TerraneForeignError,
+                        >(terrane_int_support::Int::from_u128(value as u128))
+                    }
+                }(),
+                6 /* terrane-site: src/main.trn:16:21-16:30 */,
+            );
+            __terrane_call_result
         };
+        let __terrane_shared_argument_0 = __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    terrane_int_support::coerce::<usize>(&__terrane_source_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }(),
+            6 /* terrane-site: src/main.trn:16:21-16:30 */,
+        );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
         let __terrane_native_input_0 = &mut __terrane_owner_17
             .lock()
             .expect("shared reference lock poisoned");
-        let __terrane_native_input_1 = __terrane_shared_argument_1;
         let __terrane_call_result = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = __terrane_native_input_0.reserve(__terrane_native_input_1);
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "http",
-                            "http::HeaderMap::reserve",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = __terrane_native_input_0
+                                    .reserve(__terrane_shared_argument_1);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderMap::reserve",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
                 }
-            },
-            6 /* terrane-site: src/main.trn:16:5-16:31 */,
+            }(),
+            7 /* terrane-site: src/main.trn:16:5-16:31 */,
         );
         __terrane_call_result
     };
     observer = std::sync::Arc::downgrade(&headers.clone());
     {
         let __terrane_owner_23 = observer.upgrade().expect("reference expired");
-        let __terrane_shared_argument_0 = match || -> Result<
-            _,
-            crate::TerraneForeignError,
-        > {
-            Ok(
-                terrane_int_support::coerce::<
-                    usize,
-                >(
-                        &{
-                            let __terrane_owner_25 = alias.clone();
-                            let __terrane_call_result = __terrane_raised(
-                                match std::panic::catch_unwind(
-                                    std::panic::AssertUnwindSafe(|| {
-                                        __terrane_owner_25
-                                            .lock()
-                                            .expect("shared reference lock poisoned")
-                                            .len()
-                                    }),
-                                ) {
-                                    Ok(value) => {
-                                        Ok(terrane_int_support::Int::from_u128(value as u128))
-                                    }
-                                    Err(payload) => {
-                                        Err(
-                                            crate::__terrane_dependency_panic(
-                                                payload,
-                                                "http",
-                                                "http::HeaderMap::len",
-                                            ),
-                                        )
-                                    }
-                                },
-                                7 /* terrane-site: src/main.trn:18:24-18:34 */,
-                            );
-                            __terrane_call_result
-                        },
-                    )
-                    .map_err(|error| crate::TerraneForeignError(
-                        crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                    ))?,
-            )
-        }() {
-            Ok(value) => value,
-            Err(error) => std::panic::panic_any(error),
+        let __terrane_source_input_0 = {
+            let __terrane_owner_25 = alias.clone();
+            let __terrane_call_result = __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    __terrane_owner_25
+                                        .lock()
+                                        .expect("shared reference lock poisoned")
+                                        .len(),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "http",
+                                        "http::HeaderMap::len",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<
+                            _,
+                            crate::TerraneForeignError,
+                        >(terrane_int_support::Int::from_u128(value as u128))
+                    }
+                }(),
+                8 /* terrane-site: src/main.trn:18:24-18:34 */,
+            );
+            __terrane_call_result
         };
+        let __terrane_shared_argument_0 = __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    terrane_int_support::coerce::<usize>(&__terrane_source_input_0)
+                        .map_err(|error| crate::TerraneForeignError(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        ))?,
+                )
+            }(),
+            8 /* terrane-site: src/main.trn:18:24-18:34 */,
+        );
         let __terrane_shared_argument_1 = __terrane_shared_argument_0;
         let __terrane_native_input_0 = &mut __terrane_owner_23
             .lock()
             .expect("reference lock poisoned");
-        let __terrane_native_input_1 = __terrane_shared_argument_1;
         let __terrane_call_result = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = __terrane_native_input_0.reserve(__terrane_native_input_1);
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "http",
-                            "http::HeaderMap::reserve",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = __terrane_native_input_0
+                                    .reserve(__terrane_shared_argument_1);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderMap::reserve",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
                 }
-            },
-            8 /* terrane-site: src/main.trn:18:5-18:35 */,
+            }(),
+            9 /* terrane-site: src/main.trn:18:5-18:35 */,
         );
         __terrane_call_result
     };
@@ -326,36 +389,49 @@ fn main() {
     {
         let __terrane_owner_27 = observer.upgrade().expect("reference expired");
         let __terrane_call_result = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = __terrane_owner_27
-                        .lock()
-                        .expect("reference lock poisoned")
-                        .clear();
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "http",
-                            "http::HeaderMap::clear",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = __terrane_owner_27
+                                    .lock()
+                                    .expect("reference lock poisoned")
+                                    .clear();
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderMap::clear",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
                 }
-            },
-            9 /* terrane-site: src/main.trn:20:5-20:20 */,
+            }(),
+            10 /* terrane-site: src/main.trn:20:5-20:20 */,
         );
         __terrane_call_result
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner_29 = held
-        .clone(); let __terrane_call_result = __terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | __terrane_owner_29
-        .lock().expect("shared reference lock poisoned").len())) { Ok(value) =>
-        Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "http", "http::HeaderMap::len")) },
-        10 /* terrane-site: src/main.trn:21:13-21:22 */); __terrane_call_result })
+        .clone(); let __terrane_call_result = __terrane_raised(| | -> Result < _, crate
+        ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok(__terrane_owner_29.lock()
+        .expect("shared reference lock poisoned").len()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload, "http",
+        "http::HeaderMap::len")) }; Ok:: < _, crate ::TerraneForeignError >
+        (terrane_int_support::Int::from_u128(value as u128)) } } (),
+        11 /* terrane-site: src/main.trn:21:13-21:22 */); __terrane_call_result })
     );
 }

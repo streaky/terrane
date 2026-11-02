@@ -7,36 +7,45 @@ fn main() {
     let data: Vec<u8>;
     let mut invalid: Option<Document> = None;
     let mut failure: Option<TerraneError> = None;
-    document = __terrane_raised(
-        terrane_static_trn_446f63756d656e74_from_text(String::from("π")),
-        0 /* terrane-site: src/main.trn:7:23-7:47 */,
-    );
+    document = {
+        let __terrane_conversion_input_0 = String::from("π");
+        __terrane_raised(
+            terrane_static_trn_446f63756d656e74_from_text(__terrane_conversion_input_0),
+            0 /* terrane-site: src/main.trn:7:23-7:47 */,
+        )
+    };
     data = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| document.save_to_bytes()),
-        ) {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(error)) => {
-                Err(
-                    crate::TerraneForeignError(
-                        crate::TerraneError::custom_raised(
-                            crate::DescriptorId(2),
-                            error.to_string(),
-                            crate::TERRANE_NO_SITE,
+        || -> Result<_, crate::TerraneForeignError> {
+            match match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| -> Result<_, crate::TerraneForeignError> {
+                    Ok(document.save_to_bytes())
+                }),
+            ) {
+                Ok(result) => result?,
+                Err(payload) => {
+                    return Err(
+                        crate::__terrane_dependency_panic(
+                            payload,
+                            "witness",
+                            "witness::api::Document::save_to_bytes",
                         ),
-                    ),
-                )
+                    );
+                }
+            } {
+                Ok(value) => Ok(value),
+                Err(error) => {
+                    Err(
+                        crate::TerraneForeignError(
+                            crate::TerraneError::custom_raised(
+                                crate::DescriptorId(2),
+                                error.to_string(),
+                                crate::TERRANE_NO_SITE,
+                            ),
+                        ),
+                    )
+                }
             }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::api::Document::save_to_bytes",
-                    ),
-                )
-            }
-        },
+        }(),
         1 /* terrane-site: src/main.trn:8:16-8:39 */,
     );
     println!(
@@ -52,12 +61,13 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let _ = invalid
-                .insert(
+                .insert({
+                    let __terrane_conversion_input_0 = String::from("");
                     __terrane_raised_completion!(
-                        terrane_static_trn_446f63756d656e74_from_text(String::from("")),
+                        terrane_static_trn_446f63756d656e74_from_text(__terrane_conversion_input_0),
                         4 /* terrane-site: src/main.trn:11:15-11:38 */
-                    ),
-                );
+                    )
+                });
             let _ = &invalid;
             TerraneCompletion::Normal
         })();

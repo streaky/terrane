@@ -3,38 +3,60 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn absent() -> Descriptor {
-    return __terrane_raised(
-        Descriptor::terrane_construct(String::from("empty"), None),
-        0 /* terrane-site: src/main.trn:7:12-7:62 */,
-    );
+    return {
+        let __terrane_conversion_input_1 = None;
+        let __terrane_conversion_input_0 = String::from("empty");
+        __terrane_raised(
+            Descriptor::terrane_construct(
+                __terrane_conversion_input_0,
+                __terrane_conversion_input_1,
+            ),
+            0 /* terrane-site: src/main.trn:7:12-7:62 */,
+        )
+    };
 }
 fn choose(
     values: terrane_collection_support::Tuple<u32>,
 ) -> Result<Descriptor, TerraneError> {
-    return Ok(
+    return Ok({
+        let __terrane_conversion_input_1 = Some(values);
+        let __terrane_conversion_input_0 = String::from("held");
         __terrane_raised_err(
-            Descriptor::terrane_construct(String::from("held"), Some(values)),
+            Descriptor::terrane_construct(
+                __terrane_conversion_input_0,
+                __terrane_conversion_input_1,
+            ),
             1 /* terrane-site: src/main.trn:9:12-9:63 */,
-        )?,
-    );
+        )?
+    });
 }
 fn mark_config(mark: String) -> Result<Marked, TerraneError> {
-    return Ok(
+    return Ok({
+        let __terrane_conversion_input_1 = mark;
+        let __terrane_conversion_input_0 = String::from("marked");
         __terrane_raised_err(
-            Marked::terrane_construct(String::from("marked"), mark),
+            Marked::terrane_construct(
+                __terrane_conversion_input_0,
+                __terrane_conversion_input_1,
+            ),
             2 /* terrane-site: src/main.trn:11:12-11:57 */,
-        )?,
-    );
+        )?
+    });
 }
 fn rows_config(
     values: terrane_collection_support::List<terrane_collection_support::Tuple<u32>>,
 ) -> Result<Rows, TerraneError> {
-    return Ok(
+    return Ok({
+        let __terrane_conversion_input_1 = values;
+        let __terrane_conversion_input_0 = String::from("rows");
         __terrane_raised_err(
-            Rows::terrane_construct(String::from("rows"), values),
+            Rows::terrane_construct(
+                __terrane_conversion_input_0,
+                __terrane_conversion_input_1,
+            ),
             3 /* terrane-site: src/main.trn:13:12-13:55 */,
-        )?,
-    );
+        )?
+    });
 }
 fn main() {
     let empty: Descriptor;

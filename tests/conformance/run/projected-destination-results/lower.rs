@@ -18,20 +18,28 @@ impl Record {
         );
         {
             let __terrane_value = __terrane_raised(
-                match std::panic::catch_unwind(
-                    std::panic::AssertUnwindSafe(|| (&source).decoded::<String>()),
-                ) {
-                    Ok(value) => Ok(value),
-                    Err(payload) => {
-                        Err(
-                            crate::__terrane_dependency_panic(
-                                payload,
-                                "terrane_generic_row_witness",
-                                "terrane_generic_row_witness::Row::decoded",
-                            ),
-                        )
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > { Ok((&source).decoded::<String>()) }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_generic_row_witness",
+                                        "terrane_generic_row_witness::Row::decoded",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
                     }
-                },
+                }(),
                 1 /* terrane-site: src/main.trn:9:18-9:33 */,
             );
             self.value = __terrane_value;
@@ -42,39 +50,55 @@ fn decoded_value() -> String {
     let source: Row;
     source = __terrane_raised(row(), 2 /* terrane-site: src/main.trn:12:12-12:16 */);
     return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&source).decoded::<String>()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "terrane_generic_row_witness",
-                        "terrane_generic_row_witness::Row::decoded",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&source).decoded::<String>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_generic_row_witness",
+                                "terrane_generic_row_witness::Row::decoded",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         3 /* terrane-site: src/main.trn:13:10-13:25 */,
     );
 }
 fn make_number() -> i64 {
     return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::default_value::<i64>()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::default_value",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::default_value::<i64>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::default_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         4 /* terrane-site: src/main.trn:16:10-16:24 */,
     );
 }
@@ -96,66 +120,113 @@ fn main() {
     let mut item: Record;
     number = make_number();
     optional = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_value::<Option<i64>>()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_value",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::sample_value::<Option<i64>>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         5 /* terrane-site: src/main.trn:23:25-23:38 */,
     );
     data = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_value::<Vec<u8>>()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_value",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::sample_value::<Vec<u8>>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         6 /* terrane-site: src/main.trn:24:16-24:29 */,
     );
     values = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_value::<
-                std::vec::Vec<i64>,
-            >()),
-        ) {
-            Ok(value) => Ok(terrane_collection_support::List::new(value)),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_value",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::sample_value::<std::vec::Vec<i64>>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(terrane_collection_support::List::new(value))
             }
-        },
+        }(),
         7 /* terrane-site: src/main.trn:25:26-25:39 */,
     );
     names = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_value::<
-                std::collections::BTreeMap<String, i64>,
-            >()),
-        ) {
-            Ok(value) => {
-                Ok(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            factory::sample_value::<
+                                std::collections::BTreeMap<String, i64>,
+                            >(),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(
                     terrane_collection_support::Map::new(
                         value
                             .into_iter()
@@ -167,49 +238,67 @@ fn main() {
                     ),
                 )
             }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_value",
-                    ),
-                )
-            }
-        },
+        }(),
         8 /* terrane-site: src/main.trn:26:32-26:45 */,
     );
     tags = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_value::<
-                std::collections::BTreeSet<String>,
-            >()),
-        ) {
-            Ok(value) => {
-                Ok(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(factory::sample_value::<std::collections::BTreeSet<String>>())
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(
                     terrane_collection_support::Set::new(
                         value.into_iter().map(|item| item).collect(),
                     ),
                 )
             }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_value",
-                    ),
-                )
-            }
-        },
+        }(),
         9 /* terrane-site: src/main.trn:27:24-27:37 */,
     );
     rows = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_rows::<i64>()),
-        ) {
-            Ok(value) => {
-                Ok(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::sample_rows::<i64>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_rows",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(
                     terrane_collection_support::Map::new(
                         value
                             .into_iter()
@@ -221,24 +310,33 @@ fn main() {
                     ),
                 )
             }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_rows",
-                    ),
-                )
-            }
-        },
+        }(),
         10 /* terrane-site: src/main.trn:28:31-28:43 */,
     );
     numeric_rows = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::sample_numeric_rows::<i64>()),
-        ) {
-            Ok(value) => {
-                Ok(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::sample_numeric_rows::<i64>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::sample_numeric_rows",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(
                     terrane_collection_support::Map::new(
                         value
                             .into_iter()
@@ -250,52 +348,59 @@ fn main() {
                     ),
                 )
             }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::sample_numeric_rows",
-                    ),
-                )
-            }
-        },
+        }(),
         11 /* terrane-site: src/main.trn:29:38-29:58 */,
     );
     renamed = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| factory::renamed_bound_value::<String>()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "factory",
-                        "factory::renamed_bound_value",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(factory::renamed_bound_value::<String>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "factory",
+                                "factory::renamed_bound_value",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         12 /* terrane-site: src/main.trn:30:20-30:40 */,
     );
     source = __terrane_raised(row(), 13 /* terrane-site: src/main.trn:31:12-31:16 */);
     accept_by_argument(
         __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| (&source).decoded::<String>()),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_generic_row_witness",
-                            "terrane_generic_row_witness::Row::decoded",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let value = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > { Ok((&source).decoded::<String>()) }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_generic_row_witness",
+                                    "terrane_generic_row_witness::Row::decoded",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(value)
                 }
-            },
+            }(),
             14 /* terrane-site: src/main.trn:32:24-32:39 */,
         ),
     );

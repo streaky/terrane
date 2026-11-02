@@ -8,28 +8,44 @@ pub struct Holder {
 impl Holder {
     pub fn terrane_construct() -> Self {
         Self {
-            item: __terrane_raised(
-                make_non_clone(terrane_int_support::Int::from(7_i128)),
-                0 /* terrane-site: src/main.trn:6:20-6:37 */,
-            ),
+            item: {
+                let __terrane_conversion_input_0 = terrane_int_support::Int::from(
+                    7_i128,
+                );
+                __terrane_raised(
+                    make_non_clone(__terrane_conversion_input_0),
+                    0 /* terrane-site: src/main.trn:6:20-6:37 */,
+                )
+            },
         }
     }
     pub fn read(&self) -> terrane_int_support::Int {
         return __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| (&self.item).value()),
-            ) {
-                Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_nonclone_witness",
-                            "terrane_nonclone_witness::NonClone::value",
-                        ),
-                    )
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let value = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > { Ok((&self.item).value()) }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_nonclone_witness",
+                                    "terrane_nonclone_witness::NonClone::value",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<
+                        _,
+                        crate::TerraneForeignError,
+                    >(terrane_int_support::Int::from(i128::from(value)))
                 }
-            },
+            }(),
             1 /* terrane-site: src/main.trn:9:12-9:28 */,
         );
     }

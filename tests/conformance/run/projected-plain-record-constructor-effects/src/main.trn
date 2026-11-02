@@ -1,0 +1,77 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Mark, Count, Nested, mark_code, count_value, char_code, int_value
+from /deps/terrane-recursive-descriptor-witness import OptionalMark, mark_or_zero
+from /core/errors import coercion-error, integer-conversion-overflow, dependency-error
+from /deps/terrane-recursive-descriptor-witness/macros import native_int
+from /deps/terrane-recursive-descriptor-witness import nested_count
+from /core/collections import list
+function make-mark Mark; text string
+    return instance Mark; mark = text
+function make-count Count; value int
+    return instance Count; n = value
+function make-nested Nested; marks list of (string|none)
+    return instance Nested; marks = marks
+function empty-mark OptionalMark throws dependency-error;
+    return instance OptionalMark; mark = none
+function missing-label string;
+    throw coercion-error; 'source-label'
+function macro-value int; value int
+    return native_int; value
+async function main;
+    print; (mark_code; (make-mark; 'A'))
+    print; (count_value; (make-count; 42))
+    print; (mark_or_zero; (empty-mark;))
+    try
+        print; (char_code; 'ab')
+    catch coercion-error
+        print; 'parameter-coercion-caught'
+    try
+        print; (mark_code; (make-mark; 'ab'))
+    catch coercion-error
+        print; 'record-coercion-caught'
+    try
+        print; (count_value; (make-count; 9223372036854775807 * 4))
+    catch integer-conversion-overflow
+        print; 'record-overflow-caught'
+    try
+        print; (int_value; 9223372036854775807 * 4)
+    catch integer-conversion-overflow
+        print; 'parameter-overflow-caught'
+    empty = make-nested; (list; none)
+    print; (nested_count; empty)
+    try
+        print; (nested_count; (make-nested; (list; 'ab')))
+    catch coercion-error
+        print; 'nested-coercion-caught'
+    print; (mark_code; (make-mark; 'Z'))
+    print; (int_value; 9223372036854775807)
+    owner Count = make-count; 0
+    try
+        print; (owner.char_value; 'ab')
+    catch coercion-error
+        print; 'method-coercion-caught'
+    try
+        print; (owner.int_value; 9223372036854775807 * 4)
+    catch integer-conversion-overflow
+        print; 'method-overflow-caught'
+    try
+        print; (await owner.async_char; 'ab')
+    catch coercion-error
+        print; 'async-coercion-caught'
+    try
+        print; (await owner.async_int; 9223372036854775807 * 4)
+    catch integer-conversion-overflow
+        print; 'async-overflow-caught'
+    try
+        converted int = native_int; 9223372036854775807 * 4
+        print; converted
+    catch integer-conversion-overflow
+        print; 'macro-overflow-caught'
+    try
+        print; (mark_code; (instance Mark; mark = (missing-label;)))
+    catch coercion-error
+        print; 'source-error-caught'
+    try
+        print; (macro-value; 9223372036854775807 * 4)
+    catch integer-conversion-overflow
+        print; 'macro-helper-overflow-caught'
