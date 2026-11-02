@@ -52,6 +52,7 @@ mod reference_validation;
 mod selection;
 mod shared_reentry;
 mod shared_storage;
+mod source_associated;
 pub(crate) use namespaces::namespace_capabilities;
 
 #[cfg(test)]
@@ -137,7 +138,9 @@ pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_typ
 pub(crate) use objects::application_is_resource_owning;
 pub(crate) use objects::value_type_is_cloneable;
 pub(crate) use objects::{
-    EffectiveObjectField, bind_projected_requirement, destination_projected_type,
-    effective_object_fields, effective_object_interfaces, projected_owned_field_type,
+    EffectiveObjectField, bind_projected_requirement, canonicalize_native_value_type,
+    destination_projected_type, effective_object_fields, effective_object_interfaces,
+    projected_owned_field_type,
 };
+pub(crate) use types::reference_target_types_equal;
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

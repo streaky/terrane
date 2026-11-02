@@ -39,6 +39,9 @@ fn owned_address(input: String) -> u64 {
 fn identity(value: String) -> String {
     return value;
 }
+fn optional_rust(present: bool) -> Option<String> {
+    return if present { Some(String::from("optional")) } else { None };
+}
 fn main() {
     let input: String;
     let address: u64;
@@ -47,6 +50,10 @@ fn main() {
     let mut observed: String;
     let mut index: terrane_int_support::Int;
     let callback: std::sync::Arc<dyn Fn() -> String + Send + Sync>;
+    let optional: Option<String>;
+    let absent: Option<String>;
+    let direct: Option<String>;
+    let missing: Option<String>;
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&add(terrane_int_support::Int::from(20_i128),
@@ -93,4 +100,22 @@ fn main() {
     };
     println!("{}", terrane_scalar_support::scalar_text(&callback()));
     println!("{}", terrane_scalar_support::scalar_text(&callback()));
+    optional = optional_rust(true);
+    if (&optional).is_some() {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&match &optional { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
+        );
+    }
+    absent = None::<String>;
+    println!("{}", terrane_scalar_support::scalar_text(&(&absent).is_none()));
+    direct = Some(String::from("direct"));
+    if (&direct).is_some() {
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&match &direct { Some(value) =>
+            value, _ => unreachable!("flow-proven storage refinement") })
+        );
+    }
+    missing = optional_rust(false);
+    println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
 }

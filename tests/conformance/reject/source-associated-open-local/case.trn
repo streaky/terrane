@@ -1,0 +1,10 @@
+namespace app
+interface request
+    associated type response
+    function read response;
+class envelope of (T)
+    value T
+    function construct; initial T
+        this.value = move initial
+function main;
+    unassigned envelope of request

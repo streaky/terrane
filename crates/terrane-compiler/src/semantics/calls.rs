@@ -307,8 +307,14 @@ pub(super) fn validate_call_nodes<'a>(
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
                 let expected_type = match expected.value_type() {
-                    ValueType::Reference(inner) if inner.value_type_ref() == &actual => {
-                        inner.value_type()
+                    ValueType::Reference(inner)
+                        if super::types::reference_target_types_equal(
+                            package,
+                            inner.value_type_ref(),
+                            &actual,
+                        ) =>
+                    {
+                        actual.clone()
                     }
                     ValueType::MutableReference(_)
                         if matches!(actual, ValueType::MutableReference(_)) =>
@@ -1638,11 +1644,11 @@ fn validate_call_borrow_aliases(
 }
 
 fn validate_argument_destination(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
     value: &SyntaxNode,
     name: &str,
-    expected: &ValueType,
-    actual: &ValueType,
+    (expected, actual): (&ValueType, &ValueType),
     native_callback: bool,
     generic_bindings: &mut BTreeMap<String, ValueType>,
 ) -> Result<(), SemanticFailure> {
@@ -1659,7 +1665,53 @@ fn validate_argument_destination(
     {
         return Ok(());
     }
+    let canonical_callable_types = (expected != actual
+        && matches!(
+            expected,
+            ValueType::Function(..) | ValueType::AsyncFunction(..)
+        ))
+    .then(|| {
+        let mut expected = expected.clone();
+        let mut actual = actual.clone();
+        super::objects::canonicalize_native_value_type(package, &mut expected);
+        super::objects::canonicalize_native_value_type(package, &mut actual);
+        (expected, actual)
+    });
+    let (expected, actual) = canonical_callable_types
+        .as_ref()
+        .map_or((expected, actual), |(expected, actual)| (expected, actual));
     let validation_expected = match (expected, actual) {
+        (
+            ValueType::Reference(expected),
+            ValueType::Reference(actual)
+            | ValueType::MutableReference(actual)
+            | ValueType::SharedReference(actual),
+        ) if super::types::reference_target_types_equal(
+            package,
+            expected.value_type_ref(),
+            actual.value_type_ref(),
+        ) =>
+        {
+            ValueType::Reference(actual.clone())
+        }
+        (ValueType::MutableReference(expected), ValueType::MutableReference(actual))
+            if super::types::reference_target_types_equal(
+                package,
+                expected.value_type_ref(),
+                actual.value_type_ref(),
+            ) =>
+        {
+            ValueType::MutableReference(actual.clone())
+        }
+        (ValueType::SharedReference(expected), ValueType::SharedReference(actual))
+            if super::types::reference_target_types_equal(
+                package,
+                expected.value_type_ref(),
+                actual.value_type_ref(),
+            ) =>
+        {
+            ValueType::SharedReference(actual.clone())
+        }
         (
             ValueType::Reference(_) | ValueType::SharedReference(_),
             ValueType::Reference(_)
@@ -1667,8 +1719,16 @@ fn validate_argument_destination(
             | ValueType::SharedReference(_),
         )
         | (ValueType::MutableReference(_), ValueType::MutableReference(_)) => expected.clone(),
-        (ValueType::Reference(inner), _) if native_callback || inner.value_type_ref() == actual => {
-            inner.value_type()
+        (ValueType::Reference(inner), _) if native_callback => inner.value_type(),
+        (ValueType::Reference(inner), _)
+            if super::types::reference_target_types_equal(
+                package,
+                inner.value_type_ref(),
+                actual,
+            ) =>
+        {
+            // Alias facades can name the same proven native storage differently.
+            actual.clone()
         }
         (ValueType::MutableReference(inner) | ValueType::SharedReference(inner), _) => {
             inner.value_type()
@@ -1768,11 +1828,11 @@ pub(super) fn validate_call_arguments(
                     validate_mutable_reference_argument(package, unit, value, &actual)?;
                 }
                 validate_argument_destination(
+                    package,
                     unit,
                     value,
                     &parameter.name,
-                    &expected,
-                    &actual,
+                    (&expected, &actual),
                     native_callback,
                     &mut generic_bindings,
                 )?;
@@ -1890,51 +1950,22 @@ pub(crate) fn selected_callable_contract(
     } else {
         callee
     };
-    let contract = function_contract_for_call_with_safety(package, unit, designator, is_unsafe)?;
+    let Some(contract) =
+        function_contract_for_call_with_safety(package, unit, designator, is_unsafe)
+    else {
+        return (!is_unsafe)
+            .then(|| {
+                super::native_constructors::implicit_record_constructor(package, unit, designator)
+            })
+            .flatten();
+    };
     if contract.generic_parameters.is_empty() {
         if callee.kind == SyntaxKind::AppliedType {
             return None;
         }
-        let mut selected = contract.clone();
-        if callee.kind == SyntaxKind::ConstructionExpression
-            && let Some(ValueType::Object(identity)) =
-                infer_value_type(unit, call, &unit.typed_bindings)
-                    .ok()
-                    .flatten()
-            && let Some(descriptor) = unit
-                .descriptors
-                .iter()
-                .find(|item| item.identity.base() == identity.base())
-        {
-            let substitutions = descriptor
-                .generic_parameters
-                .iter()
-                .zip(&identity.type_arguments)
-                .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
-                .collect();
-            for parameter in &mut selected.parameters {
-                parameter.value_type = parameter
-                    .value_type
-                    .as_ref()
-                    .map(|value_type| substitute_value_type(value_type, &substitutions));
-            }
-            selected.return_type = Some(ValueType::Object(identity));
-        }
-        if callee.kind == SyntaxKind::MemberExpression
-            && let Some(
-                ValueType::Function(parameters, result, _)
-                | ValueType::AsyncFunction(parameters, result, _, _),
-            ) = infer_member_value_type(unit, callee, &unit.typed_bindings)
-                .ok()
-                .flatten()
-        {
-            for (parameter, callable) in selected.parameters.iter_mut().zip(parameters) {
-                parameter.value_type = Some(callable.value_type());
-            }
-            selected.return_type = Some(result.value_type());
-        }
-        canonicalize_selected_contract(package, &mut selected);
-        return Some(selected);
+        return Some(close_non_generic_contract(
+            package, unit, call, callee, contract,
+        ));
     }
     let (mut selected, substitutions) = super::generics::select_unit_callable_contract(
         Some(package),
@@ -1971,6 +2002,55 @@ pub(crate) fn selected_callable_contract(
     }
     canonicalize_selected_contract(package, &mut selected);
     Some(selected)
+}
+
+fn close_non_generic_contract(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    call: &SyntaxNode,
+    callee: &SyntaxNode,
+    contract: &FunctionContract,
+) -> FunctionContract {
+    let mut selected = contract.clone();
+    if callee.kind == SyntaxKind::ConstructionExpression
+        && let Some(ValueType::Object(identity)) =
+            infer_value_type(unit, call, &unit.typed_bindings)
+                .ok()
+                .flatten()
+        && let Some(descriptor) = unit
+            .descriptors
+            .iter()
+            .find(|item| item.identity.base() == identity.base())
+    {
+        let substitutions = descriptor
+            .generic_parameters
+            .iter()
+            .zip(&identity.type_arguments)
+            .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
+            .collect();
+        for parameter in &mut selected.parameters {
+            parameter.value_type = parameter
+                .value_type
+                .as_ref()
+                .map(|value_type| substitute_value_type(value_type, &substitutions));
+        }
+        selected.return_type = Some(ValueType::Object(identity));
+    }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let Some(
+            ValueType::Function(parameters, result, _)
+            | ValueType::AsyncFunction(parameters, result, _, _),
+        ) = infer_member_value_type(unit, callee, &unit.typed_bindings)
+            .ok()
+            .flatten()
+    {
+        for (parameter, callable) in selected.parameters.iter_mut().zip(parameters) {
+            parameter.value_type = Some(callable.value_type());
+        }
+        selected.return_type = Some(result.value_type());
+    }
+    canonicalize_selected_contract(package, &mut selected);
+    selected
 }
 
 // A closed native adapter can supply an exclusive input even when the generic

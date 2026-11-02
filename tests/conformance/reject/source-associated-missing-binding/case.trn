@@ -1,0 +1,9 @@
+namespace source-associated-missing-binding
+
+interface request
+    associated type response
+    function dispatch response;
+
+class incomplete implements request
+    function dispatch int;
+        return 1

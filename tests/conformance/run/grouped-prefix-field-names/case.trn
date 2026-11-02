@@ -1,0 +1,19 @@
+namespace app
+class direct
+    ref (int|none) = none
+    not ((bool|none)) = none
+    move (string|none) = none
+trait fields
+    ref (int|none) = none
+    not ((bool|none)) = none
+    move (string|none) = none
+class composed uses fields
+function main;
+    first = instance direct;
+    second = instance composed;
+    print; first.ref
+    print; first.not
+    print; first.move
+    print; second.ref
+    print; second.not
+    print; second.move

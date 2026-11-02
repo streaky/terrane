@@ -37,6 +37,16 @@ impl Emitter<'_> {
         destination: ScalarType,
     ) -> String {
         let value = self.receiver_expression(node);
+        self.numeric_destination_value(node, &value, source, destination)
+    }
+
+    pub(super) fn numeric_destination_value(
+        &self,
+        node: &SyntaxNode,
+        value: &str,
+        source: ScalarType,
+        destination: ScalarType,
+    ) -> String {
         if destination == ScalarType::Int {
             if matches!(source, ScalarType::Float32 | ScalarType::Float64) {
                 let helper = if source == ScalarType::Float32 {

@@ -1,0 +1,24 @@
+namespace grouped-initializer-free-types
+
+class direct
+    slot (int | none)
+
+trait nullable-slot
+    slot (int | none)
+
+class composed uses nullable-slot
+
+function main;
+    first = instance direct;
+    second = instance composed;
+    print; first.slot
+    print; second.slot
+    local (int | none)
+    local = 3
+    print; local
+    local = none
+    print; local
+    first.slot = 5
+    second.slot = 7
+    print; first.slot
+    print; second.slot

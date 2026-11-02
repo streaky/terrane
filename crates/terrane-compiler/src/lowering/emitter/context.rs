@@ -1652,6 +1652,27 @@ impl<'unit> Emitter<'unit> {
         self.line(&format!("__terrane_debug_point!({comment:?});"));
     }
 
+    pub(super) fn narrowed_optional_reference(&self, node: &SyntaxNode) -> bool {
+        let key = (node.span.file, node.span.start, node.span.end);
+        let Some(identity) = self.unit.flow_binding_ids.get(&key) else {
+            return false;
+        };
+        let physical = self.unit.flow_binding_types.get(identity).or_else(|| {
+            self.unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == *identity)
+                .map(|binding| &binding.value_type)
+        });
+        let (Some(ValueType::Reference(physical)), Some(ValueType::Reference(present))) =
+            (physical, self.unit.flow_types.get(&key))
+        else {
+            return false;
+        };
+        matches!(physical.value_type_ref(), ValueType::Optional(inner)
+            if inner.as_ref() == present.value_type_ref())
+    }
+
     fn storage_refinement(&self, node: &SyntaxNode) -> Option<(&ValueType, String)> {
         let key = (node.span.file, node.span.start, node.span.end);
         let identity = *self.unit.flow_binding_ids.get(&key)?;
@@ -1686,6 +1707,11 @@ impl<'unit> Emitter<'unit> {
         guard: &str,
         mutable: bool,
     ) -> Option<String> {
+        if self.narrowed_optional_reference(node) {
+            return Some(format!(
+                "({guard}).as_ref().expect(\"semantic optional narrowing\")"
+            ));
+        }
         let (_, variant) = self.storage_refinement(node)?;
         let access = format!("&{}*{guard}", if mutable { "mut " } else { "" });
         Some(Self::storage_refinement_expression(&access, &variant))
@@ -1699,6 +1725,14 @@ impl<'unit> Emitter<'unit> {
     ) -> Option<String> {
         if self.assignment_target {
             return None;
+        }
+        if self.narrowed_optional_reference(node) {
+            return (!self.reference_uses_shared_storage(node)).then(|| {
+                format!(
+                    "({}).as_ref().expect(\"semantic optional narrowing\")",
+                    self.local_storage_name(node)
+                )
+            });
         }
         let (value_type, variant) = self.storage_refinement(node)?;
         let shared = self

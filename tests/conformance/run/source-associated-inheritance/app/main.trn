@@ -1,0 +1,19 @@
+namespace app
+from /contract import base, generic, operation
+
+class selected extends base
+    function echo response; value response
+        return move value
+
+function through-interface int; value operation of int
+    return value.dispatch; 13
+
+function main;
+    value = instance selected;
+    print; (value.dispatch; 11)
+    print; (value.echo; 12)
+    print; (selected::associated-value;)
+    closed operation of int = value
+    print; (through-interface; closed)
+    generic = instance generic; 14
+    print; (generic.dispatch; 15)

@@ -185,7 +185,14 @@ fn project_interface_inner(
             .map(|associated| {
                 BTreeMap::from([(
                     format!("Self::{}", associated.name),
-                    ProjectedType::Associated(format!("Self::{}", associated.name)),
+                    ProjectedType::Associated(super::ProjectedAssociatedTypeRef {
+                        owner: "Self".to_owned(),
+                        owner_type: None,
+                        owner_arguments: Vec::new(),
+                        trait_rust_path: Some(rust_path.to_owned()),
+                        trait_arguments: Vec::new(),
+                        member: associated.name.clone(),
+                    }),
                 )])
             })
             .unwrap_or_default();

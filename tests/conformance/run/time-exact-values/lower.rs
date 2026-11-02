@@ -82,7 +82,10 @@ fn main() {
         terrane_int_support::Int::from(0_i128))),
         terrane_scalar_support::scalar_text(&(wall.nanoseconds.clone() <
         terrane_int_support::Int::from(1000000000_i128))),
-        terrane_scalar_support::scalar_text(&(before <= after)),
+        terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left = &before;
+        let __terrane_comparison_right = &after; < MonotonicInstant as
+        std::cmp::PartialOrd > ::le(__terrane_comparison_left,
+        __terrane_comparison_right) }),
         terrane_scalar_support::scalar_text(&(__terrane_traced(before
         .duration_until(&after), 7 /* terrane-site: case.trn:24:84-24:112 */)
         .total_nanoseconds.clone() >= terrane_int_support::Int::from(0_i128)))

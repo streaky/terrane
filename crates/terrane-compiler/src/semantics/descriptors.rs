@@ -356,6 +356,7 @@ fn contract(
         base: None,
         interfaces: Vec::new(),
         traits: Vec::new(),
+        associated_types: Vec::new(),
         fields: Vec::new(),
     }
 }

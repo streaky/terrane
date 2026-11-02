@@ -1,0 +1,13 @@
+namespace app
+owning interface provider
+    associated type response
+    function read response;
+class concrete implements provider
+    associated type response = int
+    function read response;
+        return 1
+function main;
+    original provider of int = instance concrete;
+    transferred = original
+    print; (original.read;)
+    print; (transferred.read;)

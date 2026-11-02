@@ -120,6 +120,7 @@ fn direct_target_no_collision() {
                 "upstream::open",
             )],
             declined: Vec::new(),
+            associated_implementations: Vec::new(),
             partial_declines: Vec::new(),
         },
         ProjectedDependency {
@@ -133,6 +134,7 @@ fn direct_target_no_collision() {
                 "adapter::upstream::open",
             )],
             declined: Vec::new(),
+            associated_implementations: Vec::new(),
             partial_declines: Vec::new(),
         },
     ];

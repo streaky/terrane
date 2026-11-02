@@ -229,15 +229,78 @@ pub(super) fn project_invocation_scoped_type(
     })
 }
 
-fn concrete_associated_type(
-    owner: &ProjectedType,
+#[derive(Clone, Copy, Default)]
+struct AssociatedTypeContext<'a> {
+    active: Option<&'a AssociatedTypeResolution<'a>>,
+    retain_template: bool,
+}
+
+/// Borrowed query ancestry keeps recursive Rustdoc equations bounded without
+/// allocating a second owner graph or imposing an arbitrary nesting limit.
+struct AssociatedTypeResolution<'a> {
+    owner: &'a ProjectedType,
+    trait_: Option<&'a RustdocPath>,
+    name: &'a str,
+    parent: Option<&'a AssociatedTypeResolution<'a>>,
+}
+
+fn ensure_nonrecursive_associated_query(
+    query: &AssociatedTypeResolution<'_>,
+) -> Result<(), String> {
+    let mut ancestor = query.parent;
+    while let Some(previous) = ancestor {
+        if previous.owner == query.owner
+            && previous.name == query.name
+            && previous.trait_.map(|path| path.id) == query.trait_.map(|path| path.id)
+        {
+            return Err(format!(
+                "recursive concrete associated type `{}`",
+                query.name
+            ));
+        }
+        ancestor = previous.parent;
+    }
+    Ok(())
+}
+
+fn concrete_owner_item<'a>(
     owner_id: Option<&Id>,
-    trait_: Option<&RustdocPath>,
-    name: &str,
+    base_rust_path: &str,
+    index: &'a HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Option<&'a Item> {
+    if let Some(id) = owner_id {
+        return index.get(id);
+    }
+    // A substituted owner has no Rustdoc Id. Require a unique canonical path.
+    let mut matches = paths.iter().filter(|(_, summary)| {
+        summary
+            .path
+            .iter()
+            .map(String::as_str)
+            .eq(base_rust_path.split("::"))
+    });
+    let (id, _) = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    index.get(id)
+}
+
+fn concrete_associated_type(
+    query: &AssociatedTypeResolution<'_>,
+    owner_id: Option<&Id>,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<Option<ProjectedType>, String> {
+    let AssociatedTypeResolution {
+        owner,
+        trait_,
+        name,
+        ..
+    } = *query;
+    ensure_nonrecursive_associated_query(query)?;
     let ProjectedType::Foreign {
         base_rust_path,
         arguments,
@@ -246,27 +309,7 @@ fn concrete_associated_type(
     else {
         return Ok(None);
     };
-    let item = if let Some(id) = owner_id {
-        index.get(id)
-    } else {
-        // Generic substitution carries the canonical rendered owner but not its Rustdoc Id.
-        // Require a unique segment-wise path match; never select an arbitrary HashMap entry.
-        let mut matches = paths.iter().filter(|(_, summary)| {
-            summary
-                .path
-                .iter()
-                .map(String::as_str)
-                .eq(base_rust_path.split("::"))
-        });
-        let Some((id, _)) = matches.next() else {
-            return Ok(None);
-        };
-        if matches.next().is_some() {
-            return Ok(None);
-        }
-        index.get(id)
-    };
-    let Some(item) = item else {
+    let Some(item) = concrete_owner_item(owner_id, base_rust_path, index, paths) else {
         return Ok(None);
     };
 
@@ -301,9 +344,18 @@ fn concrete_associated_type(
                     .as_ref()
                     .is_none_or(|candidate| candidate.id != trait_.id)
             })
-            || project_type(&implementation.for_, index, paths, &concrete)
-                .ok()
-                .as_ref()
+            || project_type_with_context(
+                &implementation.for_,
+                index,
+                paths,
+                &concrete,
+                AssociatedTypeContext {
+                    active: Some(query),
+                    retain_template: false,
+                },
+            )
+            .ok()
+            .as_ref()
                 != Some(owner)
         {
             continue;
@@ -323,7 +375,16 @@ fn concrete_associated_type(
             if candidate != name {
                 continue;
             }
-            let value = project_type(value, index, paths, &concrete)?;
+            let value = project_type_with_context(
+                value,
+                index,
+                paths,
+                &concrete,
+                AssociatedTypeContext {
+                    active: Some(query),
+                    retain_template: false,
+                },
+            )?;
             if result.as_ref().is_some_and(|previous| previous != &value) {
                 return Err(format!("ambiguous concrete associated type `{name}`"));
             }
@@ -333,6 +394,56 @@ fn concrete_associated_type(
     Ok(result)
 }
 
+fn project_associated_template(
+    self_type: &Type,
+    name: &str,
+    trait_: Option<&RustdocPath>,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    context: AssociatedTypeContext<'_>,
+) -> Result<ProjectedType, String> {
+    let (owner, owner_arguments) = if matches!(self_type, Type::Generic(owner) if owner == "Self") {
+        ("Self".to_owned(), Vec::new())
+    } else {
+        match project_type_with_context(self_type, index, paths, generics, context)? {
+            ProjectedType::Generic(owner) => (owner, Vec::new()),
+            ProjectedType::Foreign {
+                base_rust_path,
+                arguments,
+                ..
+            } => (base_rust_path, arguments),
+            _ => return Err("associated owner has no retained nominal identity".to_owned()),
+        }
+    };
+    let trait_arguments = trait_.map_or_else(
+        || Ok(Vec::new()),
+        |trait_| {
+            super::callable::resolved_path_type_arguments(trait_)
+                .into_iter()
+                .map(|argument| {
+                    project_type_with_context(argument, index, paths, generics, context)
+                })
+                .collect::<Result<Vec<_>, _>>()
+        },
+    )?;
+    Ok(ProjectedType::Associated(
+        super::ProjectedAssociatedTypeRef {
+            owner,
+            owner_type: match self_type {
+                Type::BorrowedRef { .. } => Some(Box::new(super::items::project_owner_template(
+                    self_type, index, paths, generics,
+                )?)),
+                _ => None,
+            },
+            owner_arguments,
+            trait_rust_path: trait_.map(|path| resolved_path_name(path, paths)),
+            trait_arguments,
+            member: name.to_owned(),
+        },
+    ))
+}
+
 fn project_associated_owner(
     self_type: &Type,
     name: &str,
@@ -340,25 +451,75 @@ fn project_associated_owner(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
+    active: AssociatedTypeContext<'_>,
 ) -> Result<ProjectedType, String> {
+    if active.retain_template {
+        return project_associated_template(
+            self_type, name, trait_, index, paths, generics, active,
+        );
+    }
     if let Type::Generic(owner) = self_type
         && let Some(concrete) = generics.get(owner)
     {
         if let Some(associated) = generics.get(&format!("{owner}::{name}")) {
             return Ok(associated.clone());
         }
-        return Ok(
-            concrete_associated_type(concrete, None, trait_, name, index, paths, generics)?
-                .unwrap_or_else(|| ProjectedType::Associated(format!("{owner}::{name}"))),
-        );
+        if let Some(associated) = concrete_associated_type(
+            &AssociatedTypeResolution {
+                owner: concrete,
+                trait_,
+                name,
+                parent: active.active,
+            },
+            None,
+            index,
+            paths,
+            generics,
+        )? {
+            return Ok(associated);
+        }
+        let trait_identity = trait_.and_then(|trait_| {
+            let path = paths.get(&trait_.id)?.path.join("::");
+            let arguments = super::callable::resolved_path_type_arguments(trait_)
+                .into_iter()
+                .map(|argument| project_type_with_context(argument, index, paths, generics, active))
+                .collect::<Result<Vec<_>, _>>()
+                .ok()?;
+            Some((path, arguments))
+        });
+        return Ok(ProjectedType::Associated(
+            super::ProjectedAssociatedTypeRef {
+                owner: if let ProjectedType::Generic(selected) = concrete {
+                    selected.clone()
+                } else {
+                    owner.clone()
+                },
+                owner_type: None,
+                owner_arguments: Vec::new(),
+                trait_rust_path: trait_identity.as_ref().map(|(path, _)| path.clone()),
+                trait_arguments: trait_identity.map_or_else(Vec::new, |(_, arguments)| arguments),
+                member: name.to_owned(),
+            },
+        ));
     }
     let owner_id = match self_type {
         Type::ResolvedPath(owner) => Some(&owner.id),
         _ => None,
     };
-    let owner = project_type(self_type, index, paths, generics)?;
-    concrete_associated_type(&owner, owner_id, trait_, name, index, paths, generics)?
-        .ok_or_else(|| format!("concrete associated type `{name}` could not be resolved"))
+    let owner = project_type_with_context(self_type, index, paths, generics, active)?;
+    concrete_associated_type(
+        &AssociatedTypeResolution {
+            owner: &owner,
+            trait_,
+            name,
+            parent: active.active,
+        },
+        owner_id,
+        index,
+        paths,
+        generics,
+    )?
+    .ok_or_else(|| format!("concrete associated type `{name}` could not be resolved"))
 }
 
 pub(super) fn project_type(
@@ -367,8 +528,40 @@ pub(super) fn project_type(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
+    project_type_with_context(ty, index, paths, generics, AssociatedTypeContext::default())
+}
+
+/// Retain equations during recipe collection; resolving them while discovering
+/// the impl graph can recurse through blanket impls before bounds are known.
+pub(super) fn project_type_template(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    project_type_with_context(
+        ty,
+        index,
+        paths,
+        generics,
+        AssociatedTypeContext {
+            retain_template: true,
+            ..AssociatedTypeContext::default()
+        },
+    )
+}
+
+fn project_type_with_context(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    active: AssociatedTypeContext<'_>,
+) -> Result<ProjectedType, String> {
     match ty {
-        Type::BorrowedRef { type_, .. } => project_type(type_, index, paths, generics),
+        Type::BorrowedRef { type_, .. } => {
+            project_type_with_context(type_, index, paths, generics, active)
+        }
         Type::Generic(generic) => generics.get(generic).cloned().ok_or_else(|| {
             if generic == "Self" {
                 "receiver type used outside receiver position".to_owned()
@@ -392,7 +585,7 @@ pub(super) fn project_type(
         Type::Tuple(types) => {
             let items = types
                 .iter()
-                .map(|item| project_type(item, index, paths, generics))
+                .map(|item| project_type_with_context(item, index, paths, generics, active))
                 .collect::<Result<Vec<_>, _>>()?;
             if items.windows(2).any(|pair| pair[0] != pair[1]) {
                 return Err("heterogeneous tuple has no Terrane tuple representation".to_owned());
@@ -402,13 +595,14 @@ pub(super) fn project_type(
         Type::FunctionPointer(function) if !function.generic_params.is_empty() => {
             Err("higher-ranked function type is not projectable".to_owned())
         }
-        Type::ResolvedPath(path) => project_resolved_type(ty, path, index, paths, generics),
+        Type::ResolvedPath(path) => project_resolved_type(ty, path, index, paths, generics, active),
         Type::QualifiedPath {
             name,
             args,
             self_type,
             ..
         } if args.is_none()
+            && !active.retain_template
             && matches!(self_type.as_ref(), Type::Generic(self_) if self_ == "Self") =>
         {
             generics
@@ -422,7 +616,15 @@ pub(super) fn project_type(
             self_type,
             trait_,
             ..
-        } => project_associated_owner(self_type, name, trait_.as_ref(), index, paths, generics),
+        } => project_associated_owner(
+            self_type,
+            name,
+            trait_.as_ref(),
+            index,
+            paths,
+            generics,
+            active,
+        ),
         Type::ImplTrait(bounds) => Ok(ProjectedType::Opaque {
             anonymous_chain: bounds.iter().any(|bound| {
                 trait_bound_name(bound).is_some_and(|(path, _)| {
@@ -579,6 +781,7 @@ fn project_resolved_type(
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
+    active: AssociatedTypeContext<'_>,
 ) -> Result<ProjectedType, String> {
     if let Some(Item {
         inner: ItemEnum::TypeAlias(alias),
@@ -587,7 +790,7 @@ fn project_resolved_type(
     {
         let substitutions =
             alias_type_substitutions(ty, &alias.generics.params, index, paths, generics)?;
-        return project_type(&alias.type_, index, paths, &substitutions);
+        return project_type_with_context(&alias.type_, index, paths, &substitutions, active);
     }
     let resolved = resolved_path_name(path, paths);
     if matches!(
@@ -604,9 +807,9 @@ fn project_resolved_type(
         let inner = arguments
             .first()
             .ok_or_else(|| "Option has no value type".to_owned())?;
-        return Ok(ProjectedType::Optional(Box::new(project_type(
-            inner, index, paths, generics,
-        )?)));
+        return Ok(ProjectedType::Optional(Box::new(
+            project_type_with_context(inner, index, paths, generics, active)?,
+        )));
     }
     let boxed = matches!(resolved.as_str(), "alloc::boxed::Box" | "std::boxed::Box");
     if boxed && arguments.is_empty() {
@@ -635,7 +838,7 @@ fn project_resolved_type(
         let item = arguments
             .first()
             .ok_or_else(|| "Vec has no item type".to_owned())?;
-        let item = project_type(item, index, paths, generics)?;
+        let item = project_type_with_context(item, index, paths, generics, active)?;
         if item == ProjectedType::RustInt("u8".to_owned()) {
             return Ok(ProjectedType::Bytes);
         }
@@ -656,14 +859,16 @@ fn project_resolved_type(
         let [key, value] = arguments.as_slice() else {
             return Err("map type does not have exactly two type arguments".to_owned());
         };
-        let key = project_type(key, index, paths, generics)?;
+        let key = project_type_with_context(key, index, paths, generics, active)?;
         if !key.is_terrane_scalar() {
             return Err("map key is not a Terrane scalar".to_owned());
         }
         return Ok(ProjectedType::Mapping {
             rust_path,
             key: Box::new(key),
-            value: Box::new(project_type(value, index, paths, generics)?),
+            value: Box::new(project_type_with_context(
+                value, index, paths, generics, active,
+            )?),
             ordered: resolved.contains("BTree"),
         });
     }
@@ -677,7 +882,7 @@ fn project_resolved_type(
         let item = arguments
             .first()
             .ok_or_else(|| "set has no item type".to_owned())?;
-        let item = project_type(item, index, paths, generics)?;
+        let item = project_type_with_context(item, index, paths, generics, active)?;
         if !item.is_terrane_scalar() {
             return Err("set item is not a Terrane scalar".to_owned());
         }
@@ -699,7 +904,7 @@ fn project_resolved_type(
         .to_owned();
     let mut projected_arguments = arguments
         .into_iter()
-        .map(|argument| project_type(argument, index, paths, generics))
+        .map(|argument| project_type_with_context(argument, index, paths, generics, active))
         .collect::<Result<Vec<_>, _>>()?;
     let mut substitutions = generics.clone();
     if let Some(declaration_generics) = nominal_generics(index.get(&path.id)) {
@@ -719,7 +924,8 @@ fn project_resolved_type(
             else {
                 break;
             };
-            let argument = project_type(default, index, paths, &substitutions)?;
+            let argument =
+                project_type_with_context(default, index, paths, &substitutions, active)?;
             substitutions.insert(parameter.name.clone(), argument.clone());
             projected_arguments.push(argument);
         }

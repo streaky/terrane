@@ -31,6 +31,10 @@ function owned-address uint64; input string
 function identity string; value string
   return value
 
+function optional-rust string|none; present bool
+  return rust
+    if present { Some(String::from("optional")) } else { None }
+
 function main;
   print; (add; 20, 22)
   print; (inspect-pointer;)
@@ -55,3 +59,15 @@ function main;
       value
   print; (callback;)
   print; (callback;)
+  optional = optional-rust; true
+  if optional != none
+    print; optional
+  absent string|none = rust
+    None::<String>
+  print; absent == none
+  direct string|none = rust
+    Some(String::from("direct"))
+  if direct != none
+    print; direct
+  missing = optional-rust; false
+  print; missing == none

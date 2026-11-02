@@ -3,7 +3,7 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let mut response: Response;
+    let mut response: reqwest::blocking::Response;
     let response_status: StatusCode;
     let body: String;
     response = __terrane_raised(

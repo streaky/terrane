@@ -1,0 +1,10 @@
+namespace app
+function inspect; value ref (float|none)
+    return
+function maybe int|none; present bool
+    if present
+        return 1
+    return none
+function main;
+    value = maybe; true
+    inspect; value

@@ -1697,6 +1697,14 @@ pub struct GenericParameterContract {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AssociatedTypeContract {
+    pub name: String,
+    pub span: Span,
+    pub value_type: Option<ValueType>,
+    pub owner: ObjectIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DescriptorContract {
     /// Name visible in this unit; imported contracts carry their local alias here.
     pub name: String,
@@ -1720,6 +1728,7 @@ pub struct DescriptorContract {
     pub interfaces: Vec<ObjectIdentity>,
     pub traits: Vec<ObjectIdentity>,
     pub fields: Vec<ObjectField>,
+    pub associated_types: Vec<AssociatedTypeContract>,
 }
 
 #[expect(
@@ -2174,6 +2183,25 @@ impl SemanticUnit {
             })
             .min_by_key(|(length, _)| *length)
             .map(|(_, parameter)| parameter)
+    }
+    pub(crate) fn associated_type_at(
+        &self,
+        position: usize,
+        name: &str,
+    ) -> Option<&AssociatedTypeContract> {
+        self.descriptors
+            .iter()
+            .filter(|descriptor| {
+                descriptor.span.file == self.source.id()
+                    && descriptor.span.start <= position
+                    && position < descriptor.span.end
+            })
+            .find_map(|descriptor| {
+                descriptor
+                    .associated_types
+                    .iter()
+                    .find(|slot| slot.name == name)
+            })
     }
 
     /// Returns the compiler-resolved value type for an expression when it is statically known.

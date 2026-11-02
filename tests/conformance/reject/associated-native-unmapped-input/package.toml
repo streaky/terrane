@@ -1,0 +1,11 @@
+package = "associated-native-unmapped-input"
+[namespaces]
+app = "src"
+[rust-dependencies.witness]
+package = "terrane-associated-call"
+version = "=0.1.0"
+effects = ["build"]
+[rust-dependencies.protocol]
+package = "terrane-associated-protocol"
+version = "=0.1.0"
+effects = ["build"]

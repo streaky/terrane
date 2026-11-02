@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-native-record import Record
+function main;
+    item = instance Record; misspelled = 42
+    print; item.value

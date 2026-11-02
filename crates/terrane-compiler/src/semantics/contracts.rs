@@ -444,7 +444,8 @@ pub(super) fn analyze_function_contract(
             node.span,
         ));
     }
-    let generic_parameters = super::generics::generic_parameters(unit, node, aliases)?;
+    let generic_parameters =
+        super::generics::generic_parameters(unit, node, aliases, &BTreeMap::new())?;
     let return_type = node
         .children
         .iter()

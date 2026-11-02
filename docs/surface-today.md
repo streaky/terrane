@@ -1116,6 +1116,12 @@ arguments deferred pending an explicit Rust boundary conversion contract. That a
 identity is retained recursively through permitted aggregate and optional annotations, reflection,
 conformance, generic and erased Rust crossings, and generated associated-type declarations.
 Grouping places optionality outside an application: `(Interface of ConcreteType)|none`.
+Authored source interfaces may declare associated types, and implementing classes provide bindings.
+Multiple slots are supported; one class binding satisfies same-named slots declared by every
+implemented interface. Associated names may be used in interface method signatures and method-body
+local bindings, but are not currently available as class field types. Authored owning interfaces
+retain ownership when erased; this source-interface contract is distinct from projected Rust
+interfaces, whose associated-type projection remains limited to one explicitly closed slot.
 Independently projectable supertraits form a recursive, diamond-safe requirement and implementation
 closure. Bare or inferred applications,
 source-class arguments, multiple or generic associated slots, failed bounds, incoherent erased

@@ -54,12 +54,28 @@ impl Emitter<'_> {
                 crate::semantics::destination_projected_type(self.package, application)
                     .expect("validated projected associated type")
             });
-        if let Some(application) = &associated_application {
+        if let (Some(application), Some(associated)) =
+            (&associated_application, interface.associated_type.as_ref())
+        {
+            let reference = crate::rust_interop::projection::ProjectedAssociatedTypeRef {
+                owner: "Self".to_owned(),
+                owner_type: None,
+                owner_arguments: Vec::new(),
+                trait_rust_path: associated
+                    .rust_path
+                    .rsplit_once("::")
+                    .map(|(owner, _)| owner.to_owned()),
+                trait_arguments: Vec::new(),
+                member: associated.name.clone(),
+            };
             for method in &mut interface.methods {
                 for parameter in &mut method.function.parameters {
-                    parameter.ty.bind_associated(application);
+                    parameter.ty.bind_associated(&reference, application);
                 }
-                method.function.result.bind_associated(application);
+                method
+                    .function
+                    .result
+                    .bind_associated(&reference, application);
             }
         }
         let generic_bounds = interface.associated_type.as_ref().map(|associated| {

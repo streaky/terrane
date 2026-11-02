@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import denied, execute
+function main;
+    input = denied;
+    execute; input

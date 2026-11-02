@@ -1,0 +1,4 @@
+package = "source-associated-imported-generic"
+[namespaces]
+app = "app"
+contract = "contract"

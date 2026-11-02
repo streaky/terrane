@@ -11,6 +11,104 @@ pub(crate) use free_values::{
     rust_free_value_identifiers, rust_mutably_borrowed_value_identifiers,
 };
 
+pub(crate) fn is_rust_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "abstract"
+            | "as"
+            | "async"
+            | "await"
+            | "become"
+            | "box"
+            | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "do"
+            | "dyn"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "final"
+            | "fn"
+            | "for"
+            | "gen"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "macro"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "override"
+            | "priv"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "try"
+            | "type"
+            | "typeof"
+            | "unsafe"
+            | "unsized"
+            | "use"
+            | "virtual"
+            | "where"
+            | "while"
+            | "yield"
+    )
+}
+
+/// Native member names retain Rust spelling, unlike mangled Terrane names.
+/// Tuple indexes and existing raw identifiers need no additional transformation.
+pub(crate) fn native_member_name(name: &str) -> std::borrow::Cow<'_, str> {
+    if is_rust_keyword(name) {
+        std::borrow::Cow::Owned(format!("r#{name}"))
+    } else {
+        std::borrow::Cow::Borrowed(name)
+    }
+}
+
+pub(crate) fn rust_associated_type_bound(
+    trait_path: &str,
+    arguments: impl IntoIterator<Item = String>,
+    member: &str,
+    result: &str,
+) -> Option<String> {
+    let mut path = syn::parse_str::<syn::Path>(trait_path).ok()?;
+    let segment = path.segments.last_mut()?;
+    if !matches!(segment.arguments, syn::PathArguments::None) {
+        return None;
+    }
+    let mut args = syn::punctuated::Punctuated::new();
+    for argument in arguments {
+        args.push(syn::GenericArgument::Type(syn::parse_str(&argument).ok()?));
+    }
+    args.push(syn::GenericArgument::AssocType(syn::AssocType {
+        ident: syn::parse_str(member).ok()?,
+        generics: None,
+        eq_token: syn::token::Eq::default(),
+        ty: syn::parse_str(result).ok()?,
+    }));
+    segment.arguments = syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: syn::token::Lt::default(),
+        args,
+        gt_token: syn::token::Gt::default(),
+    });
+    Some(path.to_token_stream().to_string())
+}
+
 /// Derives an operation label from a Rust path, including UFCS receiver paths.
 pub(crate) fn rust_callable_origin(rust: &str) -> Option<(String, String)> {
     let (receiver, mut path) = syn::parse_str::<syn::ExprPath>(rust)

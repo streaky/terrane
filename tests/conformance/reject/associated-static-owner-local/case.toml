@@ -1,0 +1,4 @@
+phase = "check"
+entrypoint = "package.toml"
+status = "reject"
+code = "T0119"

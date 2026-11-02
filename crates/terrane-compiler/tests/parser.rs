@@ -242,6 +242,94 @@ fn calls_distinguish_names_zero_arguments_and_grouped_nesting() {
 }
 
 #[test]
+fn grouped_binding_lookahead_requires_type_evidence() {
+    for source in [
+        "function main;\n  show(5)\n",
+        "function main;\n  show (6)\n",
+        "function main;\n  show ('value')\n",
+    ] {
+        let source = SourceFile::new(0, "case.trn".into(), source.to_owned());
+        let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+        assert_eq!(diagnostics[0].code, "S1025");
+    }
+
+    for source in [
+        "class record\n  value (string | none)\n",
+        "trait record\n  value (string | none)\n",
+        "function main;\n  value (string | none)\n  value = none\n",
+        "function main;\n  value ((string | none))",
+        "function main;\n  value (string | none) = none\n",
+    ] {
+        let tree = parse_source(source);
+        assert!(contains(&tree.root, SyntaxKind::Binding));
+        assert!(contains(&tree.root, SyntaxKind::UnionType));
+    }
+
+    // Identifier-only groups can be nominal types, not call arguments: Terrane
+    // calls use `;`, so syntax must leave descriptor resolution to semantics.
+    let tree = parse_source("class value\nfunction main;\n  show (value)\n");
+    assert!(contains(&tree.root, SyntaxKind::Binding));
+}
+
+#[test]
+fn grouped_prefix_statements_remain_expressions() {
+    for operator in ["move", "not", "ref", "await"] {
+        let tree = parse_source(&format!("{operator} (value)\n"));
+        assert_eq!(tree.root.children[0].kind, SyntaxKind::UnaryExpression);
+        assert!(!contains(&tree.root, SyntaxKind::Binding));
+    }
+}
+
+#[test]
+fn initialized_grouped_prefix_names_are_declarations() {
+    for scope in ["class record", "trait record", "function main;"] {
+        for name in ["ref", "not", "move"] {
+            let tree = parse_source(&format!("{scope}\n  {name} ((int | none)) = none\n"));
+            assert!(contains(&tree.root, SyntaxKind::Binding));
+            assert!(!contains(&tree.root, SyntaxKind::Assignment));
+        }
+    }
+}
+
+#[test]
+fn object_bodies_reject_executable_statements() {
+    for scope in ["class record", "trait record", "interface record"] {
+        for statement in [
+            "print; 'lost'",
+            "not (true)",
+            "value = 1",
+            "if true\n    print; 'lost'",
+        ] {
+            let text = format!("{scope}\n  {statement}\n");
+            let source = SourceFile::new(0, "case.trn".into(), text);
+            let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == "S1043"),
+                "{scope}: {statement}: {diagnostics:#?}"
+            );
+        }
+    }
+    // Enums already have a dedicated variant parser rather than a statement block.
+    for statement in ["print; 'lost'", "not (true)", "value = 1"] {
+        let source = SourceFile::new(
+            0,
+            "case.trn".into(),
+            format!("enum record\n  {statement}\n"),
+        );
+        assert!(
+            parse(&source, lex(&source).unwrap())
+                .diagnostics
+                .iter()
+                .any(|diagnostic| matches!(diagnostic.code.as_ref(), "S1090" | "S1025"))
+        );
+    }
+    parse_source("class record\n  value int = 1\n  function show;\n    print; this.value\n");
+}
+
+#[test]
 fn distinguishes_construction_instance_members_and_static_members() {
     let tree = parse_source(
         "made = instance widget;\nchanged = value.reset;\nshared = widget::default;\n",

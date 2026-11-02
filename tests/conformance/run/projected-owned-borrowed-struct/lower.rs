@@ -16,8 +16,8 @@ fn main() {
             String,
         >::new(vec![String::from("ab"), String::from("c")]),
         35,
-        String::from("ready"),
-        terrane_collection_support::List::<String>::new(vec![String::from("five")]),
+        Some(String::from("ready")),
+        Some(terrane_collection_support::List::<String>::new(vec![String::from("five")])),
     );
     owned = terrane_borrowed_struct_witness::Owned {
         label: String::from("owned"),
@@ -56,7 +56,29 @@ fn main() {
         label: String::from("indexed"),
         count: 8,
         note: None::<String>,
-        index: 42.into(),
+        index: match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                {
+                    let __terrane_field_argument: Option<terrane_int_support::Int> = Some(
+                        terrane_int_support::Int::from(42_i128),
+                    );
+                    __terrane_field_argument
+                }
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(
+                            terrane_int_support::coerce::<i64>(&value)
+                                .map_err(|error| crate::TerraneForeignError(
+                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                ))?,
+                        )
+                    })
+                    .transpose()?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        }
+            .into(),
     };
     println!(
         "{}",
@@ -66,7 +88,13 @@ fn main() {
     noted = terrane_borrowed_struct_witness::Owned {
         label: String::from("noted"),
         count: 9,
-        note: String::from("retained").into(),
+        note: {
+            let __terrane_field_argument: Option<String> = Some(
+                String::from("retained"),
+            );
+            __terrane_field_argument
+        }
+            .into(),
         index: None::<i64>,
     };
     println!(
@@ -77,8 +105,34 @@ fn main() {
     zero = terrane_borrowed_struct_witness::Owned {
         label: String::from("zero"),
         count: 10,
-        note: String::from("both").into(),
-        index: 0.into(),
+        note: {
+            let __terrane_field_argument: Option<String> = Some(String::from("both"));
+            __terrane_field_argument
+        }
+            .into(),
+        index: match || -> Result<_, crate::TerraneForeignError> {
+            Ok(
+                {
+                    let __terrane_field_argument: Option<terrane_int_support::Int> = Some(
+                        terrane_int_support::Int::from(0_i128),
+                    );
+                    __terrane_field_argument
+                }
+                    .map(|value| -> Result<_, crate::TerraneForeignError> {
+                        Ok(
+                            terrane_int_support::coerce::<i64>(&value)
+                                .map_err(|error| crate::TerraneForeignError(
+                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                ))?,
+                        )
+                    })
+                    .transpose()?,
+            )
+        }() {
+            Ok(value) => value,
+            Err(error) => std::panic::panic_any(error),
+        }
+            .into(),
     };
     println!(
         "{}",

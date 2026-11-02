@@ -1086,6 +1086,22 @@ pub(super) fn rewrite_projected_rust_root(
         }
     };
     match ty {
+        ProjectedType::Associated(reference) => {
+            reference.owner = rewrite(&reference.owner);
+            if let Some(owner) = &mut reference.owner_type {
+                rewrite_projected_rust_root(owner, package_root, dependency_root);
+            }
+            if let Some(trait_path) = &mut reference.trait_rust_path {
+                *trait_path = rewrite(trait_path);
+            }
+            for argument in reference
+                .owner_arguments
+                .iter_mut()
+                .chain(&mut reference.trait_arguments)
+            {
+                rewrite_projected_rust_root(argument, package_root, dependency_root);
+            }
+        }
         ProjectedType::Sequence { rust_path, item } => {
             rewrite_projected_rust_root(item, package_root, dependency_root);
             let constructor = rust_path
@@ -1232,8 +1248,7 @@ pub(super) fn rewrite_projected_rust_root(
         | ProjectedType::String
         | ProjectedType::BorrowedString
         | ProjectedType::Bytes
-        | ProjectedType::AsyncSinkOutcome
-        | ProjectedType::Associated(_) => {}
+        | ProjectedType::AsyncSinkOutcome => {}
     }
 }
 
@@ -1370,6 +1385,20 @@ pub(super) fn rewrite_projected_owner_root(
                 }
             }
         }
+    }
+    for recipe in projected
+        .iter_mut()
+        .flat_map(|dependency| &mut dependency.associated_implementations)
+    {
+        recipe.owner_rust_path =
+            rewrite_rust_bound_root(&recipe.owner_rust_path, package_root, dependency_root);
+        recipe.trait_rust_path =
+            rewrite_rust_bound_root(&recipe.trait_rust_path, package_root, dependency_root);
+        rewrite_projected_rust_root(&mut recipe.owner_pattern, package_root, dependency_root);
+        for argument in &mut recipe.trait_arguments {
+            rewrite_projected_rust_root(argument, package_root, dependency_root);
+        }
+        rewrite_projected_rust_root(&mut recipe.ty, package_root, dependency_root);
     }
 }
 #[cfg(test)]

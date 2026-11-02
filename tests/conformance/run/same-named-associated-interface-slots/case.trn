@@ -1,0 +1,20 @@
+namespace same-named-associated-interface-slots
+
+interface number-view
+    associated type response
+    function render response;
+
+interface text-view
+    associated type response
+    function render response;
+
+class combined-view implements number-view, text-view
+    associated type response = string
+    function render string;
+        return 'shared'
+
+function main;
+    numeric number-view of string = instance combined-view;
+    textual text-view of string = instance combined-view;
+    print; (numeric.render;)
+    print; (textual.render;)

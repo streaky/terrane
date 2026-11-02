@@ -23,6 +23,7 @@ fn checks_versions_keep_removed() {
             version: version.to_owned(),
             items,
             declined: Vec::new(),
+            associated_implementations: Vec::new(),
             partial_declines: Vec::new(),
         };
         let item = ProjectedItem {
@@ -237,6 +238,7 @@ fn v3_migration_keeps_removed_members() {
             version: "1.10.2".to_owned(),
             items: Vec::new(),
             declined: Vec::new(),
+            associated_implementations: Vec::new(),
             partial_declines: Vec::new(),
         }],
         bound_dependencies: Vec::new(),

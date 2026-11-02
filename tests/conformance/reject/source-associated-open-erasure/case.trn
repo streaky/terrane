@@ -1,0 +1,15 @@
+namespace source-associated-open-erasure
+
+interface request
+    associated type response
+
+class selected implements request
+    associated type response = int
+
+function accept; input request
+    print; 0
+
+function main;
+    bound request of int = instance selected;
+    erased request = bound
+    accept; erased

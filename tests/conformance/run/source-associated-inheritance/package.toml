@@ -1,0 +1,4 @@
+package = "source-associated-inheritance"
+[namespaces]
+app = "app"
+contract = "contract"

@@ -6,12 +6,15 @@ use rustdoc_types::{
 };
 use serde_json::json;
 
+use crate::rust_interop::projection::{AssociatedNormalizationError, normalize_associated_result};
+
 use super::{
     Containment, DeclinedItem, InvocationMode, PartialCallbackShape, PartialProjection,
-    PartialProjectionRecord, ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem,
-    ProjectedKind, ProjectedMemberDemands, ProjectedType, Projection, ProjectionDemandSites,
-    ProjectionResolution, ProjectionSource, Receiver, collect_source_foreign,
-    generated_projection_units, project_type, projectable_interface_bound, rewrite_rust_bound_root,
+    PartialProjectionRecord, ProjectedAssociatedImplementation, ProjectedAssociatedTypeRef,
+    ProjectedBoundaryCapabilities, ProjectedDependency, ProjectedItem, ProjectedKind,
+    ProjectedMemberDemands, ProjectedType, Projection, ProjectionDemandSites, ProjectionResolution,
+    ProjectionSource, Receiver, collect_source_foreign, generated_projection_units, project_type,
+    projectable_interface_bound, rewrite_rust_bound_root,
 };
 
 use super::test_support::projected_function_item;
@@ -104,6 +107,7 @@ fn public_reexports_share_members() {
                 items: vec![item],
                 declined: Vec::new(),
                 native_alias_identities: BTreeMap::new(),
+                associated_implementations: Vec::new(),
                 partial_declines: Vec::new(),
             })
             .collect(),
@@ -191,6 +195,7 @@ fn type_lookup_uses_canonical_namespace() {
                 version: "1.0.0".to_owned(),
                 items: vec![item("/deps/one", "one::Message")],
                 declined: Vec::new(),
+                associated_implementations: Vec::new(),
                 partial_declines: Vec::new(),
             },
             ProjectedDependency {
@@ -200,6 +205,7 @@ fn type_lookup_uses_canonical_namespace() {
                 version: "1.0.0".to_owned(),
                 items: vec![item("/deps/two", "two::Message")],
                 declined: Vec::new(),
+                associated_implementations: Vec::new(),
                 partial_declines: Vec::new(),
             },
         ],
@@ -357,6 +363,7 @@ fn inventory_separates_unused_and_demanded() {
                     reason: "requires an unsupported generic".to_owned(),
                 },
             ],
+            associated_implementations: Vec::new(),
             partial_declines: vec![
                 PartialProjectionRecord {
                     rust_path: "witness::required_gap".to_owned(),
@@ -490,6 +497,7 @@ fn inventory_records_admissions_and_declines() {
                 rust_path: "witness::Widget::blocked".to_owned(),
                 reason: "requires an unsupported borrow".to_owned(),
             }],
+            associated_implementations: Vec::new(),
             partial_declines: vec![PartialProjectionRecord {
                 rust_path: "witness::Widget::blocked".to_owned(),
                 reason: "requires an unsupported borrow".to_owned(),
@@ -531,6 +539,7 @@ fn exact_decline_beats_suffixes() {
             rust_path: rust_path.to_owned(),
             reason: reason.to_owned(),
         }],
+        associated_implementations: Vec::new(),
         partial_declines: Vec::new(),
     };
     let dependencies = vec![
@@ -577,6 +586,7 @@ fn ambiguous_types_do_not_resolve() {
             },
         }],
         declined: Vec::new(),
+        associated_implementations: Vec::new(),
         partial_declines: Vec::new(),
     };
     let nested_dependency = |dependency_name: &str, rust_path: &str| {
@@ -1042,4 +1052,256 @@ fn dynamic_traits_reject_multiple_non_auto() {
         error,
         "generic input requires one projectable interface bound"
     );
+}
+#[test]
+fn associated_cycles_and_finite_chains() {
+    let owner = ProjectedType::Foreign {
+        rust_path: "provider::Request".to_owned(),
+        base_rust_path: "provider::Request".to_owned(),
+        name: "Request".to_owned(),
+        arguments: Vec::new(),
+    };
+    let associated = |owner: &str, member: &str| {
+        ProjectedType::Associated(ProjectedAssociatedTypeRef {
+            owner: owner.to_owned(),
+            owner_type: None,
+            owner_arguments: Vec::new(),
+            trait_rust_path: Some("provider::Protocol".to_owned()),
+            trait_arguments: Vec::new(),
+            member: member.to_owned(),
+        })
+    };
+    let recipe = |member: &str, ty| ProjectedAssociatedImplementation {
+        owner_rust_path: "provider::Request".to_owned(),
+        owner_pattern: owner.clone(),
+        trait_rust_path: "provider::Protocol".to_owned(),
+        trait_arguments: Vec::new(),
+        member: member.to_owned(),
+        ty,
+        requires_native_selection: false,
+    };
+    let ProjectedKind::Function(mut operation) =
+        projected_function_item("/deps/provider", "dispatch", "provider::dispatch").kind
+    else {
+        unreachable!();
+    };
+    operation.result = associated("T", "First");
+    let substitutions = BTreeMap::from([("T".to_owned(), owner.clone())]);
+    let mut equations = [
+        recipe("First", associated("Self", "Second")),
+        recipe("Second", associated("Self", "First")),
+    ];
+    assert_eq!(
+        normalize_associated_result(&operation, &substitutions, equations.iter(), None),
+        Err(AssociatedNormalizationError::Unsupported),
+    );
+    equations[1].ty = ProjectedType::Bool;
+    assert_eq!(
+        normalize_associated_result(&operation, &substitutions, equations.iter(), None),
+        Ok(ProjectedType::Bool),
+    );
+    operation.result = ProjectedType::Generic("A".to_owned());
+    let cyclic_substitutions = BTreeMap::from([
+        ("A".to_owned(), ProjectedType::Generic("B".to_owned())),
+        ("B".to_owned(), ProjectedType::Generic("A".to_owned())),
+    ]);
+    assert_eq!(
+        normalize_associated_result(&operation, &cyclic_substitutions, std::iter::empty(), None),
+        Err(AssociatedNormalizationError::Unsupported),
+    );
+    let finite_substitutions = BTreeMap::from([
+        ("A".to_owned(), ProjectedType::Generic("B".to_owned())),
+        ("B".to_owned(), ProjectedType::Bool),
+    ]);
+    assert_eq!(
+        normalize_associated_result(&operation, &finite_substitutions, std::iter::empty(), None),
+        Ok(ProjectedType::Bool),
+    );
+}
+#[test]
+fn associated_results_reject_ambiguity() {
+    let mut projection = associated_reply_projection();
+    let owner = ProjectedType::Foreign {
+        rust_path: "provider::protocol::Request<u32>".to_owned(),
+        base_rust_path: "provider::protocol::Request".to_owned(),
+        name: "Request".to_owned(),
+        arguments: vec![ProjectedType::Int],
+    };
+    for ty in [ProjectedType::Bool, ProjectedType::String] {
+        projection.dependencies[0].associated_implementations.push(
+            ProjectedAssociatedImplementation {
+                owner_rust_path: "provider::protocol::Request".to_owned(),
+                owner_pattern: ProjectedType::Foreign {
+                    rust_path: "provider::protocol::Request".to_owned(),
+                    base_rust_path: "provider::protocol::Request".to_owned(),
+                    name: "Request".to_owned(),
+                    arguments: vec![ProjectedType::Generic("R".to_owned())],
+                },
+                trait_rust_path: "provider::text::Reply".to_owned(),
+                trait_arguments: vec![ProjectedType::Generic("R".to_owned())],
+                member: "Response".to_owned(),
+                ty,
+                requires_native_selection: false,
+            },
+        );
+    }
+    let ProjectedKind::Function(mut operation) =
+        projected_function_item("/deps/provider", "dispatch", "provider::dispatch").kind
+    else {
+        unreachable!()
+    };
+    operation.result = ProjectedType::Associated(ProjectedAssociatedTypeRef {
+        owner: "T".to_owned(),
+        owner_type: None,
+        owner_arguments: Vec::new(),
+        trait_rust_path: Some("provider::text::Reply".to_owned()),
+        trait_arguments: vec![ProjectedType::Int],
+        member: "Response".to_owned(),
+    });
+    assert_eq!(
+        projection.normalize_associated_result(
+            &operation,
+            &BTreeMap::from([("T".to_owned(), owner)]),
+            None,
+        ),
+        Err(AssociatedNormalizationError::Ambiguous)
+    );
+}
+
+fn associated_reply_projection() -> Projection {
+    let recipe = |trait_rust_path: &str, ty| ProjectedAssociatedImplementation {
+        owner_rust_path: "provider::protocol::Request".to_owned(),
+        owner_pattern: ProjectedType::Foreign {
+            rust_path: "provider::protocol::Request".to_owned(),
+            name: "Request".to_owned(),
+            base_rust_path: "provider::protocol::Request".to_owned(),
+            arguments: vec![ProjectedType::Generic("R".to_owned())],
+        },
+        trait_rust_path: trait_rust_path.to_owned(),
+        trait_arguments: vec![ProjectedType::Generic("TraitArg".to_owned())],
+        member: "Response".to_owned(),
+        ty,
+        requires_native_selection: false,
+    };
+    Projection {
+        cache_identity: "associated-output-recipes".to_owned(),
+        content_hash: String::new(),
+        dependencies: vec![ProjectedDependency {
+            name: "provider".to_owned(),
+            package: "provider".to_owned(),
+            version: "1.0.0".to_owned(),
+            items: Vec::new(),
+            declined: Vec::new(),
+            native_alias_identities: BTreeMap::new(),
+            associated_implementations: vec![
+                recipe(
+                    "provider::text::Reply",
+                    ProjectedType::Generic("R".to_owned()),
+                ),
+                recipe("provider::count::Reply", ProjectedType::Int),
+                ProjectedAssociatedImplementation {
+                    owner_rust_path: "provider::protocol::Request".to_owned(),
+                    owner_pattern: ProjectedType::Reference {
+                        inner: Box::new(ProjectedType::Foreign {
+                            rust_path: "provider::protocol::Request".to_owned(),
+                            name: "Request".to_owned(),
+                            base_rust_path: "provider::protocol::Request".to_owned(),
+                            arguments: vec![ProjectedType::Generic("R".to_owned())],
+                        }),
+                        mutable: false,
+                        lifetime: None,
+                    },
+                    trait_rust_path: "provider::text::Reply".to_owned(),
+                    trait_arguments: vec![ProjectedType::Generic("TraitArg".to_owned())],
+                    member: "Response".to_owned(),
+                    ty: ProjectedType::Char,
+                    requires_native_selection: false,
+                },
+            ],
+            partial_declines: Vec::new(),
+        }],
+        native_owner_aliases: BTreeMap::new(),
+        containment: Containment::Enforced,
+        bound_dependencies: Vec::new(),
+        source: ProjectionSource::default(),
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution::default(),
+        removed: Vec::new(),
+    }
+}
+
+#[test]
+fn associated_outputs_and_owner_identity() {
+    let projection = associated_reply_projection();
+    let substitutions = BTreeMap::from([
+        (
+            "T".to_owned(),
+            ProjectedType::Foreign {
+                rust_path: "client_alias::Request<string>".to_owned(),
+                name: "Request".to_owned(),
+                base_rust_path: "provider::protocol::Request".to_owned(),
+                arguments: vec![ProjectedType::String],
+            },
+        ),
+        ("X".to_owned(), ProjectedType::String),
+    ]);
+    let operation = |trait_rust_path: &str| {
+        let ProjectedKind::Function(mut operation) =
+            projected_function_item("/deps/client", "dispatch", "client::dispatch").kind
+        else {
+            unreachable!();
+        };
+        operation.result = ProjectedType::Optional(Box::new(ProjectedType::Sequence {
+            rust_path: "Vec".to_owned(),
+            item: Box::new(ProjectedType::Associated(ProjectedAssociatedTypeRef {
+                owner: "T".to_owned(),
+                owner_type: None,
+                owner_arguments: Vec::new(),
+                trait_rust_path: Some(trait_rust_path.to_owned()),
+                trait_arguments: vec![ProjectedType::Generic("X".to_owned())],
+                member: "Response".to_owned(),
+            })),
+        }));
+        operation
+    };
+    let text_operation = operation("provider::text::Reply");
+    let text = projection
+        .normalize_associated_result(&text_operation, &substitutions, None)
+        .unwrap();
+    let count = projection
+        .normalize_associated_result(&operation("provider::count::Reply"), &substitutions, None)
+        .unwrap();
+    let mut reference_substitutions = substitutions.clone();
+    reference_substitutions.insert(
+        "T".to_owned(),
+        ProjectedType::Reference {
+            inner: Box::new(substitutions["T"].clone()),
+            mutable: false,
+            lifetime: None,
+        },
+    );
+    let reference_operation = operation("provider::text::Reply");
+    let reference_result = projection
+        .normalize_associated_result(&reference_operation, &reference_substitutions, None)
+        .unwrap();
+    let reference_obligations = projection
+        .associated_equality_obligations(&reference_operation, &reference_substitutions, None)
+        .unwrap();
+    assert!(matches!(
+        &reference_obligations[0].owner,
+        ProjectedType::Reference { inner, mutable: false, .. }
+            if inner.rust_type() == "provider::protocol::Request<String>"
+    ));
+    assert_eq!(reference_result.rust_type(), "Option<Vec<char>>");
+    let obligations = projection
+        .associated_equality_obligations(&text_operation, &substitutions, None)
+        .unwrap();
+    assert_eq!(obligations[0].owner_parameter.as_deref(), Some("T"));
+    assert_eq!(obligations[0].trait_rust_path, "provider::text::Reply");
+    assert_eq!(obligations[0].trait_arguments, vec![ProjectedType::String]);
+    assert_eq!(obligations[0].member, "Response");
+    assert_eq!(obligations[0].result, ProjectedType::String);
+    assert_eq!(text.rust_type(), "Option<Vec<String>>");
+    assert_eq!(count.rust_type(), "Option<Vec<i64>>");
 }

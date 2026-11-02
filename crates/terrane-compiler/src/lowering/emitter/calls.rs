@@ -1780,7 +1780,7 @@ impl Emitter<'_> {
                 .expect("analyzed native receiver lifetime instantiation")
                 .into_owned()
             });
-        let (projected_parameters, projected_chain_role, projected_error) = projected_function
+        let (mut projected_parameters, projected_chain_role, projected_error) = projected_function
             .as_ref()
             .map_or((None, None, false), |function| {
                 (
@@ -1841,17 +1841,52 @@ impl Emitter<'_> {
             }
             contract
         });
-        let native_struct_construction = callee.kind == SyntaxKind::ConstructionExpression
-            && callee
-                .children
-                .first()
-                .and_then(|designator| self.class_designator(designator))
-                .and_then(|object| {
-                    self.package
-                        .projection
-                        .projected_struct(&object.identity.namespace, &object.identity.name)
-                })
-                .is_some();
+        let native_struct = (callee.kind == SyntaxKind::ConstructionExpression)
+            .then(|| {
+                let designator = callee.children.first()?;
+                let object = self.class_designator(designator)?;
+                let ValueType::Object(identity) = self.value_type(node)? else {
+                    return None;
+                };
+                (identity.namespace == object.identity.namespace
+                    && identity.name == object.identity.name
+                    && identity.is_unsafe == object.identity.is_unsafe)
+                    .then(|| {
+                        self.package
+                            .projection
+                            .projected_struct(&object.identity.namespace, &object.identity.name)
+                    })
+                    .flatten()
+            })
+            .flatten();
+        let native_struct_view = native_struct.map(|(path, _, borrowed_view)| {
+            borrowed_view && self.package.projection.enum_payload(path).is_none()
+        });
+        let native_struct_construction = native_struct.is_some();
+        if projected_parameters.is_none()
+            && native_struct_view == Some(false)
+            && let Some((_, fields, _)) = native_struct
+        {
+            projected_parameters = Some(
+                fields
+                    .iter()
+                    .map(
+                        |field| crate::rust_interop::projection::ProjectedParameter {
+                            name: field.name.clone(),
+                            ty: field.ty.clone(),
+                            borrow_lifetime: None,
+                            borrowed: false,
+                            mutable_borrow: false,
+                            borrowed_str: false,
+                            generic_parameter: None,
+                            generic_bounds: Vec::new(),
+                            generic_interface: None,
+                            associated_type: None,
+                        },
+                    )
+                    .collect(),
+            );
+        }
         let shared_async_method = contract.as_ref().is_some_and(|contract| {
             projected_function.is_none()
                 && contract.owner.is_some()
@@ -1949,11 +1984,11 @@ impl Emitter<'_> {
             );
         }
         let mut native_field_values = None;
-        let mut native_optional_arguments = Vec::new();
+        let mut native_field_converted = Vec::new();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
             if native_struct_construction {
-                native_optional_arguments.resize(contract.parameters.len(), false);
+                native_field_converted.resize(contract.parameters.len(), false);
             }
             let mut variadic_values = Vec::new();
             let variadic_index = contract
@@ -2075,9 +2110,27 @@ impl Emitter<'_> {
                             && (specialization.is_some_and(|specialization| {
                                 specialization.direct_projected_call
                             }) || projected_chain_role.is_some()
-                                || callee.kind == SyntaxKind::MemberExpression)
+                                || callee.kind == SyntaxKind::MemberExpression
+                                || native_struct_view == Some(false))
                     })
                 {
+                    if native_struct_construction {
+                        native_field_converted[index] = true;
+                    }
+                    // Give an optional source carrier its declared ABI before
+                    // mapping its payload into native storage. This also types
+                    // an absent carrier without depending on closure inference.
+                    let expression = if native_struct_construction
+                        && let Some(source_type @ ValueType::Optional(_)) =
+                            specialized_parameter.or(fallback_parameter.as_ref())
+                    {
+                        format!(
+                            "{{ let __terrane_field_argument: {} = {expression}; __terrane_field_argument }}",
+                            rust_value_type(self.package, source_type.clone())
+                        )
+                    } else {
+                        expression
+                    };
                     let sequence_conversion = match (&projected.ty, self.value_type(value)) {
                         (
                             crate::rust_interop::projection::ProjectedType::Sequence {
@@ -2196,10 +2249,6 @@ impl Emitter<'_> {
                     variadic_values.push(expression);
                 } else {
                     ordered[index] = Some(expression);
-                    if native_struct_construction {
-                        native_optional_arguments[index] =
-                            matches!(self.value_type(value), Some(ValueType::Optional(_)));
-                    }
                 }
             }
             if let Some(index) = variadic_index {
@@ -2870,19 +2919,7 @@ impl Emitter<'_> {
                     | ValueType::AsyncFunction(_, _, _, effects) => Some(effects.modes.written),
                     _ => None,
                 });
-        let projected_native_construction = (callee.kind == SyntaxKind::ConstructionExpression)
-            .then(|| {
-                callee
-                    .children
-                    .first()
-                    .and_then(|designator| self.class_designator(designator))
-            })
-            .flatten()
-            .and_then(|object| {
-                self.package
-                    .projection
-                    .projected_struct(&object.identity.namespace, &object.identity.name)
-            });
+        let projected_native_construction = native_struct;
         let call = if let Some((native_path, fields, borrowed_view)) = projected_native_construction
         {
             let selected_native = self.value_type(node).and_then(|value| match value {
@@ -2932,46 +2969,75 @@ impl Emitter<'_> {
                 .map(|(index, field)| {
                     let value = value_for(&field.name);
                     match (&field.ty, value) {
-                        (crate::rust_interop::projection::ProjectedType::Optional(inner), None) => {
+                        (crate::rust_interop::projection::ProjectedType::Optional(_), None)
+                            if native_struct_view == Some(true) =>
+                        {
+                            let Some(ValueType::Optional(inner)) = contract
+                                .as_ref()
+                                .and_then(|contract| contract.parameters.get(index))
+                                .and_then(|parameter| parameter.value_type.as_ref())
+                            else {
+                                unreachable!("borrowed field has an optional source parameter");
+                            };
                             format!(
                                 "None::<{}>",
-                                super::super::dependencies::projected_field_abi_type(inner)
+                                rust_value_type(self.package, inner.as_ref().clone())
                             )
+                        }
+                        (crate::rust_interop::projection::ProjectedType::Optional(inner), None) => {
+                            format!("None::<{}>", inner.rust_type())
+                        }
+                        (
+                            crate::rust_interop::projection::ProjectedType::Optional(_),
+                            Some(value),
+                        ) if !borrowed_view && native_field_converted.get(index) == Some(&true) => {
+                            format!("({value}).into()")
                         }
                         (_, Some(value))
                             if borrowed_view
-                                || (projected_function.is_some()
-                                    && !(matches!(
-                                        &field.ty,
-                                        crate::rust_interop::projection::ProjectedType::Optional(_)
-                                    ) && native_optional_arguments.get(index)
-                                        != Some(&true))) =>
+                                || native_field_converted.get(index) == Some(&true) =>
                         {
                             value
                         }
                         (
                             crate::rust_interop::projection::ProjectedType::Optional(_),
                             Some(value),
-                        ) if native_optional_arguments.get(index) == Some(&true) => self.fallible(
-                            format!(
-                                "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({}) }})()",
-                                projected_argument_expression(&value, &field.ty)
-                            ),
-                            node,
-                        ),
-                        (
-                            crate::rust_interop::projection::ProjectedType::Sequence { .. },
-                            Some(value),
                         ) => {
-                            format!("{value}.into_vec()")
+                            if field.ty.has_identity_representation() {
+                                value
+                            } else {
+                                let mut source_type = contract
+                                    .as_ref()
+                                    .and_then(|contract| contract.parameters.get(index))
+                                    .and_then(crate::ParameterContract::element_value_type)
+                                    .or_else(|| {
+                                        callee
+                                            .children
+                                            .first()
+                                            .and_then(|designator| {
+                                                self.class_designator(designator)
+                                            })
+                                            .and_then(|object| {
+                                                object
+                                                    .fields
+                                                    .iter()
+                                                    .find(|candidate| candidate.name == field.name)
+                                                    .map(|field| field.value_type.clone())
+                                            })
+                                    })
+                                    .expect("native struct field has a source parameter type");
+                                crate::semantics::canonicalize_native_value_type(
+                                    self.package,
+                                    &mut source_type,
+                                );
+                                format!(
+                                    "{{ let value: {} = {value}; {} }}",
+                                    rust_value_type(self.package, source_type),
+                                    projected_chain_argument_expression("value", &field.ty),
+                                )
+                            }
                         }
-                        (
-                            crate::rust_interop::projection::ProjectedType::Optional(_),
-                            Some(value),
-                        ) => {
-                            format!("{value}.into()")
-                        }
-                        (_, Some(value)) => value,
+                        (_, Some(value)) => projected_chain_argument_expression(&value, &field.ty),
                         (_, None) => unreachable!(
                             "semantics requires projected struct field `{}`",
                             field.name
@@ -2986,15 +3052,7 @@ impl Emitter<'_> {
                     .iter()
                     .zip(projected_values)
                     .map(|(field, value)| {
-                        let field_name = if field
-                            .rust_name
-                            .chars()
-                            .all(|character| character.is_ascii_digit())
-                        {
-                            field.rust_name.clone()
-                        } else {
-                            rust_name(&field.rust_name)
-                        };
+                        let field_name = crate::rust_ir::native_member_name(&field.rust_name);
                         format!("{field_name}: {value}")
                     })
                     .collect::<Vec<_>>()

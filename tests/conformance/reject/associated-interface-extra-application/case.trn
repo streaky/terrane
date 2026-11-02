@@ -1,0 +1,11 @@
+namespace app
+interface request
+    associated type response
+    function dispatch response;
+class selected implements request of int
+    associated type response = string
+    function dispatch string;
+        return 'contradiction'
+function main;
+    value request of string = instance selected;
+    print; value.dispatch

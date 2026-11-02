@@ -1,0 +1,7 @@
+namespace app
+interface request of (Input)
+    function dispatch Input;
+function accept of (T implements request of int); value T
+    print; value
+function main;
+    return

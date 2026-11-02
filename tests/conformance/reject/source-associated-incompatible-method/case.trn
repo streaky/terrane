@@ -1,0 +1,10 @@
+namespace source-associated-incompatible-method
+
+interface request
+    associated type response
+    function dispatch response;
+
+class text-request implements request
+    associated type response = string
+    function dispatch int;
+        return 1

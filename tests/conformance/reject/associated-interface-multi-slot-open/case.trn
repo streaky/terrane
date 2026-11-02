@@ -1,0 +1,10 @@
+namespace app
+interface request
+    associated type input
+    associated type response
+    associated type context
+    function dispatch response; item input, state context
+function accept; value request
+    return
+function main;
+    return

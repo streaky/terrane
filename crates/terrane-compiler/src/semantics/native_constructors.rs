@@ -5,6 +5,86 @@ use super::objects::closed_projected_value_type;
 use crate::Span;
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Implicit native records use their projected source field names and types.
+/// Share this contract with argument checking, ownership and lowering rather
+/// than letting the emitter independently interpret unchecked field arguments.
+pub(super) fn implicit_record_constructor(
+    package: &SemanticPackage,
+    unit: &super::model::SemanticUnit,
+    callee: &crate::syntax::SyntaxNode,
+) -> Option<super::model::FunctionContract> {
+    use super::model::{FunctionContract, ParameterContract, TaskTransferability};
+    use crate::InvocationMode;
+    use crate::rust_interop::projection::ProjectedType;
+    use crate::syntax::SyntaxKind;
+
+    if callee.kind != SyntaxKind::ConstructionExpression {
+        return None;
+    }
+    let identity = super::namespaces::class_designator_identity(unit, callee.children.first()?)?;
+    let (_, fields, _) = package
+        .projection
+        .projected_struct(&identity.namespace, &identity.name)?;
+    let object = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .find(|object| {
+            object.identity.namespace == identity.namespace
+                && object.identity.name == identity.name
+                && object.identity.is_unsafe == identity.is_unsafe
+        })?;
+    let substitutions = object
+        .generic_parameters
+        .iter()
+        .zip(&identity.type_arguments)
+        .map(|(parameter, actual)| (parameter.name.clone(), actual.clone()))
+        .collect();
+    let parameters = fields
+        .iter()
+        .map(|projected| {
+            let field = object
+                .fields
+                .iter()
+                .find(|field| field.name == projected.name)?;
+            Some(ParameterContract {
+                name: field.name.clone(),
+                span: field.span,
+                value_type: Some(super::generics::substitute_value_type(
+                    &field.value_type,
+                    &substitutions,
+                )),
+                optional: matches!(projected.ty, ProjectedType::Optional(_)),
+                mutable: false,
+                variadic: false,
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(FunctionContract {
+        name: "construct".to_owned(),
+        span: callee.span,
+        owner: Some(identity.name.clone()),
+        owner_identity: Some(identity.clone()),
+        is_anonymous: false,
+        projected_provided: false,
+        captures: Vec::new(),
+        generic_parameters: Vec::new(),
+        parameters,
+        return_type: Some(ValueType::Object(identity)),
+        exported: false,
+        thrown_types: Vec::new(),
+        escaping_throwables: BTreeSet::new(),
+        throws: false,
+        is_async: false,
+        is_unsafe: false,
+        task_transferability: TaskTransferability::Transferable,
+        is_static: true,
+        written_invocation_mode: InvocationMode::Shared,
+        exact_invocation_mode: InvocationMode::Shared,
+        execution_requirements: crate::execution::ExecutionRequirements::default(),
+    })
+}
+
 fn projected_contract<'a>(
     projection: &'a crate::rust_interop::projection::Projection,
     namespace: &str,

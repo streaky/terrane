@@ -1208,12 +1208,12 @@ fn main() {
         let impl_message: ProjectedMessage;
         let mut counter: ProjectedCounter;
         let mut holder: ProjectedCounterHolder;
-        let mut retained_counter: AdjustableOwner;
+        let mut retained_counter: terrane_callback_witness::AdjustableOwner;
         let boxed_counter: ProjectedCounter;
         let mut boxed_owner: AdjustableOwner;
         let erased_boxed: Adjustable;
         let mut erased_owner: AdjustableOwner;
-        let mut local_owner: LocalAdjustableOwner;
+        let mut local_owner: terrane_callback_witness::LocalAdjustableOwner;
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_shared(terrane_int_support::Int::from(40_i128),

@@ -1,0 +1,7 @@
+namespace source-associated-generic-collision
+
+interface request of (response)
+    associated type response
+
+function main;
+    print; 0

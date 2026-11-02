@@ -30,6 +30,7 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         position: 0,
         block_depth: 0,
         class_body_depth: usize::MAX,
+        associated_body_depth: usize::MAX,
         semicolon_boundary: false,
         diagnostics: Vec::new(),
     };
@@ -48,6 +49,7 @@ struct Parser<'source> {
     position: usize,
     block_depth: usize,
     class_body_depth: usize,
+    associated_body_depth: usize,
     semicolon_boundary: bool,
     diagnostics: Vec<Diagnostic>,
 }
@@ -155,6 +157,14 @@ impl Parser<'_> {
 
     fn parse_unannotated_statement(&mut self) -> SyntaxNode {
         match self.text() {
+            "associated"
+                if self.peek_text(1) == Some("type")
+                    && self.peek_kind(2) == Some(TokenKind::Identifier)
+                    && self.associated_body_depth > 0
+                    && self.block_depth == self.associated_body_depth =>
+            {
+                self.parse_associated_type()
+            }
             "with" => self.parse_with(),
             "namespace" => self.parse_namespace(),
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
@@ -163,8 +173,8 @@ impl Parser<'_> {
             "public" | "private" | "protected" if self.peek_text(1) == Some("class") => {
                 self.parse_object_declaration(SyntaxKind::ClassDeclaration)
             }
-            "unsafe" | "public" | "private" | "protected"
-                if self.peek_text(1) == Some("interface") =>
+            "owning" | "unsafe" | "public" | "private" | "protected"
+                if self.looks_like_interface_declaration() =>
             {
                 self.parse_object_declaration(SyntaxKind::InterfaceDeclaration)
             }
@@ -229,6 +239,21 @@ impl Parser<'_> {
             _ => self.parse_expression_statement(),
         }
     }
+    fn parse_associated_type(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        self.bump();
+        let mut children = vec![self.leaf(SyntaxKind::Name)];
+        if self.eat(TokenKind::Assign) {
+            children.push(self.parse_type_expression());
+        }
+        self.node(
+            SyntaxKind::AssociatedTypeDeclaration,
+            start,
+            self.position,
+            children,
+        )
+    }
 
     fn parse_global_postfix(&mut self) -> SyntaxNode {
         let start = self.position;
@@ -283,13 +308,36 @@ impl Parser<'_> {
         )
     }
 
+    fn looks_like_interface_declaration(&self) -> bool {
+        let mut offset = 0;
+        while matches!(
+            self.peek_text(offset),
+            Some("owning" | "unsafe" | "public" | "private" | "protected")
+        ) {
+            offset += 1;
+        }
+        self.peek_text(offset) == Some("interface")
+            && self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
+    }
+
     fn parse_object_declaration(&mut self, kind: SyntaxKind) -> SyntaxNode {
         let start = self.position;
         let mut children = Vec::new();
-        if self.at_text("unsafe") {
-            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+        loop {
+            if matches!(self.text(), "unsafe" | "owning") {
+                if children.iter().any(|child: &SyntaxNode| {
+                    child.kind == SyntaxKind::DeclarationQualifier
+                        && &self.source.text()[child.span.start..child.span.end] == self.text()
+                }) {
+                    self.error_here("S1042", "duplicate interface qualifier");
+                }
+                children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+            } else if matches!(self.text(), "public" | "private" | "protected") {
+                self.parse_visibility(&mut children);
+            } else {
+                break;
+            }
         }
-        self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
             self.reject_keyword_declaration_name();
@@ -351,9 +399,42 @@ impl Parser<'_> {
         if kind == SyntaxKind::ClassDeclaration {
             self.class_body_depth = self.block_depth + 1;
         }
-        children.push(self.parse_block());
+        let previous_associated_body_depth = self.associated_body_depth;
+        if matches!(
+            kind,
+            SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
+        ) {
+            self.associated_body_depth = self.block_depth + 1;
+        }
+        children.push(self.parse_object_body());
         self.class_body_depth = previous_class_body_depth;
+        self.associated_body_depth = previous_associated_body_depth;
         self.node(kind, start, self.position, children)
+    }
+
+    fn parse_object_body(&mut self) -> SyntaxNode {
+        let body = self.parse_block();
+        for member in &body.children {
+            if !matches!(
+                member.kind,
+                SyntaxKind::Binding
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::AssociatedTypeDeclaration
+                    | SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::TraitDeclaration
+                    | SyntaxKind::EnumDeclaration
+                    | SyntaxKind::Error
+                    | SyntaxKind::Unsupported
+            ) {
+                self.error_at(
+                    member.token_range.start,
+                    "S1043",
+                    "object bodies require member declarations, not executable statements",
+                );
+            }
+        }
+        body
     }
 
     fn parse_type_parameter_list(&mut self) -> SyntaxNode {
@@ -1902,7 +1983,13 @@ impl Parser<'_> {
             && (bare_discard
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
                 || (self.peek_kind(offset + 1) == Some(TokenKind::OpenParen)
-                    && self.grouped_binding_type_precedes_assignment(offset + 1))
+                    && self.grouped_binding_type_has_declaration_boundary(
+                        offset + 1,
+                        !matches!(
+                            self.peek_text(offset),
+                            Some("not" | "ref" | "move" | "await")
+                        ),
+                    ))
                 || (has_prefix
                     && matches!(
                         self.peek_kind(offset + 1),
@@ -1910,7 +1997,21 @@ impl Parser<'_> {
                     )))
     }
 
-    fn grouped_binding_type_precedes_assignment(&self, offset: usize) -> bool {
+    fn grouped_binding_type_has_declaration_boundary(
+        &self,
+        offset: usize,
+        allow_uninitialized: bool,
+    ) -> bool {
+        // Parentheses alone are not evidence of a binding type: calls such as
+        // `show(5)` can otherwise be consumed as grouped types before statement parsing.
+        // A type-shaped group followed by a declaration boundary is valid in
+        // every binding position, with or without an initializer.
+        if !matches!(
+            self.peek_kind(offset + 1),
+            Some(TokenKind::Identifier | TokenKind::OpenParen)
+        ) {
+            return false;
+        }
         let mut depth = 0usize;
         let mut cursor = offset;
         while let Some(kind) = self.peek_kind(cursor) {
@@ -1925,7 +2026,14 @@ impl Parser<'_> {
                         {
                             cursor += 2;
                         }
-                        return self.peek_kind(cursor) == Some(TokenKind::Assign);
+                        // An initializer disambiguates even a prefix-word name;
+                        // without one, `ref (value)` remains an expression.
+                        return self.peek_kind(cursor) == Some(TokenKind::Assign)
+                            || allow_uninitialized
+                                && (matches!(
+                                    self.peek_kind(cursor),
+                                    Some(TokenKind::Newline | TokenKind::Dedent | TokenKind::Eof)
+                                ) || self.peek_text(cursor) == Some("metadata"));
                     }
                 }
                 TokenKind::Newline | TokenKind::Eof => return false,

@@ -309,7 +309,7 @@ impl Emitter<'_> {
                 .item(&identity.namespace, &identity.name)
             && let Some(field) = fields.iter().find(|field| field.name == self.text(member))
         {
-            let field = field.rust_name.clone();
+            let field = crate::rust_ir::native_member_name(&field.rust_name).into_owned();
             let holder = self.native_receiver_expression(holder, mutable);
             return format!("({holder}).{field}");
         }
@@ -739,7 +739,12 @@ impl Emitter<'_> {
                 self.expression(receiver)
             ),
             Some(ValueType::Reference(_)) if self.reference_uses_shared_storage(receiver) => {
-                "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
+                let guard = "__terrane_owner.lock().expect(\"reference lock poisoned\")";
+                if self.narrowed_optional_reference(receiver) {
+                    format!("({guard}).as_ref().expect(\"semantic optional narrowing\")")
+                } else {
+                    guard.to_owned()
+                }
             }
             Some(ValueType::MutableReference(_)) => self.expression(receiver),
             _ if self.reference_backed_name(receiver).is_some() => {
@@ -1490,15 +1495,7 @@ impl Emitter<'_> {
                 .item(&identity.namespace, &identity.name)
             && let Some(field) = fields.iter().find(|field| field.name == name)
         {
-            return if field
-                .rust_name
-                .chars()
-                .all(|character| character.is_ascii_digit())
-            {
-                field.rust_name.clone()
-            } else {
-                rust_name(&field.rust_name)
-            };
+            return crate::rust_ir::native_member_name(&field.rust_name).into_owned();
         }
         rust_name(name)
     }
