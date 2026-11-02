@@ -556,27 +556,56 @@ impl Descriptor {
     ) -> Self {
         Self {
             native_label: native_label,
-            values: values.into_vec(),
+            values: match || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    values
+                        .into_iter()
+                        .map(|item| -> Result<_, crate::TerraneForeignError> {
+                            Ok(item)
+                        })
+                        .collect::<Result<Vec<String>, _>>()?,
+                )
+            }() {
+                Ok(value) => value,
+                Err(error) => std::panic::panic_any(error),
+            },
             offset: offset,
             note: note.into(),
-            extra: extra.into().map(|value| value.into_vec()),
-        }
-    }
-    fn terrane_native_view(&self) -> terrane_borrowed_struct_witness::Descriptor<'_> {
-        terrane_borrowed_struct_witness::Descriptor {
-            label: &self.native_label,
-            values: self.values.as_slice(),
-            offset: self.offset,
-            note: self.note.as_deref(),
-            extra: self.extra.as_deref(),
+            extra: match || -> Result<_, crate::TerraneForeignError> {
+                Ok(
+                    extra
+                        .into()
+                        .map(|value| -> Result<_, crate::TerraneForeignError> {
+                            Ok(
+                                value
+                                    .into_iter()
+                                    .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                        Ok(item)
+                                    })
+                                    .collect::<Result<Vec<String>, _>>()?,
+                            )
+                        })
+                        .transpose()?,
+                )
+            }() {
+                Ok(value) => value,
+                Err(error) => std::panic::panic_any(error),
+            },
         }
     }
 }
 pub use terrane_borrowed_struct_witness::Owned;
 pub fn consume(descriptor: Descriptor) -> Result<String, crate::TerraneForeignError> {
+    let __terrane_view_descriptor = terrane_borrowed_struct_witness::Descriptor {
+        label: descriptor.native_label.as_str(),
+        values: descriptor.values.as_slice(),
+        offset: descriptor.offset,
+        note: descriptor.note.as_ref().map(|value| (*value).as_str()),
+        extra: descriptor.extra.as_ref().map(|value| (*value).as_slice()),
+    };
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_borrowed_struct_witness::consume(
-            descriptor.terrane_native_view(),
+            __terrane_view_descriptor,
         )),
     ) {
         Ok(value) => Ok(value),
@@ -592,9 +621,16 @@ pub fn consume(descriptor: Descriptor) -> Result<String, crate::TerraneForeignEr
     }
 }
 pub fn summarize(descriptor: &Descriptor) -> Result<String, crate::TerraneForeignError> {
+    let __terrane_view_descriptor = terrane_borrowed_struct_witness::Descriptor {
+        label: descriptor.native_label.as_str(),
+        values: descriptor.values.as_slice(),
+        offset: descriptor.offset,
+        note: descriptor.note.as_ref().map(|value| (*value).as_str()),
+        extra: descriptor.extra.as_ref().map(|value| (*value).as_slice()),
+    };
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| terrane_borrowed_struct_witness::summarize(
-            &descriptor.terrane_native_view(),
+            &__terrane_view_descriptor,
         )),
     ) {
         Ok(value) => Ok(value),

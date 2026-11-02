@@ -1264,7 +1264,14 @@ fn main() {
                     __terrane_field_argument
                 }
                     .map(|value| -> Result<_, crate::TerraneForeignError> {
-                        Ok(value.into_vec())
+                        Ok(
+                            value
+                                .into_iter()
+                                .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                    Ok(item)
+                                })
+                                .collect::<Result<Vec<witness::Tree>, _>>()?,
+                        )
                     })
                     .transpose()?,
             )
@@ -1298,7 +1305,14 @@ fn main() {
                     __terrane_field_argument
                 }
                     .map(|value| -> Result<_, crate::TerraneForeignError> {
-                        Ok(value.into_vec())
+                        Ok(
+                            value
+                                .into_iter()
+                                .map(|item| -> Result<_, crate::TerraneForeignError> {
+                                    Ok(item)
+                                })
+                                .collect::<Result<Vec<witness::Tree>, _>>()?,
+                        )
                     })
                     .transpose()?,
             )
@@ -1344,7 +1358,7 @@ fn main() {
             Ok(value) => value,
             Err(error) => std::panic::panic_any(error),
         },
-        children: None::<std::vec::Vec<witness::Tree>>,
+        children: None::<Vec<witness::Tree>>,
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(child_count(&absent),

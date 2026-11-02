@@ -13,3 +13,5 @@ optional
 true
 direct
 true
+HOISTED
+true

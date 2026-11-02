@@ -1,5 +1,7 @@
 use super::prelude::*;
 use std::collections::BTreeMap;
+#[path = "descriptor_lowering.rs"]
+mod descriptor_fields;
 
 pub(super) type DependencyImportOwners = BTreeMap<String, (String, String, Vec<String>, bool)>;
 
@@ -470,31 +472,68 @@ fn projected_owned_field_type(ty: &crate::rust_interop::projection::ProjectedTyp
 pub(super) fn projected_field_abi_type(
     ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
-    use crate::rust_interop::projection::ProjectedType;
-    match ty {
-        ProjectedType::String | ProjectedType::BorrowedString => "String".to_owned(),
-        ProjectedType::Bool => "bool".to_owned(),
-        ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => name.clone(),
-        ProjectedType::Float => "f64".to_owned(),
-        ProjectedType::Float32 => "f32".to_owned(),
-        ProjectedType::Sequence { item, .. } => format!(
-            "terrane_collection_support::List<{}>",
-            projected_field_abi_type(item)
-        ),
-        ProjectedType::Optional(inner) => {
-            format!("impl Into<Option<{}>>", projected_field_abi_type(inner))
-        }
-        _ => ty.rust_type(),
+    if let crate::rust_interop::projection::ProjectedType::Optional(inner) = ty {
+        format!(
+            "impl Into<Option<{}>>",
+            descriptor_fields::source_type(inner)
+        )
+    } else {
+        descriptor_fields::source_type(ty)
     }
+}
+
+pub(super) fn projected_descriptor_view(
+    package: &SemanticPackage,
+    path: &str,
+    source: &str,
+    consuming: bool,
+) -> Option<(String, String)> {
+    let (native_path, fields) = package.projection.borrowed_struct_view(path)?;
+    let constructor = crate::rust_ir::rust_type_constructor(native_path)?;
+    let mut setup = String::new();
+    let fields = fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let field_source = format!("({source}).{}", rust_name(&field.name));
+            let staged = consuming
+                .then(|| {
+                    descriptor_fields::staged_field(
+                        &field_source,
+                        source,
+                        index,
+                        &field.ty,
+                        &field.conversion,
+                    )
+                })
+                .flatten();
+            let value = if let Some((prefix, value)) = staged {
+                setup.push_str(&prefix);
+                value
+            } else {
+                descriptor_fields::native_field(
+                    &field_source,
+                    &field.ty,
+                    &field.conversion,
+                    consuming,
+                )
+            };
+            format!(
+                "{}: {value}",
+                crate::rust_ir::native_member_name(&field.rust_name)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some((setup, format!("{constructor} {{ {fields} }}")))
 }
 
 fn write_owned_borrowed_struct(
     output: &mut String,
     rust_name_: &str,
-    native_path: &str,
+    _native_path: &str,
     fields: &[crate::rust_interop::projection::ProjectedField],
 ) {
-    use crate::rust_interop::projection::ProjectedFieldConversion;
     writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
     for field in fields {
         writeln!(
@@ -522,44 +561,17 @@ fn write_owned_borrowed_struct(
     writeln!(output, ") -> Self {{ Self {{").expect("writing cannot fail");
     for field in fields {
         let name = rust_name(&field.name);
-        let value = match field.conversion {
-            ProjectedFieldConversion::SliceBorrow => format!("{name}.into_vec()"),
-            ProjectedFieldConversion::OptionalOwned
-            | ProjectedFieldConversion::OptionalStringBorrow => format!("{name}.into()"),
-            ProjectedFieldConversion::OptionalSliceBorrow => {
-                format!("{name}.into().map(|value| value.into_vec())")
-            }
-            _ => name,
+        let source = if matches!(
+            field.ty,
+            crate::rust_interop::projection::ProjectedType::Optional(_)
+        ) {
+            format!("({name}).into()")
+        } else {
+            name
         };
+        let value = projected_chain_argument_expression(&source, &field.ty);
         writeln!(output, "        {}: {value},", rust_name(&field.name))
             .expect("writing cannot fail");
-    }
-    writeln!(output, "    }} }}").expect("writing cannot fail");
-    let native_constructor = native_path
-        .split_once('<')
-        .map_or(native_path, |(base, _)| base);
-    writeln!(
-        output,
-        "    fn terrane_native_view(&self) -> {native_path} {{ {native_constructor} {{"
-    )
-    .expect("writing cannot fail");
-    for field in fields {
-        let source = format!("self.{}", rust_name(&field.name));
-        let value = match field.conversion {
-            ProjectedFieldConversion::Identity | ProjectedFieldConversion::OptionalOwned => source,
-            ProjectedFieldConversion::StringBorrow => format!("&{source}"),
-            ProjectedFieldConversion::SliceBorrow => format!("{source}.as_slice()"),
-            ProjectedFieldConversion::OptionalStringBorrow => format!("{source}.as_deref()"),
-            ProjectedFieldConversion::OptionalSliceBorrow => {
-                format!("{source}.as_deref()")
-            }
-        };
-        writeln!(
-            output,
-            "        {}: {value},",
-            crate::rust_ir::native_member_name(&field.rust_name)
-        )
-        .expect("writing cannot fail");
     }
     writeln!(output, "    }} }}\n}}\n").expect("writing cannot fail");
 }
@@ -1483,13 +1495,15 @@ pub(super) fn emit_dependency_unit(
             }
             if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
                 &projected.ty
-                && package.projection.borrowed_struct_view(rust_path).is_some()
+                && let Some((setup, view)) =
+                    projected_descriptor_view(package, rust_path, &name, !projected.borrowed)
             {
-                let view = format!("{name}.terrane_native_view()");
+                let view_name = format!("__terrane_view_{}", name.trim_start_matches('_'));
+                argument_conversions.push(format!("    {setup}let {view_name} = {view};"));
                 arguments.push(if projected.borrowed {
-                    format!("&{view}")
+                    format!("&{view_name}")
                 } else {
-                    view
+                    view_name
                 });
                 continue;
             }

@@ -320,7 +320,13 @@ fn input_has_owned_borrowed_view(
         .any(|attribute| matches!(attribute, rustdoc_types::Attribute::NonExhaustive))
         && default_generic_instantiation(structure, index, paths)
             .and_then(|generics| project_struct_fields(structure, index, paths, &generics))
-            .is_ok_and(|(_, borrowed_view)| borrowed_view)
+            .is_ok_and(|(fields, borrowed_view)| {
+                borrowed_view
+                    && (!matches!(ty, Type::BorrowedRef { .. })
+                        || fields
+                            .iter()
+                            .all(|field| field.conversion.supports_shared_view()))
+            })
 }
 
 #[expect(
@@ -741,6 +747,20 @@ pub(super) fn project_function_inner(
             .is_some_and(type_contains_borrowed_ref)
     {
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
+    }
+    if function
+        .sig
+        .inputs
+        .iter()
+        .any(|(_, ty)| input_has_owned_borrowed_view(ty, index, paths))
+        && effective_output
+            .as_ref()
+            .is_some_and(|ty| type_contains_lifetime_argument(ty) || type_contains_borrowed_ref(ty))
+        && !effective_output
+            .as_ref()
+            .is_some_and(|ty| borrowed_str_parameter(ty, index))
+    {
+        return Err("a temporary descriptor native view cannot escape its call; return an independent owned result".to_owned());
     }
     let mut error = None;
     let mut error_optional_depth = 0;

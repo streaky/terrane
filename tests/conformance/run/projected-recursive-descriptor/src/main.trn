@@ -1,0 +1,52 @@
+namespace app
+
+from /deps/terrane-recursive-descriptor-witness import Descriptor, inspect, inspect_shared, consume, fail_early, Factory, path_value, timeout_value
+from /deps/terrane-recursive-descriptor-witness import UniqueDescriptor, ticket, take_unique, ticket_drops, fail_unique
+from /deps/terrane-recursive-descriptor-witness import MixedDescriptor, Observed, reset_clones, take_mixed
+from /core/errors import dependency-error
+from /core/collections import list, tuple, unordered-map
+
+class transfer-box
+    value string|none = 'captured'
+
+function configuration Descriptor;
+    nested tuple of (uint32|none) = tuple; 2, 3
+    window tuple of uint32 = tuple; 800, 600
+    return instance Descriptor; window-size = window, nested = nested, path = (path_value;), timeout = (timeout_value;), labels = (unordered-map; mode='fast', speed='quick'), args = (list; 'alpha'), names = (list; 'one', 'two'), note = 'ready', strings = (list; 'left', 'right')
+
+function main;
+    config Descriptor = configuration;
+    print; (inspect; config)
+    print; (inspect_shared; config)
+    print; (config.inspect_method;)
+    print; (Factory::inspect_static; config)
+    try
+        fail_early; config
+    catch dependency-error
+        print; 'early-failure'
+    print; (consume; move config)
+    config2 Descriptor = configuration;
+    print; (config2.consume_method;)
+    config3 Descriptor = configuration;
+    print; (Factory::consume_static; move config3)
+    unique = instance UniqueDescriptor; ticket = (ticket;), text = 'unique'
+    result = take_unique; move unique
+    print; result
+    print; (ticket_drops;)
+    failing = instance UniqueDescriptor; ticket = (ticket;), text = 'failure'
+    try
+        fail_unique; move failing
+    catch dependency-error
+        print; 'unique-failure'
+    print; (ticket_drops;)
+    box = instance transfer-box;
+    extracted = move box.value
+    print; extracted
+    print; box.value == none
+    pair tuple of string = tuple; 'borrowed', 'owned'
+    rows list of (tuple of string) = list; (tuple; 'row', 'data')
+    first = instance Observed; name = 'one'
+    second = instance Observed; name = 'two'
+    mixed = instance MixedDescriptor; pair = pair, rows = rows, items = (unordered-map; first=first, second=second)
+    reset_clones;
+    print; (take_mixed; move mixed)

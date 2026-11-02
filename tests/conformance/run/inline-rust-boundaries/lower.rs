@@ -2,6 +2,69 @@
 include!("lower.support.rs");
 // Source: case.trn
 // Namespace: inline-rust-boundaries
+fn hoisted_captures() {
+    let mut text: Option<String> = None;
+    let mut upper: Option<String> = None;
+    let mut flag: Option<bool> = None;
+    let mut copied: Option<bool> = None;
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            let _ = text.insert(String::from("hoisted"));
+            let _ = upper
+                .insert({
+                    let text = text
+                        .as_ref()
+                        .expect("flow-proven available inline Rust capture")
+                        .clone();
+                    text.to_uppercase()
+                });
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&upper.as_ref()
+                .expect("flow-proven available binding"))
+            );
+            let _ = flag.insert(true);
+            let _ = copied
+                .insert({
+                    let flag = *flag
+                        .as_ref()
+                        .expect("flow-proven available inline Rust capture");
+                    flag
+                });
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&copied.as_ref()
+                .expect("flow-proven available binding"))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::CoercionError
+                {
+                    __terrane_handled_0 = true;
+                    println!("{}", String::from("unexpected"));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
 fn add(
     left: terrane_int_support::Int,
     right: terrane_int_support::Int,
@@ -118,4 +181,5 @@ fn main() {
     }
     missing = optional_rust(false);
     println!("{}", terrane_scalar_support::scalar_text(&(&missing).is_none()));
+    hoisted_captures();
 }

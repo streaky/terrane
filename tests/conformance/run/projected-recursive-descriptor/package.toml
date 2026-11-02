@@ -1,0 +1,7 @@
+package = "projected-recursive-descriptor"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-recursive-descriptor-witness]
+version = "=0.1.0"

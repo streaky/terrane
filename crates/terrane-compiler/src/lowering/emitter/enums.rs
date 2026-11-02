@@ -415,10 +415,7 @@ impl<'a> Emitter<'a> {
                             }
                         crate::rust_interop::projection::ProjectedFieldConversion::Identity => input,
                         crate::rust_interop::projection::ProjectedFieldConversion::OptionalOwned => format!("({input}).map(Into::into)"),
-                        crate::rust_interop::projection::ProjectedFieldConversion::StringBorrow => format!("({input}).as_str()"),
-                        crate::rust_interop::projection::ProjectedFieldConversion::OptionalStringBorrow
-                        | crate::rust_interop::projection::ProjectedFieldConversion::OptionalSliceBorrow => format!("({input}).as_deref()"),
-                        crate::rust_interop::projection::ProjectedFieldConversion::SliceBorrow => format!("({input}).as_slice()"),
+                        _ => unreachable!("enum payload admission requires an owned field conversion"),
                     }
                 };
                 let temporary = format!("__terrane_native_enum_payload_{index}");

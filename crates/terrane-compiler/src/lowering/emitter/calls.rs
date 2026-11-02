@@ -2524,6 +2524,47 @@ impl Emitter<'_> {
             )
         } else if let [receiver, _member] = callee.children.as_slice()
             && let Some(projected) = projected_function.as_ref()
+            && let Some(identity) = self.projected_receiver_identity(receiver)
+            && let Some(path) = self
+                .package
+                .projection
+                .foreign_rust_path(&identity.namespace, &identity.name)
+                .map(str::to_owned)
+            && self
+                .package
+                .projection
+                .borrowed_struct_view(&path)
+                .is_some()
+        {
+            let consuming = projected
+                .receiver
+                .is_some_and(crate::rust_interop::projection::Receiver::consumes);
+            let source = if consuming {
+                self.consuming_native_receiver_expression(receiver)
+            } else if let Some((_, receiver)) = &guarded_method_receiver {
+                format!("&*({receiver})")
+            } else {
+                format!("&({})", self.native_receiver_expression(receiver, false))
+            };
+            let owner = format!("__terrane_descriptor_owner_{}", node.span.start);
+            let view_name = format!("__terrane_descriptor_view_{}", node.span.start);
+            write!(shared_argument_setup, "let {owner} = {source}; ").expect("writing cannot fail");
+            let (setup, view) = projected_descriptor_view(self.package, &path, &owner, consuming)
+                .expect("descriptor view has a native constructor");
+            write!(shared_argument_setup, "{setup}let {view_name} = {view}; ")
+                .expect("writing cannot fail");
+            if let Some(native_path) = &projected.native_path {
+                native_member_receiver = Some(if consuming {
+                    view_name
+                } else {
+                    format!("&{view_name}")
+                });
+                native_path.clone()
+            } else {
+                format!("({view_name}).{}", rust_name(&projected.name))
+            }
+        } else if let [receiver, _member] = callee.children.as_slice()
+            && let Some(projected) = projected_function.as_ref()
             && let Some(native_path) = &projected.native_path
         {
             let receiver = match projected.receiver {

@@ -1570,7 +1570,8 @@ impl<'unit> Emitter<'unit> {
                 !matches!(
                     binding.value_type,
                     ValueType::Reference(_) | ValueType::MutableReference(_)
-                ) && !rust_value_is_copy(&binding.value_type)
+                ) && (!rust_value_is_copy(&binding.value_type)
+                    || self.binding_may_be_unassigned(binding))
                     && identifiers.contains(name)
                     && crate::lowering::rust_value_binding_at(self.unit, node.span.start, name)
                         .is_some_and(|(_, selected)| selected.span == binding.span)
@@ -1578,7 +1579,18 @@ impl<'unit> Emitter<'unit> {
             })
             .map(|binding| {
                 let name = crate::lowering::binding_storage_rust_name(self.unit, binding);
-                format!("let {name} = {name}.clone();")
+                if self.binding_may_be_unassigned(binding) {
+                    let value = format!(
+                        "{name}.as_ref().expect(\"flow-proven available inline Rust capture\")"
+                    );
+                    if rust_value_is_copy(&binding.value_type) {
+                        format!("let {name} = *{value};")
+                    } else {
+                        format!("let {name} = {value}.clone();")
+                    }
+                } else {
+                    format!("let {name} = {name}.clone();")
+                }
             })
             .collect::<Vec<_>>()
             .join(" ")

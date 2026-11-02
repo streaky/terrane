@@ -857,35 +857,36 @@ fn binding_mutation_count(
         && node.children.last().is_some_and(|target| {
             target.kind == SyntaxKind::MemberExpression
                 && target.children.first().is_some_and(resolves_to_binding)
-                && infer_value_type(unit, target, &unit.typed_bindings)
-                    .ok()
-                    .flatten()
-                    .is_some_and(|ty| application_is_resource_owning(package, &ty))
                 && (matches!(
                     infer_value_type(unit, target, &unit.typed_bindings),
                     Ok(Some(ValueType::Optional(_)))
-                ) || target.children.first().is_some_and(|receiver| {
-                    let Ok(Some(ValueType::Object(object))) =
-                        infer_value_type(unit, receiver, &unit.typed_bindings)
-                    else {
-                        return false;
-                    };
-                    package
-                        .units
-                        .iter()
-                        .flat_map(|unit| &unit.descriptors)
-                        .find(|descriptor| {
-                            descriptor.identity.namespace == object.namespace
-                                && descriptor.identity.name == object.name
-                        })
-                        .is_some_and(|descriptor| {
-                            target.children.get(1).is_some_and(|member| {
-                                descriptor.fields.iter().any(|field| {
-                                    field.name == node_text(&unit.source, member) && field.required
+                ) || infer_value_type(unit, target, &unit.typed_bindings)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|ty| application_is_resource_owning(package, &ty))
+                    && target.children.first().is_some_and(|receiver| {
+                        let Ok(Some(ValueType::Object(object))) =
+                            infer_value_type(unit, receiver, &unit.typed_bindings)
+                        else {
+                            return false;
+                        };
+                        package
+                            .units
+                            .iter()
+                            .flat_map(|unit| &unit.descriptors)
+                            .find(|descriptor| {
+                                descriptor.identity.namespace == object.namespace
+                                    && descriptor.identity.name == object.name
+                            })
+                            .is_some_and(|descriptor| {
+                                target.children.get(1).is_some_and(|member| {
+                                    descriptor.fields.iter().any(|field| {
+                                        field.name == node_text(&unit.source, member)
+                                            && field.required
+                                    })
                                 })
                             })
-                        })
-                }))
+                    }))
         });
     let writes_here = usize::from(
         direct_write

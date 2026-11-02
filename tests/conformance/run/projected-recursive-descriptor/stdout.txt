@@ -1,0 +1,15 @@
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+early-failure
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+800x600:2,3:/tmp/example:25:2:alpha:one,two:ready:left,right
+unique
+1
+unique-failure
+2
+captured
+true
+borrowed:owned:row:data:one,two:0

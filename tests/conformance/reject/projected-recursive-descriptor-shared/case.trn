@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import UniqueDescriptor, ticket, inspect_unique
+function main;
+    config = instance UniqueDescriptor; ticket = (ticket;), text = 'unique'
+    print; (inspect_unique; config)
