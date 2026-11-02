@@ -273,6 +273,15 @@ fn grouped_binding_lookahead_requires_type_evidence() {
 }
 
 #[test]
+fn grouped_prefix_statements_remain_expressions() {
+    for operator in ["move", "not", "ref", "await"] {
+        let tree = parse_source(&format!("{operator} (value)\n"));
+        assert_eq!(tree.root.children[0].kind, SyntaxKind::UnaryExpression);
+        assert!(!contains(&tree.root, SyntaxKind::Binding));
+    }
+}
+
+#[test]
 fn distinguishes_construction_instance_members_and_static_members() {
     let tree = parse_source(
         "made = instance widget;\nchanged = value.reset;\nshared = widget::default;\n",

@@ -1958,6 +1958,10 @@ impl Parser<'_> {
             && (bare_discard
                 || self.peek_kind(offset + 1) == Some(TokenKind::Identifier)
                 || (self.peek_kind(offset + 1) == Some(TokenKind::OpenParen)
+                    && !matches!(
+                        self.peek_text(offset),
+                        Some("not" | "ref" | "move" | "await")
+                    )
                     && self.grouped_binding_type_has_declaration_boundary(offset + 1))
                 || (has_prefix
                     && matches!(
