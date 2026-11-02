@@ -1969,8 +1969,8 @@ impl Parser<'_> {
     fn grouped_binding_type_has_declaration_boundary(&self, offset: usize) -> bool {
         // Parentheses alone are not evidence of a binding type: calls such as
         // `show(5)` can otherwise be consumed as grouped types before statement parsing.
-        // An initializer proves a local declaration; only object bodies admit
-        // the initializer-free grouped field spelling.
+        // A type-shaped group followed by a declaration boundary is valid in
+        // every binding position, with or without an initializer.
         if !matches!(
             self.peek_kind(offset + 1),
             Some(TokenKind::Identifier | TokenKind::OpenParen)
@@ -1991,13 +1991,15 @@ impl Parser<'_> {
                         {
                             cursor += 2;
                         }
-                        return self.peek_kind(cursor) == Some(TokenKind::Assign)
-                            || self.class_body_depth > 0
-                                && self.block_depth == self.class_body_depth
-                                && (matches!(
-                                    self.peek_kind(cursor),
-                                    Some(TokenKind::Newline | TokenKind::Dedent | TokenKind::Eof)
-                                ) || self.peek_text(cursor) == Some("metadata"));
+                        return matches!(
+                            self.peek_kind(cursor),
+                            Some(
+                                TokenKind::Assign
+                                    | TokenKind::Newline
+                                    | TokenKind::Dedent
+                                    | TokenKind::Eof
+                            )
+                        ) || self.peek_text(cursor) == Some("metadata");
                     }
                 }
                 TokenKind::Newline | TokenKind::Eof => return false,

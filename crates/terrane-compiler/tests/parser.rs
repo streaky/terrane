@@ -246,7 +246,7 @@ fn grouped_binding_lookahead_requires_type_evidence() {
     for source in [
         "function main;\n  show(5)\n",
         "function main;\n  show (6)\n",
-        "function main;\n  show(value)\n",
+        "function main;\n  show ('value')\n",
     ] {
         let source = SourceFile::new(0, "case.trn".into(), source.to_owned());
         let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
@@ -254,13 +254,22 @@ fn grouped_binding_lookahead_requires_type_evidence() {
         assert_eq!(diagnostics[0].code, "S1025");
     }
 
-    let tree = parse_source("class record\n  value (string | none)\n");
-    assert!(contains(&tree.root, SyntaxKind::Binding));
-    assert!(contains(&tree.root, SyntaxKind::UnionType));
+    for source in [
+        "class record\n  value (string | none)\n",
+        "trait record\n  value (string | none)\n",
+        "function main;\n  value (string | none)\n  value = none\n",
+        "function main;\n  value ((string | none))",
+        "function main;\n  value (string | none) = none\n",
+    ] {
+        let tree = parse_source(source);
+        assert!(contains(&tree.root, SyntaxKind::Binding));
+        assert!(contains(&tree.root, SyntaxKind::UnionType));
+    }
 
-    let tree = parse_source("function main;\n  value (string | none) = none\n");
+    // Identifier-only groups can be nominal types, not call arguments: Terrane
+    // calls use `;`, so syntax must leave descriptor resolution to semantics.
+    let tree = parse_source("class value\nfunction main;\n  show (value)\n");
     assert!(contains(&tree.root, SyntaxKind::Binding));
-    assert!(contains(&tree.root, SyntaxKind::UnionType));
 }
 
 #[test]
