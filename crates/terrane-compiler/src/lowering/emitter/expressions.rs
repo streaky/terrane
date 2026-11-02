@@ -2092,9 +2092,9 @@ impl Emitter<'_> {
             return format!("({left} {source_operator} {right})");
         }
         if comparison && let Some(value_type @ ValueType::Object(_)) = self.value_type(left) {
-            // Native enum values can be read through a narrowed borrowed carrier.
-            // The concrete Self type lets Rust coerce both owned and borrowed
-            // observations to the same referent without an extra value conversion.
+            // Keep canonical operand places and their guards alive through the
+            // comparison. Both owned values and narrowed native observations
+            // must be borrowed, not moved or snapshotted just to compare them.
             let (trait_name, method) = match source_operator {
                 "==" => ("PartialEq", "eq"),
                 "!=" => ("PartialEq", "ne"),
@@ -2105,13 +2105,13 @@ impl Emitter<'_> {
                 _ => unreachable!("comparison operator checked above"),
             };
             let rust_type = rust_value_type(self.package, value_type);
-            let left = self.receiver_expression(left);
-            let right = self.receiver_expression(right);
+            let (left_setup, left) = self.borrowed_receiver_parts(left);
+            let (right_setup, right) = self.borrowed_receiver_parts(right);
             return format!(
-                "{{ let __terrane_comparison_left = {left}; \
-                 let __terrane_comparison_right = {right}; \
+                "{{ {left_setup} let __terrane_comparison_left = &({left}); \
+                 {right_setup} let __terrane_comparison_right = &({right}); \
                  <{rust_type} as std::cmp::{trait_name}>::{method}(\
-                 &__terrane_comparison_left, &__terrane_comparison_right) }}"
+                 __terrane_comparison_left, __terrane_comparison_right) }}"
             );
         }
         let left_is_small = self.small_int_binding(left).is_some()

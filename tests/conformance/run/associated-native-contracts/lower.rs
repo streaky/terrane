@@ -1403,39 +1403,42 @@ fn main() {
     if (&selected_mode).is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
-            match &selected_mode { Some(value) => value, _ =>
+            &match &selected_mode { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }; let
-            __terrane_comparison_right = __terrane_raised(match
+            __terrane_receiver_value_0 = &__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::Mode::First)) { Ok(value) => Ok(value), Err(payload) => Err(crate
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) },
-            31 /* terrane-site: src/main.trn:158:34-158:46 */); < Mode as
-            std::cmp::PartialEq > ::eq(&__terrane_comparison_left,
-            &__terrane_comparison_right) })
+            31 /* terrane-site: src/main.trn:158:34-158:46 */); let
+            __terrane_comparison_right = &__terrane_receiver_value_0; < Mode as
+            std::cmp::PartialEq > ::eq(__terrane_comparison_left,
+            __terrane_comparison_right) })
         );
         println!(
-            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
-            __terrane_raised(match
+            "{}", terrane_scalar_support::scalar_text(&{ let __terrane_receiver_value_1 =
+            &__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::Mode::First)) { Ok(value) => Ok(value), Err(payload) => Err(crate
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::First")) },
             32 /* terrane-site: src/main.trn:159:17-159:29 */); let
-            __terrane_comparison_right = match &selected_mode { Some(value) => value, _
+            __terrane_comparison_left = &__terrane_receiver_value_1; let
+            __terrane_comparison_right = &match &selected_mode { Some(value) => value, _
             => unreachable!("flow-proven storage refinement") }; < Mode as
-            std::cmp::PartialEq > ::eq(&__terrane_comparison_left,
-            &__terrane_comparison_right) })
+            std::cmp::PartialEq > ::eq(__terrane_comparison_left,
+            __terrane_comparison_right) })
         );
         println!(
             "{}", terrane_scalar_support::scalar_text(&{ let __terrane_comparison_left =
-            match &selected_mode { Some(value) => value, _ =>
+            &match &selected_mode { Some(value) => value, _ =>
             unreachable!("flow-proven storage refinement") }; let
-            __terrane_comparison_right = __terrane_raised(match
+            __terrane_receiver_value_2 = &__terrane_raised(match
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
             witness::Mode::Last)) { Ok(value) => Ok(value), Err(payload) => Err(crate
             ::__terrane_dependency_panic(payload, "witness", "witness::Mode::Last")) },
-            33 /* terrane-site: src/main.trn:160:34-160:45 */); < Mode as
-            std::cmp::PartialEq > ::ne(&__terrane_comparison_left,
-            &__terrane_comparison_right) })
+            33 /* terrane-site: src/main.trn:160:34-160:45 */); let
+            __terrane_comparison_right = &__terrane_receiver_value_2; < Mode as
+            std::cmp::PartialEq > ::ne(__terrane_comparison_left,
+            __terrane_comparison_right) })
         );
     }
     missing_mode = __terrane_raised(
