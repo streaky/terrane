@@ -396,7 +396,8 @@ impl<'a> Emitter<'a> {
                 ));
                 let projected_type = substitute_projected_generic(&field.ty, &selected_types);
                 let expression = if field.ty.contains_open_generic() {
-                    let conversion = projected_argument_expression(&input, &projected_type);
+                    let conversion =
+                        projected_argument_expression(&input, &projected_type, self.package);
                     self.fallible(
                         format!(
                             "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({conversion}) }})()"
@@ -407,7 +408,11 @@ impl<'a> Emitter<'a> {
                     match field.conversion {
                         crate::rust_interop::projection::ProjectedFieldConversion::Identity
                             if !projected_type.has_identity_representation() => {
-                                let conversion = projected_argument_expression(&input, &projected_type);
+                                let conversion = projected_argument_expression(
+                                    &input,
+                                    &projected_type,
+                                    self.package,
+                                );
                                 self.fallible(
                                     format!("(|| -> Result<_, crate::TerraneForeignError> {{ Ok({conversion}) }})()"),
                                     result,
@@ -415,10 +420,7 @@ impl<'a> Emitter<'a> {
                             }
                         crate::rust_interop::projection::ProjectedFieldConversion::Identity => input,
                         crate::rust_interop::projection::ProjectedFieldConversion::OptionalOwned => format!("({input}).map(Into::into)"),
-                        crate::rust_interop::projection::ProjectedFieldConversion::StringBorrow => format!("({input}).as_str()"),
-                        crate::rust_interop::projection::ProjectedFieldConversion::OptionalStringBorrow
-                        | crate::rust_interop::projection::ProjectedFieldConversion::OptionalSliceBorrow => format!("({input}).as_deref()"),
-                        crate::rust_interop::projection::ProjectedFieldConversion::SliceBorrow => format!("({input}).as_slice()"),
+                        _ => unreachable!("enum payload admission requires an owned field conversion"),
                     }
                 };
                 let temporary = format!("__terrane_native_enum_payload_{index}");

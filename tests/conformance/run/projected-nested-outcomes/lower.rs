@@ -6,23 +6,29 @@ fn inspect_next(mode: i64) {
     let mut connection: Channel;
     let mut value: Option<Option<String>> = None;
     let mut failure: Option<TerraneError> = None;
-    connection = __terrane_raised(
-        channel(terrane_int_support::Int::from(mode as i128)),
-        0 /* terrane-site: src/main.trn:6:16-6:29 */,
-    );
+    connection = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(mode as i128);
+        __terrane_raised(
+            channel(__terrane_conversion_input_0),
+            0 /* terrane-site: src/main.trn:6:16-6:29 */,
+        )
+    };
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let _ = value
                 .insert(
                     __terrane_raised_completion!(
-                        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                        connection.next())) { Ok(None) => Ok(None), Ok(Some(Ok(value)))
-                        => Ok(Some(value)), Ok(Some(Err(error))) => Err(crate
-                        ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                        ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
-                        Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                        | | -> Result < _, crate ::TerraneForeignError > { match match
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                        Result < _, crate ::TerraneForeignError > { Ok(connection.next())
+                        })) { Ok(result) => result ?, Err(payload) => return Err(crate
+                        ::__terrane_dependency_panic(payload,
                         "terrane_nested_outcome_witness",
-                        "terrane_nested_outcome_witness::Channel::next")) },
+                        "terrane_nested_outcome_witness::Channel::next")) } { None =>
+                        Ok(None), Some(Ok(value)) => Ok(Some(value)), Some(Err(error)) =>
+                        Err(crate ::TerraneForeignError(crate
+                        ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                        .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                         1 /* terrane-site: src/main.trn:8:25-8:41 */
                     ),
                 );
@@ -76,23 +82,28 @@ fn inspect_outer(mode: i64) {
     let connection: Channel;
     let mut value: Option<Option<String>> = None;
     let mut failure: Option<TerraneError> = None;
-    connection = __terrane_raised(
-        channel(terrane_int_support::Int::from(mode as i128)),
-        2 /* terrane-site: src/main.trn:17:16-17:29 */,
-    );
+    connection = {
+        let __terrane_conversion_input_0 = terrane_int_support::Int::from(mode as i128);
+        __terrane_raised(
+            channel(__terrane_conversion_input_0),
+            2 /* terrane-site: src/main.trn:17:16-17:29 */,
+        )
+    };
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             let _ = value
                 .insert(
                     __terrane_raised_completion!(
-                        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                        (&connection).outer())) { Ok(Ok(value)) => Ok(value),
-                        Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-                        ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                        .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
+                        | | -> Result < _, crate ::TerraneForeignError > { match match
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                        Result < _, crate ::TerraneForeignError > { Ok((&connection)
+                        .outer()) })) { Ok(result) => result ?, Err(payload) => return
                         Err(crate ::__terrane_dependency_panic(payload,
                         "terrane_nested_outcome_witness",
-                        "terrane_nested_outcome_witness::Channel::outer")) },
+                        "terrane_nested_outcome_witness::Channel::outer")) } { Ok(value)
+                        => Ok(value), Err(error) => Err(crate ::TerraneForeignError(crate
+                        ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                        .to_string(), crate ::TERRANE_NO_SITE))) } } (),
                         3 /* terrane-site: src/main.trn:19:25-19:42 */
                     ),
                 );

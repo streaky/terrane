@@ -1,5 +1,7 @@
 use super::prelude::*;
 use std::collections::BTreeMap;
+#[path = "descriptor_lowering.rs"]
+mod descriptor_fields;
 
 pub(super) type DependencyImportOwners = BTreeMap<String, (String, String, Vec<String>, bool)>;
 
@@ -438,7 +440,7 @@ pub(super) fn emit_dependency_imports(
     if first_namespace.is_some_and(|namespace| namespace == &unit.namespace) {
         for (rust_name, (_, path, generic_parameters, _)) in import_owners {
             if let Some((native_path, fields)) = package.projection.borrowed_struct_view(path) {
-                write_owned_borrowed_struct(output, rust_name, native_path, fields);
+                write_owned_borrowed_struct(output, rust_name, native_path, fields, package);
             } else if let Some((_, fields)) = package.projection.enum_payload(path) {
                 write_enum_payload(output, rust_name, path, fields);
             } else if let Some(native_view) = package
@@ -470,31 +472,69 @@ fn projected_owned_field_type(ty: &crate::rust_interop::projection::ProjectedTyp
 pub(super) fn projected_field_abi_type(
     ty: &crate::rust_interop::projection::ProjectedType,
 ) -> String {
-    use crate::rust_interop::projection::ProjectedType;
-    match ty {
-        ProjectedType::String | ProjectedType::BorrowedString => "String".to_owned(),
-        ProjectedType::Bool => "bool".to_owned(),
-        ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => name.clone(),
-        ProjectedType::Float => "f64".to_owned(),
-        ProjectedType::Float32 => "f32".to_owned(),
-        ProjectedType::Sequence { item, .. } => format!(
-            "terrane_collection_support::List<{}>",
-            projected_field_abi_type(item)
-        ),
-        ProjectedType::Optional(inner) => {
-            format!("impl Into<Option<{}>>", projected_field_abi_type(inner))
-        }
-        _ => ty.rust_type(),
+    if let crate::rust_interop::projection::ProjectedType::Optional(inner) = ty {
+        format!(
+            "impl Into<Option<{}>>",
+            descriptor_fields::source_type(inner)
+        )
+    } else {
+        descriptor_fields::source_type(ty)
     }
+}
+
+pub(super) fn projected_descriptor_view(
+    package: &SemanticPackage,
+    path: &str,
+    source: &str,
+    consuming: bool,
+) -> Option<(String, String)> {
+    let (native_path, fields) = package.projection.borrowed_struct_view(path)?;
+    let constructor = crate::rust_ir::rust_type_constructor(native_path)?;
+    let mut setup = String::new();
+    let fields = fields
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let field_source = format!("({source}).{}", rust_name(&field.name));
+            let staged = consuming
+                .then(|| {
+                    descriptor_fields::staged_field(
+                        &field_source,
+                        source,
+                        index,
+                        &field.ty,
+                        &field.conversion,
+                    )
+                })
+                .flatten();
+            let value = if let Some((prefix, value)) = staged {
+                setup.push_str(&prefix);
+                value
+            } else {
+                descriptor_fields::native_field(
+                    &field_source,
+                    &field.ty,
+                    &field.conversion,
+                    consuming,
+                )
+            };
+            format!(
+                "{}: {value}",
+                crate::rust_ir::native_member_name(&field.rust_name)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some((setup, format!("{constructor} {{ {fields} }}")))
 }
 
 fn write_owned_borrowed_struct(
     output: &mut String,
     rust_name_: &str,
-    native_path: &str,
+    _native_path: &str,
     fields: &[crate::rust_interop::projection::ProjectedField],
+    package: &SemanticPackage,
 ) {
-    use crate::rust_interop::projection::ProjectedFieldConversion;
     writeln!(output, "pub struct {rust_name_} {{").expect("writing cannot fail");
     for field in fields {
         writeln!(
@@ -519,49 +559,26 @@ fn write_owned_borrowed_struct(
         )
         .expect("writing cannot fail");
     }
-    writeln!(output, ") -> Self {{ Self {{").expect("writing cannot fail");
-    for field in fields {
-        let name = rust_name(&field.name);
-        let value = match field.conversion {
-            ProjectedFieldConversion::SliceBorrow => format!("{name}.into_vec()"),
-            ProjectedFieldConversion::OptionalOwned
-            | ProjectedFieldConversion::OptionalStringBorrow => format!("{name}.into()"),
-            ProjectedFieldConversion::OptionalSliceBorrow => {
-                format!("{name}.into().map(|value| value.into_vec())")
-            }
-            _ => name,
-        };
-        writeln!(output, "        {}: {value},", rust_name(&field.name))
-            .expect("writing cannot fail");
-    }
-    writeln!(output, "    }} }}").expect("writing cannot fail");
-    let native_constructor = native_path
-        .split_once('<')
-        .map_or(native_path, |(base, _)| base);
     writeln!(
         output,
-        "    fn terrane_native_view(&self) -> {native_path} {{ {native_constructor} {{"
+        ") -> Result<Self, crate::TerraneForeignError> {{ Ok(Self {{"
     )
     .expect("writing cannot fail");
     for field in fields {
-        let source = format!("self.{}", rust_name(&field.name));
-        let value = match field.conversion {
-            ProjectedFieldConversion::Identity | ProjectedFieldConversion::OptionalOwned => source,
-            ProjectedFieldConversion::StringBorrow => format!("&{source}"),
-            ProjectedFieldConversion::SliceBorrow => format!("{source}.as_slice()"),
-            ProjectedFieldConversion::OptionalStringBorrow => format!("{source}.as_deref()"),
-            ProjectedFieldConversion::OptionalSliceBorrow => {
-                format!("{source}.as_deref()")
-            }
+        let name = rust_name(&field.name);
+        let source = if matches!(
+            field.ty,
+            crate::rust_interop::projection::ProjectedType::Optional(_)
+        ) {
+            format!("({name}).into()")
+        } else {
+            name
         };
-        writeln!(
-            output,
-            "        {}: {value},",
-            crate::rust_ir::native_member_name(&field.rust_name)
-        )
-        .expect("writing cannot fail");
+        let value = projected_argument_expression(&source, &field.ty, package);
+        writeln!(output, "        {}: {value},", rust_name(&field.name))
+            .expect("writing cannot fail");
     }
-    writeln!(output, "    }} }}\n}}\n").expect("writing cannot fail");
+    writeln!(output, "    }}) }}\n}}\n").expect("writing cannot fail");
 }
 
 pub(super) fn enum_payload_constructor_name(path: &str) -> String {
@@ -872,6 +889,7 @@ fn callback_parameter_rust_type(rust_type: &str) -> String {
 pub(super) fn projected_callback_output_expression(
     value: &str,
     ty: &crate::rust_interop::projection::ProjectedType,
+    package: &SemanticPackage,
 ) -> String {
     match ty {
         crate::rust_interop::projection::ProjectedType::Int => format!(
@@ -880,7 +898,7 @@ pub(super) fn projected_callback_output_expression(
         crate::rust_interop::projection::ProjectedType::InvocationScoped { .. } => {
             format!("{value}.into()")
         }
-        _ => projected_argument_expression(value, ty),
+        _ => projected_argument_expression(value, ty, package),
     }
 }
 
@@ -890,13 +908,24 @@ pub(super) fn projected_callback_output_expression(
 )]
 fn projected_callback_argument(
     name: &str,
-    parameters: &[crate::rust_interop::projection::ProjectedType],
-    parameter_rust_types: &[String],
-    parameter_borrows: &[bool],
-    result: &crate::rust_interop::projection::ProjectedType,
-    invocation_mode: InvocationMode,
-    is_async: bool,
+    callback: &crate::rust_interop::projection::ProjectedType,
+    package: &SemanticPackage,
 ) -> String {
+    let crate::rust_interop::projection::ProjectedType::Callback {
+        parameters,
+        parameter_rust_types,
+        parameter_borrows,
+        result,
+        invocation_mode,
+        is_async,
+        ..
+    } = callback
+    else {
+        unreachable!("callback conversion requires its selected callback contract")
+    };
+    let invocation_mode = *invocation_mode;
+    let is_async = *is_async;
+    let result = result.as_ref();
     let rust_parameters = parameters
         .iter()
         .enumerate()
@@ -959,7 +988,7 @@ fn projected_callback_argument(
         [argument] => format!("({argument},)"),
         _ => format!("({direct_arguments})"),
     };
-    let converted_result = projected_callback_output_expression("callback_value", result);
+    let converted_result = projected_callback_output_expression("callback_value", result, package);
     let invoke = if invocation_mode == InvocationMode::Shared {
         format!("(callback)({direct_arguments})")
     } else {
@@ -1003,13 +1032,10 @@ fn projected_callback_argument(
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "projected argument conversion remains one exhaustive type dispatch"
-)]
 pub(super) fn projected_argument_expression(
     name: &str,
     ty: &crate::rust_interop::projection::ProjectedType,
+    package: &SemanticPackage,
 ) -> String {
     match ty {
         crate::rust_interop::projection::ProjectedType::Int => format!(
@@ -1024,28 +1050,14 @@ pub(super) fn projected_argument_expression(
         crate::rust_interop::projection::ProjectedType::BoxedInterface { .. } => {
             format!("Box::new({name})")
         }
-        crate::rust_interop::projection::ProjectedType::Callback {
-            parameters,
-            parameter_rust_types,
-            parameter_borrows,
-            result,
-            invocation_mode,
-            is_async,
-            ..
-        } => projected_callback_argument(
-            name,
-            parameters,
-            parameter_rust_types,
-            parameter_borrows,
-            result,
-            *invocation_mode,
-            *is_async,
-        ),
+        crate::rust_interop::projection::ProjectedType::Callback { .. } => {
+            projected_callback_argument(name, ty, package)
+        }
         crate::rust_interop::projection::ProjectedType::Optional(inner) => {
             if inner.has_identity_representation() {
                 name.to_owned()
             } else {
-                let converted = projected_argument_expression("value", inner);
+                let converted = projected_argument_expression("value", inner, package);
                 format!(
                     "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
                 )
@@ -1053,10 +1065,9 @@ pub(super) fn projected_argument_expression(
         }
         crate::rust_interop::projection::ProjectedType::Sequence { rust_path, item } => {
             if projected_sequence_is_vec(rust_path) {
-                let consume = if matches!(
-                    item.as_ref(),
-                    crate::rust_interop::projection::ProjectedType::InvocationScoped { .. }
-                ) {
+                let consume = if crate::semantics::projected_type_is_cloneable(package, item)
+                    == Some(false)
+                {
                     "into_unique_vec"
                 } else {
                     "into_vec"
@@ -1064,13 +1075,13 @@ pub(super) fn projected_argument_expression(
                 if item.has_identity_representation() {
                     format!("{name}.{consume}()")
                 } else {
-                    let converted = projected_argument_expression("item", item);
+                    let converted = projected_argument_expression("item", item, package);
                     format!(
                         "{name}.{consume}().into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
                     )
                 }
             } else {
-                let converted = projected_argument_expression("item", item);
+                let converted = projected_argument_expression("item", item, package);
                 format!(
                     "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
                 )
@@ -1079,7 +1090,7 @@ pub(super) fn projected_argument_expression(
         crate::rust_interop::projection::ProjectedType::Set {
             rust_path, item, ..
         } => {
-            let converted = projected_argument_expression("item", item);
+            let converted = projected_argument_expression("item", item, package);
             format!(
                 "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
             )
@@ -1090,8 +1101,8 @@ pub(super) fn projected_argument_expression(
             value,
             ..
         } => {
-            let key = projected_argument_expression("key", key);
-            let value = projected_argument_expression("value", value);
+            let key = projected_argument_expression("key", key, package);
+            let value = projected_argument_expression("value", value, package);
             format!(
                 "{name}.into_iter().map(|(key, value)| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
             )
@@ -1101,31 +1112,26 @@ pub(super) fn projected_argument_expression(
                 .iter()
                 .map(|item| {
                     projected_argument_expression(
-                        "tuple_items.next().ok_or_else(|| crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple length did not match its checked type\", crate::TERRANE_NO_SITE)))?",
+                        "tuple_items.next().expect(\"validated projected tuple length\")",
                         item,
+                        package,
                     )
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
+            let consume =
+                if crate::semantics::projected_type_is_cloneable(package, ty) == Some(false) {
+                    "into_unique_vec"
+                } else {
+                    "into_vec"
+                };
             format!(
-                "{{ let mut tuple_items = {name}.try_into_iter().map_err(|_| crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple cannot move shared elements\", crate::TERRANE_NO_SITE)))?; ({converted},) }}"
+                "{{ let tuple_value = {name}; if tuple_value.length() != {} {{ return Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple length did not match its checked type\", crate::TERRANE_NO_SITE))); }} let mut tuple_items = tuple_value.{consume}().into_iter(); ({converted},) }}",
+                items.len(),
             )
         }
         _ => name.to_owned(),
     }
-}
-
-pub(super) fn projected_chain_argument_expression(
-    name: &str,
-    ty: &crate::rust_interop::projection::ProjectedType,
-) -> String {
-    if ty.has_identity_representation() {
-        return name.to_owned();
-    }
-    let converted = projected_argument_expression(name, ty);
-    format!(
-        "match (|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error) }}"
-    )
 }
 
 pub(super) fn projected_result_expression(
@@ -1483,13 +1489,15 @@ pub(super) fn emit_dependency_unit(
             }
             if let crate::rust_interop::projection::ProjectedType::Foreign { rust_path, .. } =
                 &projected.ty
-                && package.projection.borrowed_struct_view(rust_path).is_some()
+                && let Some((setup, view)) =
+                    projected_descriptor_view(package, rust_path, &name, !projected.borrowed)
             {
-                let view = format!("{name}.terrane_native_view()");
+                let view_name = format!("__terrane_view_{}", name.trim_start_matches('_'));
+                argument_conversions.push(format!("    {setup}let {view_name} = {view};"));
                 arguments.push(if projected.borrowed {
-                    format!("&{view}")
+                    format!("&{view_name}")
                 } else {
-                    view
+                    view_name
                 });
                 continue;
             }
@@ -1551,7 +1559,7 @@ pub(super) fn emit_dependency_unit(
             } else {
                 name.clone()
             };
-            let value = projected_argument_expression(&source, &projected.ty);
+            let value = projected_argument_expression(&source, &projected.ty, package);
             argument_conversions.push(format!(
                 "    let {}{name} = {value};",
                 if projected.mutable_borrow { "mut " } else { "" }

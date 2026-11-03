@@ -122,43 +122,65 @@ fn parse_twice(text: String) -> terrane_int_support::Int {
 }
 fn sensitive(header: &HeaderValue) -> bool {
     return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&*header).is_sensitive()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderValue::is_sensitive",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&*header).is_sensitive()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "http",
+                                "http::HeaderValue::is_sensitive",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         2 /* terrane-site: src/main.trn:20:12-20:32 */,
     );
 }
 fn mark_sensitive(header: &mut HeaderValue) {
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let _ = (*header).set_sensitive(true);
-            }),
-        ) {
-            Ok(()) => Ok(()),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderValue::set_sensitive",
-                    ),
-                )
-            }
-        },
-        3 /* terrane-site: src/main.trn:23:5-23:31 */,
-    );
+    {
+        let __terrane_conversion_input_0 = true;
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = (*header)
+                                    .set_sensitive(__terrane_conversion_input_0);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderValue::set_sensitive",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
+                }
+            }(),
+            3 /* terrane-site: src/main.trn:23:5-23:31 */,
+        )
+    };
 }
 fn main() {
     let mut header: Option<HeaderValue>;

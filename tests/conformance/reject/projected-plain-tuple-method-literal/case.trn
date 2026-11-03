@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Plain
+from /core/collections import tuple
+function main;
+    owner = instance Plain; size = (tuple; 1, 2)
+    owner.add; (tuple; 1, 2, 3)

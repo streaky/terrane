@@ -988,6 +988,18 @@ pub(crate) fn value_type_is_cloneable(
 ) -> bool {
     cloneable_value_type(package, value_type, &mut BTreeSet::new())
 }
+pub(crate) fn projected_type_is_cloneable(
+    package: &SemanticPackage,
+    ty: &crate::rust_interop::projection::ProjectedType,
+) -> Option<bool> {
+    let value_type = closed_projected_value_type(package, ty)?;
+    Some(cloneable_value_type(
+        package,
+        &value_type,
+        &mut BTreeSet::new(),
+    ))
+}
+
 pub(super) fn propagate_resource_ownership(
     package: &mut SemanticPackage,
 ) -> Result<(), SemanticFailure> {

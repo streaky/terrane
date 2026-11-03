@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Descriptor, borrow_window, path_value, timeout_value
+from /core/collections import list
+function escaped ref uint32;
+    config Descriptor = instance Descriptor; window-size = none, nested = none, path = (path_value;), timeout = (timeout_value;), labels = none, args = (list; 'arg'), names = (list; 'name'), note = none, strings = (list; 'value')
+    return borrow_window; config
+function main;
+    escaped;

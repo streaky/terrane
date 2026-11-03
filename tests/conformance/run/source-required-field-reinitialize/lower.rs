@@ -34,40 +34,46 @@ fn main() {
             terrane_static_trn_4275696c646572_new(),
             1 /* terrane-site: src/main.trn:10:19-10:32 */,
         );
-        __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| {
-                    let _ = replacement
-                        .set(
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                Ok(
-                                    terrane_int_support::coerce::<
-                                        u8,
-                                    >(&terrane_int_support::Int::from(3_i128))
-                                        .map_err(|error| crate::TerraneForeignError(
-                                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-                                        ))?,
-                                )
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error),
-                            },
-                        );
-                }),
-            ) {
-                Ok(()) => Ok(()),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_borrowed_future_witness",
-                            "terrane_borrowed_future_witness::Builder::set",
-                        ),
-                    )
-                }
-            },
-            2 /* terrane-site: src/main.trn:11:5-11:23 */,
-        );
+        {
+            let __terrane_conversion_input_0 = terrane_int_support::Int::from(3_i128);
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let _ = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok({
+                                    let _ = replacement
+                                        .set(
+                                            terrane_int_support::coerce::<
+                                                u8,
+                                            >(&__terrane_conversion_input_0)
+                                                .map_err(|error| crate::TerraneForeignError(
+                                                    crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                                                ))?,
+                                        );
+                                })
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_borrowed_future_witness",
+                                        "terrane_borrowed_future_witness::Builder::set",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(())
+                    }
+                }(),
+                2 /* terrane-site: src/main.trn:11:5-11:23 */,
+            )
+        };
         {
             let __terrane_value = replacement;
             h.value = Some(__terrane_value);
@@ -78,30 +84,32 @@ fn main() {
             __terrane_future = { let __terrane_call = (&first).serve(); Box::pin(async
             move { match crate
             ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
-            . await { Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as
-            u128)), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-            ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+            . await .map_err(| payload | crate ::__terrane_dependency_panic(payload,
+            "terrane_borrowed_future_witness",
+            "terrane_borrowed_future_witness::Builder::serve")) ? { Ok(value) =>
+            Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) =>
+            Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+            ::TERRANE_DEPENDENCY_ERROR,
             format!("Rust dependency `{}` member `{}` failed: {error}",
             "terrane_borrowed_future_witness",
             "terrane_borrowed_future_witness::Builder::serve"), crate
-            ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_borrowed_future_witness",
-            "terrane_borrowed_future_witness::Builder::serve")) } }) }; async move {
+            ::TERRANE_NO_SITE))) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:13:19-13:31 */) } }). await, 3 /* terrane-site: src/main.trn:13:19-13:31 */)),
             terrane_scalar_support::scalar_text(&__terrane_traced(__terrane_await({ let
             __terrane_future = { let __terrane_call = (&h.value.as_ref()
             .expect("required field initialized")).serve(); Box::pin(async move { match
             crate
             ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
-            . await { Ok(Ok(value)) => Ok(terrane_int_support::Int::from_u128(value as
-            u128)), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-            ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+            . await .map_err(| payload | crate ::__terrane_dependency_panic(payload,
+            "terrane_borrowed_future_witness",
+            "terrane_borrowed_future_witness::Builder::serve")) ? { Ok(value) =>
+            Ok(terrane_int_support::Int::from_u128(value as u128)), Err(error) =>
+            Err(crate ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
+            ::TERRANE_DEPENDENCY_ERROR,
             format!("Rust dependency `{}` member `{}` failed: {error}",
             "terrane_borrowed_future_witness",
             "terrane_borrowed_future_witness::Builder::serve"), crate
-            ::TERRANE_NO_SITE))), Err(payload) => Err(crate
-            ::__terrane_dependency_panic(payload, "terrane_borrowed_future_witness",
-            "terrane_borrowed_future_witness::Builder::serve")) } }) }; async move {
+            ::TERRANE_NO_SITE))) } }) }; async move {
             __terrane_raised_err(__terrane_future. await, 4 /* terrane-site: src/main.trn:13:41-13:55 */) } }). await, 4 /* terrane-site: src/main.trn:13:41-13:55 */))
         );
     });

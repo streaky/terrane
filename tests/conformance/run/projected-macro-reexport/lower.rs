@@ -17,13 +17,15 @@ fn main() {
     );
     direct_value = crate::direct_macro::answer();
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&facade_value)
-        .value())) { Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-        Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&facade_value).value()) })) { Ok(result) => result
+        ?, Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_reexport_facade_witness",
-        "terrane_reexport_facade_witness::GeneratedValue::value")) },
-        1 /* terrane-site: src/main.trn:12:13-12:32 */))
+        "terrane_reexport_facade_witness::GeneratedValue::value")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from(i128::from(value))) } }
+        (), 1 /* terrane-site: src/main.trn:12:13-12:32 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&direct_value));
 }

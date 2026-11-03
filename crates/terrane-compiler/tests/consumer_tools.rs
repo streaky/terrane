@@ -136,7 +136,8 @@ declarations = ["/consumer-app::main"]
         failure
             .diagnostics
             .iter()
-            .any(|diagnostic| diagnostic.code.as_ref() == "T0012")
+            .any(|diagnostic| diagnostic.code.as_ref() == "T0012"),
+        "unexpected generated-contract failure: {failure:?}"
     );
 
     fixture.write("provider/leaf/src/main.trn", &leaf_source("int", "42"));

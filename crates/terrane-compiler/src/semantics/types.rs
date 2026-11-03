@@ -1224,7 +1224,10 @@ pub(super) fn diagnostic_value_type(
         ValueType::List(item) => format!("list of {}", nested(item)),
         ValueType::Map(key, value) => format!("map of {}, {}", nested(key), nested(value)),
         ValueType::Set(item) => format!("set of {}", nested(item)),
-        ValueType::Tuple(item, _) => format!("tuple of {}", nested(item)),
+        ValueType::Tuple(item, Some(length)) => {
+            format!("tuple of {} (length {length})", nested(item))
+        }
+        ValueType::Tuple(item, None) => format!("tuple of {} (unknown length)", nested(item)),
         ValueType::Entry(key, value) => format!("entry of {}, {}", nested(key), nested(value)),
         ValueType::UnorderedMap(key, value) => {
             format!("unordered-map of {}, {}", nested(key), nested(value))

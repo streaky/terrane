@@ -126,7 +126,7 @@ impl Emitter<'_> {
             );
         }
         let value = self.expression(node);
-        projected_chain_argument_expression(&value, &parameter.ty)
+        projected_argument_expression(&value, &parameter.ty, self.package)
     }
 
     fn typed_document_decode_call(
@@ -1985,6 +1985,7 @@ impl Emitter<'_> {
         }
         let mut native_field_values = None;
         let mut native_field_converted = Vec::new();
+        let mut native_conversion_inputs = Vec::new();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
             if native_struct_construction {
@@ -2076,7 +2077,55 @@ impl Emitter<'_> {
                 let borrowed_expression = lowered.mode.borrows_input();
                 let snapshot_expression = lowered.mode.owns_lender();
                 let has_invocation_callback = lowered.has_invocation_callback;
-                let expression = lowered.expression;
+                let mut input = value;
+                while input.kind == SyntaxKind::GroupExpression
+                    && let [grouped] = input.children.as_slice()
+                {
+                    input = grouped;
+                }
+                let unclosed_native_graph = input.kind == SyntaxKind::CallExpression
+                    && input.children.first().is_some_and(|callee| {
+                        self.projected_function_for_call(
+                            callee,
+                            crate::syntax::call_is_unsafe(input),
+                        )
+                        .is_some_and(|function| {
+                            matches!(
+                                function.chain_role,
+                                Some(
+                                    crate::rust_interop::projection::ChainRole::Root
+                                        | crate::rust_interop::projection::ChainRole::Continue
+                                )
+                            )
+                        })
+                    });
+                let expression = if !borrowed_expression
+                    && !snapshot_expression
+                    && !has_invocation_callback
+                    && guarded_method_receiver.is_none()
+                    && !shared_async_method
+                    && !unclosed_native_graph
+                    && !matches!(
+                        self.value_type(value),
+                        Some(ValueType::InvocationScopedNative {
+                            expression_scoped: true,
+                            ..
+                        })
+                    )
+                    && (native_struct_construction
+                        || projected_function.as_ref().is_some_and(|function| {
+                            !function.is_async
+                                && !function.into_future
+                                && function.chain_role.is_none()
+                        })) {
+                    // Source completion/await belongs to the caller, not the
+                    // native conversion Result closure or panic catcher.
+                    let source = format!("__terrane_conversion_input_{index}");
+                    native_conversion_inputs.push((source.clone(), lowered.expression));
+                    source
+                } else {
+                    lowered.expression
+                };
                 let expression = if borrowed_expression
                     && projected_parameter.is_some_and(|parameter| {
                         parameter.preserves_borrowed_storage()
@@ -2174,7 +2223,34 @@ impl Emitter<'_> {
                         _ => None,
                     };
                     sequence_conversion.unwrap_or_else(|| {
-                        projected_chain_argument_expression(&expression, &projected.ty)
+                        if (projected_function
+                            .as_ref()
+                            .is_some_and(|function| function.is_async || function.into_future)
+                            || guarded_method_receiver.is_some()
+                            || shared_async_method)
+                            && !projected.ty.has_identity_representation()
+                        {
+                            // Convert owned inputs before constructing a borrowing
+                            // future or acquiring a checked shared receiver guard.
+                            let source = format!("__terrane_source_input_{index}");
+                            writeln!(shared_argument_setup, "let {source} = {expression};")
+                                .expect("writing cannot fail");
+                            let converted =
+                                projected_argument_expression(&source, &projected.ty, self.package);
+                            let converted = format!(
+                                "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})()"
+                            );
+                            let site = self.error_site(value);
+                            if self.try_completion {
+                                format!("__terrane_raised_completion!({converted}, {site})")
+                            } else if self.propagate_errors {
+                                format!("__terrane_raised_err({converted}, {site})?")
+                            } else {
+                                format!("__terrane_raised({converted}, {site})")
+                            }
+                        } else {
+                            projected_argument_expression(&expression, &projected.ty, self.package)
+                        }
                     })
                 } else {
                     expression
@@ -2524,8 +2600,61 @@ impl Emitter<'_> {
             )
         } else if let [receiver, _member] = callee.children.as_slice()
             && let Some(projected) = projected_function.as_ref()
+            && let Some(identity) = self.projected_receiver_identity(receiver)
+            && let Some(path) = self
+                .package
+                .projection
+                .foreign_rust_path(&identity.namespace, &identity.name)
+                .map(str::to_owned)
+            && self
+                .package
+                .projection
+                .borrowed_struct_view(&path)
+                .is_some()
+        {
+            let consuming = projected
+                .receiver
+                .is_some_and(crate::rust_interop::projection::Receiver::consumes);
+            let source = if consuming {
+                self.consuming_native_receiver_expression(receiver)
+            } else if let Some((_, receiver)) = &guarded_method_receiver {
+                format!("&*({receiver})")
+            } else {
+                format!("&({})", self.native_receiver_expression(receiver, false))
+            };
+            let owner = format!("__terrane_descriptor_owner_{}", node.span.start);
+            let view_name = format!("__terrane_descriptor_view_{}", node.span.start);
+            write!(shared_argument_setup, "let {owner} = {source}; ").expect("writing cannot fail");
+            let (setup, view) = projected_descriptor_view(self.package, &path, &owner, consuming)
+                .expect("descriptor view has a native constructor");
+            write!(shared_argument_setup, "{setup}let {view_name} = {view}; ")
+                .expect("writing cannot fail");
+            if let Some(native_path) = &projected.native_path {
+                native_member_receiver = Some(if consuming {
+                    view_name
+                } else {
+                    format!("&{view_name}")
+                });
+                native_path.clone()
+            } else {
+                format!("({view_name}).{}", rust_name(&projected.name))
+            }
+        } else if let [receiver, _member] = callee.children.as_slice()
+            && let Some(projected) = projected_function.as_ref()
             && let Some(native_path) = &projected.native_path
         {
+            let stage_receiver = stage_native_inputs
+                || (receiver.kind != SyntaxKind::Name
+                    && projected.chain_role.is_none()
+                    && !projected.is_async
+                    && !projected.into_future
+                    && !matches!(
+                        self.value_type(receiver),
+                        Some(ValueType::InvocationScopedNative {
+                            expression_scoped: true,
+                            ..
+                        })
+                    ));
             let receiver = match projected.receiver {
                 Some(crate::rust_interop::projection::Receiver::Borrow) => {
                     if let Some((_, receiver)) = &guarded_method_receiver {
@@ -2535,7 +2664,14 @@ impl Emitter<'_> {
                     {
                         narrowed
                     } else {
-                        format!("&{}", self.native_receiver_expression(receiver, false))
+                        let receiver = self.native_receiver_expression(receiver, false);
+                        if stage_receiver {
+                            // Establish the owner's type before a qualified method
+                            // imposes its forwarded Deref target as a coercion context.
+                            stage_native_input(format!("&({receiver})"))
+                        } else {
+                            format!("&({receiver})")
+                        }
                     }
                 }
                 Some(crate::rust_interop::projection::Receiver::MutableBorrow) => {
@@ -2545,7 +2681,12 @@ impl Emitter<'_> {
                     {
                         narrowed
                     } else {
-                        format!("&mut {}", self.native_receiver_expression(receiver, true))
+                        let receiver = self.native_receiver_expression(receiver, true);
+                        if stage_receiver {
+                            stage_native_input(format!("&mut ({receiver})"))
+                        } else {
+                            format!("&mut ({receiver})")
+                        }
                     }
                 }
                 Some(crate::rust_interop::projection::Receiver::Move) => {
@@ -2907,10 +3048,9 @@ impl Emitter<'_> {
         if let Some(receiver) = native_member_receiver {
             values.insert(0, receiver);
         }
-        if stage_native_inputs {
-            for value in &mut values {
-                *value = stage_native_input(std::mem::take(value));
-            }
+        for (name, expression) in native_conversion_inputs {
+            writeln!(native_input_setup, "let {name} = {expression};")
+                .expect("writing cannot fail");
         }
         let callable_mode =
             self.value_type(callee)
@@ -2963,6 +3103,10 @@ impl Emitter<'_> {
                             })
                     })
             };
+            let convert_field =
+                |value: &str, ty: &crate::rust_interop::projection::ProjectedType| {
+                    projected_argument_expression(value, ty, self.package)
+                };
             let projected_values = fields
                 .iter()
                 .enumerate()
@@ -3033,11 +3177,11 @@ impl Emitter<'_> {
                                 format!(
                                     "{{ let value: {} = {value}; {} }}",
                                     rust_value_type(self.package, source_type),
-                                    projected_chain_argument_expression("value", &field.ty),
+                                    convert_field("value", &field.ty),
                                 )
                             }
                         }
-                        (_, Some(value)) => projected_chain_argument_expression(&value, &field.ty),
+                        (_, Some(value)) => convert_field(&value, &field.ty),
                         (_, None) => unreachable!(
                             "semantics requires projected struct field `{}`",
                             field.name
@@ -3046,7 +3190,12 @@ impl Emitter<'_> {
                 })
                 .collect::<Vec<_>>();
             if borrowed_view {
-                format!("{name}({})", projected_values.join(", "))
+                let call = format!("{name}({})", projected_values.join(", "));
+                if native_struct_view == Some(true) {
+                    call
+                } else {
+                    format!("(|| -> Result<_, crate::TerraneForeignError> {{ Ok({call}) }})()")
+                }
             } else {
                 let assignments = fields
                     .iter()
@@ -3058,7 +3207,9 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 let native_path = native_path.replacen('<', "::<", 1);
-                format!("{native_path} {{ {assignments} }}")
+                format!(
+                    "(|| -> Result<_, crate::TerraneForeignError> {{ Ok({native_path} {{ {assignments} }}) }})()"
+                )
             }
         } else if contract.is_none()
             && matches!(
@@ -3101,44 +3252,53 @@ impl Emitter<'_> {
         } else {
             format!("{name}({})", values.join(", "))
         };
-        let foreign_method =
-            if specialization.is_some_and(|specialization| specialization.direct_projected_call) {
-                projected_function.as_ref()
-            } else {
-                contract.as_ref().and_then(|contract| {
-                    let [receiver, _member] = callee.children.as_slice() else {
-                        return None;
-                    };
-                    let identity = self
-                        .class_designator(receiver)
-                        .map(|object| object.identity.clone())
-                        .or_else(|| match self.value_type(receiver)? {
-                            ValueType::Object(identity) => Some(identity),
-                            ValueType::Reference(item)
-                            | ValueType::MutableReference(item)
-                            | ValueType::SharedReference(item) => {
-                                let ValueType::Object(identity) = item.value_type() else {
-                                    return None;
-                                };
-                                Some(identity.clone())
-                            }
-                            ValueType::InvocationScopedNative { family, .. } => Some(family),
-                            _ => None,
-                        })?;
-                    if projected_interface_dispatch {
-                        return None;
-                    }
-                    self.package
-                        .projection
-                        .method(
-                            &identity.namespace,
-                            &identity.name,
-                            &contract.name,
-                            contract.is_static,
-                        )
-                        .filter(|method| !contract.is_static || method.enum_operation.is_some())
-                })
-            };
+        let foreign_method = if native_struct_view == Some(false) {
+            // Native field assembly already supplies its conversion Result.
+            None
+        } else if specialization.is_some_and(|specialization| specialization.direct_projected_call)
+        {
+            projected_function.as_ref()
+        } else {
+            contract.as_ref().and_then(|contract| {
+                let [receiver, _member] = callee.children.as_slice() else {
+                    return None;
+                };
+                let identity = self
+                    .class_designator(receiver)
+                    .map(|object| object.identity.clone())
+                    .or_else(|| match self.value_type(receiver)? {
+                        ValueType::Object(identity) => Some(identity),
+                        ValueType::Reference(item)
+                        | ValueType::MutableReference(item)
+                        | ValueType::SharedReference(item) => {
+                            let ValueType::Object(identity) = item.value_type() else {
+                                return None;
+                            };
+                            Some(identity.clone())
+                        }
+                        ValueType::InvocationScopedNative { family, .. } => Some(family),
+                        _ => None,
+                    })?;
+                if projected_interface_dispatch {
+                    return None;
+                }
+                self.package
+                    .projection
+                    .method(
+                        &identity.namespace,
+                        &identity.name,
+                        &contract.name,
+                        contract.is_static,
+                    )
+                    .filter(|method| !contract.is_static || method.enum_operation.is_some())
+            })
+        };
+        let call = if native_macro_path.is_some() && !joint_macro_graph && foreign_method.is_none()
+        {
+            format!("(|| -> Result<_, crate::TerraneForeignError> {{ Ok({call}) }})()")
+        } else {
+            call
+        };
         let enum_operation = foreign_method.and_then(|method| method.enum_operation.clone());
         let call = enum_operation
             .as_ref()
@@ -3210,7 +3370,11 @@ impl Emitter<'_> {
         }
         let direct_projected_call =
             specialization.is_some_and(|specialization| specialization.direct_projected_call);
-        let foreign_error = direct_projected_call
+        let foreign_error = native_struct_view == Some(true)
+            || native_struct.is_some_and(|(_, _, borrowed_view)| !borrowed_view)
+            || native_struct_view == Some(false)
+            || (native_macro_path.is_some() && !joint_macro_graph)
+            || direct_projected_call
             || foreign_method.is_some()
             || (callee.kind == SyntaxKind::Name
                 && self
@@ -3296,7 +3460,9 @@ impl Emitter<'_> {
             } else if method.is_async {
                 "crate::__terrane_dependency_await_unwind(__terrane_call).await".to_owned()
             } else {
-                format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
+                format!(
+                    "std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<_, crate::TerraneForeignError> {{ Ok({unwind_call}) }}))"
+                )
             };
             let projected_result = specialization.map_or(&method.result, |specialization| {
                 &specialization.projected_result
@@ -3313,6 +3479,17 @@ impl Emitter<'_> {
                     projected_result_expression("value", inner)
                 }
                 _ => converted.clone(),
+            };
+            let invocation = if self.package.profile.panic == crate::package::PanicProfile::Abort {
+                invocation
+            } else if method.is_async || method.into_future {
+                format!(
+                    "{caught}.map_err(|payload| crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?}))?"
+                )
+            } else {
+                format!(
+                    "match {caught} {{ Ok(result) => result?, Err(payload) => return Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                )
             };
             let projected_error_identity = method.error.as_deref().and_then(|rust_path| {
                 self.package
@@ -3337,41 +3514,32 @@ impl Emitter<'_> {
                     )
                 },
             );
-            let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
-                if method.error_optional_depth == 1 {
-                    format!(
-                        "match {invocation} {{ None => Ok(None), Some(Ok(value)) => Ok(Some({nested_converted})), Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))) }}"
-                    )
-                } else if method.error.is_some() {
-                    format!(
-                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))) }}"
-                    )
-                } else if self.discarded_call == Some(node.span) {
-                    format!("{{ let _ = {invocation}; Ok(()) }}")
-                } else {
-                    format!(
-                        "Ok({})",
-                        projected_result_expression(&invocation, projected_result)
-                    )
-                }
-            } else if method.error_optional_depth == 1 {
+            let mapped = if method.error_optional_depth == 1 {
                 format!(
-                    "match {caught} {{ Ok(None) => Ok(None), Ok(Some(Ok(value))) => Ok(Some({nested_converted})), Ok(Some(Err(error))) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {invocation} {{ None => Ok(None), Some(Ok(value)) => Ok(Some({nested_converted})), Some(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))) }}"
                 )
             } else if method.error.is_some() {
                 format!(
-                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::{error_kind}, {error_message}, crate::TERRANE_NO_SITE))) }}"
                 )
+            } else if discarded_unit {
+                format!("{{ let _ = {invocation}; Ok::<_, crate::TerraneForeignError>(()) }}")
             } else {
-                let value_pattern = if discarded_unit { "()" } else { "value" };
                 format!(
-                    "match {caught} {{ Ok({value_pattern}) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "{{ let value = {invocation}; Ok::<_, crate::TerraneForeignError>({converted}) }}"
                 )
             };
-            if method.is_async {
-                format!("{{ let __terrane_call = {call}; Box::pin(async move {{ {mapped} }}) }}")
+            if method.is_async || method.into_future {
+                // Keep future construction in the caller's loan region.
+                if method.is_async {
+                    format!(
+                        "{{ let __terrane_call = {call}; Box::pin(async move {{ {mapped} }}) }}"
+                    )
+                } else {
+                    format!("{{ let __terrane_call = {call}; async {{ {mapped} }}.await }}")
+                }
             } else {
-                mapped
+                format!("(|| -> Result<_, crate::TerraneForeignError> {{ {mapped} }})()")
             }
         } else {
             call

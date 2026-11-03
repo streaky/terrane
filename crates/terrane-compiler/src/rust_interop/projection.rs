@@ -92,6 +92,8 @@ use callable::{
 };
 #[path = "projection/deref.rs"]
 mod deref;
+#[path = "projection/descriptor_owners.rs"]
+mod descriptor_owners;
 
 use cargo_workspace::{
     CargoExecution, CargoToolchain, containment, persist_dependency_lock,
@@ -158,7 +160,7 @@ use types::{
     projectable_interface_bound, projected_error_name, type_arguments, type_contains_borrowed_ref,
 };
 
-const PROJECTION_SCHEMA: &str = "323";
+const PROJECTION_SCHEMA: &str = "328";
 pub type ProjectedMemberDemands = BTreeMap<(String, String), BTreeSet<String>>;
 pub type ProjectionDemandSites = BTreeMap<(String, String, Option<String>), BTreeSet<String>>;
 pub const GENERATED_PROJECTION_FILE: &str = ".trn/terrane-projection.generated.trn";
@@ -397,15 +399,42 @@ pub struct ProjectedField {
     pub conversion: ProjectedFieldConversion,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProjectedFieldConversion {
     Identity,
+    OwnedNative {
+        cloneable: bool,
+        copyable: bool,
+    },
     OptionalOwned,
     StringBorrow,
-    OptionalStringBorrow,
     SliceBorrow,
-    OptionalSliceBorrow,
+    Optional(Box<ProjectedFieldConversion>),
+    Tuple(Vec<ProjectedFieldConversion>),
+    Sequence(Box<ProjectedFieldConversion>),
+    Mapping {
+        key: Box<ProjectedFieldConversion>,
+        value: Box<ProjectedFieldConversion>,
+    },
+    OsStrBorrow,
+}
+
+impl ProjectedFieldConversion {
+    pub(crate) fn supports_shared_view(&self) -> bool {
+        match self {
+            Self::OwnedNative {
+                cloneable,
+                copyable,
+            } => *cloneable || *copyable,
+            Self::Optional(inner) | Self::Sequence(inner) => inner.supports_shared_view(),
+            Self::Tuple(items) => items.iter().all(Self::supports_shared_view),
+            Self::Mapping { key, value } => {
+                key.supports_shared_view() && value.supports_shared_view()
+            }
+            _ => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

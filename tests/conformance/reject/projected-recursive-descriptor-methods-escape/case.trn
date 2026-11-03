@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Descriptor
+function main;
+    config Descriptor = instance Descriptor; text = 'value', number = 3
+    config.escaping_view;

@@ -1,5 +1,7 @@
 use super::functions::project_function_inner;
 use super::*;
+#[path = "descriptor_fields.rs"]
+mod descriptor_fields;
 pub(super) fn normalize_projected_items(
     items: &mut Vec<ProjectedItem>,
     declined: &mut Vec<DeclinedItem>,
@@ -32,55 +34,24 @@ fn exact_projected_field_type(ty: ProjectedType) -> ProjectedType {
         ProjectedType::Optional(inner) => {
             ProjectedType::Optional(Box::new(exact_projected_field_type(*inner)))
         }
+        ProjectedType::Tuple(items) => {
+            ProjectedType::Tuple(items.into_iter().map(exact_projected_field_type).collect())
+        }
+        ProjectedType::Mapping {
+            rust_path,
+            key,
+            value,
+            ordered,
+        } => ProjectedType::Mapping {
+            rust_path,
+            key: Box::new(exact_projected_field_type(*key)),
+            value: Box::new(exact_projected_field_type(*value)),
+            ordered,
+        },
         other => other,
     }
 }
-fn project_optional_borrowed_field(
-    field_type: &Type,
-    index: &HashMap<Id, Item>,
-    paths: &HashMap<Id, ItemSummary>,
-    generics: &BTreeMap<String, ProjectedType>,
-) -> Result<Option<(ProjectedType, ProjectedFieldConversion)>, String> {
-    let Type::ResolvedPath(path) = field_type else {
-        return Ok(None);
-    };
-    if resolved_path_name(path, paths) != "Option"
-        && !resolved_path_name(path, paths).ends_with("::Option")
-    {
-        return Ok(None);
-    }
 
-    let arguments = type_arguments(field_type);
-    let [inner] = arguments.as_slice() else {
-        return Ok(None);
-    };
-    match *inner {
-        Type::BorrowedRef {
-            is_mutable: false,
-            type_,
-            ..
-        } if matches!(type_.as_ref(), Type::Primitive(name) if name == "str") => Ok(Some((
-            ProjectedType::Optional(Box::new(ProjectedType::String)),
-            ProjectedFieldConversion::OptionalStringBorrow,
-        ))),
-        Type::BorrowedRef {
-            is_mutable: false,
-            type_,
-            ..
-        } if let Type::Slice(item) = type_.as_ref()
-            && !type_contains_lifetime_argument(item) =>
-        {
-            Ok(Some((
-                ProjectedType::Optional(Box::new(ProjectedType::Sequence {
-                    rust_path: format!("Vec<{}>", render_rust_type(item, index, paths, generics)?),
-                    item: Box::new(project_type(item, index, paths, generics)?),
-                })),
-                ProjectedFieldConversion::OptionalSliceBorrow,
-            )))
-        }
-        _ => Ok(None),
-    }
-}
 fn owned_field_is_directly_constructible(ty: &ProjectedType) -> bool {
     match ty {
         ProjectedType::Bool
@@ -94,10 +65,14 @@ fn owned_field_is_directly_constructible(ty: &ProjectedType) -> bool {
         | ProjectedType::Bytes
         | ProjectedType::Foreign { .. }
         | ProjectedType::Generic(_) => true,
-        ProjectedType::Sequence { rust_path, item } => {
-            rust_path.contains("Vec<") && owned_field_is_directly_constructible(item)
+        ProjectedType::Sequence { item, .. } | ProjectedType::Optional(item) => {
+            owned_field_is_directly_constructible(item)
         }
-        ProjectedType::Optional(inner) => owned_field_is_directly_constructible(inner),
+        ProjectedType::Tuple(items) => items.iter().all(owned_field_is_directly_constructible),
+        ProjectedType::Mapping { key, value, .. } => {
+            owned_field_is_directly_constructible(key)
+                && owned_field_is_directly_constructible(value)
+        }
         _ => false,
     }
 }
@@ -112,10 +87,6 @@ fn projected_field_name(rust_name: &str) -> String {
     }
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "struct field projection keeps admissibility and exact conversion recipes together"
-)]
 pub(super) fn project_struct_fields(
     structure: &Struct,
     index: &HashMap<Id, Item>,
@@ -159,63 +130,8 @@ pub(super) fn project_struct_fields(
         let ItemEnum::StructField(field_type) = &field.inner else {
             return Err(format!("`{rust_name}` is not a struct field"));
         };
-        let (ty, conversion) = if let Some(optional) =
-            project_optional_borrowed_field(field_type, index, paths, generics)?
-        {
-            optional
-        } else {
-            match field_type {
-                Type::BorrowedRef {
-                    is_mutable: false,
-                    type_,
-                    ..
-                } if matches!(type_.as_ref(), Type::Primitive(name) if name == "str") => (
-                    ProjectedType::String,
-                    ProjectedFieldConversion::StringBorrow,
-                ),
-                Type::BorrowedRef {
-                    is_mutable: false,
-                    type_,
-                    ..
-                } if let Type::Slice(item) = type_.as_ref()
-                    && !type_contains_lifetime_argument(item) =>
-                {
-                    (
-                        ProjectedType::Sequence {
-                            rust_path: format!(
-                                "Vec<{}>",
-                                render_rust_type(item, index, paths, generics)?
-                            ),
-                            item: Box::new(project_type(item, index, paths, generics)?),
-                        },
-                        ProjectedFieldConversion::SliceBorrow,
-                    )
-                }
-                _ if !type_contains_lifetime_argument(field_type) => {
-                    let projected = project_type(field_type, index, paths, generics)?;
-                    if borrowed_view
-                        && !matches!(
-                            projected,
-                            ProjectedType::Bool
-                                | ProjectedType::FixedInt(_)
-                                | ProjectedType::RustInt(_)
-                                | ProjectedType::Float
-                                | ProjectedType::Float32
-                        )
-                    {
-                        return Err(format!(
-                            "field `{rust_name}` cannot be reconstructed from a shared owned view"
-                        ));
-                    }
-                    (projected, ProjectedFieldConversion::Identity)
-                }
-                _ => {
-                    return Err(format!(
-                        "field `{rust_name}` has no owned Terrane conversion"
-                    ));
-                }
-            }
-        };
+        let (ty, conversion) = descriptor_fields::project_field(field_type, index, paths, generics)
+            .map_err(|reason| format!("field `{rust_name}`: {reason}"))?;
         let ty = exact_projected_field_type(ty);
         if !borrowed_view && !owned_field_is_directly_constructible(&ty) {
             return Err(format!(

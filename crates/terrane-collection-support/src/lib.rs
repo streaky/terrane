@@ -432,14 +432,23 @@ impl<T> Tuple<T> {
     pub fn terrane_borrowing_iterator(&self) -> BorrowingIterator<'_, T> {
         BorrowingIterator::new(&self.0)
     }
-    /// Consumes a uniquely owned tuple without cloning its elements.
+    /// Consumes the tuple, cloning elements only when another handle shares its storage.
+    #[must_use]
+    pub fn into_vec(self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        Arc::unwrap_or_clone(self.0)
+    }
+    /// Transfers tuple elements without requiring `Clone`; the backing storage must be unique.
     ///
-    /// Returns the tuple unchanged when another persistent handle still shares its storage.
-    ///
-    /// # Errors
-    /// Returns the original tuple when its backing storage is shared.
-    pub fn try_into_iter(self) -> Result<std::vec::IntoIter<T>, Self> {
-        Arc::try_unwrap(self.0).map(Vec::into_iter).map_err(Self)
+    /// # Panics
+    /// Panics when another handle shares this tuple's backing storage.
+    #[must_use]
+    pub fn into_unique_vec(self) -> Vec<T> {
+        Arc::try_unwrap(self.0).unwrap_or_else(|_| {
+            panic!("tuple backing storage must be uniquely owned for non-Clone conversion")
+        })
     }
     /// Returns the indexed item or an error when the index is outside the tuple.
     ///
@@ -1366,17 +1375,31 @@ mod tests {
     }
 
     #[test]
-    fn tuple_consumption_moves_unique_items_and_rejects_shared_storage() {
-        let unique = Tuple::new(vec![String::from("moved")]);
-        assert_eq!(
-            unique.try_into_iter().unwrap().collect::<Vec<_>>(),
-            ["moved"]
-        );
+    fn tuple_value_consumption_clones_only_shared_elements() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
-        let shared = Tuple::new(vec![String::from("shared")]);
+        #[derive(Debug)]
+        struct Item(Arc<AtomicUsize>);
+        impl Clone for Item {
+            fn clone(&self) -> Self {
+                self.0.fetch_add(1, Ordering::Relaxed);
+                Self(Arc::clone(&self.0))
+            }
+        }
+
+        let clones = Arc::new(AtomicUsize::new(0));
+        let unique = Tuple::new(vec![Item(Arc::clone(&clones))]);
+        let unique_storage = std::ptr::from_ref(unique.get(0).unwrap());
+        let moved = unique.into_vec();
+        assert_eq!(clones.load(Ordering::Relaxed), 0);
+        assert_eq!(moved.as_ptr(), unique_storage);
+
+        let shared = Tuple::new(vec![Item(Arc::clone(&clones)), Item(Arc::clone(&clones))]);
         let alias = shared.clone();
-        assert!(shared.try_into_iter().is_err());
-        assert_eq!(alias.get(0).map(String::as_str), Some("shared"));
+        let copied = shared.into_vec();
+        assert_eq!(clones.load(Ordering::Relaxed), 2);
+        assert_ne!(copied.as_ptr(), std::ptr::from_ref(alias.get(0).unwrap()));
+        assert_eq!(alias.length(), 2);
     }
 
     #[test]

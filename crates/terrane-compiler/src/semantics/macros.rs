@@ -108,6 +108,48 @@ fn parameter(
     }
 }
 
+pub(super) fn input_conversion_errors(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    errors: &mut std::collections::BTreeSet<String>,
+) {
+    let [callee, arguments] = node.children.as_slice() else {
+        return;
+    };
+    if node.kind != SyntaxKind::CallExpression
+        || projected_macro_for_call(package, unit, callee).is_none()
+    {
+        return;
+    }
+    let joint_native_graph = unit
+        .projected_call_specializations
+        .get(&(node.span.file, node.span.start, node.span.end))
+        .is_some_and(|selection| {
+            matches!(
+                selection.value_type,
+                ValueType::InvocationScopedNative { concrete: true, .. }
+            )
+        })
+        || unit.invocation_scoped_result_at(node.span).is_some();
+    for (index, argument) in arguments.children.iter().enumerate() {
+        let value = argument.children.last().unwrap_or(argument);
+        let Ok(parameter) = macro_argument(package, unit, value, index, joint_native_graph) else {
+            continue;
+        };
+        let actual = infer_value_type(unit, value, &unit.typed_bindings)
+            .ok()
+            .flatten();
+        super::native_constructors::native_value_conversion_errors(
+            unit,
+            value,
+            &parameter.ty,
+            actual.as_ref(),
+            errors,
+        );
+    }
+}
+
 pub(super) fn macro_probe(
     package: &SemanticPackage,
     unit: &SemanticUnit,

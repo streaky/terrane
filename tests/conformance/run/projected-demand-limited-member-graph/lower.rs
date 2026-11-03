@@ -26,11 +26,14 @@ fn main() {
         1 /* terrane-site: src/main.trn:14:10-14:20 */,
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | (&left).value())) {
-        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload)
-        => Err(crate ::__terrane_dependency_panic(payload,
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(| | -> Result < _,
+        crate ::TerraneForeignError > { { let value = match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result < _, crate
+        ::TerraneForeignError > { Ok((&left).value()) })) { Ok(result) => result ?,
+        Err(payload) => return Err(crate ::__terrane_dependency_panic(payload,
         "terrane_member_graph_witness",
-        "terrane_member_graph_witness::left::Left::value")) }, 2 /* terrane-site: src/main.trn:15:11-15:22 */))
+        "terrane_member_graph_witness::left::Left::value")) }; Ok:: < _, crate
+        ::TerraneForeignError > (terrane_int_support::Int::from_u128(value as u128)) } }
+        (), 2 /* terrane-site: src/main.trn:15:11-15:22 */))
     );
 }

@@ -809,11 +809,7 @@ pub(super) fn project_rustdoc(
                     }
                 };
                 {
-                    let projected_impls = if borrowed_view {
-                        &[][..]
-                    } else {
-                        structure.impls.as_slice()
-                    };
+                    let projected_impls = structure.impls.as_slice();
                     let (projected_methods, trait_methods, projected_constants, method_declines) =
                         project_methods(
                             dependency,
@@ -828,9 +824,22 @@ pub(super) fn project_rustdoc(
                             &mut scoped_owner_keys,
                             &mut projected_associated_items,
                         );
-                    let (mut methods, mut static_methods): (Vec<_>, Vec<_>) = projected_methods
-                        .into_iter()
-                        .partition(|method| method.receiver.is_some());
+                    let projected_methods = projected_methods.into_iter().filter(|method| {
+                        let reason = if borrowed_view && method.receiver == Some(Receiver::MutableBorrow) {
+                            Some("owned descriptor views do not provide write-back for mutable native receivers")
+                        } else if borrowed_view && method.receiver == Some(Receiver::Borrow)
+                            && !fields.iter().all(|field| field.conversion.supports_shared_view()) {
+                            Some("shared descriptor view requires Clone for independent owned native fields")
+                        } else if borrowed_view && super::descriptor_owners::result_retains_view(&method.result) {
+                            Some("a temporary descriptor native view cannot escape its call; return an independent owned result")
+                        } else { None };
+                        if let Some(reason) = reason {
+                            declined.push(DeclinedItem { rust_path: format!("{rust_path}::{}", method.name), reason: reason.to_owned() });
+                            false
+                        } else { true }
+                    });
+                    let (mut methods, mut static_methods): (Vec<_>, Vec<_>) =
+                        projected_methods.partition(|method| method.receiver.is_some());
                     promote_async_endpoint_methods(&mut methods);
                     promote_async_endpoint_methods(&mut static_methods);
                     let owner_namespace = owner_trait_namespace(&namespace, &name);
@@ -1393,6 +1402,10 @@ pub(super) fn project_rustdoc(
         items.extend(macros::macro_reexports(dependency, document));
     }
     borrowed_graph::add_optional_owners(&mut items);
+    super::descriptor_owners::add_backing_owners(
+        &mut items,
+        &format!("/deps/{}", dependency.name.replace('_', "-")),
+    );
     projected_associated_items.sort_by(|left, right| {
         (&left.namespace, &left.name, &left.rust_path).cmp(&(
             &right.namespace,

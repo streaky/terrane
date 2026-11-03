@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Plain, Nested
+from /core/collections import tuple, list
+function make Nested; values tuple of uint32
+    first uint32 = 0
+    return instance Nested; size = values, rows = (list; (tuple; first, first))
+function main;
+    return

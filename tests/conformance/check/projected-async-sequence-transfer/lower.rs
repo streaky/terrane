@@ -11,8 +11,13 @@ async fn wait_next(mut sequence: TokioSequence) -> Result<(), TerraneError> {
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TokioSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -26,7 +31,7 @@ async fn wait_next(mut sequence: TokioSequence) -> Result<(), TerraneError> {
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -34,15 +39,6 @@ async fn wait_next(mut sequence: TokioSequence) -> Result<(), TerraneError> {
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TokioSequence::next",
                                     ),
                                 )
                             }

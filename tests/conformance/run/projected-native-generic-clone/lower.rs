@@ -4,22 +4,34 @@ include!("lower.support.rs");
 // Namespace: app
 fn copy(source: &witness::CloneBox<u8>) -> witness::CloneBox<u8> {
     return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| <witness::CloneBox<
-                u8,
-            > as core::clone::Clone>::clone(&*source)),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::CloneBox::clone",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            <witness::CloneBox<
+                                u8,
+                            > as core::clone::Clone>::clone(&*source),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::CloneBox::clone",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         0 /* terrane-site: src/main.trn:7:12-7:25 */,
     );
 }
@@ -31,37 +43,53 @@ fn main() {
         let mut local: Option<witness::CloneBox<u8>> = None;
         let mut failure: Option<TerraneError> = None;
         value = 42;
-        original = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| witness::make(value)),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "witness",
-                            "witness::make",
-                        ),
-                    )
-                }
-            },
-            1 /* terrane-site: src/main.trn:11:34-11:56 */,
-        );
+        original = {
+            let __terrane_conversion_input_0 = value;
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > { Ok(witness::make(__terrane_conversion_input_0)) }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "witness",
+                                        "witness::make",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                1 /* terrane-site: src/main.trn:11:34-11:56 */,
+            )
+        };
         copied = copy(&original);
         println!("{}", terrane_scalar_support::scalar_text(&copied.value));
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let _ = local
-                    .insert(
+                    .insert({
+                        let __terrane_conversion_input_0 = value;
                         __terrane_raised_completion!(
-                            match
-                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
-                            witness::make(value))) { Ok(value) => Ok(value), Err(payload)
-                            => Err(crate ::__terrane_dependency_panic(payload, "witness",
-                            "witness::make")) }, 2 /* terrane-site: src/main.trn:15:35-15:57 */
-                        ),
-                    );
+                            | | -> Result < _, crate ::TerraneForeignError > { { let
+                            value = match
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                            Result < _, crate ::TerraneForeignError > {
+                            Ok(witness::make(__terrane_conversion_input_0)) })) {
+                            Ok(result) => result ?, Err(payload) => return Err(crate
+                            ::__terrane_dependency_panic(payload, "witness",
+                            "witness::make")) }; Ok:: < _, crate ::TerraneForeignError >
+                            (value) } } (), 2 /* terrane-site: src/main.trn:15:35-15:57 */
+                        )
+                    });
                 println!(
                     "{}",
                     terrane_scalar_support::scalar_text(&__terrane_traced_completion!(__terrane_await({
@@ -69,14 +97,16 @@ fn main() {
                     .expect("flow-proven available binding")).read(true); Box::pin(async
                     move { match crate
                     ::__terrane_dependency_await_unwind(std::future::IntoFuture::into_future(__terrane_call))
-                    . await { Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                    ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::TERRANE_DEPENDENCY_ERROR,
+                    . await .map_err(| payload | crate
+                    ::__terrane_dependency_panic(payload, "witness",
+                    "witness::CloneBox::read")) ? { Ok(value) => Ok(value), Err(error) =>
+                    Err(crate ::TerraneForeignError(crate
+                    ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
                     format!("Rust dependency `{}` member `{}` failed: {error}",
-                    "witness", "witness::CloneBox::read"), crate ::TERRANE_NO_SITE))),
-                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-                    "witness", "witness::CloneBox::read")) } }) }; async move {
-                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:16:22-16:48 */) } }). await, 3 /* terrane-site: src/main.trn:16:22-16:48 */))
+                    "witness", "witness::CloneBox::read"), crate ::TERRANE_NO_SITE))) }
+                    }) }; async move { __terrane_raised_err(__terrane_future. await,
+                    3 /* terrane-site: src/main.trn:16:22-16:48 */) } }). await,
+                    3 /* terrane-site: src/main.trn:16:22-16:48 */))
                 );
                 TerraneCompletion::Normal
             }
@@ -112,16 +142,23 @@ fn main() {
         }
         let __terrane_completion_1: TerraneCompletion<()> = (|| {
             let __terrane_try_1: TerraneCompletion<()> = (|| {
-                __terrane_raised_completion!(
-                    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-                    (&original).reject(true))) { Ok(Ok(value)) => Ok(value),
-                    Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
-                    ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
-                    format!("Rust dependency `{}` member `{}` failed: {error}",
-                    "witness", "witness::CloneBox::reject"), crate ::TERRANE_NO_SITE))),
-                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-                    "witness", "witness::CloneBox::reject")) }, 4 /* terrane-site: src/main.trn:20:9-20:40 */
-                );
+                {
+                    let __terrane_conversion_input_0 = true;
+                    __terrane_raised_completion!(
+                        | | -> Result < _, crate ::TerraneForeignError > { match match
+                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | ->
+                        Result < _, crate ::TerraneForeignError > { Ok((&original)
+                        .reject(__terrane_conversion_input_0)) })) { Ok(result) => result
+                        ?, Err(payload) => return Err(crate
+                        ::__terrane_dependency_panic(payload, "witness",
+                        "witness::CloneBox::reject")) } { Ok(value) => Ok(value),
+                        Err(error) => Err(crate ::TerraneForeignError(crate
+                        ::TerraneError::custom_raised(crate ::TERRANE_DEPENDENCY_ERROR,
+                        format!("Rust dependency `{}` member `{}` failed: {error}",
+                        "witness", "witness::CloneBox::reject"), crate
+                        ::TERRANE_NO_SITE))) } } (), 4 /* terrane-site: src/main.trn:20:9-20:40 */
+                    )
+                };
                 TerraneCompletion::Normal
             })();
             match __terrane_try_1 {

@@ -14,40 +14,69 @@ fn main() {
             terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new(),
             0 /* terrane-site: src/main.trn:7:21-7:44 */,
         );
-        missing_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| missing_options.filename(path.clone())),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_lifecycle_witness",
-                            "terrane_lifecycle_witness::ConnectionOptions::filename",
-                        ),
-                    )
-                }
-            },
-            1 /* terrane-site: src/main.trn:8:21-8:51 */,
-        );
-        missing_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| missing_options.create_if_missing(false)),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_lifecycle_witness",
-                            "terrane_lifecycle_witness::ConnectionOptions::create_if_missing",
-                        ),
-                    )
-                }
-            },
-            2 /* terrane-site: src/main.trn:9:21-9:61 */,
-        );
+        missing_options = {
+            let __terrane_conversion_input_0 = path.clone();
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(missing_options.filename(__terrane_conversion_input_0))
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_lifecycle_witness",
+                                        "terrane_lifecycle_witness::ConnectionOptions::filename",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                1 /* terrane-site: src/main.trn:8:21-8:51 */,
+            )
+        };
+        missing_options = {
+            let __terrane_conversion_input_0 = false;
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    missing_options
+                                        .create_if_missing(__terrane_conversion_input_0),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_lifecycle_witness",
+                                        "terrane_lifecycle_witness::ConnectionOptions::create_if_missing",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                2 /* terrane-site: src/main.trn:9:21-9:61 */,
+            )
+        };
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let _ = missing_connection
@@ -56,16 +85,17 @@ fn main() {
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = (&missing_options).connect(); Box::pin(async move { match
                             crate ::__terrane_dependency_await_unwind(__terrane_call).
-                            await { Ok(Ok(value)) => Ok(value), Ok(Err(error)) =>
-                            Err(crate ::TerraneForeignError(crate
-                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload,
+                            await .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
                             "terrane_lifecycle_witness",
-                            "terrane_lifecycle_witness::ConnectionOptions::connect")) }
-                            }) }; async move { __terrane_raised_err(__terrane_future.
-                            await, 3 /* terrane-site: src/main.trn:11:32-11:56 */) }
-                            }). await, 3 /* terrane-site: src/main.trn:11:32-11:56 */
+                            "terrane_lifecycle_witness::ConnectionOptions::connect")) ? {
+                            Ok(value) => Ok(value), Err(error) => Err(crate
+                            ::TerraneForeignError(crate
+                            ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
+                            3 /* terrane-site: src/main.trn:11:32-11:56 */) } }).
+                            await, 3 /* terrane-site: src/main.trn:11:32-11:56 */
                         ),
                     );
                 println!("{}", String::from("unexpected-open"));
@@ -73,13 +103,13 @@ fn main() {
                     __terrane_await({ let __terrane_future = { let __terrane_call =
                     missing_connection.take().expect("flow-proven availability").close();
                     Box::pin(async move { match crate
-                    ::__terrane_dependency_await_unwind(__terrane_call). await {
-                    Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate
-                    ::TerraneForeignError(crate ::TerraneError::custom_raised(crate
-                    ::DescriptorId(2), error.to_string(), crate ::TERRANE_NO_SITE))),
-                    Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
+                    ::__terrane_dependency_await_unwind(__terrane_call). await .map_err(|
+                    payload | crate ::__terrane_dependency_panic(payload,
                     "terrane_lifecycle_witness",
-                    "terrane_lifecycle_witness::Connection::close")) } }) }; async move {
+                    "terrane_lifecycle_witness::Connection::close")) ? { Ok(value) =>
+                    Ok(value), Err(error) => Err(crate ::TerraneForeignError(crate
+                    ::TerraneError::custom_raised(crate ::DescriptorId(2), error
+                    .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
                     __terrane_raised_err(__terrane_future. await, 4 /* terrane-site: src/main.trn:13:11-13:36 */) } }). await, 4 /* terrane-site: src/main.trn:13:11-13:36 */
                 );
                 TerraneCompletion::Normal
@@ -121,40 +151,69 @@ fn main() {
             terrane_static_trn_436f6e6e656374696f6e4f7074696f6e73_new(),
             5 /* terrane-site: src/main.trn:16:20-16:43 */,
         );
-        create_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| create_options.filename(path)),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_lifecycle_witness",
-                            "terrane_lifecycle_witness::ConnectionOptions::filename",
-                        ),
-                    )
-                }
-            },
-            6 /* terrane-site: src/main.trn:17:20-17:49 */,
-        );
-        create_options = __terrane_raised(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| create_options.create_if_missing(true)),
-            ) {
-                Ok(value) => Ok(value),
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_lifecycle_witness",
-                            "terrane_lifecycle_witness::ConnectionOptions::create_if_missing",
-                        ),
-                    )
-                }
-            },
-            7 /* terrane-site: src/main.trn:18:20-18:58 */,
-        );
+        create_options = {
+            let __terrane_conversion_input_0 = path;
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(create_options.filename(__terrane_conversion_input_0))
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_lifecycle_witness",
+                                        "terrane_lifecycle_witness::ConnectionOptions::filename",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                6 /* terrane-site: src/main.trn:17:20-17:49 */,
+            )
+        };
+        create_options = {
+            let __terrane_conversion_input_0 = true;
+            __terrane_raised(
+                || -> Result<_, crate::TerraneForeignError> {
+                    {
+                        let value = match std::panic::catch_unwind(
+                            std::panic::AssertUnwindSafe(|| -> Result<
+                                _,
+                                crate::TerraneForeignError,
+                            > {
+                                Ok(
+                                    create_options
+                                        .create_if_missing(__terrane_conversion_input_0),
+                                )
+                            }),
+                        ) {
+                            Ok(result) => result?,
+                            Err(payload) => {
+                                return Err(
+                                    crate::__terrane_dependency_panic(
+                                        payload,
+                                        "terrane_lifecycle_witness",
+                                        "terrane_lifecycle_witness::ConnectionOptions::create_if_missing",
+                                    ),
+                                );
+                            }
+                        };
+                        Ok::<_, crate::TerraneForeignError>(value)
+                    }
+                }(),
+                7 /* terrane-site: src/main.trn:18:20-18:58 */,
+            )
+        };
         connection = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
@@ -164,9 +223,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_lifecycle_witness",
+                                    "terrane_lifecycle_witness::ConnectionOptions::connect",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -174,15 +238,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_lifecycle_witness",
-                                            "terrane_lifecycle_witness::ConnectionOptions::connect",
                                         ),
                                     )
                                 }
@@ -208,9 +263,14 @@ fn main() {
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_lifecycle_witness",
+                                    "terrane_lifecycle_witness::Connection::close",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -218,15 +278,6 @@ fn main() {
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_lifecycle_witness",
-                                            "terrane_lifecycle_witness::Connection::close",
                                         ),
                                     )
                                 }

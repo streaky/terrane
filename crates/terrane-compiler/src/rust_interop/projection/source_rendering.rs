@@ -1372,7 +1372,7 @@ fn projected_type_name_in_context(
             })
         }
         ProjectedType::Optional(inner) => {
-            format!("({})|none", nested(inner))
+            format!("(({})|none)", nested(inner))
         }
         ProjectedType::AsyncIterationStep(inner) => {
             format!("async-iteration-step of {}", nested(inner))

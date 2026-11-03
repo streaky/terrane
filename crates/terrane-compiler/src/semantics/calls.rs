@@ -1954,9 +1954,7 @@ pub(crate) fn selected_callable_contract(
         function_contract_for_call_with_safety(package, unit, designator, is_unsafe)
     else {
         return (!is_unsafe)
-            .then(|| {
-                super::native_constructors::implicit_record_constructor(package, unit, designator)
-            })
+            .then(|| super::native_constructors::implicit_record_constructor(package, unit, call))
             .flatten();
     };
     if contract.generic_parameters.is_empty() {

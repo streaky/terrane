@@ -878,7 +878,7 @@ pub fn borrowed_label_group<'view>(
 pub fn borrowed_row<'view>(
     children: terrane_collection_support::List<witness::BorrowedLabel<'view>>,
 ) -> Result<witness::BorrowedGroup<'view>, crate::TerraneForeignError> {
-    let children = children.into_unique_vec();
+    let children = children.into_vec();
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| witness::borrowed_row(children)),
     ) {

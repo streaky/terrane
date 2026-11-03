@@ -13,11 +13,15 @@ fn main() {
         ],
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| |
-        terrane_render_witness::render_many(values.into_vec()))) { Ok(value) =>
-        Ok(terrane_int_support::Int::from_u128(value as u128)), Err(payload) => Err(crate
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        values; __terrane_raised(| | -> Result < _, crate ::TerraneForeignError > { { let
+        value = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | -> Result
+        < _, crate ::TerraneForeignError > {
+        Ok(terrane_render_witness::render_many(__terrane_conversion_input_0.into_vec()))
+        })) { Ok(result) => result ?, Err(payload) => return Err(crate
         ::__terrane_dependency_panic(payload, "terrane-render-witness",
-        "terrane_render_witness::render_many")) }, 2 /* terrane-site: src/main.trn:6:13-6:32 */))
+        "terrane_render_witness::render_many")) }; Ok:: < _, crate ::TerraneForeignError
+        > (terrane_int_support::Int::from_u128(value as u128)) } } (),
+        2 /* terrane-site: src/main.trn:6:13-6:32 */) })
     );
 }

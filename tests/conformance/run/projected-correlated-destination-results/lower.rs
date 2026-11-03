@@ -8,15 +8,29 @@ fn main() {
         terrane_collection_support::List<terrane_collection_support::Map<i64, String>>,
     >;
     values = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| witness::correlated_values::<
-                String,
-                i64,
-                String,
-            >()),
-        ) {
-            Ok(value) => {
-                Ok(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(witness::correlated_values::<String, i64, String>()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "witness",
+                                "witness::correlated_values",
+                            ),
+                        );
+                    }
+                };
+                Ok::<
+                    _,
+                    crate::TerraneForeignError,
+                >(
                     terrane_collection_support::Map::new(
                         value
                             .into_iter()
@@ -41,16 +55,7 @@ fn main() {
                     ),
                 )
             }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "witness",
-                        "witness::correlated_values",
-                    ),
-                )
-            }
-        },
+        }(),
         0 /* terrane-site: src/main.trn:6:56-6:74 */,
     );
     println!(

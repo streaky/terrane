@@ -1,5 +1,20 @@
 namespace inline-rust-boundaries
 
+from /core/errors import coercion-error
+
+function hoisted-captures;
+  try
+    text = 'hoisted'
+    upper string = rust
+      text.to_uppercase()
+    print; upper
+    flag = true
+    copied bool = rust
+      flag
+    print; copied
+  catch coercion-error
+    print; 'unexpected'
+
 function add int; left int, right int
   result int = rust
     left + right
@@ -71,3 +86,4 @@ function main;
     print; direct
   missing = optional-rust; false
   print; missing == none
+  hoisted-captures;

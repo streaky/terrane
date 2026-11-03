@@ -11,18 +11,31 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) fn implicit_record_constructor(
     package: &SemanticPackage,
     unit: &super::model::SemanticUnit,
-    callee: &crate::syntax::SyntaxNode,
+    call: &crate::syntax::SyntaxNode,
 ) -> Option<super::model::FunctionContract> {
     use super::model::{FunctionContract, ParameterContract, TaskTransferability};
     use crate::InvocationMode;
     use crate::rust_interop::projection::ProjectedType;
     use crate::syntax::SyntaxKind;
 
-    if callee.kind != SyntaxKind::ConstructionExpression {
+    if call.kind != SyntaxKind::CallExpression {
+        return None;
+    }
+    let mut callee = call.children.first()?;
+    while matches!(
+        callee.kind,
+        SyntaxKind::GroupExpression | SyntaxKind::TypeExpression
+    ) {
+        callee = callee.children.first()?;
+    }
+    if callee.kind == SyntaxKind::AppliedType {
+        callee = callee.children.first()?;
+    }
+    if callee.kind != SyntaxKind::ConstructionExpression || call.children.len() != 2 {
         return None;
     }
     let identity = super::namespaces::class_designator_identity(unit, callee.children.first()?)?;
-    let (_, fields, _) = package
+    let (_, fields, borrowed_view) = package
         .projection
         .projected_struct(&identity.namespace, &identity.name)?;
     let object = package
@@ -47,11 +60,18 @@ pub(super) fn implicit_record_constructor(
                 .fields
                 .iter()
                 .find(|field| field.name == projected.name)?;
+            // Plain records store native fields directly, so their constructor
+            // parameters retain native tuple arity just like ordinary native inputs.
+            // Descriptor views instead accept owned source backing and validate its
+            // shape through their existing fallible conversion boundary.
+            let native_type = (!borrowed_view)
+                .then(|| closed_projected_value_type(package, &projected.ty))
+                .flatten();
             Some(ParameterContract {
                 name: field.name.clone(),
                 span: field.span,
                 value_type: Some(super::generics::substitute_value_type(
-                    &field.value_type,
+                    native_type.as_ref().unwrap_or(&field.value_type),
                     &substitutions,
                 )),
                 optional: matches!(projected.ty, ProjectedType::Optional(_)),
@@ -60,9 +80,9 @@ pub(super) fn implicit_record_constructor(
             })
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(FunctionContract {
+    let mut contract = FunctionContract {
         name: "construct".to_owned(),
-        span: callee.span,
+        span: call.span,
         owner: Some(identity.name.clone()),
         owner_identity: Some(identity.clone()),
         is_anonymous: false,
@@ -82,7 +102,169 @@ pub(super) fn implicit_record_constructor(
         written_invocation_mode: InvocationMode::Shared,
         exact_invocation_mode: InvocationMode::Shared,
         execution_requirements: crate::execution::ExecutionRequirements::default(),
-    })
+    };
+    set_native_constructor_effects(unit, call, fields, &mut contract);
+    Some(contract)
+}
+
+fn set_native_constructor_effects(
+    unit: &super::model::SemanticUnit,
+    call: &crate::syntax::SyntaxNode,
+    fields: &[crate::rust_interop::projection::ProjectedField],
+    contract: &mut super::model::FunctionContract,
+) {
+    use crate::syntax::SyntaxKind;
+    let mut errors = BTreeSet::new();
+    let mut positional = 0;
+    let mut named_seen = false;
+    for argument in &call.children[1].children {
+        let name = argument
+            .children
+            .first()
+            .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+        let Ok(parameter) = super::calls::resolve_call_parameter(
+            unit,
+            argument,
+            name,
+            contract,
+            &mut positional,
+            &mut named_seen,
+        ) else {
+            continue;
+        };
+        let Some(field) = fields.iter().find(|field| field.name == parameter.name) else {
+            continue;
+        };
+        let value = argument.children.last().unwrap_or(argument);
+        let actual = super::expressions::infer_value_type(unit, value, &unit.typed_bindings)
+            .ok()
+            .flatten();
+        native_value_conversion_errors(unit, value, &field.ty, actual.as_ref(), &mut errors);
+    }
+    contract.throws = !errors.is_empty();
+    contract.thrown_types = errors
+        .iter()
+        .filter_map(|identity| {
+            let (namespace, name) = identity.rsplit_once("::")?;
+            Some(ValueType::Object(ObjectIdentity::new(namespace, name)))
+        })
+        .collect();
+    contract.escaping_throwables = errors;
+}
+
+/// Refine conversion effects only with proofs about this exact source value.
+/// Container element types alone do not prove their runtime payloads fit.
+pub(super) fn native_value_conversion_errors(
+    unit: &super::model::SemanticUnit,
+    mut value: &crate::syntax::SyntaxNode,
+    ty: &crate::rust_interop::projection::ProjectedType,
+    actual: Option<&ValueType>,
+    errors: &mut BTreeSet<String>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    use crate::syntax::SyntaxKind;
+    while value.kind == SyntaxKind::GroupExpression {
+        let [inner] = value.children.as_slice() else {
+            break;
+        };
+        value = inner;
+    }
+    if let ProjectedType::Optional(inner) = ty {
+        match actual {
+            Some(ValueType::Scalar(crate::ScalarType::None)) => return,
+            Some(ValueType::Optional(_)) => {}
+            _ => {
+                native_value_conversion_errors(unit, value, inner, actual, errors);
+                return;
+            }
+        }
+    }
+    let destination = match ty {
+        ProjectedType::Int => Some(crate::ScalarType::Int64),
+        ProjectedType::RustInt(name) => crate::ScalarType::ALL
+            .into_iter()
+            .find(|scalar| scalar.rust_type() == Some(name.as_str())),
+        _ => None,
+    };
+    if destination.is_some_and(|destination| {
+        matches!(
+            super::numeric::contextual_constant(&unit.source, value, destination),
+            Some(Ok(_))
+        )
+    }) {
+        return;
+    }
+    if *ty == ProjectedType::Char && value.kind == SyntaxKind::Literal {
+        let text = super::diagnostics::node_text(&unit.source, value);
+        if text.starts_with(['\'', '"']) {
+            let decoded = crate::lexer::unescape_string(&text[1..text.len() - 1]);
+            let mut scalars = decoded.chars();
+            if scalars.next().is_some() && scalars.next().is_none() {
+                return;
+            }
+        }
+    }
+    native_conversion_errors(ty, actual, errors);
+}
+
+pub(super) fn native_conversion_errors(
+    ty: &crate::rust_interop::projection::ProjectedType,
+    actual: Option<&ValueType>,
+    errors: &mut BTreeSet<String>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    match ty {
+        ProjectedType::Char => {
+            errors.insert("/core/errors::coercion-error".to_owned());
+        }
+        ProjectedType::Int | ProjectedType::RustInt(_) => {
+            errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+        }
+        ProjectedType::Optional(inner) => match actual {
+            Some(ValueType::Scalar(crate::ScalarType::None)) => {}
+            Some(ValueType::Optional(present)) => {
+                native_conversion_errors(inner, Some(present), errors);
+            }
+            _ => native_conversion_errors(inner, actual, errors),
+        },
+        ProjectedType::Tuple(items) => {
+            let (element, length) = match actual {
+                Some(ValueType::Tuple(element, length)) => {
+                    (Some(element.value_type_ref()), *length)
+                }
+                _ => (None, None),
+            };
+            if length != Some(items.len()) {
+                errors.insert("/core/errors::dependency-error".to_owned());
+            }
+            for item in items {
+                native_conversion_errors(item, element, errors);
+            }
+        }
+        ProjectedType::Sequence { item, .. } | ProjectedType::Set { item, .. } => {
+            let element = match actual {
+                Some(
+                    ValueType::List(element)
+                    | ValueType::Tuple(element, _)
+                    | ValueType::Set(element)
+                    | ValueType::UnorderedSet(element),
+                ) => Some(element.value_type_ref()),
+                _ => None,
+            };
+            native_conversion_errors(item, element, errors);
+        }
+        ProjectedType::Mapping { key, value, .. } => {
+            let (actual_key, actual_value) = match actual {
+                Some(ValueType::Map(key, value) | ValueType::UnorderedMap(key, value)) => {
+                    (Some(key.value_type_ref()), Some(value.value_type_ref()))
+                }
+                _ => (None, None),
+            };
+            native_conversion_errors(key, actual_key, errors);
+            native_conversion_errors(value, actual_value, errors);
+        }
+        _ => {}
+    }
 }
 
 fn projected_contract<'a>(

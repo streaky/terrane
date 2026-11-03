@@ -1,0 +1,2 @@
+[patch.crates-io]
+terrane-recursive-descriptor-witness = { path = "fixture-registry/terrane-recursive-descriptor-witness-0.1.0" }

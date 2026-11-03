@@ -19,8 +19,10 @@ fn main() {
         })
     };
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(apply_mutable(terrane_int_support::Int::from(1_i128),
-        callback.clone()), 0 /* terrane-site: src/main.trn:8:13-8:39 */))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_conversion_input_0 =
+        terrane_int_support::Int::from(1_i128); let __terrane_conversion_input_1 =
+        callback.clone(); __terrane_raised(apply_mutable(__terrane_conversion_input_0,
+        __terrane_conversion_input_1), 0 /* terrane-site: src/main.trn:8:13-8:39 */)
+        })
     );
 }

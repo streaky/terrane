@@ -295,17 +295,13 @@ fn input_has_owned_borrowed_view(
     ty: &Type,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
-) -> bool {
+) -> Result<bool, &'static str> {
     let resolved = match ty {
-        Type::BorrowedRef {
-            is_mutable: false,
-            type_,
-            ..
-        } => type_.as_ref(),
+        Type::BorrowedRef { type_, .. } => type_.as_ref(),
         other => other,
     };
     let Type::ResolvedPath(path) = resolved else {
-        return false;
+        return Ok(false);
     };
     let Some(Item {
         inner: ItemEnum::Struct(structure),
@@ -313,14 +309,39 @@ fn input_has_owned_borrowed_view(
         ..
     }) = index.get(&path.id)
     else {
-        return false;
+        return Ok(false);
     };
-    !attrs
+    if attrs
         .iter()
         .any(|attribute| matches!(attribute, rustdoc_types::Attribute::NonExhaustive))
-        && default_generic_instantiation(structure, index, paths)
-            .and_then(|generics| project_struct_fields(structure, index, paths, &generics))
-            .is_ok_and(|(_, borrowed_view)| borrowed_view)
+    {
+        return Ok(false);
+    }
+    let Ok((fields, borrowed_view)) = default_generic_instantiation(structure, index, paths)
+        .and_then(|generics| project_struct_fields(structure, index, paths, &generics))
+    else {
+        return Ok(false);
+    };
+    if !borrowed_view {
+        return Ok(false);
+    }
+    if matches!(
+        ty,
+        Type::BorrowedRef {
+            is_mutable: true,
+            ..
+        }
+    ) {
+        return Err("owned descriptor views do not provide write-back for mutable native inputs");
+    }
+    if matches!(ty, Type::BorrowedRef { .. })
+        && !fields
+            .iter()
+            .all(|field| field.conversion.supports_shared_view())
+    {
+        return Err("shared descriptor view requires Clone for independent owned native fields");
+    }
+    Ok(true)
 }
 
 #[expect(
@@ -412,8 +433,8 @@ pub(super) fn project_function_inner(
                 .as_ref()
                 .is_some_and(type_contains_lifetime_argument);
         if type_contains_lifetime_argument(ty)
-            && !input_has_owned_borrowed_view(ty, index, paths)
             && !invocation_scoped_input
+            && !input_has_owned_borrowed_view(ty, index, paths).map_err(str::to_owned)?
         {
             return Err(
                 "input contains a lifetime-bearing foreign value with no non-escaping Terrane call representation"
@@ -741,6 +762,20 @@ pub(super) fn project_function_inner(
             .is_some_and(type_contains_borrowed_ref)
     {
         return Err("borrowed result values cannot cross a projected boundary".to_owned());
+    }
+    if function
+        .sig
+        .inputs
+        .iter()
+        .any(|(_, ty)| input_has_owned_borrowed_view(ty, index, paths).unwrap_or(false))
+        && effective_output
+            .as_ref()
+            .is_some_and(|ty| type_contains_lifetime_argument(ty) || type_contains_borrowed_ref(ty))
+        && !effective_output
+            .as_ref()
+            .is_some_and(|ty| borrowed_str_parameter(ty, index))
+    {
+        return Err("a temporary descriptor native view cannot escape its call; return an independent owned result".to_owned());
     }
     let mut error = None;
     let mut error_optional_depth = 0;

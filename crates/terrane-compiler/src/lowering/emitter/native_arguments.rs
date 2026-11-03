@@ -279,7 +279,7 @@ impl Emitter<'_> {
         } else {
             call
         };
-        let result = projected_callback_output_expression("callback_value", result);
+        let result = projected_callback_output_expression("callback_value", result, self.package);
         Some(format!(
             "{{ {setup} move |{declarations}| {{ match (|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {call}; Ok({result}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }} }} }}"
         ))

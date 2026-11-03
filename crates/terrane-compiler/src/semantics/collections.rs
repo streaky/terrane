@@ -204,6 +204,20 @@ pub(super) fn validate_collection_constructor_items(
     let [_, arguments] = node.children.as_slice() else {
         return Ok(());
     };
+    if let ValueType::Tuple(item, Some(length)) = expected
+        && *length != arguments.children.len()
+    {
+        let actual = ValueType::Tuple(item.clone(), Some(arguments.children.len()));
+        return validate_value_destination(
+            &unit.source,
+            &unit.descriptors,
+            destination,
+            expected,
+            &actual,
+            node,
+            "T0012",
+        );
+    }
     match expected {
         ValueType::List(item)
         | ValueType::Tuple(item, _)

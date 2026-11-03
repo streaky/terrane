@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import pair_sum
+from /core/collections import tuple
+function inspect; values tuple of int
+    pair_sum; values
+function main;
+    return

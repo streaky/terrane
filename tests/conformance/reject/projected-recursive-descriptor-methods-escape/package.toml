@@ -1,0 +1,7 @@
+package = "projected-recursive-descriptor-methods-escape"
+
+[namespaces]
+app = "."
+
+[rust-dependencies.terrane-recursive-descriptor-witness]
+version = "=0.1.0"

@@ -732,34 +732,22 @@ pub fn pair_code(
     value: terrane_collection_support::Tuple<bool>,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let value = {
-        let mut tuple_items = value
-            .try_into_iter()
-            .map_err(|_| crate::TerraneForeignError(
-                crate::TerraneError::custom_raised(
-                    crate::TERRANE_DEPENDENCY_ERROR,
-                    "projected tuple cannot move shared elements",
-                    crate::TERRANE_NO_SITE,
+        let tuple_value = value;
+        if tuple_value.length() != 2 {
+            return Err(
+                crate::TerraneForeignError(
+                    crate::TerraneError::custom_raised(
+                        crate::TERRANE_DEPENDENCY_ERROR,
+                        "projected tuple length did not match its checked type",
+                        crate::TERRANE_NO_SITE,
+                    ),
                 ),
-            ))?;
+            );
+        }
+        let mut tuple_items = tuple_value.into_vec().into_iter();
         (
-            tuple_items
-                .next()
-                .ok_or_else(|| crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        "projected tuple length did not match its checked type",
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ))?,
-            tuple_items
-                .next()
-                .ok_or_else(|| crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        "projected tuple length did not match its checked type",
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ))?,
+            tuple_items.next().expect("validated projected tuple length"),
+            tuple_items.next().expect("validated projected tuple length"),
         )
     };
     match std::panic::catch_unwind(

@@ -1358,6 +1358,13 @@ pub(super) fn escaping_throwables(
         return direct_errors(package, unit, node);
     }
     let mut local_errors = local_builtin_errors(package, unit, node);
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(contract) =
+            super::native_constructors::implicit_record_constructor(package, unit, node)
+    {
+        local_errors.extend(contract.escaping_throwables);
+    }
+    super::macros::input_conversion_errors(package, unit, node, &mut local_errors);
     for method in super::display::implicit_display_methods(package, unit, node) {
         local_errors.extend(
             inferred

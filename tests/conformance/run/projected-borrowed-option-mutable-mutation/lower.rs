@@ -3,25 +3,39 @@ include!("lower.support.rs");
 // Source: src/main.trn
 // Namespace: app
 fn mark(header: &mut HeaderValue) {
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let _ = (*header).set_sensitive(true);
-            }),
-        ) {
-            Ok(()) => Ok(()),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderValue::set_sensitive",
-                    ),
-                )
-            }
-        },
-        0 /* terrane-site: src/main.trn:5:5-5:31 */,
-    );
+    {
+        let __terrane_conversion_input_0 = true;
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = (*header)
+                                    .set_sensitive(__terrane_conversion_input_0);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderValue::set_sensitive",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
+                }
+            }(),
+            0 /* terrane-site: src/main.trn:5:5-5:31 */,
+        )
+    };
 }
 fn forward(header: &mut HeaderValue) {
     let operation: std::sync::Arc<dyn Fn(&mut HeaderValue) -> () + Send + Sync>;
@@ -33,43 +47,65 @@ fn change(header: &mut HeaderValue) -> bool {
     return true;
 }
 fn clear(header: &mut HeaderValue) -> Option<bool> {
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let _ = (*header).set_sensitive(false);
-            }),
-        ) {
-            Ok(()) => Ok(()),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderValue::set_sensitive",
-                    ),
-                )
-            }
-        },
-        1 /* terrane-site: src/main.trn:16:5-16:32 */,
-    );
+    {
+        let __terrane_conversion_input_0 = false;
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = (*header)
+                                    .set_sensitive(__terrane_conversion_input_0);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderValue::set_sensitive",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
+                }
+            }(),
+            1 /* terrane-site: src/main.trn:16:5-16:32 */,
+        )
+    };
     return Some(true);
 }
 fn read(header: &HeaderValue) -> bool {
     return __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| (&*header).is_sensitive()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderValue::is_sensitive",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok((&*header).is_sensitive()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "http",
+                                "http::HeaderValue::is_sensitive",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         2 /* terrane-site: src/main.trn:20:12-20:32 */,
     );
 }
@@ -98,25 +134,38 @@ fn main() {
     );
     forward(&mut plain);
     println!("{}", terrane_scalar_support::scalar_text(&read(&plain)));
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let _ = plain.set_sensitive(false);
-            }),
-        ) {
-            Ok(()) => Ok(()),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderValue::set_sensitive",
-                    ),
-                )
-            }
-        },
-        4 /* terrane-site: src/main.trn:35:5-35:31 */,
-    );
+    {
+        let __terrane_conversion_input_0 = false;
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = plain.set_sensitive(__terrane_conversion_input_0);
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderValue::set_sensitive",
+                                ),
+                            );
+                        }
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
+                }
+            }(),
+            4 /* terrane-site: src/main.trn:35:5-35:31 */,
+        )
+    };
     walk_left(&mut plain, terrane_int_support::Int::from(2_i128));
     println!("{}", terrane_scalar_support::scalar_text(&read(&plain)));
     headers = __terrane_raised(
@@ -131,54 +180,82 @@ fn main() {
         terrane_static_trn_48656164657256616c7565_from_str("value"),
         7 /* terrane-site: src/main.trn:40:13-40:43 */,
     );
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                let _ = headers.insert(name, value);
-            }),
-        ) {
-            Ok(()) => Ok(()),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "http",
-                        "http::HeaderMap::insert",
-                    ),
-                )
-            }
-        },
-        8 /* terrane-site: src/main.trn:41:5-41:32 */,
-    );
-    result = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                headers
-                    .get_mut(String::from("x-test"))
-                    .map({
-                        move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = change(borrowed_argument_0);
-                                Ok(callback_value)
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
-                            }
+    {
+        let __terrane_conversion_input_0 = name;
+        let __terrane_conversion_input_1 = value;
+        __terrane_raised(
+            || -> Result<_, crate::TerraneForeignError> {
+                {
+                    let _ = match std::panic::catch_unwind(
+                        std::panic::AssertUnwindSafe(|| -> Result<
+                            _,
+                            crate::TerraneForeignError,
+                        > {
+                            Ok({
+                                let _ = headers
+                                    .insert(
+                                        __terrane_conversion_input_0,
+                                        __terrane_conversion_input_1,
+                                    );
+                            })
+                        }),
+                    ) {
+                        Ok(result) => result?,
+                        Err(payload) => {
+                            return Err(
+                                crate::__terrane_dependency_panic(
+                                    payload,
+                                    "http",
+                                    "http::HeaderMap::insert",
+                                ),
+                            );
                         }
-                    })
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "std",
-                        "std::option::Option::map",
-                    ),
-                )
+                    };
+                    Ok::<_, crate::TerraneForeignError>(())
+                }
+            }(),
+            8 /* terrane-site: src/main.trn:41:5-41:32 */,
+        )
+    };
+    result = __terrane_raised(
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            headers
+                                .get_mut(String::from("x-test"))
+                                .map({
+                                    move |borrowed_argument_0| {
+                                        match || -> Result<_, crate::TerraneForeignError> {
+                                            let callback_value = change(borrowed_argument_0);
+                                            Ok(callback_value)
+                                        }() {
+                                            Ok(value) => value,
+                                            Err(error) => std::panic::panic_any(error.0),
+                                        }
+                                    }
+                                }),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "std",
+                                "std::option::Option::map",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         9 /* terrane-site: src/main.trn:42:24-42:63 */,
     );
     if (&result).is_some() {
@@ -188,34 +265,44 @@ fn main() {
         );
     }
     marked = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                (&headers)
-                    .get(String::from("x-test"))
-                    .map({
-                        move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = read(borrowed_argument_0);
-                                Ok(callback_value)
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
-                            }
-                        }
-                    })
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "std",
-                        "std::option::Option::map",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            (&headers)
+                                .get(String::from("x-test"))
+                                .map({
+                                    move |borrowed_argument_0| {
+                                        match || -> Result<_, crate::TerraneForeignError> {
+                                            let callback_value = read(borrowed_argument_0);
+                                            Ok(callback_value)
+                                        }() {
+                                            Ok(value) => value,
+                                            Err(error) => std::panic::panic_any(error.0),
+                                        }
+                                    }
+                                }),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "std",
+                                "std::option::Option::map",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         10 /* terrane-site: src/main.trn:45:24-45:57 */,
     );
     if (&marked).is_some() {
@@ -225,34 +312,44 @@ fn main() {
         );
     }
     cleared = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                headers
-                    .get_mut(String::from("x-test"))
-                    .and_then({
-                        move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = clear(borrowed_argument_0);
-                                Ok(callback_value)
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
-                            }
-                        }
-                    })
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "std",
-                        "std::option::Option::and_then",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            headers
+                                .get_mut(String::from("x-test"))
+                                .and_then({
+                                    move |borrowed_argument_0| {
+                                        match || -> Result<_, crate::TerraneForeignError> {
+                                            let callback_value = clear(borrowed_argument_0);
+                                            Ok(callback_value)
+                                        }() {
+                                            Ok(value) => value,
+                                            Err(error) => std::panic::panic_any(error.0),
+                                        }
+                                    }
+                                }),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "std",
+                                "std::option::Option::and_then",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         11 /* terrane-site: src/main.trn:48:25-48:68 */,
     );
     if (&cleared).is_some() {
@@ -262,34 +359,44 @@ fn main() {
         );
     }
     after = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                (&headers)
-                    .get(String::from("x-test"))
-                    .map({
-                        move |borrowed_argument_0| {
-                            match || -> Result<_, crate::TerraneForeignError> {
-                                let callback_value = read(borrowed_argument_0);
-                                Ok(callback_value)
-                            }() {
-                                Ok(value) => value,
-                                Err(error) => std::panic::panic_any(error.0),
-                            }
-                        }
-                    })
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "std",
-                        "std::option::Option::map",
-                    ),
-                )
+        || -> Result<_, crate::TerraneForeignError> {
+            {
+                let value = match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > {
+                        Ok(
+                            (&headers)
+                                .get(String::from("x-test"))
+                                .map({
+                                    move |borrowed_argument_0| {
+                                        match || -> Result<_, crate::TerraneForeignError> {
+                                            let callback_value = read(borrowed_argument_0);
+                                            Ok(callback_value)
+                                        }() {
+                                            Ok(value) => value,
+                                            Err(error) => std::panic::panic_any(error.0),
+                                        }
+                                    }
+                                }),
+                        )
+                    }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "std",
+                                "std::option::Option::map",
+                            ),
+                        );
+                    }
+                };
+                Ok::<_, crate::TerraneForeignError>(value)
             }
-        },
+        }(),
         12 /* terrane-site: src/main.trn:51:23-51:56 */,
     );
     if (&after).is_some() {

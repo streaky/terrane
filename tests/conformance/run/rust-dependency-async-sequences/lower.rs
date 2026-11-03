@@ -15,8 +15,13 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TcpSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -28,7 +33,7 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -36,15 +41,6 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TcpSequence::next",
                                     ),
                                 )
                             }
@@ -75,8 +71,13 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TcpSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -88,7 +89,7 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -96,15 +97,6 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TcpSequence::next",
                                     ),
                                 )
                             }
@@ -135,8 +127,13 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TcpSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -148,7 +145,7 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -156,15 +153,6 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TcpSequence::next",
                                     ),
                                 )
                             }
@@ -192,9 +180,14 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sequence_witness",
+                                    "terrane_sequence_witness::TcpSequence::close",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -202,15 +195,6 @@ async fn drain_network(mut sequence: TcpSequence) -> Result<bool, TerraneError> 
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sequence_witness",
-                                            "terrane_sequence_witness::TcpSequence::close",
                                         ),
                                     )
                                 }
@@ -242,8 +226,13 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TokioSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -257,7 +246,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -265,15 +254,6 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TokioSequence::next",
                                     ),
                                 )
                             }
@@ -304,8 +284,13 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TokioSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -319,7 +304,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -327,15 +312,6 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TokioSequence::next",
                                     ),
                                 )
                             }
@@ -366,8 +342,13 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TokioSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -381,7 +362,7 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -389,15 +370,6 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TokioSequence::next",
                                     ),
                                 )
                             }
@@ -425,9 +397,14 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                     __terrane_call,
                                 )
                                 .await
+                                .map_err(|payload| crate::__terrane_dependency_panic(
+                                    payload,
+                                    "terrane_sequence_witness",
+                                    "terrane_sequence_witness::TokioSequence::close",
+                                ))?
                             {
-                                Ok(Ok(value)) => Ok(value),
-                                Ok(Err(error)) => {
+                                Ok(value) => Ok(value),
+                                Err(error) => {
                                     Err(
                                         crate::TerraneForeignError(
                                             crate::TerraneError::custom_raised(
@@ -435,15 +412,6 @@ async fn drain_tokio(mut sequence: TokioSequence) -> Result<bool, TerraneError> 
                                                 error.to_string(),
                                                 crate::TERRANE_NO_SITE,
                                             ),
-                                        ),
-                                    )
-                                }
-                                Err(payload) => {
-                                    Err(
-                                        crate::__terrane_dependency_panic(
-                                            payload,
-                                            "terrane_sequence_witness",
-                                            "terrane_sequence_witness::TokioSequence::close",
                                         ),
                                     )
                                 }
@@ -475,8 +443,13 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::QueueSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -488,7 +461,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -496,15 +469,6 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::QueueSequence::next",
                                     ),
                                 )
                             }
@@ -535,8 +499,13 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::QueueSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -548,7 +517,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -556,15 +525,6 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::QueueSequence::next",
                                     ),
                                 )
                             }
@@ -595,8 +555,13 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::QueueSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -608,7 +573,7 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -616,15 +581,6 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::QueueSequence::next",
                                     ),
                                 )
                             }
@@ -644,31 +600,38 @@ async fn drain_queue(mut sequence: QueueSequence) -> Result<bool, TerraneError> 
     println!("{}", terrane_scalar_support::scalar_text(&ended.end));
     return Ok(
         __terrane_raised_err(
-            match std::panic::catch_unwind(
-                std::panic::AssertUnwindSafe(|| sequence.close()),
-            ) {
-                Ok(Ok(value)) => Ok(value),
-                Ok(Err(error)) => {
-                    Err(
-                        crate::TerraneForeignError(
-                            crate::TerraneError::custom_raised(
-                                crate::DescriptorId(2),
-                                error.to_string(),
-                                crate::TERRANE_NO_SITE,
+            || -> Result<_, crate::TerraneForeignError> {
+                match match std::panic::catch_unwind(
+                    std::panic::AssertUnwindSafe(|| -> Result<
+                        _,
+                        crate::TerraneForeignError,
+                    > { Ok(sequence.close()) }),
+                ) {
+                    Ok(result) => result?,
+                    Err(payload) => {
+                        return Err(
+                            crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::QueueSequence::close",
                             ),
-                        ),
-                    )
+                        );
+                    }
+                } {
+                    Ok(value) => Ok(value),
+                    Err(error) => {
+                        Err(
+                            crate::TerraneForeignError(
+                                crate::TerraneError::custom_raised(
+                                    crate::DescriptorId(2),
+                                    error.to_string(),
+                                    crate::TERRANE_NO_SITE,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                Err(payload) => {
-                    Err(
-                        crate::__terrane_dependency_panic(
-                            payload,
-                            "terrane_sequence_witness",
-                            "terrane_sequence_witness::QueueSequence::close",
-                        ),
-                    )
-                }
-            },
+            }(),
             11 /* terrane-site: src/main.trn:42:10-42:25 */,
         )?,
     );
@@ -684,8 +647,13 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) -> Result<(), TerraneEr
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::TokioSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -699,7 +667,7 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) -> Result<(), TerraneEr
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -707,15 +675,6 @@ async fn wait_pending_tokio(mut sequence: TokioSequence) -> Result<(), TerraneEr
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::TokioSequence::next",
                                     ),
                                 )
                             }
@@ -744,8 +703,13 @@ async fn wait_pending_queue(mut sequence: QueueSequence) -> Result<(), TerraneEr
                     Box::pin(async move {
                         match crate::__terrane_dependency_await_unwind(__terrane_call)
                             .await
+                            .map_err(|payload| crate::__terrane_dependency_panic(
+                                payload,
+                                "terrane_sequence_witness",
+                                "terrane_sequence_witness::QueueSequence::next",
+                            ))?
                         {
-                            Ok(Ok(value)) => {
+                            Ok(value) => {
                                 Ok(
                                     match value {
                                         Some(item) => {
@@ -757,7 +721,7 @@ async fn wait_pending_queue(mut sequence: QueueSequence) -> Result<(), TerraneEr
                                     },
                                 )
                             }
-                            Ok(Err(error)) => {
+                            Err(error) => {
                                 Err(
                                     crate::TerraneForeignError(
                                         crate::TerraneError::custom_raised(
@@ -765,15 +729,6 @@ async fn wait_pending_queue(mut sequence: QueueSequence) -> Result<(), TerraneEr
                                             error.to_string(),
                                             crate::TERRANE_NO_SITE,
                                         ),
-                                    ),
-                                )
-                            }
-                            Err(payload) => {
-                                Err(
-                                    crate::__terrane_dependency_panic(
-                                        payload,
-                                        "terrane_sequence_witness",
-                                        "terrane_sequence_witness::QueueSequence::next",
                                     ),
                                 )
                             }
@@ -878,17 +833,18 @@ fn main() {
                             __terrane_await({ let __terrane_future = { let __terrane_call
                             = failing.as_mut().expect("flow-proven available binding")
                             .next(); Box::pin(async move { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(match value { Some(item) =>
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
+                            "terrane_sequence_witness",
+                            "terrane_sequence_witness::TokioSequence::next")) ? {
+                            Ok(value) => Ok(match value { Some(item) =>
                             terrane_collection_support::AsyncIterationStep::item(terrane_int_support::Int::from(i128::from(item))),
                             None => terrane_collection_support::AsyncIterationStep::end()
-                            }), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
+                            }), Err(error) => Err(crate ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_sequence_witness",
-                            "terrane_sequence_witness::TokioSequence::next")) } }) };
-                            async move { __terrane_raised_err(__terrane_future. await,
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
                             21 /* terrane-site: src/main.trn:61:25-61:38 */) } }).
                             await, 21 /* terrane-site: src/main.trn:61:25-61:38 */
                         ),
@@ -952,17 +908,18 @@ fn main() {
                             = failing_queue.as_mut()
                             .expect("flow-proven available binding").next();
                             Box::pin(async move { match crate
-                            ::__terrane_dependency_await_unwind(__terrane_call). await {
-                            Ok(Ok(value)) => Ok(match value { Some(item) =>
+                            ::__terrane_dependency_await_unwind(__terrane_call). await
+                            .map_err(| payload | crate
+                            ::__terrane_dependency_panic(payload,
+                            "terrane_sequence_witness",
+                            "terrane_sequence_witness::QueueSequence::next")) ? {
+                            Ok(value) => Ok(match value { Some(item) =>
                             terrane_collection_support::AsyncIterationStep::item(item),
                             None => terrane_collection_support::AsyncIterationStep::end()
-                            }), Ok(Err(error)) => Err(crate ::TerraneForeignError(crate
+                            }), Err(error) => Err(crate ::TerraneForeignError(crate
                             ::TerraneError::custom_raised(crate ::DescriptorId(2), error
-                            .to_string(), crate ::TERRANE_NO_SITE))), Err(payload) =>
-                            Err(crate ::__terrane_dependency_panic(payload,
-                            "terrane_sequence_witness",
-                            "terrane_sequence_witness::QueueSequence::next")) } }) };
-                            async move { __terrane_raised_err(__terrane_future. await,
+                            .to_string(), crate ::TERRANE_NO_SITE))) } }) }; async move {
+                            __terrane_raised_err(__terrane_future. await,
                             23 /* terrane-site: src/main.trn:67:31-67:50 */) } }).
                             await, 23 /* terrane-site: src/main.trn:67:31-67:50 */
                         ),
