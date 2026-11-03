@@ -140,38 +140,81 @@ impl Emitter<'_> {
             .iter()
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
-        let source = self.expression_as(values[0], ValueType::Scalar(ScalarType::String));
-        let destination = self.text(values[1]);
-        let object = self
-            .unit
-            .descriptors
-            .iter()
-            .find(|object| object.name == destination)
-            .expect("typed document semantics retained the destination class");
-        let destination_type = rust_object_type_name(self.package, &object.identity);
-        let options = self.expression(values[2]);
+        let (source_setup, source) = self.operand_reference_parts(values[0], false);
+        let ValueType::DocumentDecodeOutcome(destination) =
+            self.value_type(node).expect("typed decode outcome")
+        else {
+            unreachable!("typed document semantics retained the destination type")
+        };
+        let destination = destination.value_type();
+        let destination_type = rust_value_type(self.package, destination.clone());
+        let mut fallback_operand = values[1];
+        while fallback_operand.kind == SyntaxKind::GroupExpression
+            && let [inner] = fallback_operand.children.as_slice()
+        {
+            fallback_operand = inner;
+        }
+        let (fallback_setup, fallback) =
+            if matches!(self.value_type(values[1]), Some(ValueType::Descriptor(_))) {
+                let fallback = if matches!(destination, ValueType::Object(_)) {
+                    format!("{destination_type}::terrane_construct()")
+                } else if matches!(destination, ValueType::Scalar(ScalarType::Int)) {
+                    adaptive_literal("0")
+                } else {
+                    format!("<{destination_type}>::default()")
+                };
+                (String::new(), fallback)
+            } else if matches!(destination, ValueType::Scalar(ScalarType::Int))
+                && !matches!(
+                    fallback_operand.kind,
+                    SyntaxKind::Name | SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+                )
+            {
+                // A literal's borrowed read form may be a Rust integer primitive.
+                // Materialize the canonical adaptive representation before capture.
+                let value = self.expression_as(values[1], destination.clone());
+                (
+                    format!("let __terrane_document_fallback = {value}; "),
+                    "__terrane_document_fallback.clone()".to_owned(),
+                )
+            } else {
+                let (setup, value) = self.operand_reference_parts(values[1], false);
+                (
+                    format!("{setup}let __terrane_document_fallback = {value}; "),
+                    "(*__terrane_document_fallback).clone()".to_owned(),
+                )
+            };
+        let shape = crate::lowering::helpers::rust_document_shape(&destination);
+        let (options_setup, options) = self.operand_reference_parts(values[2], false);
         let allow_unknown = self.expression_as(values[3], ValueType::Scalar(ScalarType::Bool));
         let (line, column) = self.source.line_column(node.span.start);
         let source_site = format!("{}:{line}:{column}", self.unit.source_path);
-        let declaration_unit = self
-            .package
-            .units
-            .iter()
-            .find(|unit| unit.source.id() == object.span.file)
-            .expect("typed document class retains its declaring source");
-        let (class_line, class_column) = declaration_unit.source.line_column(object.span.start);
-        let class_site = format!(
-            "{}:{class_line}:{class_column}",
-            declaration_unit.source_path
-        );
+        let expected = destination.to_string();
         let parse = if identity == "/core/documents/json::decode-typed-json" {
             "terrane_document_support::parse_json_document(__terrane_document_source, terrane_limit(&__terrane_document_options.max_depth), terrane_limit(&__terrane_document_options.max_bytes))".to_owned()
         } else {
             "terrane_document_support::parse_yaml_document(__terrane_document_source, terrane_limit(&__terrane_document_options.max_depth), terrane_limit(&__terrane_document_options.max_bytes), terrane_limit(&__terrane_document_options.max_alias_nodes))".to_owned()
         };
         format!(
-            "{{ let __terrane_document_source = &{source}; let __terrane_document_options = &{options}; let __terrane_document_allow_unknown = {allow_unknown}; let __terrane_document_path = TerraneDocumentPath::Root(\"$\"); match {parse} {{ Ok(mut input) => match <{destination_type} as TerraneDocumentDecode>::terrane_decode_document(&mut input, &__terrane_document_path, __terrane_document_allow_unknown, {source_site:?}, {source_site:?}) {{ Ok(value) => TerraneDocumentDecodeOutcome {{ value, diagnostics: terrane_collection_support::List::new(Vec::new()) }}, Err(diagnostics) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(diagnostics) }} }}, Err(error) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(vec![__terrane_document_diagnostic(&__terrane_document_path, {:?}, \"invalid\", \"parse\", error.message, {source_site:?}, {class_site:?})]) }} }} }}",
-            object.name
+            "{{ {source_setup}let __terrane_document_source = {source}; {fallback_setup}{options_setup}let __terrane_document_options = {options}; let __terrane_document_allow_unknown = {allow_unknown}; __terrane_decode_document::<{destination_type}>({parse}, || {fallback}, __terrane_document_allow_unknown, {source_site:?}, {expected:?}, {shape}) }}"
+        )
+    }
+    fn typed_document_encode_call(&mut self, node: &SyntaxNode, arguments: &SyntaxNode) -> String {
+        let values = arguments
+            .children
+            .iter()
+            .map(|argument| argument.children.last().unwrap_or(argument))
+            .collect::<Vec<_>>();
+        let (source_setup, source) = self.operand_reference_parts(values[0], false);
+        let source_type = self
+            .value_type(values[0])
+            .expect("typed encoder source has a type");
+        let expected = source_type.to_string();
+        let (options_setup, options) = self.operand_reference_parts(values[1], false);
+        let (line, column) = self.source.line_column(node.span.start);
+        let source_site = format!("{}:{line}:{column}", self.unit.source_path);
+        format!(
+            "{{ {source_setup}let __terrane_document_source = {source}; {options_setup}let __terrane_document_options = {options}; __terrane_encode_document(__terrane_document_source, terrane_limit(&__terrane_document_options.max_depth), terrane_limit(&__terrane_document_options.max_bytes), {source_site:?}, {expected:?}) }}"
         )
     }
     fn structured_log_emit_call(
@@ -252,6 +295,19 @@ impl Emitter<'_> {
             )
         {
             return self.typed_document_decode_call(node, &identity, arguments);
+        }
+        if callee.kind == SyntaxKind::Name
+            && let Some(identity) = self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .map(|symbol| symbol.identity.clone())
+            && matches!(
+                identity.as_str(),
+                "/core/documents/json::encode-typed-json"
+                    | "/core/documents/yaml::encode-typed-yaml"
+            )
+        {
+            return self.typed_document_encode_call(node, arguments);
         }
         if callee.kind == SyntaxKind::Name
             && let Some(identity) = self
@@ -1007,6 +1063,7 @@ impl Emitter<'_> {
             ("document-map-insert", "document_map_insert"),
             ("json-parse", "json_parse"),
             ("json-canonical", "json_canonical"),
+            ("json-stringify", "json_stringify"),
             ("yaml-parse", "yaml_parse"),
             ("data-failed", "data_failed"),
             ("data-message", "data_message"),
@@ -1051,7 +1108,7 @@ impl Emitter<'_> {
                 .map(|(index, value)| {
                     let integer_argument = matches!(
                         (function, index),
-                        ("json_parse", 1 | 2)
+                        ("json_parse" | "json_stringify", 1 | 2)
                             | ("yaml_parse", 1..=3)
                             | (
                                 "document_item"
@@ -1069,7 +1126,7 @@ impl Emitter<'_> {
                     let borrowed_result = (index == 0
                         && (function.starts_with("data_")
                             || function.starts_with("document_")
-                            || function == "json_canonical"
+                            || matches!(function, "json_canonical" | "json_stringify")
                             || function == "validate_mapping"
                             || function.starts_with("url_") && function != "url_parse"))
                         || matches!(

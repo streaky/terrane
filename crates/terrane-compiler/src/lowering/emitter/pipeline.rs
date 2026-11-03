@@ -376,7 +376,7 @@ fn lower_with_tests(
     let uses_errors = tests.is_some()
         || package_uses_structured_errors(package)
         || package_uses_task_scope(package);
-    let uses_typed_documents = package_uses_typed_documents(package);
+    let uses_typed_documents = package_typed_document_operations(package);
     let uses_log_error = package_uses_log_error(package);
     let has_dependency = package
         .units
@@ -813,12 +813,30 @@ fn lower_with_tests(
             items,
         });
     }
-    if uses_typed_documents {
+    if uses_typed_documents.decode || uses_typed_documents.encode {
         runtime.push(GeneratedModule {
             name: "typed_documents",
             source_files: vec!["typed_documents.rs"],
             items: vec![Item::generated(include_str!(
                 "../../runtime/typed_documents.rs"
+            ))],
+        });
+    }
+    if uses_typed_documents.decode {
+        runtime.push(GeneratedModule {
+            name: "document_decode",
+            source_files: vec!["document_decode.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/document_decode.rs"
+            ))],
+        });
+    }
+    if uses_typed_documents.encode {
+        runtime.push(GeneratedModule {
+            name: "document_encode",
+            source_files: vec!["document_encode.rs"],
+            items: vec![Item::generated(include_str!(
+                "../../runtime/document_encode.rs"
             ))],
         });
     }

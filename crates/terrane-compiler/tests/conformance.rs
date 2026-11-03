@@ -1316,12 +1316,22 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         document.join("Cargo.toml"),
-        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\n# Keep this compatible with projected dependency graphs that select newer 2.5.x releases.\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n",
+        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"raw_value\"] }\njson-event-parser = \"=0.2.3\"\n# Keep this compatible with projected dependency graphs that select newer 2.5.x releases.\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n",
     )
     .unwrap();
     fs::write(
         document.join("src/lib.rs"),
         include_bytes!("../../terrane-document-support/src/lib.rs"),
+    )
+    .unwrap();
+    fs::write(
+        document.join("src/native.rs"),
+        include_bytes!("../../terrane-document-support/src/native.rs"),
+    )
+    .unwrap();
+    fs::write(
+        document.join("src/native_serialize.rs"),
+        include_bytes!("../../terrane-document-support/src/native_serialize.rs"),
     )
     .unwrap();
     fs::write(

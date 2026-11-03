@@ -199,7 +199,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         &mut namespaces,
         "/core/documents/json",
         "data",
-        ["json-parse", "json-canonical"],
+        ["json-parse", "json-canonical", "json-stringify"],
     );
     if let Some(json) = namespaces.get_mut("/core/documents/json") {
         json.symbols.insert(
@@ -207,6 +207,14 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             compiler_owned_object(
                 "/core/documents/json",
                 "decode-typed-json",
+                SymbolKind::Function,
+            ),
+        );
+        json.symbols.insert(
+            "encode-typed-json".to_owned(),
+            compiler_owned_object(
+                "/core/documents/json",
+                "encode-typed-json",
                 SymbolKind::Function,
             ),
         );
@@ -473,7 +481,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         &mut namespaces,
         "/core/documents/yaml",
         "data",
-        ["yaml-parse", "json-canonical"],
+        ["yaml-parse", "json-canonical", "json-stringify"],
     );
     if let Some(yaml) = namespaces.get_mut("/core/documents/yaml") {
         yaml.symbols.insert(
@@ -481,6 +489,14 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             compiler_owned_object(
                 "/core/documents/yaml",
                 "decode-typed-yaml",
+                SymbolKind::Function,
+            ),
+        );
+        yaml.symbols.insert(
+            "encode-typed-yaml".to_owned(),
+            compiler_owned_object(
+                "/core/documents/yaml",
+                "encode-typed-yaml",
                 SymbolKind::Function,
             ),
         );

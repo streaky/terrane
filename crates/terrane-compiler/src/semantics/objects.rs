@@ -106,6 +106,14 @@ fn field_metadata(
     defaulted: bool,
     is_static: bool,
 ) -> Result<ObjectFieldMetadata, SemanticFailure> {
+    let visibility = field
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::Visibility)
+        .map_or_else(
+            || "public".to_owned(),
+            |child| node_text(&unit.source, child).to_owned(),
+        );
     let Some(metadata) = field
         .children
         .iter()
@@ -116,6 +124,7 @@ fn field_metadata(
             defaulted,
             optional: matches!(value_type, ValueType::Optional(_)),
             secret: false,
+            visibility,
         });
     };
     if is_static {
@@ -191,6 +200,7 @@ fn field_metadata(
         defaulted,
         optional: matches!(value_type, ValueType::Optional(_)),
         secret,
+        visibility,
     })
 }
 
@@ -7435,7 +7445,7 @@ fn closed_projected_foreign_value_type(
             .ok()?
             .rust_type();
         identity = identity.with_native_projection(native);
-    } else if !source_abi && !arguments.is_empty() {
+    } else if !source_abi {
         identity = identity.with_native_projection(
             package
                 .projection

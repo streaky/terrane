@@ -827,6 +827,94 @@ fn render_collection_path(
     })
 }
 
+/// Alias identity may retain binders inside an opaque native type recipe.
+/// It is not an importable owner until those binders have been substituted.
+pub(super) fn project_alias_identity(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    let (expanded, substitutions) =
+        super::expand_output_alias(ty.clone(), index, paths, generics.clone())?;
+    if let Type::ResolvedPath(path) = &expanded
+        && let Some(weak) = project_weak_handle(
+            &resolved_path_name(path, paths),
+            &type_arguments(&expanded),
+            index,
+            paths,
+            &substitutions,
+            true,
+        )?
+    {
+        return Ok(weak);
+    }
+    project_type(ty, index, paths, generics)
+}
+
+fn project_weak_handle(
+    resolved: &str,
+    arguments: &[&Type],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    alias_identity: bool,
+) -> Result<Option<ProjectedType>, String> {
+    if !matches!(resolved, "alloc::sync::Weak" | "std::sync::Weak") {
+        return Ok(None);
+    }
+    let [pointee] = arguments else {
+        return Ok(None);
+    };
+    let (expanded, substitutions) =
+        super::expand_output_alias((*pointee).clone(), index, paths, generics.clone())?;
+    let Type::DynTrait(dynamic) = expanded else {
+        return Ok(None);
+    };
+    if (!alias_identity
+        && substitutions
+            .values()
+            .any(|value| matches!(value, ProjectedType::Generic(_))))
+        || dynamic
+            .lifetime
+            .as_deref()
+            .is_some_and(|lifetime| lifetime != "'static")
+    {
+        return Ok(None);
+    }
+    let bounds = dynamic
+        .traits
+        .iter()
+        .map(|bound| {
+            render_generic_bound(
+                &GenericBound::TraitBound {
+                    trait_: bound.trait_.clone(),
+                    generic_params: bound.generic_params.clone(),
+                    modifier: rustdoc_types::TraitBoundModifier::None,
+                },
+                &[],
+                index,
+                paths,
+                &substitutions,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let lifetime = dynamic
+        .lifetime
+        .as_deref()
+        .map(|lifetime| format!(" + {lifetime}"))
+        .unwrap_or_default();
+    let rust_path = format!("std::sync::Weak<dyn {}{}>", bounds.join(" + "), lifetime);
+    let rust_path = crate::rust_ir::format_native_type(&rust_path)
+        .ok_or_else(|| "weak handle has an invalid native type recipe".to_owned())?;
+    Ok(Some(ProjectedType::Foreign {
+        name: instantiated_nominal_name("Weak", &rust_path, &[]),
+        base_rust_path: rust_path.clone(),
+        rust_path,
+        arguments: Vec::new(),
+    }))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "resolved Rust type classification keeps canonical paths and recursive shape checks together"
@@ -866,6 +954,11 @@ fn project_resolved_type(
         return Ok(ProjectedType::Optional(Box::new(
             project_type_with_context(inner, index, paths, generics, active)?,
         )));
+    }
+    // Weak owns allocation identity, not invocation authority. Do not adapt its
+    // pointee as a callable or manufacture a different allocation for removal.
+    if let Some(weak) = project_weak_handle(&resolved, &arguments, index, paths, generics, false)? {
+        return Ok(weak);
     }
     let carrier = match resolved.as_str() {
         "alloc::boxed::Box" | "std::boxed::Box" => Some(OwningCarrier::Box),

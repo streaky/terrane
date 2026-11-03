@@ -523,6 +523,12 @@ impl<K: Eq + Hash, V> Map<K, V> {
         Arc::get_mut(&mut self.0)?.get_mut(key)
     }
 }
+impl<K: Eq + Hash, V> Map<K, V> {
+    /// Borrows the existing entries without cloning keys or values.
+    pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
+        self.0.iter()
+    }
+}
 impl<K: Eq + Hash + Clone, V: Clone> Map<K, V> {
     #[must_use]
     pub fn new(entries: Vec<Entry<K, V>>) -> Self {
@@ -701,6 +707,14 @@ impl<K: Eq + Hash, V> UnorderedMap<K, V> {
             .values
             .get_mut(key)
             .map(|(_, value)| value)
+    }
+
+    /// Borrows entries in the collection's iteration order without copying them.
+    pub fn as_entries(&self) -> impl std::iter::Iterator<Item = (&K, &V)> {
+        self.0
+            .iteration_keys
+            .iter()
+            .map(|key| (key, self.0.indexed_value(key)))
     }
 }
 

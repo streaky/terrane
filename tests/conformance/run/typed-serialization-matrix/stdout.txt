@@ -1,0 +1,11 @@
+false|{"name":"ok","item":{"displayName":"nested","amount":7},"numbers":[2,4],"names":{"zone":"west"},"pair":[8,9],"optional":"kept"}
+false|{"name":"ok","item":{"displayName":"nested","amount":7},"numbers":[2,4],"names":{"zone":"west"},"pair":[8,9],"optional":"kept"}
+false|ok|nested|4|west|9|kept
+false|ok|7
+false|default|kept|0
+true|3
+$.item.displayName|type-mismatch
+$.item.amount|type-mismatch
+$.numbers[1]|type-mismatch
+true|1
+false|none

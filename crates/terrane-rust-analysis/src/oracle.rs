@@ -113,6 +113,21 @@ impl<'a> ProjectionOracle<'a> {
         }
     }
 
+    // Cargo's build lock does not protect generated inputs: another process can
+    // otherwise replace src/bin while Cargo waits, then cache the wrong evidence.
+    fn lock_workspace(&self) -> Result<fs::File, ProjectionError> {
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(self.workspace.join("oracle.lock"))
+            .map_err(io_error("open projection oracle lock"))?;
+        file.lock()
+            .map_err(io_error("lock projection oracle workspace"))?;
+        Ok(file)
+    }
+
     /// Proves a batch of concrete Rust trait-bound questions.
     ///
     /// # Errors
@@ -128,6 +143,7 @@ impl<'a> ProjectionOracle<'a> {
         if questions.is_empty() {
             return Ok(ProbeReport::default());
         }
+        let _workspace_lock = self.lock_workspace()?;
         let batch_identity = batch_identity(self.cache_identity, &questions)?;
         let cache_path = self.workspace.join("oracle.json");
         let mut cache = load_cache(&cache_path, self.cache_identity)?;
@@ -199,6 +215,7 @@ impl<'a> ProjectionOracle<'a> {
         if questions.is_empty() {
             return Ok(CallProbeReport::default());
         }
+        let _workspace_lock = self.lock_workspace()?;
         let batch_identity = call_batch_identity(self.cache_identity, &questions)?;
         let cache_path = self.workspace.join("oracle.json");
         let mut cache = load_cache(&cache_path, self.cache_identity)?;
@@ -294,6 +311,7 @@ impl<'a> ProjectionOracle<'a> {
                 message: "projection macro probe name must be a Rust identifier".to_owned(),
             });
         }
+        let _workspace_lock = self.lock_workspace()?;
         let probe = self.workspace.join("src").join(format!("{name}.rs"));
         write_if_changed(&probe, source.as_bytes())?;
         let output = cargo_output(
@@ -499,7 +517,7 @@ fn batch_identity(identity: &str, questions: &[BoundQuestion]) -> Result<String,
     let mut hash = Sha256::new();
     hash.update(identity.as_bytes());
     hash.update([0]);
-    hash.update(b"bound-lifetime-scope-v3");
+    hash.update(b"bound-workspace-lock-v4");
     hash.update(encoded);
     Ok(format!("{:x}", hash.finalize()))
 }
@@ -513,7 +531,7 @@ fn call_batch_identity(
     })?;
     let mut hash = Sha256::new();
     hash.update(identity.as_bytes());
-    hash.update(b"calls");
+    hash.update(b"calls-workspace-lock-v2");
     hash.update(encoded);
     Ok(format!("{:x}", hash.finalize()))
 }
@@ -879,6 +897,42 @@ mod tests {
                 .collect::<Vec<_>>(),
             [destination]
         );
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn concurrent_batches_preserve_independent_evidence() {
+        let workspace = workspace("concurrent-batches");
+        let barrier = std::sync::Barrier::new(2);
+        let bound = BoundQuestion {
+            rust_type: "String".into(),
+            rust_bound: "Copy".into(),
+            inferred_parameters: Vec::new(),
+        };
+        let call = CallQuestion {
+            label: "copyable-byte".into(),
+            source: "fn copyable<T: Copy>() {} fn main() { copyable::<u8>(); }".into(),
+        };
+        std::thread::scope(|scope| {
+            let bounds = scope.spawn(|| {
+                barrier.wait();
+                ProjectionOracle::new(&workspace, "concurrent", Containment::Unavailable)
+                    .prove_bounds(std::slice::from_ref(&bound))
+                    .unwrap()
+            });
+            let calls = scope.spawn(|| {
+                barrier.wait();
+                ProjectionOracle::new(&workspace, "concurrent", Containment::Unavailable)
+                    .prove_calls(std::slice::from_ref(&call))
+                    .unwrap()
+            });
+            assert_eq!(bounds.join().unwrap().evidence[0].answer, ProbeAnswer::No);
+            assert_eq!(calls.join().unwrap().evidence[0].answer, ProbeAnswer::Yes);
+        });
+        let cache: OracleCache =
+            serde_json::from_slice(&fs::read(workspace.join("oracle.json")).unwrap()).unwrap();
+        assert_eq!(cache.bound_reports.len(), 1);
+        assert_eq!(cache.call_reports.len(), 1);
         fs::remove_dir_all(workspace).unwrap();
     }
 

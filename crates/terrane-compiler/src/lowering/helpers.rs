@@ -799,15 +799,34 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         {
             "TerraneError".to_owned()
         }
-        ValueType::Object(identity) => identity.native_projection.as_deref().map_or_else(
-            || rust_object_type_name(package, &identity),
-            |native| {
-                package
+        ValueType::Object(identity) => {
+            let native = identity.native_projection.as_deref().or_else(|| {
+                let item = package
                     .projection
-                    .canonical_native_type(native)
-                    .into_owned()
-            },
-        ),
+                    .item(&identity.namespace, &identity.name)?;
+                let crate::rust_interop::projection::ProjectedKind::ForeignType {
+                    generic_parameters,
+                    ..
+                } = &item.kind
+                else {
+                    return None;
+                };
+                // A synthesized opaque nominal can own a closed native
+                // application without exposing any source type parameters.
+                // Its constructor alone would erase that concrete storage.
+                (generic_parameters.is_empty() && item.rust_path.contains('<'))
+                    .then_some(item.rust_path.as_str())
+            });
+            native.map_or_else(
+                || rust_object_type_name(package, &identity),
+                |native| {
+                    package
+                        .projection
+                        .canonical_native_type(native)
+                        .into_owned()
+                },
+            )
+        }
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<TerraneSharedCell<{}>>",
             rust_element_type(package, item)
@@ -1298,4 +1317,30 @@ pub(super) fn display_path(path: &std::path::Path) -> String {
         .and_then(std::ffi::OsStr::to_str)
         .unwrap_or("<memory>")
         .to_owned()
+}
+
+/// Preserve source tuple arity through homogeneous native collection carriers.
+pub(super) fn rust_document_shape(value_type: &ValueType) -> String {
+    let nested = match value_type {
+        ValueType::Optional(inner) => Some(inner.as_ref()),
+        ValueType::List(item) | ValueType::Map(_, item) | ValueType::UnorderedMap(_, item) => {
+            Some(item.value_type_ref())
+        }
+        ValueType::Tuple(item, length) => {
+            let item = rust_document_shape(item.value_type_ref());
+            return format!(
+                "&TerraneDocumentShape {{ tuple_length: {length:?}, inner: Some({item}) }}"
+            );
+        }
+        _ => None,
+    };
+    nested.map_or_else(
+        || "&TerraneDocumentShape { tuple_length: None, inner: None }".to_owned(),
+        |inner| {
+            format!(
+                "&TerraneDocumentShape {{ tuple_length: None, inner: Some({}) }}",
+                rust_document_shape(inner),
+            )
+        },
+    )
 }

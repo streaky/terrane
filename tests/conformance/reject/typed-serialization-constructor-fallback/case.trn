@@ -1,0 +1,10 @@
+namespace app
+from /core/documents import document-decodable
+from /core/documents/json import decode-typed-json, default-json-options
+class item implements document-decodable
+    number int = 0
+    function construct; number int
+        this.number = number
+function main;
+    decoded = decode-typed-json; '{"number":2}', (instance item; 1), (default-json-options;), false
+    print; decoded.failed

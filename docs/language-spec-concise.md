@@ -1007,19 +1007,19 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 ## DOCUMENTS
 
 ```yaml
-opt_in: class implements /core/documents::document-decodable; no implicit class decoding
-entrypoints: /core/documents/json::decode-typed-json | /core/documents/yaml::decode-typed-yaml
-arguments: source string, concrete class descriptor, matching parser options, explicit allow-unknown bool
-result: document-decode-outcome of T; concrete initialized T value + typed list of every diagnostic; failed iff diagnostics nonempty
-fields: scalar | nested opted class | list | homogeneous tuple | map of string,V; all nested values decodable
-numeric: integers exact/range-checked; decimal/integer to float rounds to nearest finite destination value, ties-to-even; out-of-finite-range diagnoses
-absence: canonical type default or explicit initializer is retained; T|none may be absent; every other absent field diagnoses
-names: one OBJ field metadata record supplies semantic name, external-name, defaulted, optional, secret
-unknowns: rejected or recursively ignored only by explicit call policy
-diagnostic: deterministic path, expected, actual-kind, reason, message, decode-call source, field source
-validation: optional document-validatable.validate-document -> string|none after error-free field decoding
-ineligible: resource ownership | inheritance | custom construction | recursive value cycle | unsupported field -> implement deserializable manually
-boundary: generated Rust materializes statically known T; parser/metadata/default/validation/diagnostic policy remains Terrane; no universal boxed value
+typed_opt_in: document-encodable derives class encoding; document-decodable derives class decoding; scalar/optional/collection fallback values also supported; no implicit class serialization
+entrypoints: /core/documents/json::encode-typed-json | decode-typed-json; /core/documents/yaml::encode-typed-yaml | decode-typed-yaml
+fields: public instance fields using canonical external names; supported scalars, optionals, lists, homogeneous tuples, string-key maps/unorderedmaps, nested opted-in classes
+unsupported: derived encoding rejects secret/private fields; inheritance, resources, callables unsupported; derived decoding rejects custom constructors recursively; explicit serializable/deserializable codecs for custom representations
+numeric: exact mathematical dynamic values, not spelling/signed zero; exact/range-checked integers; ties-to-even float conversion with underflow to zero; non-finite encode rejected; 4096 mantissa/expanded-integer digits and absolute input/normalized exponent <= 100000
+absence: initialized defaults retained when missing; explicit null clears optional; missing field without default diagnoses
+unknowns: rejected by default; explicit allow-unknown bool opts into ignoring
+json_bounds: stringify-json honors max-depth and max-bytes; canonical-json is separate
+yaml_bounds: parse depth/bytes/alias-nodes; stringify-yaml(value,options) and encode-yaml(value,options) honor explicit depth/byte budgets and emit JSON-compatible YAML
+native: from_document<T> borrowed direct Serde deserializer; to_document<T:Serialize> direct exact Serde tree serializer; JsonDocument(&Document) explicit JSON raw lexical adapter; Document has no generic Serialize
+native_value: explicit serde_json::Value conversions fail on exactness/range loss; json_value_to_document/serialize_json_value handle feature-private exact numbers; generic Serialize cannot distinguish private-number maps from ordinary maps
+parser: bounded lexical event stream; no arbitrary_precision/unbounded_depth feature contribution; coexistence with external arbitrary_precision supported, but not a universal feature-private native-value adapter
+boundary: typed encoding streams borrowed fields to bounded JsonWriter; explicit custom codecs use Document; no public CDP API
 ```
 
 ## LOGGING

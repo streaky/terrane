@@ -1,0 +1,5 @@
+package = "native-mismatched-value-type"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-opaque-result-witness]
+version = "=0.1.2"

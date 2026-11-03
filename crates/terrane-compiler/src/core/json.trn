@@ -20,7 +20,7 @@ function parse-json document-result; input string, options json-options
     return make-document-result; raw
 
 function stringify-json document-result; value document-value, options json-options
-    raw = host-json-canonical; value.raw
+    raw = host-json-stringify; value.raw, options.max-depth, options.max-bytes
     return make-document-result; raw
 
 function canonical-json document-result; value document-value

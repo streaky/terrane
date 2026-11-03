@@ -1665,23 +1665,17 @@ fn validate_argument_destination(
     {
         return Ok(());
     }
-    let mut callable_destination = expected;
-    while let ValueType::Optional(inner) = callable_destination {
-        callable_destination = inner;
-    }
-    let canonical_callable_types = (expected != actual
-        && matches!(
-            callable_destination,
-            ValueType::Function(..) | ValueType::AsyncFunction(..)
-        ))
-    .then(|| {
+    // Native aliases and direct signatures may name the same storage through
+    // different source nominals. Compare their proven native representations
+    // at every call boundary, not only inside callback signatures.
+    let canonical_types = (expected != actual).then(|| {
         let mut expected = expected.clone();
         let mut actual = actual.clone();
         super::objects::canonicalize_native_value_type(package, &mut expected);
         super::objects::canonicalize_native_value_type(package, &mut actual);
         (expected, actual)
     });
-    let (expected, actual) = canonical_callable_types
+    let (expected, actual) = canonical_types
         .as_ref()
         .map_or((expected, actual), |(expected, actual)| (expected, actual));
     let validation_expected = match (expected, actual) {

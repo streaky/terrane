@@ -65,7 +65,11 @@ fn named_event(incoming: &Event) {
 fn add_tracked(
     listeners: &Registry,
     state: std::sync::Arc<TerraneSharedCell<Counter>>,
-) -> terrane_retained_callback_api::WeakListener<terrane_retained_callback_api::Event> {
+) -> std::sync::Weak<
+    dyn terrane_retained_callback_api::EventListener<
+        terrane_retained_callback_api::Event,
+    > + core::marker::Send + core::marker::Sync,
+> {
     let owned: Signal;
     let callback: std::sync::Arc<dyn Fn(&Event) -> () + Send + Sync>;
     owned = __terrane_raised(
@@ -232,26 +236,38 @@ fn main() {
     let state: std::sync::Arc<TerraneSharedCell<Counter>>;
     let callback: std::sync::Arc<dyn Fn(&Event) -> () + Send + Sync>;
     let listeners: Registry;
-    let token: terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    let token: std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >;
-    let copied_token: terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    let copied_token: std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >;
     let unrelated_owner: Registry;
-    let unrelated: terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    let unrelated: std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >;
-    let tracked: terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    let tracked: std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >;
     let weak_owner: WeakRegistry;
     let reentrant: std::sync::Arc<dyn Fn(&Event) -> () + Send + Sync>;
-    let reentrant_token: terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    let reentrant_token: std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >;
-    let destroyed: terrane_retained_callback_api::WeakListener<
-        terrane_retained_callback_api::Event,
+    let destroyed: std::sync::Weak<
+        dyn terrane_retained_callback_api::EventListener<
+            terrane_retained_callback_api::Event,
+        > + core::marker::Send + core::marker::Sync,
     >;
     let changes: terrane_int_support::Int;
     let change: TerraneOwnedMutableInputsM<MutableEvent, ()>;

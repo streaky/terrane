@@ -360,11 +360,19 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &document.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n", crate::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"raw_value\"] }}\njson-event-parser = \"=0.2.3\"\nurl = \"2.5\"\nyaml-rust2 = \"=0.10.4\"\n", crate::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &document.join("src/lib.rs"),
         include_bytes!("../../terrane-document-support/src/lib.rs"),
+    )?;
+    write_if_changed(
+        &document.join("src/native.rs"),
+        include_bytes!("../../terrane-document-support/src/native.rs"),
+    )?;
+    write_if_changed(
+        &document.join("src/native_serialize.rs"),
+        include_bytes!("../../terrane-document-support/src/native_serialize.rs"),
     )?;
     write_if_changed(
         &stream.join("Cargo.toml"),

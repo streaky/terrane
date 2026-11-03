@@ -388,6 +388,7 @@ fn add_float_descriptor_constants(contract: &mut DescriptorContract, scalar: Sca
                 defaulted: false,
                 optional: false,
                 secret: false,
+                visibility: "public".to_owned(),
             },
         }));
 }

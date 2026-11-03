@@ -2818,7 +2818,7 @@ impl TcpStream {
         }
     }
     pub fn into_native(self) -> Result<NativeTcpStream, TerraneError> {
-        let raw: HostStreamTransfer;
+        let raw: std::io::Result<tokio::net::TcpStream>;
         raw = terrane_platform_tcp_stream_into_native(
             &self.handle.as_ref().expect("required field initialized"),
         );
@@ -3527,7 +3527,7 @@ impl TcpListener {
         }
     }
     pub fn into_native(self) -> Result<NativeTcpListener, TerraneError> {
-        let raw: HostListenerTransfer;
+        let raw: std::io::Result<tokio::net::TcpListener>;
         raw = terrane_platform_tcp_listener_into_native(
             &self.handle.as_ref().expect("required field initialized"),
         );

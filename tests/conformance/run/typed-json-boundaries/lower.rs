@@ -64,6 +64,7 @@ impl TerraneDocumentDecode for Numbers {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -114,6 +115,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:16:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.signed = decoded,
                     Err(mut field_diagnostics) => {
@@ -133,6 +138,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:17:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.unsigned = decoded,
                     Err(mut field_diagnostics) => {
@@ -152,6 +161,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:18:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.adaptive = decoded,
                     Err(mut field_diagnostics) => {
@@ -171,6 +184,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:19:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.integral = decoded,
                     Err(mut field_diagnostics) => {
@@ -190,6 +207,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:20:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.real = decoded,
                     Err(mut field_diagnostics) => {
@@ -209,6 +230,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:21:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.narrow = decoded,
                     Err(mut field_diagnostics) => {
@@ -230,6 +255,15 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:22:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.optional = decoded,
                     Err(mut field_diagnostics) => {
@@ -270,6 +304,7 @@ impl TerraneDocumentDecode for Item {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -312,6 +347,10 @@ impl TerraneDocumentDecode for Item {
                     allow_unknown,
                     source,
                     "case.trn:25:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.amount = decoded,
                     Err(mut field_diagnostics) => {
@@ -358,6 +397,7 @@ impl TerraneDocumentDecode for Envelope {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -402,6 +442,15 @@ impl TerraneDocumentDecode for Envelope {
                     allow_unknown,
                     source,
                     "case.trn:28:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.children = decoded,
                     Err(mut field_diagnostics) => {
@@ -424,6 +473,15 @@ impl TerraneDocumentDecode for Envelope {
                     allow_unknown,
                     source,
                     "case.trn:29:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.keyed = decoded,
                     Err(mut field_diagnostics) => {
@@ -445,6 +503,15 @@ impl TerraneDocumentDecode for Envelope {
                     allow_unknown,
                     source,
                     "case.trn:30:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.pair = decoded,
                     Err(mut field_diagnostics) => {
@@ -492,51 +559,23 @@ fn main() {
         );
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:34:12",
-                    "case.trn:34:12",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:34:12", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:34:12",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     println!("{}", terrane_scalar_support::scalar_text(&good.value.clone().signed));
     println!("{}", terrane_scalar_support::scalar_text(&good.value.clone().unsigned));
@@ -558,51 +597,23 @@ fn main() {
         );
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:41:11",
-                    "case.trn:41:11",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:41:11", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:41:11",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(bad
@@ -630,51 +641,23 @@ fn main() {
         );
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Envelope as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:45:14",
-                    "case.trn:45:14",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Envelope::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Envelope::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "envelope", "invalid", "parse", error.message,
-                            "case.trn:45:14", "case.trn:27:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Envelope,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Envelope::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:45:14",
+            "envelope",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     let __terrane_iterable_1 = nested.diagnostics.clone();
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
@@ -697,101 +680,45 @@ fn main() {
         let __terrane_document_source = &String::from("{\"integral\":1,\"integral\":2}");
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:48:17",
-                    "case.trn:48:17",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:48:17", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:48:17",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     trailing = {
         let __terrane_document_source = &String::from("{\"integral\":1} true");
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:49:16",
-                    "case.trn:49:16",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:49:16", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:49:16",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     too_deep = {
         let __terrane_document_source = &String::from("{\"odd.key\":[{\"amount\":1}]}");
@@ -800,51 +727,23 @@ fn main() {
             terrane_int_support::Int::from(128_i128),
         );
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Envelope as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:50:16",
-                    "case.trn:50:16",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Envelope::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Envelope::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "envelope", "invalid", "parse", error.message,
-                            "case.trn:50:16", "case.trn:27:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Envelope,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Envelope::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:50:16",
+            "envelope",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     too_large = {
         let __terrane_document_source = &String::from("{\"integral\":12345}");
@@ -853,51 +752,23 @@ fn main() {
             terrane_int_support::Int::from(8_i128),
         );
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:51:17",
-                    "case.trn:51:17",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:51:17", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:51:17",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&(duplicate.diagnostics.length() != 0
@@ -921,104 +792,48 @@ fn main() {
     source = true;
     text = String::from("{\"integral\":7,\"future\":{\"anything\":[1,2,3]}}");
     rejected = {
-        let __terrane_document_source = &text.clone();
+        let __terrane_document_source = &text;
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = false;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:55:16",
-                    "case.trn:55:16",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:55:16", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:55:16",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     unknown = {
         let __terrane_document_source = &text;
         let __terrane_document_options = &options;
         let __terrane_document_allow_unknown = source;
-        let __terrane_document_path = TerraneDocumentPath::Root("$");
-        match terrane_document_support::parse_json_document(
-            __terrane_document_source,
-            terrane_limit(&__terrane_document_options.max_depth),
-            terrane_limit(&__terrane_document_options.max_bytes),
-        ) {
-            Ok(mut input) => {
-                match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                    &mut input,
-                    &__terrane_document_path,
-                    __terrane_document_allow_unknown,
-                    "case.trn:56:15",
-                    "case.trn:56:15",
-                ) {
-                    Ok(value) => {
-                        TerraneDocumentDecodeOutcome {
-                            value,
-                            diagnostics: terrane_collection_support::List::new(
-                                Vec::new(),
-                            ),
-                        }
-                    }
-                    Err(diagnostics) => {
-                        TerraneDocumentDecodeOutcome {
-                            value: Numbers::terrane_construct(),
-                            diagnostics: terrane_collection_support::List::new(
-                                diagnostics,
-                            ),
-                        }
-                    }
-                }
-            }
-            Err(error) => {
-                TerraneDocumentDecodeOutcome {
-                    value: Numbers::terrane_construct(),
-                    diagnostics: terrane_collection_support::List::new(
-                        vec![
-                            __terrane_document_diagnostic(&__terrane_document_path,
-                            "numbers", "invalid", "parse", error.message,
-                            "case.trn:56:15", "case.trn:15:1")
-                        ],
-                    ),
-                }
-            }
-        }
+        __terrane_decode_document::<
+            Numbers,
+        >(
+            terrane_document_support::parse_json_document(
+                __terrane_document_source,
+                terrane_limit(&__terrane_document_options.max_depth),
+                terrane_limit(&__terrane_document_options.max_bytes),
+            ),
+            || Numbers::terrane_construct(),
+            __terrane_document_allow_unknown,
+            "case.trn:56:15",
+            "numbers",
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
+        )
     };
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&(rejected.diagnostics.length() !=
@@ -1033,51 +848,23 @@ fn main() {
                     let __terrane_document_allow_unknown = __terrane_traced_completion!(
                         unknown_policy(), 5 /* terrane-site: case.trn:59:69-59:84 */
                     );
-                    let __terrane_document_path = TerraneDocumentPath::Root("$");
-                    match terrane_document_support::parse_json_document(
-                        __terrane_document_source,
-                        terrane_limit(&__terrane_document_options.max_depth),
-                        terrane_limit(&__terrane_document_options.max_bytes),
-                    ) {
-                        Ok(mut input) => {
-                            match <Numbers as TerraneDocumentDecode>::terrane_decode_document(
-                                &mut input,
-                                &__terrane_document_path,
-                                __terrane_document_allow_unknown,
-                                "case.trn:59:19",
-                                "case.trn:59:19",
-                            ) {
-                                Ok(value) => {
-                                    TerraneDocumentDecodeOutcome {
-                                        value,
-                                        diagnostics: terrane_collection_support::List::new(
-                                            Vec::new(),
-                                        ),
-                                    }
-                                }
-                                Err(diagnostics) => {
-                                    TerraneDocumentDecodeOutcome {
-                                        value: Numbers::terrane_construct(),
-                                        diagnostics: terrane_collection_support::List::new(
-                                            diagnostics,
-                                        ),
-                                    }
-                                }
-                            }
-                        }
-                        Err(error) => {
-                            TerraneDocumentDecodeOutcome {
-                                value: Numbers::terrane_construct(),
-                                diagnostics: terrane_collection_support::List::new(
-                                    vec![
-                                        __terrane_document_diagnostic(&__terrane_document_path,
-                                        "numbers", "invalid", "parse", error.message,
-                                        "case.trn:59:19", "case.trn:15:1")
-                                    ],
-                                ),
-                            }
-                        }
-                    }
+                    __terrane_decode_document::<
+                        Numbers,
+                    >(
+                        terrane_document_support::parse_json_document(
+                            __terrane_document_source,
+                            terrane_limit(&__terrane_document_options.max_depth),
+                            terrane_limit(&__terrane_document_options.max_bytes),
+                        ),
+                        || Numbers::terrane_construct(),
+                        __terrane_document_allow_unknown,
+                        "case.trn:59:19",
+                        "numbers",
+                        &TerraneDocumentShape {
+                            tuple_length: None,
+                            inner: None,
+                        },
+                    )
                 });
             println!(
                 "{}", terrane_scalar_support::scalar_text(&{ let
