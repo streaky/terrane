@@ -609,6 +609,24 @@ impl Parser<'_> {
             children.push(self.parse_object_import());
             let comma_position = self.position;
             let mut comma = self.eat(TokenKind::Comma);
+            let recovered_item = grouped && !self.at_line_end() && !self.at(TokenKind::Identifier);
+            if recovered_item {
+                self.error_here(
+                    "S1026",
+                    if comma {
+                        "expected an imported name"
+                    } else {
+                        "expected `,` between imported names"
+                    },
+                );
+                while !self.at_line_end() && !self.at(TokenKind::Comma) {
+                    self.bump();
+                }
+                self.eat(TokenKind::Comma);
+                // Treat the malformed segment as consumed, including its separator,
+                // so recovery does not blame its remaining tokens a second time.
+                comma = true;
+            }
             let newline = grouped && self.at(TokenKind::Newline);
             if newline {
                 self.skip_newlines();
@@ -625,7 +643,7 @@ impl Parser<'_> {
                 break;
             }
             if self.at_line_end() {
-                if comma && !recovered_indent {
+                if comma && !recovered_indent && !recovered_item {
                     self.error_at(
                         comma_position,
                         "S1026",

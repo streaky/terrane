@@ -731,6 +731,16 @@ fn rejects_invalid_grouped_import_boundaries() {
             "unexpected extra comma before imported name",
             1,
         ),
+        (
+            "from /core/types import\n\tint8,, int16\n",
+            "expected an imported name",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 + int16\n",
+            "expected `,` between imported names",
+            1,
+        ),
         ("from /core/types import int8,\n", "trailing comma", 1),
         ("from /core/types import\n\tint8,\n", "trailing comma", 1),
         (
@@ -801,6 +811,24 @@ fn malformed_imports_recover_following_items_and_statements() {
             "from /core/types import\n\tint8,\n\t, int16\nvalue int32 = 1\n",
             "unexpected extra comma before imported name",
             vec!["int8", "int16"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,, int16,\n\tint32\nvalue int32 = 1\n",
+            "expected an imported name",
+            vec!["int8", "int16", "int32"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 + int16, int32\nvalue int32 = 1\n",
+            "expected `,` between imported names",
+            vec!["int8", "int32"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 + int16\n\tint32\nvalue int32 = 1\n",
+            "expected `,` between imported names",
+            vec!["int8", "int32"],
             1,
         ),
     ] {
