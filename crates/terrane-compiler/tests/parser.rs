@@ -657,10 +657,10 @@ fn grouped_imports_preserve_aliases_and_lexical_boundaries() {
         assert_eq!(import.children.len(), 4);
         assert_eq!(import.children[1].children[1].kind, SyntaxKind::ImportAlias);
         assert_eq!(import.children[3].children[1].kind, SyntaxKind::ImportAlias);
-        if !ending.contains("value") {
-            assert_eq!(tree.root.children.len(), 1);
-        } else {
+        if ending.contains("value") {
             assert_eq!(tree.root.children[1].kind, SyntaxKind::Assignment);
+        } else {
+            assert_eq!(tree.root.children.len(), 1);
         }
     }
     let tree = parse_source(
@@ -680,36 +680,170 @@ fn grouped_imports_preserve_aliases_and_lexical_boundaries() {
 
 #[test]
 fn rejects_invalid_grouped_import_boundaries() {
-    for text in [
-        "from /core/types import\nint8\n",
-        "from /core/types import\n",
-        "from /core/types import int8,\n\tint16\n",
-        "from /core/types import int8\n\tint16\n",
-        "from /core/types import\n\tint8\n\tint16\n",
-        "from /core/types import\n\tint8 int16\n",
-        "from /core/types import\n\tint8,\n\t\tint16\n",
-        "from /core/types import\n\tint8 as\n\tbyte\n",
-    ] {
-        let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
-        assert!(
-            !parse(&source, lex(&source).unwrap()).diagnostics.is_empty(),
-            "{text}"
-        );
-    }
-    for text in [
-        "from /core/types import int8,\n",
-        "from /core/types import\n\tint8,\n",
-        "from /core/types import\n\tint8,\n\tint16,",
+    for (text, message, count) in [
+        (
+            "from /core/types import\nint8\n",
+            "expected an indented import list",
+            1,
+        ),
+        (
+            "from /core/types import\n",
+            "expected an indented import list",
+            1,
+        ),
+        (
+            "from /core/types import int8,\n\tint16\n",
+            "an inline import list cannot continue",
+            1,
+        ),
+        (
+            "from /core/types import int8\n\tint16\n",
+            "an inline import list cannot continue",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8\n\tint16\n",
+            "expected `,` between imported names",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 int16\n",
+            "expected `,` between imported names",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t\tint16\n",
+            "import items must use the same indentation",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8 as\n\tbyte\n",
+            "expected an import alias after `as`",
+            2,
+        ),
+        (
+            "from /core/types import\n\tint8\n\t, int16\n",
+            "a separating comma must end the previous import line",
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t, int16\n",
+            "unexpected extra comma before imported name",
+            1,
+        ),
+        ("from /core/types import int8,\n", "trailing comma", 1),
+        ("from /core/types import\n\tint8,\n", "trailing comma", 1),
+        (
+            "from /core/types import\n\tint8,\n\tint16,",
+            "trailing comma",
+            1,
+        ),
     ] {
         let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
         let parsed = parse(&source, lex(&source).unwrap());
-        assert!(
-            parsed.diagnostics.iter().any(|diagnostic| {
-                diagnostic.code == "S1026" && diagnostic.message.contains("trailing comma")
-            }),
-            "{:#?}",
+        assert_eq!(
+            parsed.diagnostics.len(),
+            count,
+            "{text}\n{:#?}",
             parsed.diagnostics
         );
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code == "S1026")
+        );
+        assert!(
+            parsed
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains(message)),
+            "{text}\n{:#?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
+fn malformed_imports_recover_following_items_and_statements() {
+    for (text, message, names, count) in [
+        (
+            "from /core/types import int8\n\tint16\nvalue int32 = 1\n",
+            "an inline import list cannot continue",
+            vec!["int8"],
+            1,
+        ),
+        (
+            "from /core/types import int8,\n\n// continuation\n\tint16\nvalue int32 = 1\n",
+            "an inline import list cannot continue",
+            vec!["int8"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t\tint16,\n\tint32\nvalue int32 = 1\n",
+            "import items must use the same indentation",
+            vec!["int8", "int32"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8\n\t\tint16,\n\tint32\nvalue int32 = 1\n",
+            "import items must use the same indentation",
+            vec!["int8", "int32"],
+            2,
+        ),
+        (
+            "from /core/types import\n\tint8\n\t, int16\nvalue int32 = 1\n",
+            "a separating comma must end the previous import line",
+            vec!["int8", "int16"],
+            1,
+        ),
+        (
+            "from /core/types import\n\tint8,\n\t, int16\nvalue int32 = 1\n",
+            "unexpected extra comma before imported name",
+            vec!["int8", "int16"],
+            1,
+        ),
+    ] {
+        for nested in [false, true] {
+            let text = if nested {
+                let mut body = String::from("function main;\n");
+                for line in text.lines() {
+                    body.push('\t');
+                    body.push_str(line);
+                    body.push('\n');
+                }
+                body
+            } else {
+                text.to_owned()
+            };
+            let source = SourceFile::new(0, "case.trn".into(), text);
+            let parsed = parse(&source, lex(&source).unwrap());
+            assert_eq!(parsed.diagnostics.len(), count, "{:#?}", parsed.diagnostics);
+            assert!(parsed.diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == "S1026" && diagnostic.message.contains(message)
+            }));
+            let statements = if nested {
+                &parsed.tree.root.children[0]
+                    .children
+                    .last()
+                    .unwrap()
+                    .children
+            } else {
+                &parsed.tree.root.children
+            };
+            assert_eq!(statements.len(), 2);
+            assert_eq!(statements[1].kind, SyntaxKind::Binding);
+            let actual = statements[0]
+                .children
+                .iter()
+                .filter(|node| node.kind == SyntaxKind::ObjectImport)
+                .map(|node| {
+                    let span = node.children[0].span;
+                    &source.text()[span.start..span.end]
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(actual, names);
+        }
     }
 }
 

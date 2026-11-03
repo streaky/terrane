@@ -587,42 +587,7 @@ impl Parser<'_> {
         if self.at_line_end() {
             self.error_here("S1026", "expected an object name after `import`");
         } else {
-            loop {
-                if self.at(TokenKind::Indent) {
-                    self.error_here("S1026", "import items must use the same indentation");
-                    self.bump();
-                    self.recover_nested_block();
-                    self.skip_newlines();
-                    break;
-                }
-                children.push(self.parse_object_import());
-                let comma_position = self.position;
-                let comma = self.eat(TokenKind::Comma);
-                if grouped && self.at(TokenKind::Newline) {
-                    self.skip_newlines();
-                }
-                if self.at_line_end() {
-                    if comma {
-                        self.error_at(
-                            comma_position,
-                            "S1026",
-                            "an import list must not have a trailing comma",
-                        );
-                    }
-                    break;
-                }
-                if !comma {
-                    if !grouped {
-                        break;
-                    }
-                    self.error_here("S1026", "expected `,` between imported names");
-                    self.recover_line();
-                    self.skip_newlines();
-                    if self.at_line_end() {
-                        break;
-                    }
-                }
-            }
+            self.parse_import_items(&mut children, grouped);
         }
         if grouped {
             self.expect(
@@ -637,6 +602,81 @@ impl Parser<'_> {
             self.position,
             children,
         )
+    }
+
+    fn parse_import_items(&mut self, children: &mut Vec<SyntaxNode>, grouped: bool) {
+        loop {
+            children.push(self.parse_object_import());
+            let comma_position = self.position;
+            let mut comma = self.eat(TokenKind::Comma);
+            let newline = grouped && self.at(TokenKind::Newline);
+            if newline {
+                self.skip_newlines();
+            }
+            let mut recovered_indent = false;
+            while grouped && self.at(TokenKind::Indent) {
+                self.error_here("S1026", "import items must use the same indentation");
+                self.bump();
+                self.recover_nested_block();
+                self.skip_newlines();
+                recovered_indent = true;
+            }
+            if !grouped && self.recover_inline_import_continuation() {
+                break;
+            }
+            if self.at_line_end() {
+                if comma && !recovered_indent {
+                    self.error_at(
+                        comma_position,
+                        "S1026",
+                        "an import list must not have a trailing comma",
+                    );
+                }
+                break;
+            }
+            if newline && self.at(TokenKind::Comma) {
+                self.error_here(
+                    "S1026",
+                    if comma {
+                        "unexpected extra comma before imported name"
+                    } else {
+                        "a separating comma must end the previous import line"
+                    },
+                );
+                self.bump();
+                comma = true;
+                if self.at_line_end() {
+                    self.skip_newlines();
+                    if self.at_line_end() {
+                        break;
+                    }
+                }
+            }
+            if !comma {
+                if !grouped {
+                    break;
+                }
+                self.error_here("S1026", "expected `,` between imported names");
+            }
+        }
+    }
+
+    fn recover_inline_import_continuation(&mut self) -> bool {
+        let mut next = self.position;
+        while self.tokens[next].kind == TokenKind::Newline {
+            next += 1;
+        }
+        if next == self.position || self.tokens[next].kind != TokenKind::Indent {
+            return false;
+        }
+        self.error_at(
+            next,
+            "S1026",
+            "an inline import list cannot continue on indented lines; end the header after `import` to group names",
+        );
+        self.position = next + 1;
+        self.recover_nested_block();
+        true
     }
 
     fn parse_namespace_path(&mut self) -> SyntaxNode {

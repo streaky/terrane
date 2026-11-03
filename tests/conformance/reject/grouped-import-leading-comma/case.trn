@@ -1,0 +1,3 @@
+from /core/types import
+	int8
+	, int16
