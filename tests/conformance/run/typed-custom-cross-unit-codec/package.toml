@@ -1,0 +1,5 @@
+package = "typed-custom-cross-unit-codec"
+[namespaces]
+app = "app"
+models = "models"
+derived = "derived"

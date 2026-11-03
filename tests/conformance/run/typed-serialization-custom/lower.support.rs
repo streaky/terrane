@@ -806,7 +806,9 @@ macro_rules! __terrane_document_encode_float {
         writer : & mut terrane_document_support::JsonWriter,) -> Result < (),
         terrane_document_support::DocumentError > { if ! self.is_finite() { return
         Err(terrane_document_support::DocumentError("non-finite floating-point value cannot be encoded as JSON"
-        .into(),)); } writer.decimal(& self.to_string()) } })+
+        .into(),)); } let text = if self.abs() >= 1.0e16 || (* self != 0.0 && self.abs()
+        < 1.0e-6) { format!("{self:e}") } else { self.to_string() }; writer.decimal(&
+        text) } })+
     };
 }
 __terrane_document_encode_float!(f32, f64);
@@ -1728,10 +1730,8 @@ pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
     );
     return make_document_result(raw);
 }
-pub fn stringify_yaml(value: DocumentValue) -> DocumentResult {
-    let options: YamlOptions;
+pub fn stringify_yaml(value: DocumentValue, options: YamlOptions) -> DocumentResult {
     let raw: terrane_document_support::DataResult;
-    options = default_yaml_options();
     raw = terrane_json_stringify(
         &value.raw,
         options.max_depth.clone(),
@@ -1751,6 +1751,6 @@ pub fn decode_yaml(
     }
     return deserialize_document(parsed.value.clone(), mapping);
 }
-pub fn encode_yaml(value: Serializable) -> DocumentResult {
-    return stringify_yaml(serialize_document(value));
+pub fn encode_yaml(value: Serializable, options: YamlOptions) -> DocumentResult {
+    return stringify_yaml(serialize_document(value), options);
 }

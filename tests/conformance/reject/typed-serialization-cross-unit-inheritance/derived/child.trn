@@ -1,0 +1,4 @@
+namespace derived
+from /models import base
+class child extends base
+    extra int = 2

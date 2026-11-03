@@ -22,6 +22,7 @@ impl<TerraneType54> TerraneDocumentDecode for Holder<TerraneType54> {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -64,6 +65,10 @@ impl<TerraneType54> TerraneDocumentDecode for Holder<TerraneType54> {
                     allow_unknown,
                     source,
                     "case.trn:5:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.count = decoded,
                     Err(mut field_diagnostics) => {
@@ -156,7 +161,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:9:15",
             "holder of string",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!("{}", terrane_scalar_support::scalar_text(&decoded.value.clone().count));

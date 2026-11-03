@@ -1318,3 +1318,29 @@ pub(super) fn display_path(path: &std::path::Path) -> String {
         .unwrap_or("<memory>")
         .to_owned()
 }
+
+/// Preserve source tuple arity through homogeneous native collection carriers.
+pub(super) fn rust_document_shape(value_type: &ValueType) -> String {
+    let nested = match value_type {
+        ValueType::Optional(inner) => Some(inner.as_ref()),
+        ValueType::List(item) | ValueType::Map(_, item) | ValueType::UnorderedMap(_, item) => {
+            Some(item.value_type_ref())
+        }
+        ValueType::Tuple(item, length) => {
+            let item = rust_document_shape(item.value_type_ref());
+            return format!(
+                "&TerraneDocumentShape {{ tuple_length: {length:?}, inner: Some({item}) }}"
+            );
+        }
+        _ => None,
+    };
+    nested.map_or_else(
+        || "&TerraneDocumentShape { tuple_length: None, inner: None }".to_owned(),
+        |inner| {
+            format!(
+                "&TerraneDocumentShape {{ tuple_length: None, inner: Some({}) }}",
+                rust_document_shape(inner),
+            )
+        },
+    )
+}

@@ -1541,10 +1541,8 @@ pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
     );
     return make_document_result(raw);
 }
-pub fn stringify_yaml(value: DocumentValue) -> DocumentResult {
-    let options: YamlOptions;
+pub fn stringify_yaml(value: DocumentValue, options: YamlOptions) -> DocumentResult {
     let raw: terrane_document_support::DataResult;
-    options = default_yaml_options();
     raw = terrane_json_stringify(
         &value.raw,
         options.max_depth.clone(),
@@ -1564,6 +1562,6 @@ pub fn decode_yaml(
     }
     return deserialize_document(parsed.value.clone(), mapping);
 }
-pub fn encode_yaml(value: Serializable) -> DocumentResult {
-    return stringify_yaml(serialize_document(value));
+pub fn encode_yaml(value: Serializable, options: YamlOptions) -> DocumentResult {
+    return stringify_yaml(serialize_document(value), options);
 }

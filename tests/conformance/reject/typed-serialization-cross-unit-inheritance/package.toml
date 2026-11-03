@@ -1,0 +1,5 @@
+package = "typed-serialization-cross-unit-inheritance"
+[namespaces]
+app = "app"
+models = "models"
+derived = "derived"

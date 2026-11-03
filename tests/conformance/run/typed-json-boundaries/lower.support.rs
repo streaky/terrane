@@ -762,6 +762,15 @@ impl std::fmt::Display for TerraneDocumentPath<'_> {
         }
     }
 }
+struct TerraneDocumentShape {
+    tuple_length: Option<usize>,
+    inner: Option<&'static TerraneDocumentShape>,
+}
+impl TerraneDocumentShape {
+    fn inner(&self) -> &Self {
+        self.inner.unwrap_or(self)
+    }
+}
 trait TerraneDocumentDecode: Sized {
     fn terrane_decode_document(
         input: &mut terrane_document_support::Document,
@@ -769,6 +778,7 @@ trait TerraneDocumentDecode: Sized {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>>;
 }
 fn __terrane_decode_document<T: Clone + TerraneDocumentDecode>(
@@ -780,33 +790,19 @@ fn __terrane_decode_document<T: Clone + TerraneDocumentDecode>(
     allow_unknown: bool,
     source: &str,
     expected: &str,
-    tuple_length: Option<usize>,
+    shape: &TerraneDocumentShape,
 ) -> TerraneDocumentDecodeOutcome<T> {
     let path = TerraneDocumentPath::Root("$");
     let decoded = match parsed {
         Ok(mut input) => {
-            if let Some(length) = tuple_length
-                && matches!(
-                    & input, terrane_document_support::Document::List(items) if items
-                    .len() != length
-                )
-            {
-                Err(
-                    vec![
-                        __terrane_document_diagnostic(&path, expected, "list",
-                        "tuple-length", format!("expected exactly {length} tuple items"),
-                        source, source)
-                    ],
-                )
-            } else {
-                T::terrane_decode_document(
-                    &mut input,
-                    &path,
-                    allow_unknown,
-                    source,
-                    source,
-                )
-            }
+            T::terrane_decode_document(
+                &mut input,
+                &path,
+                allow_unknown,
+                source,
+                source,
+                shape,
+            )
         }
         Err(error) => {
             Err(
@@ -882,6 +878,7 @@ impl TerraneDocumentDecode for String {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if let terrane_document_support::Document::String(value) = input {
             Ok(std::mem::take(value))
@@ -897,6 +894,7 @@ impl TerraneDocumentDecode for () {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if matches!(input, terrane_document_support::Document::None) {
             Ok(())
@@ -912,6 +910,7 @@ impl TerraneDocumentDecode for bool {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if let terrane_document_support::Document::Bool(value) = input {
             Ok(*value)
@@ -924,10 +923,11 @@ macro_rules! __terrane_document_float {
     ($type:ty) => {
         impl TerraneDocumentDecode for $type { fn terrane_decode_document(input : & mut
         terrane_document_support::Document, path : & TerraneDocumentPath <'_ >, _ : bool,
-        source : & str, field_source : & str,) -> Result < Self, Vec <
-        TerraneDocumentDiagnostic >> { use terrane_document_support::Document; let text =
-        match input { Document::Integer(text) | Document::Decimal(text) => text, _ => {
-        return __terrane_document_type_error(input, path, stringify!($type), source,
+        source : & str, field_source : & str, _shape : & TerraneDocumentShape,) -> Result
+        < Self, Vec < TerraneDocumentDiagnostic >> { use
+        terrane_document_support::Document; let text = match input {
+        Document::Integer(text) | Document::Decimal(text) => text, _ => { return
+        __terrane_document_type_error(input, path, stringify!($type), source,
         field_source,); } }; text.parse::<$type > ().ok().filter(| value | value
         .is_finite()).ok_or_else(|| { vec![__terrane_document_diagnostic(path,
         stringify!($type), __terrane_document_kind(input), "numeric-conversion",
@@ -971,6 +971,7 @@ impl TerraneDocumentDecode for terrane_int_support::Int {
         _: bool,
         source: &str,
         field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Integer(text) = input else {
             return __terrane_document_type_error(
@@ -1024,8 +1025,8 @@ macro_rules! __terrane_fixed_document_integer {
     ($($type:ty),+ $(,)?) => {
         $(impl TerraneDocumentDecode for $type { fn terrane_decode_document(input : & mut
         terrane_document_support::Document, path : & TerraneDocumentPath <'_ >, _ : bool,
-        source : & str, field_source : & str,) -> Result < Self, Vec <
-        TerraneDocumentDiagnostic >> { let
+        source : & str, field_source : & str, _shape : & TerraneDocumentShape,) -> Result
+        < Self, Vec < TerraneDocumentDiagnostic >> { let
         terrane_document_support::Document::Integer(text) = input else { return
         __terrane_document_type_error(input, path, stringify!($type), source,
         field_source); }; let decoded = text.parse::<$type > ().ok().or_else(|| { let
@@ -1045,11 +1046,19 @@ impl<T: TerraneDocumentDecode> TerraneDocumentDecode for Option<T> {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         if matches!(input, terrane_document_support::Document::None) {
             Ok(None)
         } else {
-            T::terrane_decode_document(input, path, allow_unknown, source, field_source)
+            T::terrane_decode_document(
+                    input,
+                    path,
+                    allow_unknown,
+                    source,
+                    field_source,
+                    shape.inner(),
+                )
                 .map(Some)
         }
     }
@@ -1062,6 +1071,7 @@ for terrane_collection_support::List<T> {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::List(items) = input else {
             return __terrane_document_type_error(
@@ -1082,6 +1092,7 @@ for terrane_collection_support::List<T> {
                 allow_unknown,
                 source,
                 field_source,
+                shape.inner(),
             ) {
                 Ok(value) => values.push(value),
                 Err(mut errors) => diagnostics.append(&mut errors),
@@ -1102,10 +1113,32 @@ for terrane_collection_support::Tuple<T> {
         allow_unknown: bool,
         source: &str,
         field_source: &str,
+        shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
+        if let Some(length) = shape.tuple_length
+            && matches!(
+                & input, terrane_document_support::Document::List(items) if items.len()
+                != length
+            )
+        {
+            return Err(
+                vec![
+                    __terrane_document_diagnostic(path, "tuple", "list", "tuple-length",
+                    format!("expected exactly {length} tuple items"), source,
+                    field_source,)
+                ],
+            );
+        }
         let values = terrane_collection_support::List::<
             T,
-        >::terrane_decode_document(input, path, allow_unknown, source, field_source)?;
+        >::terrane_decode_document(
+            input,
+            path,
+            allow_unknown,
+            source,
+            field_source,
+            shape,
+        )?;
         Ok(terrane_collection_support::Tuple::new(values.into_vec()))
     }
 }
@@ -1114,15 +1147,15 @@ macro_rules! __terrane_document_decode_map {
         impl < T : Clone + TerraneDocumentDecode > TerraneDocumentDecode for
         terrane_collection_support::$map < String, T > { fn terrane_decode_document(input
         : & mut terrane_document_support::Document, path : & TerraneDocumentPath <'_ >,
-        allow_unknown : bool, source : & str, field_source : & str,) -> Result < Self,
-        Vec < TerraneDocumentDiagnostic >> { let
+        allow_unknown : bool, source : & str, field_source : & str, shape : &
+        TerraneDocumentShape,) -> Result < Self, Vec < TerraneDocumentDiagnostic >> { let
         terrane_document_support::Document::Map(items) = input else { return
         __terrane_document_type_error(input, path, "map", source, field_source); }; let
         mut entries = Vec::with_capacity(items.len()); let mut diagnostics = Vec::new();
         for (key, mut item) in std::mem::take(items) { let item_path =
         __terrane_document_entry_path(path, & key, false); match
         T::terrane_decode_document(& mut item, & item_path, allow_unknown, source,
-        field_source,) { Ok(value) => entries
+        field_source, shape.inner(),) { Ok(value) => entries
         .push(terrane_collection_support::Entry::new(key, value)), Err(mut errors) =>
         diagnostics.append(& mut errors), } } if diagnostics.is_empty() {
         Ok(terrane_collection_support::$map ::new(entries)) } else { Err(diagnostics) } }

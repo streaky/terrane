@@ -22,6 +22,7 @@ impl TerraneDocumentDecode for Endpoint {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -64,6 +65,10 @@ impl TerraneDocumentDecode for Endpoint {
                     allow_unknown,
                     source,
                     "case.trn:9:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.host = decoded,
                     Err(mut field_diagnostics) => {
@@ -83,6 +88,10 @@ impl TerraneDocumentDecode for Endpoint {
                     allow_unknown,
                     source,
                     "case.trn:10:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.port = decoded,
                     Err(mut field_diagnostics) => {
@@ -153,6 +162,7 @@ impl TerraneDocumentDecode for ServiceConfig {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -203,6 +213,10 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:13:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.service_name = decoded,
                     Err(mut field_diagnostics) => {
@@ -222,6 +236,10 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:14:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.endpoint = decoded,
                     Err(mut field_diagnostics) => {
@@ -243,6 +261,15 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:15:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.note = decoded,
                     Err(mut field_diagnostics) => {
@@ -264,6 +291,15 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:16:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.ports = decoded,
                     Err(mut field_diagnostics) => {
@@ -286,6 +322,15 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:17:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.labels = decoded,
                     Err(mut field_diagnostics) => {
@@ -307,6 +352,15 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:18:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.coordinates = decoded,
                     Err(mut field_diagnostics) => {
@@ -326,6 +380,10 @@ impl TerraneDocumentDecode for ServiceConfig {
                     allow_unknown,
                     source,
                     "case.trn:19:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.ratio = decoded,
                     Err(mut field_diagnostics) => {
@@ -399,6 +457,7 @@ impl TerraneDocumentDecode for Waypoint {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -441,6 +500,10 @@ impl TerraneDocumentDecode for Waypoint {
                     allow_unknown,
                     source,
                     "case.trn:27:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.x = decoded,
                     Err(mut field_diagnostics) => {
@@ -460,6 +523,10 @@ impl TerraneDocumentDecode for Waypoint {
                     allow_unknown,
                     source,
                     "case.trn:28:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.y = decoded,
                     Err(mut field_diagnostics) => {
@@ -508,6 +575,7 @@ impl TerraneDocumentDecode for Route {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -550,6 +618,10 @@ impl TerraneDocumentDecode for Route {
                     allow_unknown,
                     source,
                     "case.trn:31:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.name = decoded,
                     Err(mut field_diagnostics) => {
@@ -571,6 +643,15 @@ impl TerraneDocumentDecode for Route {
                     allow_unknown,
                     source,
                     "case.trn:32:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.points = decoded,
                     Err(mut field_diagnostics) => {
@@ -590,6 +671,10 @@ impl TerraneDocumentDecode for Route {
                     allow_unknown,
                     source,
                     "case.trn:33:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.active = decoded,
                     Err(mut field_diagnostics) => {
@@ -640,7 +725,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:36:15",
             "service-config",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -681,7 +769,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:40:17",
             "service-config",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -739,7 +830,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:46:15",
             "service-config",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -771,7 +865,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:49:18",
             "service-config",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -797,7 +894,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:52:12",
             "service-config",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -823,7 +923,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:55:15",
             "route",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(

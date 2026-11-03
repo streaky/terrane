@@ -41,7 +41,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:8:14",
             "string",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -68,7 +71,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:10:15",
             "list of int",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(
@@ -109,7 +120,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:12:12",
             "map of string, int",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(
@@ -143,7 +162,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:14:12",
             "tuple of int",
-            Some(2),
+            &TerraneDocumentShape {
+                tuple_length: Some(2),
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(
@@ -182,7 +209,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:16:13",
             "tuple of int",
-            Some(2),
+            &TerraneDocumentShape {
+                tuple_length: Some(2),
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(
@@ -215,7 +250,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:19:14",
             "string|none",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(
@@ -242,7 +285,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:21:15",
             "string|none",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(
@@ -269,7 +320,15 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:23:15",
             "string|none",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: Some(
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
+                ),
+            },
         )
     };
     println!(

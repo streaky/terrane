@@ -443,3 +443,114 @@ fn typed_document_encode_source<'a>(
     }
     Ok(Some(source))
 }
+
+/// Derived codecs cannot slice a base class, including subclasses in another unit.
+pub(crate) fn polymorphic_document_type(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+    visiting: &mut BTreeSet<String>,
+    custom_encoding: bool,
+) -> bool {
+    match value_type {
+        ValueType::Optional(inner) => {
+            polymorphic_document_type(package, inner, visiting, custom_encoding)
+        }
+        ValueType::List(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::Map(_, item)
+        | ValueType::UnorderedMap(_, item) => {
+            polymorphic_document_type(package, item.value_type_ref(), visiting, custom_encoding)
+        }
+        ValueType::Object(identity) => {
+            let descriptors = || package.units.iter().flat_map(|unit| &unit.descriptors);
+            let object = descriptors().find(|object| object.identity == *identity);
+            if custom_encoding
+                && object.is_some_and(|object| {
+                    object.interfaces.iter().any(|interface| {
+                        interface.namespace == "/core/documents" && interface.name == "serializable"
+                    })
+                })
+            {
+                // Explicit encoding defines its own representation; do not apply
+                // derived field slicing policy to it or its unencoded fields.
+                return false;
+            }
+            if !visiting.insert(identity.to_string()) {
+                return false;
+            }
+            let result = descriptors().any(|candidate| {
+                candidate.base.as_ref().is_some_and(|base| {
+                    base.namespace == identity.namespace && base.name == identity.name
+                })
+            }) || object.is_some_and(|object| {
+                object
+                    .fields
+                    .iter()
+                    .filter(|field| !field.is_static)
+                    .any(|field| {
+                        polymorphic_document_type(
+                            package,
+                            &field.value_type,
+                            visiting,
+                            custom_encoding,
+                        )
+                    })
+            });
+            visiting.remove(&identity.to_string());
+            result
+        }
+        _ => false,
+    }
+}
+
+pub(super) fn validate_package_document_codecs(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && let Some(identity) = resolved_compiler_identity(unit, callee)
+        {
+            let (argument, custom_encoding) = match identity {
+                "/core/documents/json::encode-typed-json"
+                | "/core/documents/yaml::encode-typed-yaml" => (arguments.children.first(), true),
+                "/core/documents/json::decode-typed-json"
+                | "/core/documents/yaml::decode-typed-yaml" => (arguments.children.get(1), false),
+                _ => (None, false),
+            };
+            if let Some(argument) = argument {
+                let value = argument.children.last().unwrap_or(argument);
+                let value_type = class_designator_identity(unit, value)
+                    .map(ValueType::Object)
+                    .or(infer_value_type(unit, value, &unit.typed_bindings)?);
+                if value_type.as_ref().is_some_and(|value_type| {
+                    polymorphic_document_type(
+                        package,
+                        value_type,
+                        &mut BTreeSet::new(),
+                        custom_encoding,
+                    )
+                }) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0114",
+                        "derived document codecs exclude inheritance across all package units; use an explicit codec",
+                        value.span,
+                    ));
+                }
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child)?;
+        }
+        Ok(())
+    }
+    for unit in &package.units {
+        visit(package, unit, &unit.tree.root)?;
+    }
+    Ok(())
+}

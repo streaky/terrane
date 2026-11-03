@@ -1398,6 +1398,7 @@ fn analyze_parsed_with_projection(
     super::ownership::validate_reference_expression_sites(&semantic)?;
     analyze_types(&mut semantic)?;
     stage.finish();
+    super::documents::validate_package_document_codecs(&semantic)?;
     let references = crate::compilation_progress::start(
         "validating references and enum matches",
         package.root.display(),

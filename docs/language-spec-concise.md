@@ -1015,7 +1015,7 @@ numeric: exact mathematical dynamic values, not spelling/signed zero; exact/rang
 absence: initialized defaults retained when missing; explicit null clears optional; missing field without default diagnoses
 unknowns: rejected by default; explicit allow-unknown bool opts into ignoring
 json_bounds: stringify-json honors max-depth and max-bytes; canonical-json is separate
-yaml_bounds: parse depth/bytes/alias-nodes; stringify-yaml uses default bounded writer and emits JSON-compatible YAML
+yaml_bounds: parse depth/bytes/alias-nodes; stringify-yaml(value,options) and encode-yaml(value,options) honor explicit depth/byte budgets and emit JSON-compatible YAML
 native: from_document<T> borrowed direct Serde deserializer; to_document<T:Serialize> direct exact Serde tree serializer; JsonDocument(&Document) explicit JSON raw lexical adapter; Document has no generic Serialize
 native_value: explicit serde_json::Value conversions fail on exactness/range loss; json_value_to_document/serialize_json_value handle feature-private exact numbers; generic Serialize cannot distinguish private-number maps from ordinary maps
 parser: bounded lexical event stream; no arbitrary_precision/unbounded_depth feature contribution; coexistence with external arbitrary_precision supported, but not a universal feature-private native-value adapter

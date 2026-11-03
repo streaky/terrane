@@ -108,6 +108,74 @@ fn json_rejects_trailing_content_after_a_complete_value() {
 }
 
 #[test]
+fn json_budgets_beyond_sixteen_mib_and_strict_invalid_syntax() {
+    let input = format!("\"{}\"", "x".repeat(16 * 1024 * 1024 + 1));
+    let parsed = parse_json(&input, 8, input.len());
+    assert!(!parsed.failed, "{}", parsed.message);
+    assert_eq!(parsed.encoded, input);
+    let list = parse_json("[]", 8, 16);
+    let appended = terrane_document_support::document_list_append(&list, &parsed);
+    assert!(!appended.failed, "{}", appended.message);
+    assert_eq!(
+        appended
+            .encoded
+            .strip_prefix('[')
+            .and_then(|text| text.strip_suffix(']')),
+        Some(input.as_str()),
+    );
+    let document = parse_json_document(&input, 8, input.len()).unwrap();
+    let native = serde_json::to_string(&terrane_document_support::JsonDocument(&document)).unwrap();
+    assert_eq!(native, input);
+
+    assert!(!parse_json("\"\\ud800\\udc00\"", 8, 1024).failed);
+    for input in [
+        "\u{feff}1",
+        "\"\\ud800\"",
+        "\"\\udfff\"",
+        "\"\\ud800\\u0041\"",
+        "01",
+        "[01]",
+    ] {
+        let parsed = parse_json(input, 8, 1024);
+        assert!(parsed.failed, "{input}");
+    }
+}
+
+#[test]
+fn custom_document_writer_uses_utf16_order_and_depth_budget() {
+    use terrane_document_support::{Document, JsonWriter};
+    let value = Document::Map(std::collections::BTreeMap::from([
+        ("\u{e000}".into(), Document::None),
+        ("\u{10000}".into(), Document::None),
+    ]));
+    let mut writer = JsonWriter::new(1, 128).unwrap();
+    writer.document(&value).unwrap();
+    assert_eq!(writer.finish().unwrap(), "{\"𐀀\":null,\"\":null}");
+
+    let nested = Document::List(vec![Document::List(vec![Document::None])]);
+    let mut writer = JsonWriter::new(1, 128).unwrap();
+    assert!(writer.document(&nested).is_err());
+}
+
+#[test]
+fn native_float_encoding_is_compact_and_round_trips_extremes() {
+    for value in [1.0e300_f64, f64::from_bits(1)] {
+        let result = terrane_document_support::serialize_document(&value);
+        assert!(!result.failed, "{}", result.message);
+        assert!(result.encoded.len() < 32, "{}", result.encoded);
+        let decoded: f64 = serde_json::from_str(&result.encoded).unwrap();
+        assert_eq!(decoded, value);
+    }
+    for value in [1.0e30_f32, f32::from_bits(1)] {
+        let result = terrane_document_support::serialize_document(&value);
+        assert!(!result.failed, "{}", result.message);
+        assert!(result.encoded.len() < 32, "{}", result.encoded);
+        let decoded: f32 = serde_json::from_str(&result.encoded).unwrap();
+        assert_eq!(decoded, value);
+    }
+}
+
+#[test]
 fn canonical_numbers_are_valid_and_value_equivalent() {
     let first = parse_json("{\"😀\":1,\"a\":1.0e-1,\"€\":1e2,\"zero\":-0}", 32, 1024);
     let second = parse_json("{\"€\":100,\"😀\":1,\"a\":0.1,\"zero\":0}", 32, 1024);

@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-opaque-result-witness import First, Second, take_first
+function main;
+    second = instance Second; value = 7
+    print; (take_first; move second)

@@ -5,6 +5,8 @@ decimal1.23
 123-2
 {"a":1.2345678901234567890123456789e+29,"z":1.23}
 falsetrue
+true
+true
 falsefalse
 2firsttrue
 true

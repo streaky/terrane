@@ -184,10 +184,7 @@ impl Emitter<'_> {
                     "(*__terrane_document_fallback).clone()".to_owned(),
                 )
             };
-        let tuple_length = match destination {
-            ValueType::Tuple(_, Some(length)) => format!("Some({length})"),
-            _ => "None".to_owned(),
-        };
+        let shape = crate::lowering::helpers::rust_document_shape(&destination);
         let (options_setup, options) = self.operand_reference_parts(values[2], false);
         let allow_unknown = self.expression_as(values[3], ValueType::Scalar(ScalarType::Bool));
         let (line, column) = self.source.line_column(node.span.start);
@@ -199,7 +196,7 @@ impl Emitter<'_> {
             "terrane_document_support::parse_yaml_document(__terrane_document_source, terrane_limit(&__terrane_document_options.max_depth), terrane_limit(&__terrane_document_options.max_bytes), terrane_limit(&__terrane_document_options.max_alias_nodes))".to_owned()
         };
         format!(
-            "{{ {source_setup}let __terrane_document_source = {source}; {fallback_setup}{options_setup}let __terrane_document_options = {options}; let __terrane_document_allow_unknown = {allow_unknown}; __terrane_decode_document::<{destination_type}>({parse}, || {fallback}, __terrane_document_allow_unknown, {source_site:?}, {expected:?}, {tuple_length}) }}"
+            "{{ {source_setup}let __terrane_document_source = {source}; {fallback_setup}{options_setup}let __terrane_document_options = {options}; let __terrane_document_allow_unknown = {allow_unknown}; __terrane_decode_document::<{destination_type}>({parse}, || {fallback}, __terrane_document_allow_unknown, {source_site:?}, {expected:?}, {shape}) }}"
         )
     }
     fn typed_document_encode_call(&mut self, node: &SyntaxNode, arguments: &SyntaxNode) -> String {

@@ -36,7 +36,11 @@ function main;
     stringify-input = parse-json; '{"a":1,"z":1.23}', options
     stringified = stringify-json; stringify-input.value, options
     yaml-input = parse-json; '{"a":1,"z":1.23}', options
-    yaml-written = stringify-yaml; yaml-input.value
+    yaml-written = stringify-yaml; yaml-input.value, (make-yaml-options; 128, 16777216, 65536)
+    yaml-limited = stringify-yaml; yaml-input.value, (make-yaml-options; 128, 4, 65536)
+    print; yaml-limited.failed
+    yaml-encoded-limited = encode-yaml; (instance note; 'hello'), (make-yaml-options; 128, 4, 65536)
+    print; yaml-encoded-limited.failed
     print; stringified.failed, yaml-written.failed
     list-value = parse-json; '["first",{"nested":true}]', options
     list-document = list-value.value
@@ -75,7 +79,7 @@ function main;
     print; constructor-result.failed, constructor-result.value.encoded
 
     encoded-note = encode-json; (instance note; 'hello'), options
-    encoded-yaml-note = encode-yaml; (instance note; 'hello')
+    encoded-yaml-note = encode-yaml; (instance note; 'hello'), (make-yaml-options; 128, 16777216, 65536)
     print; encoded-note.value.encoded, encoded-yaml-note.value.encoded
     exact-integer = make-document-integer; '123456789012345678901234567890'
     exact-decimal = make-document-decimal; '1.2300'

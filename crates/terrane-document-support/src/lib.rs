@@ -42,7 +42,9 @@ pub struct DataResult {
 
 impl DataResult {
     fn success(value: Document) -> Self {
-        let encoded = match write_json_bounded(&value, MAXIMUM_JSON_DEPTH, 16_777_216) {
+        // `encoded` is retained for compatibility, but this internal snapshot must not impose
+        // a second, hidden byte budget on parse or incremental document construction.
+        let encoded = match write_json_bounded(&value, MAXIMUM_JSON_DEPTH, usize::MAX) {
             Ok(encoded) => encoded,
             Err(error) => return Self::failure(error.to_string(), "$", "bounded document output"),
         };
@@ -101,11 +103,25 @@ fn attach_json_value(
 
 fn parse_json_events(input: &str, max_depth: usize) -> Result<Document, String> {
     use json_event_parser::{JsonEvent, SliceJsonParser};
+    if input.starts_with('\u{feff}') {
+        return Err("JSON byte-order mark is not permitted".into());
+    }
     let mut parser = SliceJsonParser::new(input.as_bytes());
     let mut frames = Vec::new();
     let mut root = None;
     loop {
-        let event = parser.parse_next().map_err(|error| error.to_string())?;
+        let event = parser.parse_next().map_err(|error| {
+            // The upstream prose can misclassify malformed surrogates as EOF
+            // and leading-zero numbers as additional root values. Its structured
+            // location remains authoritative; do not maintain a second scanner.
+            let position = error.location().start;
+            format!(
+                "invalid JSON syntax at line {} column {} (byte {})",
+                position.line + 1,
+                position.column + 1,
+                position.offset,
+            )
+        })?;
         if frames.len() > max_depth
             && matches!(
                 event,
@@ -784,7 +800,10 @@ impl JsonWriter {
             }
             Document::Map(values) => {
                 self.begin_object()?;
-                for (key, value) in values {
+                let mut entries = values.iter().collect::<Vec<_>>();
+                entries
+                    .sort_by(|(left, _), (right, _)| left.encode_utf16().cmp(right.encode_utf16()));
+                for (key, value) in entries {
                     self.key(key)?;
                     self.document(value)?;
                 }

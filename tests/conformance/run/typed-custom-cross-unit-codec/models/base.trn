@@ -1,0 +1,10 @@
+namespace models
+from /core/documents import serializable, document-value, make-document-string
+from /core/documents/json import encode-typed-json, default-json-options
+class base implements serializable
+    value int = 1
+    function to-document document-value;
+        return make-document-string; 'custom'
+function encoded string;
+    result = encode-typed-json; (instance base;), (default-json-options;)
+    return result.value

@@ -65,7 +65,7 @@ impl de::Error for NativeJsonError {
 pub struct JsonDocument<'a>(pub &'a Document);
 impl Serialize for JsonDocument<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let text = write_json_bounded(self.0, MAXIMUM_JSON_DEPTH, 16_777_216)
+        let text = write_json_bounded(self.0, MAXIMUM_JSON_DEPTH, usize::MAX)
             .map_err(serde::ser::Error::custom)?;
         let raw =
             serde_json::value::RawValue::from_string(text).map_err(serde::ser::Error::custom)?;

@@ -50,6 +50,8 @@ fn main() {
     let stringified: DocumentResult;
     let yaml_input: DocumentResult;
     let yaml_written: DocumentResult;
+    let yaml_limited: DocumentResult;
+    let yaml_encoded_limited: DocumentResult;
     let list_value: DocumentResult;
     let list_document: DocumentValue;
     let first: DocumentResult;
@@ -134,7 +136,32 @@ fn main() {
     stringify_input = parse_json(String::from("{\"a\":1,\"z\":1.23}"), options.clone());
     stringified = stringify_json(stringify_input.value.clone(), options.clone());
     yaml_input = parse_json(String::from("{\"a\":1,\"z\":1.23}"), options.clone());
-    yaml_written = stringify_yaml(yaml_input.value.clone());
+    yaml_written = stringify_yaml(
+        yaml_input.value.clone(),
+        make_yaml_options(
+            terrane_int_support::Int::from(128_i128),
+            terrane_int_support::Int::from(16777216_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
+    );
+    yaml_limited = stringify_yaml(
+        yaml_input.value.clone(),
+        make_yaml_options(
+            terrane_int_support::Int::from(128_i128),
+            terrane_int_support::Int::from(4_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&yaml_limited.failed));
+    yaml_encoded_limited = encode_yaml(
+        <Serializable>::from(Note::terrane_construct(String::from("hello"))),
+        make_yaml_options(
+            terrane_int_support::Int::from(128_i128),
+            terrane_int_support::Int::from(4_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&yaml_encoded_limited.failed));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&stringified.failed),
         terrane_scalar_support::scalar_text(&yaml_written.failed)
@@ -238,6 +265,11 @@ fn main() {
     );
     encoded_yaml_note = encode_yaml(
         <Serializable>::from(Note::terrane_construct(String::from("hello"))),
+        make_yaml_options(
+            terrane_int_support::Int::from(128_i128),
+            terrane_int_support::Int::from(16777216_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&encoded_note.value.encoded),

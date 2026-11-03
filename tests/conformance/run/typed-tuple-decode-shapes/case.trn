@@ -1,0 +1,21 @@
+namespace app
+from /core/documents import document-decodable
+from /core/documents/json import decode-typed-json, default-json-options
+from /core/collections import list, map, entry, tuple
+class record implements document-decodable
+    pair tuple of int = tuple; 0, 0
+    rows list of (tuple of int) = list; (tuple; 0, 0)
+function main;
+    options = default-json-options;
+    correct = decode-typed-json; '{"pair":[3,4],"rows":[[5,6]]}', record, options, false
+    print; correct.failed, '|', correct.value.pair[1], '|', correct.value.rows[0][1]
+    wrong = decode-typed-json; '{"pair":[1],"rows":[[1,2,3]]}', record, options, false
+    # Explicit tuple-of types do not declare arity; defaults do not add it.
+    print; wrong.failed, '|', wrong.value.pair.length, '|', wrong.value.rows[0].length
+    nested = decode-typed-json; '[[1,2,3]]', (list; (tuple; 0, 0)), options, false
+    # Homogeneous list item types deliberately erase tuple arity.
+    print; nested.failed, '|', nested.value[0].length
+    keyed = decode-typed-json; '{"a":[1]}', (map; (entry; '', (tuple; 0, 0))), options, false
+    print; keyed.failed, '|', keyed.diagnostics[0].path, '|', keyed.diagnostics[0].reason
+    accepted = decode-typed-json; '[[4,6]]', (list; (tuple; 0, 0)), options, false
+    print; accepted.failed, '|', accepted.value[0][1]

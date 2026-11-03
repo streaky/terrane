@@ -22,6 +22,7 @@ impl TerraneDocumentDecode for Item {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -64,6 +65,10 @@ impl TerraneDocumentDecode for Item {
                     allow_unknown,
                     source,
                     "case.trn:9:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.display = decoded,
                     Err(mut field_diagnostics) => {
@@ -83,6 +88,10 @@ impl TerraneDocumentDecode for Item {
                     allow_unknown,
                     source,
                     "case.trn:10:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.amount = decoded,
                     Err(mut field_diagnostics) => {
@@ -179,6 +188,7 @@ impl TerraneDocumentDecode for Record {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -228,6 +238,10 @@ impl TerraneDocumentDecode for Record {
                     allow_unknown,
                     source,
                     "case.trn:13:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.name = decoded,
                     Err(mut field_diagnostics) => {
@@ -247,6 +261,10 @@ impl TerraneDocumentDecode for Record {
                     allow_unknown,
                     source,
                     "case.trn:14:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.item = decoded,
                     Err(mut field_diagnostics) => {
@@ -268,6 +286,15 @@ impl TerraneDocumentDecode for Record {
                     allow_unknown,
                     source,
                     "case.trn:15:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.numbers = decoded,
                     Err(mut field_diagnostics) => {
@@ -290,6 +317,15 @@ impl TerraneDocumentDecode for Record {
                     allow_unknown,
                     source,
                     "case.trn:16:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.names = decoded,
                     Err(mut field_diagnostics) => {
@@ -311,6 +347,15 @@ impl TerraneDocumentDecode for Record {
                     allow_unknown,
                     source,
                     "case.trn:17:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.pair = decoded,
                     Err(mut field_diagnostics) => {
@@ -332,6 +377,15 @@ impl TerraneDocumentDecode for Record {
                     allow_unknown,
                     source,
                     "case.trn:18:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.optional = decoded,
                     Err(mut field_diagnostics) => {
@@ -533,7 +587,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:38:15",
             "record",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -575,7 +632,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:40:17",
             "record",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -603,7 +663,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:42:16",
             "record",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -638,7 +701,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:44:15",
             "record",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -680,7 +746,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:48:17",
             "record",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -705,7 +774,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:50:14",
             "record",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(

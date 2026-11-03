@@ -87,7 +87,12 @@ macro_rules! __terrane_document_encode_float {
                         "non-finite floating-point value cannot be encoded as JSON".into(),
                     ));
                 }
-                writer.decimal(&self.to_string())
+                let text = if self.abs() >= 1.0e16 || (*self != 0.0 && self.abs() < 1.0e-6) {
+                    format!("{self:e}")
+                } else {
+                    self.to_string()
+                };
+                writer.decimal(&text)
             }
         }
     )+};

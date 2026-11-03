@@ -75,7 +75,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:10:15",
             "int",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!("{}", terrane_scalar_support::scalar_text(&decoded.value.clone()));

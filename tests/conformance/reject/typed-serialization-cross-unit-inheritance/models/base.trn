@@ -1,0 +1,8 @@
+namespace models
+from /core/documents import document-encodable
+from /core/documents/json import encode-typed-json, default-json-options
+class base implements document-encodable
+    value int = 1
+function encoded string;
+    result = encode-typed-json; (instance base;), (default-json-options;)
+    return result.value

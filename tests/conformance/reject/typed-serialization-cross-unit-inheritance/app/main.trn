@@ -1,0 +1,6 @@
+namespace app
+from /models import encoded
+from /derived import child
+function main;
+    item = instance child;
+    print; item.extra, (encoded;)

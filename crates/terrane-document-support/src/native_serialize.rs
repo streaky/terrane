@@ -91,13 +91,23 @@ impl<'a> ser::Serializer for Encoder<'a> {
         if !value.is_finite() {
             return Err(NativeJsonError("non-finite native floating value".into()));
         }
-        self.number(&value.to_string())
+        let text = if value.abs() >= 1.0e16 || (value != 0.0 && value.abs() < 1.0e-6) {
+            format!("{value:e}")
+        } else {
+            value.to_string()
+        };
+        self.number(&text)
     }
     fn serialize_f64(self, value: f64) -> Result<Document, Self::Error> {
         if !value.is_finite() {
             return Err(NativeJsonError("non-finite native floating value".into()));
         }
-        self.number(&value.to_string())
+        let text = if value.abs() >= 1.0e16 || (value != 0.0 && value.abs() < 1.0e-6) {
+            format!("{value:e}")
+        } else {
+            value.to_string()
+        };
+        self.number(&text)
     }
     fn serialize_char(self, value: char) -> Result<Document, Self::Error> {
         self.collect_str(&value)

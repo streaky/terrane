@@ -193,7 +193,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:32:18",
             "int",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -217,7 +220,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:34:16",
             "int",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -241,7 +247,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:36:15",
             "float32",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -265,7 +274,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:38:17",
             "float32",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(

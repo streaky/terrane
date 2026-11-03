@@ -124,6 +124,7 @@ impl<'a> Emitter<'a> {
         self.line("allow_unknown: bool,");
         self.line("source: &str,");
         self.line("_field_source: &str,");
+        self.line("_shape: &TerraneDocumentShape,");
         self.indent -= 1;
         self.line(") -> Result<Self, Vec<TerraneDocumentDiagnostic>> {");
         self.indent += 1;
@@ -182,33 +183,15 @@ impl<'a> Emitter<'a> {
             self.line("} else {");
             self.indent += 1;
             self.line("let field = field.expect(\"field presence checked\");");
-            if let ValueType::Tuple(_, Some(length)) = field.value_type {
-                self.line(&format!(
-                    "if matches!(field, terrane_document_support::Document::List(items) if items.len() != {length}) {{"
-                ));
-                self.indent += 1;
-                self.line(&format!(
-                    "diagnostics.push(__terrane_document_diagnostic(&field_path, {:?}, \"list\", \"tuple-length\", {:?}, source, {:?}));",
-                    field.value_type.to_string(),
-                    format!("expected exactly {length} tuple items"),
-                    field_source
-                ));
-                self.indent -= 1;
-                self.line("} else {");
-                self.indent += 1;
-            }
             self.line(&format!(
-                "match <{rust_type} as TerraneDocumentDecode>::terrane_decode_document(field, &field_path, allow_unknown, source, {field_source:?}) {{"
+                "match <{rust_type} as TerraneDocumentDecode>::terrane_decode_document(field, &field_path, allow_unknown, source, {field_source:?}, {}) {{",
+                crate::lowering::helpers::rust_document_shape(&field.value_type),
             ));
             self.indent += 1;
             self.line(&format!("Ok(decoded) => value.{rust_field} = decoded,"));
             self.line("Err(mut field_diagnostics) => diagnostics.append(&mut field_diagnostics),");
             self.indent -= 1;
             self.line("}");
-            if matches!(field.value_type, ValueType::Tuple(_, Some(_))) {
-                self.indent -= 1;
-                self.line("}");
-            }
             self.indent -= 1;
             self.line("}");
             self.indent -= 1;
@@ -978,6 +961,12 @@ impl<'a> Emitter<'a> {
                     })
                     && object.base.is_none()
                     && descendants.is_empty()
+                    && !crate::semantics::documents::polymorphic_document_type(
+                        self.package,
+                        &ValueType::Object(object.identity.clone()),
+                        &mut BTreeSet::new(),
+                        false,
+                    )
                     && !object.resource_owning
                     && !methods.iter().any(|method| method.name == "construct")
                     && instance_fields.iter().all(|field| {
@@ -1005,6 +994,12 @@ impl<'a> Emitter<'a> {
                     })
                     && object.base.is_none()
                     && descendants.is_empty()
+                    && !crate::semantics::documents::polymorphic_document_type(
+                        self.package,
+                        &ValueType::Object(object.identity.clone()),
+                        &mut BTreeSet::new(),
+                        true,
+                    )
                     && !object.resource_owning
                     && (object.interfaces.iter().any(|interface| {
                         interface.namespace == "/core/documents" && interface.name == "serializable"

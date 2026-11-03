@@ -64,6 +64,7 @@ impl TerraneDocumentDecode for Numbers {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -114,6 +115,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:16:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.signed = decoded,
                     Err(mut field_diagnostics) => {
@@ -133,6 +138,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:17:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.unsigned = decoded,
                     Err(mut field_diagnostics) => {
@@ -152,6 +161,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:18:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.adaptive = decoded,
                     Err(mut field_diagnostics) => {
@@ -171,6 +184,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:19:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.integral = decoded,
                     Err(mut field_diagnostics) => {
@@ -190,6 +207,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:20:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.real = decoded,
                     Err(mut field_diagnostics) => {
@@ -209,6 +230,10 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:21:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.narrow = decoded,
                     Err(mut field_diagnostics) => {
@@ -230,6 +255,15 @@ impl TerraneDocumentDecode for Numbers {
                     allow_unknown,
                     source,
                     "case.trn:22:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.optional = decoded,
                     Err(mut field_diagnostics) => {
@@ -270,6 +304,7 @@ impl TerraneDocumentDecode for Item {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -312,6 +347,10 @@ impl TerraneDocumentDecode for Item {
                     allow_unknown,
                     source,
                     "case.trn:25:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: None,
+                    },
                 ) {
                     Ok(decoded) => value.amount = decoded,
                     Err(mut field_diagnostics) => {
@@ -358,6 +397,7 @@ impl TerraneDocumentDecode for Envelope {
         allow_unknown: bool,
         source: &str,
         _field_source: &str,
+        _shape: &TerraneDocumentShape,
     ) -> Result<Self, Vec<TerraneDocumentDiagnostic>> {
         let terrane_document_support::Document::Map(input_map) = input else {
             return __terrane_document_type_error(
@@ -402,6 +442,15 @@ impl TerraneDocumentDecode for Envelope {
                     allow_unknown,
                     source,
                     "case.trn:28:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.children = decoded,
                     Err(mut field_diagnostics) => {
@@ -424,6 +473,15 @@ impl TerraneDocumentDecode for Envelope {
                     allow_unknown,
                     source,
                     "case.trn:29:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.keyed = decoded,
                     Err(mut field_diagnostics) => {
@@ -445,6 +503,15 @@ impl TerraneDocumentDecode for Envelope {
                     allow_unknown,
                     source,
                     "case.trn:30:5",
+                    &TerraneDocumentShape {
+                        tuple_length: None,
+                        inner: Some(
+                            &TerraneDocumentShape {
+                                tuple_length: None,
+                                inner: None,
+                            },
+                        ),
+                    },
                 ) {
                     Ok(decoded) => value.pair = decoded,
                     Err(mut field_diagnostics) => {
@@ -504,7 +571,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:34:12",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!("{}", terrane_scalar_support::scalar_text(&good.value.clone().signed));
@@ -539,7 +609,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:41:11",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -580,7 +653,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:45:14",
             "envelope",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     let __terrane_iterable_1 = nested.diagnostics.clone();
@@ -616,7 +692,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:48:17",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     trailing = {
@@ -635,7 +714,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:49:16",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     too_deep = {
@@ -657,7 +739,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:50:16",
             "envelope",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     too_large = {
@@ -679,7 +764,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:51:17",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -719,7 +807,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:55:16",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     unknown = {
@@ -738,7 +829,10 @@ fn main() {
             __terrane_document_allow_unknown,
             "case.trn:56:15",
             "numbers",
-            None,
+            &TerraneDocumentShape {
+                tuple_length: None,
+                inner: None,
+            },
         )
     };
     println!(
@@ -766,7 +860,10 @@ fn main() {
                         __terrane_document_allow_unknown,
                         "case.trn:59:19",
                         "numbers",
-                        None,
+                        &TerraneDocumentShape {
+                            tuple_length: None,
+                            inner: None,
+                        },
                     )
                 });
             println!(
