@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Mark
+from /core/errors import dependency-error
+function build Mark throws dependency-error; value string
+    return instance Mark; mark = value
+function main;
+    return

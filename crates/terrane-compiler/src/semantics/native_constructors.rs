@@ -139,7 +139,7 @@ fn set_native_constructor_effects(
         let actual = super::expressions::infer_value_type(unit, value, &unit.typed_bindings)
             .ok()
             .flatten();
-        native_conversion_errors(&field.ty, actual.as_ref(), &mut errors);
+        native_value_conversion_errors(unit, value, &field.ty, actual.as_ref(), &mut errors);
     }
     contract.throws = !errors.is_empty();
     contract.thrown_types = errors
@@ -150,6 +150,61 @@ fn set_native_constructor_effects(
         })
         .collect();
     contract.escaping_throwables = errors;
+}
+
+/// Refine conversion effects only with proofs about this exact source value.
+/// Container element types alone do not prove their runtime payloads fit.
+pub(super) fn native_value_conversion_errors(
+    unit: &super::model::SemanticUnit,
+    mut value: &crate::syntax::SyntaxNode,
+    ty: &crate::rust_interop::projection::ProjectedType,
+    actual: Option<&ValueType>,
+    errors: &mut BTreeSet<String>,
+) {
+    use crate::rust_interop::projection::ProjectedType;
+    use crate::syntax::SyntaxKind;
+    while value.kind == SyntaxKind::GroupExpression {
+        let [inner] = value.children.as_slice() else {
+            break;
+        };
+        value = inner;
+    }
+    if let ProjectedType::Optional(inner) = ty {
+        match actual {
+            Some(ValueType::Scalar(crate::ScalarType::None)) => return,
+            Some(ValueType::Optional(_)) => {}
+            _ => {
+                native_value_conversion_errors(unit, value, inner, actual, errors);
+                return;
+            }
+        }
+    }
+    let destination = match ty {
+        ProjectedType::Int => Some(crate::ScalarType::Int64),
+        ProjectedType::RustInt(name) => crate::ScalarType::ALL
+            .into_iter()
+            .find(|scalar| scalar.rust_type() == Some(name.as_str())),
+        _ => None,
+    };
+    if destination.is_some_and(|destination| {
+        matches!(
+            super::numeric::contextual_constant(&unit.source, value, destination),
+            Some(Ok(_))
+        )
+    }) {
+        return;
+    }
+    if *ty == ProjectedType::Char && value.kind == SyntaxKind::Literal {
+        let text = super::diagnostics::node_text(&unit.source, value);
+        if text.starts_with(['\'', '"']) {
+            let decoded = crate::lexer::unescape_string(&text[1..text.len() - 1]);
+            let mut scalars = decoded.chars();
+            if scalars.next().is_some() && scalars.next().is_none() {
+                return;
+            }
+        }
+    }
+    native_conversion_errors(ty, actual, errors);
 }
 
 pub(super) fn native_conversion_errors(

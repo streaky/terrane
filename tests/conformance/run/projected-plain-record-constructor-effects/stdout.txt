@@ -1,6 +1,10 @@
 65
 42
 0
+7
+65
+10
+937
 parameter-coercion-caught
 record-coercion-caught
 record-overflow-caught

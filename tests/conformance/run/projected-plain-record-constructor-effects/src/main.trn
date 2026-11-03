@@ -17,10 +17,22 @@ function missing-label string;
     throw coercion-error; 'source-label'
 function macro-value int; value int
     return native_int; value
+function literal-count Count throws dependency-error;
+    return instance Count; n = (6 + 1)
+function literal-mark Mark throws dependency-error;
+    return instance Mark; mark = ('A')
+function escaped-mark Mark throws dependency-error;
+    return instance Mark; mark = '\n'
+function literal-optional OptionalMark throws dependency-error;
+    return instance OptionalMark; mark = 'Ω'
 async function main;
     print; (mark_code; (make-mark; 'A'))
     print; (count_value; (make-count; 42))
     print; (mark_or_zero; (empty-mark;))
+    print; (count_value; (literal-count;))
+    print; (mark_code; (literal-mark;))
+    print; (mark_code; (escaped-mark;))
+    print; (mark_or_zero; (literal-optional;))
     try
         print; (char_code; 'ab')
     catch coercion-error

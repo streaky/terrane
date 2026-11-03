@@ -58,6 +58,19 @@ fn rows_config(
         )?
     });
 }
+fn literal_config() -> Marked {
+    return {
+        let __terrane_conversion_input_1 = String::from("Ω");
+        let __terrane_conversion_input_0 = String::from("literal");
+        __terrane_raised(
+            Marked::terrane_construct(
+                __terrane_conversion_input_0,
+                __terrane_conversion_input_1,
+            ),
+            4 /* terrane-site: src/main.trn:15:12-15:57 */,
+        )
+    };
+}
 fn main() {
     let empty: Descriptor;
     let invalid: terrane_collection_support::Tuple<u32>;
@@ -72,13 +85,13 @@ fn main() {
     empty = absent();
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(describe(&empty),
-        4 /* terrane-site: src/main.trn:16:13-16:28 */))
+        5 /* terrane-site: src/main.trn:18:13-18:28 */))
     );
     invalid = terrane_collection_support::Tuple::<u32>::new(vec![1]);
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
-                choose(invalid), 5 /* terrane-site: src/main.trn:19:9-19:24 */
+                choose(invalid), 6 /* terrane-site: src/main.trn:21:9-21:24 */
             );
             TerraneCompletion::Normal
         })();
@@ -114,7 +127,7 @@ fn main() {
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
-                mark_config(String::from("ab")), 6 /* terrane-site: src/main.trn:23:9-23:26 */
+                mark_config(String::from("ab")), 7 /* terrane-site: src/main.trn:25:9-25:26 */
             );
             TerraneCompletion::Normal
         })();
@@ -146,13 +159,10 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    marked = __terrane_traced(
-        mark_config(String::from("Ω")),
-        7 /* terrane-site: src/main.trn:26:14-26:30 */,
-    );
+    marked = literal_config();
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(mark_text(&marked),
-        8 /* terrane-site: src/main.trn:27:13-27:30 */))
+        8 /* terrane-site: src/main.trn:29:13-29:30 */))
     );
     invalid_rows = terrane_collection_support::List::<
         terrane_collection_support::Tuple<u32>,
@@ -160,7 +170,7 @@ fn main() {
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             __terrane_traced_completion!(
-                rows_config(invalid_rows), 9 /* terrane-site: src/main.trn:30:9-30:34 */
+                rows_config(invalid_rows), 9 /* terrane-site: src/main.trn:32:9-32:34 */
             );
             TerraneCompletion::Normal
         })();
@@ -198,11 +208,11 @@ fn main() {
     >::new(vec![terrane_collection_support::Tuple::< u32 >::new(vec![1, 1])]);
     good_rows = __terrane_traced(
         rows_config(valid_rows),
-        10 /* terrane-site: src/main.trn:34:17-34:40 */,
+        10 /* terrane-site: src/main.trn:36:17-36:40 */,
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(describe_rows(&good_rows),
-        11 /* terrane-site: src/main.trn:35:13-35:37 */))
+        11 /* terrane-site: src/main.trn:37:13-37:37 */))
     );
 }

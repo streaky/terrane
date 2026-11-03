@@ -137,20 +137,12 @@ pub(super) fn input_conversion_errors(
         let Ok(parameter) = macro_argument(package, unit, value, index, joint_native_graph) else {
             continue;
         };
-        if parameter.ty == ProjectedType::Int
-            && matches!(
-                super::numeric::contextual_constant(&unit.source, value, ScalarType::Int64),
-                Some(Ok(_))
-            )
-        {
-            // Reuse the canonical constant/range proof: a representable macro
-            // integer does not make an otherwise infallible graph callback throw.
-            continue;
-        }
         let actual = infer_value_type(unit, value, &unit.typed_bindings)
             .ok()
             .flatten();
-        super::native_constructors::native_conversion_errors(
+        super::native_constructors::native_value_conversion_errors(
+            unit,
+            value,
             &parameter.ty,
             actual.as_ref(),
             errors,

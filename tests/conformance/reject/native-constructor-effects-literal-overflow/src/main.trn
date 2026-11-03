@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-recursive-descriptor-witness import Count
+from /core/errors import dependency-error
+function build Count throws dependency-error; 
+    return instance Count; n = 9223372036854775807 * 4
+function main;
+    return

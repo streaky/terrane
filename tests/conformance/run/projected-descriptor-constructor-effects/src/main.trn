@@ -11,6 +11,8 @@ function mark-config Marked throws coercion-error; mark string
     return instance Marked; mark = mark, text = 'marked'
 function rows-config Rows throws dependency-error; values list of (tuple of uint32)
     return instance Rows; rows = values, text = 'rows'
+function literal-config Marked throws dependency-error;
+    return instance Marked; mark = 'Ω', text = 'literal'
 function main;
     empty = absent;
     print; (describe; empty)
@@ -23,7 +25,7 @@ function main;
         mark-config; 'ab'
     catch coercion-error
         print; 'coercion-caught'
-    marked = mark-config; 'Ω'
+    marked = literal-config;
     print; (mark_text; marked)
     invalid-rows list of (tuple of uint32) = list; (tuple; 1)
     try
