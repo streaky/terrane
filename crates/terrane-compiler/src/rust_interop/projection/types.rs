@@ -805,6 +805,28 @@ fn project_owned_trait_object(
     })
 }
 
+fn render_collection_path(
+    path: &RustdocPath,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+    items: &[&ProjectedType],
+) -> Result<String, String> {
+    render_resolved_path(path, index, paths, generics).map_err(|reason| {
+        // A dyn Fn nested in a carrier is not an unresolved generic interface.
+        // Classify the failed collection reconstruction without changing which
+        // successfully reconstructed collection shapes are admitted.
+        if items
+            .iter()
+            .any(|item| super::functions::contains_owned_callback(item))
+        {
+            "callback carriers inside native collections are not supported".to_owned()
+        } else {
+            reason
+        }
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "resolved Rust type classification keeps canonical paths and recursive shape checks together"
@@ -879,13 +901,12 @@ fn project_resolved_type(
         if item == ProjectedType::RustInt("u8".to_owned()) {
             return Ok(ProjectedType::Bytes);
         }
-        let rust_path = render_resolved_path(path, index, paths, generics)?;
+        let rust_path = render_collection_path(path, index, paths, generics, &[&item])?;
         return Ok(ProjectedType::Sequence {
             rust_path,
             item: Box::new(item),
         });
     }
-    let rust_path = render_resolved_path(path, index, paths, generics)?;
     if matches!(
         resolved.as_str(),
         "std::collections::HashMap"
@@ -897,15 +918,15 @@ fn project_resolved_type(
             return Err("map type does not have exactly two type arguments".to_owned());
         };
         let key = project_type_with_context(key, index, paths, generics, active)?;
+        let value = project_type_with_context(value, index, paths, generics, active)?;
+        let rust_path = render_collection_path(path, index, paths, generics, &[&key, &value])?;
         if !key.is_terrane_scalar() {
             return Err("map key is not a Terrane scalar".to_owned());
         }
         return Ok(ProjectedType::Mapping {
             rust_path,
             key: Box::new(key),
-            value: Box::new(project_type_with_context(
-                value, index, paths, generics, active,
-            )?),
+            value: Box::new(value),
             ordered: resolved.contains("BTree"),
         });
     }
@@ -920,6 +941,7 @@ fn project_resolved_type(
             .first()
             .ok_or_else(|| "set has no item type".to_owned())?;
         let item = project_type_with_context(item, index, paths, generics, active)?;
+        let rust_path = render_collection_path(path, index, paths, generics, &[&item])?;
         if !item.is_terrane_scalar() {
             return Err("set item is not a Terrane scalar".to_owned());
         }
@@ -929,6 +951,7 @@ fn project_resolved_type(
             ordered: resolved.contains("BTree"),
         });
     }
+    let rust_path = render_resolved_path(path, index, paths, generics)?;
     let short = resolved
         .rsplit("::")
         .next()

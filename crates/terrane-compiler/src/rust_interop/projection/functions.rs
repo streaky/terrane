@@ -140,7 +140,7 @@ fn is_boxed_dynamic_error(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> bool {
     })
 }
 
-pub(super) fn contains_owned_callback_output(ty: &ProjectedType) -> bool {
+pub(super) fn contains_owned_callback(ty: &ProjectedType) -> bool {
     match ty {
         ProjectedType::Callback {
             carrier: Some(_), ..
@@ -149,16 +149,14 @@ pub(super) fn contains_owned_callback_output(ty: &ProjectedType) -> bool {
         | ProjectedType::Set { item, .. }
         | ProjectedType::AsyncIterationStep(item)
         | ProjectedType::Optional(item)
-        | ProjectedType::Reference { inner: item, .. } => contains_owned_callback_output(item),
+        | ProjectedType::Reference { inner: item, .. } => contains_owned_callback(item),
         ProjectedType::Mapping { key, value, .. } => {
-            contains_owned_callback_output(key) || contains_owned_callback_output(value)
+            contains_owned_callback(key) || contains_owned_callback(value)
         }
-        ProjectedType::Tuple(items) => items.iter().any(contains_owned_callback_output),
-        ProjectedType::Foreign { arguments, .. } => {
-            arguments.iter().any(contains_owned_callback_output)
-        }
-        ProjectedType::InvocationScoped { owned, .. } => contains_owned_callback_output(owned),
-        ProjectedType::Callback { result, .. } => contains_owned_callback_output(result),
+        ProjectedType::Tuple(items) => items.iter().any(contains_owned_callback),
+        ProjectedType::Foreign { arguments, .. } => arguments.iter().any(contains_owned_callback),
+        ProjectedType::InvocationScoped { owned, .. } => contains_owned_callback(owned),
+        ProjectedType::Callback { result, .. } => contains_owned_callback(result),
         _ => false,
     }
 }
@@ -944,7 +942,7 @@ pub(super) fn project_function_inner(
             "owning trait-object carrier results cannot cross a projected boundary".to_owned(),
         );
     }
-    if contains_owned_callback_output(&result) {
+    if contains_owned_callback(&result) {
         return Err("owned callback results cannot cross a projected boundary".to_owned());
     }
     let mut generic_parameters = function

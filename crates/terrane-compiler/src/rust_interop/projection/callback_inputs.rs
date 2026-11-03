@@ -37,7 +37,7 @@ pub(super) fn normalize(callback: &mut ProjectedType) {
 pub(super) fn validate_native_inputs(parameters: &[ProjectedType]) -> Result<(), String> {
     if parameters
         .iter()
-        .any(super::functions::contains_owned_callback_output)
+        .any(super::functions::contains_owned_callback)
     {
         return Err("native callback inputs cannot contain owning callback carriers".to_owned());
     }
